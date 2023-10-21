@@ -1,5 +1,4 @@
 import base64
-import json
 import os
 
 import requests
@@ -134,7 +133,7 @@ sandbox:
   install:
     - trunk init
   check:
-    - trunk fmt {{file_path}}
+    - trunk fmt {{file_path}} || return 0
     - trunk check --fix --print-failures {{file_path}}
 """,
 )
@@ -228,7 +227,8 @@ OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
 OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
 MULTI_REGION_CONFIG = os.environ.get("MULTI_REGION_CONFIG", None)
 if isinstance(MULTI_REGION_CONFIG, str):
-    MULTI_REGION_CONFIG = [item.split(",") for item in MULTI_REGION_CONFIG.strip("'").split("\\n")]
+    MULTI_REGION_CONFIG = MULTI_REGION_CONFIG.strip("'").replace("\\n", "\n")
+    MULTI_REGION_CONFIG = [item.split(",") for item in MULTI_REGION_CONFIG.split("\n")]
 
 WHITELISTED_USERS = os.environ.get("WHITELISTED_USERS", None)
 if WHITELISTED_USERS:

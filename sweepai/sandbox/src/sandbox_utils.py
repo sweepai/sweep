@@ -80,7 +80,7 @@ files_to_install_scripts = {
 class Sandbox(BaseModel):
     install: list[str] = ["trunk init"]
     check: list[str] = [
-        "trunk fmt {file_path}",
+        "trunk fmt {file_path} || return 0",
         "trunk check --fix --print-failures {file_path}",
     ]
 
@@ -103,13 +103,23 @@ class Sandbox(BaseModel):
             is_default_sandbox = True
             if sandbox.install != ["trunk init"]:
                 is_default_sandbox = False
-            if sandbox.check != [
-                "trunk fmt {file_path}",
-                "trunk check --fix --print-failures {file_path}",
-            ] and sandbox.check != [
-                "trunk fmt {file_path}",
-                "trunk check --fix {file_path}",
-            ]:
+            if (
+                sandbox.check
+                != [
+                    "trunk fmt {file_path}",
+                    "trunk check --fix --print-failures {file_path}",
+                ]
+                and sandbox.check
+                != [
+                    "trunk fmt {file_path}",
+                    "trunk check --fix {file_path}",
+                ]
+                and sandbox.check
+                != [
+                    "trunk fmt {file_path} || return 0",
+                    "trunk check --fix {file_path}",
+                ]
+            ):
                 is_default_sandbox = False
             if not is_default_sandbox:
                 return sandbox
