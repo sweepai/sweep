@@ -233,8 +233,6 @@ def get_snippet_with_padding(original, index, search):
     return snippet, spaces, strip
 
 
-
-
 def radix_replace(original, search, replace) -> tuple[list[str], bool]:
     # based on start and end, find the lines that are the same
     # then, replace the lines in between

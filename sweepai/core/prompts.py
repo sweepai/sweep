@@ -119,7 +119,7 @@ Check each file_diff function by function and confirm whether it was both implem
 </diff_analysis>"""
 
 final_review_prompt = """\
-Given the diff_analysis write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nitpick on formatting. 
+Given the diff_analysis write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nitpick on formatting.
 If there is additional work to be done before this PR is ready, mention it. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:

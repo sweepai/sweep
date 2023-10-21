@@ -1,28 +1,27 @@
-from functools import lru_cache
 import os
 import re
+from functools import lru_cache
 
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from tqdm import tqdm
 
-from sweepai.logn import logger
+from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.vector_db import embed_texts
 from sweepai.core.webscrape import webscrape
+from sweepai.logn import logger
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
-from sweepai.config.server import (
-    ACTIVELOOP_TOKEN,
-    ORG_ID,
-)
 
 MODEL_DIR = "/tmp/cache/model"
 BATCH_SIZE = 128
 timeout = 60 * 60  # 30 minutes
 
+
 def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
+
 
 def chunk_string(s):
     # Chunker's terrible, can be improved later

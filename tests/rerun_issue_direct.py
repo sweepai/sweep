@@ -80,6 +80,7 @@ def send_request(issue_request):
 def test_issue_url(
     issue_url: str,
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
+    debug: bool = True,
 ):
     issue_url = issue_url or typer.prompt("Issue URL")
     print(f"Fetching issue metadata...")
@@ -91,7 +92,7 @@ def test_issue_url(
     )
     request_process.start()
 
-    request_process.join()
+    request_process.join(timeout=None if debug else 150)
 
     if request_process.is_alive():
         print("Terminating the process...")

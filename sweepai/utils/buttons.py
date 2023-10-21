@@ -34,8 +34,9 @@ def check_button_activated(
     button = create_button(label, selected=True)
     return button.lower() in body.lower()
 
+
 def check_button_title_match(
-        title: str, body: str, changes_request: Changes | None = None
+    title: str, body: str, changes_request: Changes | None = None
 ):
     if changes_request:
         content = changes_request.body_from or ""
@@ -43,33 +44,36 @@ def check_button_title_match(
             return True
     return False
 
+
 class Button:
     def __init__(self, label: str, selected: bool = False):
         self.label = label
         self.selected = selected
-    
+
     def __str__(self):
         return f"- [{'x' if self.selected else ' '}] {self.label}"
+
 
 class ButtonList:
     def __init__(self, title: str = "", buttons: List[Button] = None):
         self.title = title
         self.buttons = buttons or []
-        
+
     def serialize(self) -> str:
         return f"{self.title}\n" + "\n".join(str(button) for button in self.buttons)
-    
+
     @classmethod
     def deserialize(cls, message: str):
         lines = message.split("\n")
         title = lines[0]
         button_pattern = r"- \[(?P<state>[ x])\] (?P<label>.+)"
         matches = re.findall(button_pattern, message)
-        buttons = [Button(label, state=='x') for state, label in matches]
+        buttons = [Button(label, state == "x") for state, label in matches]
         return cls(title, buttons)
-    
+
     def get_clicked_buttons(self) -> List[Button]:
         return [button for button in self.buttons if button.selected]
+
 
 if __name__ == "__main__":
     # Example serialized string (str -> buttons)

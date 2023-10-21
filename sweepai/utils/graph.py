@@ -1,8 +1,8 @@
 # Modifying the script to graph only the paths of degree 4 originating from a file.
 
 import ast
-import os
 import codecs
+import os
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -55,7 +55,7 @@ def extract_entities(code: str):
     defined_classes = []
     defined_functions = []
     try:
-        code = codecs.decode(code.encode(), 'utf-8-sig')
+        code = codecs.decode(code.encode(), "utf-8-sig")
         tree = ast.parse(code)
         for node in ast.walk(tree):
             if isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):

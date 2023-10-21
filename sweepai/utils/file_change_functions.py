@@ -1,5 +1,5 @@
-from sweepai.logn import logger
 from sweepai.core.chat import Function
+from sweepai.logn import logger
 from sweepai.utils.diff import format_contents
 
 modify_file_function = Function(

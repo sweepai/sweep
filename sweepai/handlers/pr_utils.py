@@ -1,6 +1,5 @@
 import traceback
 
-from sweepai.logn import logger
 from sweepai.config.client import (
     RESET_FILE,
     REVERT_CHANGED_FILES_TITLE,
@@ -17,7 +16,8 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
-from sweepai.handlers.create_pr import create_pr_changes, GITHUB_LABEL_NAME
+from sweepai.handlers.create_pr import GITHUB_LABEL_NAME, create_pr_changes
+from sweepai.logn import logger
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -44,7 +44,10 @@ def make_pr(
     _, repo_name = repo_full_name.split("/")
     # heavily copied code from on_ticket
     cloned_repo = ClonedRepo(
-        repo_full_name, installation_id=installation_id, token=user_token, branch=branch_name
+        repo_full_name,
+        installation_id=installation_id,
+        token=user_token,
+        branch=branch_name,
     )
     logger.info("Fetching relevant files...")
     try:
@@ -130,7 +133,9 @@ def make_pr(
         is_reply=False,
         chat_logger=chat_logger,
         cloned_repo=cloned_repo,
-        sweep_context=SweepContext(issue_url="", use_faster_model=use_faster_model, token=user_token),
+        sweep_context=SweepContext(
+            issue_url="", use_faster_model=use_faster_model, token=user_token
+        ),
     )
 
     non_python_count = sum(
@@ -144,7 +149,9 @@ def make_pr(
         properties={"is_python_issue": is_python_issue},
     )
     file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
-    file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch_name)
+    file_change_requests = sweep_bot.validate_file_change_requests(
+        file_change_requests, branch_name
+    )
     pull_request = sweep_bot.generate_pull_request()
     generator = create_pr_changes(
         file_change_requests,
@@ -181,7 +188,7 @@ def make_pr(
         if DISCORD_FEEDBACK_WEBHOOK_URL is not None
         else ""
     )
-    rule_description = f"### I created this PR to address this rule: \n\"{rule}\"\n"
+    rule_description = f'### I created this PR to address this rule: \n"{rule}"\n'
     pr = repo.create_pull(
         title=pr_changes.title,
         body=pr_actions_message + rule_description + pr_changes.body,

@@ -1,5 +1,5 @@
 import re
-from sweepai.logn import logger
+
 from sweepai.config.client import get_description
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
@@ -8,6 +8,7 @@ from sweepai.core.prompts import (
     rules_prefix_prompt,
     system_message_prompt,
 )
+from sweepai.logn import logger
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 system_message_prompt = """\
@@ -26,7 +27,7 @@ Keep all files or directories that are referenced in the issue title or descript
 Reply in the following format:
 
 Analysis of current folder structure referencing the issue metadata:
-* Thought about files, directories, and relevance 1 
+* Thought about files, directories, and relevance 1
 * Thought about files, directories, and relevance 2
 ...
 
@@ -56,13 +57,11 @@ class ContextToPrune(RegexMatchableBaseModel):
     def from_string(cls, string: str, **kwargs):
         paths_to_keep = []
         directories_to_expand = []
-        paths_to_keep_pattern = r"""<paths_to_keep>(\n)?(?P<paths_to_keep>.*)</paths_to_keep>"""
-        paths_to_keep_match = re.search(
-            paths_to_keep_pattern, string, re.DOTALL
+        paths_to_keep_pattern = (
+            r"""<paths_to_keep>(\n)?(?P<paths_to_keep>.*)</paths_to_keep>"""
         )
-        for path in paths_to_keep_match.groupdict()[
-            "paths_to_keep"
-        ].split("\n"):
+        paths_to_keep_match = re.search(paths_to_keep_pattern, string, re.DOTALL)
+        for path in paths_to_keep_match.groupdict()["paths_to_keep"].split("\n"):
             path = path.strip()
             path = path.replace("* ", "")
             path = path.replace("...", "")
@@ -87,8 +86,11 @@ class ContextToPrune(RegexMatchableBaseModel):
             directories_to_expand=directories_to_expand,
         )
 
+
 class ContextPruning(ChatGPT):
-    def prune_context(self, human_message: HumanMessagePrompt, **kwargs) -> tuple[list[str], list[str]]:
+    def prune_context(
+        self, human_message: HumanMessagePrompt, **kwargs
+    ) -> tuple[list[str], list[str]]:
         try:
             content = system_message_prompt
             repo = kwargs.get("repo")
@@ -100,8 +102,8 @@ class ContextPruning(ChatGPT):
             if repo_rules:
                 content += f"{rules_prefix_prompt}:\n{repo_rules}"
             self.messages = [Message(role="system", content=content, key="system")]
-            added_messages = (
-                human_message.construct_prompt(snippet_tag="snippets_in_repo", directory_tag="paths_in_repo")
+            added_messages = human_message.construct_prompt(
+                snippet_tag="snippets_in_repo", directory_tag="paths_in_repo"
             )  # [ { role, content }, ... ]
             for msg in added_messages:
                 self.messages.append(Message(**msg))
@@ -112,7 +114,10 @@ class ContextPruning(ChatGPT):
             )
             response = self.chat(pruning_prompt)
             context_to_prune = ContextToPrune.from_string(response)
-            return context_to_prune.paths_to_keep, context_to_prune.directories_to_expand
+            return (
+                context_to_prune.paths_to_keep,
+                context_to_prune.directories_to_expand,
+            )
         except SystemExit:
             raise SystemExit
         except Exception as e:
