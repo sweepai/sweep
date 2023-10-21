@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import Mock, patch
+
 from sweepai.utils.github_utils import ClonedRepo
+
 
 class TestClonedRepo(unittest.TestCase):
     def setUp(self):
@@ -12,7 +14,7 @@ class TestClonedRepo(unittest.TestCase):
             repo_full_name=self.repo_full_name,
             installation_id=self.installation_id,
             branch=self.branch,
-            token=self.token
+            token=self.token,
         )
 
     @patch("os.path.exists")
