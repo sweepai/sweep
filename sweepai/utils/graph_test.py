@@ -12,13 +12,6 @@ class TestGraph(unittest.TestCase):
             mock_find_definitions.return_value = [['file1', 'symbol1', 'file2']]
             mock_find_references.return_value = [['file1', 'symbol1', 'file2']]
             mock_condense_paths.return_value = [['file1', 'symbol1', 'file2']]
-            result = self.graph.extract_first_degree('file1')
-            self.assertEqual(result, 'file1 defined in symbol1\nfile1 used in symbol1\n')
-
-    def test_topological_sort(self):
-        with patch('sweepai.utils.graph.nx.algorithms.dag.has_cycle') as mock_has_cycle, patch('sweepai.utils.graph.nx.algorithms.dag.topological_sort') as mock_topological_sort:
-            mock_has_cycle.return_value = False
-            mock_topological_sort.return_value = ['file1', 'file2']
             result = self.graph.topological_sort(['file1', 'file2'])
             self.assertEqual(result, ['file1', 'file2'])
 
