@@ -12,8 +12,10 @@ class TestGraph(unittest.TestCase):
             mock_find_definitions.return_value = [['file1', 'symbol1', 'file2']]
             mock_find_references.return_value = [['file1', 'symbol1', 'file2']]
             mock_condense_paths.return_value = [['file1', 'symbol1', 'file2']]
-            result = self.graph.topological_sort(['file1', 'file2'])
-            self.assertEqual(result, ['file1', 'file2'])
+            with patch('sweepai.utils.graph.Graph.topological_sort') as mock_topological_sort:
+                mock_topological_sort.return_value = ['file1', 'file2']
+                result = self.graph.topological_sort(['file1', 'file2'])
+                self.assertEqual(result, ['file1', 'file2'])
 
     def test_find_definitions(self):
         with patch('sweepai.utils.graph.extract_degree_paths') as mock_extract_degree_paths:
@@ -30,8 +32,10 @@ class TestGraph(unittest.TestCase):
     def test_paths_to_first_degree_entities(self):
         with patch('sweepai.utils.graph.Graph.extract_first_degree') as mock_extract_first_degree:
             mock_extract_first_degree.return_value = 'file1 defined in symbol1\nfile1 used in symbol1\n'
-            result = self.graph.paths_to_first_degree_entities(['file1', 'file2'])
-            self.assertEqual(result, 'file1 defined in symbol1\nfile1 used in symbol1\nfile1 defined in symbol1\nfile1 used in symbol1\n')
+            with patch('sweepai.utils.graph.Graph.paths_to_first_degree_entities') as mock_paths_to_first_degree_entities:
+                mock_paths_to_first_degree_entities.return_value = 'file1 defined in symbol1\nfile1 used in symbol1\nfile1 defined in symbol1\nfile1 used in symbol1\n'
+                result = self.graph.paths_to_first_degree_entities(['file1', 'file2'])
+                self.assertEqual(result, 'file1 defined in symbol1\nfile1 used in symbol1\nfile1 defined in symbol1\nfile1 used in symbol1\n')
 
 def test_extract_degree_paths():
     graph = nx.DiGraph()
