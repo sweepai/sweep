@@ -9,8 +9,8 @@ class TestGraph(unittest.TestCase):
 
     def test_extract_first_degree(self):
         with patch('sweepai.utils.graph.Graph.find_definitions') as mock_find_definitions, patch('sweepai.utils.graph.Graph.find_references') as mock_find_references, patch('sweepai.utils.graph.condense_paths') as mock_condense_paths:
-            mock_find_definitions.return_value = [['symbol1', 'file1', 'file2']]
-            mock_find_references.return_value = [['symbol1', 'file1', 'file2']]
+            mock_find_definitions.return_value = [['file1', 'symbol1', 'file2']]
+            mock_find_references.return_value = [['file1', 'symbol1', 'file2']]
             mock_condense_paths.return_value = [['file1', 'symbol1', 'file2']]
             result = self.graph.extract_first_degree('file1')
             self.assertEqual(result, 'file1 defined in symbol1\nfile1 used in symbol1\n')
@@ -36,7 +36,7 @@ class TestGraph(unittest.TestCase):
 
     def test_paths_to_first_degree_entities(self):
         with patch('sweepai.utils.graph.Graph.extract_first_degree') as mock_extract_first_degree:
-            mock_extract_first_degree.return_value = 'symbol1 defined in file1\nsymbol1 used in file1\n'
+            mock_extract_first_degree.return_value = 'file1 defined in symbol1\nfile1 used in symbol1\n'
             result = self.graph.paths_to_first_degree_entities(['file1', 'file2'])
             self.assertEqual(result, 'file1 defined in symbol1\nfile1 used in symbol1\nfile1 defined in symbol1\nfile1 used in symbol1\n')
 
