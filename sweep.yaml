@@ -26,8 +26,8 @@ sandbox:
     - poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
   check:
     - git add . && pre-commit run --files {file_path} || exit 0
-    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
-    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else exit 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi'
 
 rules:
   - "There should not be large chunks of code that are just commented out. Docstrings and explanations in code are acceptable."
