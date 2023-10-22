@@ -228,7 +228,6 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    chat_logger.reset_ticket_count()
     if not comment_id and not edited and chat_logger and not sandbox_mode:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model

@@ -194,16 +194,14 @@ class Graph(BaseModel):
         # Create a copy of the graph
         graph = self.references_graph.copy()
 
-        # Get the neighbors of the nodes in file_paths
-        neighbors = set()
+        # Get the neighbors of the nodes in file_paths and add them to the set of nodes to keep
+        nodes_to_keep = set(file_paths)
         for node in file_paths:
             if node in graph:
-                neighbors.update(graph.neighbors(node))
+                nodes_to_keep.update(graph.neighbors(node))
 
-        # Filter out the nodes that are not in file_paths or not neighbors
-        nodes_to_remove = [
-            node for node in graph if node not in file_paths and node not in neighbors
-        ]
+        # Remove nodes that are not in the set of nodes to keep
+        nodes_to_remove = [node for node in graph if node not in nodes_to_keep]
         graph.remove_nodes_from(nodes_to_remove)
         # print graph as dictionary
         if nx.algorithms.dag.has_cycle(
@@ -228,9 +226,11 @@ class Graph(BaseModel):
         return references_path
 
     def paths_to_first_degree_entities(self, file_paths: list[str]):
-        return "\n".join(
-            [self.extract_first_degree(file_path) for file_path in file_paths]
-        )
+        paths = [self.extract_first_degree(file_path) for file_path in file_paths]
+        # Remove the last element if it is an empty string to avoid an extra newline at the end
+        if paths and paths[-1] == "":
+            paths = paths[:-1]
+        return "\n".join(paths)
 
 
 if __name__ == "__main__":
