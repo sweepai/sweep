@@ -253,7 +253,8 @@ print('hello world')
 """
 
 bad_file_contents = """
-print('hello world'
+def test_func():
+    assert False
 """
 
-file_path = "src/test.js"
+file_path = "sweepai/test.py"
