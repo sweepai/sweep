@@ -133,7 +133,7 @@ class Sandbox(BaseModel):
             path
         ):
             sandbox.check.append(
-                "[[ $(echo \"{file_name}\" | grep 'test.*\.py$') ]] && PYTHONPATH=. python {file_path} || return 0"
+                "[[ $(echo \"{file_name}\" | grep 'test.*\.py$') ]] && PYTHONPATH=. python {file_path} || exit 0"
             )
             contents = ""
             if "requirements.txt" in os.listdir(path):
