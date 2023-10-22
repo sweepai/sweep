@@ -66,6 +66,11 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     )  # do this after checking ref
     if ref[len("refs/heads/") :] != SweepConfig.get_branch(repo):
         return
+    commit = repo.get_commit(after_sha)
+    check_suites = commit.get_check_suites()
+    for check_suite in check_suites:
+        if check_suite.conclusion == "failure":
+            return # if any check suite failed, return
     blocked_dirs = get_blocked_dirs(repo)
     comparison = repo.compare(before_sha, after_sha)
     commits_diff = comparison_to_diff(comparison, blocked_dirs)
