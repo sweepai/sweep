@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
+import networkx as nx
 from sweepai.utils.graph import Graph, extract_degree_paths, condense_paths, extract_entities, traverse_folder, draw_paths_on_graph, format_path
 
 class TestGraph(unittest.TestCase):
