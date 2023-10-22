@@ -142,6 +142,6 @@ class Sandbox(BaseModel):
                 contents = open(os.path.join(path, "pyproject.toml")).read()
             if "pytest" in contents:
                 sandbox.check.append(
-                    'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run pytest {file_path} || { ret=$?; [ $ret -eq 5 ] || exit $ret; }; else return 0; fi'
+                    'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run pytest {file_path} || { ret=$?; [ $ret -eq 5 ] || exit $ret; }; else exit 0; fi'
                 )
         return sandbox
