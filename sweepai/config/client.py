@@ -88,6 +88,7 @@ class SweepConfig(BaseModel):
         ".pub",
         ".pem",
         ".ttf",
+        "sweep.yaml",
     ]
     # Image formats
     max_file_limit: int = 60_000
