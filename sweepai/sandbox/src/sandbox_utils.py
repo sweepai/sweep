@@ -80,7 +80,7 @@ files_to_install_scripts = {
 class Sandbox(BaseModel):
     install: list[str] = ["trunk init"]
     check: list[str] = [
-        "trunk fmt {file_path} || return 0",
+        "trunk fmt {file_path} || exit 0",
         "trunk check --fix --print-failures {file_path}",
     ]
 
@@ -103,23 +103,7 @@ class Sandbox(BaseModel):
             is_default_sandbox = True
             if sandbox.install != ["trunk init"]:
                 is_default_sandbox = False
-            if (
-                sandbox.check
-                != [
-                    "trunk fmt {file_path}",
-                    "trunk check --fix --print-failures {file_path}",
-                ]
-                and sandbox.check
-                != [
-                    "trunk fmt {file_path}",
-                    "trunk check --fix {file_path}",
-                ]
-                and sandbox.check
-                != [
-                    "trunk fmt {file_path} || return 0",
-                    "trunk check --fix {file_path}",
-                ]
-            ):
+            if not all(command.startswith("trunk") for command in sandbox.check):
                 is_default_sandbox = False
             if not is_default_sandbox:
                 return sandbox
@@ -129,19 +113,23 @@ class Sandbox(BaseModel):
             if os.path.exists(os.path.join(path, filename)):
                 logger.info(f"Found {filename} in repo, installing {script}")
                 sandbox.install = [script] + sandbox.install
-        if "requirements.txt" in os.listdir(path) or "pyproject.toml" in os.listdir(
-            path
-        ):
+        ls = os.listdir(path)
+        if "requirements.txt" in ls:
             sandbox.check.append(
-                "[[ $(echo \"{file_name}\" | grep 'test.*\.py$') ]] && PYTHONPATH=. python {file_path} || return 0"
+                "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. python {file_path}; else exit 0; fi"
             )
-            contents = ""
-            if "requirements.txt" in os.listdir(path):
-                contents = open(os.path.join(path, "requirements.txt")).read()
-            elif "pyproject.toml" in os.listdir(path):
-                contents = open(os.path.join(path, "pyproject.toml")).read()
+            contents = open(os.path.join(path, "requirements.txt")).read()
             if "pytest" in contents:
                 sandbox.check.append(
-                    'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run pytest {file_path} || { ret=$?; [ $ret -eq 5 ] || exit $ret; }; else exit 0; fi'
+                    'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. pytest {file_path}; else exit 0; fi'
+                )
+        elif "pyproject.toml" in ls:
+            sandbox.check.append(
+                "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi"
+            )
+            contents = open(os.path.join(path, "pyproject.toml")).read()
+            if "pytest" in contents:
+                sandbox.check.append(
+                    'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. poetry run pytest {file_path}; else exit 0; fi'
                 )
         return sandbox
