@@ -158,7 +158,8 @@ human_message_prompt_comment = [
     },
     {
         "role": "user",
-        "content": """# Repo, Issue, & PR Metadata
+        "content": """# Repo & Pull Request Metadata
+This is the repository as well as the original intent of the Pull Request.
 Repo: {repo_name}: {repo_description}
 Pull Request Title: {title}
 Pull Request Description: {description}{relevant_docs}""",
