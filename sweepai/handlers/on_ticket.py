@@ -14,7 +14,7 @@ import requests
 import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
-from logtail import LogtailHandler
+from logtail import LogtailContext, LogtailHandler
 from loguru import logger
 from requests.exceptions import Timeout
 from tabulate import tabulate
@@ -124,7 +124,20 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+    context = LogtailContext()
+    context.context(
+        task={
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "edited": edited,
+            "issue_title": title,
+        }
+    )
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
     logger.add(handler)
 
     tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
@@ -215,7 +228,6 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    chat_logger.reset_ticket_count()
     if not comment_id and not edited and chat_logger and not sandbox_mode:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
@@ -255,6 +267,7 @@ def on_ticket(
         "tracking_id": tracking_id,
     }
 
+    context.context(metadata=metadata)
     logger.bind(**metadata)
     logger.info(f"Metadata: {metadata}")
 
@@ -1145,6 +1158,11 @@ def on_ticket(
                         ),
                         None,
                     )
+                    while (
+                        index + 1 < len(checkboxes_progress)
+                        and "sandbox" in checkboxes_progress[index + 1][0].lower()
+                    ):
+                        index += 1
                     checkboxes_progress.insert(
                         index + 1,
                         (
