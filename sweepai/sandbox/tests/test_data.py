@@ -253,7 +253,7 @@ print('hello world')
 """
 
 bad_file_contents = """
-def test_func():
+def test_func() -> None:
     assert False
 """
 
