@@ -6,10 +6,10 @@ from functools import lru_cache
 
 import yaml
 from github.Repository import Repository
+from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.entities import EmptyRepository
-from loguru import logger
 
 
 class SweepConfig(BaseModel):
