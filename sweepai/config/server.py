@@ -194,7 +194,8 @@ if SANDBOX_URL is None:
 if SANDBOX_URL is not None:
     logger.print(f"Using Sandbox URL: {SANDBOX_URL}")
 else:
-    logger.print("No Sandbox URL found.")
+    logger.error("No Sandbox URL found. Exiting...")
+    raise SystemExit
 
 MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
 
