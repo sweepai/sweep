@@ -176,8 +176,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
     @property
     def color(self):
         color_map = {
-            "failed": "red",
-            "succeeded": "green",
+            "failed": "red2",
+            "succeeded": "#0ee832",
             "queued": "white",
             "running": "yellow",
         }

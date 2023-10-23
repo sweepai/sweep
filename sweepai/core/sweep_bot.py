@@ -74,6 +74,7 @@ from sweepai.utils.diff import (
 from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
 from sweepai.utils.search_and_replace import Match, find_best_match, split_ellipses
+from sweepai.utils.ticket_utils import clean_logs
 from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -992,7 +993,12 @@ class SweepBot(CodeGenBot, GithubBot):
                 raise SystemExit
             except UnneededEditError as e:
                 if chunking:
-                    return contents, f"feat: Updated {file_change_request.filename}", None, changed_files
+                    return (
+                        contents,
+                        f"feat: Updated {file_change_request.filename}",
+                        None,
+                        changed_files,
+                    )
                 raise e
             except Exception as e:
                 raise e
@@ -1096,7 +1102,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 content=f'<code file_path="{file_path}">\n{file_contents}\n</code>\n\n'
                 + sandbox_error_prompt.format(
                     command=sandbox_response.executions[-1].command,
-                    error_logs=sandbox_response.executions[-1].output,
+                    error_logs=clean_logs(sandbox_response.executions[-1].output),
                 ),
                 role="user",
             )
