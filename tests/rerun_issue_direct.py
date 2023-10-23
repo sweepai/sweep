@@ -87,17 +87,24 @@ def test_issue_url(
     issue_request = fetch_issue_request(issue_url)
     print(f"Sending request...")
 
-    request_process = multiprocessing.Process(
-        target=send_request, args=(issue_request,)
-    )
-    request_process.start()
+    if debug:
+        client = TestClient(app)
+        response = client.post(
+            "/", json=issue_request.dict(), headers={"X-GitHub-Event": "issues"}
+        )
+        print(response)
+    else:
+        request_process = multiprocessing.Process(
+            target=send_request, args=(issue_request,)
+        )
+        request_process.start()
 
-    request_process.join(timeout=None if debug else 150)
+        request_process.join(timeout=150)
 
-    if request_process.is_alive():
-        print("Terminating the process...")
-        request_process.terminate()
-        request_process.join()  # Ensure process has terminated before proceeding
+        if request_process.is_alive():
+            print("Terminating the process...")
+            request_process.terminate()
+            request_process.join()  # Ensure process has terminated before proceeding
 
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")
