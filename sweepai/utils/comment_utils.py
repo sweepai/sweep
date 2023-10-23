@@ -8,6 +8,8 @@ def check_comments_presence(file_path: str, new_code: str) -> bool:
         ".py": "#",
         ".js": "//",
         ".ts": "//",
+        ".jsx": "//",
+        ".tsx": "//",
         ".java": "//",
         ".c": "/*",
         ".cpp": "//",
