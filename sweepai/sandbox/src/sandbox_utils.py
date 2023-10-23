@@ -70,7 +70,6 @@ files_to_install_scripts = {
     "requirements.txt": "pip install -r requirements.txt",
     "poetry.lock": "poetry install",
     "setup.py": "pip install -e .",
-    # "pyproject.toml": "poetry install",
     "yarn.lock": "yarn install",
     "pnpm-lock.yaml": "pnpm i",
     ".pre-commit-config.yaml": "pre-commit install",
@@ -103,7 +102,9 @@ class Sandbox(BaseModel):
             is_default_sandbox = True
             if sandbox.install != ["trunk init"]:
                 is_default_sandbox = False
-            if not all(command.startswith("trunk") for command in sandbox.check):
+            if not sandbox.check or not all(
+                command.startswith("trunk") for command in sandbox.check
+            ):
                 is_default_sandbox = False
             if not is_default_sandbox:
                 return sandbox
