@@ -70,7 +70,7 @@ files_to_install_scripts = {
     "requirements.txt": "pip install -r requirements.txt",
     "poetry.lock": "poetry install",
     "setup.py": "pip install -e .",
-    "pyproject.toml": "poetry install",
+    # "pyproject.toml": "poetry install",
     "yarn.lock": "yarn install",
     "pnpm-lock.yaml": "pnpm i",
     ".pre-commit-config.yaml": "pre-commit install",
