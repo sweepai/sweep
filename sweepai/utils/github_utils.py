@@ -102,8 +102,8 @@ class ClonedRepo:
 
     @cached_property
     def cache_dir(self):
-        random_bytes = os.urandom(16)
-        hash_obj = hashlib.sha256(random_bytes)
+        curr_time_str = str(time.time()).encode("utf-8")
+        hash_obj = hashlib.sha256(curr_time_str)
         hash_hex = hash_obj.hexdigest()
         if self.branch:
             return os.path.join(
