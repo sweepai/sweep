@@ -738,7 +738,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     content=content,
                     changed_files=changed_files,
                 )
-                logger.print(output)
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
                     content = output["updated_content"]
@@ -993,7 +992,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 raise SystemExit
             except UnneededEditError as e:
                 if chunking:
-                    return contents, "", None, changed_files
+                    return contents, f"feat: Updated {file_change_request.filename}", None, changed_files
                 raise e
             except Exception as e:
                 raise e
@@ -1009,11 +1008,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
                 raise e
         try:
-            commit_message_match = None
-            if commit_message_match:
-                commit_message = commit_message_match.group("commit_message")
-            else:
-                commit_message = f"feat: Updated {file_change_request.filename}"
+            commit_message = f"feat: Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
             changed_files.append(
                 (
@@ -1555,7 +1550,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     "No changes made to file.",
                     changed_files,
                 )
-
             try:
                 result = self.repo.update_file(
                     file_name,
