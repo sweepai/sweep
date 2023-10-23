@@ -108,18 +108,6 @@ class ChatLogger(BaseModel):
     def _cache_key(self, username, field, metadata=""):
         return f"{username}_{field}_{metadata}"
 
-    def reset_ticket_count(self):
-        if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
-            return
-
-        username = self.data["username"]
-        self.ticket_collection.update_one(
-            {"username": username},
-            {"$set": {self.current_month: 0, self.current_date: 0}},
-            upsert=True,
-        )
-
     def get_ticket_count(self, use_date=False, gpt3=False, purchased=False):
         username = self.data["username"]
         cache_key = self._cache_key(
