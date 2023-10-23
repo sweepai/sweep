@@ -123,13 +123,13 @@ class Sandbox(BaseModel):
                 sandbox.check.append(
                     'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. pytest {file_path}; else exit 0; fi'
                 )
-        elif "pyproject.toml" in ls:
-            sandbox.check.append(
-                "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi"
-            )
-            contents = open(os.path.join(path, "pyproject.toml")).read()
-            if "pytest" in contents:
-                sandbox.check.append(
-                    'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. poetry run pytest {file_path}; else exit 0; fi'
-                )
+        # elif "pyproject.toml" in ls:
+        #     sandbox.check.append(
+        #         "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi"
+        #     )
+        #     contents = open(os.path.join(path, "pyproject.toml")).read()
+        #     if "pytest" in contents:
+        #         sandbox.check.append(
+        #             'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. poetry run pytest {file_path}; else exit 0; fi'
+        #         )
         return sandbox
