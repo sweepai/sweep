@@ -9,7 +9,7 @@ Respond in the following format:
 
 <snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to. Otherwise, do not write an updated_snippet block for this snippet.
+Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to.
 Maximize information density.
 </snippets_and_plan_analysis>
 
@@ -41,7 +41,7 @@ Respond in the following format:
 
 <snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to. Otherwise, do not write an updated_snippet block for this snippet.
+Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to.
 Maximize information density.
 </snippets_and_plan_analysis>
 
@@ -88,7 +88,7 @@ Respond in the following format:
 
 <snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to. Otherwise, do not write an updated_snippet block for this snippet.
+Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to.
 Maximize information density.
 </snippets_and_plan_analysis>
 
@@ -134,7 +134,7 @@ Rewrite each of the {n} snippets above according to the request.
 Respond in the following format:
 
 <snippets_and_plan_analysis file="file_path">
-For each snippet in a list, determine whether changes should be made. If so, describe the changes needed. Otherwise, do not write an updated_snippet block for this snippet.
+For each snippet in a list, determine whether changes should be made. If so, describe the changes needed.
 </snippets_and_plan_analysis>
 
 <diffs>
