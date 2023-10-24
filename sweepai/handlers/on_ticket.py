@@ -3,7 +3,6 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
-import hashlib
 import math
 import re
 import traceback
@@ -113,6 +112,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
     edited: bool = False,
+    tracking_id: str | None = None,
 ):
     (
         title,
@@ -139,9 +139,6 @@ def on_ticket(
     )
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
     logger.add(handler)
-
-    tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
-    logger.bind(tracking_id=tracking_id)
 
     on_ticket_start_time = time()
     summary = summary or ""

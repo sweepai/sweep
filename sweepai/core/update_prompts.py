@@ -65,8 +65,6 @@ File path: {file_path}
 {snippets}
 </snippets_to_update>
 
-{analysis}
-
 # Instructions
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
@@ -107,8 +105,6 @@ File path: {file_path}
 <snippets_to_update>
 {snippets}
 </snippets_to_update>
-
-{analysis}
 
 # Instructions
 Rewrite each of the {n} snippets above according to the request.
