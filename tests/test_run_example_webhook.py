@@ -6,22 +6,23 @@ import requests
 host = "http://0.0.0.0:8080"
 
 
-def wait_for_server(host: str) -> None:
-    for i in range(120):
+def wait_for_server(host: str, max_attempts: int = 120) -> None:
+    for i in range(max_attempts):
         try:
             response = requests.get(host)
             if response.status_code == 200:
+                print(f"Server started after {i+1}s")
                 break
-        except:
-            print(
-                f"Waited for server to start ({i+1}s)"
-                + ("." * (i % 4) + " " * (4 - (i % 4))),
-                end="\r",
-            )
-            time.sleep(1)
-            continue
-    if i > 0:
-        print(f"Waited for server to start ({i+1}s)")
+        except requests.exceptions.ConnectionError:
+            if i < max_attempts - 1:  # Don't sleep on the last iteration
+                print(
+                    f"Server not up, retrying in 1s ({i+1}/{max_attempts})"
+                    + ("." * (i % 4) + " " * (4 - (i % 4))),
+                    end="\r",
+                )
+                time.sleep(1)
+            else:
+                raise Exception("Server did not start after maximum number of attempts")
 
 
 if __name__ == "__main__":
