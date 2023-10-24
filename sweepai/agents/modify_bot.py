@@ -516,24 +516,6 @@ class ModifyBot:
                 0
             ].content = update_snippets_system_prompt_python
 
-        analysis_response = self.plan_bot.chat(
-            plan_snippets_prompt.format(
-                code=update_snippets_code,
-                file_path=file_path,
-                snippets="\n\n".join(
-                    [
-                        f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
-                        for i, (reason, snippet) in enumerate(selected_snippets)
-                    ]
-                ),
-                request=file_change_request.instructions
-                + "\n"
-                + analysis_and_identification,
-                n=len(selected_snippets),
-                changes_made=self.get_diffs_message(file_contents),
-            )
-        )
-
         if file_change_request.failed_sandbox_test:
             update_prompt = update_snippets_prompt_test
         else:
@@ -548,7 +530,6 @@ class ModifyBot:
                         for i, (reason, snippet) in enumerate(selected_snippets)
                     ]
                 ),
-                analysis=analysis_response,
                 request=file_change_request.instructions
                 + "\n"
                 + analysis_and_identification,
