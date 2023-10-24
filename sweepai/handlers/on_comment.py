@@ -88,6 +88,7 @@ def on_comment(
     repo: Any = None,
     comment_type: str = "comment",
     type: str = "comment",
+    tracking_id: str = None,
 ):
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
@@ -149,7 +150,6 @@ def on_comment(
             else None
         )
     else:
-        logger.warning(f"No issue number found in PR body for summary {pr.body}")
         chat_logger = None
 
     if chat_logger:

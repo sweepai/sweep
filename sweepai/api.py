@@ -1,4 +1,5 @@
 # Do not save logs for main process
+import hashlib
 import json
 import time
 
@@ -51,6 +52,7 @@ from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
 from sweepai.events import (
+    CheckRunCompleted,
     CommentCreatedRequest,
     InstallationCreatedRequest,
     IssueCommentRequest,
@@ -81,25 +83,31 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
+get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+
 
 def run_on_ticket(*args, **kwargs):
-    loguru.logger.bind(
+    tracking_id = get_hash()
+    with loguru.logger.contextualize(
         metadata={
             **kwargs,
             "name": "ticket_" + kwargs["username"],
-        },
-    )
-    on_ticket(*args, **kwargs)
+            "tracking_id": tracking_id,
+        }
+    ):
+        on_ticket(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_comment(*args, **kwargs):
-    loguru.logger.bind(
+    tracking_id = get_hash()
+    with loguru.logger.contextualize(
         metadata={
             **kwargs,
             "name": "comment_" + kwargs["username"],
+            "tracking_id": tracking_id,
         },
-    )
-    on_comment(*args, **kwargs)
+    ):
+        on_comment(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_button_click(*args, **kwargs):
@@ -211,15 +219,12 @@ def call_on_comment(
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
     comment_type = kwargs["comment_type"]
-    priority = (
-        0 if comment_type == "comment" else 1
-    )  # set priority to 0 if comment, 1 if GHA
     logger.info(f"Received comment type: {comment_type}")
 
     if key not in events:
         events[key] = SafePriorityQueue()
 
-    events[key].put(priority, (args, kwargs))
+    events[key].put(0, (args, kwargs))
 
     # If a thread isn't running, start one
     if not any(
@@ -273,6 +278,18 @@ async def webhook(raw_request: Request):
         action = request_dict.get("action", None)
 
         match event, action:
+            case "check_run", "completed":
+                request = CheckRunCompleted(**request_dict)
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pull_requests = request.check_run.pull_requests
+                if pull_requests:
+                    pr = repo.get_pull(pull_requests[0].number)
+                    # check if the PR was created in the last 15 minutes and turn creation time to datetime
+                    if (time.time() - pr.created_at.timestamp()) > 900:
+                        return None
+                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
+                        call_on_check_suite(request=request)
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
 

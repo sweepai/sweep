@@ -3,6 +3,8 @@ This module is responsible for handling the check suite event, called from sweep
 """
 import io
 import os
+import re
+import time
 import zipfile
 
 import openai
@@ -10,7 +12,6 @@ import requests
 
 from sweepai.config.client import get_gha_enabled
 from sweepai.core.entities import PRChangeRequest
-from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
 from sweepai.logn import logger
 from sweepai.utils.github_utils import get_github_client, get_token
@@ -50,7 +51,6 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
 
     logs_str = ""
     if response.status_code == 200:
-        # this is the worst code I've ever written. I'm sorry.
         content = response.content
         zip_file = zipfile.ZipFile(io.BytesIO(content))
         for file in zip_file.namelist():
@@ -60,17 +60,27 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
                     last_line = logs.splitlines()[-1]
                     if "##[error]" in last_line:
                         logs_str += logs
-    else:
-        logger.info(response.text)
-        logger.warning(f"Failed to download logs for run id: {run_id}")
     return logs_str
 
 
 def clean_logs(logs_str: str):
     # Extraction process could be better
-    MAX_LINES = 300
+    MAX_LINES = 50
     log_list = logs_str.split("\n")
     truncated_logs = [log[log.find(" ") + 1 :] for log in log_list]
+    logs_str = "\n".join(truncated_logs)
+    # extract the group and delete everything between group and endgroup
+    gha_pattern = r'##\[group\](.*?)##\[endgroup\](.*?)(##\[error\].*)'
+    match = re.search(gha_pattern, logs_str, re.DOTALL)
+
+    # Extract the matched groups
+    if not match:
+        return ""
+    group_start = match.group(1).strip()
+    command_line = group_start.split("\n")[0]
+    log_content = match.group(2).strip()
+    error_line = match.group(3).strip()
+
     patterns = [
         # for docker
         "Already exists",
@@ -96,70 +106,61 @@ def clean_logs(logs_str: str):
         "npm WARN deprecated ",
         "prettier/prettier",
     ]
-    cleaned_lines = [
+    cleaned_logs = [
         log.strip()
-        for log in truncated_logs
+        for log in log_content.split("\n")
         if not any(log.strip().startswith(pattern) for pattern in patterns)
     ]
-    return "\n".join(cleaned_lines[: min(MAX_LINES, len(cleaned_lines))])
-
-
-def extract_logs_from_comment(comment: str) -> str:
-    if comment.count("```") < 2:
+    if len(cleaned_logs) > MAX_LINES:
         return ""
-    return comment[comment.find("```") + 3 : comment.rfind("```")]
+    cleaned_logs_str = "\n".join(cleaned_logs)
+    cleaned_response = f"""\
+The command:
+{command_line}
+yielded the following error:
+{error_line}
 
+Here are the logs:
+{cleaned_logs_str}"""
+    response_for_user = f"""\
+The command:
+`{command_line}`
+yielded the following error:
+`{error_line}`
+Here are the logs:
+```
+{cleaned_logs_str}
+```"""
+    return cleaned_response, response_for_user
 
 def on_check_suite(request: CheckRunCompleted):
-    logger.info(
-        f"Received check run completed event for {request.repository.full_name}"
-    )
+    pr_number = request.check_run.pull_requests[0].number
+    repo_name = request.repository.full_name
     _, g = get_github_client(request.installation.id)
-    repo = g.get_repo(request.repository.full_name)
+    repo = g.get_repo(repo_name)
     if not get_gha_enabled(repo):
-        logger.info(
-            f"Skipping github action for {request.repository.full_name} because it is"
-            " not enabled"
-        )
         return None
-    pr = repo.get_pull(request.check_run.pull_requests[0].number)
-    num_pr_commits = len(list(pr.get_commits()))
-    if num_pr_commits > 20:
-        logger.info(f"Skipping github action for PR with {num_pr_commits} commits")
+    pr = repo.get_pull(pr_number)
+    # check if the PR was created in the last 15 minutes
+    if (time.time() - pr.created_at.timestamp()) > 900:
         return None
-    logger.info(f"Running github action for PR with {num_pr_commits} commits")
+    issue_comments = pr.get_issue_comments()
+    for comment in issue_comments:
+        if "The command" in comment.body:
+            return None
     logs = download_logs(
         request.repository.full_name, request.check_run.run_id, request.installation.id
     )
     if not logs:
         return None
-    logs = clean_logs(logs)
-    extractor = GHAExtractor(chat_logger=None)
-    logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
-    problematic_logs = extractor.gha_extract(logs)
-    if problematic_logs.count("\n") > 20:
-        problematic_logs += (
-            "\n\nThere are a lot of errors. This is likely due to a parsing issue"
-            " or a missing import with the files changed in the PR."
-        )
-    comments = list(pr.get_issue_comments())
-    if all([comment.user.login.startswith("sweep") for comment in comments[-4:]]):
-        comment = pr.as_issue().create_comment(
-            log_message.format(error_logs=problematic_logs)
-            + "\n\nI'm getting the same errors 3 times in a row, so I will stop working"
-            " on fixing this PR."
-        )
-        logger.warning("Skipping logs because it is duplicated")
-        return None
-    comment = pr.as_issue().create_comment(
-        log_message.format(error_logs=problematic_logs)
-    )
+    logs, user_message = clean_logs(logs)
+    comment = pr.as_issue().create_comment(user_message)
     pr_change_request = PRChangeRequest(
         params={
             "type": "github_action",
             "repo_full_name": request.repository.full_name,
             "repo_description": request.repository.description,
-            "comment": problematic_logs,
+            "comment": logs,
             "pr_path": None,
             "pr_line_position": None,
             "username": request.sender.login,
