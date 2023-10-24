@@ -9,6 +9,7 @@ from sweepai.config.client import (
     get_blocked_dirs,
     get_rules,
 )
+from sweepai.config.server import MONGODB_URI
 from sweepai.core.post_merge import PostMerge
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.events import IssueCommentRequest
@@ -114,7 +115,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
     pr = repo.get_pull(request_dict["issue"]["number"])
     chat_logger = ChatLogger(
         {"username": request_dict["sender"]["login"]},
-    )
+    ) if MONGODB_URI else None
     blocked_dirs = get_blocked_dirs(repo)
     comparison = repo.compare(pr.base.sha, pr.head.sha)  # head is the most recent
     commits_diff = comparison_to_diff(comparison, blocked_dirs)
