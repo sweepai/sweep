@@ -6,7 +6,7 @@ import requests
 host = "http://0.0.0.0:8080"
 
 
-def wait_for_server(host: str):
+def wait_for_server(host: str) -> None:
     for i in range(120):
         try:
             response = requests.get(host)
@@ -26,9 +26,10 @@ def wait_for_server(host: str):
 
 if __name__ == "__main__":
     wait_for_server(host)
-    response = requests.post(
-        host,
-        json=json.load(open("tests/jsons/check_suite_webhook.json", "r")),
-        headers={"X-GitHub-Event": "check_run"},
-    )
+    with open("tests/jsons/check_suite_webhook.json", "r") as file:
+        response = requests.post(
+            host,
+            json=json.load(file),
+            headers={"X-GitHub-Event": "check_run"},
+        )
     print(response)
