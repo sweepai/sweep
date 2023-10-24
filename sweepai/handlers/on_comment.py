@@ -150,7 +150,6 @@ def on_comment(
             else None
         )
     else:
-        logger.warning(f"No issue number found in PR body for summary {pr.body}")
         chat_logger = None
 
     if chat_logger:
