@@ -184,7 +184,7 @@ def get_deeplake_vs_from_repo(
     index = prepare_index_from_snippets(
         snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
     )
-    logger.print("Prepared index from snippets")
+    logger.info("Prepared index from snippets")
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
