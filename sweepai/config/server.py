@@ -177,7 +177,7 @@ SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-SANDBOX_URL = os.environ.get("SANDBOX_URL")
+SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://0.0.0.0:8081")
 if SANDBOX_URL is None:
     try:
         requests.get("http://0.0.0.0:8081/health").text.strip()
@@ -194,7 +194,7 @@ if SANDBOX_URL is None:
 if SANDBOX_URL is not None:
     logger.print(f"Using Sandbox URL: {SANDBOX_URL}")
 else:
-    logger.error("No Sandbox URL found. Exiting...")
+    logger.debug("No Sandbox URL found. Exiting...")
     raise SystemExit
 
 MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
