@@ -13,7 +13,7 @@ app = FastAPI()
 
 def check_sandbox_health() -> str:
     try:
-        response = requests.get(SANDBOX_URL)
+        response = requests.get(SANDBOX_URL, timeout=2)
         response.raise_for_status()
         return "UP"
     except Exception as e:
