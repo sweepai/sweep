@@ -17,7 +17,7 @@ from sweepai.config.server import (
 from sweepai.logn import logger
 
 global_mongo_client = MongoClient(
-    MONGODB_URI, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000
+    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000
 )
 
 
