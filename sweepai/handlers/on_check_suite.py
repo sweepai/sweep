@@ -6,6 +6,7 @@ import os
 import re
 import time
 import zipfile
+from typing import List, Tuple, Union
 
 import openai
 import requests
@@ -25,11 +26,11 @@ log_message = """GitHub actions yielded the following error.
 Fix the code changed by the PR, don't modify the existing tests."""
 
 
-def get_dirs(zipfile: zipfile.ZipFile):
+def get_dirs(zipfile: zipfile.ZipFile) -> List[str]:
     return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
 
 
-def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
+def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str) -> List[str]:
     return [
         file
         for file in zipfile.namelist()
@@ -37,7 +38,7 @@ def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
     ]
 
 
-def download_logs(repo_full_name: str, run_id: int, installation_id: int):
+def download_logs(repo_full_name: str, run_id: int, installation_id: int) -> Union[str, None]:
     token = get_token(installation_id)
     headers = {
         "Accept": "application/vnd.github+json",
@@ -63,7 +64,7 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     return logs_str
 
 
-def clean_logs(logs_str: str):
+def clean_logs(logs_str: str) -> Union[Tuple[str, str], None]:
     # Extraction process could be better
     MAX_LINES = 50
     log_list = logs_str.split("\n")
@@ -133,7 +134,7 @@ Here are the logs:
 ```"""
     return cleaned_response, response_for_user
 
-def on_check_suite(request: CheckRunCompleted):
+def on_check_suite(request: CheckRunCompleted) -> Union[dict, None]:
     pr_number = request.check_run.pull_requests[0].number
     repo_name = request.repository.full_name
     _, g = get_github_client(request.installation.id)
