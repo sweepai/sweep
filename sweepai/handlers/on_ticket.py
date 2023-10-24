@@ -1173,7 +1173,7 @@ def on_ticket(
                     )
                 else:
                     if changed_file:
-                        logger.print("Changed File!")
+                        logger.info("Changed File!")
                         entity_display = file_change_request.entity_display
                         suffix = (
                             f"✅ Commit {commit_url_display}"
@@ -1195,7 +1195,7 @@ def on_ticket(
                                 )
                             )
                     else:
-                        logger.print("Didn't change file!")
+                        logger.info("Didn't change file!")
                         entity_display = file_change_request.entity_display
                         header = f"`{entity_display}` ⚠️ No Changes Made"
                         was_added = update_progress(
@@ -1533,7 +1533,7 @@ def on_ticket(
             except Exception as e:
                 logger.error(e)
                 logger.error(traceback.format_exc())
-                logger.print("Deleted branch", pull_request.branch_name)
+                logger.info("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
             username,
