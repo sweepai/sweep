@@ -1,6 +1,6 @@
-import baserun
 import random
 
+import baserun
 import openai
 from loguru import logger
 
@@ -17,6 +17,9 @@ from sweepai.config.server import (
     OPENAI_API_VERSION,
 )
 from sweepai.logn import file_cache
+
+if BASERUN_API_KEY is not None:
+    baserun.init()
 
 
 class OpenAIProxy:
