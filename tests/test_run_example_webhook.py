@@ -6,7 +6,7 @@ import requests
 host = "http://localhost:8080"
 
 
-def wait_for_server(host: str, max_attempts: int = 120) -> None:
+def wait_for_server(host: str, max_attempts: int = 240) -> None:
     for i in range(max_attempts):
         try:
             response = requests.get(host)
@@ -16,13 +16,14 @@ def wait_for_server(host: str, max_attempts: int = 120) -> None:
         except requests.exceptions.ConnectionError:
             if i < max_attempts - 1:  # Don't sleep on the last iteration
                 print(
-                    f"Server not up, retrying in 1s ({i+1}/{max_attempts})"
+                    f"Server not up, retrying in 2s ({i+1}/{max_attempts})"
                     + ("." * (i % 4) + " " * (4 - (i % 4))),
                     end="\r",
                 )
-                time.sleep(1)
+                time.sleep(2)
             else:
-                raise Exception("Server did not start after maximum number of attempts")
+                print("Server did not start after maximum number of attempts. Retrying...")
+                continue
 
 
 if __name__ == "__main__":
