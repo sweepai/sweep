@@ -279,8 +279,10 @@ def get_rules(repo: Repository):
         return []
 
 
-# optional, can leave env var blank
-GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
+GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID")
+if GITHUB_APP_CLIENT_ID is None:
+    logger.error("GITHUB_APP_CLIENT_ID environment variable not set. Exiting...")
+    raise SystemExit
 
 UPDATES_MESSAGE = """\
 ### 🎉 Latest improvements to Sweep:
