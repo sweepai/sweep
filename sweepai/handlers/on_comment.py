@@ -88,6 +88,7 @@ def on_comment(
     repo: Any = None,
     comment_type: str = "comment",
     type: str = "comment",
+    tracking_id: str = None,
 ):
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
