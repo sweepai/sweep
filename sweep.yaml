@@ -30,9 +30,7 @@ sandbox:
     - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi'
 
 rules:
-  - "There should not be large chunks of code that are just commented out. Docstrings and explanations in code are acceptable."
   - "We should use loguru for error logging. If the log is inside an exception, use loguru.exception to add tracebacks. Use f-strings for string formatting in logger calls."
-  - "There should be no instances of `import pdb; pdb.set_trace()` in production code."
   - "There should be no debug log or print statements in production code."
   - "All functions should have parameters and output annotated with type hints. Use list, tuple and dict instead of typing.List, typing.Tuple and typing.dict."
   - "Leftover TODOs in the code should be handled."
