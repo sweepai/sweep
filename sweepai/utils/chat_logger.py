@@ -109,6 +109,9 @@ class ChatLogger(BaseModel):
         return f"{username}_{field}_{metadata}"
 
     def get_ticket_count(self, use_date=False, gpt3=False, purchased=False):
+        if self.ticket_collection is None:
+            logger.error("Ticket Collection Does Not Exist")
+            return
         username = self.data["username"]
         cache_key = self._cache_key(
             username, "ticket_count", f"{use_date}_{gpt3}_{purchased}"
