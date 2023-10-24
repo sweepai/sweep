@@ -117,8 +117,8 @@ Respond in the following format:
 
 <snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet, describe in a list the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density.
+Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
+Maximize information density and conciseness but be detailed.
 </snippets_and_plan_analysis>
 """
 
@@ -138,18 +138,14 @@ File path: {file_path}
 </snippets_to_update>
 
 # Instructions
-Rewrite each of the {n} snippets above according to the request.
-* Do not delete whitespace or comments.
-* Write minimal diff hunks to make changes to the snippets. Only write diffs for the lines that should be changed.
-* Write multiple smalle changes instead of a single large change.
-* To add code before and after the snippet, be sure to copy the original snippet.
+Describe all changes that should be made.
 
 Respond in the following format:
 
 <snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet, describe in a list the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density.
+Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
+Maximize information density and conciseness but be detailed.
 </snippets_and_plan_analysis>
 """
 
@@ -193,10 +189,6 @@ class ModifyBot:
             fetch_snippets_system_prompt, chat_logger=chat_logger, **kwargs
         )
         self.fetch_snippets_bot.messages.extend(additional_messages)
-        self.plan_bot: ChatGPT = ChatGPT.from_system_message_string(
-            plan_snippets_system_prompt, chat_logger=chat_logger, **kwargs
-        )
-        self.plan_bot.messages.extend(additional_messages)
         self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             update_snippets_system_prompt, chat_logger=chat_logger, **kwargs
         )
