@@ -68,7 +68,7 @@ We offer unlimited GPT3.5 tickets to every user. Every user also starts with 5 G
 
 For hobbyists who want more tickets, check out [Sweep Plus](https://buy.stripe.com/7sI5np26l1H24QU7sA) now at $120/month for 30 tickets.
 
-For professionals who want even more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month for unlimited tickets.
+For professionals who want even more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/00g5npeT71H2gzCfZ8) now at $480/month for unlimited tickets.
 
 ---
 
