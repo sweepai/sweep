@@ -1,13 +1,13 @@
 import copy
 import re
 import uuid
+from dataclasses import dataclass
 
 from loguru import logger
 
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
-from sweepai.agents.validate_code import ChangeValidation, ChangeValidator
 from sweepai.config.server import DEBUG
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, UnneededEditError
@@ -21,7 +21,7 @@ from sweepai.core.update_prompts import (
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
 from sweepai.utils.function_call_utils import find_function_calls
-from sweepai.utils.search_and_replace import Match, find_best_match, split_ellipses
+from sweepai.utils.search_and_replace import find_best_match, split_ellipses
 
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
 
@@ -154,6 +154,19 @@ Maximize information density.
 """
 
 
+@dataclass
+class SnippetToModify:
+    code: str
+    reason: str
+
+
+@dataclass
+class MatchToModify:
+    start: int
+    end: int
+    reason: str
+
+
 def strip_backticks(s: str) -> str:
     s = s.strip()
     if s.startswith("```"):
@@ -238,7 +251,7 @@ class ModifyBot:
             chunking=chunking,
         )
 
-        new_file, leftover_comments, change_validation = self.update_file(
+        new_file, leftover_comments = self.update_file(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -271,40 +284,10 @@ class ModifyBot:
                 self.update_snippets_bot.messages = self.update_snippets_bot.messages[
                     :-2
                 ]
-                new_file, leftover_comments, change_validation = self.update_file(
+                new_file, leftover_comments = self.update_file(
                     file_path=file_path,
                     file_contents=new_file,
                     file_change_request=new_file_change_request,
-                    snippet_queries=snippet_queries,
-                    extraction_terms=extraction_terms,
-                    chunking=chunking,
-                    analysis_and_identification=analysis_and_identification,
-                )
-            if change_validation.additional_changes_required:
-                file_change_request.new_content = new_file
-                file_change_request.instructions = change_validation.additional_changes
-                self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
-                self.prune_modify_snippets_bot.messages = (
-                    self.prune_modify_snippets_bot.messages[:-2]
-                )
-                # TODO: delete messages in the bots themselves
-                (
-                    snippet_queries,
-                    extraction_terms,
-                    analysis_and_identification,
-                ) = self.get_snippets_to_modify(
-                    file_path=file_path,
-                    file_contents=file_contents,
-                    file_change_request=file_change_request,
-                    chunking=chunking,
-                )
-                self.update_snippets_bot.messages = self.update_snippets_bot.messages[
-                    :-2
-                ]
-                new_file, leftover_comments, change_validation = self.update_file(
-                    file_path=file_path,
-                    file_contents=file_contents,
-                    file_change_request=file_change_request,
                     snippet_queries=snippet_queries,
                     extraction_terms=extraction_terms,
                     chunking=chunking,
@@ -356,13 +339,15 @@ class ModifyBot:
                 if term:
                     extraction_terms.append(term)
         snippet_queries = []
-        snippets_query_pattern = (
-            r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
-        )
-        for code in re.findall(
+        snippets_query_pattern = r"<snippet_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</snippet_to_modify>"
+        for match_ in re.finditer(
             snippets_query_pattern, fetch_snippets_response, re.DOTALL
         ):
-            snippet_queries.append(strip_backticks(code))
+            code = match_.group("code").strip()
+            reason = match_.group("reason").strip()
+            snippet_queries.append(
+                SnippetToModify(reason=reason or "", code=strip_backticks(code))
+            )
 
         if len(snippet_queries) == 0:
             raise UnneededEditError("No snippets found in file")
@@ -373,7 +358,7 @@ class ModifyBot:
         file_path: str,
         file_contents: str,
         file_change_request: FileChangeRequest,
-        snippet_queries: list[str],
+        snippet_queries: list[SnippetToModify],
         extraction_terms: list[str],
         chunking: bool = False,
         analysis_and_identification: str = "",
@@ -381,16 +366,28 @@ class ModifyBot:
         is_python_file = file_path.strip().endswith(".py")
 
         best_matches = []
-        for query in snippet_queries:
-            if query.count("...") > 2:
-                for section in split_ellipses(query):
+        for snippet_to_modify in snippet_queries:
+            if snippet_to_modify.code.count("...") > 2:
+                for section in split_ellipses(snippet_to_modify.code):
                     match_ = find_best_match(section, file_contents)
                     if match_.score > 50:
-                        best_matches.append(match_)
+                        best_matches.append(
+                            MatchToModify(
+                                start=match_.start,
+                                end=match_.end,
+                                reason=snippet_to_modify.reason,
+                            )
+                        )
             else:
-                match_ = find_best_match(query, file_contents)
+                match_ = find_best_match(snippet_to_modify.code, file_contents)
                 if match_.score > 50:
-                    best_matches.append(match_)
+                    best_matches.append(
+                        MatchToModify(
+                            start=match_.start,
+                            end=match_.end,
+                            reason=snippet_to_modify.reason,
+                        )
+                    )
 
         code_tree = CodeTree.from_code(file_contents) if is_python_file else None
         for i, line in enumerate(file_contents.split("\n")):
@@ -405,10 +402,10 @@ class ModifyBot:
                         logger.error(e)
                         start_line, end_line = i, i
                     best_matches.append(
-                        Match(
+                        MatchToModify(
                             start=start_line,
                             end=end_line + 1,
-                            score=100,
+                            reason=f"Mentioned {keyword}",
                         )
                     )
 
@@ -417,19 +414,19 @@ class ModifyBot:
             keyword = keyword.rstrip("()")
             for start, end in find_function_calls(keyword, file_contents):
                 best_matches.append(
-                    Match(
+                    MatchToModify(
                         start=start,
                         end=end + 1,
-                        score=100,
+                        reason=f"Used {keyword} as a function call",
                     )
                 )
         # get first 10 lines for imports
         IMPORT_LINES = 10
         best_matches.append(
-            Match(
+            MatchToModify(
                 start=0,
                 end=min(IMPORT_LINES, len(file_contents.split("\n"))),
-                score=100,
+                reason="Handle imports",
             )
         )
 
@@ -440,15 +437,24 @@ class ModifyBot:
 
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
-        def fuse_matches(a: Match, b: Match) -> Match:
-            return Match(
-                start=min(a.start, b.start),
-                end=max(a.end, b.end),
-                score=min(a.score, b.score),
+        def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
+            reason = (
+                f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
+            )
+            if b.reason == "Handle imports":
+                reason = a.reason
+            elif a.reason == "Handle imports":
+                reason = b.reason
+            elif b.reason.startswith("Mentioned"):
+                reason = a.reason
+            elif a.reason.startswith("Mentioned"):
+                reason = b.reason
+            return MatchToModify(
+                start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
             )
 
         current_match = best_matches[0]
-        deduped_matches: list[Match] = []
+        deduped_matches: list[MatchToModify] = []
 
         # Fuse & dedup
         FUSE_OFFSET = 5
@@ -468,19 +474,17 @@ class ModifyBot:
                 start_line = code_tree.get_lines_surrounding(match_.start)[0]
                 end_line = code_tree.get_lines_surrounding(match_.end)[1]
                 new_deduped_matches.append(
-                    Match(
-                        start=start_line,
-                        end=end_line + 1,
-                        score=match_.score,
+                    MatchToModify(
+                        start=start_line, end=end_line + 1, reason=match_.reason
                     )
                 )
             deduped_matches = new_deduped_matches
 
-        selected_snippets = []
+        selected_snippets: list[tuple[str, str]] = []
         file_contents_lines = file_contents.split("\n")
         for match_ in deduped_matches:
             current_contents = "\n".join(file_contents_lines[match_.start : match_.end])
-            selected_snippets.append(current_contents)
+            selected_snippets.append((match_.reason, current_contents))
 
         update_snippets_code = file_contents
         if file_change_request.entity:
@@ -492,8 +496,8 @@ class ModifyBot:
             indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(
                 snippets="\n\n".join(
                     [
-                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                        for i, snippet in enumerate(selected_snippets)
+                        f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
+                        for i, (reason, snippet) in enumerate(selected_snippets)
                     ]
                 ),
                 file_path=file_path,
@@ -526,8 +530,8 @@ class ModifyBot:
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
-                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                        for i, snippet in enumerate(selected_snippets)
+                        f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
+                        for i, (reason, snippet) in enumerate(selected_snippets)
                     ]
                 ),
                 request=file_change_request.instructions
@@ -548,8 +552,8 @@ class ModifyBot:
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
-                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                        for i, snippet in enumerate(selected_snippets)
+                        f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
+                        for i, (reason, snippet) in enumerate(selected_snippets)
                     ]
                 ),
                 analysis=analysis_response,
@@ -574,7 +578,7 @@ class ModifyBot:
             original_code = match_.group("original_code").strip("\n")
             updated_code = match_.group("updated_code").strip("\n")
 
-            current_contents = selected_snippets[index]
+            _reason, current_contents = selected_snippets[index]
             if index not in updated_snippets:
                 updated_snippets[index] = current_contents
             else:
@@ -587,29 +591,19 @@ class ModifyBot:
                 )[0]
             )
 
-        change_validator = ChangeValidator.create(
-            file_contents,
-            file_change_request,
-            selected_snippets,
-            updated_snippets,
-            chat_logger=self.chat_logger,
-            additional_messages=self.additional_messages,
-        )
-        change_validation = ChangeValidation(
-            analysis="",
-            additional_changes="",
-            additional_changes_required_raw="no",
-            diffs_to_revert_raw="",
-        )
-        result = change_validator.apply_validated_changes(change_validation)
-
+        result = file_contents
         new_code = []
-        for idx, search in enumerate(selected_snippets):
+        for idx, (_reason, search) in enumerate(selected_snippets):
             if idx not in updated_snippets:
                 continue
-            if selected_snippets.index(search) not in change_validator.updated_snippets:
-                continue
-            replace = change_validator.updated_snippets[selected_snippets.index(search)]
+            replace = updated_snippets[idx]
+            result = "\n".join(
+                sliding_window_replacement(
+                    original=result.splitlines(),
+                    search=search.splitlines(),
+                    replace=replace.splitlines(),
+                )[0]
+            )
             new_code.append(replace)
 
         ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
@@ -628,7 +622,7 @@ class ModifyBot:
             else []
         )
 
-        return result, leftover_comments, change_validation
+        return result, leftover_comments
 
 
 if __name__ == "__main__":
