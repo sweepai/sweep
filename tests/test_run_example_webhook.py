@@ -3,7 +3,7 @@ import time
 
 import requests
 
-host = "http://0.0.0.0:8080"
+host = "http://localhost:8080"
 
 
 def wait_for_server(host: str, max_attempts: int = 120) -> None:
