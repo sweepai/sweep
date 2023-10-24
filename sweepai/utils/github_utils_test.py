@@ -62,4 +62,4 @@ class TestClonedRepo(unittest.TestCase):
         mock_repo.iter_commits.return_value = ["commit1", "commit2"]
         self.cloned_repo.git_repo = mock_repo
         commit_history = self.cloned_repo.get_commit_history()
-        self.assertEqual(len(commit_history), 2)
+        self.assertEqual(len(commit_history), 2
