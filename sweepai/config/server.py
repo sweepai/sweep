@@ -94,7 +94,7 @@ GITHUB_DEFAULT_CONFIG = os.environ.get(
 
 # This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 rules:
-- "All docstrings and comments should be up to date."
+  - "All docstrings and comments should be up to date."
 {additional_rules}
 
 # This is the branch that Sweep will develop from and make pull requests to. Most people use 'main' or 'master' but some users also use 'dev' or 'staging'.
@@ -129,7 +129,7 @@ sandbox:
   install:
     - trunk init
   check:
-    - trunk fmt {{file_path}}
+    - trunk fmt {{file_path}} || return 0
     - trunk check --fix --print-failures {{file_path}}
 """,
 )
@@ -142,7 +142,6 @@ OPENAI_USE_3_5_MODEL_ONLY = (
     os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
 )
 
-# goes under Modal 'anthropic' secret name (optional, can leave env var blank)
 
 # goes under Modal 'mongodb' secret name
 MONGODB_URI = os.environ.get("MONGODB_URI")
@@ -177,13 +176,13 @@ ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
 SANDBOX_URL = os.environ.get("SANDBOX_URL")
 if SANDBOX_URL is None:
     try:
-        requests.get("https://0.0.0.0:8081/health").text.strip()
-        SANDBOX_URL = "https://0.0.0.0:8081"
+        requests.get("http://0.0.0.0:8081/health").text.strip()
+        SANDBOX_URL = "http://0.0.0.0:8081"
     except:
         pass
     try:
-        requests.get("https://sandbox-web:8080/health").text.strip()
-        SANDBOX_URL = "https://sandbox-web:8080"
+        requests.get("http://sandbox-web:8080/health").text.strip()
+        SANDBOX_URL = "http://sandbox-web:8080"
     except:
         pass
 
@@ -193,11 +192,13 @@ if SANDBOX_URL is not None:
 else:
     logger.print("No Sandbox URL found.")
 
-HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
+MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
 
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
 )  # Alternate option is openai or huggingface and set the corresponding env vars
+
+BASERUN_API_KEY = os.environ.get("BASERUN_API_KEY", None)
 
 # Huggingface settings, only checked if VECTOR_EMBEDDING_SOURCE == "huggingface"
 HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
@@ -220,6 +221,10 @@ OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
 OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
 OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
+MULTI_REGION_CONFIG = os.environ.get("MULTI_REGION_CONFIG", None)
+if isinstance(MULTI_REGION_CONFIG, str):
+    MULTI_REGION_CONFIG = MULTI_REGION_CONFIG.strip("'").replace("\\n", "\n")
+    MULTI_REGION_CONFIG = [item.split(",") for item in MULTI_REGION_CONFIG.split("\n")]
 
 WHITELISTED_USERS = os.environ.get("WHITELISTED_USERS", None)
 if WHITELISTED_USERS:

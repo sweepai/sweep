@@ -1,8 +1,8 @@
 import difflib
 import re
 
-from sweepai.logn import logger
 from sweepai.core.entities import SweepContext
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.search_and_replace import Match, find_best_match
 
@@ -178,7 +178,6 @@ INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 def match_string(original, search, start_index=None, exact_match=False) -> Match:
     pass
 
-    
     best_match = find_best_match("\n".join(search), "\n".join(original))
     # else:
     #     best_match = Match(index, index + line_matches, score=100)
@@ -210,8 +209,6 @@ def get_snippet_with_padding(original, best_match, search):
             spaces = ""
         strip = False
     else:  # Do diff between snippet and search
-        
-
         # Check multiple lines for their whitespace
         min_whitespace = min([len(s) - len(s.lstrip()) for s in search])
         # Rewrite min as for loop
@@ -229,8 +226,6 @@ def get_snippet_with_padding(original, best_match, search):
         strip = True
 
     return snippet, spaces, strip
-
-
 
 
 def sliding_window_replacement(
@@ -259,7 +254,6 @@ def sliding_window_replacement(
         # Replace the line
         modified = [snippet[0].replace(search[0], replace[0])]
     elif strip:
-        
         first_line_spaces = min([len(s) - len(s.lstrip()) for s in search])
         modified = [
             spaces
@@ -387,7 +381,6 @@ def is_markdown(filename):
     )
 
 
-
 if __name__ == "__main__":
     old_file = """
 a
@@ -398,7 +391,13 @@ c
     search = "b"
     replace = """a
 b"""
-    print("\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0]))
+    print(
+        "\n".join(
+            sliding_window_replacement(
+                old_file.split("\n"), search.split("\n"), replace.split("\n")
+            )[0]
+        )
+    )
     old_file = '''
 
 """
@@ -414,7 +413,11 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
 It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
 """'''
-    res = "\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0])
+    res = "\n".join(
+        sliding_window_replacement(
+            old_file.split("\n"), search.split("\n"), replace.split("\n")
+        )[0]
+    )
     assert old_file == res
 
     search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
@@ -423,6 +426,10 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 Add another test line
 on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
 Add another test line'''
-    res = "\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0])
+    res = "\n".join(
+        sliding_window_replacement(
+            old_file.split("\n"), search.split("\n"), replace.split("\n")
+        )[0]
+    )
     print(res)
     assert "Add another test line" in res

@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import requests
-from copy import deepcopy
 from geopy import Nominatim
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
@@ -17,7 +16,10 @@ from sweepai.config.server import (
 )
 from sweepai.logn import logger
 
-global_mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000)
+global_mongo_client = MongoClient(
+    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000
+)
+
 
 class ChatLogger(BaseModel):
     data: dict
@@ -47,15 +49,15 @@ class ChatLogger(BaseModel):
                 self.chat_collection = db["chat_history"]
                 self.ticket_collection = db["tickets"]
                 # For 'username' index on ticket_collection
-                existing_indexes = self.ticket_collection.index_information()
+                self.ticket_collection.index_information()
                 self.ticket_collection.create_index("username")
 
                 # For 'expiration' index on chat_collection
-                existing_indexes = self.chat_collection.index_information()
-                self.chat_collection.create_index("expiration", expireAfterSeconds=2419200)
-                self.expiration = datetime.utcnow() + timedelta(
-                    days=1
+                self.chat_collection.index_information()
+                self.chat_collection.create_index(
+                    "expiration", expireAfterSeconds=2419200
                 )
+                self.expiration = datetime.utcnow() + timedelta(days=1)
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -88,31 +90,30 @@ class ChatLogger(BaseModel):
             update_fields = {key: 1}
 
         self.ticket_collection.update_one(
-            {"username": username},
-            {"$inc": update_fields},
-            upsert=True
+            {"username": username}, {"$inc": update_fields}, upsert=True
         )
 
         ticket_count = self.get_ticket_count()
-        should_decrement = (self.is_paying_user() and ticket_count >= 500) or \
-                        (self.is_consumer_tier() and ticket_count >= 20)
+        should_decrement = (self.is_paying_user() and ticket_count >= 500) or (
+            self.is_consumer_tier() and ticket_count >= 20
+        )
 
         if should_decrement:
             self.ticket_collection.update_one(
-                {"username": username},
-                {"$inc": {"purchased_tickets": -1}},
-                upsert=True
+                {"username": username}, {"$inc": {"purchased_tickets": -1}}, upsert=True
             )
 
         logger.info(f"Added Successful Ticket for {username}")
 
-    def _cache_key(self, username, field, metadata = ""):
+    def _cache_key(self, username, field, metadata=""):
         return f"{username}_{field}_{metadata}"
 
     def get_ticket_count(self, use_date=False, gpt3=False, purchased=False):
         username = self.data["username"]
-        cache_key = self._cache_key(username, "ticket_count", f"{use_date}_{gpt3}_{purchased}")
-        
+        cache_key = self._cache_key(
+            username, "ticket_count", f"{use_date}_{gpt3}_{purchased}"
+        )
+
         if cache_key in self._ticket_count_cache:
             return self._ticket_count_cache[cache_key]
         tracking_date = self.current_date if use_date else self.current_month

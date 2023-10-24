@@ -6,10 +6,10 @@ from functools import lru_cache
 
 import yaml
 from github.Repository import Repository
+from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.entities import EmptyRepository
-from sweepai.logn import logger
 
 
 class SweepConfig(BaseModel):
@@ -88,6 +88,7 @@ class SweepConfig(BaseModel):
         ".pub",
         ".pem",
         ".ttf",
+        "sweep.yaml",
     ]
     # Image formats
     max_file_limit: int = 60_000
@@ -110,7 +111,7 @@ class SweepConfig(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(
+                logger.exception(
                     f"Error when getting branch: {e}, traceback: {traceback.format_exc()}"
                 )
 
@@ -133,7 +134,7 @@ class SweepConfig(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(
+                logger.exception(
                     f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch"
                 )
                 repo.create_git_ref(
@@ -184,7 +185,7 @@ def get_gha_enabled(repo: Repository) -> bool:
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.warning(
+        logger.exception(
             f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
         )
         return True

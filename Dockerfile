@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb1 \
     libasound2 \
     libatspi2.0-0 \
+    graphviz \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -67,6 +68,8 @@ COPY sweepai/startup.py /app/sweepai/startup.py
 RUN python sweepai/startup.py
 
 COPY sweepai /app/sweepai
+COPY tests /app/tests
+ENV PYTHONPATH=.
 COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh

@@ -1,13 +1,15 @@
 import re
 import traceback
+from collections import Counter, defaultdict
 from dataclasses import dataclass
-
-from whoosh.analysis import Token, Tokenizer
-from sweepai.logn import logger
-from sweepai.core.entities import Snippet
-from collections import defaultdict, Counter
 from math import log
+
 from tqdm import tqdm
+from whoosh.analysis import Token, Tokenizer
+
+from sweepai.core.entities import Snippet
+from sweepai.logn import logger
+
 
 class CustomIndex:
     def __init__(self):
@@ -29,32 +31,43 @@ class CustomIndex:
         doc_length = len(tokens)
         self.doc_lengths[doc_id] = doc_length
         self.avg_doc_length = sum(self.doc_lengths.values()) / len(self.doc_lengths)
-        
+
         token_freq = Counter(tokens)
         for token, freq in token_freq.items():
             self.inverted_index[token].append((doc_id, freq))
 
     def bm25(self, doc_id, term, term_freq):
         num_docs = len(self.doc_lengths)
-        idf = log(((num_docs - len(self.inverted_index[term])) + 0.5) / (len(self.inverted_index[term]) + 0.5) + 1.0)
+        idf = log(
+            ((num_docs - len(self.inverted_index[term])) + 0.5)
+            / (len(self.inverted_index[term]) + 0.5)
+            + 1.0
+        )
         doc_length = self.doc_lengths[doc_id]
-        tf = ((self.k1 + 1) * term_freq) / (term_freq + self.k1 * (1 - self.b + self.b * (doc_length / self.avg_doc_length)))
+        tf = ((self.k1 + 1) * term_freq) / (
+            term_freq
+            + self.k1 * (1 - self.b + self.b * (doc_length / self.avg_doc_length))
+        )
         return idf * tf
 
     def search_index(self, query):
         query_tokens = [token.text for token in self.tokenizer(query)]
         scores = defaultdict(float)
-        
+
         for token in query_tokens:
             for doc_id, term_freq in self.inverted_index.get(token, []):
                 scores[doc_id] += self.bm25(doc_id, token, term_freq)
-                
+
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
+
         # Attach metadata to the results
-        results_with_metadata = [(doc_id, score, self.metadata.get(doc_id, {})) for doc_id, score in sorted_scores]
-        
+        results_with_metadata = [
+            (doc_id, score, self.metadata.get(doc_id, {}))
+            for doc_id, score in sorted_scores
+        ]
+
         return results_with_metadata
+
 
 def tokenize_call(code):
     def check_valid_token(token):
@@ -113,6 +126,7 @@ def tokenize_call(code):
                 )
                 pos += 1
     return valid_tokens
+
 
 def construct_bigrams(tokens):
     res = []
@@ -195,6 +209,7 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
         )
     return docs
 
+
 def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     all_docs = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
@@ -226,9 +241,7 @@ def prepare_index_from_docs(docs):
     index = CustomIndex()
     try:
         for doc in tqdm(all_docs, total=len(all_docs)):
-            index.add_document(
-                title=f"{doc.url}", content=doc.content
-            )
+            index.add_document(title=f"{doc.url}", content=doc.content)
     except FileNotFoundError as e:
         logger.error(e)
     return index
@@ -282,5 +295,3 @@ def search_index(query, index: CustomIndex):
         logger.print(e)
         traceback.print_exc()
         return {}
-
-

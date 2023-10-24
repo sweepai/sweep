@@ -64,6 +64,7 @@ class CodeTree(BaseModel):
         else:
             return (min_line, max_line)
 
+
 if __name__ == "__main__":
     snippet = """\
     @patch('os.path.splitext')

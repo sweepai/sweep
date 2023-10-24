@@ -7,4 +7,8 @@ class TestDockerUtils(unittest.TestCase):
     def test_get_latest_docker_version(self):
         result = get_latest_docker_version()
         self.assertIsInstance(result, str)
-        self.assertRegex(result, r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z")
+        self.assertRegex(result, r"\d+ (days|hours|minutes|seconds) ago")
+
+
+if __name__ == "__main__":
+    unittest.main()

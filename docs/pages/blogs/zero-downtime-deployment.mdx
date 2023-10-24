@@ -29,7 +29,7 @@ fi
 The if statement checks if `containers_to_remove` is non-empty and if so the `docker rm -f $containers_to_remove` command forcefully removes the old containers, ensuring a resources are freed for the new deployment.
 
 
-## Port Allocation 
+## Port Allocation
 
 Now we start preparing for the new deployment, starting by finding an available port. We do this by starting at `PORT=8081` and increment it until a free port is found.
 
@@ -50,7 +50,7 @@ echo "Found open port: $PORT"
 
 We check for free ports using `is_port_free()`, which uses `lsof`. `lsof -i :$1` lists all processes on port `$1`, where we check the exit code using `return $?`, which is 0 if the port is occupied and 1 otherwise.
 
-## New Container Deployment 
+## New Container Deployment
 Now we finally get to the deployment by going to the app directory, building a new Docker image, and deploying a new container on the allocated port.
 
 ```bash filename="deploy.sh" showLineNumbers
@@ -80,7 +80,7 @@ done
 ```
 
 ## Traffic Rerouting
-The final step is to ensure that our users are directed to the new version of sweep. Our script reroutes traffic to the new container by updating ngrok proxy to point to the new port. 
+The final step is to ensure that our users are directed to the new version of sweep. Our script reroutes traffic to the new container by updating ngrok proxy to point to the new port.
 
 ```bash filename="deploy.sh" showLineNumbers
 # Update the ngrok proxy to point to the new port
@@ -99,6 +99,6 @@ sleep 1
 screen -S ngrok -X stuff $'ngrok http --domain=sweep-prod.ngrok.dev '$PORT$'\n'
 ```
 
---- 
+---
 
 We're excited to see what the future holds for code planning and to hear your thoughts on it. If you have ideas, feel free to share them in our [community](https://discord.gg/sweep).

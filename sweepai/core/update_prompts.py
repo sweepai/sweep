@@ -7,12 +7,6 @@ You will be given the old_file and potentially relevant snippets to edit. You do
 
 Respond in the following format:
 
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to. Otherwise, do not write an updated_snippet block for this snippet.
-Maximize information density.
-</snippets_and_plan_analysis>
-
 <diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
@@ -26,8 +20,8 @@ old line(s) from the snippet
 =======
 new line(s) to replace
 >>>>>>> UPDATED
-```
 ...
+```
 </diffs>"""
 
 update_snippets_system_prompt_python = """\
@@ -39,12 +33,6 @@ You will be given the old_file and potentially relevant snippets to edit. You do
 
 Respond in the following format:
 
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to. Otherwise, do not write an updated_snippet block for this snippet.
-Maximize information density.
-</snippets_and_plan_analysis>
-
 <diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
@@ -58,8 +46,8 @@ old line(s) from the snippet
 =======
 new line(s) to replace
 >>>>>>> UPDATED
-```
 ...
+```
 </diffs>"""
 
 update_snippets_prompt = """# Code
@@ -77,6 +65,8 @@ File path: {file_path}
 {snippets}
 </snippets_to_update>
 
+{analysis}
+
 # Instructions
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
@@ -85,12 +75,6 @@ Rewrite each of the {n} snippets above according to the request.
 * To add code before and after the snippet, be sure to copy the original snippet.
 
 Respond in the following format:
-
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to. Otherwise, do not write an updated_snippet block for this snippet.
-Maximize information density.
-</snippets_and_plan_analysis>
 
 <diffs>
 ```
@@ -124,6 +108,8 @@ File path: {file_path}
 {snippets}
 </snippets_to_update>
 
+{analysis}
+
 # Instructions
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
@@ -132,10 +118,6 @@ Rewrite each of the {n} snippets above according to the request.
 * To add code before and after the snippet, be sure to copy the original snippet.
 
 Respond in the following format:
-
-<snippets_and_plan_analysis file="file_path">
-For each snippet in a list, determine whether changes should be made. If so, describe the changes needed. Otherwise, do not write an updated_snippet block for this snippet.
-</snippets_and_plan_analysis>
 
 <diffs>
 ```

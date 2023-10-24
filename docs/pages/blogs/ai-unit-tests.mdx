@@ -1,0 +1,132 @@
+# 🧪 Having GPT-4 Iterate on Unit Tests like a Human
+**William Zeng** - October 21th, 2023
+
+Hi everyone, my name is William and I’m one of the founders of Sweep. <br></br>
+Sweep is an AI junior developer that writes and fixes code by mirroring how a developer works.
+
+## 1. **Read the task description and codebase.**
+
+ClonedRepo is our wrapper around the Git API that makes it easy to clone and interact with a repo.
+We don't have any tests for this class, so we asked Sweep to write them.
+
+Here Sweep starts by reading the original GitHub issue: **“Sweep: Write unit tests for ClonedRepo”**. https://github.com/sweepai/sweep/issues/2377
+
+Sweep searches over the codebase with our in-house code search engine, ranking this symbol and file first: `ClonedRepo:sweepai/utils/github_utils.py`. 
+This file [sweepai/utils/github_utils.py](https://github.com/sweepai/sweep/blob/main/sweepai/utils/github_utils.py) is ~370 lines long, but because we know the symbol `ClonedRepo`, we extracted the relevant code (~250 lines) without the other functions and classes.
+
+```python
+import git
+# more imports
+...
+
+class ClonedRepo:
+    repo_full_name: str
+    installation_id: str
+    branch: str | None = None
+    token: str | None = None
+
+    @cached_property
+    def cache_dir(self):
+        # logic to create a cached directory
+
+    # other ClonedRepo methods
+
+    def get_file_contents(self, file_path, ref=None):
+        local_path = os.path.join(self.cache_dir, file_path)
+        if os.path.exists(local_path):
+            with open(local_path, "r", encoding="utf-8", errors="replace") as f:
+                contents = f.read()
+            return contents
+        else:
+            raise FileNotFoundError(f"{local_path} does not exist.")
+
+    # other ClonedRepo methods
+```
+
+We read this to identify the necessary tests.
+
+## 2. **Write the tests.**
+
+Once Sweep has the reference implementation, Sweep generates the corresponding test as commits in a [GitHub PR](https://github.com/sweepai/sweep/pull/2378):
+
+```python
+def get_file_contents(self, file_path, ref=None):
+        local_path = os.path.join(self.cache_dir, file_path)
+        if os.path.exists(local_path):
+            with open(local_path, "r", encoding="utf-8", errors="replace") as f:
+                contents = f.read()
+            return contents
+        else:
+            raise FileNotFoundError(f"{local_path} does not exist.")
+```
+
+We have Sweep generate mocks for `os.path.join` and `open`. <br></br>
+This code looks great!
+
+```python
+@patch("os.path.join")
+@patch("open")
+def test_get_file_contents(self, mock_open, mock_join):
+	mock_join.return_value = "/tmp/cache/repos/sweepai/sweep/main/file1"
+	mock_open.return_value.__enter__.return_value.read.return_value = "file content"
+	content = self.cloned_repo.get_file_contents("file1")
+	self.assertEqual(content, "file content")
+```
+
+We generated mocks for `os.path.join` and `open`, which should return the correct path and file contents. <br></br>
+Ok we're done here right? Can we just write these tests and leave the rest to the developer?
+
+## 3. **Run the tests.**
+
+Most other AI tools stop here, but it’s not enough. <br></br>
+If you just committed these tests it would be great, but you’d end up with a frustrating bug. Here it is:
+
+```bash
+File "/usr/lib/python3.10/unittest/mock.py", line 1616, in _get_target
+    raise TypeError(
+TypeError: Need a valid target to patch. You supplied: 'open'
+```
+
+Did we really save time for the developer here? It’s frustrating that most other tools don’t fix these issues.
+
+*Unlike every other tool, Sweep actually runs these tests.*
+
+Sweep ran the code, found the issue, and identified the solution: <br></br>
+**”Change the target of the patch in the 'test_get_file_contents' method from 'open' to 'builtins.open'. This will correctly patch the built-in 'open' function during the test.”**
+
+Sweep added [this commit](https://github.com/sweepai/sweep/pull/2378/commits/0ded79eab77ca3e511257ff0bf3874893b038e9e):
+
+```python
+     @patch("os.path.join")
+-    @patch("open")
++    @patch("builtins.open")
+     def test_get_file_contents(self, mock_open, mock_join):
+```
+We ran the tests again, and finally we have unit tests that actually work! 😀
+
+## Visualizing Sweep's process
+
+Sweep updates you with a flowchart showing you the code it's written and the tests it's run.
+
+Sweep starts off by writing the original `github_utils_tests.py` file. <br></br>
+Then Sweep runs the tests using `python sweepai/utils/github_utils_test.py`. (this command is configurable)
+![image](/flowchart/flowchart_2.png)
+    
+Sweep found the error, and suggests a new modification to the tests.
+![image](/flowchart/flowchart_3.png)
+
+Finally, we used the test feedback to fix the code and run the tests again. If there was a bug in the original `github_utils.py`, we would have fixed it here.
+![image](/flowchart/flowchart_4.png)
+
+## Becoming an AI junior developer
+
+The benefits of this approach seem small at first: “Ok, now I don’t need to fix the tests”.
+But if you just wanted to write unit tests, you might as well use ChatGPT.
+
+With this approach, Sweep can not only write the test, but: 
+
+1. find bugs in the original code
+2. *fix the original code*
+3. run the tests again to confirm the bugfix
+
+One step closer to becoming an AI developer.

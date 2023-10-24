@@ -41,6 +41,7 @@ human_message_prompt = [
 Repo: {repo_name}: {repo_description}
 Issue Title: {title}
 Issue Description: {description}""",
+        "key": "metadata",
     },
 ]
 
@@ -118,7 +119,7 @@ Check each file_diff function by function and confirm whether it was both implem
 </diff_analysis>"""
 
 final_review_prompt = """\
-Given the diff_analysis write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nitpick on formatting. 
+Given the diff_analysis write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nitpick on formatting.
 If there is additional work to be done before this PR is ready, mention it. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
@@ -157,7 +158,8 @@ human_message_prompt_comment = [
     },
     {
         "role": "user",
-        "content": """# Repo, Issue, & PR Metadata
+        "content": """# Repo & Pull Request Metadata
+This is the repository as well as the original intent of the Pull Request.
 Repo: {repo_name}: {repo_description}
 Pull Request Title: {title}
 Pull Request Description: {description}{relevant_docs}""",
@@ -184,7 +186,7 @@ files_to_change_prompt = """\
 Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high quality plan that completely addresses the user's request.
 
 Provide a list of ALL of the files we should modify, abiding by the following:
-* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
+* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required and only include XML blocks for files that need to be modified.
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
@@ -264,6 +266,47 @@ Contextual Request Analysis:
 
 </plan>
 """
+
+sandbox_files_to_change_prompt = """\
+Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high-quality plan that completely fixes the CI/CD run.
+
+Provide a list of ALL of the files we should modify, abiding by the following:
+* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
+* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+* Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
+* Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
+* Do not modify non-text files such as images, svgs, binary, etc
+
+You MUST follow the following format with the final output in XML tags:
+
+<analysis_and_plan>
+Why the CI/CD run failed and the root cause. MINIMAL amount of changes to fix, with reference to entities, in the following format:
+
+<minimal_changes>
+* Change x: file to make the change
+* Change y: file to make the change
+...
+</minimal_changes>
+</analysis_and_plan>
+
+<plan>
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
+Outline of additions in concise natural language of what needs to be implemented in this file, referencing to external and imported libraries and business logic.
+</create>
+
+<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+Outline of modifications in natural language (no code), referencing entities, and what type of patterns to look for, such as all occurrences of a variable or function call.
+Do not make this XML block if no changes are needed.
+</modify>
+...
+
+<delete file="file_path_3"></delete>
+...
+
+<rename file="file_path_4">new full path for file path 4</rename>
+...
+
+</plan>"""
 
 subissues_prompt = """
 Think step-by-step to break down the requested problem into sub-issues each of equally sized non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
@@ -1034,88 +1077,6 @@ summarize_snippet_prompt = """# Code
 # Instructions
 Losslessly summarize the code in a ordered list for an engineer to search for relevant code to solve the above GitHub issue."""
 
-fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
-
-Extract the smallest spans that let you handle the request by adding blocks of snippet_to_modify containing the code blocks you want to modify. Use this for implementing or changing functionality.
-
-Then, write search terms to extract that we need to modify from the code. The system will then modify all of the lines containing the patterns. Use this to make many small changes, such as updating all function calls after changing the signature.
-
-# Format
-<analysis_and_identification file="file_path">
-Identify all changes that need to be made to the file.
-In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
-Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
-</analysis_and_identification>
-
-<snippets_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the first original snippet
-...
-last few lines from the first original snippet (the code)
-```
-</snippet_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the second original snippet
-...
-last few lines from the second original snippet (the code)
-```
-</snippet_to_modify>
-...
-</snippets_to_modify>
-
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>"""
-
-fetch_snippets_prompt = """
-# Code
-File path: {file_path}
-<old_code>
-```
-{code}
-```
-</old_code>
-{changes_made}
-# Request
-{request}
-
-# Instructions
-{chunking_message}
-
-# Format
-<analysis_and_identification file="file_path">
-Identify all changes that need to be made to the file.
-In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
-Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
-</analysis_and_identification>
-
-<snippets_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the first original snippet
-...
-last few lines from the first original snippet (the code)
-```
-</snippet_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the second original snippet
-...
-last few lines from the second original snippet (the code)
-```
-</snippet_to_modify>
-...
-</snippets_to_modify>
-
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>"""
 
 use_chunking_message = """\
 This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".

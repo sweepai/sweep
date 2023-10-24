@@ -1,18 +1,14 @@
 FROM ubuntu:latest
 
-# Install common packages
 RUN apt-get update && apt-get install -y git curl wget coreutils python3 python3-pip qemu-system
 
-# Specify VERSION and BINARY for yq (or directly put them into the wget command)
 ARG VERSION="v4.9.6"
 ARG BINARY="yq_linux_amd64"
-# Install yq
 RUN wget https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64 -O /usr/bin/yq &&\
     chmod +x /usr/bin/yq
 
 RUN bash -c 'curl https://get.trunk.io -fsSL | bash -s -- -y'
 
-# Install node
 ENV NODE_VERSION=18.17.0
 RUN apt install -y curl
 RUN curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash -s -- -y
@@ -27,6 +23,7 @@ RUN npm --version
 
 RUN npm install -g pnpm
 
-# Python stuff
 RUN pip install black isort pre-commit
 RUN pip install poetry
+
+RUN echo "alias python=python3" >> ~/.bashrc

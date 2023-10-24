@@ -1,9 +1,8 @@
-# yamllint disable-file
 gha_enabled: True
 branch: main
 blocked_dirs: ["tests/archive"]
 draft: False
-description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write unit tests in the same directory as their corresponding code, i.e. sweepai/api_test.py tests sweepai/api.py. We use unittest and unittest.mock for tests. Never use wildcard imports." 
+description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write unit tests in the same directory as their corresponding code, i.e. sweepai/api_test.py tests sweepai/api.py. We use unittest and unittest.mock for tests. Never use wildcard imports."
 # These are the docs that we index for Sweep.
 # We scrape these docs once a day and store them in our database.
 # You can use it by adding the key to your GitHub issue.
@@ -27,13 +26,11 @@ sandbox:
     - poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
   check:
     - git add . && pre-commit run --files {file_path} || exit 0
-    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
-    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else exit 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi'
 
 rules:
-  - "There should not be large chunks of code that are just commented out. Docstrings and explanations in code are acceptable."
   - "We should use loguru for error logging. If the log is inside an exception, use loguru.exception to add tracebacks. Use f-strings for string formatting in logger calls."
-  - "There should be no instances of `import pdb; pdb.set_trace()` in production code."
   - "There should be no debug log or print statements in production code."
   - "All functions should have parameters and output annotated with type hints. Use list, tuple and dict instead of typing.List, typing.Tuple and typing.dict."
   - "Leftover TODOs in the code should be handled."
