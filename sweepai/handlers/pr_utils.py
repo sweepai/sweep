@@ -168,7 +168,7 @@ def make_pr(
         if isinstance(item, dict):
             response = item
             break
-        file_change_request, changed_file, sandbox_response, commit = item
+        file_change_request, changed_file, sandbox_response, commit, file_change_requests = item
         if changed_file:
             changed_files.append(file_change_request.filename)
         sandbox_response: SandboxResponse | None = sandbox_response
