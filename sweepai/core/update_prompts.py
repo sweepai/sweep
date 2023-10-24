@@ -7,6 +7,7 @@ You will be given the old_file and potentially relevant snippets to edit. You do
 
 Respond in the following format:
 
+<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -21,7 +22,7 @@ new line(s) to replace
 >>>>>>> UPDATED
 ...
 ```
-"""
+</diffs>"""
 
 update_snippets_system_prompt_python = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming. When you write code, the code works on the first try, is syntactically perfect, and is complete. Ensure correct indentation for each indentation level, as per PEP 8. Place all 'from ... import ...' and 'import ...' statements at the beginning of the file.
@@ -32,6 +33,7 @@ You will be given the old_file and potentially relevant snippets to edit. You do
 
 Respond in the following format:
 
+<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -46,7 +48,7 @@ new line(s) to replace
 >>>>>>> UPDATED
 ...
 ```
-"""
+</diffs>"""
 
 update_snippets_prompt = """# Code
 File path: {file_path}
@@ -74,6 +76,7 @@ Rewrite each of the {n} snippets above according to the request.
 
 Respond in the following format:
 
+<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -87,7 +90,8 @@ old line(s) from the snippet
 new line(s) to replace
 >>>>>>> UPDATED
 ```
-..."""
+...
+</diffs>"""
 
 update_snippets_prompt_test = """# Code
 File path: {file_path}
@@ -115,6 +119,7 @@ Rewrite each of the {n} snippets above according to the request.
 
 Respond in the following format:
 
+<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -128,4 +133,5 @@ old line(s) from the snippet
 new line(s) to replace
 >>>>>>> UPDATED
 ```
-..."""
+...
+</diffs>"""
