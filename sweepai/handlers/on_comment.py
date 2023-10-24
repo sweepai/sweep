@@ -5,7 +5,7 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 import re
 import time
 import traceback
-from typing import Any, List, Optional, Union
+from typing import Any, Optional
 
 import openai
 from logtail import LogtailHandler
@@ -46,7 +46,9 @@ num_extended_snippets = 2
 ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/sweep) to report this issue."
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3) -> list[Snippet]:
+def post_process_snippets(
+    snippets: list[Snippet], max_num_of_snippets: int = 3
+) -> list[Snippet]:
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
