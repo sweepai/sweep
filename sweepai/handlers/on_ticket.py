@@ -181,7 +181,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.warning(
-                f"Error hydrating cache of sandbox (tracking ID: {tracking_id}): {e}"
+                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
             )
         logger.info("Done sending, letting it run in the background.")
 
@@ -279,7 +279,7 @@ def on_ticket(
 
         if current_issue.state == "closed":
             logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: {tracking_id}). Please join our Discord server for support (tracking_id={tracking_id})"
+                f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
             )
             posthog.capture(
                 username,
@@ -533,7 +533,7 @@ def on_ticket(
                     + "\n"
                     + message
                     + "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                    f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: {tracking_id})."
+                    f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: `{tracking_id}`)."
                 )
                 if table is not None:
                     agg_message = (
@@ -549,7 +549,7 @@ def on_ticket(
                 issue_comment.edit(msg)
             except BadCredentialsException:
                 logger.error(
-                    f"Bad credentials, refreshing token (tracking ID: {tracking_id})"
+                    f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
                 )
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
@@ -700,8 +700,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.exception(f"{e} (tracking ID: {tracking_id})")
-            logger.exception(f"{trace} (tracking ID: {tracking_id})")
+            logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."

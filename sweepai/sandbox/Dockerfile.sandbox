@@ -26,4 +26,4 @@ RUN npm install -g pnpm
 RUN pip install black isort pre-commit
 RUN pip install poetry
 
-RUN echo "alias python=python3" >> ~/.bashrc
+RUN ln -s /usr/bin/python3 /usr/bin/python
