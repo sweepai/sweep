@@ -1,4 +1,5 @@
 # Do not save logs for main process
+import hashlib
 import json
 import time
 
@@ -81,25 +82,31 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
+get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+
 
 def run_on_ticket(*args, **kwargs):
-    loguru.logger.bind(
+    tracking_id = get_hash()
+    with loguru.logger.contextualize(
         metadata={
             **kwargs,
             "name": "ticket_" + kwargs["username"],
-        },
-    )
-    on_ticket(*args, **kwargs)
+            "tracking_id": tracking_id,
+        }
+    ):
+        on_ticket(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_comment(*args, **kwargs):
-    loguru.logger.bind(
+    tracking_id = get_hash()
+    with loguru.logger.contextualize(
         metadata={
             **kwargs,
             "name": "comment_" + kwargs["username"],
+            "tracking_id": tracking_id,
         },
-    )
-    on_comment(*args, **kwargs)
+    ):
+        on_comment(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_button_click(*args, **kwargs):
