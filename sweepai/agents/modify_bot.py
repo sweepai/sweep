@@ -106,6 +106,53 @@ second term from the code
 ...
 </extraction_terms>"""
 
+plan_snippets_system_prompt = """\
+You are a brilliant and meticulous engineer assigned to plan code changes to complete the user's request.
+
+You will plan code changes to solve the user's problems. You have the utmost care for the plans you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies.
+
+You will be given the old_file and potentially relevant snippets to edit. You do not necessarily have to edit all the snippets.
+
+Respond in the following format:
+
+<snippets_and_plan_analysis file="file_path">
+Describe what should be changed to the snippets from the old_file to complete the request.
+Then, for each snippet, describe in a list the changes needed, with references to the lines that should be changed and what to change it to.
+Maximize information density.
+</snippets_and_plan_analysis>
+"""
+
+plan_snippets_prompt = """# Code
+File path: {file_path}
+<old_code>
+```
+{code}
+```
+</old_code>
+{changes_made}
+# Request
+{request}
+
+<snippets_to_update>
+{snippets}
+</snippets_to_update>
+
+# Instructions
+Rewrite each of the {n} snippets above according to the request.
+* Do not delete whitespace or comments.
+* Write minimal diff hunks to make changes to the snippets. Only write diffs for the lines that should be changed.
+* Write multiple smalle changes instead of a single large change.
+* To add code before and after the snippet, be sure to copy the original snippet.
+
+Respond in the following format:
+
+<snippets_and_plan_analysis file="file_path">
+Describe what should be changed to the snippets from the old_file to complete the request.
+Then, for each snippet, describe in a list the changes needed, with references to the lines that should be changed and what to change it to.
+Maximize information density.
+</snippets_and_plan_analysis>
+"""
+
 
 def strip_backticks(s: str) -> str:
     s = s.strip()
@@ -133,6 +180,10 @@ class ModifyBot:
             fetch_snippets_system_prompt, chat_logger=chat_logger, **kwargs
         )
         self.fetch_snippets_bot.messages.extend(additional_messages)
+        self.plan_bot: ChatGPT = ChatGPT.from_system_message_string(
+            plan_snippets_system_prompt, chat_logger=chat_logger, **kwargs
+        )
+        self.plan_bot.messages.extend(additional_messages)
         self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             update_snippets_system_prompt, chat_logger=chat_logger, **kwargs
         )
@@ -469,6 +520,24 @@ class ModifyBot:
                 0
             ].content = update_snippets_system_prompt_python
 
+        analysis_response = self.plan_bot.chat(
+            plan_snippets_prompt.format(
+                code=update_snippets_code,
+                file_path=file_path,
+                snippets="\n\n".join(
+                    [
+                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
+                        for i, snippet in enumerate(selected_snippets)
+                    ]
+                ),
+                request=file_change_request.instructions
+                + "\n"
+                + analysis_and_identification,
+                n=len(selected_snippets),
+                changes_made=self.get_diffs_message(file_contents),
+            )
+        )
+
         if file_change_request.failed_sandbox_test:
             update_prompt = update_snippets_prompt_test
         else:
@@ -483,6 +552,7 @@ class ModifyBot:
                         for i, snippet in enumerate(selected_snippets)
                     ]
                 ),
+                analysis=analysis_response,
                 request=file_change_request.instructions
                 + "\n"
                 + analysis_and_identification,

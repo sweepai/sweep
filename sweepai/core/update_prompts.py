@@ -7,13 +7,6 @@ You will be given the old_file and potentially relevant snippets to edit. You do
 
 Respond in the following format:
 
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density.
-</snippets_and_plan_analysis>
-
-<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -26,9 +19,9 @@ old line(s) from the snippet
 =======
 new line(s) to replace
 >>>>>>> UPDATED
-```
 ...
-</diffs>"""
+```
+"""
 
 update_snippets_system_prompt_python = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming. When you write code, the code works on the first try, is syntactically perfect, and is complete. Ensure correct indentation for each indentation level, as per PEP 8. Place all 'from ... import ...' and 'import ...' statements at the beginning of the file.
@@ -39,13 +32,6 @@ You will be given the old_file and potentially relevant snippets to edit. You do
 
 Respond in the following format:
 
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density.
-</snippets_and_plan_analysis>
-
-<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -58,9 +44,9 @@ old line(s) from the snippet
 =======
 new line(s) to replace
 >>>>>>> UPDATED
-```
 ...
-</diffs>"""
+```
+"""
 
 update_snippets_prompt = """# Code
 File path: {file_path}
@@ -77,6 +63,8 @@ File path: {file_path}
 {snippets}
 </snippets_to_update>
 
+{analysis}
+
 # Instructions
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
@@ -86,13 +74,6 @@ Rewrite each of the {n} snippets above according to the request.
 
 Respond in the following format:
 
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density.
-</snippets_and_plan_analysis>
-
-<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -106,8 +87,7 @@ old line(s) from the snippet
 new line(s) to replace
 >>>>>>> UPDATED
 ```
-...
-</diffs>"""
+..."""
 
 update_snippets_prompt_test = """# Code
 File path: {file_path}
@@ -124,6 +104,8 @@ File path: {file_path}
 {snippets}
 </snippets_to_update>
 
+{analysis}
+
 # Instructions
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
@@ -133,11 +115,6 @@ Rewrite each of the {n} snippets above according to the request.
 
 Respond in the following format:
 
-<snippets_and_plan_analysis file="file_path">
-For each snippet in a list, determine whether changes should be made. If so, describe the changes needed.
-</snippets_and_plan_analysis>
-
-<diffs>
 ```
 <<<<<<< ORIGINAL (index=i)
 old line(s) from the snippet
@@ -151,5 +128,4 @@ old line(s) from the snippet
 new line(s) to replace
 >>>>>>> UPDATED
 ```
-...
-</diffs>"""
+..."""
