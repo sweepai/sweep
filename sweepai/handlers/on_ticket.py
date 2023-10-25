@@ -1344,10 +1344,9 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-            revert_buttons = set()
-            for changed_file in changed_files:
-                revert_buttons.add(Button(label=f"{RESET_FILE} {changed_file}"))
-            revert_buttons = list(revert_buttons)
+            revert_buttons = []
+            for changed_file in set(changed_files):
+                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
