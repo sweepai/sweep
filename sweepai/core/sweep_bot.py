@@ -1208,8 +1208,11 @@ class SweepBot(CodeGenBot, GithubBot):
                             sandbox_execution.success is False
                             and sandbox_execution is not None
                             and sandbox_execution.executions
-                            and fuzz.ratio(
-                                sandbox_execution.executions[-1], error_messages[-1]
+                            and (
+                                not error_messages
+                                or fuzz.ratio(
+                                    sandbox_execution.executions[-1], error_messages[-1]
+                                )
                             )
                             < 90
                         ):
