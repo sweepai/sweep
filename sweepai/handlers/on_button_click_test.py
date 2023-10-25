@@ -17,15 +17,15 @@ class TestOnButtonClick(unittest.TestCase):
                 "number": 1,
                 "title": "mock_title",
                 "html_url": "mock_html_url",
-                "user": {"login": "mock_issue_user"},
+                "user": {"login": "mock_issue_user", "type": "User"},
                 "labels": [{"name": "mock_label"}]
             },
             "repository": {"full_name": "mock_repo"},
-            "sender": {"login": "mock_user", "type": "mock_type"},
+            "sender": {"login": "mock_user", "type": "User"},
             "comment": {
                 "body": "mock_comment",
-                "user": {"login": "mock_comment_user"},
-                "id": "mock_id"
+                "user": {"login": "mock_comment_user", "type": "User"},
+                "id": 12345
             }
         }
 
