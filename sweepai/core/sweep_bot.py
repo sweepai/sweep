@@ -1120,6 +1120,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"Skipping {file_change_request.filename} because it is"
                         " blocked."
                     )
+                    i += 1
                     continue
 
                 logger.print(
