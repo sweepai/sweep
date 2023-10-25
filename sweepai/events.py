@@ -187,6 +187,7 @@ class CheckRunCompleted(BaseModel):
         conclusion: str
         html_url: str
         pull_requests: list[PullRequest]
+        completed_at: str
 
         @property
         def run_id(self):
