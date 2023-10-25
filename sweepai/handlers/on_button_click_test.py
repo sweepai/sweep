@@ -2,11 +2,13 @@ import unittest
 from unittest.mock import patch, MagicMock
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.github_utils import get_github_client
 
 class TestOnButtonClick(unittest.TestCase):
     @patch('sweepai.handlers.on_button_click.MONGODB_URI')
     @patch('sweepai.handlers.on_button_click.ChatLogger')
-    def test_handle_button_click(self, mock_chat_logger, mock_mongodb_uri):
+    @patch('sweepai.utils.github_utils.get_github_client')
+    def test_handle_button_click(self, mock_get_github_client, mock_chat_logger, mock_mongodb_uri):
         # Mock the MONGODB_URI environment variable
         mock_mongodb_uri.return_value = 'mongodb://localhost:27017'
 
@@ -30,6 +32,11 @@ class TestOnButtonClick(unittest.TestCase):
             "installation": {"id": 12345}
         }
 
+        # Mock the get_github_client function
+        mock_token = 'mock_token'
+        mock_gh_client = MagicMock()
+        mock_get_github_client.return_value = (mock_token, mock_gh_client)
+        
         # Mock the ChatLogger class
         mock_chat_logger_instance = MagicMock()
         mock_chat_logger.return_value = mock_chat_logger_instance
