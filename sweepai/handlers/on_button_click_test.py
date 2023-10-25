@@ -10,15 +10,24 @@ class TestOnButtonClick(unittest.TestCase):
         # Mock the MONGODB_URI environment variable
         mock_mongodb_uri.return_value = 'mongodb://localhost:27017'
 
+        # Mock request dictionary
+        request_dict = {
+            "action": "mock_action",
+            "issue": {"number": 1},
+            "repository": {"full_name": "mock_repo"},
+            "sender": {"login": "mock_user"},
+            "comment": {"body": "mock_comment"}
+        }
+
         # Mock the ChatLogger class
         mock_chat_logger_instance = MagicMock()
         mock_chat_logger.return_value = mock_chat_logger_instance
 
         # Call the handle_button_click function
-        handle_button_click({})
+        handle_button_click(request_dict)
 
         # Assert that the ChatLogger class was called with the correct arguments
-        mock_chat_logger.assert_called_with({'username': None})
+        mock_chat_logger.assert_called_with({'username': 'mock_user'})
 
         # Assert that the chat_logger object was initialized correctly
         self.assertIsNotNone(mock_chat_logger_instance.chat_collection)
