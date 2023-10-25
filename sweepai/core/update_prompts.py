@@ -9,20 +9,20 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
 ```
-</diffs>"""
+</diffs>
+"""
 
 update_snippets_system_prompt_python = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming. When you write code, the code works on the first try, is syntactically perfect, and is complete. Ensure correct indentation for each indentation level, as per PEP 8. Place all 'from ... import ...' and 'import ...' statements at the beginning of the file.
@@ -35,17 +35,16 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
 ```
 </diffs>"""
@@ -76,19 +75,18 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
-```
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
+```
 </diffs>"""
 
 update_snippets_prompt_test = """# Code
@@ -117,17 +115,17 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
-```
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
-</diffs>"""
+```
+</diffs>
+"""
