@@ -15,6 +15,9 @@ class TestOnTicket(unittest.TestCase):
         self.issue.repo_full_name = "test/repo"
         self.issue.repo_description = "Test Repo"
         self.issue.installation_id = 12345
+        self.issue.comment_id = None
+        self.issue.edited = False
+        self.issue.tracking_id = None
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket(self, mock_get_github_client):
@@ -28,7 +31,12 @@ class TestOnTicket(unittest.TestCase):
             self.issue.repo_full_name,
             self.issue.repo_description,
             self.issue.installation_id,
+            self.issue.comment_id,
+            self.issue.edited,
+            self.issue.tracking_id,
         )
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
         self.assertTrue(result["success"])
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
@@ -43,5 +51,10 @@ class TestOnTicket(unittest.TestCase):
             self.issue.repo_full_name,
             self.issue.repo_description,
             self.issue.installation_id,
+            self.issue.comment_id,
+            self.issue.edited,
+            self.issue.tracking_id,
         )
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
         self.assertFalse(result["success"])
