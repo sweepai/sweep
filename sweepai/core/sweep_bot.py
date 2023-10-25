@@ -7,6 +7,7 @@ from collections import OrderedDict
 from typing import Dict, Generator
 
 import requests
+from fuzzywuzzy import fuzz
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
@@ -1104,6 +1105,7 @@ class SweepBot(CodeGenBot, GithubBot):
         i = 0
 
         file_change_requests[i].status = "running"
+        error_messages = []
 
         while i < min(len(file_change_requests), 15):
             file_change_request = file_change_requests[i]
@@ -1202,7 +1204,15 @@ class SweepBot(CodeGenBot, GithubBot):
                                 sha=contents_obj.sha,
                                 branch=branch,
                             )
-                        if sandbox_execution.success is False:
+                        if (
+                            sandbox_execution.success is False
+                            and sandbox_execution is not None
+                            and sandbox_execution.executions
+                            and fuzz.ratio(
+                                sandbox_execution.executions[-1], error_messages[-1]
+                            )
+                            < 90
+                        ):
                             additional_file_change_requests = (
                                 self.get_files_to_change_from_sandbox(
                                     file_change_request.filename,
@@ -1219,6 +1229,13 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_requests[: i + 1]
                                 + additional_file_change_requests
                                 + file_change_requests[i + 1 :]
+                            )
+                        if (
+                            sandbox_response is not None
+                            and sandbox_response.executions[-1]
+                        ):
+                            error_messages.append(
+                                clean_logs(sandbox_response.executions[-1].output)
                             )
                         file_change_requests[i].status = (
                             "succeeded" if sandbox_execution.success else "failed"
