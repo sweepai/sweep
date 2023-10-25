@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from sweepai.handlers.on_ticket import on_ticket
+from sweepai.handlers.on_ticket import on_ticket, center, format_exit_code
 
 
 class TestOnTicket(unittest.TestCase):
@@ -45,3 +45,12 @@ class TestOnTicket(unittest.TestCase):
             self.issue.installation_id,
         )
         self.assertFalse(result["success"])
+
+    def test_center(self):
+        text = "Test text"
+        result = center(text)
+        self.assertEqual(result, f"<div align='center'>{text}</div>")
+
+    def test_format_exit_code(self):
+        self.assertEqual(format_exit_code(0), "✓")
+        self.assertEqual(format_exit_code(1), "❌ (`1`)")
