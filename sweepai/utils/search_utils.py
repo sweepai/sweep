@@ -60,7 +60,6 @@ def search_snippets(
     non_boosted_snippets = []
     completed_snippets = dict() # file_path -> number added
     mention_threshold = (5 // len(query_match_files)) - 1 # each gets a share
-    import pdb; pdb.set_trace()
     for snippet in snippets:
         if (
             snippet.file_path in query_match_files
