@@ -31,14 +31,12 @@ Below is a set of example rules that are considered high quality:
 <rule>There should not be large chunks of code that are just commented out. Docstrings and explanations in code are okay though.<rule>
 <rule>Make sure all error logs use traceback during exceptions.<rule>
 <rule>All new business logic should have corresponding unit tests in the same directory. For example, api_test.py will test api.py. Use unittest and unittest.mock as required.<rule>
-<rule>There should be no debug log or print statements in production code.<rule>
-"""
+<rule>There should be no debug log or print statements in production code.<rule>"""
 
-sweep_yaml_user_prompt = """
+sweep_yaml_user_prompt = """\
 <relevant-commit-history>
 {commit_history}
-</relevant-commit-history>
-"""
+</relevant-commit-history>"""
 
 
 class SweepYamlBot(ChatGPT):
