@@ -13,10 +13,20 @@ class TestOnButtonClick(unittest.TestCase):
         # Mock request dictionary
         request_dict = {
             "action": "mock_action",
-            "issue": {"number": 1},
+            "issue": {
+                "number": 1,
+                "title": "mock_title",
+                "html_url": "mock_html_url",
+                "user": {"login": "mock_issue_user"},
+                "labels": [{"name": "mock_label"}]
+            },
             "repository": {"full_name": "mock_repo"},
-            "sender": {"login": "mock_user"},
-            "comment": {"body": "mock_comment"}
+            "sender": {"login": "mock_user", "type": "mock_type"},
+            "comment": {
+                "body": "mock_comment",
+                "user": {"login": "mock_comment_user"},
+                "id": "mock_id"
+            }
         }
 
         # Mock the ChatLogger class
