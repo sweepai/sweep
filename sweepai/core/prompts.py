@@ -131,14 +131,12 @@ Mention any changes that need to be made, using GitHub markdown to format the co
 - Change required in file on line x1-x2
 - Change required in file on line y1-y2
 ...
-</review_comment>
-"""
+</review_comment>"""
 
 issue_comment_prompt = """
 <comment username="{username}">
 {reply}
-</comment>
-"""
+</comment>"""
 
 # Prompt for comments
 human_message_prompt_comment = [
@@ -221,8 +219,7 @@ Contextual Request Analysis:
 <rename file="file_path_4">new full path for file path 4</rename>
 ...
 
-</plan>
-"""
+</plan>"""
 
 python_files_to_change_prompt = """\
 Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high quality plan that completely addresses the user's request.
@@ -264,8 +261,7 @@ Contextual Request Analysis:
 <rename file="file_path_4">new full path for file_path_4</rename>
 ...
 
-</plan>
-"""
+</plan>"""
 
 sandbox_files_to_change_prompt = """\
 Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high-quality plan that completely fixes the CI/CD run.
@@ -341,8 +337,7 @@ Step-by-step thoughts with explanations:
 </issue>
 
 ...
-</plan>
-"""
+</plan>"""
 
 reply_prompt = """
 Write a 1-paragraph response to this user:
@@ -375,8 +370,7 @@ Step-by-step thoughts with explanations:
 {{complete_new_file_contents}}
 </new_file>
 
-Commit message: "feat/fix: the commit message"
-"""
+Commit message: \"feat/fix: the commit message\""""
 
 create_file_prompt = """You are creating a file of code as part of a PR to solve the GitHub user's request under "# Metadata". You will follow the request under "# Request" and respond based on the format under "# Format".
 
@@ -401,8 +395,7 @@ The contents of the new files. NEVER write comments. All functions and classes w
 When writing unit tests, they will be complete, extensive, and cover ALL edge cases. You will make up data for unit tests. Create mocks when necessary.
 </new_file>
 
-Commit message: "feat/fix: the commit message"
-""".strip()
+Commit message: "feat/fix: the commit message\"""".strip()
 
 """
 Reply in the format below.
@@ -416,8 +409,7 @@ Reply in the format below.
 chunking_prompt = """
 We are handling this file in chunks. You have been provided a section of the code.
 Any lines that you do not see will be handled, so trust that the imports are managed and any other issues are taken care of.
-If you see code that should be modified, please modify it. The changes may not need to be in this chunk, do not make any changes.
-"""
+If you see code that should be modified, please modify it. The changes may not need to be in this chunk, do not make any changes."""
 
 modify_file_hallucination_prompt = [
     {
@@ -573,8 +565,7 @@ Format:
 
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Modification step, remembering to NOT write ellipses, write complete functions, and use multiple small hunks where possible.\
-"""
+2. Complete the Code Modification step, remembering to NOT write ellipses, write complete functions, and use multiple small hunks where possible."""
 
 modify_file_system_message = """\
 Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. You always follow up each code planning session with a code modification.
@@ -627,40 +618,9 @@ new code
 first line after
 second line after
 >>>> UPDATED
-```
-"""
+```"""
 
 RECREATE_LINE_LENGTH = -1
-modify_recreate_file_system_message = """\
-Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies.
-
-You will respond in the following format:
-
-Code Planning:
-
-Thoughts and detailed plan of modifications:
-* The request asks me to change the file from a to b
-* Replace x with y in the section involving z
-* Add a foo method to bar
-...
-
-Code Modification:
-
-Generate a new file based on your plan. Regenerate the entire file completely.
-* Always prefer the least amount of changes possible, but ensure the solution is complete.
-* Prefer multiple small changes over a single large change.
-* Do not edit the same parts multiple times.
-* Make sure to add additional lines before and after the original and updated code to disambiguate code when replacing repetitive sections.
-* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
-
-The format is as follows:
-
-```
-<new_file>
-{{new file content}}
-</new_file>
-```\
-"""
 
 modify_file_prompt_4 = """\
 File Name: {filename}
