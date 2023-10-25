@@ -26,7 +26,8 @@ class TestOnButtonClick(unittest.TestCase):
                 "body": "mock_comment",
                 "user": {"login": "mock_comment_user", "type": "User"},
                 "id": 12345
-            }
+            },
+            "installation": {"id": 12345}
         }
 
         # Mock the ChatLogger class
