@@ -40,6 +40,9 @@ class TestOnButtonClick(unittest.TestCase):
         # Mock the ChatLogger class
         mock_chat_logger_instance = MagicMock()
         mock_chat_logger.return_value = mock_chat_logger_instance
+        
+        # Assert that the get_github_client function was called with the correct arguments
+        mock_get_github_client.assert_called_with(request_dict["installation"]["id"])
 
         # Call the handle_button_click function
         handle_button_click(request_dict)
