@@ -6,6 +6,7 @@ import requests
 from geopy import Nominatim
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
+from loguru import logger
 
 from sweepai.config.server import (
     DISCORD_LOW_PRIORITY_URL,
@@ -14,7 +15,6 @@ from sweepai.config.server import (
     MONGODB_URI,
     SUPPORT_COUNTRY,
 )
-from sweepai.logn import logger
 
 global_mongo_client = MongoClient(
     MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000
@@ -78,8 +78,11 @@ class ChatLogger(BaseModel):
         self.chat_collection.insert_one(document)
 
     def add_successful_ticket(self, gpt3=False):
-        if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+        try:
+            if self.ticket_collection is None:
+                raise Exception("Ticket Collection Does Not Exist")
+        except Exception as e:
+            logger.exception(f"Ticket Collection Does Not Exist: {e}")
             return
 
         username = self.data.get("assignee", self.data["username"])
@@ -109,8 +112,11 @@ class ChatLogger(BaseModel):
         return f"{username}_{field}_{metadata}"
 
     def get_ticket_count(self, use_date=False, gpt3=False, purchased=False):
-        if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+        try:
+            if self.ticket_collection is None:
+                raise Exception("Ticket Collection Does Not Exist")
+        except Exception as e:
+            logger.exception(f"Ticket Collection Does Not Exist: {e}")
             return
         username = self.data["username"]
         cache_key = self._cache_key(
@@ -156,8 +162,11 @@ class ChatLogger(BaseModel):
         return self._get_user_field("is_paying_user")
 
     def use_faster_model(self, g):
-        if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+        try:
+            if self.ticket_collection is None:
+                raise Exception("Ticket Collection Does Not Exist")
+        except Exception as e:
+            logger.exception(f"Ticket Collection Does Not Exist: {e}")
             return True
         purchased_tickets = self.get_ticket_count(purchased=True)
         if self.is_paying_user():
