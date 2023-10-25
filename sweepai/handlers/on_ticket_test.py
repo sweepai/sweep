@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from sweepai.handlers.on_ticket import on_ticket, center, format_exit_code
+from sweepai.handlers.on_ticket import center, format_exit_code, on_ticket
 
 
 class TestOnTicket(unittest.TestCase):
