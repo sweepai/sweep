@@ -1229,11 +1229,11 @@ class SweepBot(CodeGenBot, GithubBot):
                                 new_check_fcr.status = "queued"
                                 new_check_fcr.id_ = str(uuid.uuid4())
                                 additional_file_change_requests.append(new_check_fcr)
-                            file_change_requests = (
-                                file_change_requests[: i + 1]
-                                + additional_file_change_requests
-                                + file_change_requests[i + 1 :]
-                            )
+                                file_change_requests = (
+                                    file_change_requests[: i + 1]
+                                    + additional_file_change_requests
+                                    + file_change_requests[i + 1 :]
+                                )
                         if (
                             sandbox_response is not None
                             and sandbox_response.executions[-1]
