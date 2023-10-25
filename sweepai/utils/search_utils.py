@@ -58,14 +58,15 @@ def search_snippets(
     # boost the rank of any files that are mentioned in the query, move them to the top positions
     boosted_snippets = []
     non_boosted_snippets = []
-    completed_snippets = set()
+    completed_snippets = dict() # file_path -> number added
+    mention_threshold = (5 // len(query_match_files)) - 1 # each gets a share
     for snippet in snippets:
         if (
             snippet.file_path in query_match_files
-            and snippet.file_path not in completed_snippets
+            and (completed_snippets.get(snippet.file_path, 0) < mention_threshold)
         ):
             boosted_snippets.append(snippet)
-            completed_snippets.add(snippet.file_path)
+            completed_snippets[snippet.file_path] = completed_snippets.get(snippet.file_path, 0) + 1
         else:
             non_boosted_snippets.append(snippet)
 

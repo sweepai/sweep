@@ -307,7 +307,7 @@ class CodeGenBot(ChatGPT):
                     plans = deduped_plans
 
                     # topologically sort the plans so that we can apply them in order
-                    file_paths = [plan.file_path for plan in plans]
+                    file_paths = [plan.file_path for plan in plans if plan.file_path.endswith(".py")]
                     sorted_files = graph.topological_sort(file_paths)
                     sorted_plans = []
                     for file_path in sorted_files:

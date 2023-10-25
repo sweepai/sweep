@@ -11,6 +11,7 @@ from sweepai.config.server import (
     DISCORD_LOW_PRIORITY_URL,
     DISCORD_MEDIUM_PRIORITY_URL,
     DISCORD_WEBHOOK_URL,
+    GITHUB_BOT_USERNAME,
     MONGODB_URI,
     SUPPORT_COUNTRY,
 )
@@ -176,7 +177,6 @@ class ChatLogger(BaseModel):
                     g = True
                     break
             if not g:
-                logger.print("G EXCEPTION", loc_user)
                 return (
                     self.get_ticket_count() >= 5
                     or self.get_ticket_count(use_date=True) >= 1
@@ -196,6 +196,8 @@ def discord_log_error(content, priority=0):
     """
     priority: 0 (high), 1 (medium), 2 (low)
     """
+    if GITHUB_BOT_USERNAME != "sweep-ai[bot]": # disable for dev
+        return
     try:
         url = DISCORD_WEBHOOK_URL
         if priority == 1:
