@@ -445,7 +445,7 @@ body:
       label: Details
       description: Tell Sweep where and what to edit and provide enough context for a new developer to the codebase
       placeholder: |
-        Bugs: The bug might be in ... file. Here are the logs: ...
-        Features: the new endpoint should use the ... class from ... file because it contains ... logic.
-        Refactors: We are migrating this function to ... version because ...
-"""
+        Unit Tests: Write unit tests for <FILE>. Test each function in the file. Make sure to test edge cases.
+        Bugs: The bug might be in <FILE>. Here are the logs: ...
+        Features: the new endpoint should use the ... class from <FILE> because it contains ... logic.
+        Refactors: We are migrating this function to ... version because ..."""

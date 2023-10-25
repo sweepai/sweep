@@ -119,8 +119,7 @@ Respond in the following format:
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
 Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>
-"""
+</snippets_and_plan_analysis>"""
 
 plan_snippets_prompt = """# Code
 File path: {file_path}
@@ -146,8 +145,7 @@ Respond in the following format:
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
 Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>
-"""
+</snippets_and_plan_analysis>"""
 
 
 @dataclass
