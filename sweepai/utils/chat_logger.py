@@ -4,9 +4,9 @@ from typing import Any
 
 import requests
 from geopy import Nominatim
+from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
-from loguru import logger
 
 from sweepai.config.server import (
     DISCORD_LOW_PRIORITY_URL,
