@@ -311,6 +311,7 @@ class CodeGenBot(ChatGPT):
                         if truncation_counter + len(extracted_code) < 60000:
                             truncated_plans.append(plan)
                             truncation_counter += len(extracted_code)
+                    plans = truncated_plans
 
                     # topologically sort the plans so that we can apply them in order
                     file_paths = [
