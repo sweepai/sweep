@@ -76,17 +76,15 @@ def search_snippets(
             file_contents = cloned_repo.get_file_contents(
                 snippet.file_path, ref=cloned_repo.branch
             )
+            snippet_length = len("\n".join(file_contents.split("\n")[snippet.start:snippet.end]))
             if (
-                len(file_contents) > sweep_config.max_file_limit
+                snippet_length > sweep_config.max_file_limit
             ):  # more than ~10000 tokens
-                logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
             snippet.content = file_contents
         except github.UnknownObjectException as e:
             logger.warning(f"Error: {e}")
             logger.warning(f"Skipping {snippet.file_path}")
-    for snippet_idx in range(len(boosted_snippets)):
-        snippets[snippet_idx] = snippets[snippet_idx].expand(100)
     snippet_paths = [snippet.file_path for snippet in snippets]
     snippet_paths = list(set(snippet_paths))
     tree, dir_obj = cloned_repo.get_tree_and_file_list(

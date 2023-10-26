@@ -109,7 +109,7 @@ class ContextPruning(ChatGPT):
                 self.messages.append(Message(**msg))
             self.model = (
                 "gpt-4-32k"
-                if (self.chat_logger and not self.chat_logger.use_faster_model())
+                if (self.chat_logger and not self.chat_logger.use_faster_model(kwargs.get("g", None)))
                 else "gpt-3.5-turbo-16k-0613"
             )
             response = self.chat(pruning_prompt)

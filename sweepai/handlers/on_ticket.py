@@ -768,7 +768,7 @@ def on_ticket(
         (
             paths_to_keep,
             directories_to_expand,
-        ) = context_pruning.prune_context(human_message, repo=repo)
+        ) = context_pruning.prune_context(human_message, repo=repo, g=g)
         if paths_to_keep and directories_to_expand:
             snippets = [
                 snippet
