@@ -1230,7 +1230,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 and (
                                     not error_messages
                                     or fuzz.ratio(
-                                        sandbox_execution.executions[-1],
+                                        sandbox_execution.executions[-1].output,
                                         error_messages[-1],
                                     )
                                 )
