@@ -152,6 +152,11 @@ def on_ticket(
     summary = re.sub(
         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
+    
+    # Validate length of title and summary
+    if len(title) < 20 or len(summary) < 20:
+        logger.info("Issue too short")
+        return {"success": True, "reason": "Issue too short"}
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -638,21 +643,14 @@ def on_ticket(
             edit_sweep_comment("N/A", 3)
             return {"success": True}
 
-        import collections
-        
-        if len(title + summary) < 20:
+        # Validate length of title and summary
+        if len(title) < 20 or len(summary) < 20:
             logger.info("Issue too short")
-        edit_sweep_comment(
-            (
-                "Please add more details to your issue. I need at least 20 characters"
-                " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
-            ),
-            -1,
-        )
-        posthog.capture(
-            username,
-            "issue_too_short",
-            properties={**metadata, "duration": time() - on_ticket_start_time},
+            return {"success": True, "reason": "Issue too short"}
+        # Validate length of title and summary
+        if len(title) < 20 or len(summary) < 20:
+            logger.info("Issue too short")
+            return {"success": True, "reason": "Issue too short"}
         )
         return {"success": True}
 
@@ -1156,6 +1154,11 @@ def on_ticket(
                     if (sandbox_response is None or sandbox_response.success)
                     else "❌",
                 )
+                # Validate length of title and summary
+                if len(title) < 20 or len(summary) < 20:
+                    logger.info("Issue too short")
+                    return {"success": True, "reason": "Issue too short"}
+                
                 if file_change_request.change_type == "check":
                     status = (
                         "✅ Sandbox ran successfully"
