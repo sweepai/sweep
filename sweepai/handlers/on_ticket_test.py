@@ -9,6 +9,7 @@ class TestOnTicket(unittest.TestCase):
         self.issue = Mock()
         self.issue.title = "Test Issue"
         self.issue.summary = "This is a test issue"
+        self.issue.reactions = [Mock(), Mock()]
         self.issue.issue_number = 1
         self.issue.issue_url = "https://github.com/test/repo/issues/1"
         self.issue.username = "testuser"
@@ -34,6 +35,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
+            self.issue.reactions,
         )
         self.assertTrue(result["success"])
         self.assertIsInstance(result, dict)
@@ -53,6 +55,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
+            self.issue.reactions,
         )
         self.assertFalse(result["success"])
         self.assertIsInstance(result, dict)
@@ -74,6 +77,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
+            self.issue.reactions,
         )
         self.assertTrue(result["success"])
         self.assertIsInstance(result, dict)
@@ -94,6 +98,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
+            self.issue.reactions,
         )
         self.assertTrue(result["success"])
         self.assertIsInstance(result, dict)
