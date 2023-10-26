@@ -641,7 +641,7 @@ def on_ticket(
         import collections
         
         if len(title + summary) < 20:
-        logger.info("Issue too short")
+            logger.info("Issue too short")
         edit_sweep_comment(
         (
             "Please add more details to your issue. I need at least 20 characters"
