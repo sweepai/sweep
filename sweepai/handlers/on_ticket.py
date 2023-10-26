@@ -643,18 +643,18 @@ def on_ticket(
         if len(title + summary) < 20:
             logger.info("Issue too short")
         edit_sweep_comment(
-        (
-            "Please add more details to your issue. I need at least 20 characters"
-            " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
-        ),
-        -1,
+            (
+                "Please add more details to your issue. I need at least 20 characters"
+                " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
+            ),
+            -1,
         )
         posthog.capture(
-        username,
-                "issue_too_short",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
-            )
-            return {"success": True}
+            username,
+            "issue_too_short",
+            properties={**metadata, "duration": time() - on_ticket_start_time},
+        )
+        return {"success": True}
 
         if (
             repo_name.lower() not in WHITELISTED_REPOS
