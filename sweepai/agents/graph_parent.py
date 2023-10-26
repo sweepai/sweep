@@ -58,14 +58,14 @@ def strip_markdown(contents):
 
 
 class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
-    relevant_files_to_symbols: dict[str, list[str]] = {}
+    relevant_files_to_symbols: list = []
     relevant_symbols_string = ""
 
     @classmethod
     def from_string(
         cls, string: str, symbols_to_files_string: str, **kwargs
     ) -> RelevantSymbolsAndFiles:
-        relevant_files_to_symbols = {}
+        relevant_files_to_symbols = []
         symbols_to_files_pattern = r"""<relevant_symbols_to_files>(\n)?(?P<symbols_to_files>.*)</relevant_symbols_to_files>"""
         symbols_to_files_match = re.search(symbols_to_files_pattern, string, re.DOTALL)
         relevant_symbols_string = ""
@@ -81,12 +81,12 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
                 for file_path in file_paths:
                     # check if file_path is a valid python file
                     if file_path.endswith(".py") and " " not in file_path:
-                        relevant_files_to_symbols[file_path] = symbols
+                        relevant_files_to_symbols.append((file_path, symbols))
             for line in symbols_to_files_string.split("\n"):
                 if not line:
                     continue
                 symbol, file_path = line.split(" ")[0], line.split(" ")[-1]
-                if file_path in relevant_files_to_symbols:
+                if any(file_path == file_path for file_path, _ in relevant_files_to_symbols):
                     relevant_symbols_string += line + "\n"
         return cls(
             relevant_files_to_symbols=relevant_files_to_symbols,

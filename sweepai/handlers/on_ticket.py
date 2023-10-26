@@ -566,10 +566,12 @@ def on_ticket(
                     issue_comment.edit(msg)
 
         if sandbox_mode:
+            logger.info("Running in sandbox mode")
             sweep_bot = SweepBot(
                 repo=repo,
                 sweep_context=sweep_context,
             )
+            logger.info("Getting file contents")
             file_name = title.split(":")[1].strip()
             file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
                 "utf-8"
@@ -581,6 +583,7 @@ def on_ticket(
             displayed_contents = file_contents.replace("```", "\`\`\`")
             sha = repo.get_branch(repo.default_branch).commit.sha
             permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
+            logger.info("Running sandbox")
             edit_sweep_comment(
                 f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
                 1,
@@ -588,7 +591,7 @@ def on_ticket(
             updated_contents, sandbox_response = sweep_bot.check_sandbox(
                 file_name, file_contents, []
             )
-
+            logger.info("Sandbox finished")
             logs = (
                 (
                     "<br/>"
@@ -632,6 +635,7 @@ def on_ticket(
                 2,
             )
             edit_sweep_comment("N/A", 3)
+            logger.info("Sandbox comments updated")
             return {"success": True}
 
         if len(title + summary) < 20:
@@ -768,7 +772,7 @@ def on_ticket(
         (
             paths_to_keep,
             directories_to_expand,
-        ) = context_pruning.prune_context(human_message, repo=repo)
+        ) = context_pruning.prune_context(human_message, repo=repo, g=g)
         if paths_to_keep and directories_to_expand:
             snippets = [
                 snippet
@@ -1141,7 +1145,7 @@ def on_ticket(
                 if file_change_request.change_type == "check":
                     status = (
                         "✅ Sandbox ran successfully"
-                        if sandbox_response.success
+                        if (sandbox_response and sandbox_response.success)
                         else "❌ Sandbox failed so I made additional changes"
                     )
                     index = next(
@@ -1344,10 +1348,9 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-            revert_buttons = set()
-            for changed_file in changed_files:
-                revert_buttons.add(Button(label=f"{RESET_FILE} {changed_file}"))
-            revert_buttons = list(revert_buttons)
+            revert_buttons = []
+            for changed_file in set(changed_files):
+                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
@@ -1482,7 +1485,7 @@ def on_ticket(
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
-                        " insufficient information. Be sure to create a more detailed issue"
+                        " a planning failure. Please create a more detailed issue"
                         " so I can better address it. If this error persists report it at"
                         " https://discord.gg/sweep."
                     ),

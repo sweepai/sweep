@@ -38,7 +38,7 @@ def filter_file(directory, file, sweep_config: SweepConfig):
             return False
 
     with open(file, "rb") as f:
-        if os.stat(file).st_size > 60000:
+        if os.stat(file).st_size > 240000:
             return False
     return True
 
