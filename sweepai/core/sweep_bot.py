@@ -230,7 +230,7 @@ class CodeGenBot(ChatGPT):
                     )
 
                     file_paths_to_contents = {}
-                    for file_path in relevant_files_to_symbols.keys():
+                    for file_path, _ in relevant_files_to_symbols:
                         try:
                             file_paths_to_contents[
                                 file_path
@@ -244,10 +244,8 @@ class CodeGenBot(ChatGPT):
                         s.file_path for s in self.human_message.snippets
                     )
                     non_human_message_snippet_paths = set()
-                    for file_path in relevant_files_to_symbols.keys():
-                        non_human_message_snippet_paths.add(
-                            file_path
-                        )  # TODO (luke) use trimmed context of initial files in this step instead of self.human_message.render_snippet_array(other_snippets)
+                    for file_path, _ in relevant_files_to_symbols:
+                        non_human_message_snippet_paths.add(file_path)
                     plans: list[GraphContextAndPlan] = []
                     for file_path in (
                         human_message_snippet_paths | non_human_message_snippet_paths
@@ -276,8 +274,8 @@ class CodeGenBot(ChatGPT):
                             else:
                                 continue
                         relevant_symbol_list = []
-                        for v in relevant_files_to_symbols.values():
-                            relevant_symbol_list.extend(v)
+                        for _, symbols in relevant_files_to_symbols:
+                            relevant_symbol_list.extend(symbols)
                         plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                         plan = plan_bot.code_plan_extraction(
                             code=snippet.content,
@@ -291,18 +289,31 @@ class CodeGenBot(ChatGPT):
                         )
                         if plan.relevant_new_snippet:
                             plans.append(plan)
-                    file_path_set = set()
-                    deduped_plans = []
+                    # sort plans by their order in relevant_files_to_symbols
+                    relevant_files = [
+                        file_path for file_path, _ in relevant_files_to_symbols
+                    ]
+                    plans.sort(
+                        key=lambda plan: relevant_files.index(plan.file_path)
+                        if plan.file_path in relevant_files
+                        else len(relevant_files)
+                    )
+
+                    truncated_plans = []
+                    truncation_counter = 0
                     for plan in plans:
-                        if plan.file_path not in file_path_set:
-                            file_path_set.add(plan.file_path)
-                            deduped_plans.append(plan)
-                        else:
-                            logger.info(f"Duplicate plan for {plan.file_path}")
-                    plans = deduped_plans
+                        extracted_code = plan.relevant_new_snippet[0].content
+                        if truncation_counter + len(extracted_code) < 60000:
+                            truncated_plans.append(plan)
+                            truncation_counter += len(extracted_code)
+                    plans = truncated_plans
 
                     # topologically sort the plans so that we can apply them in order
-                    file_paths = [plan.file_path for plan in plans]
+                    file_paths = [
+                        plan.file_path
+                        for plan in plans
+                        if plan.file_path.endswith(".py")
+                    ]
                     sorted_files = graph.topological_sort(file_paths)
                     sorted_plans = []
                     for file_path in sorted_files:
@@ -316,8 +327,7 @@ class CodeGenBot(ChatGPT):
                     relevant_snippet_text = ""
                     for plan in plans:
                         extracted_code = plan.relevant_new_snippet[0].content
-                        if len(relevant_snippet_text) + len(extracted_code) < 60000:
-                            relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>\n{extracted_code}\n</relevant_snippet>\n"
+                        relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>\n{extracted_code}\n</relevant_snippet>\n"
                     relevant_snippet_text = relevant_snippet_text.strip("\n")
                     relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
                     self.update_message_content_from_message_key(
@@ -1189,66 +1199,83 @@ class SweepBot(CodeGenBot, GithubBot):
                             file_change_requests,
                         )
                     case "check":
-                        contents_obj = self.get_contents(
-                            file_change_request.filename, branch
-                        )
-                        contents = contents_obj.decoded_content.decode("utf-8")
-                        updated_contents, sandbox_execution = self.check_sandbox(
-                            file_change_request.filename, contents, changed_files
-                        )
-                        if contents != updated_contents:
-                            self.repo.update_file(
-                                file_change_request.filename,
-                                f"Sandbox run {file_change_request.filename}",
-                                updated_contents,
-                                sha=contents_obj.sha,
-                                branch=branch,
+                        if file_change_requests[i - 1].status == "failed":
+                            file_change_request.status = "failed"
+                            yield (
+                                file_change_request,
+                                False,
+                                None,
+                                None,
+                                file_change_requests,
                             )
-                        if (
-                            sandbox_execution.success is False
-                            and sandbox_execution is not None
-                            and sandbox_execution.executions
-                            and fuzz.ratio(
-                                sandbox_execution.executions[-1], error_messages[-1]
+                        else:
+                            contents_obj = self.get_contents(
+                                file_change_request.filename, branch
                             )
-                            < 90
-                        ):
-                            additional_file_change_requests = (
-                                self.get_files_to_change_from_sandbox(
+                            contents = contents_obj.decoded_content.decode("utf-8")
+                            updated_contents, sandbox_execution = self.check_sandbox(
+                                file_change_request.filename, contents, changed_files
+                            )
+                            if contents != updated_contents:
+                                self.repo.update_file(
                                     file_change_request.filename,
+                                    f"Sandbox run {file_change_request.filename}",
                                     updated_contents,
-                                    sandbox_execution,
-                                    parent_fcr=file_change_request,
+                                    sha=contents_obj.sha,
+                                    branch=branch,
                                 )
+                            if (
+                                sandbox_execution.success is False
+                                and sandbox_execution is not None
+                                and sandbox_execution.executions
+                                and (
+                                    not error_messages
+                                    or fuzz.ratio(
+                                        sandbox_execution.executions[-1].output,
+                                        error_messages[-1],
+                                    )
+                                )
+                                < 90
+                            ):
+                                additional_file_change_requests = (
+                                    self.get_files_to_change_from_sandbox(
+                                        file_change_request.filename,
+                                        updated_contents,
+                                        sandbox_execution,
+                                        parent_fcr=file_change_request,
+                                    )
+                                )
+                                if additional_file_change_requests:
+                                    new_check_fcr = copy.deepcopy(file_change_request)
+                                    new_check_fcr.status = "queued"
+                                    new_check_fcr.id_ = str(uuid.uuid4())
+                                    additional_file_change_requests.append(
+                                        new_check_fcr
+                                    )
+                                    file_change_requests = (
+                                        file_change_requests[: i + 1]
+                                        + additional_file_change_requests
+                                        + file_change_requests[i + 1 :]
+                                    )
+                            if (
+                                sandbox_execution is not None
+                                and sandbox_execution.executions[-1]
+                            ):
+                                error_messages.append(
+                                    clean_logs(sandbox_execution.executions[-1].output)
+                                )
+                            file_change_request.status = (
+                                "succeeded" if sandbox_execution.success else "failed"
                             )
-                            new_check_fcr = copy.deepcopy(file_change_request)
-                            new_check_fcr.status = "queued"
-                            new_check_fcr.id_ = str(uuid.uuid4())
-                            additional_file_change_requests.append(new_check_fcr)
-                            file_change_requests = (
-                                file_change_requests[: i + 1]
-                                + additional_file_change_requests
-                                + file_change_requests[i + 1 :]
+                            if i + 1 < len(file_change_requests):
+                                file_change_requests[i + 1].status = "running"
+                            yield (
+                                file_change_request,
+                                True,
+                                sandbox_execution,
+                                commit,
+                                file_change_requests,
                             )
-                        if (
-                            sandbox_response is not None
-                            and sandbox_response.executions[-1]
-                        ):
-                            error_messages.append(
-                                clean_logs(sandbox_response.executions[-1].output)
-                            )
-                        file_change_requests[i].status = (
-                            "succeeded" if sandbox_execution.success else "failed"
-                        )
-                        if i + 1 < len(file_change_requests):
-                            file_change_requests[i + 1].status = "running"
-                        yield (
-                            file_change_request,
-                            True,
-                            sandbox_execution,
-                            commit,
-                            file_change_requests,
-                        )
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch

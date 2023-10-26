@@ -226,7 +226,7 @@ class Graph(BaseModel):
         return references_path
 
     def paths_to_first_degree_entities(self, file_paths: list[str]):
-        paths = [self.extract_first_degree(file_path) for file_path in file_paths]
+        paths = [self.extract_first_degree(file_path).strip("\n") for file_path in file_paths]
         # Remove the last element if it is an empty string to avoid an extra newline at the end
         if paths and paths[-1] == "":
             paths = paths[:-1]
