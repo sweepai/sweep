@@ -292,12 +292,15 @@ def on_ticket(
         eyes_reaction = item_to_react_to.create_reaction("eyes")
         # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
         reactions = item_to_react_to.get_reactions()
-        for reaction in reactions:
-            if (
-                reaction.content == "rocket"
-                and reaction.user.login == GITHUB_BOT_USERNAME
-            ):
-                item_to_react_to.delete_reaction(reaction.id)
+        if isinstance(reactions, collections.abc.Iterable):
+            for reaction in reactions:
+                if (
+                    reaction.content == "rocket"
+                    and reaction.user.login == GITHUB_BOT_USERNAME
+                ):
+                    item_to_react_to.delete_reaction(reaction.id)
+        else:
+            logger.error("Reactions object is not iterable.")
 
         current_issue.edit(body=summary)
 
@@ -1114,6 +1117,16 @@ def on_ticket(
                     commit,
                     file_change_requests,
                 ) = item
+                reactions = item_to_react_to.get_reactions()
+                if isinstance(reactions, collections.abc.Iterable):
+                    for reaction in reactions:
+                        if (
+                            reaction.content == "rocket"
+                            and reaction.user.login == GITHUB_BOT_USERNAME
+                        ):
+                            item_to_react_to.delete_reaction(reaction.id)
+                else:
+                    logger.error("Reactions object is not iterable.")
                 svg = create_digraph_svg(file_change_requests)
                 svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
                 sandbox_response: SandboxResponse | None = sandbox_response
