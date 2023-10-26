@@ -171,7 +171,7 @@ class ClonedRepo:
         repo_dict = {
             "repo_full_name": self.repo_full_name,
             "files_dict": self.installation_dict,
-            "__version__": "0.0.3",
+            "__version__": "0.0.4",
         }
         return hashlib.sha256(
             json.dumps(repo_dict, sort_keys=True).encode("utf-8")
