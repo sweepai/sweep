@@ -21,8 +21,7 @@ new line(s) to append to snippet j
 
 ...
 ```
-</diffs>
-"""
+</diffs>"""
 
 update_snippets_system_prompt_python = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming. When you write code, the code works on the first try, is syntactically perfect, and is complete. Ensure correct indentation for each indentation level, as per PEP 8. Place all 'from ... import ...' and 'import ...' statements at the beginning of the file.
@@ -127,5 +126,4 @@ new line(s) to append to snippet j
 
 ...
 ```
-</diffs>
-"""
+</diffs>"""
