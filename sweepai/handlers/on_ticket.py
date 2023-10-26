@@ -8,6 +8,7 @@ import math
 import re
 import traceback
 from time import time
+from loguru import logger
 
 import openai
 import requests
@@ -651,8 +652,6 @@ def on_ticket(
         if len(title) < 20 or len(summary) < 20:
             logger.info("Issue too short")
             return {"success": True, "reason": "Issue too short"}
-        )
-        return {"success": True}
 
         if (
             repo_name.lower() not in WHITELISTED_REPOS
@@ -1110,7 +1109,8 @@ def on_ticket(
             import collections
             
             for item in generator:
-            if isinstance(item, dict):
+                if isinstance(item, dict):
+                    pass
             response = item
             break
             (
@@ -1154,6 +1154,11 @@ def on_ticket(
                     if (sandbox_response is None or sandbox_response.success)
                     else "❌",
                 )
+                # Validate length of title and summary
+                if len(title) < 20 or len(summary) < 20:
+                    logger.info("Issue too short")
+                    return {"success": True, "reason": "Issue too short"}
+                
                 # Validate length of title and summary
                 if len(title) < 20 or len(summary) < 20:
                     logger.info("Issue too short")
@@ -1270,6 +1275,11 @@ def on_ticket(
 
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.entity_display}")
+                # Validate length of title and summary
+                if len(title) < 20 or len(summary) < 20:
+                    logger.info("Issue too short")
+                    return {"success": True, "reason": "Issue too short"}
+
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
@@ -1317,6 +1327,11 @@ def on_ticket(
                     + "\n\n"
                 )
                 if changes_required:
+                    # Validate length of title and summary
+                    if len(title) < 20 or len(summary) < 20:
+                        logger.info("Issue too short")
+                        return {"success": True, "reason": "Issue too short"}
+                    
                     edit_sweep_comment(
                         review_message
                         + "\n\nI'm currently addressing these suggestions.",
@@ -1343,6 +1358,11 @@ def on_ticket(
                 logger.error(e)
 
             if changes_required:
+                # Validate length of title and summary
+                if len(title) < 20 or len(summary) < 20:
+                    logger.info("Issue too short")
+                    return {"success": True, "reason": "Issue too short"}
+
                 edit_sweep_comment(
                     review_message + "\n\nI finished incorporating these changes.",
                     3,
@@ -1394,6 +1414,11 @@ def on_ticket(
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
+            # Validate length of title and summary
+            if len(title) < 20 or len(summary) < 20:
+                logger.info("Issue too short")
+                return {"success": True, "reason": "Issue too short"}
+
             edit_sweep_comment(
                 review_message + "\n\nSuccess! 🚀",
                 4,
@@ -1416,6 +1441,11 @@ def on_ticket(
                 priority=2,
             )
             if chat_logger.is_paying_user():
+                # Validate length of title and summary
+                if len(title) < 20 or len(summary) < 20:
+                    logger.info("Issue too short")
+                    return {"success": True, "reason": "Issue too short"}
+            
                 edit_sweep_comment(
                     (
                         f"Sorry, I could not edit `{e.filename}` as this file is too long."
@@ -1448,6 +1478,11 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc(),
                 priority=2,
             )
+            # Validate length of title and summary
+            if len(title) < 20 or len(summary) < 20:
+                logger.info("Issue too short")
+                return {"success": True, "reason": "Issue too short"}
+        
             edit_sweep_comment(
                 (
                     "Sorry, Sweep could not find any appropriate files to edit to address"
@@ -1499,6 +1534,11 @@ def on_ticket(
             logger.error(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
+                # Validate length of title and summary
+                if len(title) < 20 or len(summary) < 20:
+                    logger.info("Issue too short")
+                    return {"success": True, "reason": "Issue too short"}
+            
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
