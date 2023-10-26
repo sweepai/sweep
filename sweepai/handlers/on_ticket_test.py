@@ -35,7 +35,6 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
-            self.issue.reactions,
         )
         self.assertTrue(result["success"])
         self.assertIsInstance(result, dict)
@@ -55,7 +54,6 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
-            self.issue.reactions,
         )
         self.assertFalse(result["success"])
         self.assertIsInstance(result, dict)
@@ -77,7 +75,6 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
-            self.issue.reactions,
         )
         self.assertTrue(result["success"])
         self.assertIsInstance(result, dict)
@@ -98,7 +95,6 @@ class TestOnTicket(unittest.TestCase):
             self.issue.comment_id,
             self.issue.edited,
             self.issue.tracking_id,
-            self.issue.reactions,
         )
         self.assertTrue(result["success"])
         self.assertIsInstance(result, dict)
