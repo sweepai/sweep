@@ -1225,15 +1225,16 @@ class SweepBot(CodeGenBot, GithubBot):
                                     parent_fcr=file_change_request,
                                 )
                             )
-                            new_check_fcr = copy.deepcopy(file_change_request)
-                            new_check_fcr.status = "queued"
-                            new_check_fcr.id_ = str(uuid.uuid4())
-                            additional_file_change_requests.append(new_check_fcr)
-                            file_change_requests = (
-                                file_change_requests[: i + 1]
-                                + additional_file_change_requests
-                                + file_change_requests[i + 1 :]
-                            )
+                            if additional_file_change_requests:
+                                new_check_fcr = copy.deepcopy(file_change_request)
+                                new_check_fcr.status = "queued"
+                                new_check_fcr.id_ = str(uuid.uuid4())
+                                additional_file_change_requests.append(new_check_fcr)
+                                file_change_requests = (
+                                    file_change_requests[: i + 1]
+                                    + additional_file_change_requests
+                                    + file_change_requests[i + 1 :]
+                                )
                         if (
                             sandbox_response is not None
                             and sandbox_response.executions[-1]
