@@ -3,6 +3,7 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
+import collections
 import math
 import re
 import traceback
@@ -637,17 +638,19 @@ def on_ticket(
             edit_sweep_comment("N/A", 3)
             return {"success": True}
 
+        import collections
+        
         if len(title + summary) < 20:
-            logger.info("Issue too short")
-            edit_sweep_comment(
-                (
-                    "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            posthog.capture(
-                username,
+        logger.info("Issue too short")
+        edit_sweep_comment(
+        (
+            "Please add more details to your issue. I need at least 20 characters"
+            " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
+        ),
+        -1,
+        )
+        posthog.capture(
+        username,
                 "issue_too_short",
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
@@ -1106,17 +1109,19 @@ def on_ticket(
                         return True
                 return False
 
+            import collections
+            
             for item in generator:
-                if isinstance(item, dict):
-                    response = item
-                    break
-                (
-                    file_change_request,
-                    changed_file,
-                    sandbox_response,
-                    commit,
-                    file_change_requests,
-                ) = item
+            if isinstance(item, dict):
+            response = item
+            break
+            (
+            file_change_request,
+            changed_file,
+            sandbox_response,
+            commit,
+            file_change_requests,
+            ) = item
                 reactions = item_to_react_to.get_reactions()
                 if isinstance(reactions, collections.abc.Iterable):
                     for reaction in reactions:
