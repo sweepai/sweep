@@ -1141,7 +1141,7 @@ def on_ticket(
                 if file_change_request.change_type == "check":
                     status = (
                         "✅ Sandbox ran successfully"
-                        if sandbox_response.success
+                        if (sandbox_response and sandbox_response.success)
                         else "❌ Sandbox failed so I made additional changes"
                     )
                     index = next(
