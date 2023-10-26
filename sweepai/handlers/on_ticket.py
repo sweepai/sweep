@@ -566,10 +566,12 @@ def on_ticket(
                     issue_comment.edit(msg)
 
         if sandbox_mode:
+            logger.info("Running in sandbox mode")
             sweep_bot = SweepBot(
                 repo=repo,
                 sweep_context=sweep_context,
             )
+            logger.info("Getting file contents")
             file_name = title.split(":")[1].strip()
             file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
                 "utf-8"
@@ -581,6 +583,7 @@ def on_ticket(
             displayed_contents = file_contents.replace("```", "\`\`\`")
             sha = repo.get_branch(repo.default_branch).commit.sha
             permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
+            logger.info("Running sandbox")
             edit_sweep_comment(
                 f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
                 1,
@@ -588,7 +591,7 @@ def on_ticket(
             updated_contents, sandbox_response = sweep_bot.check_sandbox(
                 file_name, file_contents, []
             )
-
+            logger.info("Sandbox finished")
             logs = (
                 (
                     "<br/>"
@@ -632,6 +635,7 @@ def on_ticket(
                 2,
             )
             edit_sweep_comment("N/A", 3)
+            logger.info("Sandbox comments updated")
             return {"success": True}
 
         if len(title + summary) < 20:
