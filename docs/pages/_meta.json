@@ -1,13 +1,11 @@
 {
   "index": "🚀 Getting Started",
-  "deployment": "🏠 Self-Host",
-  "usage": "📖 Usage",
-  "about": "👋 About",
-  "faq": "❓ FAQ",
-  "blogs": "📚 Blogs",
-  "videos": "🎥 Videos",
-  "privacy": "🔒 Privacy Policy",
-  "home": {
+  "payment": {
+      "title": "Sweep Pro",
+      "type": "page",
+      "href": "https://buy.stripe.com/00g5npeT71H2gzCfZ8",
+      "newWindow": true
+    }
     "title": "Home",
     "type": "page",
     "href": "https://sweep.dev"
