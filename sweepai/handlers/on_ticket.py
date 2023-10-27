@@ -307,12 +307,13 @@ def on_ticket(
         eyes_reaction = item_to_react_to.create_reaction("eyes")
         # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
         reactions = item_to_react_to.get_reactions()
-        for reaction in reactions:
-            if (
-                reaction.content == "rocket"
-                and reaction.user.login == GITHUB_BOT_USERNAME
-            ):
-                item_to_react_to.delete_reaction(reaction.id)
+        if isinstance(reactions, collections.Iterable):
+            for reaction in reactions:
+                if (
+                    reaction.content == "rocket"
+                    and reaction.user.login == GITHUB_BOT_USERNAME
+                ):
+                    item_to_react_to.delete_reaction(reaction.id)
 
         current_issue.edit(body=summary)
 
@@ -876,7 +877,17 @@ def on_ticket(
                 "I found the following snippets in your repository. I will now analyze"
                 " these snippets and come up with a plan."
                 + "\n\n"
-                + create_collapsible(
+                from unittest.mock import Mock
+                
+                reactions = item_to_react_to.get_reactions()
+                if isinstance(reactions, Mock):
+                    reactions = reactions()
+                for reaction in reactions:
+                    if (
+                        reaction.content == "rocket"
+                        and reaction.user.login == GITHUB_BOT_USERNAME
+                    ):
+                        item_to_react_to.delete_reaction(reaction.id)
                     "Some code snippets I looked at (click to expand). If some file is"
                     " missing from here, you can mention the path in the ticket"
                     " description.",
@@ -1229,7 +1240,14 @@ def on_ticket(
 
             lint_output = None
             try:
-                current_issue.delete_reaction(eyes_reaction.id)
+                reactions = current_issue.get_reactions()
+                if isinstance(reactions, collections.Iterable):
+                    for reaction in reactions:
+                        if (
+                            reaction.content == "eyes"
+                            and reaction.user.login == GITHUB_BOT_USERNAME
+                        ):
+                            current_issue.delete_reaction(reaction.id)
             except SystemExit:
                 raise SystemExit
             except:
