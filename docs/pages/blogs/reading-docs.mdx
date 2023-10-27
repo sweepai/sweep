@@ -4,11 +4,11 @@
 
 ---
 
-Outdated documentation is one of the most common concerns with using GPT4 to generate code. When we use rapidly changing/new packages like OpenAI, a new interface(like function calling) might be introduced. Of course, ChatGPT won’t know about the new api, and there’s no way it could use it without the docs.
+Outdated documentation is one of the most common concerns with using GPT4 to generate code. When we use rapidly changing/new packages like OpenAI, a new interface(like function calling) might be introduced. Of course, ChatGPT won’t know about the new API, and there’s no way it could use it without the docs.
 
 ## Finetuning doesn’t work 🔧
 
-Finetuning the model when a new version comes out is not going to work. Any framework which suffers the above problem is going to continuously change, and you’ll have to finetune your model again. Also as we’ll cover later, why do we (as a single user) want a code assistant to know every single version of a framework? At best, you have two use cases:
+Finetuning the model when a new version comes out is not going to work. Any framework which suffers from the above problem is going to continuously change, and you’ll have to finetune your model again. Also as we’ll cover later, why do we (as a single user) want a code assistant to know every single version of a framework? At best, you have two use cases:
 
 1. You want to migrate from version `x.y` to version `x.y+1`.
 2. You want to know the best version of package x for your use case so you need a language model that knows all of the versions.
