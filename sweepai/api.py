@@ -284,6 +284,7 @@ async def webhook(raw_request: Request):
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
                 if pull_requests:
+                    logger.info(pull_requests[0].number)
                     pr = repo.get_pull(pull_requests[0].number)
                     # check if the PR was created in the last 15 minutes and turn creation time to datetime
                     if (time.time() - pr.created_at.timestamp()) > 900:
