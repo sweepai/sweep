@@ -24,7 +24,11 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.str_utils import num_of_snippets_to_query
+from sweepai.utils.str_utils import (
+    blockquote,
+    checkbox_template,
+    num_of_snippets_to_query,
+)
 from sweepai.utils.ticket_utils import post_process_snippets
 
 
@@ -209,4 +213,22 @@ def make_pr(
     revert_buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
     pr.create_issue_comment(revert_buttons_list.serialize())
     pr.add_to_labels(GITHUB_LABEL_NAME)
+
+    sandbox_execution_comment_contents = "## Sandbox Executions\n\n" + "\n".join(
+        [
+            checkbox_template.format(
+                check="X",
+                filename=file_change_request.display_summary
+                + " "
+                + file_change_request.status_display,
+                instructions=blockquote(
+                    file_change_request.instructions_ticket_display
+                ),
+            )
+            for file_change_request in file_change_requests
+            if file_change_request.change_type == "check"
+        ]
+    )
+    pr.create_issue_comment(sandbox_execution_comment_contents)
+
     return pr
