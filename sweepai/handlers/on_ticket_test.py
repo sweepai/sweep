@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 from sweepai.handlers.on_ticket import on_ticket
 
@@ -21,7 +21,7 @@ class TestOnTicket(unittest.TestCase):
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket(self, mock_get_github_client):
-        mock_get_github_client.return_value = (Mock(), Mock())
+        mock_get_github_client.return_value = (MagicMock(), MagicMock())
         result = on_ticket(
             self.issue.title,
             self.issue.summary,
@@ -40,6 +40,7 @@ class TestOnTicket(unittest.TestCase):
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket_with_exception(self, mock_get_github_client):
         mock_get_github_client.side_effect = Exception("Test exception")
+        mock_get_github_client.return_value = (MagicMock(), MagicMock())
         result = on_ticket(
             self.issue.title,
             self.issue.summary,
@@ -57,7 +58,7 @@ class TestOnTicket(unittest.TestCase):
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket_with_edited_issue(self, mock_get_github_client):
-        mock_get_github_client.return_value = (Mock(), Mock())
+        mock_get_github_client.return_value = (MagicMock(), MagicMock())
         self.issue.edited = True
         result = on_ticket(
             self.issue.title,
@@ -76,7 +77,7 @@ class TestOnTicket(unittest.TestCase):
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket_with_comment_id(self, mock_get_github_client):
-        mock_get_github_client.return_value = (Mock(), Mock())
+        mock_get_github_client.return_value = (MagicMock(), MagicMock())
         self.issue.comment_id = 123
         result = on_ticket(
             self.issue.title,
