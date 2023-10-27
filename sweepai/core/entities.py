@@ -209,17 +209,17 @@ class FileChangeRequest(RegexMatchableBaseModel):
     @property
     def display_summary(self):
         if self.change_type == "rename":
-            return f"Rename {self.filename} to {self.instructions}"
+            return f"Rename `{self.filename}` to `{self.instructions}`"
         elif self.change_type == "delete":
-            return f"Delete {self.filename}"
+            return f"Delete `{self.filename}`"
         elif self.change_type == "create":
-            return f"Create {self.filename}"
+            return f"Create `{self.filename}`"
         elif self.change_type == "modify":
-            return f"Modify {self.filename}"
+            return f"Modify `{self.filename}`"
         elif self.change_type == "rewrite":
-            return f"Rewrite {self.filename}"
+            return f"Rewrite `{self.filename}`"
         elif self.change_type == "check":
-            return f"Check {self.filename}"
+            return f"Check `{self.filename}`"
         else:
             raise ValueError(f"Unknown change type {self.change_type}")
 
