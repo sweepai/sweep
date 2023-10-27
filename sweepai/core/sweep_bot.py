@@ -11,6 +11,7 @@ from fuzzywuzzy import fuzz
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
+from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.agents.complete_code import ExtractLeftoverComments
@@ -48,7 +49,6 @@ from sweepai.core.prompts import (
     snippet_replacement_system_message,
     subissues_prompt,
 )
-from loguru import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.graph import Graph
@@ -128,7 +128,9 @@ class CodeGenBot(ChatGPT):
             snippets: Snippet = []
             for raw_snippet in relevant_snippets.split("\n"):
                 if ":" not in raw_snippet:
-                    logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
+                    logger.warning(
+                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse"
+                    )
                 file_path, lines = raw_snippet.split(":", 1)
                 if "-" not in lines:
                     logger.warning(
@@ -236,7 +238,9 @@ class CodeGenBot(ChatGPT):
                                 file_path
                             ] = self.cloned_repo.get_file_contents(file_path)
                         except FileNotFoundError:
-                            logger.warning(f"File {file_path} not found in repo. Skipping...")
+                            logger.warning(
+                                f"File {file_path} not found in repo. Skipping..."
+                            )
                             continue
 
                     # Create plan for relevant snippets first
@@ -1114,7 +1118,7 @@ class SweepBot(CodeGenBot, GithubBot):
             "rewrite": "Rewrote existing file",
             "check": "Checked file",
             "delete": "Deleted file",
-            "rename": "Renamed file"
+            "rename": "Renamed file",
         }
 
         i = 0
@@ -1128,11 +1132,15 @@ class SweepBot(CodeGenBot, GithubBot):
             changed_file = False
 
             try:
-                commit = commit_messages.get(file_change_request.change_type, "No commit message provided")
+                commit = commit_messages.get(
+                    file_change_request.change_type, "No commit message provided"
+                )
                 if self.is_blocked(file_change_request.filename, blocked_dirs)[
                     "success"
                 ]:
-                    logger.print(f"Skipping {file_change_request.filename} because it is blocked.")
+                    logger.print(
+                        f"Skipping {file_change_request.filename} because it is blocked."
+                    )
                     i += 1
                     continue
 
@@ -1191,7 +1199,9 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
                         )
-                        file_change_requests[i].commit_hash_url = commit.html_url
+                        file_change_requests[i].commit_hash_url = (
+                            commit.html_url if commit else None
+                        )
                         if i + 1 < len(file_change_requests):
                             file_change_requests[i + 1].status = "running"
                         yield (
