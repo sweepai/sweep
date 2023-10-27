@@ -10,7 +10,7 @@ from github.Commit import Commit
 from github.Repository import Repository
 
 from sweepai.agents.sweep_yaml import SweepYamlBot
-from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
+from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -31,6 +31,7 @@ from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.str_utils import UPDATES_MESSAGE
 
 openai.api_key = OPENAI_API_KEY
 
@@ -445,7 +446,7 @@ body:
       label: Details
       description: Tell Sweep where and what to edit and provide enough context for a new developer to the codebase
       placeholder: |
-        Bugs: The bug might be in ... file. Here are the logs: ...
-        Features: the new endpoint should use the ... class from ... file because it contains ... logic.
-        Refactors: We are migrating this function to ... version because ...
-"""
+        Unit Tests: Write unit tests for <FILE>. Test each function in the file. Make sure to test edge cases.
+        Bugs: The bug might be in <FILE>. Here are the logs: ...
+        Features: the new endpoint should use the ... class from <FILE> because it contains ... logic.
+        Refactors: We are migrating this function to ... version because ..."""

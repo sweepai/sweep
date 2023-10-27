@@ -282,12 +282,6 @@ def get_rules(repo: Repository):
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
 
-UPDATES_MESSAGE = """\
-### 🎉 Latest improvements to Sweep:
-
-* Sweep can now passively improve your repository! Check out [Rules](https://docs.sweep.dev/usage/config#rules) to learn more.
-"""
-
 RESTART_SWEEP_BUTTON = "↻ Restart Sweep"
 SWEEP_GOOD_FEEDBACK = "👍 Sweep Did Well"
 SWEEP_BAD_FEEDBACK = "👎 Sweep Needs Improvement"

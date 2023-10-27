@@ -9,17 +9,16 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
 ```
 </diffs>"""
@@ -35,17 +34,16 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
 ```
 </diffs>"""
@@ -76,19 +74,18 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
-```
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
+```
 </diffs>"""
 
 update_snippets_prompt_test = """# Code
@@ -117,17 +114,16 @@ Respond in the following format:
 
 <diffs>
 ```
-<<<<<<< ORIGINAL (index=i)
-old line(s) from the snippet
+<<<<<<< REPLACE (index=i)
+old line(s) from snippet i
 =======
 new line(s) to replace
->>>>>>> UPDATED
+>>>>>>>
 
-<<<<<<< ORIGINAL (index=j)
-old line(s) from the snippet
-=======
-new line(s) to replace
->>>>>>> UPDATED
-```
+<<<<<<< APPEND (index=j)
+new line(s) to append to snippet j
+>>>>>>>
+
 ...
+```
 </diffs>"""

@@ -119,8 +119,7 @@ Respond in the following format:
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
 Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>
-"""
+</snippets_and_plan_analysis>"""
 
 plan_snippets_prompt = """# Code
 File path: {file_path}
@@ -146,8 +145,7 @@ Respond in the following format:
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
 Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>
-"""
+</snippets_and_plan_analysis>"""
 
 
 @dataclass
@@ -529,16 +527,19 @@ class ModifyBot:
                         f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
                         for i, (reason, snippet) in enumerate(selected_snippets)
                     ]
-                ),
-                request=file_change_request.instructions
+                )
                 + "\n"
                 + analysis_and_identification,
+                request=file_change_request.instructions,
                 n=len(selected_snippets),
                 changes_made=self.get_diffs_message(file_contents),
             )
         )
         updated_snippets: dict[int, str] = {}
-        updated_pattern = r"<<<<<<<\s+ORIGINAL\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>\s+UPDATED"
+        updated_pattern = r"<<<<<<<\s+REPLACE\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
+        append_pattern = (
+            r"<<<<<<<\s+APPEND\s+\(index=(?P<index>\d+)\)(?P<updated_code>.*?)>>>>>>>"
+        )
 
         if (
             len(list(re.finditer(updated_pattern, update_snippets_response, re.DOTALL)))
@@ -563,6 +564,17 @@ class ModifyBot:
                     replace=updated_code.splitlines(),
                 )[0]
             )
+
+        for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
+            index = int(match_.group("index"))
+            updated_code = match_.group("updated_code").strip("\n")
+
+            _reason, current_contents = selected_snippets[index]
+            if index not in updated_snippets:
+                updated_snippets[index] = current_contents
+            else:
+                current_contents = updated_snippets[index]
+            updated_snippets[index] += current_contents + "\n" + updated_code
 
         result = file_contents
         new_code = []

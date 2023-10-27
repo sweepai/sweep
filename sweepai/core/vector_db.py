@@ -99,10 +99,10 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
             prediction.wait()
             outputs = prediction.output
             break
-        except Exception as e:
+        except Exception:
             logger.exception(f"Replicate timeout: {e}")
     else:
-        raise Exception(f"Replicate timeout {e}")
+        raise Exception(f"Replicate timeout")
     return [output["embedding"] for output in outputs]
 
 
@@ -286,10 +286,9 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
 
-        logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs = init_deeplake_vs(collection_name)
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        logger.info("Added embeddings to deeplake vector store")
+        logger.info("Added embeddings to cache")
         if redis_client and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [
