@@ -17,7 +17,7 @@ class TestOnTicket(unittest.TestCase):
         self.issue.installation_id = 12345
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
-    def test_on_ticket(self, mock_get_github_client):
+    def test_on_ticket_with_valid_data(self, mock_get_github_client):
         mock_get_github_client.return_value = (Mock(), Mock())
         result = on_ticket(
             self.issue.title,
@@ -30,9 +30,11 @@ class TestOnTicket(unittest.TestCase):
             self.issue.installation_id,
         )
         self.assertTrue(result["success"])
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
-    def test_on_ticket_with_exception(self, mock_get_github_client):
+    def test_on_ticket_with_invalid_data(self, mock_get_github_client):
         mock_get_github_client.side_effect = Exception("Test exception")
         result = on_ticket(
             self.issue.title,
@@ -45,3 +47,78 @@ class TestOnTicket(unittest.TestCase):
             self.issue.installation_id,
         )
         self.assertFalse(result["success"])
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
+        self.assertIn("reason", result)    @patch("sweepai.handlers.on_ticket.get_github_client")
+    def test_on_ticket_with_valid_data(self, mock_get_github_client):
+        mock_get_github_client.return_value = (Mock(), Mock())
+        result = on_ticket(
+            self.issue.title,
+            self.issue.summary,
+            self.issue.issue_number,
+            self.issue.issue_url,
+            self.issue.username,
+            self.issue.repo_full_name,
+            self.issue.repo_description,
+            self.issue.installation_id,
+        )
+        self.assertTrue(result["success"])
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
+
+    @patch("sweepai.handlers.on_ticket.get_github_client")
+    def test_on_ticket_with_invalid_data(self, mock_get_github_client):
+        mock_get_github_client.side_effect = Exception("Test exception")
+        result = on_ticket(
+            self.issue.title,
+            self.issue.summary,
+            self.issue.issue_number,
+            self.issue.issue_url,
+            self.issue.username,
+            self.issue.repo_full_name,
+            self.issue.repo_description,
+            self.issue.installation_id,
+        )
+        self.assertFalse(result["success"])
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
+        self.assertIn("reason", result)
+    @patch("sweepai.handlers.on_ticket.get_github_client")
+    def test_on_ticket_with_empty_summary(self, mock_get_github_client):
+        mock_get_github_client.return_value = (Mock(), Mock())
+        self.issue.summary = ""
+        result = on_ticket(
+            self.issue.title,
+            self.issue.summary,
+            self.issue.issue_number,
+            self.issue.issue_url,
+            self.issue.username,
+            self.issue.repo_full_name,
+            self.issue.repo_description,
+            self.issue.installation_id,
+        )
+        self.assertTrue(result["success"])
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
+
+    @patch("sweepai.handlers.on_ticket.get_github_client")
+    def test_on_ticket_with_empty_title(self, mock_get_github_client):
+        mock_get_github_client.return_value = (Mock(), Mock())
+        self.issue.title = ""
+        result = on_ticket(
+            self.issue.title,
+            self.issue.summary,
+            self.issue.issue_number,
+            self.issue.issue_url,
+            self.issue.username,
+            self.issue.repo_full_name,
+            self.issue.repo_description,
+            self.issue.installation_id,
+        )
+        self.assertFalse(result["success"])
+        self.assertIsInstance(result, dict)
+        self.assertIn("success", result)
+        self.assertIn("reason", result)
+
+if __name__ == "__main__":
+    unittest.main()
