@@ -265,7 +265,7 @@ def on_ticket(
     )
 
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-    payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
+    payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
     daily_message = (
         f" and {daily_ticket_count} for the day"
         if not is_paying_user and not is_trial_user
