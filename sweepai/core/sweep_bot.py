@@ -303,12 +303,11 @@ class CodeGenBot(ChatGPT):
                         if plan.file_path in relevant_files
                         else len(relevant_files)
                     )
-
                     truncated_plans = []
                     truncation_counter = 0
                     for plan in plans:
                         extracted_code = plan.relevant_new_snippet[0].content
-                        if truncation_counter + len(extracted_code) < 60000:
+                        if truncation_counter + len(extracted_code) < 70000: # 70k characters ~ 18k tokens
                             truncated_plans.append(plan)
                             truncation_counter += len(extracted_code)
                     plans = truncated_plans
