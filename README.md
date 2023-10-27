@@ -125,12 +125,9 @@ Examine pull requests created by Sweep [here](https://docs.sweep.dev/about/examp
 ## Pricing
 Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. To prevent abuse, users can use 2 GPT-4 tickets a day.
 
-For more GPT-4 tickets, visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>. For professionals who want unlimited GPT-4 tickets and priority support, get a one week free trial of [Sweep Pro](https://buy.stripe.com/00g5npeT71H2gzCfZ8).
+For more GPT-4 tickets, visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>. For professionals who want to try unlimited GPT-4 tickets and priority support, you can get a one week free trial of [Sweep Pro](https://buy.stripe.com/00g5npeT71H2gzCfZ8).
 
-For on-prem Sweep, you can [self-host](https://docs.sweep.dev/deployment) it yourself. Further, you can get enterprise-level support by [contacting us](https://form.typeform.com/to/wliuvyWE).
-
-## Roadmap
-We plan on rapidly improving Sweep. To see what we're working on, check out our [Roadmap](https://docs.sweep.dev/about/roadmap).
+You can [self-host](https://docs.sweep.dev/deployment) Sweep's docker image on any machine (AWS, Azure, your laptop) for free. You can get enterprise support by [contacting us](https://form.typeform.com/to/wliuvyWE).
 
 ---
 
