@@ -7,6 +7,7 @@ import math
 import re
 import traceback
 from time import time
+# No replacement needed
 
 import openai
 import requests
@@ -890,14 +891,14 @@ try:
                         and reaction.user.login == GITHUB_BOT_USERNAME
                     ):
                         item_to_react_to.delete_reaction(reaction.id)
-                    "Some code snippets I looked at (click to expand). If some file is"
-                    " missing from here, you can mention the path in the ticket"
-                    " description.",
-                    "\n".join(
-                        [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
-                            for snippet in snippets
-                        ]
+                "Some code snippets I looked at (click to expand). If some file is"
+                " missing from here, you can mention the path in the ticket"
+                " description.",
+                "\n".join(
+                    [
+                        f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
+                        for snippet in snippets
+                    ]
                     ),
                 )
                 + (
@@ -912,7 +913,7 @@ try:
                 1,
             )
 
-            from unittest.mock import Mock
+            # from unittest.mock import Mock
             
             if do_map:
             subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
@@ -1258,7 +1259,6 @@ try:
                 pass
 
             changes_required = False
-            from unittest.mock import Mock
             
             try:
                 # CODE REVIEW
