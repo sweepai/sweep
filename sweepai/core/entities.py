@@ -195,6 +195,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
         if self.status == "succeeded":
             return "✓"
         elif self.status == "failed":
+            if self.change_type == "modify":
+                return "! No changes made"
             return "✗"
         elif self.status == "queued":
             return "▶"
