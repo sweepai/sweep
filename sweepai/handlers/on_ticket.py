@@ -286,17 +286,19 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
     markdown_badge = get_docker_badge()
 
-    try:
-        logger.info(f"Getting repo {repo_full_name}")
+from unittest.mock import Mock
 
-        if current_issue.state == "closed":
-            logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
-            )
-            posthog.capture(
-                username,
-                "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+try:
+    logger.info(f"Getting repo {repo_full_name}")
+
+    if current_issue.state == "closed":
+        logger.warning(
+            f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
+        )
+        posthog.capture(
+            username,
+            "issue_closed",
+            properties={**metadata, "duration": time() - on_ticket_start_time},
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -877,7 +879,7 @@ def on_ticket(
                 "I found the following snippets in your repository. I will now analyze"
                 " these snippets and come up with a plan."
                 + "\n\n"
-                from unittest.mock import Mock
+                # No replacement needed
                 
                 reactions = item_to_react_to.get_reactions()
                 if isinstance(reactions, Mock):
@@ -910,17 +912,19 @@ def on_ticket(
                 1,
             )
 
+            from unittest.mock import Mock
+            
             if do_map:
-                subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
-                edit_sweep_comment(
-                    f"I'm creating the following subissues:\n\n"
-                    + "\n\n".join(
-                        [
-                            f"#{subissue.title}:\n" + blockquote(subissue.body)
-                            for subissue in subissues
-                        ]
-                    ),
-                    2,
+            subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
+            edit_sweep_comment(
+            f"I'm creating the following subissues:\n\n"
+            + "\n\n".join(
+            [
+                f"#{subissue.title}:\n" + blockquote(subissue.body)
+                for subissue in subissues
+            ]
+            ),
+            2,
                 )
                 for subissue in tqdm(subissues):
                     subissue.issue_id = repo.create_issue(
@@ -1254,6 +1258,8 @@ def on_ticket(
                 pass
 
             changes_required = False
+            from unittest.mock import Mock
+            
             try:
                 # CODE REVIEW
                 changes_required, review_comment = review_pr(
