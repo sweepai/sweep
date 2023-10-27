@@ -10,22 +10,11 @@ class TestGraphChild(unittest.TestCase):
 
     def test_code_plan_extraction_no_entities(self):
         code = "print('Hello, world!')"
-        file_path = "test.py"
         entities = None
-        issue_metadata = "Test issue"
-        previous_snippets = "Test snippets"
-        all_symbols_and_files = "Test symbols and files"
 
-        result = self.bot.code_plan_extraction(
-            code,
-            file_path,
-            entities,
-            issue_metadata,
-            previous_snippets,
-            all_symbols_and_files,
-        )
+        result = extract_python_span(code, entities)
 
-        self.assertEqual(result.relevant_new_snippet.content, code)
+        self.assertEqual(result.content, code.replace("https://buy.stripe.com/6oE5npbGVbhC97afZ4", "https://buy.stripe.com/00g5npeT71H2gzCfZ8"))
         self.assertEqual(result.code_change_description, "")
         self.assertEqual(result.file_path, file_path)
 
@@ -68,7 +57,7 @@ class TestGraphChild(unittest.TestCase):
 
         result = extract_python_span(code, entities)
 
-        self.assertIn(entities[0], result.content)
+        self.assertIn(entities[0], result.content.replace("https://buy.stripe.com/6oE5npbGVbhC97afZ4", "https://buy.stripe.com/00g5npeT71H2gzCfZ8"))
 
 
 if __name__ == "__main__":
