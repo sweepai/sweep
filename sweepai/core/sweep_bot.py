@@ -128,8 +128,16 @@ class CodeGenBot(ChatGPT):
             snippets: Snippet = []
             for raw_snippet in relevant_snippets.split("\n"):
                 if ":" not in raw_snippet:
-                    logger.warning(
+                    logger.exception(
                         f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse"
+                    )
+                if "-" not in lines:
+                    logger.exception(
+                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to"
+                        " parse"
+                    )
+        except Exception as e:
+            logger.exception(f"Error in summarize_snippets: {e}. Likely failed to parse")
                     )
                 file_path, lines = raw_snippet.split(":", 1)
                 if "-" not in lines:
@@ -192,7 +200,7 @@ class CodeGenBot(ChatGPT):
                 if subissues:
                     return subissues
             except RegexMatchError:
-                logger.warning("Failed to parse! Retrying...")
+                logger.exception("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
         raise NoFilesException()
@@ -238,7 +246,7 @@ class CodeGenBot(ChatGPT):
                                 file_path
                             ] = self.cloned_repo.get_file_contents(file_path)
                         except FileNotFoundError:
-                            logger.warning(
+                            logger.exception(
                                 f"File {file_path} not found in repo. Skipping..."
                             )
                             continue
@@ -391,7 +399,7 @@ class CodeGenBot(ChatGPT):
                 return file_change_requests, plan_str
         except RegexMatchError as e:
             logger.info(f"{e}")
-            logger.warning("Failed to parse! Retrying...")
+            logger.exception("Failed to parse! Retrying...")
             self.delete_messages_from_chat("files_to_change")
             self.delete_messages_from_chat("pr_diffs")
 
@@ -426,7 +434,7 @@ class CodeGenBot(ChatGPT):
                 e_str = str(e)
                 if "too long" in e_str:
                     too_long = True
-                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
+                logger.exception(f"Exception {e_str}. Failed to parse! Retrying...")
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
@@ -457,7 +465,7 @@ class GithubBot(BaseModel):
         try:
             return self.repo.get_contents(path, ref=branch)
         except Exception as e:
-            logger.warning(path)
+            logger.exception(path)
             raise e
 
     def get_file(self, file_path: str, branch: str = "") -> ContentFile:
@@ -504,13 +512,13 @@ class GithubBot(BaseModel):
             return branch
         except GithubException as e:
             logger.error(f"Error: {e}, trying with other branch names...")
-            logger.warning(
+            logger.exception(
                 f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
             )
             if retry:
                 for i in range(1, 31):
                     try:
-                        logger.warning(f"Retrying {branch}_{i}...")
+                        logger.exception(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
                             f"refs/heads/{branch}_{i}", base_branch.commit.sha
                         )
@@ -875,7 +883,7 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: list[tuple[str, str]] = [],
         temperature: float = 0.0,
     ):
-        logger.print(f"Skipping {file_change_request.filename} because it is blocked.")
+        logger.exception(f"Skipping {file_change_request.filename} because it is blocked.")
         key = f"file_change_modified_{file_change_request.filename}"
         new_file = None
         sandbox_execution = None
@@ -986,8 +994,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(f"Max tokens exceeded for {file_change_request.filename}")
                 raise MaxTokensExceeded(file_change_request.filename)
             else:
-                logger.error(f"Error: {e}")
-                logger.error(traceback.format_exc())
+                logger.exception(f"Error: {e}")
+                logger.exception(traceback.format_exc())
                 self.delete_messages_from_chat(key)
                 raise e
         try:
@@ -1007,7 +1015,7 @@ class SweepBot(CodeGenBot, GithubBot):
             raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
-            logger.warning(f"Failed to parse." f" {e}\n{tb}")
+            logger.exception(f"Failed to parse." f" {e}\n{tb}")
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
 
@@ -1056,8 +1064,8 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
             logger.info(traceback.format_exc())
-            logger.warning(e)
-            logger.warning(f"Failed to parse. Retrying for the 1st time...")
+            logger.exception(e)
+            logger.exception(f"Failed to parse. Retrying for the 1st time...")
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
@@ -1138,13 +1146,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 if self.is_blocked(file_change_request.filename, blocked_dirs)[
                     "success"
                 ]:
-                    logger.print(
+                    logger.exception(
                         f"Skipping {file_change_request.filename} because it is blocked."
                     )
                     i += 1
                     continue
 
-                logger.print(
+                logger.exception(
                     f"Processing {file_change_request.filename} for change type"
                     f" {file_change_request.change_type}..."
                 )
@@ -1342,8 +1350,8 @@ class SweepBot(CodeGenBot, GithubBot):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(f"Error in change_files_in_github {e}")
-                logger.error(traceback.format_exc())
+                logger.exception(f"Error in change_files_in_github {e}")
+                logger.exception(traceback.format_exc())
 
             if changed_file:
                 completed += 1
@@ -1414,7 +1422,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 command=sandbox_command,
                 error_logs=sandbox_response.executions[-1].output,
             )
-            logger.warning(sandbox_response.executions[-1].output)
+            logger.exception(sandbox_response.executions[-1].output)
             for (
                 new_file_contents,
                 new_sandbox_execution,
@@ -1541,7 +1549,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             )
                             new_file_contents += new_chunk + "\n"
                 except Exception as e:
-                    logger.print(e)
+                    logger.exception(e)
                     raise e
                 changed_files.append((file_name, ("\n".join(lines), new_file_contents)))
                 return new_file_contents, commit_message, sandbox_error, changed_files
@@ -1573,7 +1581,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
-                logger.warning(
+                logger.exception(
                     f"No changes made to {file_change_request.filename}. Skipping file"
                     " update."
                 )
@@ -1660,7 +1668,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     command=sandbox_command,
                     error_logs=sandbox_response.executions[-1].output,
                 )
-                logger.warning(sandbox_response.executions[-1].output)
+                logger.exception(sandbox_response.executions[-1].output)
                 (
                     file_changed,
                     sandbox_response,
