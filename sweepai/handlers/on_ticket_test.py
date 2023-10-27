@@ -66,7 +66,8 @@ class TestOnTicketNewLogic(unittest.TestCase):
             self.issue.repo_description,
             self.issue.installation_id,
         )
-        self.assertFalse(result["success"])import unittest
+        self.assertFalse(result["success"])
+        import unittest
 from unittest.mock import Mock, patch
 
 from sweepai.handlers.on_ticket import on_ticket, get_github_client, SweepConfig, ClonedRepo, SweepBot, HumanMessagePrompt, ContextPruning, create_pr_changes
