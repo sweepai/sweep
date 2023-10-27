@@ -89,8 +89,11 @@ class ChatGPT(BaseModel):
             repo_info = get_description(repo)
             repo_description = repo_info["description"]
             repo_rules = repo_info["rules"]
+            repo_rules = repo_info["rules"]
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
+            if repo_rules:
+                content += f"{rules_prefix_prompt}:\n{repo_rules}"
             if repo_rules:
                 content += f"{rules_prefix_prompt}:\n{repo_rules}"
         messages = [Message(role="system", content=content, key="system")]
