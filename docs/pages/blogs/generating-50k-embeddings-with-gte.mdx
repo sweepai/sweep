@@ -16,7 +16,7 @@ So, how can we optimize the process of generating embeddings, especially when de
 
 ## Redundant Files
 
-Repositories do not entirely consist of just code. Although repositories contain scripts, they also contain images, videos, and even binary files. Chunking these files provides us very little value, so we can ignore several formats.
+Repositories do not entirely consist of just code. Although repositories contain scripts, they also contain images, videos, and even binary files. Chunking these files provides us with very little value, so we can ignore several formats.
 
 ```python
 ignore_formats = ['.min.js', '.min.js.map', '.min.css', '.min.css.map', '.tfstate', '.tfstate.backup',
@@ -26,7 +26,7 @@ ignore_formats = ['.min.js', '.min.js.map', '.min.css', '.min.css.map', '.tfstat
                    '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.svg', '.parquet', '.pyc', '.pub', '.pem']
 ```
 
-In this example, filtering out redundant files is a minor but crucial step. By ignoring certain formats that don’t contain valuable info, like media files, the amount of data to generate embeddings for is drastically reduces.
+In this example, filtering out redundant files is a minor but crucial step. By ignoring certain formats that don’t contain valuable info, like media files, the amount of data to generate embeddings for is drastically reduced.
 
 ## MapReduce
 
