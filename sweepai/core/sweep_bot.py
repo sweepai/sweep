@@ -49,6 +49,7 @@ from sweepai.core.prompts import (
     snippet_replacement_system_message,
     subissues_prompt,
 )
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.graph import Graph
@@ -209,10 +210,7 @@ class CodeGenBot(ChatGPT):
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
-        # Todo: put retries into a constants file
-        # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
