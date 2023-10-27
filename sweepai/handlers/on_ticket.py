@@ -1330,7 +1330,6 @@ def on_ticket(
             )
 
             # Add comment about sandbox executions
-
             sandbox_execution_comment_contents = (
                 "## Sandbox Executions\n\n"
                 + "\n".join(
