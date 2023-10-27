@@ -135,9 +135,9 @@ def run_on_check_suite(*args, **kwargs):
         )
         with logger:
             call_on_comment(**pr_change_request.params, comment_type="github_action")
-        # logger.info("Done with on_check_suite")
+        logger.info("Done with on_check_suite")
     else:
-        # logger.info("Skipping on_check_suite as no pr_change_request was returned")
+        logger.info("Skipping on_check_suite as no pr_change_request was returned")
 
 def run_get_deeplake_vs_from_repo(*args, **kwargs):
     logger.init(
@@ -186,7 +186,7 @@ def call_on_ticket(*args, **kwargs):
     # Check if a previous process exists for the same key, cancel it
     e = on_ticket_events.get(key, None)
     if e:
-        # logger.info(f"Found previous thread for key {key} and cancelling it")
+        logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
     thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
@@ -218,7 +218,7 @@ def call_on_comment(
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
     comment_type = kwargs["comment_type"]
-    # logger.info(f"Received comment type: {comment_type}")
+    logger.info(f"Received comment type: {comment_type}")
 
     if key not in events:
         events[key] = SafePriorityQueue()
@@ -262,7 +262,6 @@ def home():
 
 @app.post("/")
 async def webhook(raw_request: Request):
-    # Do not create logs for api
     logger.init(
         metadata={"name": "webhook", "request": await raw_request.json()},
         create_file=False,
@@ -283,7 +282,7 @@ async def webhook(raw_request: Request):
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
                 if pull_requests:
-                    # logger.info(pull_requests[0].number)
+                    logger.info(pull_requests[0].number)
                     pr = repo.get_pull(pull_requests[0].number)
                     # check if the PR was created in the last 15 minutes and turn creation time to datetime
                     if (time.time() - pr.created_at.timestamp()) > 900:
@@ -291,7 +290,7 @@ async def webhook(raw_request: Request):
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
                         call_on_check_suite(request=request)
             case "pull_request", "opened":
-                # logger.info(f"Received event: {event}, {action}")
+                logger.info(f"Received event: {event}, {action}")
 
                 def worker():
                     _, g = get_github_client(request_dict["installation"]["id"])
@@ -322,7 +321,7 @@ async def webhook(raw_request: Request):
                 thread = threading.Thread(target=worker)
                 thread.start()
             case "issues", "opened":
-                # logger.info(f"Received event: {event}, {action}")
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
                 if (
@@ -344,7 +343,7 @@ async def webhook(raw_request: Request):
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
-                # logger.info(f"Received event: {event}, {action}")
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
                 sweep_labeled_issue = GITHUB_LABEL_NAME in [
                     label.name.lower() for label in request.issue.labels
@@ -391,7 +390,7 @@ async def webhook(raw_request: Request):
                     )
                     or restart_sweep
                 ):
-                    # logger.info("New issue comment edited")
+                    logger.info("New issue comment edited")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
@@ -403,7 +402,7 @@ async def webhook(raw_request: Request):
                         .startswith(GITHUB_LABEL_NAME)
                         and not restart_sweep
                     ):
-                        # logger.info("Comment does not start with 'Sweep', passing")
+                        logger.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
@@ -424,7 +423,7 @@ async def webhook(raw_request: Request):
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
-                    # logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
@@ -450,7 +449,7 @@ async def webhook(raw_request: Request):
                             },
                         )
             case "issues", "edited":
-                # logger.info(f"Received event: {event}, {action}")
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
                 if (
                     GITHUB_LABEL_NAME
@@ -458,7 +457,7 @@ async def webhook(raw_request: Request):
                     and request.sender.type == "User"
                     and not request.sender.login.startswith("sweep")
                 ):
-                    # logger.info("New issue edited")
+                    logger.info("New issue edited")
                     call_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
@@ -471,7 +470,7 @@ async def webhook(raw_request: Request):
                         comment_id=None,
                     )
                 else:
-                    # logger.info("Issue edited, but not a sweep issue")
+                    logger.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -495,7 +494,7 @@ async def webhook(raw_request: Request):
                         comment_id=None,
                     )
             case "issue_comment", "created":
-                # logger.info(f"Received event: {event}, {action}")
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
@@ -516,7 +515,7 @@ async def webhook(raw_request: Request):
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
                     ):
-                        # logger.info("Comment does not start with 'Sweep', passing")
+                        logger.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
@@ -560,7 +559,7 @@ async def webhook(raw_request: Request):
                         )
                         call_on_comment(**pr_change_request.params)
             case "pull_request_review_comment", "created":
-                # logger.info(f"Received event: {event}, {action}")
+                logger.info(f"Received event: {event}, {action}")
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
                 _, g = get_github_client(request.installation.id)
@@ -772,7 +771,7 @@ async def webhook(raw_request: Request):
                     )
                 chat_logger = ChatLogger({"username": merged_by})
             case "push", None:
-                # logger.info(f"Received event: {event}, {action}")
+                logger.info(f"Received event: {event}, {action}")
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
@@ -792,7 +791,7 @@ async def webhook(raw_request: Request):
                             docs = get_documentation_dict(repo)
                             # Call the write_documentation function for each of the existing fields in the "docs" mapping
                             for doc_url, _ in docs.values():
-                                # logger.info(f"Writing documentation for {doc_url}")
+                                logger.info(f"Writing documentation for {doc_url}")
                                 call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
