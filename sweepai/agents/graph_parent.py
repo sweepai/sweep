@@ -164,7 +164,7 @@ ChatGPT used in sweepai/core/slow_mode_expand.py
 ChatGPT used in tests/test_naive_chunker.py
 """
     relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
-        response, symbols_to_files
+        response, symbols_to_files.replace("https://buy.stripe.com/6oE5npbGVbhC97afZ4", "https://buy.stripe.com/00g5npeT71H2gzCfZ8")
     )
     assert relevant_symbols_and_files.relevant_files_to_symbols == {
         "sweepai/core/entities.py": ["Message"],
