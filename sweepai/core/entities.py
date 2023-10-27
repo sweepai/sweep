@@ -8,9 +8,15 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, List, Literal, Type, TypeVar
 from urllib.parse import quote
 
+from loguru import logger
 from pydantic import BaseModel, Field
 
-from sweepai.logn import logger
+from sweepai.utils.str_utils import (
+    blockquote,
+    clean_logs,
+    create_collapsible,
+    format_exit_code,
+)
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
@@ -107,6 +113,39 @@ def clean_instructions(instructions: str):
     return instructions.strip()
 
 
+def create_error_logs(
+    commit_url_display: str,
+    sandbox_response: SandboxResponse,
+    status: str = "✓",
+    file_path: str = "",
+):
+    return (
+        (
+            "<br/>"
+            + create_collapsible(
+                f"Sandbox logs for {commit_url_display} {status}",
+                blockquote(
+                    "\n\n".join(
+                        [
+                            create_collapsible(
+                                f"<code>{execution.command.format(file_path=file_path)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                f"<pre>{clean_logs(execution.output)}</pre>",
+                                i == len(sandbox_response.executions) - 1,
+                            )
+                            for i, execution in enumerate(sandbox_response.executions)
+                            if len(sandbox_response.executions) > 0
+                            # And error code check
+                        ]
+                    )
+                ),
+                opened=True,
+            )
+        )
+        if sandbox_response
+        else ""
+    )
+
+
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
@@ -124,6 +163,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     status: Literal["succeeded"] | Literal["failed"] | Literal["queued"] | Literal[
         "running"
     ] = "queued"
+    sandbox_response: SandboxResponse | None = None
     id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
     @classmethod
@@ -152,6 +192,36 @@ class FileChangeRequest(RegexMatchableBaseModel):
             return f"`{self.filename}:{self.entity}`"
         else:
             return f"`{self.filename}`"
+
+    @property
+    def status_display(self):
+        if self.status == "succeeded":
+            return "✓"
+        elif self.status == "failed":
+            return "✗"
+        elif self.status == "queued":
+            return "▶"
+        elif self.status == "running":
+            return "⋯"
+        else:
+            raise ValueError(f"Unknown status {self.status}")
+
+    @property
+    def display_summary(self):
+        if self.change_type == "rename":
+            return f"Rename {self.filename} to {self.instructions}"
+        elif self.change_type == "delete":
+            return f"Delete {self.filename}"
+        elif self.change_type == "create":
+            return f"Create {self.filename}"
+        elif self.change_type == "modify":
+            return f"Modify {self.filename}"
+        elif self.change_type == "rewrite":
+            return f"Rewrite {self.filename}"
+        elif self.change_type == "check":
+            return f"Check {self.filename}"
+        else:
+            raise ValueError(f"Unknown change type {self.change_type}")
 
     @property
     def summary(self):
@@ -190,6 +260,16 @@ class FileChangeRequest(RegexMatchableBaseModel):
         else:
             return f"{self.filename}"
 
+    def instructions_ticket_display(self, commit_url: str):
+        if self.change_type == "check" and self.sandbox_response is not None:
+            return create_error_logs(
+                self.sandbox_response,
+                commit_url,
+                status=self.status_display,
+                file_path=self.filename,
+            )
+        return self.instructions_display
+
     @property
     def instructions_display(self):
         if self.change_type == "rename":
@@ -216,11 +296,10 @@ class FileCreation(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        # result = super().from_string(string, **kwargs)
         re_match = re.search(cls._regex, string, re.DOTALL)
 
         if re_match is None:
-            logger.print(f"Did not match {string} with pattern {cls._regex}")
+            logger.info(f"Did not match {string} with pattern {cls._regex}")
             raise ValueError("No <new_file> tags or ``` found in code block")
 
         result = cls(

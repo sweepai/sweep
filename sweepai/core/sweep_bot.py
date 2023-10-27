@@ -52,7 +52,7 @@ from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.graph import Graph
-from sweepai.utils.ticket_utils import clean_logs
+from sweepai.utils.str_utils import clean_logs
 from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
