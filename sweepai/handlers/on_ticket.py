@@ -1445,7 +1445,7 @@ def on_ticket(
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
-                        " insufficient information. Be sure to create a more detailed issue"
+                        " a planning failure. Please create a more detailed issue"
                         " so I can better address it. If this error persists report it at"
                         " https://discord.gg/sweep."
                     ),
