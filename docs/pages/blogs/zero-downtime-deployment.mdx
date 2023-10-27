@@ -31,7 +31,7 @@ The if statement checks if `containers_to_remove` is non-empty and if so the `do
 
 ## Port Allocation
 
-Now we start preparing for the new deployment, starting by finding an available port. We do this by starting at `PORT=8081` and increment it until a free port is found.
+Now we start preparing for the new deployment, starting by finding an available port. We do this by starting at `PORT=8081` and incrementing it until a free port is found.
 
 ```bash filename="deploy.sh" showLineNumbers
 # Find next available port to deploy to
@@ -80,7 +80,7 @@ done
 ```
 
 ## Traffic Rerouting
-The final step is to ensure that our users are directed to the new version of sweep. Our script reroutes traffic to the new container by updating ngrok proxy to point to the new port.
+The final step is to ensure that our users are directed to the new version of Sweep. Our script reroutes traffic to the new container by updating ngrok proxy to point to the new port.
 
 ```bash filename="deploy.sh" showLineNumbers
 # Update the ngrok proxy to point to the new port

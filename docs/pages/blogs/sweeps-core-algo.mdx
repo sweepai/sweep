@@ -4,11 +4,11 @@
 
 ---
 
-At Sweep, our core issue-to-pull-request pipeline resolves around an RAG-based pipeline. This means we retrieve snippets from a corpora (your codebase) and feed it to an language model (GPT-4) to generate code.
+At Sweep, our core issue-to-pull-request pipeline resolves around an RAG-based pipeline. This means we retrieve snippets from a corpora (your codebase) and feed it to a language model (GPT-4) to generate code.
 
 In summary, Sweep searches for relevant files and edits the file(s) it thinks requires changes. Sweep then validates its own changes by reading for logical errors and running GitHub Actions on them and finally leaves the pull request for the user to review.
 
-The following is the Sweep’s pipeline that turns an issue like “the app has an error relating to temporary directories on Windows” into a pull request titled “replace all occurences of `/tmp` with `tempfile.TempDirectory()`” like [this](https://github.com/sweepai/sweep/pull/368/files).
+The following is the Sweep’s pipeline that turns an issue like “the app has an error relating to temporary directories on Windows” into a pull request titled “replace all occurrences of `/tmp` with `tempfile.TempDirectory()`” like [this](https://github.com/sweepai/sweep/pull/368/files).
 
 ![](/sweep-core-algo/flowchart.svg)
 
@@ -110,7 +110,7 @@ We then validate these suggested changes, by changing any “modify”’s to �
 Sweep creates each file from scratch (in the case of file creation) or determines which lines it wants to modify. Modification is drastically more complex and involves:
 
 1. Creating a high-level game plan of what in particular to change. E.g. Use an OS-agnostic alternative to `/tmp` directories by using Python’s `tempfile.gettempdir()`.
-2. Identifies all locations of it and creates a list of natural language descriptions of changes with reference to line numbers. E.g. In `sweepai/app/ui.py`, in the `get_repo()` function replace all occurences of `/tmp` to `tempfile.gettempdir()`.
+2. Identifies all locations of it and creates a list of natural language descriptions of changes with reference to line numbers. E.g. In `sweepai/app/ui.py`, in the `get_repo()` function replace all occurrences of `/tmp` to `tempfile.gettempdir()`.
 3. Generate search-and-replace pairs, using a [format](https://github.com/sweepai/sweep/blob/d37dda3a626f09dea3b3221dd0254671407ccc1b/sweepai/core/prompts.py#L325-L329) based on `aider`’s prompts, another open-source LLM-powered devtool. This looks something like the following:
 
 ```python
@@ -145,7 +145,7 @@ If it fails again, we do another self-review. We iterate for a maximum of three 
 
 ### GitHub Actions
 
-GitHub Actions is used to check for errors such as type errors, compile-time errors and failed test runs. Failed Actions logs get fed to Sweep and get treated like pull request comments.
+GitHub Actions is used to check for errors such as type errors, compile-time errors and failed test runs. Failed Action logs get fed to Sweep and get treated like pull request comments.
 
 This is entirely configurable by developers. We use GitHub Actions since there’s a plethora of tools it can use and most developers have GitHub Actions already set up for their team. See more at https://docs.sweep.dev/blogs/giving-dev-tools.
 
