@@ -1163,10 +1163,8 @@ def on_ticket(
                         + " "
                         + file_change_request.status_display
                         + " "
-                        + commit_url_display,
-                        file_change_request.instructions_ticket_display(
-                            commit_url=commit_url_display
-                        ),
+                        + (file_change_request.commit_hash_url or ""),
+                        file_change_request.instructions_ticket_display,
                         "X"
                         if file_change_request.status in ("succeeded", "failed")
                         else " ",
@@ -1330,10 +1328,36 @@ def on_ticket(
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
             )
+
+            # Add comment about sandbox executions
+            # for i in range(10):
+            #     print(i)
+            sandbox_execution_comment_contents = (
+                "## Sandbox Executions\n\n"
+                + "\n".join(
+                    [
+                        checkbox_template.format(
+                            check="X",
+                            filename=file_change_request.display_summary
+                            + " "
+                            + file_change_request.status_display,
+                            instructions=blockquote(
+                                file_change_request.instructions_ticket_display
+                            ),
+                        )
+                        for file_change_request in file_change_requests
+                        if file_change_request.change_type == "check"
+                    ]
+                )
+            )
+
+            pr.create_issue_comment(sandbox_execution_comment_contents)
+
             if revert_buttons:
                 pr.create_issue_comment(revert_buttons_list.serialize())
             if rule_buttons:
                 pr.create_issue_comment(rules_buttons_list.serialize())
+
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")

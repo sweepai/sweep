@@ -10,7 +10,7 @@
 
 <br/>
 
-We’ve been fighting GPT-4 to modify long files of code since its release. As great as it is at solving solving hard problems or creating complex systems from scratch, it struggles to insert logs to a 200-line Flask server without giving up halfway through. However, the latter is infinitely more practical.
+We’ve been fighting GPT-4 to modify long files of code since its release. As great as it is at solving solving hard problems or creating complex systems from scratch, it struggles to insert logs into a 200-line Flask server without giving up halfway through. However, the latter is infinitely more practical.
 
 A frequent complaint we get is “ChatGPT can do this task but Sweep can’t”. This is because GPT-4 can’t consistently edit long files without writing “# Rest of the code” halfway through or copying sections of code incorrectly, which a human using ChatGPT can easily resolve but algorithms cannot. Thus, we can’t just naively rewrite files from scratch to modify them.
 
@@ -252,7 +252,7 @@ new lines of code to replace the old lines with
 </update_lines>
 ```
 
-Where we would then replace lines `i` to `j` with the new lines of code, where `i` is inclusive and `j` is exclusive, just like Python.
+We would then replace lines `i` to `j` with the new lines of code, where `i` is inclusive and `j` is exclusive, just like Python.
 
 We generally have a preference for XML-based responses from GPT-4 since they
 
@@ -380,7 +380,7 @@ This new method ended up working **exceptionally better** on all our previous at
 
 We still have a few problems nonetheless:
 
-- It would copy ORIGINAL code incorrectly.
+- It would copy the ORIGINAL code incorrectly.
     - Our initial approach involves building a [fuzzy matching algorithm](https://github.com/sweepai/sweep/blob/main/sweepai/utils/search_and_replace.py). We then built [V4](#v4-search-and-replace) to further remedy this.
 - The ORIGINAL block could appear multiple times in the code.
     - By default, we would match the first item.

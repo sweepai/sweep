@@ -36,7 +36,7 @@ Our current code chunking algorithm processes **2M+ files a day** and is [open-s
 
 Most chunkers for RAG-based (retrieval augmented generation) agents cap by token count. For simplicity, we decided to use character count, with a max of 1500.
 
-This is because the average token to character ratio for code is ~1:5(300 tokens), and embeddings models are capped at 512 tokens. Further, 1500 characters correspond approximately to 40 lines, roughly equivalent to a small to medium sized function or class.
+This is because the average token to character ratio for code is ~1:5(300 tokens), and embedding models are capped at 512 tokens. Further, 1500 characters correspond approximately to 40 lines, roughly equivalent to a small to medium sized function or class.
 
 The challenge is getting as close to 1500 characters as possible, while ensuring the chunks are semantically similar and the relevant context is connected.
 
@@ -76,7 +76,7 @@ For each language, we would also use different delimiters.
 For full files of the examples, see https://gist.github.com/kevinlu1248/ded3ea33dcd8a9bd08078f4c64eb9268.
 
 #### Example #1
-Based on our `on_check_suite.py` file for handling GitHub Action runs. A bad split separating a string concatenation declaration from it’s contents. ❌
+Based on our `on_check_suite.py` file for handling GitHub Action runs. A bad split separates a string concatenation declaration from its contents. ❌
 
 ```python
 ...
