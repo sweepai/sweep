@@ -10,8 +10,6 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from sweepai.utils.comment_utils import check_comments_presence
 
-from sweepai.utils.comment_utils import check_comments_presence
-
 system_message_prompt = """You are a genius engineer tasked with identifying any incomplete logic for the following code change.
 You have been provided with the relevant metadata to the issue.
 Please identify and extract any leftover comments from the new_code. If there are none, return empty tags."""
