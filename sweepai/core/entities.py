@@ -116,12 +116,11 @@ def clean_instructions(instructions: str):
 def create_error_logs(
     commit_url_display: str,
     sandbox_response: SandboxResponse,
-    status: str = "✓",
     file_path: str = "",
 ):
     return (
         create_collapsible(
-            f"Sandbox logs for {commit_url_display} {status}",
+            f"Sandbox logs for {commit_url_display}",
             blockquote(
                 "\n\n".join(
                     [
@@ -264,7 +263,6 @@ class FileChangeRequest(RegexMatchableBaseModel):
             return create_error_logs(
                 self.commit_hash_url if self.commit_hash_url is not None else "",
                 self.sandbox_response,
-                status=self.status_display,
                 file_path=self.filename,
             )
         return self.instructions_display
