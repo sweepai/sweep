@@ -80,7 +80,23 @@ from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.ticket_utils import *
+from sweepai.utils.str_utils import (
+    blockquote,
+    bot_suffix,
+    checkbox_template,
+    clean_logs,
+    collapsible_template,
+    create_checkbox,
+    create_collapsible,
+    discord_suffix,
+    format_exit_code,
+    num_of_snippets_to_query,
+    ordinal,
+    sep,
+    stars_suffix,
+    strip_sweep,
+)
+from sweepai.utils.ticket_utils import log_error, post_process_snippets
 
 openai.api_key = OPENAI_API_KEY
 
@@ -98,7 +114,6 @@ rules:
     line-length: disable
     indentation: disable
 """
-format_exit_code = lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
 
 
 def on_ticket(
@@ -1142,77 +1157,20 @@ def on_ticket(
                     if (sandbox_response is None or sandbox_response.success)
                     else "❌",
                 )
-                if file_change_request.change_type == "check":
-                    status = (
-                        "✅ Sandbox ran successfully"
-                        if (sandbox_response and sandbox_response.success)
-                        else "❌ Sandbox failed so I made additional changes"
+                checkboxes_progress = [
+                    (
+                        file_change_request.display_summary
+                        + " "
+                        + file_change_request.status_display
+                        + " "
+                        + (file_change_request.commit_hash_url or ""),
+                        file_change_request.instructions_ticket_display,
+                        "X"
+                        if file_change_request.status in ("succeeded", "failed")
+                        else " ",
                     )
-                    index = next(
-                        (
-                            i
-                            for i, (entity_display_, _, _) in enumerate(
-                                checkboxes_progress
-                            )
-                            if file_change_request.entity_display in entity_display_
-                        ),
-                        None,
-                    )
-                    while (
-                        index + 1 < len(checkboxes_progress)
-                        and "sandbox" in checkboxes_progress[index + 1][0].lower()
-                    ):
-                        index += 1
-                    index = min(index, len(checkboxes_progress) - 1)
-                    checkboxes_progress.insert(
-                        index + 1,
-                        (
-                            f"{file_change_request.entity_display} {status}",
-                            "The following are the logs from running the sandbox:\n\n"
-                            + error_logs,
-                            "X",
-                        ),
-                    )
-                else:
-                    if changed_file:
-                        logger.print("Changed File!")
-                        entity_display = file_change_request.entity_display
-                        suffix = (
-                            f"✅ Commit {commit_url_display}"
-                            if (sandbox_response is None or sandbox_response.success)
-                            else f"⌛ Current Commit {commit_url_display}"
-                        )
-                        was_added = update_progress(
-                            entity_display,
-                            f"`{entity_display}` {suffix}",
-                            error_logs,
-                        )
-                        changed_files.append(file_change_request.filename)
-                        if not was_added:
-                            checkboxes_progress.append(
-                                (
-                                    f"`{entity_display}` {suffix}",
-                                    file_change_request.instructions,
-                                    "X",
-                                )
-                            )
-                    else:
-                        logger.print("Didn't change file!")
-                        entity_display = file_change_request.entity_display
-                        header = f"`{entity_display}` ⚠️ No Changes Made"
-                        was_added = update_progress(
-                            entity_display,
-                            header,
-                            error_logs,
-                        )
-                        if not was_added:
-                            checkboxes_progress.append(
-                                (
-                                    header,
-                                    file_change_request.instructions,
-                                    "X",
-                                )
-                            )
+                    for file_change_request in file_change_requests
+                ]
                 checkboxes_contents = "\n".join(
                     [
                         checkbox_template.format(
@@ -1370,10 +1328,35 @@ def on_ticket(
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
             )
+
+            # Add comment about sandbox executions
+
+            sandbox_execution_comment_contents = (
+                "## Sandbox Executions\n\n"
+                + "\n".join(
+                    [
+                        checkbox_template.format(
+                            check="X",
+                            filename=file_change_request.display_summary
+                            + " "
+                            + file_change_request.status_display,
+                            instructions=blockquote(
+                                file_change_request.instructions_ticket_display
+                            ),
+                        )
+                        for file_change_request in file_change_requests
+                        if file_change_request.change_type == "check"
+                    ]
+                )
+            )
+
+            pr.create_issue_comment(sandbox_execution_comment_contents)
+
             if revert_buttons:
                 pr.create_issue_comment(revert_buttons_list.serialize())
             if rule_buttons:
                 pr.create_issue_comment(rules_buttons_list.serialize())
+
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")

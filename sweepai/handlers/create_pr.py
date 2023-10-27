@@ -10,7 +10,7 @@ from github.Commit import Commit
 from github.Repository import Repository
 
 from sweepai.agents.sweep_yaml import SweepYamlBot
-from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
+from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -31,6 +31,7 @@ from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.str_utils import UPDATES_MESSAGE
 
 openai.api_key = OPENAI_API_KEY
 

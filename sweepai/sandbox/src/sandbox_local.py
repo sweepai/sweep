@@ -6,6 +6,7 @@ import shlex
 import shutil
 import subprocess
 import tarfile
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 
@@ -14,6 +15,7 @@ import requests
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
+from posthog import Posthog
 from pydantic import BaseModel
 from src.chat import fix_file
 from src.sandbox_container import SandboxContainer
@@ -23,6 +25,10 @@ from tqdm import tqdm
 app = FastAPI()
 
 client = docker.from_env()
+posthog = Posthog(
+    os.environ.get("POSTHOG", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"),
+    host="https://app.posthog.com",
+)
 
 
 @dataclass
@@ -195,6 +201,16 @@ async def run_sandbox(request: SandboxRequest):
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
     sandbox = Sandbox.from_directory(cloned_repo.dir_path)
+
+    metadata = {
+        "repo_url": request.repo_url,
+        "file_path": request.file_path,
+        "do_fix": request.do_fix,
+        "sandbox_install_length": len(sandbox.install),
+        "sandbox_check_length": len(sandbox.check),
+    }
+    start_time = time.time()
+    posthog.capture(username, "sandbox_started", properties=metadata)
     print(f"Running sandbox: {sandbox}...")
 
     try:
@@ -212,11 +228,21 @@ async def run_sandbox(request: SandboxRequest):
         with sandbox_container as container:
             if not image_exists:
                 logger.info("Cloning repo...")
+                posthog.capture(
+                    username,
+                    "sandbox_cloning_repo",
+                    properties={"duration": time.time() - start_time, **metadata},
+                )
                 exit_code, output = container.exec_run(
                     f"git clone {request.repo_url} repo --depth 1"
                 )
             else:
                 logger.info("Using repo from cached image.")
+                posthog.capture(
+                    username,
+                    "sandbox_cached_image",
+                    properties={"duration": time.time() - start_time, **metadata},
+                )
                 exit_code, output = container.exec_run(
                     "bash -c "
                     + shlex.quote(
@@ -269,7 +295,7 @@ async def run_sandbox(request: SandboxRequest):
                         )
                     )
                 if exit_code != 0 and not ("prettier" in command and exit_code == 1):
-                    raise Exception(output)
+                    raise SandboxError(output)
                 return output
 
             if not image_exists:
@@ -279,6 +305,11 @@ async def run_sandbox(request: SandboxRequest):
                     run_command(command, stage="install")
 
                 print("Committing image...")
+                posthog.capture(
+                    username,
+                    "sandbox_committed_image",
+                    properties={"duration": time.time() - start_time, **metadata},
+                )
                 new_image = container.commit()
                 new_image.tag(image_id)
             else:
@@ -297,7 +328,7 @@ async def run_sandbox(request: SandboxRequest):
                         for command in sandbox.check:
                             try:
                                 run_command(command, stage="check", iteration=0)
-                            except Exception as e:
+                            except SandboxError as e:
                                 print(old_file)
                                 raise Exception(
                                     f"File failed to lint with command {command} before edit: {e}"
@@ -324,7 +355,7 @@ async def run_sandbox(request: SandboxRequest):
                                 run_command(command, stage="check", iteration=i)
                         except SystemExit:
                             raise SystemExit
-                        except Exception as e:
+                        except SandboxError as e:
                             error_message = str(e)
                             if (
                                 len(error_messages) >= 2
@@ -360,7 +391,7 @@ async def run_sandbox(request: SandboxRequest):
                         for command in sandbox.check:
                             run_command(command, stage="check")
                         success = True
-                    except Exception as e:
+                    except SandboxError as e:
                         error_message = str(e)
                         error_messages.append(error_message)
                         logger.warning(f"Error message: {error_message}")
@@ -373,9 +404,25 @@ async def run_sandbox(request: SandboxRequest):
         raise SystemExit
     except Exception as e:
         error_message = str(e)
-        print(e)
+        print(error_message)
+        posthog.capture(
+            username,
+            "sandbox_error",
+            properties={
+                "error": error_message,
+                **metadata,
+                "duration": time.time() - start_time,
+            },
+        )
         discord_log_error(
             f"Error in {request.repo_url}:\nFile: {request.file_path}\nContents: {request.content}\n\nError messages:\n{error_message}"
+        )
+
+    if success:
+        posthog.capture(
+            username,
+            "sandbox_success",
+            properties={"duration": time.time() - start_time, **metadata},
         )
 
     return {

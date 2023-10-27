@@ -48,11 +48,11 @@ from sweepai.core.prompts import (
     snippet_replacement_system_message,
     subissues_prompt,
 )
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.graph import Graph
-from sweepai.utils.ticket_utils import clean_logs
+from sweepai.utils.str_utils import clean_logs
 from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -128,10 +128,7 @@ class CodeGenBot(ChatGPT):
             snippets: Snippet = []
             for raw_snippet in relevant_snippets.split("\n"):
                 if ":" not in raw_snippet:
-                    logger.warning(
-                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to"
-                        " parse"
-                    )
+                    logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
                 file_path, lines = raw_snippet.split(":", 1)
                 if "-" not in lines:
                     logger.warning(
@@ -239,9 +236,7 @@ class CodeGenBot(ChatGPT):
                                 file_path
                             ] = self.cloned_repo.get_file_contents(file_path)
                         except FileNotFoundError:
-                            logger.warning(
-                                f"File {file_path} not found in repo. Skipping..."
-                            )
+                            logger.warning(f"File {file_path} not found in repo. Skipping...")
                             continue
 
                     # Create plan for relevant snippets first
@@ -303,12 +298,13 @@ class CodeGenBot(ChatGPT):
                         if plan.file_path in relevant_files
                         else len(relevant_files)
                     )
-
                     truncated_plans = []
                     truncation_counter = 0
                     for plan in plans:
                         extracted_code = plan.relevant_new_snippet[0].content
-                        if truncation_counter + len(extracted_code) < 60000:
+                        if (
+                            truncation_counter + len(extracted_code) < 70000
+                        ):  # 70k characters ~ 18k tokens
                             truncated_plans.append(plan)
                             truncation_counter += len(extracted_code)
                     plans = truncated_plans
@@ -390,7 +386,7 @@ class CodeGenBot(ChatGPT):
                 )
                 return file_change_requests, plan_str
         except RegexMatchError as e:
-            logger.print(e)
+            logger.info(f"{e}")
             logger.warning("Failed to parse! Retrying...")
             self.delete_messages_from_chat("files_to_change")
             self.delete_messages_from_chat("pr_diffs")
@@ -875,6 +871,7 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: list[tuple[str, str]] = [],
         temperature: float = 0.0,
     ):
+        logger.print(f"Skipping {file_change_request.filename} because it is blocked.")
         key = f"file_change_modified_{file_change_request.filename}"
         new_file = None
         sandbox_execution = None
@@ -1109,8 +1106,16 @@ class SweepBot(CodeGenBot, GithubBot):
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         logger.debug(file_change_requests)
         completed = 0
-        sandbox_execution = None
+        sandbox_response = None
         changed_files: list[tuple[str, str]] = []
+        commit_messages = {
+            "create": "Created new file",
+            "modify": "Modified existing file",
+            "rewrite": "Rewrote existing file",
+            "check": "Checked file",
+            "delete": "Deleted file",
+            "rename": "Renamed file"
+        }
 
         i = 0
 
@@ -1123,15 +1128,11 @@ class SweepBot(CodeGenBot, GithubBot):
             changed_file = False
 
             try:
-                commit = None
-                # Todo(Sweep): add commit for each type of change type
+                commit = commit_messages.get(file_change_request.change_type, "No commit message provided")
                 if self.is_blocked(file_change_request.filename, blocked_dirs)[
                     "success"
                 ]:
-                    logger.info(
-                        f"Skipping {file_change_request.filename} because it is"
-                        " blocked."
-                    )
+                    logger.print(f"Skipping {file_change_request.filename} because it is blocked.")
                     i += 1
                     continue
 
@@ -1152,6 +1153,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             changed_files=changed_files,
                         )
                         file_change_requests[i].status = "succeeded"
+                        file_change_requests[i].commit_hash_url = commit.html_url
                         if i + 1 < len(file_change_requests):
                             file_change_requests[i + 1].status = "running"
                         yield (
@@ -1178,7 +1180,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             )
                         (
                             changed_file,
-                            sandbox_execution,
+                            sandbox_response,
                             commit,
                             changed_files,
                         ) = self.handle_modify_file_main(
@@ -1189,12 +1191,13 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
                         )
+                        file_change_requests[i].commit_hash_url = commit.html_url
                         if i + 1 < len(file_change_requests):
                             file_change_requests[i + 1].status = "running"
                         yield (
                             file_change_request,
                             changed_file,
-                            sandbox_execution,
+                            sandbox_response,
                             commit,
                             file_change_requests,
                         )
@@ -1213,25 +1216,29 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request.filename, branch
                             )
                             contents = contents_obj.decoded_content.decode("utf-8")
-                            updated_contents, sandbox_execution = self.check_sandbox(
+                            updated_contents, sandbox_response = self.check_sandbox(
                                 file_change_request.filename, contents, changed_files
                             )
                             if contents != updated_contents:
-                                self.repo.update_file(
+                                result = self.repo.update_file(
                                     file_change_request.filename,
                                     f"Sandbox run {file_change_request.filename}",
                                     updated_contents,
                                     sha=contents_obj.sha,
                                     branch=branch,
                                 )
+                                commit = result["commit"]
+                                file_change_request.commit_hash_url = commit.html_url
+                            if sandbox_response is not None:
+                                file_change_request.sandbox_response = sandbox_response
                             if (
-                                sandbox_execution.success is False
-                                and sandbox_execution is not None
-                                and sandbox_execution.executions
+                                sandbox_response is not None
+                                and sandbox_response.success is False
+                                and sandbox_response.executions
                                 and (
                                     not error_messages
                                     or fuzz.ratio(
-                                        sandbox_execution.executions[-1].output,
+                                        sandbox_response.executions[-1].output,
                                         error_messages[-1],
                                     )
                                 )
@@ -1241,7 +1248,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                     self.get_files_to_change_from_sandbox(
                                         file_change_request.filename,
                                         updated_contents,
-                                        sandbox_execution,
+                                        sandbox_response,
                                         parent_fcr=file_change_request,
                                     )
                                 )
@@ -1258,21 +1265,21 @@ class SweepBot(CodeGenBot, GithubBot):
                                         + file_change_requests[i + 1 :]
                                     )
                             if (
-                                sandbox_execution is not None
-                                and sandbox_execution.executions[-1]
+                                sandbox_response is not None
+                                and sandbox_response.executions[-1]
                             ):
                                 error_messages.append(
-                                    clean_logs(sandbox_execution.executions[-1].output)
+                                    clean_logs(sandbox_response.executions[-1].output)
                                 )
                             file_change_request.status = (
-                                "succeeded" if sandbox_execution.success else "failed"
+                                "succeeded" if sandbox_response.success else "failed"
                             )
                             if i + 1 < len(file_change_requests):
                                 file_change_requests[i + 1].status = "running"
                             yield (
                                 file_change_request,
                                 True,
-                                sandbox_execution,
+                                sandbox_response,
                                 commit,
                                 file_change_requests,
                             )
@@ -1290,7 +1297,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_requests[i].status = "succeeded"
                         if i + 1 < len(file_change_requests):
                             file_change_requests[i + 1].status = "running"
-                        yield file_change_request, changed_file, sandbox_execution, commit, file_change_requests
+                        yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
                     case "rename":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
@@ -1314,7 +1321,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_requests[i].status = "succeeded"
                         if i + 1 < len(file_change_requests):
                             file_change_requests[i + 1].status = "running"
-                        yield file_change_request, changed_file, sandbox_execution, commit, file_change_requests
+                        yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
                     case _:
                         raise Exception(
                             f"Unknown change type {file_change_request.change_type}"
