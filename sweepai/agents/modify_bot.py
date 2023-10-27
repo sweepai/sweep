@@ -124,7 +124,7 @@ File path: {file_path}
 # Format
 <analysis_and_identification file="file_path">
 Identify all changes that need to be made to the file.
-Make sure these changes have not previously been completed in this file.
+Check the diff to make sure the changes have not previously been completed in this file.
 In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
 Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
 </analysis_and_identification>
