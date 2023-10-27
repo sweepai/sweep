@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from sweepai.handlers.on_ticket import on_ticket
 
+
 class TestOnTicket(unittest.TestCase):
     def setUp(self):
         self.issue = Mock()
@@ -113,5 +114,6 @@ class TestOnTicket(unittest.TestCase):
         self.assertIn("success", result)
         self.assertFalse(result["success"])
         self.assertTrue(result["success"])
+
 
 # No changes needed
