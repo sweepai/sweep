@@ -99,10 +99,10 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
             prediction.wait()
             outputs = prediction.output
             break
-        except Exception as e:
+        except Exception:
             logger.exception(f"Replicate timeout: {e}")
     else:
-        raise Exception(f"Replicate timeout {e}")
+        raise Exception(f"Replicate timeout")
     return [output["embedding"] for output in outputs]
 
 
