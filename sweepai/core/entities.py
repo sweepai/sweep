@@ -263,8 +263,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
     def instructions_ticket_display(self, commit_url: str):
         if self.change_type == "check" and self.sandbox_response is not None:
             return create_error_logs(
-                self.sandbox_response,
                 commit_url,
+                self.sandbox_response,
                 status=self.status_display,
                 file_path=self.filename,
             )
