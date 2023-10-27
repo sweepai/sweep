@@ -389,32 +389,29 @@ def on_ticket(
 
         model_name = "GPT-3.5" if use_faster_model else "GPT-4"
         payment_link = "https://sweep.dev/pricing"
+        single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
+        pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
         daily_message = (
             f" and {daily_ticket_count} for the day"
             if not is_paying_user and not is_consumer_tier
             else ""
         )
-        user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Basic Tier"
+        user_type = (
+            "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
+        )
         gpt_tickets_left_message = (
             f"{ticket_count} GPT-4 tickets left for the month"
             if not is_paying_user
             else "unlimited GPT-4 tickets"
         )
+        purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href='{single_payment_link}'>our payment portal</a>. For a one week free trial, try <a href='{pro_payment_link}'>Sweep Pro</a> (unlimited GPT-4 tickets)."
         payment_message = (
             f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
-            + (
-                f' For more GPT-4 tickets, visit <a href="{payment_link}">our payment portal</a>.'
-                if not is_paying_user
-                else ""
-            )
+            + (purchase_message if not is_paying_user else "")
         )
         payment_message_start = (
-            f"{user_type}: I'm creating this ticket using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
-            + (
-                f' For more GPT-4 tickets, visit <a href="{payment_link}">our payment portal</a>.'
-                if not is_paying_user
-                else ""
-            )
+            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
+            + (purchase_message if not is_paying_user else "")
         )
 
         def get_comment_header(index, errored=False, pr_message="", done=False):
