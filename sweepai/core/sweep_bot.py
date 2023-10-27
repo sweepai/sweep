@@ -1153,6 +1153,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             changed_files=changed_files,
                         )
                         file_change_requests[i].status = "succeeded"
+                        file_change_requests[i].commit_hash_url = commit.html_url
                         if i + 1 < len(file_change_requests):
                             file_change_requests[i + 1].status = "running"
                         yield (
@@ -1190,6 +1191,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
                         )
+                        file_change_requests[i].commit_hash_url = commit.html_url
                         if i + 1 < len(file_change_requests):
                             file_change_requests[i + 1].status = "running"
                         yield (
@@ -1218,13 +1220,15 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request.filename, contents, changed_files
                             )
                             if contents != updated_contents:
-                                self.repo.update_file(
+                                result = self.repo.update_file(
                                     file_change_request.filename,
                                     f"Sandbox run {file_change_request.filename}",
                                     updated_contents,
                                     sha=contents_obj.sha,
                                     branch=branch,
                                 )
+                                commit = result["commit"]
+                                file_change_request.commit_hash_url = commit.html_url
                             if sandbox_response is not None:
                                 file_change_request.sandbox_response = sandbox_response
                             if (

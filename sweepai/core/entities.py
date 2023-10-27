@@ -120,26 +120,23 @@ def create_error_logs(
     file_path: str = "",
 ):
     return (
-        (
-            "<br/>"
-            + create_collapsible(
-                f"Sandbox logs for {commit_url_display} {status}",
-                blockquote(
-                    "\n\n".join(
-                        [
-                            create_collapsible(
-                                f"<code>{execution.command.format(file_path=file_path)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                                f"<pre>{clean_logs(execution.output)}</pre>",
-                                i == len(sandbox_response.executions) - 1,
-                            )
-                            for i, execution in enumerate(sandbox_response.executions)
-                            if len(sandbox_response.executions) > 0
-                            # And error code check
-                        ]
-                    )
-                ),
-                opened=True,
-            )
+        create_collapsible(
+            f"Sandbox logs for {commit_url_display} {status}",
+            blockquote(
+                "\n\n".join(
+                    [
+                        create_collapsible(
+                            f"<code>{execution.command.format(file_path=file_path)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                            f"<pre>{clean_logs(execution.output)}</pre>",
+                            i == len(sandbox_response.executions) - 1,
+                        )
+                        for i, execution in enumerate(sandbox_response.executions)
+                        if len(sandbox_response.executions) > 0
+                        # And error code check
+                    ]
+                )
+            ),
+            opened=True,
         )
         if sandbox_response
         else ""
@@ -164,6 +161,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
         "running"
     ] = "queued"
     sandbox_response: SandboxResponse | None = None
+    commit_hash_url: str | None = None
     id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
     @classmethod
@@ -260,10 +258,11 @@ class FileChangeRequest(RegexMatchableBaseModel):
         else:
             return f"{self.filename}"
 
-    def instructions_ticket_display(self, commit_url: str):
+    @property
+    def instructions_ticket_display(self):
         if self.change_type == "check" and self.sandbox_response is not None:
             return create_error_logs(
-                commit_url,
+                self.commit_hash_url if self.commit_hash_url is not None else "",
                 self.sandbox_response,
                 status=self.status_display,
                 file_path=self.filename,

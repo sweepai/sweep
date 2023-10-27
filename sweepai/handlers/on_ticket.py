@@ -1163,10 +1163,8 @@ def on_ticket(
                         + " "
                         + file_change_request.status_display
                         + " "
-                        + commit_url_display,
-                        file_change_request.instructions_ticket_display(
-                            commit_url=commit_url_display
-                        ),
+                        + (file_change_request.commit_hash_url or ""),
+                        file_change_request.instructions_ticket_display,
                         "X"
                         if file_change_request.status in ("succeeded", "failed")
                         else " ",
