@@ -480,19 +480,10 @@ class ModifyBot:
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
         def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
-            reason = (
-                f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
-            )
-            if b.reason == "Handle imports":
-                reason = a.reason
-            elif a.reason == "Handle imports":
-                reason = b.reason
-            elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
-                reason = a.reason
-            elif a.reason.startswith("Mentioned") or a.reason.endswith("function call"):
-                reason = b.reason
             return MatchToModify(
-                start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
+                start=min(a.start, b.start), 
+                end=max(a.end, b.end), 
+                reason=f"{a.reason} & {b.reason}"
             )
 
         current_match = best_matches[0]
