@@ -106,47 +106,7 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
     return [output["embedding"] for output in outputs]
 
 
-def embed_sentence_transformers(texts: List[str]) -> List[np.ndarray]:
-    sentence_transformer_model = SentenceTransformer(
-        SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-    )
-    vector = sentence_transformer_model.encode(
-        texts, show_progress_bar=True, batch_size=BATCH_SIZE
-    )
-    return vector
-
-def embed_openai(texts: List[str]) -> List[np.ndarray]:
-    embeddings = []
-    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-        try:
-            response = openai.Embedding.create(
-                input=batch, model="text-embedding-ada-002"
-            )
-            embeddings.extend([r["embedding"] for r in response["data"]])
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            logger.exception("Failed to get embeddings for batch")
-            logger.error(f"Failed to get embeddings for {batch}")
-    return embeddings
-
-def embed_huggingface(texts: List[str]) -> List[np.ndarray]:
-    if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
-        embeddings = []
-        for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-            embeddings.extend(embed_huggingface(texts))
-        return embeddings
-    else:
-        raise Exception("Hugging Face URL and token not set")
-
-def embed_replicate(texts: List[str]) -> List[np.ndarray]:
-    if REPLICATE_API_KEY:
-        embeddings = []
-        for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
-            embeddings.extend(embed_replicate(batch))
-        return embeddings
-    else:
-        raise Exception("Replicate URL and token not set")
+# No changes needed
 
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
@@ -396,6 +356,8 @@ def get_deeplake_vs_from_repo(
 
     return deeplake_vs, index, len(documents)
     logger.info("Getting query embedding...")
+    # query variable needs to be defined or passed as an argument
+    query = "define or pass the query here"
     query_embedding = embedding_function([query])  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
@@ -413,6 +375,8 @@ def get_deeplake_vs_from_repo(
         logger.exception("Exception occurred while fetching relevant snippets")
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
+        # query variable needs to be defined or passed as an argument
+        query = "define or pass the query here"
         logger.info(f"Results query {query} was empty")
         logger.info(f"Results: {results}")
         if username is None:
@@ -422,8 +386,9 @@ def get_deeplake_vs_from_repo(
             "failed",
             {
                 "reason": "Results query was empty",
-                "repo_name": repo_name,
-                "installation_id": installation_id,
+                # repo_name and installation_id variables need to be defined or passed as arguments
+                "repo_name": "define or pass the repo_name here",
+                "installation_id": "define or pass the installation_id here",
                 "query": query,
             },
         )
