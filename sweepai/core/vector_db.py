@@ -15,37 +15,6 @@ from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
 
-def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
-    """
-    Split a list of texts into batches of a given size for embed_texts.
-
-    Args:
-    ----
-        texts (List[str]): A list of texts to be chunked into batches.
-        batch_size (int): The maximum number of texts in each batch.
-
-    Yields:
-    ------
-        Generator[List[str], None, None]: A generator that yields batches of texts as lists.
-
-    Example:
-    -------
-        texts = ["text1", "text2", "text3", "text4", "text5"]
-        batch_size = 2
-        for batch in chunk(texts, batch_size):
-            print(batch)
-        # Output:
-        # ['text1', 'text2']
-        # ['text3', 'text4']
-        # ['text5']
-    """
-    texts = [text[:4096] if text else " " for text in texts]
-    for text in texts:
-        assert isinstance(text, str), f"Expected str, got {type(text)}"
-        assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
-    for i in range(0, len(texts), batch_size):
-        yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
-
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
     BATCH_SIZE,
@@ -84,7 +53,7 @@ def download_models():
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
 
-def init_deeplake_vs(repo_name: str):
+def init_deeplake_vs(repo_name):
     deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
     deeplake_vector_store = VectorStore(
         path=deeplake_repo_path, read_only=False, overwrite=False
@@ -100,9 +69,15 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-def embed_huggingface(texts):
+def embed_huggingface(texts: List[str]) -> List[np.ndarray]:
     """Embeds a list of texts using Hugging Face's API."""
-    for i in range(3):
+    if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
+        embeddings = []
+        for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+            embeddings.extend(embed_huggingface(texts))
+        return embeddings
+    else:
+        raise Exception("Hugging Face URL and token not set")
         try:
             headers = {
                 "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
@@ -119,8 +94,13 @@ def embed_huggingface(texts):
 
 
 def embed_replicate(texts: List[str]) -> List[np.ndarray]:
-    client = replicate.Client(api_token=REPLICATE_API_KEY)
-    deployment = client.deployments.get(REPLICATE_DEPLOYMENT_URL)
+    if REPLICATE_API_KEY:
+        embeddings = []
+        for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
+            embeddings.extend(embed_replicate(batch))
+        return embeddings
+    else:
+        raise Exception("Replicate URL and token not set")
     e = None
     for i in range(3):
         try:
@@ -138,6 +118,7 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
 
 
 def embed_sentence_transformers(texts: List[str]) -> List[np.ndarray]:
+    """Embeds a list of texts using the Sentence Transformers model."""
     sentence_transformer_model = SentenceTransformer(
         SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
     )
@@ -147,6 +128,7 @@ def embed_sentence_transformers(texts: List[str]) -> List[np.ndarray]:
     return vector
 
 def embed_openai(texts: List[str]) -> List[np.ndarray]:
+    """Embeds a list of texts using the OpenAI model."""
     embeddings = []
     for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
         try:
@@ -259,6 +241,7 @@ def get_deeplake_vs_from_repo(
     collection_name = parse_collection_name(repo_full_name)
 
 def get_embeddings_from_cache(documents: List[str]) -> List[np.ndarray]:
+    """Fetches embeddings from the cache."""
     embeddings = [None] * len(documents)
     if redis_client:
         cache_keys = [
@@ -277,6 +260,7 @@ def get_embeddings_from_cache(documents: List[str]) -> List[np.ndarray]:
     return embeddings
 
 def update_embeddings_cache(documents_to_compute: List[str], computed_embeddings: List[np.ndarray]):
+    """Updates the embeddings cache."""
     if redis_client and len(documents_to_compute) > 0:
         logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
         cache_keys = [
@@ -298,6 +282,7 @@ def update_embeddings_cache(documents_to_compute: List[str], computed_embeddings
         )
 
 def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
+    """Computes the deeplake vector space."""
     if len(documents) > 0:
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         embeddings = get_embeddings_from_cache(documents)
