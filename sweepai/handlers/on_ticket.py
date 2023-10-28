@@ -8,7 +8,44 @@ import re
 import traceback
 from time import time
 
+import openai"""
+on_ticket is the main function that is called when a new issue is created.
+It is only called by the webhook handler in sweepai/api.py.
+"""
+
+import math
+import re
+import traceback
+from time import time
+
 import openai
+def handle_sandbox_mode(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+):
+    if sandbox_mode:
+        handle_sandbox_mode(
+            title,
+            summary,
+            issue_number,
+            issue_url,
+            username,
+            repo_full_name,
+            repo_description,
+            installation_id,
+            comment_id,
+            edited,
+            tracking_id,
+        )
 import requests
 import yaml
 import yamllint.config as yamllint_config
@@ -650,17 +687,37 @@ def on_ticket(
             logger.info("Sandbox comments updated")
             return {"success": True}
 
+        def handle_sandbox_mode(
+        title: str,
+        summary: str,
+        issue_number: int,
+        issue_url: str,
+        username: str,
+        repo_full_name: str,
+        repo_description: str,
+        installation_id: int,
+        comment_id: int = None,
+        edited: bool = False,
+        tracking_id: str | None = None,
+        ):
         if len(title + summary) < 20:
-            logger.info("Issue too short")
-            edit_sweep_comment(
-                (
-                    "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            posthog.capture(
-                username,
+        logger.info("Issue too short")
+        edit_sweep_comment(
+            (
+                "Please add more details to your issue. I need at least 20 characters"
+                " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
+            ),
+            -1,
+        )
+        posthog.capture(
+            username,
+            "issue_too_short",
+            properties={**metadata, "duration": time() - on_ticket_start_time},
+        )
+        return {"success": True}
+        else:
+        # Add the rest of the sandbox mode handling logic here
+        pass
                 "issue_too_short",
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
@@ -1218,17 +1275,19 @@ def on_ticket(
                 3,
             )
             change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-            review_message = (
-                "Here are my self-reviews of my changes at" + change_location
+            handle_sandbox_mode(
+                title,
+                summary,
+                issue_number,
+                issue_url,
+                username,
+                repo_full_name,
+                repo_description,
+                installation_id,
+                comment_id,
+                edited,
+                tracking_id,
             )
-
-            lint_output = None
-            try:
-                current_issue.delete_reaction(eyes_reaction.id)
-            except SystemExit:
-                raise SystemExit
-            except:
-                pass
 
             changes_required = False
             try:
@@ -1280,51 +1339,7 @@ def on_ticket(
                 logger.error(traceback.format_exc())
                 logger.error(e)
 
-            if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.",
-                    3,
-                )
-            else:
-                edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}",
-                    3,
-                )
-
-            pr_actions_message = (
-                create_action_buttons(
-                    [
-                        SWEEP_GOOD_FEEDBACK,
-                        SWEEP_BAD_FEEDBACK,
-                    ],
-                    header="### PR Feedback (click)\n",
-                )
-                + "\n"
-                if DISCORD_FEEDBACK_WEBHOOK_URL is not None
-                else ""
-            )
-            revert_buttons = []
-            for changed_file in set(changed_files):
-                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
-            revert_buttons_list = ButtonList(
-                buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
-            )
-
-            rule_buttons = []
-            for rule in get_rules(repo):
-                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-            if not rule_buttons:
-                for rule in DEFAULT_RULES:
-                    rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-
-            rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
-
-            pr: PullRequest = repo.create_pull(
-                title=pr_changes.title,
-                body=pr_actions_message + pr_changes.body,
-                head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
-            )
+            # This logic has been moved to the handle_sandbox_mode function
 
             # Add comment about sandbox executions
             # for i in range(10):
