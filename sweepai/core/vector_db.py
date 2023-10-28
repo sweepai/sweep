@@ -11,6 +11,11 @@ import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+from .logger import log_exception, log_info
+from .embeddings import get_embeddings_and_docs_to_compute, compute_embeddings
+from .search import get_search_results
+from .scores import compute_combined_scores, sort_metadatas_by_scores
+from .cache import update_cache_with_embeddings
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
