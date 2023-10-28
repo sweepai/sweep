@@ -8,16 +8,6 @@ import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from redis import Redisimport json
-import re
-import time
-from functools import lru_cache
-from typing import Generator, List, Callable, Optional, Union
-
-import numpy as np
-import replicate
-import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from redis import Redis
 def get_from_cache_or_compute(
     redis_client: Redis,
@@ -155,6 +145,19 @@ def embed_texts(texts: tuple[str]):
             return vector
         case "openai":
             import openai
+            embeddings = []
+            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                try:
+                    response = openai.Embedding.create(
+                        input=batch, model="text-embedding-ada-002"
+                    )
+                    embeddings.extend([r["embedding"] for r in response["data"]])
+                except SystemExit:
+                    raise SystemExit
+                except Exception:
+                    logger.exception("Failed to get embeddings for batch")
+                    logger.error(f"Failed to get embeddings for {batch}")
+            return embeddings
     
             embeddings = []
             for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
