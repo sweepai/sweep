@@ -10,6 +10,26 @@ from time import time
 
 import openai
 
+def handle_test_repository(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+    is_paying_user: bool,
+    is_consumer_tier: bool,
+    repo: str,
+):
+    if repo not in WHITELISTED_REPOS and not is_paying_user and not is_consumer_tier:
+        # Add the logic for handling test repositories here
+        pass
+
 def handle_issue_too_short(
     title: str,
     summary: str,
@@ -369,7 +389,96 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
     markdown_badge = get_docker_badge()
 
+    try:    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+
+    if fast_mode:
+        use_faster_model = True
+
+    if not comment_id and not edited and chat_logger and not sandbox_mode:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
+
+    sweep_context = SweepContext.create(
+        username=username,
+        issue_url=issue_url,
+        use_faster_model=use_faster_model,
+        is_paying_user=is_paying_user,
+        repo=repo,
+        token=user_token,
+    )
+
+    organization, repo_name = repo_full_name.split("/")
+    metadata = {
+        "issue_url": issue_url,
+        "repo_full_name": repo_full_name,
+        "organization": organization,
+        "repo_name": repo_name,
+        "repo_description": repo_description,
+        "username": username,
+        "comment_id": comment_id,
+        "title": title,
+        "installation_id": installation_id,
+        "function": "on_ticket",
+        "edited": edited,
+        "model": "gpt-3.5" if use_faster_model else "gpt-4",
+        "tier": "pro" if is_paying_user else "free",
+        "mode": ENV,
+        "slow_mode": slow_mode,
+        "do_map": do_map,
+        "subissues_mode": subissues_mode,
+        "sandbox_mode": sandbox_mode,
+        "fast_mode": fast_mode,
+        "is_self_hosted": IS_SELF_HOSTED,
+        "tracking_id": tracking_id,
+    }
+
+    context.context(metadata=metadata)
+    logger.bind(**metadata)
+    logger.info(f"Metadata: {metadata}")
+
+    if handle_issue_too_short(
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        tracking_id,
+    )["success"]:
+        return {"success": True}
+    
+    posthog.capture(username, "started", properties=metadata)
+    markdown_badge = get_docker_badge()
+
     try:
+    handle_test_repository(
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        tracking_id,
+        is_paying_user,
+        is_consumer_tier,
+        repo,
+    )
         from openai import GPT3Client
             logger.warning(
                 f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
@@ -622,6 +731,23 @@ def on_ticket(
                     "## ❌ Unable to Complete PR"
                     + "\n"
                     + message
+                )
+                handle_test_repository(
+                    title,
+                    summary,
+                    issue_number,
+                    issue_url,
+                    username,
+                    repo_full_name,
+                    repo_description,
+                    installation_id,
+                    comment_id,
+                    edited,
+                    tracking_id,
+                    is_paying_user,
+                    is_consumer_tier,
+                    repo,
+                )
                     + "\n\nFor bonus GPT-4 tickets, please report this bug on"
                     f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: `{tracking_id}`)."
                 )
@@ -767,30 +893,46 @@ def on_ticket(
             )
             return {"success": True}
 
-        if (
-            repo_name.lower() not in WHITELISTED_REPOS
-            and not is_paying_user
-            and not is_consumer_tier
+        def handle_test_repository(
+            title: str,
+            summary: str,
+            issue_number: int,
+            issue_url: str,
+            username: str,
+            repo_full_name: str,
+            repo_description: str,
+            installation_id: int,
+            comment_id: int = None,
+            edited: bool = False,
+            tracking_id: str | None = None,
+            is_paying_user: bool,
+            is_consumer_tier: bool,
+            repo: str,
         ):
-            if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                logger.info("Test repository detected")
-                edit_sweep_comment(
-                    (
-                        "Sweep does not work on test repositories. Please create an issue"
-                        " on a real repository. If you think this is a mistake, please"
-                        " report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
-                    ),
-                    -1,
-                )
-                posthog.capture(
-                    username,
-                    "test_repo",
-                    properties={
-                        **metadata,
-                        "duration": time() - on_ticket_start_time,
-                    },
-                )
-                return {"success": False}
+            if (
+                repo_name.lower() not in WHITELISTED_REPOS
+                and not is_paying_user
+                and not is_consumer_tier
+            ):
+                if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
+                    logger.info("Test repository detected")
+                    edit_sweep_comment(
+                        (
+                            "Sweep does not work on test repositories. Please create an issue"
+                            " on a real repository. If you think this is a mistake, please"
+                            " report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
+                        ),
+                        -1,
+                    )
+                    posthog.capture(
+                        username,
+                        "test_repo",
+                        properties={
+                            **metadata,
+                            "duration": time() - on_ticket_start_time,
+                        },
+                    )
+                    return {"success": False}
 
         logger.info("Fetching relevant files...")
         try:
