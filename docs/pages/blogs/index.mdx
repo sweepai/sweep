@@ -1,50 +1,33 @@
 
 import { Cards } from '../../components/Cards'
+import Image from "next/image"
 
 # Blogs
 
 *Our technical challenges, ideas, how we're building them, and what we're learning along the way.*
 
 <Cards>
-  <ShowcaseCard title="🕸️ A Simple Proxy for Azure and OpenAI raised our GPT4 TPM limit by 24x" href="blogs/openai-proxy">
-  </ShowcaseCard>
-  <ShowcaseCard title="🧪 Having GPT-4 Iterate on Unit Tests like a Human" href="blogs/ai-unit-tests">
-  </ShowcaseCard>
-  <ShowcaseCard title="🔄 Zero Downtime Deployment with < 50 lines of bash" href="blogs/zero-downtime-deployment">
-  </ShowcaseCard>
-  <ShowcaseCard title="🗺️ How an AI plans code changes across an entire GitHub Repository" href="blogs/ai-code-planning">
-  </ShowcaseCard>
-  <ShowcaseCard title="🛠️ AI Junior Dev meets Super-Linter" href="blogs/super-linter">
-  </ShowcaseCard>
-  <ShowcaseCard title="🤔 Why getting GPT-4 to modify files is hard" href="blogs/gpt-4-modification">
-  </ShowcaseCard>
-  <ShowcaseCard title="💸 When you should handle tech debt" href="blogs/automate-tech-debt">
-  </ShowcaseCard>
-  <ShowcaseCard title="🏠 Self Hosting an AI Junior Developer" href="blogs/self-hosting">
-  </ShowcaseCard>
-  <ShowcaseCard title="📈 Improving LlamaIndex’s Code Chunker by Cleaning Tree-Sitter CSTs" href="blogs/chunking-improvements">
-  </ShowcaseCard>
-  <ShowcaseCard title="🎓 How our AI junior dev reads all of your documentation" href="blogs/reading-docs">
-  </ShowcaseCard>
-  <ShowcaseCard title="🧹 Sweep's Core Algorithm" href="blogs/sweeps-core-algo">
-  </ShowcaseCard>
-  <ShowcaseCard title="⚙️ Generating 50k+ embeddings in 25 seconds using GTE 🧠 and MapReduce 💻" href="blogs/generating-50k-embeddings-with-gte">
-  </ShowcaseCard>
-  <ShowcaseCard title="🍪 Chunking 2M+ files a day for Code Search using Syntax Trees" href="blogs/chunking-2m-files">
-  </ShowcaseCard>
-  <ShowcaseCard title="🤖 Letting an AI Junior Dev run GitHub Actions" href="blogs/giving-dev-tools">
-  </ShowcaseCard>
-  <ShowcaseCard title="🔍 Code Search Infra for an AI junior developer - that doesn't store code" href="blogs/search-infra">
-  </ShowcaseCard>
-  <ShowcaseCard title="📚 Understanding your codebase with ctags" href="blogs/understanding-codebase-with-ctags">
-  </ShowcaseCard>
-  <ShowcaseCard title="🏗️ Building a code search engine in one day" href="blogs/building-code-search">
-  </ShowcaseCard>
-  <ShowcaseCard title="🌐 GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!" href="blogs/gpt-32k-open-source">
-  </ShowcaseCard>
+  <ShowcaseCard title="🕸️ A Simple Proxy for Azure and OpenAI raised our GPT4 TPM limit by 24x" href="blogs/openai-proxy"/>
+  <ShowcaseCard title="🧪 Having GPT-4 Iterate on Unit Tests like a Human" href="blogs/ai-unit-tests"/>
+  <ShowcaseCard title="🔄 Zero Downtime Deployment with < 50 lines of bash" href="blogs/zero-downtime-deployment"/>
+  <ShowcaseCard title="🗺️ How an AI plans code changes across an entire GitHub Repository" href="blogs/ai-code-planning"/>
+  <ShowcaseCard title="🛠️ AI Junior Dev meets Super-Linter" href="blogs/super-linter"/>
+  <ShowcaseCard title="🤔 Why getting GPT-4 to modify files is hard" href="blogs/gpt-4-modification"/>
+  <ShowcaseCard title="💸 When you should handle tech debt" href="blogs/automate-tech-debt"/>
+  <ShowcaseCard title="🏠 Self Hosting an AI Junior Developer" href="blogs/self-hosting"/>
+  <ShowcaseCard title="📈 Improving LlamaIndex’s Code Chunker by Cleaning Tree-Sitter CSTs" href="blogs/chunking-improvements"/>
+  <ShowcaseCard title="🎓 How our AI junior dev reads all of your documentation" href="blogs/reading-docs"/>
+  <ShowcaseCard title="🧹 Sweep's Core Algorithm" href="blogs/sweeps-core-algo"/>
+  <ShowcaseCard title="⚙️ Generating 50k+ embeddings in 25 seconds using GTE 🧠 and MapReduce 💻" href="blogs/generating-50k-embeddings-with-gte"/>
+  <ShowcaseCard title="🍪 Chunking 2M+ files a day for Code Search using Syntax Trees" href="blogs/chunking-2m-files"/>
+  <ShowcaseCard title="🤖 Letting an AI Junior Dev run GitHub Actions" href="blogs/giving-dev-tools"/>
+  <ShowcaseCard title="🔍 Code Search Infra for an AI junior developer - that doesn't store code" href="blogs/search-infra"/>
+  <ShowcaseCard title="📚 Understanding your codebase with ctags" href="blogs/understanding-codebase-with-ctags"/>
+  <ShowcaseCard title="🏗️ Building a code search engine in one day" href="blogs/building-code-search"/>
+  <ShowcaseCard title="🌐 GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!" href="blogs/gpt-32k-open-source"/>
 </Cards>
 
-export const ShowcaseCard = Object.assign(
+export const ShowcaseCard_ = Object.assign(
   // Copy card component and add default props
   Cards.Card.bind(),
   {
@@ -55,4 +38,10 @@ export const ShowcaseCard = Object.assign(
       target: '_blank'
     }
   }
+)
+
+export const ShowcaseCard = ({ title, href }) => (
+  <ShowcaseCard_ title={title} href={href}>
+    <img src={`/covers/${href.replace("blogs/", "")}.png`} style={{width: "100%"}}/>
+  </ShowcaseCard_>
 )
