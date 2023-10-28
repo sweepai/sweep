@@ -126,10 +126,7 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
 
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
-    logger.info(f"Computing embeddings for {len(texts)} texts...")
-    embeddings = compute_embeddings(texts)
-    logger.info(f"Computed embeddings for {len(texts)} texts")
-    return embeddings    logger.info(f"Computing embeddings for {len(texts)} texts...")
+    return embeddings
     embeddings = compute_embeddings(texts)
     logger.info(f"Computed embeddings for {len(texts)} texts")
     return embeddings
