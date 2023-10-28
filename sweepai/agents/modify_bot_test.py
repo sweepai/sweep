@@ -26,15 +26,8 @@ class TestModifyBot(unittest.TestCase):
 
     def test_fuse_matches(self):
         # Create two MatchToModify instances
-        match_a = Mock()
-        match_a.start = 1
-        match_a.end = 2
-        match_a.reason = 'reason_a'
-        
-        match_b = Mock()
-        match_b.start = 3
-        match_b.end = 4
-        match_b.reason = 'reason_b'
+        match_a = MatchToModify(start=1, end=2, reason='reason_a')
+        match_b = MatchToModify(start=3, end=4, reason='reason_b')
         
         # Call the method with the matches
         fused_match = self.modify_bot.fuse_matches(match_a, match_b)
