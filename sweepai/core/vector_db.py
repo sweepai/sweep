@@ -43,7 +43,10 @@ timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.13"
 MAX_FILES = 500
 
-redis_client = Redis.from_url(REDIS_URL)
+def get_redis_client():
+    return Redis.from_url(REDIS_URL)
+
+redis_client = get_redis_client()
 
 
 def download_models():
@@ -108,46 +111,41 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
 
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
-    log_info(
-        log_info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
-        embeddings, documents_to_compute = get_embeddings_and_docs_to_compute(documents)
-        log_info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
-        log_info(f"Computed {len(computed_embeddings)} embeddings")
+    log_info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+    embeddings, documents_to_compute = get_embeddings_and_docs_to_compute(documents)
+    log_info(f"Computing {len(documents_to_compute)} embeddings...")
+    computed_embeddings = compute_embeddings(documents_to_compute)
+    log_info(f"Computed {len(computed_embeddings)} embeddings")
 
-        for idx, embedding in zip(indices_to_compute, computed_embeddings):
-            embeddings[idx] = embedding
+    for idx, embedding in zip(indices_to_compute, computed_embeddings):
+        embeddings[idx] = embedding
 
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            log_exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
+    try:
+        embeddings = np.array(embeddings, dtype=np.float32)
+    except SystemExit:
+        raise SystemExit
+    except:
+        log_exception("Failed to convert embeddings to numpy array, recomputing all of them")
+        embeddings = compute_embeddings(documents)
+        embeddings = np.array(embeddings, dtype=np.float32)
 
-        deeplake_vs = init_deeplake_vs(collection_name)
-        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        log_info("Added embeddings to cache")
-        if redis_client and len(documents_to_compute) > 0:
-            log_info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            update_cache_with_embeddings(documents_to_compute, computed_embeddings)
-                for doc in documents_to_compute
-            ]
-            redis_client.mset(
-                {
-                    key: json.dumps(
-                        embedding.tolist()
-                        if isinstance(embedding, np.ndarray)
-                        else embedding
-                    )
-                    for key, embedding in zip(cache_keys, computed_embeddings)
-                }
-            )
-        return deeplake_vs
+    deeplake_vs = init_deeplake_vs(collection_name)
+    deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
+    log_info("Added embeddings to cache")
+    if redis_client and len(documents_to_compute) > 0:
+        log_info(f"Updating cache with {len(computed_embeddings)} embeddings")
+        update_cache_with_embeddings(documents_to_compute, computed_embeddings)
+        redis_client.mset(
+            {
+                key: json.dumps(
+                    embedding.tolist()
+                    if isinstance(embedding, np.ndarray)
+                    else embedding
+                )
+                for key, embedding in zip(cache_keys, computed_embeddings)
+            }
+        )
+    return deeplake_vs
     else:
         logger.error("No documents found in repository")
         return deeplake_vs
@@ -165,7 +163,7 @@ def get_relevant_snippets(
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     log_info("Getting query embedding...")
-    query_embedding = embedding_function([query])  # pylint: disable=no-member
+    query_embedding = compute_embeddings([query])  # pylint: disable=no-member
     log_info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
