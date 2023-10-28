@@ -7,8 +7,13 @@ import openai
 import tiktoken
 from loguru import logger
 from pydantic import BaseModel, Field
+
 from sweepai.sandbox.src.chat_logger import ChatLogger
-from sweepai.sandbox.src.diff import format_contents, generate_new_file_from_patch, is_markdown
+from sweepai.sandbox.src.diff import (
+    format_contents,
+    generate_new_file_from_patch,
+    is_markdown,
+)
 from sweepai.sandbox.src.prompts import (
     sandbox_code_repair_modify_prompt,
     sandbox_code_repair_modify_system_prompt,
@@ -121,7 +126,7 @@ class OpenAIProxy:
                     temperature=temperature,
                 )
                 return response["choices"][0].message.content if response else ""
-            OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
+            os.getenv("OPENAI_API_BASE")
             openai.api_type = os.getenv("OPENAI_API_TYPE")
             openai.api_base = os.getenv("OPENAI_API_BASE")
             openai.api_version = os.getenv("OPENAI_API_VERSION")
