@@ -415,7 +415,7 @@ class ModifyBot:
 
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
-        def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
+        def fuse_matches(self, a: MatchToModify, b: MatchToModify) -> MatchToModify:
             return MatchToModify(
                 start=min(a.start, b.start),
                 end=max(a.end, b.end),
