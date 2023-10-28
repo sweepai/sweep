@@ -8,16 +8,6 @@ from typing import Dict, Generator, List
 
 import requests
 from fuzzywuzzy import fuzz
-from github.ContentFile import ContentFileimport copy
-import hashlib
-import re
-import traceback
-import uuid
-from collections import OrderedDict
-from typing import Dict, Generator, List
-
-import requests
-from fuzzywuzzy import fuzz
 from github.ContentFile import ContentFile
     def validate_file_change_requests(self, file_change_requests: List[FileChangeRequest], blocked_dirs: List[str] = []) -> List[FileChangeRequest]:
         validated_requests = []
