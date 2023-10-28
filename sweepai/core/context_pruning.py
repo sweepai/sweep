@@ -93,14 +93,6 @@ class ContextPruning(ChatGPT):
     ) -> tuple[list[str], list[str]]:
         try:
             content = system_message_prompt
-            repo = kwargs.get("repo")
-            repo_info = get_description(repo)
-            repo_description = repo_info["description"]
-            repo_rules = repo_info["rules"]
-            if repo_description:
-                content += f"{repo_description_prefix_prompt}\n{repo_description}"
-            if repo_rules:
-                content += f"{rules_prefix_prompt}:\n{repo_rules}"
             self.messages = [Message(role="system", content=content, key="system")]
             added_messages = human_message.construct_prompt(
                 snippet_tag="snippets_in_repo", directory_tag="paths_in_repo"
