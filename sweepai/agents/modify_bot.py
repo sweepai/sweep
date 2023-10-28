@@ -141,75 +141,11 @@ last few lines from the first original snippet (the code)
 ```
 first few lines from the second original snippet
 ...
-last few lines from the second original snippet (the code)
-```
-</snippet_to_modify>
-...
-</snippets_to_modify>
-
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>"""
-
-plan_snippets_system_prompt = """\
-You are a brilliant and meticulous engineer assigned to plan code changes to complete the user's request.
-
-You will plan code changes to solve the user's problems. You have the utmost care for the plans you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies.
-
-You will be given the old_file and potentially relevant snippets to edit. You do not necessarily have to edit all the snippets.
-
-Respond in the following format:
-
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>"""
-
-plan_snippets_prompt = """# Code
-File path: {file_path}
-<old_code>
-```
-{code}
-```
-</old_code>
-{changes_made}
-# Request
-{request}
-
-<snippets_to_update>
-{snippets}
-</snippets_to_update>
-
-# Instructions
-Describe all changes that should be made.
-
-Respond in the following format:
-
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>"""
-
-
-@dataclass
-class SnippetToModify:
-    code: str
-    reason: str
-
-
-@dataclass
-class MatchToModify:
-    start: int
-    end: int
-    reason: str
-
-
-def strip_backticks(s: str) -> str:
-    s = s.strip()
+             return MatchToModify(
+                start=min(a.start, b.start), 
+                end=max(a.end, b.end), 
+                reason=f"{a.reason} & {b.reason}"
+             )
     if s.startswith("```"):
         s = s[s.find("\n") :]
     if s.endswith("```"):
