@@ -591,6 +591,7 @@ class ModifyBot:
 
 if __name__ == "__main__":
     response = """
+```python
 ```
 """
     stripped = strip_backticks(response)
