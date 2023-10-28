@@ -15,6 +15,37 @@ from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
 
+def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
+    """
+    Split a list of texts into batches of a given size for embed_texts.
+
+    Args:
+    ----
+        texts (List[str]): A list of texts to be chunked into batches.
+        batch_size (int): The maximum number of texts in each batch.
+
+    Yields:
+    ------
+        Generator[List[str], None, None]: A generator that yields batches of texts as lists.
+
+    Example:
+    -------
+        texts = ["text1", "text2", "text3", "text4", "text5"]
+        batch_size = 2
+        for batch in chunk(texts, batch_size):
+            print(batch)
+        # Output:
+        # ['text1', 'text2']
+        # ['text3', 'text4']
+        # ['text5']
+    """
+    texts = [text[:4096] if text else " " for text in texts]
+    for text in texts:
+        assert isinstance(text, str), f"Expected str, got {type(text)}"
+        assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
+    for i in range(0, len(texts), batch_size):
+        yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
+
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
     BATCH_SIZE,
@@ -53,7 +84,7 @@ def download_models():
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
 
-def init_deeplake_vs(repo_name):
+def init_deeplake_vs(repo_name: str):
     deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
     deeplake_vector_store = VectorStore(
         path=deeplake_repo_path, read_only=False, overwrite=False
