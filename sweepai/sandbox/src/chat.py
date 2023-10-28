@@ -7,9 +7,9 @@ import openai
 import tiktoken
 from loguru import logger
 from pydantic import BaseModel, Field
-from src.chat_logger import ChatLogger
-from src.diff import format_contents, generate_new_file_from_patch, is_markdown
-from src.prompts import (
+from sweepai.sandbox.src.chat_logger import ChatLogger
+from sweepai.sandbox.src.diff import format_contents, generate_new_file_from_patch, is_markdown
+from sweepai.sandbox.src.prompts import (
     sandbox_code_repair_modify_prompt,
     sandbox_code_repair_modify_system_prompt,
 )
