@@ -1,5 +1,6 @@
 import unittest
 import unittest.mock
+from github import Github
 from tests.notebooks.rope import extract_method, get_jwt, get_token, get_github_client, get_installation_id, make_valid_string, get_hunks, ClonedRepo
 
 class TestRope(unittest.TestCase):
