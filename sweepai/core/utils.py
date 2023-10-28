@@ -1,13 +1,13 @@
-from typing import List, Generator
 import re
-import json
-import numpy as np
+from typing import Generator, List
+
 from redis import Redis
-from loguru import logger
+
 from sweepai.config.server import REDIS_URL
 
 # Redis client
 redis_client = Redis.from_url(REDIS_URL)
+
 
 def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
     texts = [text[:4096] if text else " " for text in texts]
@@ -16,6 +16,7 @@ def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]
     assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
     for i in range(0, len(texts), batch_size):
         yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
+
 
 def parse_collection_name(name: str) -> str:
     name = re.sub(r"[^\w-]", "--", name)
