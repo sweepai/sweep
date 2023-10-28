@@ -47,7 +47,8 @@ graph_user_prompt = """<metadata>
 {relevant_snippets}
 
 <symbols_to_files>
-{symbols_to_files}</symbols_to_files>"""
+{symbols_to_files}
+</symbols_to_files>"""
 
 
 def strip_markdown(contents):

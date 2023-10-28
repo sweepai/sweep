@@ -41,7 +41,6 @@ from sweepai.core.prompts import (
     create_file_prompt,
     files_to_change_prompt,
     pull_request_prompt,
-    python_files_to_change_prompt,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     sandbox_files_to_change_prompt,
@@ -305,8 +304,8 @@ class CodeGenBot(ChatGPT):
                     for plan in plans:
                         extracted_code = plan.relevant_new_snippet[0].content
                         if (
-                            truncation_counter + len(extracted_code) < 70000
-                        ):  # 70k characters ~ 18k tokens
+                            truncation_counter + len(extracted_code) < 61000
+                        ):  # 10k characters ~ 2.5k tokens
                             truncated_plans.append(plan)
                             truncation_counter += len(extracted_code)
                     plans = truncated_plans
@@ -337,7 +336,7 @@ class CodeGenBot(ChatGPT):
                         "relevant_snippets", relevant_snippet_text
                     )
                     files_to_change_response = self.chat(
-                        python_files_to_change_prompt, message_key="files_to_change"
+                        files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
                     file_change_requests = []
                     for re_match in re.finditer(
@@ -353,7 +352,6 @@ class CodeGenBot(ChatGPT):
                             new_file_change_request.parent = file_change_request
                             new_file_change_request.id_ = str(uuid.uuid4())
                             file_change_requests.append(new_file_change_request)
-
                     if file_change_requests:
                         plan_str = "\n".join(
                             [fcr.instructions_display for fcr in file_change_requests]
@@ -1260,6 +1258,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                         parent_fcr=file_change_request,
                                     )
                                 )
+                                additional_file_change_requests = self.validate_file_change_requests(additional_file_change_requests, branch=branch)
                                 if additional_file_change_requests:
                                     new_check_fcr = copy.deepcopy(file_change_request)
                                     new_check_fcr.status = "queued"
