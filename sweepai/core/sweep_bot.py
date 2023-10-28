@@ -11,26 +11,26 @@ from fuzzywuzzy import fuzz
 from github.ContentFile import ContentFile
 
     def validate_file_change_requests(self, file_change_requests: List[FileChangeRequest], blocked_dirs: List[str] = []) -> List[FileChangeRequest]:
-        validated_requests = []
-        for request in file_change_requests:
-            if request.change_type == 'modify':
-                try:
-                    self.get_contents(request.filename)
-                    validated_requests.append(request)
-                except FileNotFoundError:
-                    request.change_type = 'create'
-                    validated_requests.append(request)
-            elif request.change_type == 'create':
-                try:
-                    self.get_contents(request.filename)
-                    request.instructions = f'File {request.filename} already exists. Unable to create file.'
-                except FileNotFoundError:
-                    validated_requests.append(request)
-            for dir in blocked_dirs:
-                if request.filename.startswith(dir):
-                    request.instructions = f'Unable to modify files in the {dir} directory.'
-                    break
-        return validated_requests
+    validated_requests = []
+    for request in file_change_requests:
+        if request.change_type == 'modify':
+            try:
+                self.get_contents(request.filename)
+                validated_requests.append(request)
+            except FileNotFoundError:
+                request.change_type = 'create'
+                validated_requests.append(request)
+        elif request.change_type == 'create':
+            try:
+                self.get_contents(request.filename)
+                request.instructions = f'File {request.filename} already exists. Unable to create file.'
+            except FileNotFoundError:
+                validated_requests.append(request)
+        for dir in blocked_dirs:
+            if request.filename.startswith(dir):
+                request.instructions = f'Unable to modify files in the {dir} directory.'
+                break
+    return validated_requests
 
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
