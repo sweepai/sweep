@@ -14,7 +14,6 @@ from sweepai.config.server import (
 from sweepai.core.entities import Message, SweepContext
 from sweepai.core.prompts import (
     repo_description_prefix_prompt,
-    rules_prefix_prompt,
     system_message_prompt,
 )
 from sweepai.logn import logger
@@ -88,8 +87,8 @@ class ChatGPT(BaseModel):
         if repo:
             repo_info = get_description(repo)
             repo_description = repo_info["description"]
-            repo_rules = repo_info["rules"]
-            repo_rules = repo_info["rules"]
+            repo_info["rules"]
+            repo_info["rules"]
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
         messages = [Message(role="system", content=content, key="system")]
@@ -194,7 +193,9 @@ class ChatGPT(BaseModel):
                 logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
             elif purchased_tickets > 0:
                 model = model or self.model
-                logger.info(f"{purchased_tickets} purchased tickets found in MongoDB, using {model}")
+                logger.info(
+                    f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
+                )
             else:
                 model = "gpt-3.5-turbo-16k-0613"
 
@@ -353,7 +354,9 @@ class ChatGPT(BaseModel):
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}")
+                logger.error(
+                    f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}"
+                )
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
