@@ -444,35 +444,3 @@ def get_deeplake_vs_from_repo(
         )
         for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ][:num_docs]
-
-
-def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
-    """
-    Split a list of texts into batches of a given size for embed_texts.
-
-    Args:
-    ----
-        texts (List[str]): A list of texts to be chunked into batches.
-        batch_size (int): The maximum number of texts in each batch.
-
-    Yields:
-    ------
-        Generator[List[str], None, None]: A generator that yields batches of texts as lists.
-
-    Example:
-    -------
-        texts = ["text1", "text2", "text3", "text4", "text5"]
-        batch_size = 2
-        for batch in chunk(texts, batch_size):
-            print(batch)
-        # Output:
-        # ['text1', 'text2']
-        # ['text3', 'text4']
-        # ['text5']
-    """
-    texts = [text[:4096] if text else " " for text in texts]
-    for text in texts:
-        assert isinstance(text, str), f"Expected str, got {type(text)}"
-        assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
-    for i in range(0, len(texts), batch_size):
-        yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
