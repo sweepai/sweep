@@ -14,7 +14,7 @@ const config: DocsThemeConfig = {
       <link rel="icon" type="image/png" sizes="256x256" href="/final-sweep-wizard_256x256.png" />
       <meta property="og:title" content="Sweep AI Documentation" />
       <meta property="og:description" content="The official documentation for Sweep AI." />
-      <meta property="og:image" content="https://docs.sweep.dev/banner.png" />
+      <meta property="og:image" content="/go_image.png" />
       <script defer src="/_vercel/insights/script.js" />
       <script>{`
         window.intercomSettings = {
