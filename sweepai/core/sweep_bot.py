@@ -755,7 +755,7 @@ class SweepBot(CodeGenBot, GithubBot):
         if file_change_request.relevant_files:
             relevant_files_contents = []
             for file_path in file_change_request.relevant_files:
-                if is_blocked(file_path, blocked_dirs):
+                if is_blocked(file_path, blocked_dirs)["success"]:
                     continue
                 try:
                     relevant_files_contents.append(
@@ -918,7 +918,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 relevant_files_contents = []
                 blocked_dirs = get_blocked_dirs(self.repo)
                 for file_path in file_change_request.relevant_files:
-                    if is_blocked(file_path, blocked_dirs):
+                    if is_blocked(file_path, blocked_dirs)["success"]:
                         continue
                     try:
                         relevant_files_contents.append(
