@@ -48,7 +48,6 @@ from sweepai.core.prompts import (
     snippet_replacement_system_message,
     subissues_prompt,
 )
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.graph import Graph
@@ -89,6 +88,7 @@ def remove_line_numbers(s: str) -> str:
         return re.sub(r"\d+?:", "", s, flags=re.MULTILINE)
     return s
 
+
 def is_blocked(file_path: str, blocked_dirs: list[str]):
     if blocked_dirs is None:
         return {"success": False}
@@ -96,6 +96,7 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
         if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
             return {"success": True, "path": blocked_dir}
     return {"success": False}
+
 
 class CodeGenBot(ChatGPT):
     def summarize_snippets(self):
@@ -581,9 +582,7 @@ class GithubBot(BaseModel):
                 elif not exists and file_change_request.change_type == "modify":
                     file_change_request.change_type = "create"
 
-                block_status = is_blocked(
-                    file_change_request.filename, blocked_dirs
-                )
+                block_status = is_blocked(file_change_request.filename, blocked_dirs)
                 if block_status["success"]:
                     # red X emoji
                     file_change_request.instructions = (
@@ -1137,9 +1136,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 commit = commit_messages.get(
                     file_change_request.change_type, "No commit message provided"
                 )
-                if is_blocked(file_change_request.filename, blocked_dirs)[
-                    "success"
-                ]:
+                if is_blocked(file_change_request.filename, blocked_dirs)["success"]:
                     logger.print(
                         f"Skipping {file_change_request.filename} because it is blocked."
                     )
@@ -1264,7 +1261,11 @@ class SweepBot(CodeGenBot, GithubBot):
                                         parent_fcr=file_change_request,
                                     )
                                 )
-                                additional_file_change_requests = self.validate_file_change_requests(additional_file_change_requests, branch=branch)
+                                additional_file_change_requests = (
+                                    self.validate_file_change_requests(
+                                        additional_file_change_requests, branch=branch
+                                    )
+                                )
                                 if additional_file_change_requests:
                                     new_check_fcr = copy.deepcopy(file_change_request)
                                     new_check_fcr.status = "queued"
