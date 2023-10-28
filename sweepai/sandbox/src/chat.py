@@ -282,7 +282,9 @@ class ChatGPT(BaseModel):
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
+        # Check if the message is too long
+        if messages_length > model_to_max_tokens[model]:
+            raise ValueError(f"Message is too long, max tokens is {model_to_max_tokens[model]}, but got {messages_length}")
         logger.info("file_change_paths" + str(self.file_change_paths))
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
