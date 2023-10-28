@@ -9,7 +9,54 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
+)import json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
 )
+def get_redis_cache_value(redis_client, cache_key):
+    try:
+        cache_value = redis_client.get(cache_key)
+    except Exception as e:
+        logger.exception(e)
+        cache_value = None
+    return cache_value
+
+def compute_embedding(documents):
+    indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+    documents_to_compute = [documents[idx] for idx in indices_to_compute]
+    computed_embeddings = embedding_function(documents_to_compute)
+    for idx, embedding in zip(indices_to_compute, computed_embeddings):
+        embeddings[idx] = embedding
+    return embeddings
+
+def get_score_factors(file_path, cloned_repo, redis_client):
+    score_factors = []
+    if not redis_client:
+        score_factor = compute_score(
+            file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+        )
+        score_factors.append(score_factor)
+    else:
+        cache_key = hash_sha256(file_path) + CACHE_VERSION
+        cache_value = get_redis_cache_value(redis_client, cache_key)
+        if cache_value is not None:
+            score_factor = json.loads(cache_value)
+            score_factors.append(score_factor)
+        else:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            redis_client.set(cache_key, json.dumps(score_factor))
+    return score_factors
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -188,29 +235,7 @@ def get_deeplake_vs_from_repo(
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
-    for file_path in tqdm(file_list):
-        if not redis_client:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            continue
-        cache_key = hash_sha256(file_path) + CACHE_VERSION
-        try:
-            cache_value = redis_client.get(cache_key)
-        except Exception as e:
-            logger.exception(e)
-            cache_value = None
-        if cache_value is not None:
-            score_factor = json.loads(cache_value)
-            score_factors.append(score_factor)
-        else:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            redis_client.set(cache_key, json.dumps(score_factor))
-    # compute all scores
+    score_factors = get_score_factors(file_path, cloned_repo, redis_client)
     all_scores = get_scores(score_factors)
     files_to_scores = {
         file_path: score for file_path, score in zip(file_list, all_scores)
@@ -268,12 +293,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
-        logger.info(f"Computed {len(computed_embeddings)} embeddings")
-
-        for idx, embedding in zip(indices_to_compute, computed_embeddings):
-            embeddings[idx] = embedding
+        embeddings = compute_embedding(documents)
 
         try:
             embeddings = np.array(embeddings, dtype=np.float32)
@@ -283,7 +303,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             logger.exception(
                 "Failed to convert embeddings to numpy array, recomputing all of them"
             )
-            embeddings = embedding_function(documents)
+            embeddings = compute_embedding(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
 
         deeplake_vs = init_deeplake_vs(collection_name)
