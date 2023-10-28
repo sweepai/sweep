@@ -8,7 +8,38 @@ import re
 import traceback
 from time import time
 
-import openai"""
+import openai
+
+def handle_issue_too_short(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+):
+    if len(title + summary) < 20:
+        logger.info("Issue too short")
+        edit_sweep_comment(
+            (
+                "Please add more details to your issue. I need at least 20 characters"
+                " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
+            ),
+            -1,
+        )
+        posthog.capture(
+            username,
+            "issue_too_short",
+            properties={**metadata, "duration": time() - on_ticket_start_time},
+        )
+        return {"success": True}
+    else:
+        return {"success": False}
 on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
@@ -320,6 +351,21 @@ def on_ticket(
     logger.bind(**metadata)
     logger.info(f"Metadata: {metadata}")
 
+    if handle_issue_too_short(
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        tracking_id,
+    )["success"]:
+        return {"success": True}
+    
     posthog.capture(username, "started", properties=metadata)
     markdown_badge = get_docker_badge()
 
