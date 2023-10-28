@@ -60,7 +60,53 @@ def handle_issue_too_short(
         return {"success": True}
     else:
         return {"success": False}
-on_ticket is the main function that is called when a new issue is created.
+
+def on_ticket(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+):
+    # Call the handle_test_repository function
+    handle_test_repository(
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        tracking_id,
+        is_paying_user,
+        is_consumer_tier,
+        repo,
+    )
+
+    # Call the handle_issue_too_short function
+    if handle_issue_too_short(
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        tracking_id,
+    )["success"]:
+        return {"success": True}
 It is only called by the webhook handler in sweepai/api.py.
 """
 
@@ -97,6 +143,35 @@ def handle_sandbox_mode(
             edited,
             tracking_id,
         )
+
+def on_ticket(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+):
+    # Call the handle_sandbox_mode function
+    handle_sandbox_mode(
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        tracking_id,
+    )
+
 import requests
 import yaml
 import yamllint.config as yamllint_config
