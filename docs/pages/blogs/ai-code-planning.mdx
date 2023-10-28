@@ -1,29 +1,29 @@
-# **🗺️ How an AI plans code changes across an entire GitHub Repository**
+# **🗺️ How AI Plans Code Changes Across an Entire GitHub Repository**
 
 **William Zeng** - October 9th, 2023
 
 ---
 
-GPT4 can generate unit tests, refactor a function, and add comments/docstrings to your code. You can even use GPT4 with a 32k context window to write an entire app from scratch.
+GPT-4 can generate unit tests, refactor functions, and add comments/docstrings to your code. You can even use GPT-4 with a 32k context window to create an entire app from scratch.
 
-However, to get it to plan code changes at the repository level, such as while solving Jira tickets, we need to do a lot more work. We need to turn the user input from an issue title and description into a set of instructions, and then translate those to code changes. It should look like this:
+However, when it comes to planning code changes at the repository level, such as solving Jira tickets, more work is needed. We have to transform user input from an issue title and description into a set of instructions and then translate those into code changes. It should follow a process like this:
 <br/>
 <img src="/deployment/fcr.png" alt="How Sweep turns GitHub issues to code changes with AI" />
 
 1. Turn the issue title and description to pairs of files and file-level instructions in natural language.
 2. Turn the file-level instructions from natural language to code changes.
 
-This must include a powerful search engine, but search is not sufficient. By only relying on RAG (Retrieval-Augmented-Generation) we need a lot of luck to get the files we need.
+This process requires a powerful search engine, but search alone is not enough. Relying solely on Retrieval-Augmented-Generation (RAG) often relies on luck to locate the necessary files.
 
 ## Lexical search and context pruning
 
-We've tried a lot of strategies to manipulate and improve the input context. We encountered an interesting issue everytime we added additional inputs. This will hurt our performance in the short term because of how GPT4 currently degrades in performance (both planning, coding, and instruction following) after ~20k tokens.
+Efforts were made to manipulate and enhance the input context, but encountered issues when additional inputs were added. This resulted in short-term performance degradation, as GPT-4's performance (planning, coding, and instruction following) tends to decline after approximately ~20k tokens.
 
-This is a prevalent effect known as lost-in-the-middle (LIM) where LLMs only focus on the context at the beginning and end of the prompt. Thus, when we try to add more context, GPT4 will also ignore a lot of it.
+This phenomenon, known as "lost-in-the-middle" (LIM), is prevalent, where large language models (LLMs) focus primarily on the context at the beginning and end of the prompt. When more context is added, GPT-4 often ignores a significant portion of it.
 
-### 1. Prune the Input Context(repository tree and files)
+### 1. Pruning the Input Context (Repository Tree and Files)
 
-One of the input contexts we tried was the repository tree. We previously only expanded directories containing files that were fetched the hybrid search index, but this is not nearly enough.
+One approach was to use the repository tree as an input context. Initially, all directories containing files fetched from the hybrid search index were included, but this was insufficient.
 
 ```xml
 <repo_tree>
