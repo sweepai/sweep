@@ -2,14 +2,13 @@ import json
 import re
 import time
 from functools import lru_cache
-from typing import Generator, List
+from typing import Generator, List, Callable, Optional, Union
 
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from redis import Redis
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
