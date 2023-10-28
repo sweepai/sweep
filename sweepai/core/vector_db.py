@@ -9,7 +9,29 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
+)import json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
 )
+from functools import wraps
+from loguru import logger
+
+def handle_exceptions(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.exception(f"Exception occurred in {func.__name__}: {e}")
+    return wrapper
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -69,38 +91,30 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
+@handle_exceptions
 def embed_huggingface(texts):
     """Embeds a list of texts using Hugging Face's API."""
     for i in range(3):
-        try:
-            headers = {
-                "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
-                "Content-Type": "application/json",
-            }
-            response = requests.post(
-                HUGGINGFACE_URL, headers=headers, json={"inputs": texts}
-            )
-            return response.json()["embeddings"]
-        except requests.exceptions.RequestException as e:
-            logger.exception(
-                f"Error occurred when sending request to Hugging Face endpoint: {e}"
-            )
+        headers = {
+            "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(
+            HUGGINGFACE_URL, headers=headers, json={"inputs": texts}
+        )
+        return response.json()["embeddings"]
 
-
+@handle_exceptions
 def embed_replicate(texts: List[str]) -> List[np.ndarray]:
     client = replicate.Client(api_token=REPLICATE_API_KEY)
     deployment = client.deployments.get(REPLICATE_DEPLOYMENT_URL)
-    e = None
     for i in range(3):
-        try:
-            prediction = deployment.predictions.create(
-                input={"text_batch": json.dumps(texts)}, timeout=60
-            )
-            prediction.wait()
-            outputs = prediction.output
-            break
-        except Exception:
-            logger.exception(f"Replicate timeout: {e}")
+        prediction = deployment.predictions.create(
+            input={"text_batch": json.dumps(texts)}, timeout=60
+        )
+        prediction.wait()
+        outputs = prediction.output
+        break
     else:
         raise Exception(f"Replicate timeout")
     return [output["embedding"] for output in outputs]
@@ -164,6 +178,7 @@ def embedding_function(texts: list[str]):
     return embed_texts(tuple(texts))
 
 
+@handle_exceptions
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
@@ -196,11 +211,7 @@ def get_deeplake_vs_from_repo(
             score_factors.append(score_factor)
             continue
         cache_key = hash_sha256(file_path) + CACHE_VERSION
-        try:
-            cache_value = redis_client.get(cache_key)
-        except Exception as e:
-            logger.exception(e)
-            cache_value = None
+        cache_value = redis_client.get(cache_key)
         if cache_value is not None:
             score_factor = json.loads(cache_value)
             score_factors.append(score_factor)
@@ -242,6 +253,7 @@ def get_deeplake_vs_from_repo(
     return deeplake_vs, index, len(documents)
 
 
+@handle_exceptions
 def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
     if len(documents) > 0:
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
@@ -275,11 +287,8 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
+        embeddings = np.array(embeddings, dtype=np.float32)
+        if isinstance(embeddings, Exception):
             logger.exception(
                 "Failed to convert embeddings to numpy array, recomputing all of them"
             )
@@ -316,6 +325,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
 
 # Only works on functions without side effects
 @file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
+@handle_exceptions
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
@@ -335,12 +345,7 @@ def get_relevant_snippets(
     logger.info(f"Found {len(content_to_lexical_score)} lexical results")
     logger.info(f"Searching for relevant snippets... with {num_docs} docs")
     results = {"metadata": [], "text": []}
-    try:
-        results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        logger.exception("Exception occurred while fetching relevant snippets")
+    results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
