@@ -324,9 +324,7 @@ def on_ticket(
     markdown_badge = get_docker_badge()
 
     try:
-        logger.info(f"Getting repo {repo_full_name}")
-
-        if current_issue.state == "closed":
+        from openai import GPT3Client
             logger.warning(
                 f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
             )
