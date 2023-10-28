@@ -23,7 +23,7 @@ class TestGithubBot(unittest.TestCase):
     def test_validate_file_change_requests_blocked(self):
         file_change_request = FileChangeRequest(filename='blocked/test.py', change_type='modify')
         result = self.github_bot.validate_file_change_requests([file_change_request], blocked_dirs=['blocked'])
-        self.assertTrue('Unable to modify files' in result[0].instructions)
+        self.assertTrue('Unable to modify files in the blocked directory.' in result[0].instructions)
 
 if __name__ == '__main__':
     unittest.main()
