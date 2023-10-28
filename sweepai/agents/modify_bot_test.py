@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import Mock, patch
-from sweepai.agents.modify_bot import ModifyBot
+from sweepai.agents.modify_bot import ModifyBot, MatchToModify
 
 class TestModifyBot(unittest.TestCase):
     def setUp(self):
