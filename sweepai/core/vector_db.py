@@ -7,9 +7,8 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from .utils import handle_redis_cache, log_info, log_exception, log_error, handle_embeddings
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -21,34 +20,8 @@ def handle_redis_cache(redis_client, cache_key, compute_func, *args):
     It tries to get the value from the cache, if not found, it computes the value and sets it in the cache.
     """
     try:
-        cache_value = redis_client.get(cache_key)
-    except Exception as e:
-        logger.exception(e)
-        cache_value = None
-    if cache_value is not None:
-        return json.loads(cache_value)
-    else:
-        computed_value = compute_func(*args)
-        redis_client.set(cache_key, json.dumps(computed_value))
-        return computed_value
-
-def log_info(message):
-    """
-    Helper function to handle logging of info messages.
-    """
-    logger.info(message)
-
-def log_exception(message):
-    """
-    Helper function to handle logging of exceptions.
-    """
-    logger.exception(message)
-
-def log_error(message):
-    """
-    Helper function to handle logging of error messages.
-    """
-    logger.error(message)
+        cache_value = handle_redis_cache(redis_client, cache_key, compute_func, *args)
+        return cache_value
 
 def handle_embeddings(texts, embed_func, *args):
     """
