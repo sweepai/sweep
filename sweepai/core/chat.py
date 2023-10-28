@@ -298,12 +298,12 @@ class ChatGPT(BaseModel):
                     except SystemExit:
                         raise SystemExit
                     except Exception as e2:
-                        logger.exception(e2)
+                        logger.error(e2)
                 return output
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.exception(f"{e}\n{traceback.format_exc()}")
+                logger.error(f"{e}\n{traceback.format_exc()}")
                 raise e
 
         result = fetch()
@@ -353,7 +353,7 @@ class ChatGPT(BaseModel):
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.exception(f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}")
+                logger.error(f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
@@ -432,12 +432,12 @@ class ChatGPT(BaseModel):
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
-                            logger.exception(e)
+                            logger.error(e)
                     return output
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.exception(f"{e}\n{traceback.format_exc()}")
+                    logger.error(f"{e}\n{traceback.format_exc()}")
                     time.sleep(time_to_sleep + backoff.random_jitter(5))
 
         result = await fetch()
