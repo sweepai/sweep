@@ -92,10 +92,6 @@ class ChatGPT(BaseModel):
             repo_rules = repo_info["rules"]
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
-            if repo_rules:
-                content += f"{rules_prefix_prompt}:\n{repo_rules}"
-            if repo_rules:
-                content += f"{rules_prefix_prompt}:\n{repo_rules}"
         messages = [Message(role="system", content=content, key="system")]
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
@@ -212,18 +208,15 @@ class ChatGPT(BaseModel):
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
         logger.info("file_change_paths" + str(self.file_change_paths))
+        messages_raw = "\n".join([(message.content or "") for message in self.messages])
+        logger.info(f"Input to call openai:\n{messages_raw}")
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
         if max_tokens < 0:
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.error(
-                    f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}"
-                )
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
-        messages_raw = "\n".join([(message.content or "") for message in self.messages])
-        logger.info(f"Input to call openai:\n{messages_raw}")
 
         messages_dicts = [self.messages_dicts[0]]
         for message_dict in self.messages_dicts[:1]:

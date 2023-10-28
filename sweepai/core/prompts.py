@@ -181,76 +181,36 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
 files_to_change_prompt = """\
-Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high quality plan that completely addresses the user's request.
+Reference and analyze the snippets, repo, and issue to break down the requested change and propose a highly specific and clear plan that addresses the user's request. We must mention every single change required to solve the issue. If the request is too large add multiple <modify> sections for the same file.
 
-Provide a list of ALL of the files we should modify, abiding by the following:
-* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required and only include XML blocks for files that need to be modified.
-* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+Provide a plan to solve the issue, following these rules:
+* You may only create new files, modify existing files, delete, and rename files. Do not delete files unless explicitly requested/required.
+* Include the full path (e.g. src/main.py and not just main.py), using the repo_tree as the source of truth.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Do not modify non-text files such as images, svgs, binary, etc
+* Each <modify> section in the plan should be at most 2 sentences and mention a specific code change. If the section would be larger, split it up into more sections.
 
-You MUST follow the following format with the final output in XML tags:
+You MUST follow the following format:
 
-Contextual Request Analysis:
+# Contextual Request Analysis:
 <contextual_request_analysis>
-* Contextual analysis of the user request referencing the snippets and any necessary files/directories.
+* Outline a plan to solve the user request by referencing the snippets and any other necessary files/directories.
+* Identify whether this is a large change that requires multiple <modify></modify> sections.
+* Describe each <create> and <modify> section in the following plan and why it will be needed.
 ...
 </contextual_request_analysis>
 
+# Plan:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Instruction 1 for file_path_1
-* Instruction 2 for file_path_1
+* Detailed and concise instructions for creating the new file needed to solve the issue
+* Include references to all files, imports and entity names
 ...
 </create>
-
+...
 
 <modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Instruction 1 for file_path_2
-* Instruction 2 for file_path_2
-...
-</modify>
-...
-
-<delete file="file_path_3"></delete>
-...
-
-<rename file="file_path_4">new full path for file path 4</rename>
-...
-
-</plan>"""
-
-python_files_to_change_prompt = """\
-Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high quality plan that completely addresses the user's request.
-
-Provide a list of ALL of the files we should modify, abiding by the following:
-* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
-* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
-* You can modify multiple entities in the same file.
-* Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
-* Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Do not modify non-text files such as images, svgs, binary, etc
-
-You MUST follow the following format with the final output in XML tags:
-
-Contextual Request Analysis:
-<contextual_request_analysis>
-* Contextual analysis of the user request referencing the snippets and any necessary files/directories. Only name an entity if you are absolutely certain it's required to solve the issue.
-...
-</contextual_request_analysis>
-
-<plan>
-<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Detailed and concise instructions on what to create
-* Include references to all files, imports and entity names
-...
-</create>
-...
-
-<modify file="file_path_2" entity="name of function or class to modify (optional)" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Detailed and concise instructions on what to modify
-* Include references to all files, imports and entity names
+* Detailed and concise instructions for the modifications needed to solve the issue. Be specific and mention references to all files, imports and entity names.
 ...
 </modify>
 ...
