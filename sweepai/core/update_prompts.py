@@ -64,11 +64,11 @@ File path: {file_path}
 </snippets_to_update>
 
 # Instructions
-Rewrite each of the {n} snippets above according to the request.
-* Do not delete whitespace or comments.
-* Write minimal diff hunks to make changes to the snippets. Only write diffs for the lines that should be changed.
-* Write multiple smalle changes instead of a single large change.
-* To add code before and after the snippet, be sure to copy the original snippet.
+Modify each of the {n} snippets above according to the request using diffs.
+* Keep whitespace and comments.
+* Write minimal diff hunks to make changes to the snippets. Only write diffs for lines that should be changed.
+* Write multiple small changes instead of a single large change.
+* Use APPEND to add code after the snippet.
 
 Respond in the following format:
 
@@ -104,11 +104,11 @@ File path: {file_path}
 </snippets_to_update>
 
 # Instructions
-Rewrite each of the {n} snippets above according to the request.
-* Do not delete whitespace or comments.
-* Write minimal diff hunks to make changes to the snippets. Only write diffs for the lines that should be changed.
-* Write multiple smalle changes instead of a single large change.
-* To add code before and after the snippet, be sure to copy the original snippet.
+Modify each of the {n} snippets above according to the request using diffs.
+* Keep whitespace and comments.
+* Write minimal diff hunks to make changes to the snippets. Only write diffs for lines that should be changed.
+* Write multiple small changes instead of a single large change.
+* Use APPEND to add code after the snippet.
 
 Respond in the following format:
 
