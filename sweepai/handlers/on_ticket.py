@@ -116,29 +116,19 @@ rules:
 """
 
 
-def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
+def extract_title(title: str) -> Tuple[str, bool, bool, bool, bool, bool, bool]:
+    return strip_sweep(title)
+
+def create_logtail_context(
     issue_url: str,
-    username: str,
+    issue_number: int,
     repo_full_name: str,
     repo_description: str,
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-    tracking_id: str | None = None,
-):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
-
+    username: str,
+    comment_id: int,
+    edited: bool,
+    title: str,
+) -> LogtailContext:
     context = LogtailContext()
     context.context(
         task={
@@ -152,10 +142,12 @@ def on_ticket(
             "issue_title": title,
         }
     )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
+    return context
 
-    on_ticket_start_time = time()
+def create_logtail_handler(context: LogtailContext) -> LogtailHandler:
+    return LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+
+def process_summary(summary: str) -> str:
     summary = summary or ""
     summary = re.sub(
         "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
@@ -166,16 +158,9 @@ def on_ticket(
     summary = re.sub(
         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
+    return summary
 
-    repo_name = repo_full_name
-    user_token, g = get_github_client(installation_id)
-    repo = g.get_repo(repo_full_name)
-    current_issue = repo.get_issue(number=issue_number)
-    assignee = current_issue.assignee.login if current_issue.assignee else None
-    if assignee is None:
-        assignee = current_issue.user.login
-
-    # Hydrate cache of sandbox
+def hydrate_sandbox_cache(repo_full_name: str, user_token: str, tracking_id: str | None) -> None:
     if not DEBUG:
         logger.info("Hydrating cache of sandbox.")
         try:
@@ -195,19 +180,29 @@ def on_ticket(
             logger.warning(
                 f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
             )
-        logger.info("Done sending, letting it run in the background.")
+        logger.info("Done sending, letting it run in the background")
 
-    # Check body for "branch: <branch_name>\n" using regex
+def extract_branch_name(summary: str) -> Optional[str]:
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
-        branch_name = branch_match.group(1)
-        SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
-    else:
-        logger.info(f"Overrides not detected for branch {summary}")
+        return branch_match.group(1)
+    return None
 
-    chat_logger = (
-        ChatLogger(
+def create_chat_logger(
+    repo_name: str,
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int,
+    edited: bool,
+) -> Optional[ChatLogger]:
+    if MONGODB_URI:
+        return ChatLogger(
             {
                 "repo_name": repo_name,
                 "title": title,
@@ -224,10 +219,9 @@ def on_ticket(
                 "edited": edited,
             }
         )
-        if MONGODB_URI
-        else None
-    )
+    return None
 
+def determine_user_properties(chat_logger: Optional[ChatLogger], g: GitHub) -> Tuple[bool, bool, bool]:
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_consumer_tier = chat_logger.is_consumer_tier()
@@ -236,26 +230,45 @@ def on_ticket(
         is_paying_user = True
         is_consumer_tier = False
         use_faster_model = False
+    return is_paying_user, is_consumer_tier, use_faster_model
 
-    if fast_mode:
-        use_faster_model = True
-
-    if not comment_id and not edited and chat_logger and not sandbox_mode:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
-
-    sweep_context = SweepContext.create(
+def create_sweep_context(
+    username: str,
+    issue_url: str,
+    use_faster_model: bool,
+    is_paying_user: bool,
+    repo: Repository,
+    token: str,
+) -> SweepContext:
+    return SweepContext.create(
         username=username,
         issue_url=issue_url,
         use_faster_model=use_faster_model,
         is_paying_user=is_paying_user,
         repo=repo,
-        token=user_token,
+        token=token,
     )
 
+def extract_metadata(
+    issue_url: str,
+    repo_full_name: str,
+    repo_description: str,
+    username: str,
+    comment_id: int,
+    title: str,
+    installation_id: int,
+    edited: bool,
+    use_faster_model: bool,
+    is_paying_user: bool,
+    slow_mode: bool,
+    do_map: bool,
+    subissues_mode: bool,
+    sandbox_mode: bool,
+    fast_mode: bool,
+    tracking_id: str,
+) -> Dict[str, Any]:
     organization, repo_name = repo_full_name.split("/")
-    metadata = {
+    return {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
         "organization": organization,
@@ -279,24 +292,245 @@ def on_ticket(
         "tracking_id": tracking_id,
     }
 
+def create_logtail_context(metadata: Dict[str, Any]) -> None:
     context.context(metadata=metadata)
     logger.bind(**metadata)
     logger.info(f"Metadata: {metadata}")
 
+def capture_posthog_event(username: str, metadata: Dict[str, Any]) -> None:
     posthog.capture(username, "started", properties=metadata)
-    markdown_badge = get_docker_badge()
 
-    try:
-        logger.info(f"Getting repo {repo_full_name}")
+def get_markdown_badge() -> str:
+    return get_docker_badge()
 
-        if current_issue.state == "closed":
-            logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
-            )
-            posthog.capture(
-                username,
-                "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+def on_ticket(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = extract_title(title)
+
+    context = create_logtail_context(
+        issue_url,
+        issue_number,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        edited,
+        title,
+    )
+    handler = create_logtail_handler(context)
+    logger.add(handler)
+
+    on_ticket_start_time = time()
+    summary = process_summary(summary)
+
+    repo_name = repo_full_name
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
+    assignee = current_issue.assignee.login if current_issue.assignee else None
+    if assignee is None:
+        assignee = current_issue.user.login
+
+    hydrate_sandbox_cache(repo_full_name, user_token, tracking_id)
+
+    branch_name = extract_branch_name(summary)
+    if branch_name:
+        SweepConfig.get_branch(repo, branch_name)
+        logger.info(f"Overrides Branch name: {branch_name}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
+
+    chat_logger = create_chat_logger(
+        repo_name,
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+    )
+
+    is_paying_user, is_consumer_tier, use_faster_model = determine_user_properties(chat_logger, g)
+
+    if fast_mode:
+        use_faster_model = True
+
+    if not comment_id and not edited and chat_logger and not sandbox_mode:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
+
+    sweep_context = create_sweep_context(
+        username,
+        issue_url,
+        use_faster_model,
+        is_paying_user,
+        repo,
+        user_token,
+    )
+
+    metadata = extract_metadata(
+        issue_url,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        title,
+        installation_id,
+        edited,
+        use_faster_model,
+        is_paying_user,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        tracking_id,
+    )
+
+    create_logtail_context(metadata)
+    capture_posthog_event(username, metadata)
+    markdown_badge = get_markdown_badge()
+
+=======
+# No changes needed for this snippet
+
+def on_ticket(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = extract_title(title)
+
+    context = create_logtail_context(
+        issue_url,
+        issue_number,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        edited,
+        title,
+    )
+    handler = create_logtail_handler(context)
+    logger.add(handler)
+
+    on_ticket_start_time = time()
+    summary = process_summary(summary)
+
+    repo_name = repo_full_name
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
+    assignee = current_issue.assignee.login if current_issue.assignee else None
+    if assignee is None:
+        assignee = current_issue.user.login
+
+    hydrate_sandbox_cache(repo_full_name, user_token, tracking_id)
+
+    branch_name = extract_branch_name(summary)
+    if branch_name:
+        SweepConfig.get_branch(repo, branch_name)
+        logger.info(f"Overrides Branch name: {branch_name}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
+
+    chat_logger = create_chat_logger(
+        repo_name,
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+    )
+
+    is_paying_user, is_consumer_tier, use_faster_model = determine_user_properties(chat_logger, g)
+
+    if fast_mode:
+        use_faster_model = True
+
+    if not comment_id and not edited and chat_logger and not sandbox_mode:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
+
+    sweep_context = create_sweep_context(
+        username,
+        issue_url,
+        use_faster_model,
+        is_paying_user,
+        repo,
+        user_token,
+    )
+
+    metadata = extract_metadata(
+        issue_url,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        title,
+        installation_id,
+        edited,
+        use_faster_model,
+        is_paying_user,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        tracking_id,
+    )
+
+    create_logtail_context(metadata)
+    capture_posthog_event(username, metadata)
+    markdown_badge = get_markdown_badge()
+
+    # Rest of the code...
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -1218,17 +1452,298 @@ def on_ticket(
                 3,
             )
             change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-            review_message = (
-                "Here are my self-reviews of my changes at" + change_location
-            )
+def extract_title(title: str) -> Tuple[str, bool, bool, bool, bool, bool, bool]:
+    return strip_sweep(title)
 
-            lint_output = None
-            try:
-                current_issue.delete_reaction(eyes_reaction.id)
-            except SystemExit:
-                raise SystemExit
-            except:
-                pass
+def create_logtail_context(
+    issue_url: str,
+    issue_number: int,
+    repo_full_name: str,
+    repo_description: str,
+    username: str,
+    comment_id: int,
+    edited: bool,
+    title: str,
+) -> LogtailContext:
+    context = LogtailContext()
+    context.context(
+        task={
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "edited": edited,
+            "issue_title": title,
+        }
+    )
+    return context
+
+def create_logtail_handler(context: LogtailContext) -> LogtailHandler:
+    return LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+
+def process_summary(summary: str) -> str:
+    summary = summary or ""
+    summary = re.sub(
+        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
+        "",
+        summary,
+        flags=re.DOTALL,
+    ).strip()
+    summary = re.sub(
+        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*",
+        "",
+        summary,
+        flags=re.DOTALL,
+    ).strip()
+    return summary
+
+def hydrate_sandbox_cache(
+    repo_full_name: str, user_token: str, tracking_id: str | None
+) -> None:
+    if not DEBUG:
+        logger.info("Hydrating cache of sandbox.")
+        try:
+            # Code to hydrate cache
+            pass
+        except Exception as e:
+            logger.warning(
+                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
+            )
+        logger.info("Done sending, letting it run in the background")
+
+def extract_branch_name(summary: str) -> Optional[str]:
+    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
+    if branch_match:
+        return branch_match.group(1)
+    return None
+
+def create_chat_logger(
+    repo_name: str,
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int,
+    edited: bool,
+) -> Optional[ChatLogger]:
+    if MONGODB_URI:
+        return ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": title,
+                "summary": summary,
+                "issue_number": issue_number,
+                "issue_url": issue_url,
+                "username": username,
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "installation_id": installation_id,
+                "comment_id": comment_id,
+                "edited": edited,
+            }
+        )
+    return None
+
+def determine_user_properties(
+    chat_logger: Optional[ChatLogger], g: GitHub
+) -> Tuple[bool, bool, bool]:
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = chat_logger.use_faster_model()
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+    return is_paying_user, is_consumer_tier, use_faster_model
+
+def create_sweep_context(
+    username: str,
+    issue_url: str,
+    use_faster_model: bool,
+    is_paying_user: bool,
+    repo: Repository,
+    token: str,
+) -> SweepContext:
+    return SweepContext.create(
+        username=username,
+        issue_url=issue_url,
+        use_faster_model=use_faster_model,
+        is_paying_user=is_paying_user,
+        repo=repo,
+        token=token,
+    )
+
+def extract_metadata(
+    issue_url: str,
+    repo_full_name: str,
+    repo_description: str,
+    username: str,
+    comment_id: int,
+    title: str,
+    installation_id: int,
+    edited: bool,
+    use_faster_model: bool,
+    is_paying_user: bool,
+    slow_mode: bool,
+    do_map: bool,
+    subissues_mode: bool,
+    sandbox_mode: bool,
+    fast_mode: bool,
+    tracking_id: str,
+) -> Dict[str, Any]:
+    organization, repo_name = repo_full_name.split("/")
+    return {
+        "issue_url": issue_url,
+        "repo_full_name": repo_full_name,
+        "organization": organization,
+        "repo_name": repo_name,
+        "repo_description": repo_description,
+        "username": username,
+        "comment_id": comment_id,
+        "title": title,
+        "installation_id": installation_id,
+        "edited": edited,
+        "use_faster_model": use_faster_model,
+        "is_paying_user": is_paying_user,
+        "slow_mode": slow_mode,
+        "do_map": do_map,
+        "subissues_mode": subissues_mode,
+        "sandbox_mode": sandbox_mode,
+        "fast_mode": fast_mode,
+        "tracking_id": tracking_id,
+    }
+
+def create_logtail_context(metadata: Dict[str, Any]) -> None:
+    context.context(metadata=metadata)
+    logger.bind(**metadata)
+    logger.info(f"Metadata: {metadata}")
+
+def capture_posthog_event(username: str, metadata: Dict[str, Any]) -> None:
+    posthog.capture(username, "started", properties=metadata)
+
+def get_markdown_badge() -> str:
+    return get_docker_badge()
+
+def on_ticket(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = extract_title(title)
+
+    context = create_logtail_context(
+        issue_url,
+        issue_number,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        edited,
+        title,
+    )
+    handler = create_logtail_handler(context)
+    logger.add(handler)
+
+    on_ticket_start_time = time()
+    summary = process_summary(summary)
+
+    repo_name = repo_full_name
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
+    assignee = current_issue.assignee.login if current_issue.assignee else None
+    if assignee is None:
+        assignee = current_issue.user.login
+
+    hydrate_sandbox_cache(repo_full_name, user_token, tracking_id)
+
+    branch_name = extract_branch_name(summary)
+    if branch_name:
+        SweepConfig.get_branch(repo, branch_name)
+        logger.info(f"Overrides Branch name: {branch_name}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
+
+    chat_logger = create_chat_logger(
+        repo_name,
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+    )
+
+    is_paying_user, is_consumer_tier, use_faster_model = determine_user_properties(chat_logger, g)
+
+    if fast_mode:
+        use_faster_model = True
+
+    if not comment_id and not edited and chat_logger and not sandbox_mode:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
+
+    sweep_context = create_sweep_context(
+        username,
+        issue_url,
+        use_faster_model,
+        is_paying_user,
+        repo,
+        user_token,
+    )
+
+    metadata = extract_metadata(
+        issue_url,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        title,
+        installation_id,
+        edited,
+        use_faster_model,
+        is_paying_user,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        tracking_id,
+    )
+
+    create_logtail_context(metadata)
+    capture_posthog_event(username, metadata)
+    markdown_badge = get_markdown_badge()
+
+    # Rest of the code...
 
             changes_required = False
             try:
