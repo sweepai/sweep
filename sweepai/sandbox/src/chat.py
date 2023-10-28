@@ -7,9 +7,9 @@ import openai
 import tiktoken
 from loguru import logger
 from pydantic import BaseModel, Field
-from src.chat_logger import ChatLogger
-from src.diff import format_contents, generate_new_file_from_patch, is_markdown
-from src.prompts import (
+from .chat_logger import ChatLogger
+from .diff import format_contents, generate_new_file_from_patch, is_markdown
+from .prompts import (
     sandbox_code_repair_modify_prompt,
     sandbox_code_repair_modify_system_prompt,
 )
@@ -84,85 +84,6 @@ def count_tokens(text: str):
     return len(tiktoken_model.encode(text, disallowed_special=()))
 
 
-class OpenAIProxy:
-    def __init__(self):
-        pass
-
-    def call_openai(self, model, messages, max_tokens, temperature):
-        try:
-            engine = None
-            if (
-                model == "gpt-3.5-turbo-16k"
-                or model == "gpt-3.5-turbo-16k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT35")
-            elif (
-                model == "gpt-4"
-                or model == "gpt-4-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4")
-            elif (
-                model == "gpt-4-32k"
-                or model == "gpt-4-32k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
-            if os.getenv("OPENAI_API_TYPE") is None or engine is None:
-                openai.api_key = os.getenv("OPENAI_API_KEY")
-                openai.api_base = "https://api.openai.com/v1"
-                openai.api_version = None
-                openai.api_type = "open_ai"
-                logger.info(f"Calling {model} on OpenAI.")
-                response = openai.ChatCompletion.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                )
-                return response["choices"][0].message.content
-            OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
-            logger.info(
-                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
-            )
-            openai.api_type = os.getenv("OPENAI_API_TYPE")
-            openai.api_base = os.getenv("OPENAI_API_BASE")
-            openai.api_version = os.getenv("OPENAI_API_VERSION")
-            openai.api_key = os.getenv("AZURE_API_KEY")
-            response = openai.ChatCompletion.create(
-                engine=engine,
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            return response["choices"][0].message.content
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            if os.getenv("OPENAI_API_KEY"):
-                try:
-                    openai.api_key = os.getenv("OPENAI_API_KEY")
-                    openai.api_base = "https://api.openai.com/v1"
-                    openai.api_version = None
-                    openai.api_type = "open_ai"
-                    logger.info(f"Calling {model} with OpenAI.")
-                    response = openai.ChatCompletion.create(
-                        model=model,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                    )
-                    return response["choices"][0].message.content
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(f"OpenAI API Key found but error: {e}")
-            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
-
-
-openai_proxy = OpenAIProxy()
 
 
 class OpenAIProxy:
