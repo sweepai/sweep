@@ -146,9 +146,8 @@ def embed_texts(texts: tuple[str]):
             }
         )
     return deeplake_vs
-    else:
-        logger.error("No documents found in repository")
-        return deeplake_vs
+    logger.error("No documents found in repository")
+    return deeplake_vs
 
 
 # Only works on functions without side effects
