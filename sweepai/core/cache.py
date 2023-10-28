@@ -1,11 +1,15 @@
 import json
+
 import numpy as np
 from redis import Redis
+
 from sweepai.utils.hash import hash_sha256
+
 
 def get_redis_client():
     REDIS_URL = "redis://localhost:6379/0"
     return Redis.from_url(REDIS_URL)
+
 
 def update_cache_with_embeddings(documents_to_compute, computed_embeddings):
     SENTENCE_TRANSFORMERS_MODEL = "all-MiniLM-L6-v2"
@@ -22,9 +26,7 @@ def update_cache_with_embeddings(documents_to_compute, computed_embeddings):
     redis_client.mset(
         {
             key: json.dumps(
-                embedding.tolist()
-                if isinstance(embedding, np.ndarray)
-                else embedding
+                embedding.tolist() if isinstance(embedding, np.ndarray) else embedding
             )
             for key, embedding in zip(cache_keys, computed_embeddings)
         }
