@@ -661,15 +661,107 @@ def on_ticket(
                 f" code to your repository and try again.\n{sep}##"
                 f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
             )
-            if issue_comment is None:
-                issue_comment = current_issue.create_comment(first_comment)
-            else:
-                issue_comment.edit(first_comment)
-            return {"success": False}
-
-        cloned_repo = ClonedRepo(
-            repo_full_name, installation_id=installation_id, token=user_token
+            handle_fetching_files(
+                title,
+                summary,
+                issue_number,
+                issue_url,
+                username,
+                repo_full_name,
+                repo_description,
+                installation_id,
+                comment_id,
+                edited,
+                tracking_id,
+                is_paying_user,
+                is_consumer_tier,
+                repo,
+            )                f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+            )
+            handle_fetching_files(
+                title,
+                summary,
+                issue_number,
+                issue_url,
+                username,
+                repo_full_name,
+                repo_description,
+                installation_id,
+                comment_id,
+                edited,
+                tracking_id,
+                is_paying_user,
+                is_consumer_tier,
+                repo,
+            )
+def handle_fetching_files(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+    is_paying_user: bool,
+    is_consumer_tier: bool,
+    repo: str,
+):
+    cloned_repo = ClonedRepo(
+        repo_full_name, installation_id=installation_id, token=user_token
+    )
+    try:
+        snippets, tree, dir_obj = search_snippets(
+            cloned_repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
         )
+        assert len(snippets) > 0
+    except SystemExit:
+        logger.warning("System exit")
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                **metadata,
+                "error": "System exit",
+                "duration": time() - on_ticket_start_time,
+            },
+        )
+        raise SystemExit
+    except Exception as e:
+        trace = traceback.format_exc()
+        logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
+        edit_sweep_comment(
+            (
+                "It looks like an issue has occurred around fetching the files."
+                " Perhaps the repo has not been initialized. If this error persists"
+                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
+            ),
+            -1,
+        )
+        log_error(
+            is_paying_user,
+            is_consumer_tier,
+            username,
+            issue_url,
+            "File Fetch",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                **metadata,
+                "error": str(e),
+                "duration": time() - on_ticket_start_time,
+            },
+        )
+        raise e
         num_of_files = cloned_repo.get_num_files_from_repo()
         time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
@@ -935,55 +1027,7 @@ def on_ticket(
                     return {"success": False}
 
         logger.info("Fetching relevant files...")
-        try:
-            snippets, tree, dir_obj = search_snippets(
-                cloned_repo,
-                f"{title}\n{summary}\n{replies_text}",
-                num_files=num_of_snippets_to_query,
-            )
-            assert len(snippets) > 0
-        except SystemExit:
-            logger.warning("System exit")
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    **metadata,
-                    "error": "System exit",
-                    "duration": time() - on_ticket_start_time,
-                },
-            )
-            raise SystemExit
-        except Exception as e:
-            trace = traceback.format_exc()
-            logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
-            edit_sweep_comment(
-                (
-                    "It looks like an issue has occurred around fetching the files."
-                    " Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            log_error(
-                is_paying_user,
-                is_consumer_tier,
-                username,
-                issue_url,
-                "File Fetch",
-                str(e) + "\n" + traceback.format_exc(),
-                priority=1,
-            )
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    **metadata,
-                    "error": str(e),
-                    "duration": time() - on_ticket_start_time,
-                },
-            )
-            raise e
+            # This logic has been moved to the handle_fetching_files function
 
         # Fetch git commit history
         commit_history = cloned_repo.get_commit_history(username=username)
@@ -1091,8 +1135,66 @@ def on_ticket(
                     logger.info("The YAML file is valid. No errors found.")
                 break
 
-        # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-        if not sweep_yml_exists:
+        handle_fetching_files(
+            title,
+            summary,
+            issue_number,
+            issue_url,
+            username,
+            repo_full_name,
+            repo_description,
+            installation_id,
+            comment_id,
+            edited,
+            tracking_id,
+            is_paying_user,
+            is_consumer_tier,
+            repo,
+        )                    markdown_error_message = f"**There is something wrong with the YAML file:**\n```\n{error_message}\n```"
+
+                    logger.error(markdown_error_message)
+                    edit_sweep_comment(markdown_error_message, -1)
+                    return {"success": False}
+                else:
+                    logger.info("The YAML file is valid. No errors found.")
+                break
+
+        handle_fetching_files(
+            title,
+            summary,
+            issue_number,
+            issue_url,
+            username,
+            repo_full_name,
+            repo_description,
+            installation_id,
+            comment_id,
+            edited,
+            tracking_id,
+            is_paying_user,
+            is_consumer_tier,
+            repo,
+        )
+def handle_fetching_files(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    tracking_id: str | None = None,
+    is_paying_user: bool,
+    is_consumer_tier: bool,
+    repo: str,
+):
+    # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+    if not sweep_yml_exists:
+        # The rest of the logic for fetching relevant files goes here
+        pass
             try:
                 logger.info("Creating sweep.yaml file...")
                 config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
