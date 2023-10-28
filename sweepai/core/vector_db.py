@@ -14,6 +14,27 @@ from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
+import json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from sentence_transformers import SentenceTransformer
+import openai
+from loguru import logger
+from redis import Redis
+from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
+from tqdm import tqdm
+
+def chunk(lst: List, n: int) -> Generator:
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
@@ -95,6 +116,8 @@ def embed_huggingface(texts: List[str]) -> List[np.ndarray]:
 
 def embed_replicate(texts: List[str]) -> List[np.ndarray]:
     if REPLICATE_API_KEY:
+        client = replicate.Client(api_token=REPLICATE_API_KEY)
+        deployment = client.deployments.get(REPLICATE_DEPLOYMENT_URL)
         embeddings = []
         for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
             embeddings.extend(embed_replicate(batch))
@@ -169,22 +192,7 @@ def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
 
-def get_deeplake_vs_from_repo(
-    cloned_repo: ClonedRepo,
-    sweep_config: SweepConfig = SweepConfig(),
-):
-    deeplake_vs = None
-
-    repo_full_name = cloned_repo.repo_full_name
-    repo = cloned_repo.repo
-    commits = repo.get_commits()
-    commit_hash = commits[0].sha
-
-    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
-    start = time.time()
-    logger.info("Recursively getting list of files...")
-    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+# Removed duplicate function definition
     # prepare lexical search
     index = prepare_index_from_snippets(
         snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
