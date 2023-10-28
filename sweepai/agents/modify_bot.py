@@ -481,9 +481,9 @@ class ModifyBot:
 
         def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
             return MatchToModify(
-                start=min(a.start, b.start), 
-                end=max(a.end, b.end), 
-                reason=f"{a.reason} & {b.reason}"
+                start=min(a.start, b.start),
+                end=max(a.end, b.end),
+                reason=f"{a.reason} & {b.reason}",
             )
 
         current_match = best_matches[0]
