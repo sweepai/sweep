@@ -341,7 +341,9 @@ class ModifyBot:
         chunking: bool = False,
     ):
         diffs_message = self.get_diffs_message(file_contents)
-        fetch_prompt = fetch_snippets_prompt_with_diff if diffs_message else fetch_snippets_prompt
+        fetch_prompt = (
+            fetch_snippets_prompt_with_diff if diffs_message else fetch_snippets_prompt
+        )
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_prompt.format(
                 code=extract_python_span(
@@ -485,9 +487,9 @@ class ModifyBot:
                 reason = a.reason
             elif a.reason == "Handle imports":
                 reason = b.reason
-            elif b.reason.startswith("Mentioned"):
+            elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
                 reason = a.reason
-            elif a.reason.startswith("Mentioned"):
+            elif a.reason.startswith("Mentioned") or a.reason.endswith("function call"):
                 reason = b.reason
             return MatchToModify(
                 start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
@@ -531,7 +533,6 @@ class ModifyBot:
             update_snippets_code = extract_python_span(
                 file_contents, [file_change_request.entity]
             ).content
-
 
         if len(selected_snippets) > 1:
             indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(

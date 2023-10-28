@@ -110,6 +110,11 @@ def remove_line_numbers(s: str) -> str:
         return re.sub(r"\d+?:", "", s, flags=re.MULTILINE)
     return s
 
+def is_blocked(file_path: str, blocked_dirs: list[str]):
+    for blocked_dir in blocked_dirs:
+        if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
+            return {"success": True, "path": blocked_dir}
+    return {"success": False}
 
 class CodeGenBot(ChatGPT):
     def summarize_snippets(self):
@@ -553,13 +558,6 @@ class GithubBot(BaseModel):
             except Exception as e:
                 logger.error(snippet)
 
-    @staticmethod
-    def is_blocked(file_path: str, blocked_dirs: list[str]):
-        for blocked_dir in blocked_dirs:
-            if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
-                return {"success": True, "path": blocked_dir}
-        return {"success": False}
-
     def validate_file_change_requests(
         self, file_change_requests: list[FileChangeRequest], branch: str = ""
     ):
@@ -602,7 +600,7 @@ class GithubBot(BaseModel):
                 elif not exists and file_change_request.change_type == "modify":
                     file_change_request.change_type = "create"
 
-                block_status = self.is_blocked(
+                block_status = is_blocked(
                     file_change_request.filename, blocked_dirs
                 )
                 if block_status["success"]:
@@ -774,9 +772,12 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             )
         self.delete_messages_from_chat(key_to_delete="files_to_change")
+        blocked_dirs = get_blocked_dirs(self.repo)
         if file_change_request.relevant_files:
             relevant_files_contents = []
             for file_path in file_change_request.relevant_files:
+                if is_blocked(file_path, blocked_dirs)["success"]:
+                    continue
                 try:
                     relevant_files_contents.append(
                         self.get_contents(
@@ -936,7 +937,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 ]
             if file_change_request.relevant_files:
                 relevant_files_contents = []
+                blocked_dirs = get_blocked_dirs(self.repo)
                 for file_path in file_change_request.relevant_files:
+                    if is_blocked(file_path, blocked_dirs)["success"]:
+                        continue
                     try:
                         relevant_files_contents.append(
                             self.get_contents(file_path).decoded_content.decode("utf-8")
@@ -1152,7 +1156,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 commit = commit_messages.get(
                     file_change_request.change_type, "No commit message provided"
                 )
-                if self.is_blocked(file_change_request.filename, blocked_dirs)[
+                if is_blocked(file_change_request.filename, blocked_dirs)[
                     "success"
                 ]:
                     logger.print(
