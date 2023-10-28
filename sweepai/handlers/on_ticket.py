@@ -116,6 +116,18 @@ rules:
 """
 
 
+def handle_modes(title: str):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = strip_sweep(title)
+    return title, slow_mode, do_map, subissues_mode, sandbox_mode, fast_mode, lint_mode
+
 def on_ticket(
     title: str,
     summary: str,
@@ -129,15 +141,7 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+    title, slow_mode, do_map, subissues_mode, sandbox_mode, fast_mode, lint_mode = handle_modes(title)
 
     context = LogtailContext()
     context.context(
@@ -167,6 +171,7 @@ def on_ticket(
         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
 
+def fetch_relevant_files(repo_full_name: str, installation_id: int):
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
@@ -174,8 +179,9 @@ def on_ticket(
     assignee = current_issue.assignee.login if current_issue.assignee else None
     if assignee is None:
         assignee = current_issue.user.login
+    return repo_name, user_token, g, repo, current_issue, assignee
 
-    # Hydrate cache of sandbox
+def hydrate_sandbox_cache(repo_full_name: str, user_token: str, tracking_id: str | None):
     if not DEBUG:
         logger.info("Hydrating cache of sandbox.")
         try:
@@ -196,6 +202,9 @@ def on_ticket(
                 f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
             )
         logger.info("Done sending, letting it run in the background.")
+
+repo_name, user_token, g, repo, current_issue, assignee = fetch_relevant_files(repo_full_name, installation_id)
+hydrate_sandbox_cache(repo_full_name, user_token, tracking_id)
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
@@ -286,17 +295,24 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
     markdown_badge = get_docker_badge()
 
-    try:
-        logger.info(f"Getting repo {repo_full_name}")
+def handle_closed_issue(current_issue, issue_number, tracking_id, username, metadata):
+    if current_issue.state == "closed":
+        logger.warning(
+            f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
+        )
+        posthog.capture(
+            username,
+            "issue_closed",
+            properties={**metadata, "duration": time() - on_ticket_start_time},
+        )
+        return {"success": False, "reason": "Issue is closed"}
+    return None
 
-        if current_issue.state == "closed":
-            logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
-            )
-            posthog.capture(
-                username,
-                "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+try:
+    logger.info(f"Getting repo {repo_full_name}")
+    closed_issue_response = handle_closed_issue(current_issue, issue_number, tracking_id, username, metadata)
+    if closed_issue_response:
+        return closed_issue_response
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -332,19 +348,20 @@ def on_ticket(
             )
         summary = summary if summary else ""
 
-        prs = repo.get_pulls(
-            state="open", sort="created", base=SweepConfig.get_branch(repo)
-        )
-        for pr in prs:
-            # Check if this issue is mentioned in the PR, and pr is owned by bot
-            # This is done in create_pr, (pr_description = ...)
-            if (
-                pr.user.login == GITHUB_BOT_USERNAME
-                and f"Fixes #{issue_number}.\n" in pr.body
-            ):
-                success = safe_delete_sweep_branch(pr, repo)
+def handle_pull_requests(repo, issue_number):
+    prs = repo.get_pulls(
+        state="open", sort="created", base=SweepConfig.get_branch(repo)
+    )
+    for pr in prs:
+        # Check if this issue is mentioned in the PR, and pr is owned by bot
+        # This is done in create_pr, (pr_description = ...)
+        if (
+            pr.user.login == GITHUB_BOT_USERNAME
+            and f"Fixes #{issue_number}.\n" in pr.body
+        ):
+            success = safe_delete_sweep_branch(pr, repo)
 
-        # Removed 1, 3
+handle_pull_requests(repo, issue_number)
         if not sandbox_mode:
             progress_headers = [
                 None,
@@ -471,11 +488,14 @@ def on_ticket(
                 f" code to your repository and try again.\n{sep}##"
                 f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
             )
+            def handle_issue_comment(issue_comment, current_issue, first_comment):
             if issue_comment is None:
-                issue_comment = current_issue.create_comment(first_comment)
+            issue_comment = current_issue.create_comment(first_comment)
             else:
-                issue_comment.edit(first_comment)
+            issue_comment.edit(first_comment)
             return {"success": False}
+            
+            handle_issue_comment(issue_comment, current_issue, first_comment)
 
         cloned_repo = ClonedRepo(
             repo_full_name, installation_id=installation_id, token=user_token
@@ -495,89 +515,84 @@ def on_ticket(
             f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
         )
 
-        if issue_comment is None:
-            issue_comment = current_issue.create_comment(first_comment)
-        else:
-            issue_comment.edit(first_comment)
-
-        # Comment edit function
+handle_issue_comment(issue_comment, current_issue, first_comment)
         past_messages = {}
         current_index = 0
 
         # Random variables to save in case of errors
         table = None  # Show plan so user can finetune prompt
 
-        def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-            nonlocal current_index, user_token, g, repo, issue_comment
-            # -1 = error, -2 = retry
-            # Only update the progress bar if the issue generation errors.
-            errored = index == -1
-            if index >= 0:
-                past_messages[index] = message
-                current_index = index
+def edit_sweep_comment(message: str, index: int, pr_message="", done=False, current_index, user_token, g, repo, issue_comment, comments, tracking_id, past_messages, progress_headers, bot_suffix, discord_suffix, sep, table):
+    # -1 = error, -2 = retry
+    # Only update the progress bar if the issue generation errors.
+    errored = index == -1
+    if index >= 0:
+        past_messages[index] = message
+        current_index = index
 
-            agg_message = None
-            # Include progress history
-            # index = -2 is reserved for
-            for i in range(
-                current_index + 2
-            ):  # go to next header (for Working on it... text)
-                if i == 0 or i >= len(progress_headers):
-                    continue  # skip None header
-                header = progress_headers[i]
-                if header is not None:
-                    header = "## " + header + "\n"
-                else:
-                    header = "No header\n"
-                msg = header + (past_messages.get(i) or "Working on it...")
-                if agg_message is None:
-                    agg_message = msg
-                else:
-                    agg_message = agg_message + f"\n{sep}" + msg
+    agg_message = None
+    # Include progress history
+    # index = -2 is reserved for
+    for i in range(
+        current_index + 2
+    ):  # go to next header (for Working on it... text)
+        if i == 0 or i >= len(progress_headers):
+            continue  # skip None header
+        header = progress_headers[i]
+        if header is not None:
+            header = "## " + header + "\n"
+        else:
+            header = "No header\n"
+        msg = header + (past_messages.get(i) or "Working on it...")
+        if agg_message is None:
+            agg_message = msg
+        else:
+            agg_message = agg_message + f"\n{sep}" + msg
 
-            suffix = bot_suffix + discord_suffix
-            if errored:
-                agg_message = (
-                    "## ❌ Unable to Complete PR"
-                    + "\n"
-                    + message
-                    + "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                    f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: `{tracking_id}`)."
-                )
-                if table is not None:
-                    agg_message = (
-                        agg_message
-                        + f"\n{sep}Please look at the generated plan. If something looks"
-                        f" wrong, please add more details to your issue.\n\n{table}"
-                    )
-                suffix = bot_suffix  # don't include discord suffix for error messages
+    suffix = bot_suffix + discord_suffix
+    if errored:
+        agg_message = (
+            "## ❌ Unable to Complete PR"
+            + "\n"
+            + message
+            + "\n\nFor bonus GPT-4 tickets, please report this bug on"
+            f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: `{tracking_id}`)."
+        )
+        if table is not None:
+            agg_message = (
+                agg_message
+                + f"\n{sep}Please look at the generated plan. If something looks"
+                f" wrong, please add more details to your issue.\n\n{table}"
+            )
+        suffix = bot_suffix  # don't include discord suffix for error messages
 
-            # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            try:
-                issue_comment.edit(msg)
-            except BadCredentialsException:
-                logger.error(
-                    f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
-                )
-                _user_token, g = get_github_client(installation_id)
-                repo = g.get_repo(repo_full_name)
+    # Update the issue comment
+    msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+    try:
+        issue_comment.edit(msg)
+    except BadCredentialsException:
+        logger.error(
+            f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
+        )
+        _user_token, g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
 
-                for comment in comments:
-                    if comment.user.login == GITHUB_BOT_USERNAME:
-                        issue_comment = comment
+        for comment in comments:
+            if comment.user.login == GITHUB_BOT_USERNAME:
+                issue_comment = comment
 
-                if issue_comment is None:
-                    issue_comment = current_issue.create_comment(msg)
-                else:
-                    issue_comment = [
-                        comment
-                        for comment in issue.get_comments()
-                        if comment.user == GITHUB_BOT_USERNAME
-                    ][0]
-                    issue_comment.edit(msg)
+        if issue_comment is None:
+            issue_comment = current_issue.create_comment(msg)
+        else:
+            issue_comment = [
+                comment
+                for comment in issue.get_comments()
+                if comment.user == GITHUB_BOT_USERNAME
+            ][0]
+            issue_comment.edit(msg)
 
-        if sandbox_mode:
+edit_sweep_comment(message, index, pr_message, done, current_index, user_token, g, repo, issue_comment, comments, tracking_id, past_messages, progress_headers, bot_suffix, discord_suffix, sep, table)
+if sandbox_mode:
             logger.info("Running in sandbox mode")
             sweep_bot = SweepBot(
                 repo=repo,
@@ -596,13 +611,17 @@ def on_ticket(
             sha = repo.get_branch(repo.default_branch).commit.sha
             permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
             logger.info("Running sandbox")
+            def handle_sandbox_mode(file_name, permalink, sweep_bot, file_contents):
             edit_sweep_comment(
-                f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
-                1,
+            f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
+            1,
             )
             updated_contents, sandbox_response = sweep_bot.check_sandbox(
-                file_name, file_contents, []
+            file_name, file_contents, []
             )
+            return updated_contents, sandbox_response
+            
+            updated_contents, sandbox_response = handle_sandbox_mode(file_name, permalink, sweep_bot, file_contents)
             logger.info("Sandbox finished")
             logs = (
                 (
@@ -642,108 +661,30 @@ def on_ticket(
                 else f"Sandbox made not changes to {file_name} (formatters not configured or didn't make changes)."
             )
 
+            def handle_sandbox_comments(logs, diff_display):
             edit_sweep_comment(
-                f"{logs}\n{diff_display}",
-                2,
+            f"{logs}\n{diff_display}",
+            2,
             )
             edit_sweep_comment("N/A", 3)
             logger.info("Sandbox comments updated")
             return {"success": True}
+            
+            handle_sandbox_comments(logs, diff_display)
 
-        if len(title + summary) < 20:
-            logger.info("Issue too short")
-            edit_sweep_comment(
-                (
-                    "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            posthog.capture(
-                username,
-                "issue_too_short",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
-            )
+        issue_too_short = check_issue_length(title, summary, username, metadata, on_ticket_start_time)
+        if issue_too_short:
             return {"success": True}
 
-        if (
-            repo_name.lower() not in WHITELISTED_REPOS
-            and not is_paying_user
-            and not is_consumer_tier
-        ):
-            if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                logger.info("Test repository detected")
-                edit_sweep_comment(
-                    (
-                        "Sweep does not work on test repositories. Please create an issue"
-                        " on a real repository. If you think this is a mistake, please"
-                        " report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
-                    ),
-                    -1,
-                )
-                posthog.capture(
-                    username,
-                    "test_repo",
-                    properties={
-                        **metadata,
-                        "duration": time() - on_ticket_start_time,
-                    },
-                )
-                return {"success": False}
+        is_test_repo = check_repo_whitelist(repo_name, is_paying_user, is_consumer_tier, username, metadata, on_ticket_start_time)
+        if is_test_repo:
+            return {"success": False}
 
         logger.info("Fetching relevant files...")
-        try:
-            snippets, tree, dir_obj = search_snippets(
-                cloned_repo,
-                f"{title}\n{summary}\n{replies_text}",
-                num_files=num_of_snippets_to_query,
-            )
-            assert len(snippets) > 0
-        except SystemExit:
-            logger.warning("System exit")
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    **metadata,
-                    "error": "System exit",
-                    "duration": time() - on_ticket_start_time,
-                },
-            )
-            raise SystemExit
-        except Exception as e:
-            trace = traceback.format_exc()
-            logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
-            edit_sweep_comment(
-                (
-                    "It looks like an issue has occurred around fetching the files."
-                    " Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            log_error(
-                is_paying_user,
-                is_consumer_tier,
-                username,
-                issue_url,
-                "File Fetch",
-                str(e) + "\n" + traceback.format_exc(),
-                priority=1,
-            )
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    **metadata,
-                    "error": str(e),
-                    "duration": time() - on_ticket_start_time,
-                },
-            )
-            raise e
+        snippets, tree, dir_obj = fetch_relevant_files(cloned_repo, title, summary, replies_text, num_of_snippets_to_query, username, metadata, on_ticket_start_time)
 
         # Fetch git commit history
-        commit_history = cloned_repo.get_commit_history(username=username)
+        commit_history = fetch_commit_history(cloned_repo, username)
 
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=2 if use_faster_model else 5
@@ -820,39 +761,11 @@ def on_ticket(
             cloned_repo=cloned_repo,
         )
 
-        # Check repository for sweep.yml file.
-        sweep_yml_exists = False
-        for content_file in repo.get_contents(""):
-            if content_file.name == "sweep.yaml":
-                sweep_yml_exists = True
-
-                # Check if YAML is valid
-                yaml_content = content_file.decoded_content.decode("utf-8")
-                sweep_yaml_dict = yaml.safe_load(yaml_content)
-                if len(sweep_yaml_dict) > 0:
-                    break
-                linter_config = yamllint_config.YamlLintConfig(custom_config)
-                problems = list(linter.run(yaml_content, linter_config))
-                if problems:
-                    errors = [
-                        f"Line {problem.line}: {problem.desc} (rule: {problem.rule})"
-                        for problem in problems
-                    ]
-                    error_message = "\n".join(errors)
-                    markdown_error_message = f"**There is something wrong with the YAML file:**\n```\n{error_message}\n```"
-
-                    logger.error(markdown_error_message)
-                    edit_sweep_comment(markdown_error_message, -1)
-                    return {"success": False}
-                else:
-                    logger.info("The YAML file is valid. No errors found.")
-                break
-
-        # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+        sweep_yml_exists, sweep_yaml_dict = check_sweep_yaml(repo)
         if not sweep_yml_exists:
             try:
                 logger.info("Creating sweep.yaml file...")
-                config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
+                config_pr = create_config_pr(sweep_bot, cloned_repo)
                 config_pr_url = config_pr.html_url
                 edit_sweep_comment(message="", index=-2)
             except SystemExit:
@@ -868,20 +781,7 @@ def on_ticket(
 
         try:
             # ANALYZE SNIPPETS
-            newline = "\n"
-            edit_sweep_comment(
-                "I found the following snippets in your repository. I will now analyze"
-                " these snippets and come up with a plan."
-                + "\n\n"
-                + create_collapsible(
-                    "Some code snippets I looked at (click to expand). If some file is"
-                    " missing from here, you can mention the path in the ticket"
-                    " description.",
-                    "\n".join(
-                        [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
-                            for snippet in snippets
-                        ]
+            handle_snippets(snippets, organization, repo_name, repo)
                     ),
                 )
                 + (
@@ -958,8 +858,7 @@ def on_ticket(
             file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
             if not file_change_requests:
-                if len(title + summary) < 60:
-                    edit_sweep_comment(
+                handle_issue_length(title, summary)
                         (
                             "Sorry, I could not find any files to modify, can you please"
                             " provide more details? Please make sure that the title and"
@@ -998,8 +897,7 @@ def on_ticket(
             )
             # CREATE PR METADATA
             logger.info("Generating PR...")
-            pull_request = sweep_bot.generate_pull_request()
-            logger.info("Making PR...")
+            pull_request = handle_pull_request(sweep_bot)
 
             files_progress: list[tuple[str, str, str, str]] = [
                 (
@@ -1218,17 +1116,22 @@ def on_ticket(
                 3,
             )
             change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-            review_message = (
-                "Here are my self-reviews of my changes at" + change_location
-            )
+def handle_review_message(change_location: str):
+    review_message = (
+        "Here are my self-reviews of my changes at" + change_location
+    )
+    return review_message
 
-            lint_output = None
-            try:
-                current_issue.delete_reaction(eyes_reaction.id)
-            except SystemExit:
-                raise SystemExit
-            except:
-                pass
+def handle_reaction(current_issue: Issue):
+    try:
+        current_issue.delete_reaction(eyes_reaction.id)
+    except SystemExit:
+        raise SystemExit
+    except:
+        pass
+
+review_message = handle_review_message(change_location)
+handle_reaction(current_issue)
 
             changes_required = False
             try:
