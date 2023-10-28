@@ -11,6 +11,15 @@ import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+
+# Define the missing variables
+documents = []  # Add a list of documents
+indices_to_compute = []  # Add a list of indices to compute
+collection_name = ""  # Add a collection name
+ids = []  # Add a list of ids
+metadatas = []  # Add a list of metadatas
+cache_keys = []  # Add a list of cache keys
+get_deeplake_vs_from_repo = None  # Add a function or variable named get_deeplake_vs_from_repo
 from .logger import log_exception, log_info
 from .embeddings import get_embeddings_and_docs_to_compute, compute_embeddings
 from .search import get_search_results
@@ -116,6 +125,7 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
 
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
+    global documents, indices_to_compute, collection_name, ids, metadatas, cache_keys
     log_info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
     embeddings, documents_to_compute = get_embeddings_and_docs_to_compute(documents)
     log_info(f"Computing {len(documents_to_compute)} embeddings...")
@@ -164,6 +174,7 @@ def get_relevant_snippets(
     sweep_config: SweepConfig = SweepConfig(),
     lexical=True,
 ):
+    global get_deeplake_vs_from_repo
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     log_info("Getting query embedding...")
