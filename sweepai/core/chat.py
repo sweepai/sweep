@@ -190,15 +190,11 @@ class ChatGPT(BaseModel):
             tickets_count = self.chat_logger.get_ticket_count()
             purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
             if tickets_count < tickets_allocated:
-                model = model or self.model
-                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
-            elif purchased_tickets > 0:
-                model = model or self.model
-                logger.info(
-                    f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
-                )
-            else:
-                model = "gpt-3.5-turbo-16k-0613"
+                if tickets_count < tickets_allocated or purchased_tickets > 0:
+                    model = model or self.model
+                else:
+                    model = "gpt-3.5-turbo-16k-0613"
+                logger.info(f"Using model: {model}")
 
         count_tokens = Tiktoken().count
         messages_length = sum(
@@ -207,11 +203,10 @@ class ChatGPT(BaseModel):
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
-        logger.info("file_change_paths" + str(self.file_change_paths))
-        messages_raw = "\n".join([(message.content or "") for message in self.messages])
-        logger.info(f"Input to call openai:\n{messages_raw}")
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
+        messages_raw = "\n".join([(message.content or "") for message in self.messages])
+        logger.info(f"Input to call openai:\n{messages_raw}")
         if max_tokens < 0:
             if len(self.file_change_paths) > 0:
                 pass
@@ -246,9 +241,9 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
+        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
 
         @backoff.on_exception(
             backoff.expo,
@@ -309,7 +304,6 @@ class ChatGPT(BaseModel):
                 raise e
 
         result = fetch()
-        logger.info(f"Output to call openai:\n{result}")
         return result
 
     async def achat(
