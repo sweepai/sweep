@@ -44,13 +44,9 @@ def parse_html(html):
         # based on Docusaurus
         'div[aria-label="Skip to main content"]',
         "div.hidden",
-        # 'nav[aria-label="Main"].navbar.navbar--fixed-top',
         'button[aria-label="Scroll back to top"]',
         "aside.theme-doc-sidebar-container",
         "div.theme-doc-toc-mobile",
-        # 'nav[aria-label="Breadcrumbs"].theme-doc-breadcrumbs',
-        # 'nav[aria-label="Docs pages navigation"].pagination-nav',
-        # 'nav[aria-label="navigation"]',
         "div.thin-scrollbar.theme-doc-toc-desktop",
         "footer.footer",
         # for OpenAI
@@ -67,8 +63,7 @@ def parse_html(html):
 
     title = soup.title.string if soup.title else ""
     content = str(soup.body) if soup.body else ""
-    # print(soup.body)
-    # quit()
+    
     markdown_content = md(content, heading_style="ATX")
     markdown_content = re.sub(r"\n{3,}", "\n\n", markdown_content)
 
