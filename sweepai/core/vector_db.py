@@ -2,13 +2,14 @@ import json
 import re
 import time
 from functools import lru_cache
-from typing import Generator, List, Callable, Optional, Union
+from typing import Generator, List
 
 import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from redis import Redis
+from sentence_transformers import SentenceTransformer
+import openai
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -105,6 +106,48 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
     return [output["embedding"] for output in outputs]
 
 
+def embed_sentence_transformers(texts: List[str]) -> List[np.ndarray]:
+    sentence_transformer_model = SentenceTransformer(
+        SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+    )
+    vector = sentence_transformer_model.encode(
+        texts, show_progress_bar=True, batch_size=BATCH_SIZE
+    )
+    return vector
+
+def embed_openai(texts: List[str]) -> List[np.ndarray]:
+    embeddings = []
+    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+        try:
+            response = openai.Embedding.create(
+                input=batch, model="text-embedding-ada-002"
+            )
+            embeddings.extend([r["embedding"] for r in response["data"]])
+        except SystemExit:
+            raise SystemExit
+        except Exception:
+            logger.exception("Failed to get embeddings for batch")
+            logger.error(f"Failed to get embeddings for {batch}")
+    return embeddings
+
+def embed_huggingface(texts: List[str]) -> List[np.ndarray]:
+    if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
+        embeddings = []
+        for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+            embeddings.extend(embed_huggingface(texts))
+        return embeddings
+    else:
+        raise Exception("Hugging Face URL and token not set")
+
+def embed_replicate(texts: List[str]) -> List[np.ndarray]:
+    if REPLICATE_API_KEY:
+        embeddings = []
+        for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
+            embeddings.extend(embed_replicate(batch))
+        return embeddings
+    else:
+        raise Exception("Replicate URL and token not set")
+
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(
@@ -112,56 +155,169 @@ def embed_texts(texts: tuple[str]):
     )
     match VECTOR_EMBEDDING_SOURCE:
         case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            vector = sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
-            return vector
+            return embed_sentence_transformers(texts)
         case "openai":
-            import openai
-
-            embeddings = []
-            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                try:
-                    response = openai.Embedding.create(
-                        input=batch, model="text-embedding-ada-002"
-                    )
-                    embeddings.extend([r["embedding"] for r in response["data"]])
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    logger.exception("Failed to get embeddings for batch")
-                    logger.error(f"Failed to get embeddings for {batch}")
-            return embeddings
+            return embed_openai(texts)
         case "huggingface":
-            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                    embeddings.extend(embed_huggingface(texts))
-                return embeddings
-            else:
-                raise Exception("Hugging Face URL and token not set")
+            return embed_huggingface(texts)
         case "replicate":
-            if REPLICATE_API_KEY:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
-                    embeddings.extend(embed_replicate(batch))
-                return embeddings
-            else:
-                raise Exception("Replicate URL and token not set")
+            return embed_replicate(texts)
         case _:
             raise Exception("Invalid vector embedding mode")
     logger.info(
         f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
     )
 
-
 def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
 
+def get_deeplake_vs_from_repo(
+    cloned_repo: ClonedRepo,
+    sweep_config: SweepConfig = SweepConfig(),
+):
+    deeplake_vs = None
+
+    repo_full_name = cloned_repo.repo_full_name
+    repo = cloned_repo.repo
+    commits = repo.get_commits()
+    commit_hash = commits[0].sha
+
+    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
+    start = time.time()
+    logger.info("Recursively getting list of files...")
+    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    # prepare lexical search
+    index = prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+    )
+    logger.print("Prepared index from snippets")
+    # scoring for vector search
+    files_to_scores = {}
+    score_factors = []
+    for file_path in tqdm(file_list):
+        if not redis_client:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            continue
+        cache_key = hash_sha256(file_path) + CACHE_VERSION
+        try:
+            cache_value = redis_client.get(cache_key)
+        except Exception as e:
+            logger.exception(e)
+            cache_value = None
+        if cache_value is not None:
+            score_factor = json.loads(cache_value)
+            score_factors.append(score_factor)
+        else:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            redis_client.set(cache_key, json.dumps(score_factor))
+    # compute all scores
+    all_scores = get_scores(score_factors)
+    files_to_scores = {
+        file_path: score for file_path, score in zip(file_list, all_scores)
+    }
+    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
+
+    documents = []
+    metadatas = []
+    ids = []
+    for snippet in snippets:
+        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+        metadata = {
+            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
+            "start": snippet.start,
+            "end": snippet.end,
+            "score": files_to_scores[snippet.file_path],
+        }
+        metadatas.append(metadata)
+        gh_file_path = snippet.file_path[len("repo/") :]
+        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
+    logger.info(f"Getting list of all files took {time.time() - start}")
+    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
+    collection_name = parse_collection_name(repo_full_name)
+
+def get_embeddings_from_cache(documents: List[str]) -> List[np.ndarray]:
+    embeddings = [None] * len(documents)
+    if redis_client:
+        cache_keys = [
+            hash_sha256(doc)
+            + SENTENCE_TRANSFORMERS_MODEL
+            + VECTOR_EMBEDDING_SOURCE
+            + CACHE_VERSION
+            for doc in documents
+        ]
+        cache_values = redis_client.mget(cache_keys)
+        for idx, value in enumerate(cache_values):
+            if value is not None:
+                arr = json.loads(value)
+                if isinstance(arr, list):
+                    embeddings[idx] = np.array(arr, dtype=np.float32)
+    return embeddings
+
+def update_embeddings_cache(documents_to_compute: List[str], computed_embeddings: List[np.ndarray]):
+    if redis_client and len(documents_to_compute) > 0:
+        logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+        cache_keys = [
+            hash_sha256(doc)
+            + SENTENCE_TRANSFORMERS_MODEL
+            + VECTOR_EMBEDDING_SOURCE
+            + CACHE_VERSION
+            for doc in documents_to_compute
+        ]
+        redis_client.mset(
+            {
+                key: json.dumps(
+                    embedding.tolist()
+                    if isinstance(embedding, np.ndarray)
+                    else embedding
+                )
+                for key, embedding in zip(cache_keys, computed_embeddings)
+            }
+        )
+
+def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
+    if len(documents) > 0:
+        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+        embeddings = get_embeddings_from_cache(documents)
+        logger.info(
+            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
+        )
+        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+        documents_to_compute = [documents[idx] for idx in indices_to_compute]
+
+        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
+        computed_embeddings = embedding_function(documents_to_compute)
+        logger.info(f"Computed {len(computed_embeddings)} embeddings")
+
+        for idx, embedding in zip(indices_to_compute, computed_embeddings):
+            embeddings[idx] = embedding
+
+        try:
+            embeddings = np.array(embeddings, dtype=np.float32)
+        except SystemExit:
+            raise SystemExit
+        except:
+            logger.exception(
+                "Failed to convert embeddings to numpy array, recomputing all of them"
+            )
+            embeddings = embedding_function(documents)
+            embeddings = np.array(embeddings, dtype=np.float32)
+
+        deeplake_vs = init_deeplake_vs(collection_name)
+        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
+        logger.info("Added embeddings to cache")
+        update_embeddings_cache(documents_to_compute, computed_embeddings)
+        return deeplake_vs
+    else:
+        logger.error("No documents found in repository")
+        return deeplake_vs
 
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
@@ -239,91 +395,6 @@ def get_deeplake_vs_from_repo(
     )
 
     return deeplake_vs, index, len(documents)
-
-
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
-    if len(documents) > 0:
-        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
-        # Check cache here for all documents
-        embeddings = [None] * len(documents)
-        if redis_client:
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents
-            ]
-            cache_values = redis_client.mget(cache_keys)
-            for idx, value in enumerate(cache_values):
-                if value is not None:
-                    arr = json.loads(value)
-                    if isinstance(arr, list):
-                        embeddings[idx] = np.array(arr, dtype=np.float32)
-
-        logger.info(
-            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
-        )
-        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
-        documents_to_compute = [documents[idx] for idx in indices_to_compute]
-
-        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
-        logger.info(f"Computed {len(computed_embeddings)} embeddings")
-
-        for idx, embedding in zip(indices_to_compute, computed_embeddings):
-            embeddings[idx] = embedding
-
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
-
-        deeplake_vs = init_deeplake_vs(collection_name)
-        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        logger.info("Added embeddings to cache")
-        if redis_client and len(documents_to_compute) > 0:
-            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents_to_compute
-            ]
-            redis_client.mset(
-                {
-                    key: json.dumps(
-                        embedding.tolist()
-                        if isinstance(embedding, np.ndarray)
-                        else embedding
-                    )
-                    for key, embedding in zip(cache_keys, computed_embeddings)
-                }
-            )
-        return deeplake_vs
-    else:
-        logger.error("No documents found in repository")
-        return deeplake_vs
-
-
-# Only works on functions without side effects
-@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
-def get_relevant_snippets(
-    cloned_repo: ClonedRepo,
-    query: str,
-    username: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
-    lexical=True,
-):
-    repo_name = cloned_repo.repo_full_name
-    installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
     query_embedding = embedding_function([query])  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
