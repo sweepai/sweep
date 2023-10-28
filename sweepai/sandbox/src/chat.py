@@ -120,7 +120,7 @@ class OpenAIProxy:
                     max_tokens=max_tokens,
                     temperature=temperature,
                 )
-                return response["choices"][0].message.content
+                return response["choices"][0].message.content if response else ""
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             openai.api_type = os.getenv("OPENAI_API_TYPE")
             openai.api_base = os.getenv("OPENAI_API_BASE")
@@ -133,7 +133,7 @@ class OpenAIProxy:
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            return response["choices"][0].message.content
+            return response["choices"][0].message.content if response else ""
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -149,12 +149,13 @@ class OpenAIProxy:
                         max_tokens=max_tokens,
                         temperature=temperature,
                     )
-                    return response["choices"][0].message.content
+                    return response["choices"][0].message.content if response else ""
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
                     logger.error(f"OpenAI API Key found but error: {e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
+            return ""
 
 
 openai_proxy = OpenAIProxy()
@@ -292,12 +293,15 @@ def fix_file(filename: str, code: str, stdout: str, username: str = "anonymous")
             filename=filename, code=code, stdout=clean_logs(stdout)
         )
     )
-    updated_file, _errors = generate_new_file_from_patch(response, code)
-
-    file_markdown = is_markdown(filename)
-    updated_file = format_contents(updated_file, file_markdown)
-    logger.info("Updated file based on logs")
-    return updated_file
+    if isinstance(response, str):
+        updated_file, _errors = generate_new_file_from_patch(response, code)
+        file_markdown = is_markdown(filename)
+        updated_file = format_contents(updated_file, file_markdown)
+        logger.info("Updated file based on logs")
+        return updated_file
+    else:
+        logger.error("Response from OpenAI is not a string. Returning original code.")
+        return code
 
 
 test_stdout = """
