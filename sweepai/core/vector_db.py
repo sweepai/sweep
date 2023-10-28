@@ -156,8 +156,7 @@ def _embed_replicate(texts: List[str]) -> List[np.ndarray]:
 
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
-    log_info(
-        log_info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+    log_info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
         embeddings = [None] * len(documents)
         if redis_client:
