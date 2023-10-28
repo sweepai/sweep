@@ -8,7 +8,42 @@ import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from redis import Redisimport json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List, Callable, Optional, Union
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from redis import Redis
+def compute_embeddings(texts: List[str]) -> List[np.ndarray]:
+    match VECTOR_EMBEDDING_SOURCE:
+        case "sentence-transformers":
+            sentence_transformer_model = SentenceTransformer(
+                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+            )
+            vector = sentence_transformer_model.encode(
+                texts, show_progress_bar=True, batch_size=BATCH_SIZE
+            )
+            return vector
+        case "openai":
+            import openai
+            embeddings = []
+            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                try:
+                    response = openai.Embedding.create(
+                        input=batch, model="text-embedding-ada-002"
+                    )
+                    embeddings.extend([r["embedding"] for r in response["data"]])
+                except SystemExit:
+                    raise SystemExit
+                except Exception:
+                    logger.exception("Failed to get embeddings for batch")
+                    logger.error(f"Failed to get embeddings for {batch}")
+            return embeddings
 def get_from_cache_or_compute(
     redis_client: Redis,
     cache_key: str,
@@ -126,35 +161,9 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
 
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
-    return embeddings
     embeddings = compute_embeddings(texts)
     logger.info(f"Computed embeddings for {len(texts)} texts")
     return embeddings
-    def compute_embeddings(texts: List[str]) -> List[np.ndarray]:
-    match VECTOR_EMBEDDING_SOURCE:
-        case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            vector = sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
-            return vector
-        case "openai":
-            import openai
-            embeddings = []
-            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                try:
-                    response = openai.Embedding.create(
-                        input=batch, model="text-embedding-ada-002"
-                    )
-                    embeddings.extend([r["embedding"] for r in response["data"]])
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    logger.exception("Failed to get embeddings for batch")
-                    logger.error(f"Failed to get embeddings for {batch}")
-            return embeddings
     
             embeddings = []
             for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
