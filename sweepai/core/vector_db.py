@@ -7,9 +7,7 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)import json
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 import re
 import time
 from functools import lru_cache
@@ -226,10 +224,7 @@ def get_deeplake_vs_from_repo(
             )
             score_factors.append(score_factor)
             redis_client.set(cache_key, json.dumps(score_factor))
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            continue
+        continue
         cache_key = hash_sha256(file_path) + CACHE_VERSION
         try:
             cache_value = redis_client.get(cache_key)
