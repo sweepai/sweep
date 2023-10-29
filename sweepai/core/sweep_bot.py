@@ -18,6 +18,7 @@ from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import GraphChildBot, GraphContextAndPlan
 from sweepai.agents.graph_parent import GraphParentBot
 from sweepai.agents.modify_bot import ModifyBot
+from sweepai.agents.refactor_bot import RefactorBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEBUG, MINIS3_URL, SANDBOX_URL, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
@@ -49,6 +50,7 @@ from sweepai.core.prompts import (
     subissues_prompt,
 )
 from sweepai.logn.cache import file_cache
+from sweepai.utils import chat_logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.graph import Graph
@@ -1461,7 +1463,24 @@ class SweepBot(CodeGenBot, GithubBot):
                     chunking = (
                         len(lines) > CHUNK_SIZE
                     )  # Only chunk if the file is large enough
-                    if file_change_request.entity:
+                    sandbox_error = None
+                    if any(keyword in file_change_request.instructions.lower() for keyword in ("refactor", "extract")) and file_change_request.filename.endswith(".py"):
+                        chunking = False
+                        refactor_bot = RefactorBot(chat_logger=self.chat_logger)
+                        additional_messages = [Message(role="user", content=self.human_message.get_issue_metadata(), key="issue_metadata")]
+                        # empty string
+                        new_file_contents = refactor_bot.refactor_snippets(
+                            additional_messages=additional_messages,
+                            snippets_str=file_contents,
+                            file_path=file_change_request.filename,
+                            update_snippets_code=file_contents,
+                            request=file_change_request.instructions,
+                            changes_made="",
+                            cloned_repo=self.cloned_repo
+                        )
+                        changed_files.append((file_change_request.filename, (file_contents, new_file_contents)))
+                        commit_message = f"feat: Refactored {file_change_request.filename}"
+                    elif file_change_request.entity:
                         (
                             new_file_contents,
                             suggested_commit_message,
