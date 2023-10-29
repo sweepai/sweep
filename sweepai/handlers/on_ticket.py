@@ -9,6 +9,36 @@ import traceback
 from time import time
 
 import openai
+def handle_sandbox_mode(repo_full_name: str, user_token: str, tracking_id: str, summary: str):
+    # Hydrate cache of sandbox
+    if not DEBUG:
+        logger.info("Hydrating cache of sandbox.")
+        try:
+            requests.post(
+                SANDBOX_URL,
+                json={
+                    "repo_url": f"https://github.com/{repo_full_name}",
+                    "token": user_token,
+                },
+                timeout=2,
+            )
+        except Timeout:
+            logger.info("Sandbox hydration timed out.")
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.warning(
+                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
+            )
+        logger.info("Done sending, letting it run in the background.")
+
+    # Check body for "branch: <branch_name>\n" using regex
+    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
+    if branch_match:
+        branch_name = branch_match.group(1)
+        SweepConfig.get_branch(repo, branch_name)
+        logger.info(f"Overrides Branch name: {branch_name}")
+    return branch_name
 
 
 def handle_logging(
@@ -212,34 +242,7 @@ def on_ticket(
     if assignee is None:
         assignee = current_issue.user.login
 
-    # Hydrate cache of sandbox
-    if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
-        try:
-            requests.post(
-                SANDBOX_URL,
-                json={
-                    "repo_url": f"https://github.com/{repo_full_name}",
-                    "token": user_token,
-                },
-                timeout=2,
-            )
-        except Timeout:
-            logger.info("Sandbox hydration timed out.")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(
-                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
-            )
-        logger.info("Done sending, letting it run in the background.")
-
-    # Check body for "branch: <branch_name>\n" using regex
-    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
-    if branch_match:
-        branch_name = branch_match.group(1)
-        SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
+    branch_name = handle_sandbox_mode(repo_full_name, user_token, tracking_id, summary)
     else:
         logger.info(f"Overrides not detected for branch {summary}")
 
