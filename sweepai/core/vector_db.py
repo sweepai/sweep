@@ -323,8 +323,8 @@ def get_relevant_snippets(
     query: str,
     username: str | None = None,
     sweep_config: SweepConfig = SweepConfig(),
-    lexical=True,
-):
+    lexical: bool = True,
+) -> List[Snippet]:
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
