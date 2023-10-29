@@ -105,7 +105,7 @@ class HumanMessagePrompt(BaseModel):
                     repo_description=self.repo_description,
                     tree=self.tree.strip("\n"),
                     title=self.title,
-                    description=self.summary if not self.summary.endswith("_No response_") else "No description provided.",
+                    description=self.summary if not self.summary.strip().endswith("_No response_") else "No description provided.",
                     relevant_snippets=relevant_snippets,
                     relevant_directories=relevant_directories,
                     relevant_commit_history=relevant_commit_history,
