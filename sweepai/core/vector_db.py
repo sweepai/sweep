@@ -2,7 +2,18 @@ import json
 import re
 import time
 from functools import lru_cache
-from typing import Generator, List
+from typing import Generator, List, Tuple
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
+)import json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List, Tuple
 
 import numpy as np
 import replicate
@@ -10,6 +21,144 @@ import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+def get_repository(cloned_repo: ClonedRepo, sweep_config: SweepConfig = SweepConfig()) -> Tuple:
+    repo_full_name = cloned_repo.repo_full_name
+    repo = cloned_repo.repo
+    commits = repo.get_commits()
+    commit_hash = commits[0].sha
+
+    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
+    start = time.time()
+    logger.info("Recursively getting list of files...")
+    blocked_dirs = get_blocked_dirs(repo)
+    sweep_config.exclude_dirs.extend(blocked_dirs)
+    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    # prepare lexical search
+    index = prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+    )
+    logger.print("Prepared index from snippets")
+    # scoring for vector search
+    files_to_scores = {}
+    score_factors = []
+    for file_path in tqdm(file_list):
+        if not redis_client:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            continue
+        cache_key = hash_sha256(file_path) + CACHE_VERSION
+        try:
+            cache_value = redis_client.get(cache_key)
+        except Exception as e:
+            logger.exception(e)
+            cache_value = None
+        if cache_value is not None:
+            score_factor = json.loads(cache_value)
+            score_factors.append(score_factor)
+        else:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            redis_client.set(cache_key, json.dumps(score_factor))
+    # compute all scores
+    all_scores = get_scores(score_factors)
+    files_to_scores = {
+        file_path: score for file_path, score in zip(file_list, all_scores)
+    }
+    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
+
+    documents = []
+    metadatas = []
+    ids = []
+    for snippet in snippets:
+        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+        metadata = {
+            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
+            "start": snippet.start,
+            "end": snippet.end,
+            "score": files_to_scores[snippet.file_path],
+        }
+        metadatas.append(metadata)
+        gh_file_path = snippet.file_path[len("repo/") :]
+        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
+    logger.info(f"Getting list of all files took {time.time() - start}")
+    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
+    collection_name = parse_collection_name(repo_full_name)
+
+    return repo, len(documents)
+
+def compute_embeddings(documents: List[str]) -> np.ndarray:
+    logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+    # Check cache here for all documents
+    embeddings = [None] * len(documents)
+    if redis_client:
+        cache_keys = [
+            hash_sha256(doc)
+            + SENTENCE_TRANSFORMERS_MODEL
+            + VECTOR_EMBEDDING_SOURCE
+            + CACHE_VERSION
+            for doc in documents
+        ]
+        cache_values = redis_client.mget(cache_keys)
+        for idx, value in enumerate(cache_values):
+            if value is not None:
+                arr = json.loads(value)
+                if isinstance(arr, list):
+                    embeddings[idx] = np.array(arr, dtype=np.float32)
+
+    logger.info(
+        f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
+    )
+    indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+    documents_to_compute = [documents[idx] for idx in indices_to_compute]
+
+    logger.info(f"Computing {len(documents_to_compute)} embeddings...")
+    computed_embeddings = embedding_function(documents_to_compute)
+    logger.info(f"Computed {len(computed_embeddings)} embeddings")
+
+    for idx, embedding in zip(indices_to_compute, computed_embeddings):
+        embeddings[idx] = embedding
+
+    try:
+        embeddings = np.array(embeddings, dtype=np.float32)
+    except SystemExit:
+        raise SystemExit
+    except:
+        logger.exception(
+            "Failed to convert embeddings to numpy array, recomputing all of them"
+        )
+        embeddings = embedding_function(documents)
+        embeddings = np.array(embeddings, dtype=np.float32)
+    return embeddings
+
+def initialize_vectorstore(collection_name, embeddings, ids, metadatas, sha):
+    deeplake_vs = init_deeplake_vs(collection_name)
+    deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
+    logger.info("Added embeddings to cache")
+    if redis_client and len(documents_to_compute) > 0:
+        logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+        cache_keys = [
+            hash_sha256(doc)
+            + SENTENCE_TRANSFORMERS_MODEL
+            + VECTOR_EMBEDDING_SOURCE
+            + CACHE_VERSION
+            for doc in documents_to_compute
+        ]
+        redis_client.mset(
+            {
+                key: json.dumps(
+                    embedding.tolist()
+                    if isinstance(embedding, np.ndarray)
+                    else embedding
+                )
+                for key, embedding in zip(cache_keys, computed_embeddings)
+            }
+        )
+    return deeplake_vs
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -285,20 +434,14 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             logger.exception(
                 "Failed to convert embeddings to numpy array, recomputing all of them"
             )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
-
-        deeplake_vs = init_deeplake_vs(collection_name)
-        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        logger.info("Added embeddings to cache")
-        if redis_client and len(documents_to_compute) > 0:
-            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+            embeddings = compute_embeddings(documents)
+            deeplake_vs = initialize_vectorstore(collection_name, embeddings, ids, metadatas, commit_hash)
             cache_keys = [
                 hash_sha256(doc)
                 + SENTENCE_TRANSFORMERS_MODEL
                 + VECTOR_EMBEDDING_SOURCE
                 + CACHE_VERSION
-                for doc in documents_to_compute
+                for doc in documents
             ]
             redis_client.mset(
                 {
