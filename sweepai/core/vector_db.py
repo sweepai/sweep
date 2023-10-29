@@ -1,7 +1,16 @@
 import json
 import re
 import time
-from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
+)import json
+import re
+import time
 from typing import Generator, List
 
 import numpy as np
@@ -10,6 +19,56 @@ import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+def compute_embeddings(texts: list[str]):
+    logger.info(
+        f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
+    )
+    match VECTOR_EMBEDDING_SOURCE:
+        case "sentence-transformers":
+            sentence_transformer_model = SentenceTransformer(
+                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+            )
+            vector = sentence_transformer_model.encode(
+                texts, show_progress_bar=True, batch_size=BATCH_SIZE
+            )
+            return vector
+        case "openai":
+            import openai
+
+            embeddings = []
+            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                try:
+                    response = openai.Embedding.create(
+                        input=batch, model="text-embedding-ada-002"
+                    )
+                    embeddings.extend([r["embedding"] for r in response["data"]])
+                except SystemExit:
+                    raise SystemExit
+                except Exception:
+                    logger.exception("Failed to get embeddings for batch")
+                    logger.error(f"Failed to get embeddings for {batch}")
+            return embeddings
+        case "huggingface":
+            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
+                embeddings = []
+                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                    embeddings.extend(embed_huggingface(texts))
+                return embeddings
+            else:
+                raise Exception("Hugging Face URL and token not set")
+        case "replicate":
+            if REPLICATE_API_KEY:
+                embeddings = []
+                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
+                    embeddings.extend(embed_replicate(batch))
+                return embeddings
+            else:
+                raise Exception("Replicate URL and token not set")
+        case _:
+            raise Exception("Invalid vector embedding mode")
+    logger.info(
+        f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
+    )
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -271,7 +330,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
         logger.info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
+        computed_embeddings = compute_embeddings(documents_to_compute)
         logger.info(f"Computed {len(computed_embeddings)} embeddings")
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
@@ -285,7 +344,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             logger.exception(
                 "Failed to convert embeddings to numpy array, recomputing all of them"
             )
-            embeddings = embedding_function(documents)
+            embeddings = compute_embeddings(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
 
         deeplake_vs = init_deeplake_vs(collection_name)
@@ -328,7 +387,7 @@ def get_relevant_snippets(
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
-    query_embedding = embedding_function([query])  # pylint: disable=no-member
+    query_embedding = compute_embeddings([query])  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
@@ -396,7 +455,7 @@ def get_relevant_snippets(
 
 def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
     """
-    Split a list of texts into batches of a given size for embed_texts.
+    Split a list of texts into batches of a given size for compute_embeddings.
 
     Args:
     ----
