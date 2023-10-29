@@ -457,9 +457,6 @@ def on_ticket(
         # Find Sweep's previous comment
         for comment in comments:
             if comment.user.login == GITHUB_BOT_USERNAME:
-                logger.print(
-                    f"Found comment USERNAME {GITHUB_BOT_USERNAME} COMMENT {comment.user.login}"
-                )
                 issue_comment = comment
 
         try:
