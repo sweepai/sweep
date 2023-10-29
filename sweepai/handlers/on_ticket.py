@@ -9,7 +9,18 @@ import traceback
 from time import time
 
 import openai
-def handle_logging(issue_url: str, issue_number: int, repo_full_name: str, repo_description: str, username: str, comment_id: int, edited: bool, title: str):
+
+
+def handle_logging(
+    issue_url: str,
+    issue_number: int,
+    repo_full_name: str,
+    repo_description: str,
+    username: str,
+    comment_id: int,
+    edited: bool,
+    title: str,
+):
     context = LogtailContext()
     context.context(
         task={
@@ -171,7 +182,16 @@ def on_ticket(
         lint_mode,
     ) = handle_modes(title)
 
-    context = handle_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title)
+    context = handle_logging(
+        issue_url,
+        issue_number,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        edited,
+        title,
+    )
     on_ticket_start_time = time()
     summary = summary or ""
     summary = re.sub(
