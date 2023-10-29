@@ -9,6 +9,8 @@ import traceback
 from time import time
 
 import openai
+
+
 def handle_modes(title: str):
     (
         title,
@@ -20,6 +22,8 @@ def handle_modes(title: str):
         lint_mode,
     ) = strip_sweep(title)
     return title, slow_mode, do_map, subissues_mode, sandbox_mode, fast_mode, lint_mode
+
+
 import requests
 import yaml
 import yamllint.config as yamllint_config
@@ -140,7 +144,15 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
-    title, slow_mode, do_map, subissues_mode, sandbox_mode, fast_mode, lint_mode = handle_modes(title)
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = handle_modes(title)
 
     context = LogtailContext()
     context.context(
