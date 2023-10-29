@@ -14,7 +14,9 @@ class TestVectorDB(unittest.TestCase):
         mock_repo_to_chunks.return_value = ([], [])
         mock_prepare_index.return_value = None
 
-        cloned_repo = ClonedRepo('repo_name', installation_id=123)
+        cloned_repo = MagicMock(spec=ClonedRepo)
+        cloned_repo.clone.return_value = None
+        cloned_repo.get_file_contents.return_value = "file contents"
         sweep_config = SweepConfig()
 
         result = get_deeplake_vs_from_repo(cloned_repo, sweep_config)
@@ -30,7 +32,9 @@ class TestVectorDB(unittest.TestCase):
         mock_search_index.return_value = {}
         mock_get_deeplake_vs.return_value = (MagicMock(), MagicMock(), 10)
 
-        cloned_repo = ClonedRepo('repo_name', installation_id=123)
+        cloned_repo = MagicMock(spec=ClonedRepo)
+        cloned_repo.clone.return_value = None
+        cloned_repo.get_file_contents.return_value = "file contents"
         sweep_config = SweepConfig()
 
         result = get_relevant_snippets(cloned_repo, 'query')
