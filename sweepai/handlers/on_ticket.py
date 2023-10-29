@@ -9,6 +9,23 @@ import traceback
 from time import time
 
 import openai
+def handle_logging(issue_url: str, issue_number: int, repo_full_name: str, repo_description: str, username: str, comment_id: int, edited: bool, title: str):
+    context = LogtailContext()
+    context.context(
+        task={
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "edited": edited,
+            "issue_title": title,
+        }
+    )
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+    logger.add(handler)
+    return context
 
 
 def handle_modes(title: str):
@@ -154,22 +171,7 @@ def on_ticket(
         lint_mode,
     ) = handle_modes(title)
 
-    context = LogtailContext()
-    context.context(
-        task={
-            "issue_url": issue_url,
-            "issue_number": issue_number,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "username": username,
-            "comment_id": comment_id,
-            "edited": edited,
-            "issue_title": title,
-        }
-    )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
-
+    context = handle_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title)
     on_ticket_start_time = time()
     summary = summary or ""
     summary = re.sub(
@@ -295,6 +297,8 @@ def on_ticket(
     }
 
     context.context(metadata=metadata)
+    logger.bind(**metadata)
+    logger.info(f"Metadata: {metadata}")
     logger.bind(**metadata)
     logger.info(f"Metadata: {metadata}")
 
