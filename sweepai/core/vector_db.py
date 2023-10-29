@@ -8,7 +8,6 @@ import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-import json
 import re
 import time
 from functools import lru_cache
@@ -17,9 +16,7 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore  # pylint: disable=import-error
 def get_sorted_metadatas(metadatas: List[dict], code_scores: List[float], vector_scores: List[float], lexical_scores: List[float]) -> List[dict]:
     """Compute combined scores and sort metadatas."""
     combined_scores = [
