@@ -445,9 +445,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             )
             embeddings = compute_embeddings(documents)
             deeplake_vs = initialize_vectorstore(collection_name, embeddings, ids, metadatas, commit_hash)
-            cache_keys = [            deeplake_vs = initialize_vectorstore(collection_name, embeddings, ids, metadatas, commit_hash)
             cache_keys = [
-            commit_hash = commits[0].sha
                 hash_sha256(doc)
                 + SENTENCE_TRANSFORMERS_MODEL
                 + VECTOR_EMBEDDING_SOURCE
