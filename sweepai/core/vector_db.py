@@ -10,6 +10,11 @@ import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+from tqdm import tqdm
+from sweepai.utils.hash import hash_sha256
+from sweepai.utils.scorer import get_scores
+from loguru import logger
+from redis import Redis
 import json
 import re
 import time
@@ -220,11 +225,14 @@ def get_deeplake_vs_from_repo(
     logger.print("Prepared index from snippets")
     # scoring for vector search
     files_to_scores = {}
+    score_factors, all_scores = get_score_factors(file_list, cloned_repo.cache_dir, cloned_repo.git_repo, redis_client)    score_factors, all_scores = get_score_factors(file_list, cloned_repo.cache_dir, cloned_repo.git_repo, redis_client)
+    def get_score_factors(file_list: List[str], cache_dir: str, git_repo, redis_client: Redis) -> tuple:
+    """Compute score factors for a list of file paths."""
     score_factors = []
     for file_path in tqdm(file_list):
         if not redis_client:
             score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+                file_path[len(cache_dir) + 1 :], git_repo
             )
             score_factors.append(score_factor)
             continue
@@ -239,12 +247,13 @@ def get_deeplake_vs_from_repo(
             score_factors.append(score_factor)
         else:
             score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+                file_path[len(cache_dir) + 1 :], git_repo
             )
             score_factors.append(score_factor)
             redis_client.set(cache_key, json.dumps(score_factor))
     # compute all scores
     all_scores = get_scores(score_factors)
+    return score_factors, all_scores
     files_to_scores = {
         file_path: score for file_path, score in zip(file_list, all_scores)
     }
