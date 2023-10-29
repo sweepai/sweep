@@ -43,7 +43,9 @@ def get_jwt():
 
 def get_token(installation_id: int):
     if not GITHUB_APP_PEM or not GITHUB_APP_ID:
-        raise Exception("PRIVATE_KEY or GITHUB_APP_ID is not set in the environment variables.")
+        raise Exception(
+            "PRIVATE_KEY or GITHUB_APP_ID is not set in the environment variables."
+        )
     for timeout in [5.5, 5.5, 10.5]:
         try:
             jwt = get_jwt()
