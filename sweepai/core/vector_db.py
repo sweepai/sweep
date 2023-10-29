@@ -321,9 +321,9 @@ def get_deeplake_vs_from_repo(
 def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
     if len(documents) > 0:
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
-    index = prepare_index_from_snippets(
-        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
-    )
+        index = prepare_index_from_snippets(
+            snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+        )
         # Check cache here for all documents
         embeddings = [None] * len(documents)
         if redis_client:
