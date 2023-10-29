@@ -9,7 +9,25 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
+)import json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
 )
+def fetch_snippets_from_repo(cloned_repo: ClonedRepo, sweep_config: SweepConfig):
+    logger.info("Recursively getting list of files...")
+    blocked_dirs = get_blocked_dirs(cloned_repo.repo)
+    sweep_config.exclude_dirs.extend(blocked_dirs)
+    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {cloned_repo.repo_full_name}")
+    return snippets, file_list
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -177,11 +195,7 @@ def get_deeplake_vs_from_repo(
 
     logger.info(f"Downloading repository and indexing for {repo_full_name}...")
     start = time.time()
-    logger.info("Recursively getting list of files...")
-    blocked_dirs = get_blocked_dirs(repo)
-    sweep_config.exclude_dirs.extend(blocked_dirs)
-    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    snippets, file_list = fetch_snippets_from_repo(cloned_repo, sweep_config)
     # prepare lexical search
     index = prepare_index_from_snippets(
         snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
@@ -193,6 +207,25 @@ def get_deeplake_vs_from_repo(
     for file_path in tqdm(file_list):
         if not redis_client:
             score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            continue
+        cache_key = hash_sha256(file_path) + CACHE_VERSION
+        try:
+            cache_value = redis_client.get(cache_key)
+        except Exception as e:
+            logger.exception(e)
+            cache_value = None
+        if cache_value is not None:
+            score_factor = json.loads(cache_value)
+            score_factors.append(score_factor)
+        else:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            redis_client.set(cache_key, json.dumps(score_factor))
                 file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
             )
             score_factors.append(score_factor)
@@ -327,6 +360,7 @@ def get_relevant_snippets(
 ):
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
+    snippets, file_list = fetch_snippets_from_repo(cloned_repo, sweep_config)
     logger.info("Getting query embedding...")
     query_embedding = embedding_function([query])  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
