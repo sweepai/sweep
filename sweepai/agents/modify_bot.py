@@ -626,7 +626,7 @@ class ModifyBot:
                 updated_snippets[index] = current_contents
             else:
                 current_contents = updated_snippets[index]
-            updated_snippets[index] += current_contents + "\n" + updated_code
+            updated_snippets[index] = current_contents + "\n" + updated_code
 
         result = file_contents
         new_code = []
