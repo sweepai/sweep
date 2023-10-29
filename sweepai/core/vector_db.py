@@ -2,7 +2,7 @@ import json
 import re
 import time
 from functools import lru_cache
-from typing import Generator, List
+from typing import Generator, List, Tuple, Dict, Any, Optional
 
 import numpy as np
 import replicate
