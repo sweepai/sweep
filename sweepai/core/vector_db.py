@@ -78,7 +78,7 @@ def fetch_repository(cloned_repo: ClonedRepo, sweep_config: SweepConfig = SweepC
     logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
     collection_name = parse_collection_name(repo_full_name)
 
-    return collection_name, documents, ids, metadatas, commit_hash
+    return collection_name, documents, ids, metadatas, commit_hash, index
 
 def compute_embeddings(documents: List[str]) -> Optional[np.ndarray]:
     if len(documents) > 0:
@@ -128,7 +128,7 @@ def compute_embeddings(documents: List[str]) -> Optional[np.ndarray]:
         logger.error("No documents found in repository")
         return None
 
-def initialize_vectorstore(collection_name: str, documents: List[str], ids: List[str], metadatas: List[Dict[str, Any]], sha: str, embeddings: np.ndarray) -> VectorStore:
+def initialize_vectorstore(collection_name: str, documents: List[str], ids: List[str], metadatas: List[Dict[str, Any]], sha: str, embeddings: np.ndarray, index) -> VectorStore:
     deeplake_vs = init_deeplake_vs(collection_name)
     deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
     logger.info("Added embeddings to cache")
@@ -310,9 +310,8 @@ def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    collection_name, documents, ids, metadatas, commit_hash = fetch_repository(cloned_repo, sweep_config)
-    embeddings = compute_embeddings(documents)
-    deeplake_vs = initialize_vectorstore(collection_name, documents, ids, metadatas, commit_hash, embeddings)
+    collection_name, documents, ids, metadatas, commit_hash, index = fetch_repository(cloned_repo, sweep_config)
+    deeplake_vs = initialize_vectorstore(collection_name, documents, ids, metadatas, commit_hash, embeddings, index)
     return deeplake_vs, index, len(documents)
     
     # No changes needed in this snippet
