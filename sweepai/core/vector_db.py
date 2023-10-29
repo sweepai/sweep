@@ -39,7 +39,7 @@ def get_repository(cloned_repo: ClonedRepo, sweep_config: SweepConfig = SweepCon
     index = prepare_index_from_snippets(
         snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
     )
-    logger.print("Prepared index from snippets")
+    logger.info("Prepared index from snippets")
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
@@ -142,7 +142,11 @@ def initialize_vectorstore(collection_name, embeddings, ids, metadatas, sha):
     logger.info("Added embeddings to cache")
     if redis_client and len(documents_to_compute) > 0:
         logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+        cache_keys = [    if redis_client and len(documents_to_compute) > 0:
+        logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
         cache_keys = [
+    documents_to_compute = [documents[idx] for idx in indices_to_compute]
+    computed_embeddings = embedding_function(documents_to_compute)
             hash_sha256(doc)
             + SENTENCE_TRANSFORMERS_MODEL
             + VECTOR_EMBEDDING_SOURCE
@@ -389,6 +393,11 @@ def get_deeplake_vs_from_repo(
     deeplake_vs = deeplake_vs or compute_deeplake_vs(
         collection_name, documents, ids, metadatas, commit_hash
     )
+    deeplake_vs = deeplake_vs or compute_deeplake_vs(
+        collection_name, documents, ids, metadatas, commit_hash
+    )
+    
+    deeplake_vs = None
 
     return deeplake_vs, index, len(documents)
 
@@ -436,7 +445,9 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             )
             embeddings = compute_embeddings(documents)
             deeplake_vs = initialize_vectorstore(collection_name, embeddings, ids, metadatas, commit_hash)
+            cache_keys = [            deeplake_vs = initialize_vectorstore(collection_name, embeddings, ids, metadatas, commit_hash)
             cache_keys = [
+            commit_hash = commits[0].sha
                 hash_sha256(doc)
                 + SENTENCE_TRANSFORMERS_MODEL
                 + VECTOR_EMBEDDING_SOURCE
