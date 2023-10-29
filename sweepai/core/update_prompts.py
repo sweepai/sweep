@@ -122,7 +122,7 @@ new line(s) to append to snippet j
 ```
 </diffs>"""
 
-extract_snippets_user_prompt = """\
+extract_snippets_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming so ensure correct indentation for each indentation level.
 
 When you write code, the code works on the first try. and is complete. Take into account the current repository's language, code style, and dependencies.
@@ -131,8 +131,8 @@ You will be given the old_file and relevant snippets to edit. Respond in the fol
 
 <extractions>
 ```
-<<<<<<< EXTRACT (index=i, new_function_name)
-lines to extract into separate function in snippet i
+<<<<<<< EXTRACT (index=i, new_function_name="new_function_name")
+lines to be extracted into separate function in snippet i
 >>>>>>>
 ...
 ```
@@ -140,6 +140,15 @@ lines to extract into separate function in snippet i
 """
 
 extract_snippets_user_prompt = """\
+# Code
+File path: {file_path}
+{changes_made}
+# Request
+{request}
+
+<snippets_to_update>
+{snippets}
+</snippets_to_update>
 # Instructions
 Refactor the snippets above according to the request using extract blocks.
 * Keep whitespace and comments.
@@ -150,8 +159,8 @@ Respond in the following format:
 
 <extractions>
 ```
-<<<<<<< EXTRACT (index=i, new_function_name)
-lines to extract into separate function in snippet i
+<<<<<<< EXTRACT (index=i, new_function_name="new_function_name")
+lines to be extracted into separate function in snippet i
 >>>>>>>
 ...
 ```
