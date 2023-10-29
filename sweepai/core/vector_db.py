@@ -175,18 +175,41 @@ def get_deeplake_vs_from_repo(
     commits = repo.get_commits()
     commit_hash = commits[0].sha
 
-    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
-    start = time.time()
-    logger.info("Recursively getting list of files...")
-    blocked_dirs = get_blocked_dirs(repo)
-    sweep_config.exclude_dirs.extend(blocked_dirs)
-    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    snippets, file_list, start = download_and_index_repo(repo_full_name, repo, sweep_config, cloned_repo)
     # prepare lexical search
-    index = prepare_index_from_snippets(
-        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+    index = prepare_lexical_search(snippets, cloned_repo)
+    # scoring for vector search
+    files_to_scores = compute_vector_search_scores(file_list, cloned_repo, repo_full_name)
+
+    deeplake_vs, documents = compute_embeddings(snippets, cloned_repo, files_to_scores, start, repo_full_name, deeplake_vs, commit_hash)
+
+    return deeplake_vs, index, len(documents)
+
+def compute_embeddings(snippets, cloned_repo, files_to_scores, start, repo_full_name, deeplake_vs, commit_hash):
+    documents = []
+    metadatas = []
+    ids = []
+    for snippet in snippets:
+        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+        metadata = {
+            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
+            "start": snippet.start,
+            "end": snippet.end,
+            "score": files_to_scores[snippet.file_path],
+        }
+        metadatas.append(metadata)
+        gh_file_path = snippet.file_path[len("repo/") :]
+        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
+    logger.info(f"Getting list of all files took {time.time() - start}")
+    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
+    collection_name = parse_collection_name(repo_full_name)
+
+    deeplake_vs = deeplake_vs or compute_deeplake_vs(
+        collection_name, documents, ids, metadatas, commit_hash
     )
-    logger.print("Prepared index from snippets")
+    return deeplake_vs, documents
+
+def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
@@ -218,30 +241,25 @@ def get_deeplake_vs_from_repo(
         file_path: score for file_path, score in zip(file_list, all_scores)
     }
     logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
+    return files_to_scores
 
-    documents = []
-    metadatas = []
-    ids = []
-    for snippet in snippets:
-        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
-        metadata = {
-            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
-            "start": snippet.start,
-            "end": snippet.end,
-            "score": files_to_scores[snippet.file_path],
-        }
-        metadatas.append(metadata)
-        gh_file_path = snippet.file_path[len("repo/") :]
-        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
-    logger.info(f"Getting list of all files took {time.time() - start}")
-    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
-    collection_name = parse_collection_name(repo_full_name)
-
-    deeplake_vs = deeplake_vs or compute_deeplake_vs(
-        collection_name, documents, ids, metadatas, commit_hash
+def prepare_lexical_search(snippets, cloned_repo):
+    # prepare lexical search
+    index = prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
     )
+    logger.print("Prepared index from snippets")
+    return index
 
-    return deeplake_vs, index, len(documents)
+def download_and_index_repo(repo_full_name, repo, sweep_config, cloned_repo):
+    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
+    start = time.time()
+    logger.info("Recursively getting list of files...")
+    blocked_dirs = get_blocked_dirs(repo)
+    sweep_config.exclude_dirs.extend(blocked_dirs)
+    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    return snippets, file_list, start
 
 
 def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
