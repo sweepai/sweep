@@ -121,3 +121,39 @@ new line(s) to append to snippet j
 ...
 ```
 </diffs>"""
+
+extract_snippets_user_prompt = """\
+You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming so ensure correct indentation for each indentation level.
+
+When you write code, the code works on the first try. and is complete. Take into account the current repository's language, code style, and dependencies.
+
+You will be given the old_file and relevant snippets to edit. Respond in the following format:
+
+<extractions>
+```
+<<<<<<< EXTRACT (index=i, new_function_name)
+lines to extract into separate function in snippet i
+>>>>>>>
+...
+```
+</extractions>\
+"""
+
+extract_snippets_user_prompt = """\
+# Instructions
+Refactor the snippets above according to the request using extract blocks.
+* Keep whitespace and comments.
+* Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
+* Choose specific and very informative names for these functions under new_function_name.
+
+Respond in the following format:
+
+<extractions>
+```
+<<<<<<< EXTRACT (index=i, new_function_name)
+lines to extract into separate function in snippet i
+>>>>>>>
+...
+```
+</extractions>\
+"""
