@@ -8,6 +8,7 @@ import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from sweepai.config.client import SweepConfig
 import re
 import time
 from functools import lru_cache
