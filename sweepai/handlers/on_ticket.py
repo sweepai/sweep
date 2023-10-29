@@ -710,7 +710,9 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.exception(f"Exception occurred: {trace} (tracking ID: `{tracking_id}`)")
+            logger.exception(
+                f"Exception occurred: {trace} (tracking ID: `{tracking_id}`)"
+            )
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -1272,7 +1274,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.exception(f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})")
+                logger.exception(
+                    f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})"
+                )
 
             if changes_required:
                 edit_sweep_comment(
@@ -1418,7 +1422,9 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.exception(f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})")
+            logger.exception(
+                f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})"
+            )
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1452,7 +1458,9 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.exception(f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})")
+            logger.exception(
+                f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})"
+            )
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1505,7 +1513,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.exception(f"Exception occurred: {str(e)}\n{traceback.format_exc()}")
+                logger.exception(
+                    f"Exception occurred: {str(e)}\n{traceback.format_exc()}"
+                )
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
