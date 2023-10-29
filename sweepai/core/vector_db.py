@@ -19,6 +19,7 @@ import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+from sweepai.utils.github_utils import ClonedRepo
 def fetch_snippets_from_repo(cloned_repo: ClonedRepo, sweep_config: SweepConfig):
     logger.info("Recursively getting list of files...")
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
