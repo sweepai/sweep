@@ -139,7 +139,16 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    context = handle_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title)
+    context = handle_logging(
+        issue_url,
+        issue_number,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        edited,
+        title,
+    )
 
     on_ticket_start_time = time()
     summary = summary or ""
@@ -1520,7 +1529,17 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
-def handle_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title):
+
+def handle_logging(
+    issue_url,
+    issue_number,
+    repo_full_name,
+    repo_description,
+    username,
+    comment_id,
+    edited,
+    title,
+):
     context = LogtailContext()
     context.context(
         task={
