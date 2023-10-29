@@ -52,7 +52,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, get_scores
 
-from ..utils.github_utils import ClonedRepo
+from sweepai.utils.github_utils import ClonedRepo
 
 MODEL_DIR = "/tmp/cache/model"
 DEEPLAKE_DIR = "/tmp/cache/"
