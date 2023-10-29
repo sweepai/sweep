@@ -328,16 +328,19 @@ def on_ticket(
     markdown_badge = get_docker_badge()
 
     try:
-        logger.info(f"Getting repo {repo_full_name}")
+        handle_logging(repo_full_name, current_issue, issue_number, tracking_id, username, metadata, on_ticket_start_time)
+def handle_logging(repo_full_name, current_issue, issue_number, tracking_id, username, metadata, on_ticket_start_time):
+    logger.info(f"Getting repo {repo_full_name}")
 
-        if current_issue.state == "closed":
-            logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
-            )
-            posthog.capture(
-                username,
-                "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+    if current_issue.state == "closed":
+        logger.warning(
+            f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
+        )
+        posthog.capture(
+            username,
+            "issue_closed",
+            properties={**metadata, "duration": time() - on_ticket_start_time},
+        )
 # branch_name = handle_sandbox_mode(repo_full_name, user_token, tracking_id, summary)
 =======
 branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id, summary)
@@ -376,17 +379,19 @@ branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id,
             )
         summary = summary if summary else ""
 
+        handle_pr_creation(repo, issue_number, GITHUB_BOT_USERNAME)
+        def handle_pr_creation(repo, issue_number, GITHUB_BOT_USERNAME):
         prs = repo.get_pulls(
-            state="open", sort="created", base=SweepConfig.get_branch(repo)
+        state="open", sort="created", base=SweepConfig.get_branch(repo)
         )
         for pr in prs:
-            # Check if this issue is mentioned in the PR, and pr is owned by bot
-            # This is done in create_pr, (pr_description = ...)
-            if (
-                pr.user.login == GITHUB_BOT_USERNAME
-                and f"Fixes #{issue_number}.\n" in pr.body
-            ):
-                success = safe_delete_sweep_branch(pr, repo)
+        # Check if this issue is mentioned in the PR, and pr is owned by bot
+        # This is done in create_pr, (pr_description = ...)
+        if (
+            pr.user.login == GITHUB_BOT_USERNAME
+            and f"Fixes #{issue_number}.\n" in pr.body
+        ):
+            success = safe_delete_sweep_branch(pr, repo)
 
         # Removed 1, 3
         if not sandbox_mode:
@@ -503,20 +508,22 @@ branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id,
             if comment.user.login == GITHUB_BOT_USERNAME:
                 issue_comment = comment
 
+        handle_error(repo, issue_comment, progress_headers, bot_suffix, discord_suffix)
+        def handle_error(repo, issue_comment, progress_headers, bot_suffix, discord_suffix):
         try:
-            config = SweepConfig.get_config(repo)
+        config = SweepConfig.get_config(repo)
         except EmptyRepository as e:
-            logger.info("Empty repo")
-            first_comment = (
-                "Sweep is currently not supported on empty repositories. Please add some"
-                f" code to your repository and try again.\n{sep}##"
-                f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
-            )
-            if issue_comment is None:
-                issue_comment = current_issue.create_comment(first_comment)
-            else:
-                issue_comment.edit(first_comment)
-            return {"success": False}
+        logger.info("Empty repo")
+        first_comment = (
+            "Sweep is currently not supported on empty repositories. Please add some"
+            f" code to your repository and try again.\n{sep}##"
+            f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+        )
+        if issue_comment is None:
+            issue_comment = current_issue.create_comment(first_comment)
+        else:
+            issue_comment.edit(first_comment)
+        return {"success": False}
 
         cloned_repo = ClonedRepo(
             repo_full_name, installation_id=installation_id, token=user_token
@@ -691,17 +698,34 @@ branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id,
             logger.info("Sandbox comments updated")
             return {"success": True}
 
-        if len(title + summary) < 20:
-            logger.info("Issue too short")
-            edit_sweep_comment(
-                (
-                    "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
+        handle_pr_creation(repo, issue_number, GITHUB_BOT_USERNAME)
+        def handle_pr_creation(repo, issue_number, GITHUB_BOT_USERNAME):
+            prs = repo.get_pulls(
+                state="open", sort="created", base=SweepConfig.get_branch(repo)
             )
-            posthog.capture(
-                username,
+            for pr in prs:
+                if (
+                    pr.user.login == GITHUB_BOT_USERNAME
+                    and f"Fixes #{issue_number}.\n" in pr.body
+                ):
+                    success = safe_delete_sweep_branch(pr, repo)
+                    
+        handle_error(repo, issue_comment, progress_headers, bot_suffix, discord_suffix)
+        def handle_error(repo, issue_comment, progress_headers, bot_suffix, discord_suffix):
+            try:
+                config = SweepConfig.get_config(repo)
+            except EmptyRepository as e:
+                logger.info("Empty repo")
+                first_comment = (
+                    "Sweep is currently not supported on empty repositories. Please add some"
+                    f" code to your repository and try again.\n{sep}##"
+                    f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+                )
+                if issue_comment is None:
+                    issue_comment = current_issue.create_comment(first_comment)
+                else:
+                    issue_comment.edit(first_comment)
+                return {"success": False}
                 "issue_too_short",
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
@@ -909,20 +933,34 @@ branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id,
 
         try:
             # ANALYZE SNIPPETS
-            newline = "\n"
-            edit_sweep_comment(
-                "I found the following snippets in your repository. I will now analyze"
-                " these snippets and come up with a plan."
-                + "\n\n"
-                + create_collapsible(
-                    "Some code snippets I looked at (click to expand). If some file is"
-                    " missing from here, you can mention the path in the ticket"
-                    " description.",
-                    "\n".join(
-                        [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
-                            for snippet in snippets
-                        ]
+            handle_pr_creation(repo, issue_number, GITHUB_BOT_USERNAME)
+            def handle_pr_creation(repo, issue_number, GITHUB_BOT_USERNAME):
+                prs = repo.get_pulls(
+                    state="open", sort="created", base=SweepConfig.get_branch(repo)
+                )
+                for pr in prs:
+                    if (
+                        pr.user.login == GITHUB_BOT_USERNAME
+                        and f"Fixes #{issue_number}.\n" in pr.body
+                    ):
+                        success = safe_delete_sweep_branch(pr, repo)
+                        
+            handle_error(repo, issue_comment, progress_headers, bot_suffix, discord_suffix)
+            def handle_error(repo, issue_comment, progress_headers, bot_suffix, discord_suffix):
+                try:
+                    config = SweepConfig.get_config(repo)
+                except EmptyRepository as e:
+                    logger.info("Empty repo")
+                    first_comment = (
+                        "Sweep is currently not supported on empty repositories. Please add some"
+                        f" code to your repository and try again.\n{sep}##"
+                        f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+                    )
+                    if issue_comment is None:
+                        issue_comment = current_issue.create_comment(first_comment)
+                    else:
+                        issue_comment.edit(first_comment)
+                    return {"success": False}
                     ),
                 )
                 + (
@@ -1268,8 +1306,22 @@ branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id,
                 current_issue.delete_reaction(eyes_reaction.id)
             except SystemExit:
                 raise SystemExit
-            except Exception:
-                pass
+            except Exception as e:
+                handle_error(e)
+def handle_pr_creation(repo, issue_number, GITHUB_BOT_USERNAME):
+    prs = repo.get_pulls(
+        state="open", sort="created", base=SweepConfig.get_branch(repo)
+    )
+    for pr in prs:
+        if (
+            pr.user.login == GITHUB_BOT_USERNAME
+            and f"Fixes #{issue_number}.\n" in pr.body
+        ):
+            success = safe_delete_sweep_branch(pr, repo)
+
+def handle_error(e):
+    logger.error(traceback.format_exc())
+    logger.error(e)
 
             # branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id, summary)
 
