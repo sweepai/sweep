@@ -9,19 +9,7 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from sweepai.core.lexical_search import prepare_index_from_snippets
-import json
 from sweepai.core.vector_db import compute_vector_scores, compute_deeplake_vector_store
-import re
-import time
-from functools import lru_cache
-from typing import Generator, List
-
-import numpy as np
-import replicate
-import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.core.lexical_search import prepare_index_from_snippets
-import json
 # No changes needed
     for file_path in tqdm(file_list):
         if not redis_client:
@@ -49,27 +37,7 @@ import json
     files_to_scores = {
         file_path: score for file_path, score in zip(file_list, all_scores)
     }
-    return files_to_scoresimport json
-import re
-import time
-from functools import lru_cache
-from typing import Generator, List
-
-import numpy as np
-import replicate
-import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.core.lexical_search import prepare_index_from_snippets
-import re
-import time
-from functools import lru_cache
-from typing import Generator, List
-
-import numpy as np
-import replicate
-import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.core.lexical_search import prepare_index_from_snippetsimport json
+    return files_to_scores
 def compute_vector_scores(file_list, cloned_repo, snippets):
     files_to_scores = {}
     score_factors = []
@@ -235,16 +203,6 @@ def compute_deeplake_vector_store(collection_name, documents, ids, metadatas, sh
     else:
         logger.error("No documents found in repository")
         return deeplake_vs
-import re
-import time
-from functools import lru_cache
-from typing import Generator, List
-
-import numpy as np
-import replicate
-import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.core.lexical_search import prepare_index_from_snippets
 def prepare_lexical_index(snippets, cloned_repo):
     return prepare_index_from_snippets(
         snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
@@ -282,7 +240,6 @@ from sweepai.config.server import (
     VECTOR_EMBEDDING_SOURCE,
 )
 from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
