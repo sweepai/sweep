@@ -318,7 +318,7 @@ def get_deeplake_vs_from_repo(
     # No changes needed in this snippet
 
 
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
+def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha, index, snippets, cloned_repo):
     if len(documents) > 0:
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         index = prepare_index_from_snippets(
