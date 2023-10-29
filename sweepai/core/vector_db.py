@@ -142,17 +142,7 @@ def initialize_vectorstore(collection_name, embeddings, ids, metadatas, sha):
     logger.info("Added embeddings to cache")
     if redis_client and len(documents_to_compute) > 0:
         logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-        cache_keys = [    if redis_client and len(documents_to_compute) > 0:
-        logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-        cache_keys = [
-    documents_to_compute = [documents[idx] for idx in indices_to_compute]
-    computed_embeddings = embedding_function(documents_to_compute)
-            hash_sha256(doc)
-            + SENTENCE_TRANSFORMERS_MODEL
-            + VECTOR_EMBEDDING_SOURCE
-            + CACHE_VERSION
-            for doc in documents_to_compute
-        ]
+        cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + VECTOR_EMBEDDING_SOURCE + CACHE_VERSION for doc in documents if redis_client and len(documents_to_compute) > 0]
         redis_client.mset(
             {
                 key: json.dumps(
