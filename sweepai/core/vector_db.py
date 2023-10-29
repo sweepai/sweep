@@ -7,9 +7,7 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 import json
 import re
 import time
@@ -160,19 +158,6 @@ def embed_huggingface(texts: List[str]) -> List[np.ndarray]:
                 f"Error occurred when sending request to Hugging Face endpoint: {e}"
             )
     return embeddings
-        try:
-            headers = {
-                "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
-                "Content-Type": "application/json",
-            }
-            response = requests.post(
-                HUGGINGFACE_URL, headers=headers, json={"inputs": texts}
-            )
-            return response.json()["embeddings"]
-        except requests.exceptions.RequestException as e:
-            logger.exception(
-                f"Error occurred when sending request to Hugging Face endpoint: {e}"
-            )
 
 
 def embed_replicate(texts: List[str]) -> List[np.ndarray]:
