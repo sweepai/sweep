@@ -9,6 +9,7 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from sweepai.core.lexical_search import prepare_index_from_snippets
+import json
 from sweepai.core.vector_db import compute_vector_scores, compute_deeplake_vector_store
 import re
 import time
@@ -19,7 +20,8 @@ import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.core.lexical_search import prepare_index_from_snippetsimport json
+from sweepai.core.lexical_search import prepare_index_from_snippets
+import json
 # No changes needed
     for file_path in tqdm(file_list):
         if not redis_client:
