@@ -9,7 +9,8 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
-)import json
+)
+import json
 import re
 import time
 from functools import lru_cache
