@@ -26,12 +26,15 @@ class TestVectorDBFunctions(unittest.TestCase):
 
         self.assertEqual(result, ('collection_name', [], [], [], None))
 
-    def test_compute_embeddings(self):
+    @patch('sweepai.core.vector_db.embed_texts')
+    def test_compute_embeddings(self, mock_embed_texts):
         documents = ['doc1', 'doc2', 'doc3']
+        mock_embed_texts.return_value = [np.array([1, 2, 3]) for _ in documents]
 
         result = compute_embeddings(documents)
 
-        self.assertIsNone(result)
+        self.assertEqual(len(result), len(documents))
+        self.assertTrue(all(isinstance(res, np.ndarray) for res in result))
 
     @patch('sweepai.core.vector_db.init_deeplake_vs')
     def test_initialize_vectorstore(self, mock_init_deeplake_vs):
