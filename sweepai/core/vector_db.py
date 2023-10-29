@@ -7,9 +7,22 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from sweepai.core.lexical_search import prepare_index_from_snippetsimport json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from sweepai.core.lexical_search import prepare_index_from_snippets
+def prepare_lexical_index(snippets, cloned_repo):
+    return prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+    )
 
 from sweepai.config.client import SweepConfig
 from sweepai.utils.github_utils import ClonedRepo
@@ -192,10 +205,7 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Downloading repository and indexing for {repo_full_name}...")
     start = time.time()
     snippets, file_list = fetch_snippets_from_repo(cloned_repo, sweep_config)
-    # prepare lexical search
-    index = prepare_index_from_snippets(
-        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
-    )
+    index = prepare_lexical_index(snippets, cloned_repo)
     logger.print("Prepared index from snippets")
     # scoring for vector search
     files_to_scores = {}
