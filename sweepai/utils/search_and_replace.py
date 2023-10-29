@@ -94,9 +94,6 @@ def score_multiline(query: list[str], target: list[str]) -> float:
             t_line.strip() == ""
             or t_line.strip().startswith("#")
             or t_line.strip().startswith("//")
-            or t_line.strip().startswith("print")
-            or t_line.strip().startswith("logger")
-            or t_line.strip().startswith("console.")
         ):
             # Case 2: skipped comment
             skipped_comments += 1
