@@ -9,6 +9,7 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from sweepai.core.lexical_search import prepare_index_from_snippets
+from sweepai.core.vector_db import compute_vector_scores, compute_deeplake_vector_store
 import re
 import time
 from functools import lru_cache
@@ -19,9 +20,7 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from sweepai.core.lexical_search import prepare_index_from_snippetsimport json
-def compute_vector_scores(file_list, cloned_repo, snippets):
-    files_to_scores = {}
-    score_factors = []
+# No changes needed
     for file_path in tqdm(file_list):
         if not redis_client:
             score_factor = compute_score(
