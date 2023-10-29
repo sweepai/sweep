@@ -357,7 +357,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
 
 
 # Only works on functions without side effects
-# @file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
+@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
