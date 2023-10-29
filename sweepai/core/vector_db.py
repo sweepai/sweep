@@ -9,7 +9,48 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
+)import json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
 )
+def embed_text_batch(texts: List[str], method: str) -> List[np.ndarray]:
+    """Embeds a batch of texts using the specified method."""
+    if method == "sentence-transformers":
+        sentence_transformer_model = SentenceTransformer(
+            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+        )
+        return sentence_transformer_model.encode(
+            texts, show_progress_bar=True, batch_size=BATCH_SIZE
+        )
+    elif method == "openai":
+        import openai
+
+        embeddings = []
+        try:
+            response = openai.Embedding.create(
+                input=texts, model="text-embedding-ada-002"
+            )
+            embeddings.extend([r["embedding"] for r in response["data"]])
+        except SystemExit:
+            raise SystemExit
+        except Exception:
+            logger.exception("Failed to get embeddings for batch")
+            logger.error(f"Failed to get embeddings for {texts}")
+        return embeddings
+    elif method == "huggingface":
+        return embed_huggingface(texts)
+    elif method == "replicate":
+        return embed_replicate(texts)
+    else:
+        raise Exception("Invalid vector embedding mode")
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -69,9 +110,24 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-def embed_huggingface(texts):
+def embed_huggingface(texts: List[str]) -> List[np.ndarray]:
     """Embeds a list of texts using Hugging Face's API."""
+    embeddings = []
     for i in range(3):
+        try:
+            headers = {
+                "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+                "Content-Type": "application/json",
+            }
+            response = requests.post(
+                HUGGINGFACE_URL, headers=headers, json={"inputs": texts}
+            )
+            embeddings.extend(response.json()["embeddings"])
+        except requests.exceptions.RequestException as e:
+            logger.exception(
+                f"Error occurred when sending request to Hugging Face endpoint: {e}"
+            )
+    return embeddings
         try:
             headers = {
                 "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
@@ -90,6 +146,19 @@ def embed_huggingface(texts):
 def embed_replicate(texts: List[str]) -> List[np.ndarray]:
     client = replicate.Client(api_token=REPLICATE_API_KEY)
     deployment = client.deployments.get(REPLICATE_DEPLOYMENT_URL)
+    embeddings = []
+    e = None
+    for i in range(3):
+        try:
+            prediction = deployment.predictions.create(
+                input={"text_batch": json.dumps(texts)}, timeout=60
+            )
+            prediction.wait()
+            outputs = prediction.output
+            embeddings.extend([output["embedding"] for output in outputs])
+        except Exception:
+            logger.exception(f"Replicate timeout: {e}")
+    return embeddings
     e = None
     for i in range(3):
         try:
@@ -111,52 +180,13 @@ def embed_texts(texts: tuple[str]):
     logger.info(
         f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
     )
-    match VECTOR_EMBEDDING_SOURCE:
-        case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            vector = sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
-            return vector
-        case "openai":
-            import openai
-
-            embeddings = []
-            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                try:
-                    response = openai.Embedding.create(
-                        input=batch, model="text-embedding-ada-002"
-                    )
-                    embeddings.extend([r["embedding"] for r in response["data"]])
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    logger.exception("Failed to get embeddings for batch")
-                    logger.error(f"Failed to get embeddings for {batch}")
-            return embeddings
-        case "huggingface":
-            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                    embeddings.extend(embed_huggingface(texts))
-                return embeddings
-            else:
-                raise Exception("Hugging Face URL and token not set")
-        case "replicate":
-            if REPLICATE_API_KEY:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
-                    embeddings.extend(embed_replicate(batch))
-                return embeddings
-            else:
-                raise Exception("Replicate URL and token not set")
-        case _:
-            raise Exception("Invalid vector embedding mode")
+    embeddings = []
+    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+        embeddings.extend(embed_text_batch(batch, VECTOR_EMBEDDING_SOURCE))
     logger.info(
         f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
     )
+    return embeddings
 
 
 def embedding_function(texts: list[str]):
