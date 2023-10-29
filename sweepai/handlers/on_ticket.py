@@ -129,25 +129,17 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
-    title, fast_mode, sandbox_mode, slow_mode, do_map, subissues_mode = handle_modes(
-        title
-    )
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = strip_sweep(title)
 
-    context = LogtailContext()
-    context.context(
-        task={
-            "issue_url": issue_url,
-            "issue_number": issue_number,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "username": username,
-            "comment_id": comment_id,
-            "edited": edited,
-            "issue_title": title,
-        }
-    )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
+    context = handle_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title)
 
     on_ticket_start_time = time()
     summary = summary or ""
@@ -1528,15 +1520,20 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
-
-def handle_modes(title):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
-    return title, fast_mode, sandbox_mode, slow_mode, do_map, subissues_mode
+def handle_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title):
+    context = LogtailContext()
+    context.context(
+        task={
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "edited": edited,
+            "issue_title": title,
+        }
+    )
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+    logger.add(handler)
+    return context
