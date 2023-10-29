@@ -129,15 +129,7 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+    title, fast_mode, sandbox_mode, slow_mode, do_map, subissues_mode = handle_modes(title)
 
     context = LogtailContext()
     context.context(
@@ -1533,3 +1525,15 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def handle_modes(title):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = strip_sweep(title)
+    return title, fast_mode, sandbox_mode, slow_mode, do_map, subissues_mode
