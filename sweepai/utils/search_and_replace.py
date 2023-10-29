@@ -253,14 +253,19 @@ def find_best_match(query: str, code_file: str):
 
 
 def split_ellipses(query: str) -> list[str]:
+    if not query:
+        return []
     queries = []
     current_query = ""
     for line in query.split("\n"):
         if line.strip() == "...":
-            queries.append(current_query.strip("\n"))
+            if current_query:
+                queries.append(current_query.strip("\n"))
             current_query = ""
         else:
             current_query += line + "\n"
+    if current_query:
+        queries.append(current_query.strip("\n"))
     return queries
 
 
