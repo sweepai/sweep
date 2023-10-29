@@ -38,6 +38,9 @@ def handle_sandbox_mode(repo_full_name: str, user_token: str, tracking_id: str, 
         branch_name = branch_match.group(1)
         SweepConfig.get_branch(repo, branch_name)
         logger.info(f"Overrides Branch name: {branch_name}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
+        branch_name = None
     return branch_name
 
 
@@ -243,8 +246,6 @@ def on_ticket(
         assignee = current_issue.user.login
 
     branch_name = handle_sandbox_mode(repo_full_name, user_token, tracking_id, summary)
-    else:
-        logger.info(f"Overrides not detected for branch {summary}")
 
     chat_logger = (
         ChatLogger(
@@ -1266,7 +1267,7 @@ def on_ticket(
                 current_issue.delete_reaction(eyes_reaction.id)
             except SystemExit:
                 raise SystemExit
-            except:
+            except Exception:
                 pass
 
             changes_required = False
@@ -1545,7 +1546,7 @@ def on_ticket(
             try:
                 if pull_request.branch_name.startswith("sweep"):
                     repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
-                else:
+                if not pull_request.branch_name.startswith("sweep"):
                     raise Exception(
                         f"Branch name {pull_request.branch_name} does not start with sweep/"
                     )
