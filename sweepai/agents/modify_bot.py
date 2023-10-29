@@ -576,7 +576,7 @@ class ModifyBot:
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
-                        f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
+                        f'<snippet index="{i}" reason="{reason}">\n{snippet}</snippet>'
                         for i, (reason, snippet) in enumerate(selected_snippets)
                     ]
                 )
