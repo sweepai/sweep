@@ -53,12 +53,79 @@ def download_models():
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
 
-def init_deeplake_vs(repo_name):
-    deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
+def initialize_vector_store(collection_name, documents, ids, metadatas, sha):
+    deeplake_repo_path = f"mem://{int(time.time())}{collection_name}"
     deeplake_vector_store = VectorStore(
         path=deeplake_repo_path, read_only=False, overwrite=False
     )
-    return deeplake_vector_store
+    if len(documents) > 0:
+        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+        # Check cache here for all documents
+        embeddings = [None] * len(documents)
+        if redis_client:
+            cache_keys = [
+                hash_sha256(doc)
+                + SENTENCE_TRANSFORMERS_MODEL
+                + VECTOR_EMBEDDING_SOURCE
+                + CACHE_VERSION
+                for doc in documents
+            ]
+            cache_values = redis_client.mget(cache_keys)
+            for idx, value in enumerate(cache_values):
+                if value is not None:
+                    arr = json.loads(value)
+                    if isinstance(arr, list):
+                        embeddings[idx] = np.array(arr, dtype=np.float32)
+
+        logger.info(
+            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
+        )
+        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+        documents_to_compute = [documents[idx] for idx in indices_to_compute]
+
+        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
+        computed_embeddings = embedding_function(documents_to_compute)
+        logger.info(f"Computed {len(computed_embeddings)} embeddings")
+
+        for idx, embedding in zip(indices_to_compute, computed_embeddings):
+            embeddings[idx] = embedding
+
+        try:
+            embeddings = np.array(embeddings, dtype=np.float32)
+        except SystemExit:
+            raise SystemExit
+        except:
+            logger.exception(
+                "Failed to convert embeddings to numpy array, recomputing all of them"
+            )
+            embeddings = embedding_function(documents)
+            embeddings = np.array(embeddings, dtype=np.float32)
+
+        deeplake_vector_store.add(text=ids, embedding=embeddings, metadata=metadatas)
+        logger.info("Added embeddings to cache")
+        if redis_client and len(documents_to_compute) > 0:
+            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+            cache_keys = [
+                hash_sha256(doc)
+                + SENTENCE_TRANSFORMERS_MODEL
+                + VECTOR_EMBEDDING_SOURCE
+                + CACHE_VERSION
+                for doc in documents_to_compute
+            ]
+            redis_client.mset(
+                {
+                    key: json.dumps(
+                        embedding.tolist()
+                        if isinstance(embedding, np.ndarray)
+                        else embedding
+                    )
+                    for key, embedding in zip(cache_keys, computed_embeddings)
+                }
+            )
+        return deeplake_vector_store
+    else:
+        logger.error("No documents found in repository")
+        return deeplake_vector_store
 
 
 def parse_collection_name(name: str) -> str:
@@ -237,83 +304,11 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
     collection_name = parse_collection_name(repo_full_name)
 
-    deeplake_vs = deeplake_vs or compute_deeplake_vs(
+    deeplake_vs = deeplake_vs or initialize_vector_store(
         collection_name, documents, ids, metadatas, commit_hash
     )
 
     return deeplake_vs, index, len(documents)
-
-
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
-    if len(documents) > 0:
-        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
-        # Check cache here for all documents
-        embeddings = [None] * len(documents)
-        if redis_client:
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents
-            ]
-            cache_values = redis_client.mget(cache_keys)
-            for idx, value in enumerate(cache_values):
-                if value is not None:
-                    arr = json.loads(value)
-                    if isinstance(arr, list):
-                        embeddings[idx] = np.array(arr, dtype=np.float32)
-
-        logger.info(
-            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
-        )
-        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
-        documents_to_compute = [documents[idx] for idx in indices_to_compute]
-
-        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
-        logger.info(f"Computed {len(computed_embeddings)} embeddings")
-
-        for idx, embedding in zip(indices_to_compute, computed_embeddings):
-            embeddings[idx] = embedding
-
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
-
-        deeplake_vs = init_deeplake_vs(collection_name)
-        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        logger.info("Added embeddings to cache")
-        if redis_client and len(documents_to_compute) > 0:
-            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents_to_compute
-            ]
-            redis_client.mset(
-                {
-                    key: json.dumps(
-                        embedding.tolist()
-                        if isinstance(embedding, np.ndarray)
-                        else embedding
-                    )
-                    for key, embedding in zip(cache_keys, computed_embeddings)
-                }
-            )
-        return deeplake_vs
-    else:
-        logger.error("No documents found in repository")
-        return deeplake_vs
 
 
 # Only works on functions without side effects
