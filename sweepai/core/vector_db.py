@@ -7,27 +7,25 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.config.client import SweepConfig
-import re
-import time
-from functools import lru_cache
-from typing import Generator, List
-
-import numpy as np
-import replicate
-import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+
+from sweepai.config.client import SweepConfig
 from sweepai.utils.github_utils import ClonedRepo
+
+
 def fetch_snippets_from_repo(cloned_repo: ClonedRepo, sweep_config: SweepConfig):
     logger.info("Recursively getting list of files...")
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs.extend(blocked_dirs)
     snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {cloned_repo.repo_full_name}")
+    logger.info(
+        f"Found {len(snippets)} snippets in repository {cloned_repo.repo_full_name}"
+    )
     return snippets, file_list
+
+
 from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
@@ -47,12 +45,10 @@ from sweepai.config.server import (
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
-from sweepai.logn import file_cache
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, get_scores
-
-from sweepai.utils.github_utils import ClonedRepo
 
 MODEL_DIR = "/tmp/cache/model"
 DEEPLAKE_DIR = "/tmp/cache/"
