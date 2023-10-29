@@ -150,32 +150,32 @@ def embed_texts(texts: tuple[str]):
     logger.info(
         f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
     )
-    match VECTOR_EMBEDDING_SOURCE:
-        case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            return sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
-        case "openai":
-            import openai
-            return compute_embeddings(texts, BATCH_SIZE, openai.Embedding.create)
-        case "huggingface":
-            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
-                return compute_embeddings(texts, BATCH_SIZE, embed_huggingface)
-            else:
-                raise Exception("Hugging Face URL and token not set")
-        case "replicate":
-            if REPLICATE_API_KEY:
-                return compute_embeddings(texts, BATCH_SIZE, embed_replicate)
-            else:
-                raise Exception("Replicate URL and token not set")
-        case _:
-            raise Exception("Invalid vector embedding mode")
+    if VECTOR_EMBEDDING_SOURCE == "sentence-transformers":
+        sentence_transformer_model = SentenceTransformer(
+            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+        )
+        return sentence_transformer_model.encode(
+            texts, show_progress_bar=True, batch_size=BATCH_SIZE
+        )
+    elif VECTOR_EMBEDDING_SOURCE == "openai":
+        import openai
+        return compute_embeddings(texts, BATCH_SIZE, openai.Embedding.create)
+    elif VECTOR_EMBEDDING_SOURCE == "huggingface":
+        if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
+            return compute_embeddings(texts, BATCH_SIZE, embed_huggingface)
+        else:
+            raise Exception("Hugging Face URL and token not set")
+    elif VECTOR_EMBEDDING_SOURCE == "replicate":
+        if REPLICATE_API_KEY:
+            return compute_embeddings(texts, BATCH_SIZE, embed_replicate)
+        else:
+            raise Exception("Replicate URL and token not set")
+    else:
+        raise Exception("Invalid vector embedding mode")
     logger.info(
         f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
     )
+
 def compute_embeddings(texts: List[str], batch_size: int, embed_func):
     embeddings = []
     for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
