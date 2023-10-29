@@ -9,7 +9,7 @@ import traceback
 from time import time
 
 import openai
-def handle_sandbox_mode(repo_full_name: str, user_token: str, tracking_id: str, summary: str):
+def handle_sandbox_mode(repo, repo_full_name: str, user_token: str, tracking_id: str, summary: str):
     # Hydrate cache of sandbox
     if not DEBUG:
         logger.info("Hydrating cache of sandbox.")
@@ -245,7 +245,7 @@ def on_ticket(
     if assignee is None:
         assignee = current_issue.user.login
 
-    branch_name = handle_sandbox_mode(repo_full_name, user_token, tracking_id, summary)
+    branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id, summary)
 
     chat_logger = (
         ChatLogger(
@@ -340,6 +340,9 @@ def on_ticket(
                 username,
                 "issue_closed",
                 properties={**metadata, "duration": time() - on_ticket_start_time},
+branch_name = handle_sandbox_mode(repo_full_name, user_token, tracking_id, summary)
+=======
+branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id, summary)
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -1269,6 +1272,8 @@ def on_ticket(
                 raise SystemExit
             except Exception:
                 pass
+
+            branch_name = handle_sandbox_mode(repo, repo_full_name, user_token, tracking_id, summary)
 
             changes_required = False
             try:
