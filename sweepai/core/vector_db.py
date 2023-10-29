@@ -8,7 +8,7 @@ import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.core.lexical_search import prepare_index_from_snippetsimport jsonimport json
+from sweepai.core.lexical_search import prepare_index_from_snippets
 import re
 import time
 from functools import lru_cache
@@ -58,7 +58,7 @@ import numpy as np
 import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from sweepai.core.lexical_search import prepare_index_from_snippetsimport jsonimport json
+from sweepai.core.lexical_search import prepare_index_from_snippets
 import re
 import time
 from functools import lru_cache
