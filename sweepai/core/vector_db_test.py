@@ -17,6 +17,7 @@ class TestVectorDB(unittest.TestCase):
         cloned_repo = MagicMock(spec=ClonedRepo)
         cloned_repo.clone.return_value = None
         cloned_repo.get_file_contents.return_value = "file contents"
+        cloned_repo.repo_full_name = "dummy/repo"
         sweep_config = SweepConfig()
 
         result = get_deeplake_vs_from_repo(cloned_repo, sweep_config)
@@ -35,6 +36,7 @@ class TestVectorDB(unittest.TestCase):
         cloned_repo = MagicMock(spec=ClonedRepo)
         cloned_repo.clone.return_value = None
         cloned_repo.get_file_contents.return_value = "file contents"
+        cloned_repo.repo_full_name = "dummy/repo"
         sweep_config = SweepConfig()
 
         result = get_relevant_snippets(cloned_repo, 'query')
