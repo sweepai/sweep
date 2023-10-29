@@ -23,9 +23,12 @@ def post_process_snippets(
         snippet
         for snippet in snippets
         if not any(
-            snippet.file_path == exclude_file for exclude_file in exclude_snippets
+            snippet.file_path.startswith(exclude_snippet)
+            for exclude_snippet in exclude_snippets
         )
     ]
+
+    snippets = snippets[: min(len(snippets), max_num_of_snippets * 10)]
     # snippet fusing
     i = 0
     while i < len(snippets):
