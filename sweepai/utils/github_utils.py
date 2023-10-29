@@ -42,6 +42,8 @@ def get_jwt():
 
 
 def get_token(installation_id: int):
+    if not GITHUB_APP_PEM or not GITHUB_APP_ID:
+        raise Exception("PRIVATE_KEY or GITHUB_APP_ID is not set in the environment variables.")
     for timeout in [5.5, 5.5, 10.5]:
         try:
             jwt = get_jwt()
@@ -131,7 +133,11 @@ class ClonedRepo:
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
-        self.token = self.token or get_token(self.installation_id)
+        try:
+            self.token = self.token or get_token(self.installation_id)
+        except Exception as e:
+            logger.error(f"Failed to get token: {e}")
+            self.token = "default_token"
         if os.path.exists(self.cache_dir):
             self.git_repo = git.Repo(self.cache_dir)
             try:
