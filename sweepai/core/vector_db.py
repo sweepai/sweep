@@ -25,49 +25,48 @@ def compute_embeddings(texts: list[str]) -> list:
     logger.info(
         f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
     )
-    match VECTOR_EMBEDDING_SOURCE:
-        case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            vector = sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
-            return vector
-        case "openai":
-            import openai
+    if VECTOR_EMBEDDING_SOURCE == "sentence-transformers":
+        sentence_transformer_model = SentenceTransformer(
+            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+        )
+        vector = sentence_transformer_model.encode(
+            texts, show_progress_bar=True, batch_size=BATCH_SIZE
+        )
+        return vector
+    elif VECTOR_EMBEDDING_SOURCE == "openai":
+        import openai
 
+        embeddings = []
+        for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+            try:
+                response = openai.Embedding.create(
+                    input=batch, model="text-embedding-ada-002"
+                )
+                embeddings.extend([r["embedding"] for r in response["data"]])
+            except SystemExit:
+                raise SystemExit
+            except Exception:
+                logger.exception("Failed to get embeddings for batch")
+                logger.error(f"Failed to get embeddings for {batch}")
+        return embeddings
+    elif VECTOR_EMBEDDING_SOURCE == "huggingface":
+        if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
             embeddings = []
             for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                try:
-                    response = openai.Embedding.create(
-                        input=batch, model="text-embedding-ada-002"
-                    )
-                    embeddings.extend([r["embedding"] for r in response["data"]])
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    logger.exception("Failed to get embeddings for batch")
-                    logger.error(f"Failed to get embeddings for {batch}")
+                embeddings.extend(embed_huggingface(texts))
             return embeddings
-        case "huggingface":
-            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                    embeddings.extend(embed_huggingface(texts))
-                return embeddings
-            else:
-                raise Exception("Hugging Face URL and token not set")
-        case "replicate":
-            if REPLICATE_API_KEY:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
-                    embeddings.extend(embed_replicate(batch))
-                return embeddings
-            else:
-                raise Exception("Replicate URL and token not set")
-        case _:
-            raise Exception("Invalid vector embedding mode")
+        else:
+            raise Exception("Hugging Face URL and token not set")
+    elif VECTOR_EMBEDDING_SOURCE == "replicate":
+        if REPLICATE_API_KEY:
+            embeddings = []
+            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
+                embeddings.extend(embed_replicate(batch))
+            return embeddings
+        else:
+            raise Exception("Replicate URL and token not set")
+    else:
+        raise Exception("Invalid vector embedding mode")
     logger.info(
         f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
     )
