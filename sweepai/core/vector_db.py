@@ -29,12 +29,10 @@ from sweepai.config.server import (
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
-from sweepai.logn import file_cache
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, get_scores
-
-from sweepai.utils.github_utils import ClonedRepo
 
 MODEL_DIR = "/tmp/cache/model"
 DEEPLAKE_DIR = "/tmp/cache/"
@@ -175,17 +173,38 @@ def get_deeplake_vs_from_repo(
     commits = repo.get_commits()
     commit_hash = commits[0].sha
 
-    snippets, file_list, start = download_and_index_repo(repo_full_name, repo, sweep_config, cloned_repo)
+    snippets, file_list, start = download_and_index_repo(
+        repo_full_name, repo, sweep_config, cloned_repo
+    )
     # prepare lexical search
     index = prepare_lexical_search(snippets, cloned_repo)
     # scoring for vector search
-    files_to_scores = compute_vector_search_scores(file_list, cloned_repo, repo_full_name)
+    files_to_scores = compute_vector_search_scores(
+        file_list, cloned_repo, repo_full_name
+    )
 
-    deeplake_vs, documents = compute_embeddings(snippets, cloned_repo, files_to_scores, start, repo_full_name, deeplake_vs, commit_hash)
+    deeplake_vs, documents = compute_embeddings(
+        snippets,
+        cloned_repo,
+        files_to_scores,
+        start,
+        repo_full_name,
+        deeplake_vs,
+        commit_hash,
+    )
 
     return deeplake_vs, index, len(documents)
 
-def compute_embeddings(snippets, cloned_repo, files_to_scores, start, repo_full_name, deeplake_vs, commit_hash):
+
+def compute_embeddings(
+    snippets,
+    cloned_repo,
+    files_to_scores,
+    start,
+    repo_full_name,
+    deeplake_vs,
+    commit_hash,
+):
     documents = []
     metadatas = []
     ids = []
@@ -208,6 +227,7 @@ def compute_embeddings(snippets, cloned_repo, files_to_scores, start, repo_full_
         collection_name, documents, ids, metadatas, commit_hash
     )
     return deeplake_vs, documents
+
 
 def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     # scoring for vector search
@@ -243,6 +263,7 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
     return files_to_scores
 
+
 def prepare_lexical_search(snippets, cloned_repo):
     # prepare lexical search
     index = prepare_index_from_snippets(
@@ -250,6 +271,7 @@ def prepare_lexical_search(snippets, cloned_repo):
     )
     logger.print("Prepared index from snippets")
     return index
+
 
 def download_and_index_repo(repo_full_name, repo, sweep_config, cloned_repo):
     logger.info(f"Downloading repository and indexing for {repo_full_name}...")
