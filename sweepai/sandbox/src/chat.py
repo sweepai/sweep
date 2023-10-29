@@ -305,6 +305,14 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
+        if (
+            model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 3000
+            and not os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS")
+        ):  # use 16k if it's OOC and no 32k
+            model = "gpt-3.5-turbo-16k-0613"
+            max_tokens = (
+                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+            )
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 5000)
         # Fix for self hosting where TPM limit is super low for GPT-4
