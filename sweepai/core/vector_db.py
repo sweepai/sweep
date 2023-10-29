@@ -9,7 +9,32 @@ import replicate
 import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
+)import json
+import re
+import time
+from functools import lru_cache
+from typing import Generator, List
+
+import numpy as np
+import replicate
+import requests
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
 )
+def get_sorted_metadatas(metadatas: List[dict], code_scores: List[float], vector_scores: List[float], lexical_scores: List[float]) -> List[dict]:
+    """Compute combined scores and sort metadatas."""
+    combined_scores = [
+        code_score * 4
+        + vector_score
+        + lexical_score * 2.5  # increase weight of lexical search
+        for code_score, vector_score, lexical_score in zip(
+            code_scores, vector_scores, lexical_scores
+        )
+    ]
+    combined_list = list(zip(combined_scores, metadatas))
+    sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
+    sorted_metadatas = [metadata for _, metadata in sorted_list]
+    return sorted_metadatas
 from tqdm import tqdm
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import get_scores
@@ -402,25 +427,15 @@ def get_relevant_snippets(
         return []
     metadatas = results["metadata"]
     code_scores = [metadata["score"] for metadata in metadatas]
-    lexical_scores = []
-    for metadata in metadatas:
-        key = f"{metadata['file_path']}:{str(metadata['start'])}:{str(metadata['end'])}"
-        if key in content_to_lexical_score:
-            lexical_scores.append(content_to_lexical_score[key])
-        else:
-            lexical_scores.append(0.3)
-    vector_scores = results["score"]
-    combined_scores = [
-        code_score * 4
-        + vector_score
-        + lexical_score * 2.5  # increase weight of lexical search
-        for code_score, vector_score, lexical_score in zip(
-            code_scores, vector_scores, lexical_scores
+    lexical_scores = [
+        content_to_lexical_score.get(
+            f"{metadata['file_path']}:{str(metadata['start'])}:{str(metadata['end'])}",
+            0.3,
         )
+        for metadata in metadatas
     ]
-    combined_list = list(zip(combined_scores, metadatas))
-    sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
-    sorted_metadatas = [metadata for _, metadata in sorted_list]
+    vector_scores = results["score"]
+    sorted_metadatas = get_sorted_metadatas(metadatas, code_scores, vector_scores, lexical_scores)
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths[:5]))
     return [
