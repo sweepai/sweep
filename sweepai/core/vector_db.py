@@ -10,7 +10,7 @@ import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
-def fetch_repository(cloned_repo: ClonedRepo, sweep_config: SweepConfig = SweepConfig()):
+def fetch_repository(cloned_repo: ClonedRepo, sweep_config: SweepConfig = SweepConfig()) -> Tuple[str, List[str], List[str], List[Dict[str, Any]], str]:
     repo_full_name = cloned_repo.repo_full_name
     repo = cloned_repo.repo
     commits = repo.get_commits()
@@ -80,7 +80,7 @@ def fetch_repository(cloned_repo: ClonedRepo, sweep_config: SweepConfig = SweepC
 
     return collection_name, documents, ids, metadatas, commit_hash
 
-def compute_embeddings(documents):
+def compute_embeddings(documents: List[str]) -> Optional[np.ndarray]:
     if len(documents) > 0:
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
@@ -128,7 +128,7 @@ def compute_embeddings(documents):
         logger.error("No documents found in repository")
         return None
 
-def initialize_vectorstore(collection_name, documents, ids, metadatas, sha, embeddings):
+def initialize_vectorstore(collection_name: str, documents: List[str], ids: List[str], metadatas: List[Dict[str, Any]], sha: str, embeddings: np.ndarray) -> VectorStore:
     deeplake_vs = init_deeplake_vs(collection_name)
     deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
     logger.info("Added embeddings to cache")
@@ -314,6 +314,8 @@ def get_deeplake_vs_from_repo(
     embeddings = compute_embeddings(documents)
     deeplake_vs = initialize_vectorstore(collection_name, documents, ids, metadatas, commit_hash, embeddings)
     return deeplake_vs, index, len(documents)
+    
+    # No changes needed in this snippet
 
 
 def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
