@@ -688,7 +688,20 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        snippets, tree, dir_obj = fetch_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url)
+        snippets, tree, dir_obj = fetch_relevant_files(
+            cloned_repo,
+            title,
+            summary,
+            replies_text,
+            username,
+            metadata,
+            on_ticket_start_time,
+            tracking_id,
+            edit_sweep_comment,
+            is_paying_user,
+            is_consumer_tier,
+            issue_url,
+        )
 
         # Fetch git commit history
         commit_history = cloned_repo.get_commit_history(username=username)
@@ -1485,7 +1498,21 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
-def fetch_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url):
+
+def fetch_relevant_files(
+    cloned_repo,
+    title,
+    summary,
+    replies_text,
+    username,
+    metadata,
+    on_ticket_start_time,
+    tracking_id,
+    edit_sweep_comment,
+    is_paying_user,
+    is_consumer_tier,
+    issue_url,
+):
     logger.info("Fetching relevant files...")
     try:
         snippets, tree, dir_obj = search_snippets(
