@@ -638,7 +638,9 @@ def on_ticket(
 
         logger.info("Fetching relevant files...")
         try:
-            snippets, tree, dir_obj = extract_search_snippets(cloned_repo, title, summary, replies_text)
+            snippets, tree, dir_obj = extract_search_snippets(
+                cloned_repo, title, summary, replies_text
+            )
         except SystemExit:
             logger.warning("System exit")
             posthog.capture(
@@ -1476,6 +1478,7 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
 
 def extract_search_snippets(cloned_repo, title, summary, replies_text):
     snippets, tree, dir_obj = search_snippets(
