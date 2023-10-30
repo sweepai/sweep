@@ -651,8 +651,8 @@ def on_ticket(
             logger.info("Issue too short")
             edit_sweep_comment(
                 (
-                    "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
+                    f"Please add more details to your issue. I need at least 20 characters"
+                    f" to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
                 ),
                 -1,
             )
@@ -672,9 +672,9 @@ def on_ticket(
                 logger.info("Test repository detected")
                 edit_sweep_comment(
                     (
-                        "Sweep does not work on test repositories. Please create an issue"
-                        " on a real repository. If you think this is a mistake, please"
-                        " report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
+                        f"Sweep does not work on test repositories. Please create an issue"
+                        f" on a real repository. If you think this is a mistake, please"
+                        f" report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
                     ),
                     -1,
                 )
