@@ -223,6 +223,10 @@ class CodeGenBot(ChatGPT):
                     )
                 if any(keyword in self.human_message.title.lower() for keyword in ("refactor", "extract", "replace")):
                     self.human_message.title += python_refactor_issue_title_guide_prompt
+                    posthog.capture(
+                            self.chat_logger.data["username"],
+                            "python_refactor",
+                        )
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -1474,10 +1478,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     if any(keyword in file_change_request.instructions.lower() for keyword in ("refactor", "extract", "replace")) and file_change_request.filename.endswith(".py"):
                         chunking = False
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
-                        posthog.capture(
-                            self.chat_logger.data["username"],
-                            "python_refactor",
-                        )
                         additional_messages = [Message(role="user", content=self.human_message.get_issue_metadata(), key="issue_metadata")]
                         # empty string
                         cloned_repo = ClonedRepo(self.cloned_repo.repo_full_name, 
