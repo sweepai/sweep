@@ -1,13 +1,16 @@
-from gettext import install
 import re
-from sweepai.core.update_prompts import extract_snippets_system_prompt, extract_snippets_user_prompt
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
 
 import rope.base.project
+from loguru import logger
 from rope.refactor.extract import ExtractMethod
-from sweepai.utils.github_utils import ClonedRepo
 
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message
+from sweepai.core.update_prompts import (
+    extract_snippets_system_prompt,
+    extract_snippets_user_prompt,
+)
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.search_and_replace import find_best_match
 
 
@@ -23,23 +26,29 @@ def extract_method(
     contents = resource.read()
     start, end = contents.find(snippet), contents.find(snippet) + len(snippet)
 
-    extractor = ExtractMethod(project, resource, start, end)
-    change_set = extractor.get_changes(method_name, similar=True, global_=True)
-    for change in change_set.changes:
-        change.do()
+    try:
+        extractor = ExtractMethod(project, resource, start, end)
+        change_set = extractor.get_changes(method_name, similar=True, global_=True)
+        for change in change_set.changes:
+            change.do()
 
-    result = resource.read()
-    return result, change_set
+        result = resource.read()
+        return result, change_set
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        raise e
+        # return contents, []
+
 
 class RefactorBot(ChatGPT):
     def refactor_snippets(
         self,
         additional_messages: list[Message] = [],
-        snippets_str = "",
+        snippets_str="",
         file_path: str = "",
         update_snippets_code: str = "",
-        request = "",
-        changes_made = "",
+        request="",
+        changes_made="",
         cloned_repo: ClonedRepo = None,
         **kwargs,
     ):
@@ -65,16 +74,26 @@ class RefactorBot(ChatGPT):
                 changes_made=changes_made,
             )
         )
-        new_function_pattern = r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
-        new_function_matches = list(re.finditer(new_function_pattern, extract_response, re.DOTALL))
+        new_function_pattern = (
+            r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
+        )
+        new_function_matches = list(
+            re.finditer(new_function_pattern, extract_response, re.DOTALL)
+        )
         new_function_names = []
         for match_ in new_function_matches:
             match = match_.groupdict()
             new_function_names = match["new_function_names"]
             new_function_names = new_function_names.split("\n")
-        new_function_names = [new_function_name.strip().strip('"').strip("'").strip("`") for new_function_name in new_function_names if new_function_name.strip()]
+        new_function_names = [
+            new_function_name.strip().strip('"').strip("'").strip("`")
+            for new_function_name in new_function_names
+            if new_function_name.strip()
+        ]
         extracted_pattern = r"<<<<<<<\s+EXTRACT\s+(?P<updated_code>.*?)>>>>>>>"
-        extract_matches = list(re.finditer(extracted_pattern, extract_response, re.DOTALL))
+        extract_matches = list(
+            re.finditer(extracted_pattern, extract_response, re.DOTALL)
+        )
         change_sets = []
         new_code = None
         for idx, match_ in enumerate(extract_matches):
@@ -90,7 +109,9 @@ class RefactorBot(ChatGPT):
                     best_match = find_best_match(updated_code, snippets_str)
                     if best_match.score < 80:
                         continue
-            extracted_original_code = "\n".join(snippets_str.split("\n")[best_match.start : best_match.end])
+            extracted_original_code = "\n".join(
+                snippets_str.split("\n")[best_match.start : best_match.end]
+            )
             new_code, change_set = extract_method(
                 extracted_original_code,
                 file_path,
@@ -102,7 +123,7 @@ class RefactorBot(ChatGPT):
             for change in change_set.changes:
                 change.undo()
         return new_code
-    
+
 
 if __name__ == "__main__":
     additional_messages = [
