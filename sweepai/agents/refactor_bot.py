@@ -65,24 +65,33 @@ class RefactorBot(ChatGPT):
                 changes_made=changes_made,
             )
         )
-        extracted_pattern = r"<<<<<<<\s+EXTRACT\s+\(index=(?P<index>\d+), new_function_name=(?P<new_function_name>.*?)\)(?P<updated_code>.*?)>>>>>>>"
-        
+        new_function_pattern = r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
+        new_function_matches = list(re.finditer(new_function_pattern, extract_response, re.DOTALL))
+        new_function_names = []
+        for match_ in new_function_matches:
+            match = match_.groupdict()
+            new_function_names = match["new_function_names"]
+            new_function_names = new_function_names.split("\n")
+        new_function_names = [new_function_name.strip().strip('"').strip("'").strip("`") for new_function_name in new_function_names if new_function_name.strip()]
+        extracted_pattern = r"<<<<<<<\s+EXTRACT\s+(?P<updated_code>.*?)>>>>>>>"
         extract_matches = list(re.finditer(extracted_pattern, extract_response, re.DOTALL))
         change_sets = []
-        for match_ in extract_matches:
+        new_code = None
+        for idx, match_ in enumerate(extract_matches):
             match = match_.groupdict()
-            new_function_name = match["new_function_name"]
-            new_function_name = new_function_name.strip().strip('"').strip("'")
             updated_code = match["updated_code"]
             updated_code = updated_code.strip("\n")
             best_match = find_best_match(updated_code, snippets_str)
-            if best_match.score < 80:
-                continue
+            if best_match.score < 70:
+                updated_code = "\n".join(updated_code.split("\n")[1:-1])
+                best_match = find_best_match(updated_code, snippets_str)
+                if best_match.score < 80: 
+                    continue
             extracted_original_code = "\n".join(snippets_str.split("\n")[best_match.start : best_match.end])
             new_code, change_set = extract_method(
                 extracted_original_code,
                 file_path,
-                new_function_name,
+                new_function_names[idx],
                 project_name=cloned_repo.cache_dir,
             )
             change_sets.append(change_set)

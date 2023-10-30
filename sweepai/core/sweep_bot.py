@@ -42,6 +42,7 @@ from sweepai.core.prompts import (
     create_file_prompt,
     files_to_change_prompt,
     pull_request_prompt,
+    python_refactor_issue_title_guide_prompt,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     sandbox_files_to_change_prompt,
@@ -218,7 +219,8 @@ class CodeGenBot(ChatGPT):
                     graph_parent_bot.messages.insert(
                         1, Message(role="user", content=pr_diffs, key="pr_diffs")
                     )
-
+                if any(keyword in self.human_message.title.lower() for keyword in ("refactor", "extract", "replace")):
+                    self.human_message.title += python_refactor_issue_title_guide_prompt
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -341,6 +343,10 @@ class CodeGenBot(ChatGPT):
                     relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
                     self.update_message_content_from_message_key(
                         "relevant_snippets", relevant_snippet_text
+                    )
+                    # regenerate issue metadata
+                    self.update_message_content_from_message_key(
+                        "metadata", self.human_message.get_issue_metadata()
                     )
                     files_to_change_response = self.chat(
                         files_to_change_prompt, message_key="files_to_change"
@@ -1198,6 +1204,9 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                             changed_files=changed_files,
                         )
+                        if changed_file:
+                            for future_fcr in file_change_requests[i:]:
+                                import pdb; pdb.set_trace()
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
                         )
@@ -1464,7 +1473,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         len(lines) > CHUNK_SIZE
                     )  # Only chunk if the file is large enough
                     sandbox_error = None
-                    if any(keyword in file_change_request.instructions.lower() for keyword in ("refactor", "extract")) and file_change_request.filename.endswith(".py"):
+                    if any(keyword in file_change_request.instructions.lower() for keyword in ("refactor", "extract", "replace")) and file_change_request.filename.endswith(".py"):
                         chunking = False
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
                         additional_messages = [Message(role="user", content=self.human_message.get_issue_metadata(), key="issue_metadata")]
@@ -1478,6 +1487,8 @@ class SweepBot(CodeGenBot, GithubBot):
                             changes_made="",
                             cloned_repo=self.cloned_repo
                         )
+                        if new_file_contents is None:
+                            new_file_contents = file_contents # no changes made
                         changed_files.append((file_change_request.filename, (file_contents, new_file_contents)))
                         commit_message = f"feat: Refactored {file_change_request.filename}"
                     elif file_change_request.entity:
