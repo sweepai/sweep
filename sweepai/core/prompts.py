@@ -221,8 +221,8 @@ sandbox_files_to_change_prompt = """\
 Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high-quality plan that completely fixes the CI/CD run.
 
 Provide a list of ALL of the files we should modify, abiding by the following:
-* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
-* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+* You may only create and modify files.
+* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree for reference.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Do not modify non-text files such as images, svgs, binary, etc
@@ -248,12 +248,6 @@ Outline of additions in concise natural language of what needs to be implemented
 Outline of modifications in natural language (no code), referencing entities, and what type of patterns to look for, such as all occurrences of a variable or function call.
 Do not make this XML block if no changes are needed.
 </modify>
-...
-
-<delete file="file_path_3"></delete>
-...
-
-<rename file="file_path_4">new full path for file path 4</rename>
 ...
 
 </plan>"""
