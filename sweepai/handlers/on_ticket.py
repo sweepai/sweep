@@ -1192,54 +1192,7 @@ def on_ticket(
                 pass
 
             changes_required = False
-            try:
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(
-                    repo=repo,
-                    pr=pr_changes,
-                    issue_url=issue_url,
-                    username=username,
-                    repo_description=repo_description,
-                    title=title,
-                    summary=summary,
-                    replies_text=replies_text,
-                    tree=tree,
-                    lint_output=lint_output,
-                    plan=plan,  # plan for the PR
-                    chat_logger=chat_logger,
-                    commit_history=commit_history,
-                )
-                lint_output = None
-                review_message += (
-                    f"Here is the {ordinal(1)} review\n"
-                    + blockquote(review_comment)
-                    + "\n\n"
-                )
-                if changes_required:
-                    edit_sweep_comment(
-                        review_message
-                        + "\n\nI'm currently addressing these suggestions.",
-                        3,
-                    )
-                    logger.info(f"Addressing review comment {review_comment}")
-                    on_comment(
-                        repo_full_name=repo_full_name,
-                        repo_description=repo_description,
-                        comment=review_comment,
-                        username=username,
-                        installation_id=installation_id,
-                        pr_path=None,
-                        pr_line_position=None,
-                        pr_number=None,
-                        pr=pr_changes,
-                        chat_logger=chat_logger,
-                        repo=repo,
-                    )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+            changes_required, review_message = review_code(repo, pr_changes, issue_url, username, repo_description, title, summary, replies_text, tree, lint_output, plan, chat_logger, commit_history, review_message, edit_sweep_comment, repo_full_name, installation_id)
 
             if changes_required:
                 edit_sweep_comment(
@@ -1497,6 +1450,57 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def review_code(repo, pr_changes, issue_url, username, repo_description, title, summary, replies_text, tree, lint_output, plan, chat_logger, commit_history, review_message, edit_sweep_comment, repo_full_name, installation_id):
+    try:
+        # CODE REVIEW
+        changes_required, review_comment = review_pr(
+            repo=repo,
+            pr=pr_changes,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description,
+            title=title,
+            summary=summary,
+            replies_text=replies_text,
+            tree=tree,
+            lint_output=lint_output,
+            plan=plan,  # plan for the PR
+            chat_logger=chat_logger,
+            commit_history=commit_history,
+        )
+        lint_output = None
+        review_message += (
+            f"Here is the {ordinal(1)} review\n"
+            + blockquote(review_comment)
+            + "\n\n"
+        )
+        if changes_required:
+            edit_sweep_comment(
+                review_message
+                + "\n\nI'm currently addressing these suggestions.",
+                3,
+            )
+            logger.info(f"Addressing review comment {review_comment}")
+            on_comment(
+                repo_full_name=repo_full_name,
+                repo_description=repo_description,
+                comment=review_comment,
+                username=username,
+                installation_id=installation_id,
+                pr_path=None,
+                pr_line_position=None,
+                pr_number=None,
+                pr=pr_changes,
+                chat_logger=chat_logger,
+                repo=repo,
+            )
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(e)
+    return changes_required, review_message
 
 
 def fetch_relevant_files(
