@@ -1005,4 +1005,4 @@ Respond with a list of the MINIMUM snippet(s) from old_code that should be modif
 Then, select terms in the code that we should extract to update. The system will then select each line containing any of the patterns. Only select terms that MUST be updated."""
 
 python_refactor_issue_title_guide_prompt = """\
-\nIdentify sections in the code that should be extracted and extract these one at a time. Do not make a new file, just extract sections of code one at a time. Try to extract larger sections of code to make the code more modular."""
+\nIdentify sections in the code that should be extracted and extract these one at a time. Do not make a new file, just extract sections of code one at a time. Try to extract larger sections of code to make the code more modular. If a single function would be too large, refactor it into multiple smaller subfunctions."""

@@ -130,15 +130,14 @@ When you write code, the code works on the first try. and is complete. Take into
 # Instructions
 Extract code verbatim from the snippets above. These snippets will be used later to refactor the code according to the user request.
 * Choose specific and very informative names for these functions under new_function_name.
-* We must copy the lines verbatim, so any extra leading or trailing code will cause us to fail.
-* You may add "..." in the middle of large extractions.
+* We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
 * Keep whitespace and comments.
 * Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request and outline the first and last lines of code that should be extracted.
+Analyze the user request and outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
 <new_function_names>
@@ -149,9 +148,9 @@ Analyze the user request and outline the first and last lines of code that shoul
 <extractions>
 ```
 <<<<<<< EXTRACT
-first line to be extracted from original_code
+first few lines to be extracted from original_code
 ...
-last line to be extracted from original_code
+last few lines to be extracted from original_code
 >>>>>>>
 ...
 ```
@@ -164,21 +163,21 @@ File path: {file_path}
 # Request
 {request}
 
-<snippets_to_update>
+<original_code>
 {snippets}
-</snippets_to_update>
+</original_code>
+
 # Instructions
 Extract code verbatim from the snippets above. These snippets will be used later to refactor the code according to the user request.
 * Choose specific and very informative names for these functions under new_function_name.
-* We must copy the lines verbatim, so any extra leading or trailing code will cause us to fail.
-* You may add "..." in the middle of large extractions.
+* We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
 * Keep whitespace and comments.
 * Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request and outline the first and last lines of code that should be extracted.
+Analyze the user request and outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
 <new_function_names>
@@ -189,9 +188,9 @@ Analyze the user request and outline the first and last lines of code that shoul
 <extractions>
 ```
 <<<<<<< EXTRACT
-first line to be extracted from original_code
+first few lines to be extracted from original_code
 ...
-last line to be extracted from original_code
+last few lines to be extracted from original_code
 >>>>>>>
 ...
 ```
