@@ -1134,7 +1134,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_requests[i].status = "running"
         error_messages = []
 
-        while i < min(len(file_change_requests), 15):
+        while i < min(len(file_change_requests), 20):
             file_change_request = file_change_requests[i]
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
