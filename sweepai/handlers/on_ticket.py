@@ -174,13 +174,7 @@ def on_ticket(
     hydrate_sandbox_cache(repo_full_name, user_token, tracking_id)
 
     # Check body for "branch: <branch_name>\n" using regex
-    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
-    if branch_match:
-        branch_name = branch_match.group(1)
-        SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
-    else:
-        logger.info(f"Overrides not detected for branch {summary}")
+    check_branch_override(summary, repo)
 
     chat_logger = (
         ChatLogger(
@@ -1509,6 +1503,16 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def check_branch_override(summary, repo):
+    # Check body for "branch: <branch_name>\n" using regex
+    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
+    if branch_match:
+        branch_name = branch_match.group(1)
+        SweepConfig.get_branch(repo, branch_name)
+        logger.info(f"Overrides Branch name: {branch_name}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
 
 
 def hydrate_sandbox_cache(repo_full_name, user_token, tracking_id):
