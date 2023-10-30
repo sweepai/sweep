@@ -54,6 +54,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils import chat_logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.graph import Graph
 from sweepai.utils.str_utils import clean_logs
 from sweepai.utils.utils import chunk_code
@@ -1116,7 +1117,6 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         blocked_dirs: list[str],
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
-        logger.debug(file_change_requests)
         completed = 0
         sandbox_response = None
         changed_files: list[tuple[str, str]] = []
@@ -1204,9 +1204,6 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                             changed_files=changed_files,
                         )
-                        if changed_file:
-                            for future_fcr in file_change_requests[i:]:
-                                import pdb; pdb.set_trace()
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
                         )
@@ -1478,6 +1475,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
                         additional_messages = [Message(role="user", content=self.human_message.get_issue_metadata(), key="issue_metadata")]
                         # empty string
+                        cloned_repo = ClonedRepo(self.cloned_repo.repo_full_name, 
+                                                 self.cloned_repo.installation_id, 
+                                                 branch, 
+                                                 self.cloned_repo.token)
                         new_file_contents = refactor_bot.refactor_snippets(
                             additional_messages=additional_messages,
                             snippets_str=file_contents,
@@ -1485,7 +1486,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             update_snippets_code=file_contents,
                             request=file_change_request.instructions,
                             changes_made="",
-                            cloned_repo=self.cloned_repo
+                            cloned_repo=cloned_repo
                         )
                         if new_file_contents is None:
                             new_file_contents = file_contents # no changes made

@@ -137,6 +137,10 @@ Extract code verbatim from the snippets above. These snippets will be used later
 
 Respond in the following format:
 
+<contextual_request_analysis>
+Analyze the user request and outline the first and last lines of code that should be extracted.
+</contextual_request_analysis>
+
 <new_function_names>
 "new_function_name"
 ...
@@ -172,6 +176,10 @@ Extract code verbatim from the snippets above. These snippets will be used later
 * Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
 
 Respond in the following format:
+
+<contextual_request_analysis>
+Analyze the user request and outline the first and last lines of code that should be extracted.
+</contextual_request_analysis>
 
 <new_function_names>
 "new_function_name"

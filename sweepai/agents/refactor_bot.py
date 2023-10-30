@@ -83,10 +83,13 @@ class RefactorBot(ChatGPT):
             updated_code = updated_code.strip("\n")
             best_match = find_best_match(updated_code, snippets_str)
             if best_match.score < 70:
-                updated_code = "\n".join(updated_code.split("\n")[1:-1])
+                updated_code = "\n".join(updated_code.split("\n")[1:])
                 best_match = find_best_match(updated_code, snippets_str)
-                if best_match.score < 80: 
-                    continue
+                if best_match.score < 80:
+                    updated_code = "\n".join(updated_code.split("\n")[:-1])
+                    best_match = find_best_match(updated_code, snippets_str)
+                    if best_match.score < 80:
+                        continue
             extracted_original_code = "\n".join(snippets_str.split("\n")[best_match.start : best_match.end])
             new_code, change_set = extract_method(
                 extracted_original_code,
