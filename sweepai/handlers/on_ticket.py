@@ -1505,6 +1505,7 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
+
 def hydrate_sandbox_cache(repo_full_name, user_token, tracking_id):
     logger.info("Hydrating cache of sandbox.")
     try:
