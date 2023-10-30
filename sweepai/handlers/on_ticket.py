@@ -1481,131 +1481,151 @@ def on_ticket(
     return {"success": True}
 
 
-def extract_search_snippets(cloned_repo, title, summary, replies_text):
-    snippets, tree, dir_obj = search_snippets(
-        cloned_repo,
-        f"{title}\n{summary}\n{replies_text}",
-        num_files=num_of_snippets_to_query,
-    )
-    assert len(snippets) > 0
-    return snippets, tree, dir_obj
+
+def extract_search_snippets():
+    def extract_search_snippets(cloned_repo, title, summary, replies_text):
+        snippets, tree, dir_obj = search_snippets(
+            cloned_repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+        )
+        assert len(snippets) > 0
+        return snippets, tree, dir_obj
+
+extract_search_snippets()
 
 
-def setup_chat_logger(
-    repo_name,
-    title,
-    summary,
-    issue_number,
-    issue_url,
-    username,
-    assignee,
-    repo_full_name,
-    repo_description,
-    installation_id,
-    comment_id,
-    edited,
-    g,
-    fast_mode,
-    sandbox_mode,
-):
-    chat_logger = (
-        ChatLogger(
-            {
-                "repo_name": repo_name,
-                "title": title,
-                "summary": summary,
-                "issue_number": issue_number,
+
+def setup_chat_logger():
+    def setup_chat_logger(
+        repo_name,
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        assignee,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        g,
+        fast_mode,
+        sandbox_mode,
+    ):
+        chat_logger = (
+            ChatLogger(
+                {
+                    "repo_name": repo_name,
+                    "title": title,
+                    "summary": summary,
+                    "issue_number": issue_number,
+                    "issue_url": issue_url,
+                    "username": username if not username.startswith("sweep") else assignee,
+                    "repo_full_name": repo_full_name,
+                    "repo_description": repo_description,
+                    "installation_id": installation_id,
+                    "type": "ticket",
+                    "mode": ENV,
+                    "comment_id": comment_id,
+                    "edited": edited,
+                }
+            )
+            if MONGODB_URI
+            else None
+        )
+
+        if chat_logger:
+            is_paying_user = chat_logger.is_paying_user()
+            is_consumer_tier = chat_logger.is_consumer_tier()
+            use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+        else:
+            is_paying_user = True
+            is_consumer_tier = False
+            use_faster_model = False
+
+        if fast_mode:
+            use_faster_model = True
+
+        if not comment_id and not edited and chat_logger and not sandbox_mode:
+            chat_logger.add_successful_ticket(
+                gpt3=use_faster_model
+            )  # moving higher, will increment the issue regardless of whether it's a success or not
+        return use_faster_model, is_paying_user, is_consumer_tier, chat_logger
+
+setup_chat_logger()
+
+
+
+def check_branch_override():
+    def check_branch_override(summary, repo):
+        # Check body for "branch: <branch_name>\n" using regex
+        branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
+        if branch_match:
+            branch_name = branch_match.group(1)
+            SweepConfig.get_branch(repo, branch_name)
+            logger.info(f"Overrides Branch name: {branch_name}")
+        else:
+            logger.info(f"Overrides not detected for branch {summary}")
+
+check_branch_override()
+
+
+
+def hydrate_sandbox_cache():
+    def hydrate_sandbox_cache(repo_full_name, user_token, tracking_id):
+        if not DEBUG:
+            logger.info("Hydrating cache of sandbox.")
+            try:
+                requests.post(
+                    SANDBOX_URL,
+                    json={
+                        "repo_url": f"https://github.com/{repo_full_name}",
+                        "token": user_token,
+                    },
+                    timeout=2,
+                )
+            except Timeout:
+                logger.info("Sandbox hydration timed out.")
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.warning(
+                    f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
+                )
+            logger.info("Done sending, letting it run in the background.")
+
+hydrate_sandbox_cache()
+
+
+
+def setup_logging():
+    def setup_logging(
+        issue_url,
+        issue_number,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        edited,
+        title,
+    ):
+        context = LogtailContext()
+        context.context(
+            task={
                 "issue_url": issue_url,
-                "username": username if not username.startswith("sweep") else assignee,
+                "issue_number": issue_number,
                 "repo_full_name": repo_full_name,
                 "repo_description": repo_description,
-                "installation_id": installation_id,
-                "type": "ticket",
-                "mode": ENV,
+                "username": username,
                 "comment_id": comment_id,
                 "edited": edited,
+                "issue_title": title,
             }
         )
-        if MONGODB_URI
-        else None
-    )
+        handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+        logger.add(handler)
+        return context
 
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_consumer_tier = False
-        use_faster_model = False
-
-    if fast_mode:
-        use_faster_model = True
-
-    if not comment_id and not edited and chat_logger and not sandbox_mode:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
-    return use_faster_model, is_paying_user, is_consumer_tier, chat_logger
-
-
-def check_branch_override(summary, repo):
-    # Check body for "branch: <branch_name>\n" using regex
-    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
-    if branch_match:
-        branch_name = branch_match.group(1)
-        SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
-    else:
-        logger.info(f"Overrides not detected for branch {summary}")
-
-
-def hydrate_sandbox_cache(repo_full_name, user_token, tracking_id):
-    if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
-        try:
-            requests.post(
-                SANDBOX_URL,
-                json={
-                    "repo_url": f"https://github.com/{repo_full_name}",
-                    "token": user_token,
-                },
-                timeout=2,
-            )
-        except Timeout:
-            logger.info("Sandbox hydration timed out.")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(
-                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
-            )
-        logger.info("Done sending, letting it run in the background.")
-
-
-def setup_logging(
-    issue_url,
-    issue_number,
-    repo_full_name,
-    repo_description,
-    username,
-    comment_id,
-    edited,
-    title,
-):
-    context = LogtailContext()
-    context.context(
-        task={
-            "issue_url": issue_url,
-            "issue_number": issue_number,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "username": username,
-            "comment_id": comment_id,
-            "edited": edited,
-            "issue_title": title,
-        }
-    )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
-    return context
+setup_logging()
