@@ -172,10 +172,10 @@ def find_best_match(query: str, code_file: str):
                 best_match = Match(i, i + 1, score)
         return best_match
 
-    [i for i in range(0, min(max_indents + 1, 20))]
+    indent_array = [i for i in range(0, min(max_indents + 1, 20))]
     if max_indents > 3:
-        [3, 2, 4, 0, 1] + list(range(5, max_indents + 1))
-    for num_indents in range(0, min(max_indents + 1, 20)):
+        indent_array = [3, 2, 4, 0, 1] + list(range(5, max_indents + 1))
+    for num_indents in indent_array:
         indented_query_lines = [indent * num_indents + line for line in query_lines]
 
         start_indices = [
