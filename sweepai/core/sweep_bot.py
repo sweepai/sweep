@@ -54,6 +54,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils import chat_logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.graph import Graph
 from sweepai.utils.str_utils import clean_logs
@@ -222,6 +223,10 @@ class CodeGenBot(ChatGPT):
                     )
                 if any(keyword in self.human_message.title.lower() for keyword in ("refactor", "extract", "replace")):
                     self.human_message.title += python_refactor_issue_title_guide_prompt
+                    posthog.capture(
+                            self.chat_logger.data["username"],
+                            "python_refactor",
+                        )
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
