@@ -1191,7 +1191,6 @@ def on_ticket(
             except:
                 pass
 
-            changes_required = False
             changes_required, review_message = review_code(
                 repo,
                 pr_changes,
@@ -1210,7 +1209,7 @@ def on_ticket(
                 edit_sweep_comment,
                 repo_full_name,
                 installation_id,
-            )
+            ) or (False, review_message)
 
             if changes_required:
                 edit_sweep_comment(
@@ -1471,28 +1470,8 @@ def on_ticket(
 
 
 
-def review_code():
-    def review_code(
-        repo,
-        pr_changes,
-        issue_url,
-        username,
-        repo_description,
-        title,
-        summary,
-        replies_text,
-        tree,
-        lint_output,
-        plan,
-        chat_logger,
-        commit_history,
-        review_message,
-        edit_sweep_comment,
-        repo_full_name,
-        installation_id,
-    ):
-        try:
-            # CODE REVIEW
+def review_code(repo, pr_changes, issue_url, username, repo_description, title, summary, replies_text, tree, lint_output, plan, chat_logger, commit_history, review_message, edit_sweep_comment, repo_full_name, installation_id):
+    try:
             changes_required, review_comment = review_pr(
                 repo=repo,
                 pr=pr_changes,
@@ -1555,7 +1534,7 @@ def fetch_relevant_files(
     is_consumer_tier,
     issue_url,
 ):
-    return extract_search_logic(
+    snippets, tree, dir_obj = extract_search_logic(
         cloned_repo,
         title,
         summary,
@@ -1568,27 +1547,13 @@ def fetch_relevant_files(
         is_paying_user,
         is_consumer_tier,
         issue_url,
-    )
+    ) or (None, None, None)
 
 
 
-def extract_search_logic():
-    def extract_search_logic(
-        cloned_repo,
-        title,
-        summary,
-        replies_text,
-        username,
-        metadata,
-        on_ticket_start_time,
-        tracking_id,
-        edit_sweep_comment,
-        is_paying_user,
-        is_consumer_tier,
-        issue_url,
-    ):
-        logger.info("Fetching relevant files...")
-        try:
+def extract_search_logic(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url):
+    logger.info("Fetching relevant files...")
+    try:
             snippets, tree, dir_obj = search_snippets(
                 cloned_repo,
                 f"{title}\n{summary}\n{replies_text}",
