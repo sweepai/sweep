@@ -54,6 +54,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils import chat_logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.graph import Graph
 from sweepai.utils.str_utils import clean_logs
@@ -1473,6 +1474,10 @@ class SweepBot(CodeGenBot, GithubBot):
                     if any(keyword in file_change_request.instructions.lower() for keyword in ("refactor", "extract", "replace")) and file_change_request.filename.endswith(".py"):
                         chunking = False
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
+                        posthog.capture(
+                            self.chat_logger.data["username"],
+                            "python_refactor",
+                        )
                         additional_messages = [Message(role="user", content=self.human_message.get_issue_metadata(), key="issue_metadata")]
                         # empty string
                         cloned_repo = ClonedRepo(self.cloned_repo.repo_full_name, 
