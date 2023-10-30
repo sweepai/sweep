@@ -638,12 +638,7 @@ def on_ticket(
 
         logger.info("Fetching relevant files...")
         try:
-            snippets, tree, dir_obj = search_snippets(
-                cloned_repo,
-                f"{title}\n{summary}\n{replies_text}",
-                num_files=num_of_snippets_to_query,
-            )
-            assert len(snippets) > 0
+            snippets, tree, dir_obj = extract_search_snippets(cloned_repo, title, summary, replies_text)
         except SystemExit:
             logger.warning("System exit")
             posthog.capture(
@@ -1481,6 +1476,15 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def extract_search_snippets(cloned_repo, title, summary, replies_text):
+    snippets, tree, dir_obj = search_snippets(
+        cloned_repo,
+        f"{title}\n{summary}\n{replies_text}",
+        num_files=num_of_snippets_to_query,
+    )
+    assert len(snippets) > 0
+    return snippets, tree, dir_obj
 
 
 def setup_chat_logger(
