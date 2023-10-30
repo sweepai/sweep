@@ -176,7 +176,23 @@ def on_ticket(
     # Check body for "branch: <branch_name>\n" using regex
     check_branch_override(summary, repo)
 
-    use_faster_model, is_paying_user, is_consumer_tier, chat_logger = setup_chat_logger(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode, sandbox_mode)  # moving higher, will increment the issue regardless of whether it's a success or not
+    use_faster_model, is_paying_user, is_consumer_tier, chat_logger = setup_chat_logger(
+        repo_name,
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        assignee,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        g,
+        fast_mode,
+        sandbox_mode,
+    )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     sweep_context = SweepContext.create(
         username=username,
@@ -1467,7 +1483,24 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
-def setup_chat_logger(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode, sandbox_mode):
+
+def setup_chat_logger(
+    repo_name,
+    title,
+    summary,
+    issue_number,
+    issue_url,
+    username,
+    assignee,
+    repo_full_name,
+    repo_description,
+    installation_id,
+    comment_id,
+    edited,
+    g,
+    fast_mode,
+    sandbox_mode,
+):
     chat_logger = (
         ChatLogger(
             {
