@@ -166,25 +166,7 @@ def on_ticket(
 
     # Hydrate cache of sandbox
     if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
-        try:
-            requests.post(
-                SANDBOX_URL,
-                json={
-                    "repo_url": f"https://github.com/{repo_full_name}",
-                    "token": user_token,
-                },
-                timeout=2,
-            )
-        except Timeout:
-            logger.info("Sandbox hydration timed out.")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(
-                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
-            )
-        logger.info("Done sending, letting it run in the background.")
+        hydrate_sandbox_cache(repo_full_name, user_token, tracking_id)
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
@@ -1522,6 +1504,27 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def hydrate_sandbox_cache(repo_full_name, user_token, tracking_id):
+    logger.info("Hydrating cache of sandbox.")
+    try:
+        requests.post(
+            SANDBOX_URL,
+            json={
+                "repo_url": f"https://github.com/{repo_full_name}",
+                "token": user_token,
+            },
+            timeout=2,
+        )
+    except Timeout:
+        logger.info("Sandbox hydration timed out.")
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.warning(
+            f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
+        )
+    logger.info("Done sending, letting it run in the background.")
 
 
 def setup_logging(
