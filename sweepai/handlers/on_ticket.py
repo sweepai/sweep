@@ -133,21 +133,7 @@ def on_ticket(
         title
     )
 
-    context = LogtailContext()
-    context.context(
-        task={
-            "issue_url": issue_url,
-            "issue_number": issue_number,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "username": username,
-            "comment_id": comment_id,
-            "edited": edited,
-            "issue_title": title,
-        }
-    )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
+    context = setup_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title)
 
     on_ticket_start_time = time()
     summary = summary or ""
@@ -1527,6 +1513,24 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def setup_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title):
+    context = LogtailContext()
+    context.context(
+        task={
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "edited": edited,
+            "issue_title": title,
+        }
+    )
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+    logger.add(handler)
+    return context
 
 
 def strip_title(title):
