@@ -1499,6 +1499,7 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
+
 def check_branch_override(summary, repo):
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
