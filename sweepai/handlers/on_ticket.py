@@ -133,7 +133,16 @@ def on_ticket(
         title
     )
 
-    context = setup_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title)
+    context = setup_logging(
+        issue_url,
+        issue_number,
+        repo_full_name,
+        repo_description,
+        username,
+        comment_id,
+        edited,
+        title,
+    )
 
     on_ticket_start_time = time()
     summary = summary or ""
@@ -1514,7 +1523,17 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
-def setup_logging(issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited, title):
+
+def setup_logging(
+    issue_url,
+    issue_number,
+    repo_full_name,
+    repo_description,
+    username,
+    comment_id,
+    edited,
+    title,
+):
     context = LogtailContext()
     context.context(
         task={
