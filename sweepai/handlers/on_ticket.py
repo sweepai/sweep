@@ -648,7 +648,7 @@ def on_ticket(
             return {"success": True}
 
         if len(title + summary) < 20:
-            logger.info("Issue too short")
+            logger.info(f"Issue too short")
             edit_sweep_comment(
                 (
                     f"Please add more details to your issue. I need at least 20 characters"
@@ -669,7 +669,7 @@ def on_ticket(
             and not is_consumer_tier
         ):
             if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                logger.info("Test repository detected")
+                logger.info(f"Test repository detected")
                 edit_sweep_comment(
                     (
                         f"Sweep does not work on test repositories. Please create an issue"
@@ -688,7 +688,7 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        logger.info("Fetching relevant files...")
+        logger.info(f"Fetching relevant files...")
         try:
             snippets, tree, dir_obj = search_snippets(
                 cloned_repo,
@@ -697,7 +697,7 @@ def on_ticket(
             )
             assert len(snippets) > 0
         except SystemExit:
-            logger.warning("System exit")
+            logger.warning(f"System exit")
             posthog.capture(
                 username,
                 "failed",
@@ -710,7 +710,9 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
+            logger.exception(
+                f"Exception occurred: {trace} (tracking ID: `{tracking_id}`)"
+            )
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -763,7 +765,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {str(e)}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -838,30 +840,28 @@ def on_ticket(
                     error_message = "\n".join(errors)
                     markdown_error_message = f"**There is something wrong with the YAML file:**\n```\n{error_message}\n```"
 
-                    logger.error(markdown_error_message)
+                    logger.error(f"{markdown_error_message}")
                     edit_sweep_comment(markdown_error_message, -1)
                     return {"success": False}
                 else:
-                    logger.info("The YAML file is valid. No errors found.")
+                    logger.info(f"The YAML file is valid. No errors found.")
                 break
 
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
         if not sweep_yml_exists:
             try:
-                logger.info("Creating sweep.yaml file...")
+                logger.info(f"Creating sweep.yaml file...")
                 config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
                 config_pr_url = config_pr.html_url
                 edit_sweep_comment(message="", index=-2)
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
-                    traceback.format_exc(),
+                logger.exception(
+                    f"Failed to create new branch for sweep.yaml file.\n{str(e)}\n{traceback.format_exc()}"
                 )
         else:
-            logger.info("sweep.yaml file already exists.")
+            logger.info(f"sweep.yaml file already exists.")
 
         try:
             # ANALYZE SNIPPETS
@@ -1257,7 +1257,7 @@ def on_ticket(
                         + "\n\nI'm currently addressing these suggestions.",
                         3,
                     )
-                    logger.info(f"Addressing review comment {review_comment}")
+                    logger.info(f"Addressing review comment: {review_comment}")
                     on_comment(
                         repo_full_name=repo_full_name,
                         repo_description=repo_description,
@@ -1274,8 +1274,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.exception(
+                    f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})"
+                )
 
             if changes_required:
                 edit_sweep_comment(
@@ -1364,7 +1365,7 @@ def on_ticket(
                 done=True,
             )
 
-            logger.info("Add successful ticket to counter")
+            logger.info(f"Add successful ticket to counter")
         except MaxTokensExceeded as e:
             logger.info("Max tokens exceeded")
             log_error(
@@ -1399,7 +1400,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except NoFilesException as e:
-            logger.info("Sweep could not find files to modify")
+            logger.info(f"Sweep could not find files to modify")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1421,8 +1422,9 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.exception(
+                f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})"
+            )
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1456,8 +1458,9 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.exception(
+                f"Exception occurred: {traceback.format_exc()} (Exception: {str(e)})"
+            )
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1495,7 +1498,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.exception(f"Exception occurred: {str(e)}")
         finally:
             cloned_repo.delete()
 
@@ -1510,8 +1513,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.exception(
+                    f"Exception occurred: {str(e)}\n{traceback.format_exc()}"
+                )
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
@@ -1531,5 +1535,5 @@ def on_ticket(
         "success",
         properties={**metadata, "duration": time() - on_ticket_start_time},
     )
-    logger.info("on_ticket success")
+    logger.info(f"on_ticket success")
     return {"success": True}
