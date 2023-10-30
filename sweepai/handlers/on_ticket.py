@@ -171,39 +171,7 @@ def on_ticket(
     # Check body for "branch: <branch_name>\n" using regex
     check_branch_override(summary, repo)
 
-    chat_logger = (
-        ChatLogger(
-            {
-                "repo_name": repo_name,
-                "title": title,
-                "summary": summary,
-                "issue_number": issue_number,
-                "issue_url": issue_url,
-                "username": username if not username.startswith("sweep") else assignee,
-                "repo_full_name": repo_full_name,
-                "repo_description": repo_description,
-                "installation_id": installation_id,
-                "type": "ticket",
-                "mode": ENV,
-                "comment_id": comment_id,
-                "edited": edited,
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
-
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_consumer_tier = False
-        use_faster_model = False
-
-    if fast_mode:
-        use_faster_model = True
+    chat_logger, use_faster_model, is_paying_user, is_consumer_tier = setup_chat_logger(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode)
 
     if not comment_id and not edited and chat_logger and not sandbox_mode:
         chat_logger.add_successful_ticket(
@@ -1498,6 +1466,42 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def setup_chat_logger(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode):
+    chat_logger = (
+        ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": title,
+                "summary": summary,
+                "issue_number": issue_number,
+                "issue_url": issue_url,
+                "username": username if not username.startswith("sweep") else assignee,
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "installation_id": installation_id,
+                "type": "ticket",
+                "mode": ENV,
+                "comment_id": comment_id,
+                "edited": edited,
+            }
+        )
+        if MONGODB_URI
+        else None
+    )
+
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+
+    if fast_mode:
+        use_faster_model = True
+    return chat_logger, use_faster_model, is_paying_user, is_consumer_tier
 
 
 def check_branch_override(summary, repo):
