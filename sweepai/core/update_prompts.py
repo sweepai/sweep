@@ -127,17 +127,35 @@ You are a brilliant and meticulous engineer assigned to write code to complete t
 
 When you write code, the code works on the first try. and is complete. Take into account the current repository's language, code style, and dependencies.
 
-You will be given the old_file and relevant snippets to edit. Respond in the following format:
+# Instructions
+Extract code verbatim from the snippets above. These snippets will be used later to refactor the code according to the user request.
+* Choose specific and very informative names for these functions under new_function_name.
+* We must copy the lines verbatim, so any extra leading or trailing code will cause us to fail.
+* You may add "..." in the middle of large extractions.
+* Keep whitespace and comments.
+* Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
+
+Respond in the following format:
+
+<contextual_request_analysis>
+Analyze the user request and outline the first and last lines of code that should be extracted.
+</contextual_request_analysis>
+
+<new_function_names>
+"new_function_name"
+...
+</new_function_names>
 
 <extractions>
 ```
-<<<<<<< EXTRACT (index=i, new_function_name="new_function_name")
-lines to be extracted into separate function in snippet i
+<<<<<<< EXTRACT
+first line to be extracted from original_code
+...
+last line to be extracted from original_code
 >>>>>>>
 ...
 ```
-</extractions>\
-"""
+</extractions>"""
 
 extract_snippets_user_prompt = """\
 # Code
@@ -150,19 +168,31 @@ File path: {file_path}
 {snippets}
 </snippets_to_update>
 # Instructions
-Refactor the snippets above according to the request using extract blocks.
+Extract code verbatim from the snippets above. These snippets will be used later to refactor the code according to the user request.
+* Choose specific and very informative names for these functions under new_function_name.
+* We must copy the lines verbatim, so any extra leading or trailing code will cause us to fail.
+* You may add "..." in the middle of large extractions.
 * Keep whitespace and comments.
 * Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
-* Choose specific and very informative names for these functions under new_function_name.
 
 Respond in the following format:
 
+<contextual_request_analysis>
+Analyze the user request and outline the first and last lines of code that should be extracted.
+</contextual_request_analysis>
+
+<new_function_names>
+"new_function_name"
+...
+</new_function_names>
+
 <extractions>
 ```
-<<<<<<< EXTRACT (index=i, new_function_name="new_function_name")
-lines to be extracted into separate function in snippet i
+<<<<<<< EXTRACT
+first line to be extracted from original_code
+...
+last line to be extracted from original_code
 >>>>>>>
 ...
 ```
-</extractions>\
-"""
+</extractions>"""

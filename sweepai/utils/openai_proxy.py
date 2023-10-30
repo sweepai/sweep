@@ -1,4 +1,5 @@
 import random
+import time
 
 import baserun
 import openai
@@ -20,6 +21,8 @@ from sweepai.logn import file_cache
 
 if BASERUN_API_KEY is not None:
     baserun.init()
+
+OPENAI_TIMEOUT = 60 # one minute
 
 
 class OpenAIProxy:
@@ -60,6 +63,7 @@ class OpenAIProxy:
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    timeout=OPENAI_TIMEOUT,
                 )
                 return response["choices"][0].message.content
             # validity checks for MULTI_REGION_CONFIG
@@ -82,6 +86,7 @@ class OpenAIProxy:
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    timeout=OPENAI_TIMEOUT,
                 )
                 return response["choices"][0].message.content
             # multi region config is a list of tuples of (region_url, api_key)
@@ -105,6 +110,7 @@ class OpenAIProxy:
                         messages=messages,
                         max_tokens=max_tokens,
                         temperature=temperature,
+                        timeout=OPENAI_TIMEOUT,
                     )
                     return response["choices"][0].message.content
                 except SystemExit:
@@ -127,6 +133,7 @@ class OpenAIProxy:
                         messages=messages,
                         max_tokens=max_tokens,
                         temperature=temperature,
+                        timeout=OPENAI_TIMEOUT,
                     )
                     return response["choices"][0].message.content
                 except SystemExit:

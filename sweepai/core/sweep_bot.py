@@ -42,6 +42,7 @@ from sweepai.core.prompts import (
     create_file_prompt,
     files_to_change_prompt,
     pull_request_prompt,
+    python_refactor_issue_title_guide_prompt,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     sandbox_files_to_change_prompt,
@@ -53,6 +54,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils import chat_logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.graph import Graph
 from sweepai.utils.str_utils import clean_logs
 from sweepai.utils.utils import chunk_code
@@ -218,7 +220,8 @@ class CodeGenBot(ChatGPT):
                     graph_parent_bot.messages.insert(
                         1, Message(role="user", content=pr_diffs, key="pr_diffs")
                     )
-
+                if any(keyword in self.human_message.title.lower() for keyword in ("refactor", "extract", "replace")):
+                    self.human_message.title += python_refactor_issue_title_guide_prompt
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -341,6 +344,10 @@ class CodeGenBot(ChatGPT):
                     relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
                     self.update_message_content_from_message_key(
                         "relevant_snippets", relevant_snippet_text
+                    )
+                    # regenerate issue metadata
+                    self.update_message_content_from_message_key(
+                        "metadata", self.human_message.get_issue_metadata()
                     )
                     files_to_change_response = self.chat(
                         files_to_change_prompt, message_key="files_to_change"
@@ -1110,7 +1117,6 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         blocked_dirs: list[str],
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
-        logger.debug(file_change_requests)
         completed = 0
         sandbox_response = None
         changed_files: list[tuple[str, str]] = []
@@ -1464,11 +1470,15 @@ class SweepBot(CodeGenBot, GithubBot):
                         len(lines) > CHUNK_SIZE
                     )  # Only chunk if the file is large enough
                     sandbox_error = None
-                    if any(keyword in file_change_request.instructions.lower() for keyword in ("refactor", "extract")) and file_change_request.filename.endswith(".py"):
+                    if any(keyword in file_change_request.instructions.lower() for keyword in ("refactor", "extract", "replace")) and file_change_request.filename.endswith(".py"):
                         chunking = False
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
                         additional_messages = [Message(role="user", content=self.human_message.get_issue_metadata(), key="issue_metadata")]
                         # empty string
+                        cloned_repo = ClonedRepo(self.cloned_repo.repo_full_name, 
+                                                 self.cloned_repo.installation_id, 
+                                                 branch, 
+                                                 self.cloned_repo.token)
                         new_file_contents = refactor_bot.refactor_snippets(
                             additional_messages=additional_messages,
                             snippets_str=file_contents,
@@ -1476,8 +1486,10 @@ class SweepBot(CodeGenBot, GithubBot):
                             update_snippets_code=file_contents,
                             request=file_change_request.instructions,
                             changes_made="",
-                            cloned_repo=self.cloned_repo
+                            cloned_repo=cloned_repo
                         )
+                        if new_file_contents is None:
+                            new_file_contents = file_contents # no changes made
                         changed_files.append((file_change_request.filename, (file_contents, new_file_contents)))
                         commit_message = f"feat: Refactored {file_change_request.filename}"
                     elif file_change_request.entity:

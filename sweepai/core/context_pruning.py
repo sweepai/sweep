@@ -25,26 +25,18 @@ If you expand a directory, we automatically expand all of its subdirectories, so
 Keep all files or directories that are referenced in the issue title or descriptions.
 
 Reply in the following format:
-
-Analysis of current folder structure referencing the issue metadata:
-* Thought about files, directories, and relevance 1
-* Thought about files, directories, and relevance 2
-...
-
-Proposal for exploration:
-* Proposed directory and reason 1
-* Proposed directory and reason 2
-...
+<contextual_request_analysis>
+Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
+Propose the most important paths with a justification.
+</contextual_request_analysis>
 
 <paths_to_keep>
-* file or directory to keep 1
-* file or directory to keep 2
+* file or directory to keep
 ...
 </paths_to_keep>
 
 <directories_to_expand>
-* directory to expand 1
-* directory to expand 2
+* directory to expand
 ...
 </directories_to_expand>"""
 
