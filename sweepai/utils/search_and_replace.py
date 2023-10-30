@@ -241,6 +241,7 @@ def split_ellipses(query: str) -> list[str]:
             current_query = ""
         else:
             current_query += line + "\n"
+    queries.append(current_query.strip("\n"))
     return queries
 
 
@@ -302,35 +303,17 @@ from tqdm import tqdm"""
 # print(match_indent(new_code, old_code))
 
 test_code = """\
-capture_posthog_event(username, "started", properties=metadata)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={"error": str(e), "reason": "Failed to get files", **metadata},
-)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={
-        "error": "No files to change",
-        "reason": "No files to change",
-        **metadata,
-    },
-)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={
-        "error": str(e),
-        "reason": "Failed to make changes",
-        **metadata,
-    },
-)
-...
-capture_posthog_event(username, "success", properties={**metadata})
+def naive_euclidean_profile(X, q, mask):
+    r\"\"\"
+    Compute a euclidean distance profile in a brute force way.
+
+    A distance profile between a (univariate) time series :math:`X_i = {x_1, ..., x_m}`
+    and a query :math:`Q = {q_1, ..., q_m}` is defined as a vector of size :math:`m-(
+    l-1)`, such as :math:`P(X_i, Q) = {d(C_1, Q), ..., d(C_m-(l-1), Q)}` with d the
+    Euclidean distance, and :math:`C_j = {x_j, ..., x_{j+(l-1)}}` the j-th candidate
+    subsequence of size :math:`l` in :math:`X_i`.
+    \"\"\"
+    return _naive_euclidean_profile(X, q, mask)
 """
 
 if __name__ == "__main__":

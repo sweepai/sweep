@@ -409,7 +409,7 @@ class ModifyBot:
 
         best_matches = []
         for snippet_to_modify in snippet_queries:
-            if snippet_to_modify.code.count("...") > 2:
+            if len(split_ellipses(snippet_to_modify.code)) > 3:
                 for section in split_ellipses(snippet_to_modify.code):
                     match_ = find_best_match(section, file_contents)
                     if match_.score > 50:
