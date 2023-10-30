@@ -171,7 +171,22 @@ def on_ticket(
     # Check body for "branch: <branch_name>\n" using regex
     check_branch_override(summary, repo)
 
-    chat_logger, use_faster_model, is_paying_user, is_consumer_tier = setup_chat_logger(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode)
+    chat_logger, use_faster_model, is_paying_user, is_consumer_tier = setup_chat_logger(
+        repo_name,
+        title,
+        summary,
+        issue_number,
+        issue_url,
+        username,
+        assignee,
+        repo_full_name,
+        repo_description,
+        installation_id,
+        comment_id,
+        edited,
+        g,
+        fast_mode,
+    )
 
     if not comment_id and not edited and chat_logger and not sandbox_mode:
         chat_logger.add_successful_ticket(
@@ -1467,7 +1482,23 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
-def setup_chat_logger(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode):
+
+def setup_chat_logger(
+    repo_name,
+    title,
+    summary,
+    issue_number,
+    issue_url,
+    username,
+    assignee,
+    repo_full_name,
+    repo_description,
+    installation_id,
+    comment_id,
+    edited,
+    g,
+    fast_mode,
+):
     chat_logger = (
         ChatLogger(
             {
