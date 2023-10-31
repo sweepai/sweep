@@ -294,6 +294,8 @@ RULES_TITLE = (
 )
 RULES_LABEL = "**Apply:** "
 
+SLOW_MODE = False
+
 DEFAULT_RULES = [
     "Leftover TODOs in the code should be handled.",
     "All new business logic should have corresponding unit tests in the tests/ directory.",
