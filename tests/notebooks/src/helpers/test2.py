@@ -1,3 +1,6 @@
+import math
+
+
 def a_func():
     a = 1
     b = 2 * a
@@ -6,4 +9,4 @@ def a_func():
 
 
 def foo():
-    return 2
+    return math.pow(2, 2)
