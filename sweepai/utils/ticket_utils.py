@@ -1,7 +1,63 @@
-from sweepai.config.client import SweepConfig
+from sweepai.config.client import (
+    SweepConfig,
+    RESTART_SWEEP_BUTTON,
+    create_action_buttons,
+    center,
+    sweeping_gif,
+    stars_suffix,
+    payment_message_start,
+    markdown_badge
+)
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+def get_comment_header(index, errored=False, pr_message="", done=False):
+    config_pr_message = (
+        "\n"
+        + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
+        if config_pr_url is not None
+        else ""
+    )
+    actions_message = create_action_buttons(
+        [
+            RESTART_SWEEP_BUTTON,
+        ]
+    )
+
+    if index < 0:
+        index = 0
+    if index == 4:
+        return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
+
+    total = len(progress_headers)
+    index += 1 if done else 0
+    index *= 100 / total
+    index = int(index)
+    index = min(100, index)
+    if errored:
+        pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
+        return (
+            f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
+            + f"\n\n---\n{actions_message}"
+        )
+    pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
+    return (
+        f"{center(sweeping_gif)}<br/>{center(pbar)}"
+        + ("\n" + stars_suffix if index != -1 else "")
+        + "\n"
+        + center(payment_message_start)
+        + center(f"\n\n{markdown_badge}")
+        + config_pr_message
+        + f"\n\n---\n{actions_message}"
+    )
+
+custom_config = """
+extends: relaxed
+
+rules:
+    line-length: disable
+    indentation: disable
+"""
 
 SLOW_MODE = False
 SLOW_MODE = True
