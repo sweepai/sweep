@@ -11,7 +11,7 @@ from sweepai.config.client import (
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
-def get_comment_header(index, errored=False, pr_message="", done=False):
+def get_comment_header(index, config_pr_url, progress_headers, errored=False, pr_message="", done=False):
     config_pr_message = (
         "\n"
         + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
@@ -134,7 +134,3 @@ def log_error(
         f" {issue_url}\n```{exception}```"
     )
     discord_log_error(content, priority=priority)
-
-
-def center(text: str) -> str:
-    return f"<div align='center'>{text}</div>"
