@@ -2,12 +2,12 @@ from sweepai.config.client import (
     SweepConfig,
     RESTART_SWEEP_BUTTON,
     create_action_buttons,
-    center,
     sweeping_gif,
     stars_suffix,
     payment_message_start,
     markdown_badge
 )
+from sweepai.utils.str_utils import center
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
