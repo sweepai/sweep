@@ -1,8 +1,7 @@
 import re
 
 import rope.base.project
-from loguru import logger
-from rope.refactor.extract import ExtractMethod
+from rope.refactor.move import MoveGlobal
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
@@ -14,32 +13,23 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.search_and_replace import find_best_match
 
 
-def extract_method(
-    snippet,
-    file_path,
-    method_name,
-    project_name,
+def move_function(
+    file_path: str, method_name: str, destination: str, project_name: str
 ):
-    project = rope.base.project.Project(project_name)
+    myproject = rope.base.project.Project(project_name)
 
-    resource = project.get_resource(file_path)
-    contents = resource.read()
-    start, end = contents.find(snippet), contents.find(snippet) + len(snippet)
+    myresource = myproject.get_resource(file_path)
+    func_def = f"def {method_name}("
+    offset = myresource.read().find(func_def) + len("def ")
+    print(offset)
 
-    try:
-        extractor = ExtractMethod(project, resource, start, end)
-        change_set = extractor.get_changes(method_name, similar=True, global_=True)
-        for change in change_set.changes:
-            change.do()
-
-        result = resource.read()
-        return result, change_set
-    except Exception as e:
-        logger.error(f"An error occurred: {e}")
-        raise e
+    mover = MoveGlobal(myproject, myresource, offset)
+    change_set = mover.get_changes(destination)
+    for change in change_set.changes:
+        print(change.get_description())
 
 
-class RefactorBot(ChatGPT):
+class MoveBot(ChatGPT):
     def refactor_snippets(
         self,
         additional_messages: list[Message] = [],
@@ -111,7 +101,7 @@ class RefactorBot(ChatGPT):
             extracted_original_code = "\n".join(
                 snippets_str.split("\n")[best_match.start : best_match.end]
             )
-            new_code, change_set = extract_method(
+            new_code, change_set = move_function(
                 extracted_original_code,
                 file_path,
                 new_function_names[idx],
