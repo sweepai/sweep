@@ -1,13 +1,17 @@
 import traceback
 from time import time
+
 from loguru import logger
-from sweepai.core.entities import Snippet, NoFilesException
-from sweepai.utils.chat_logger import discord_log_error
-from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.str_utils import total_number_of_snippet_tokens, num_of_snippets_to_query
-from sweepai.utils.event_logger import posthog
+
 from sweepai.config.client import SweepConfig
+from sweepai.core.entities import Snippet
+from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.search_utils import search_snippets
+from sweepai.utils.str_utils import (
+    num_of_snippets_to_query,
+    total_number_of_snippet_tokens,
+)
 
 SLOW_MODE = False
 SLOW_MODE = True
@@ -88,6 +92,7 @@ def log_error(
 
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
+
 
 def fetch_relevant_files(
     cloned_repo,
