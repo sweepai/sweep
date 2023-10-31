@@ -2,6 +2,28 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+from sweepai.config.client import SweepConfig
+from sweepai.core.entities import Snippet
+from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.str_utils import total_number_of_snippet_tokens
+
+snippets = ticket_utils.post_process_snippets(
+    snippets: list[Snippet],
+    max_num_of_snippets: int = 5,
+    exclude_snippets: list[str] = [],
+)
+
+ticket_utils.log_error(
+    is_paying_user,
+    is_trial_user,
+    username,
+    issue_url,
+    error_type,
+    exception,
+    priority=0,
+)
+
+center = ticket_utils.center
 
 SLOW_MODE = False
 SLOW_MODE = True
