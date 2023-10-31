@@ -77,8 +77,27 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.str_utils import blockquote, bot_suffix, checkbox_template, clean_logs, collapsible_template, create_checkbox, create_collapsible, discord_suffix, format_exit_code, ordinal, sep, stars_suffix, strip_sweep
-from sweepai.utils.ticket_utils import center, log_error, post_process_snippets, fetch_relevant_files
+from sweepai.utils.str_utils import (
+    blockquote,
+    bot_suffix,
+    checkbox_template,
+    clean_logs,
+    collapsible_template,
+    create_checkbox,
+    create_collapsible,
+    discord_suffix,
+    format_exit_code,
+    ordinal,
+    sep,
+    stars_suffix,
+    strip_sweep,
+)
+from sweepai.utils.ticket_utils import (
+    center,
+    fetch_relevant_files,
+    log_error,
+    post_process_snippets,
+)
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -1515,5 +1534,3 @@ def review_code(
         logger.error(traceback.format_exc())
         logger.error(e)
     return changes_required, review_message
-
-
