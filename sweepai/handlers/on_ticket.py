@@ -1551,9 +1551,36 @@ def fetch_relevant_files(
     is_consumer_tier,
     issue_url,
 ):
-    return search_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url)
+    return search_relevant_files(
+        cloned_repo,
+        title,
+        summary,
+        replies_text,
+        username,
+        metadata,
+        on_ticket_start_time,
+        tracking_id,
+        edit_sweep_comment,
+        is_paying_user,
+        is_consumer_tier,
+        issue_url,
+    )
 
-def search_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url):
+
+def search_relevant_files(
+    cloned_repo,
+    title,
+    summary,
+    replies_text,
+    username,
+    metadata,
+    on_ticket_start_time,
+    tracking_id,
+    edit_sweep_comment,
+    is_paying_user,
+    is_consumer_tier,
+    issue_url,
+):
     logger.info("Fetching relevant files...")
     try:
         snippets, tree, dir_obj = search_snippets(
