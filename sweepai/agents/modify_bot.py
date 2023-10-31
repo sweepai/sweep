@@ -195,6 +195,14 @@ Maximize information density and conciseness but be detailed.
 </snippets_and_plan_analysis>"""
 
 
+def get_last_import_line(code: str, max_: int = 150) -> int:
+    lines = code.split("\n")
+    for i, line in enumerate(reversed(lines)):
+        if line.startswith("import ") or line.startswith("from "):
+            return max(len(lines) - i - 1, max_)
+    return -1
+
+
 @dataclass
 class SnippetToModify:
     code: str
@@ -462,8 +470,8 @@ class ModifyBot:
                         reason=f"Used {keyword} as a function call",
                     )
                 )
-        # get first 10 lines for imports
-        IMPORT_LINES = 10
+
+        IMPORT_LINES = get_last_import_line(file_contents)
         best_matches.append(
             MatchToModify(
                 start=0,
