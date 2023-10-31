@@ -1,8 +1,11 @@
 import re
-from sweepai.config.client import SweepConfig, SLOW_MODE
+
+from sweepai.config.client import SLOW_MODE, SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+
+
 def strip_sweep(title: str):
     slow_mode = False
     do_map = False
@@ -34,6 +37,7 @@ def strip_sweep(title: str):
 
     title = re.sub(r"\s+", " ", title).strip()
     return title, slow_mode, do_map, subissues_mode, sandbox_mode, fast_mode, lint_mode
+
 
 SLOW_MODE = False
 SLOW_MODE = True
