@@ -180,14 +180,39 @@ def get_deeplake_vs_from_repo(
     logger.info("Recursively getting list of files...")
     blocked_dirs = get_blocked_dirs(repo)
     sweep_config.exclude_dirs.extend(blocked_dirs)
-    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
-    # prepare lexical search
-    index = prepare_index_from_snippets(
-        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
-    )
-    logger.print("Prepared index from snippets")
+    file_list, snippets, index = prepare_lexical_search_index(cloned_repo, sweep_config, repo_full_name)
     # scoring for vector search
+    files_to_scores = compute_vector_search_scores(file_list, cloned_repo, repo_full_name)
+
+    collection_name, documents, ids, metadatas = prepare_documents_metadata_ids(snippets, cloned_repo, files_to_scores, start, repo_full_name)
+
+    deeplake_vs = deeplake_vs or compute_deeplake_vs(
+        collection_name, documents, ids, metadatas, commit_hash
+    )
+
+    return deeplake_vs, index, len(documents)
+
+def prepare_documents_metadata_ids(snippets, cloned_repo, files_to_scores, start, repo_full_name):
+    documents = []
+    metadatas = []
+    ids = []
+    for snippet in snippets:
+        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+        metadata = {
+            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
+            "start": snippet.start,
+            "end": snippet.end,
+            "score": files_to_scores[snippet.file_path],
+        }
+        metadatas.append(metadata)
+        gh_file_path = snippet.file_path[len("repo/") :]
+        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
+    logger.info(f"Getting list of all files took {time.time() - start}")
+    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
+    collection_name = parse_collection_name(repo_full_name)
+    return collection_name, documents, ids, metadatas
+
+def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     files_to_scores = {}
     score_factors = []
     for file_path in tqdm(file_list):
@@ -218,30 +243,17 @@ def get_deeplake_vs_from_repo(
         file_path: score for file_path, score in zip(file_list, all_scores)
     }
     logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
+    return files_to_scores
 
-    documents = []
-    metadatas = []
-    ids = []
-    for snippet in snippets:
-        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
-        metadata = {
-            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
-            "start": snippet.start,
-            "end": snippet.end,
-            "score": files_to_scores[snippet.file_path],
-        }
-        metadatas.append(metadata)
-        gh_file_path = snippet.file_path[len("repo/") :]
-        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
-    logger.info(f"Getting list of all files took {time.time() - start}")
-    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
-    collection_name = parse_collection_name(repo_full_name)
-
-    deeplake_vs = deeplake_vs or compute_deeplake_vs(
-        collection_name, documents, ids, metadatas, commit_hash
+def prepare_lexical_search_index(cloned_repo, sweep_config, repo_full_name):
+    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    # prepare lexical search
+    index = prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
     )
-
-    return deeplake_vs, index, len(documents)
+    logger.print("Prepared index from snippets")
+    return file_list, snippets, index
 
 
 def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
@@ -314,6 +326,51 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
     else:
         logger.error("No documents found in repository")
         return deeplake_vs
+
+def compute_embeddings(documents):
+    if len(documents) > 0:
+        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+        # Check cache here for all documents
+        embeddings = [None] * len(documents)
+        if redis_client:
+            cache_keys = [
+                hash_sha256(doc)
+                + SENTENCE_TRANSFORMERS_MODEL
+                + VECTOR_EMBEDDING_SOURCE
+                + CACHE_VERSION
+                for doc in documents
+            ]
+            cache_values = redis_client.mget(cache_keys)
+            for idx, value in enumerate(cache_values):
+                if value is not None:
+                    arr = json.loads(value)
+                    if isinstance(arr, list):
+                        embeddings[idx] = np.array(arr, dtype=np.float32)
+
+        logger.info(
+            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
+        )
+        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+        documents_to_compute = [documents[idx] for idx in indices_to_compute]
+
+        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
+        computed_embeddings = embedding_function(documents_to_compute)
+        logger.info(f"Computed {len(computed_embeddings)} embeddings")
+
+        for idx, embedding in zip(indices_to_compute, computed_embeddings):
+            embeddings[idx] = embedding
+
+        try:
+            embeddings = np.array(embeddings, dtype=np.float32)
+        except SystemExit:
+            raise SystemExit
+        except:
+            logger.exception(
+                "Failed to convert embeddings to numpy array, recomputing all of them"
+            )
+            embeddings = embedding_function(documents)
+            embeddings = np.array(embeddings, dtype=np.float32)
+    return embeddings, documents_to_compute, computed_embeddings, embedding
 
 
 # Only works on functions without side effects
