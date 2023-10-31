@@ -96,13 +96,11 @@ from sweepai.utils.str_utils import (
     stars_suffix,
     strip_sweep,
 )
-from sweepai.utils.ticket_utils import log_error, post_process_snippets, center
+from sweepai.utils.ticket_utils import center, log_error, post_process_snippets
 
 openai.api_key = OPENAI_API_KEY
 
 sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping"></a>"""
-
-
 
 
 custom_config = """
