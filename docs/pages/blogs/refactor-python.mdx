@@ -7,12 +7,12 @@ If you’ve ever refactored a thousand line Python function, you know that it’
 When extracting a function out of a larger function or class, you’ll have to:
 
 - Gather the correct input variables
-- Make sure the state is returned correctly
+- Ensure the state is correctly returned
 - Handle any side effects
 
-We’ve been looking for the best use cases to focus on for Sweep, and one of these has been writing and executing unit tests. *This article is about refactoring, but don’t worry, we didn’t forget about it ;)*.
+We’ve been looking for the best use cases to focus on for Sweep, and one of these has been writing and executing unit tests. *This article is about refactoring, but don’t worry, we didn’t forget about testing ;)*.
 But not only are these thousand line Python functions hard to work with, they're hard to test. 
-And personally, I'd rather have unit tests for my messy orchestration function than a small util that rarely changes.
+And personally, I'd rather have tests for my messy orchestration function than tests for a small util that rarely changes.
 We decided that we’d set out on a simple task for the Halloween weekend: get Sweep to refactor our own code.
 
 ## Language models can't do this
@@ -98,12 +98,13 @@ Then we take the `<<<<<<< EXTRACT >>>>>>>` section out of the `<extractions>` ta
 
 ## Covering GPT4's weaknesses
 
-### Fuzzy matching helps with hallucinations
+### Fuzzy matching helps with forgetting
 We have a line by line two pointer-based scoring algorithm which finds the span that is most similar to the original span.
 
 There are some quirks of GPT4 that we dealt with. 
 GPT4 often overlooks comments, newlines, and logger statements when extracting sections.
-In our own code, we added a section that makes the score agnostic to these lines.
+Our scoring algorithm, we added a section that makes the score agnostic to these lines.
+
 Here's a snippet:
 ```
 elif (
@@ -121,17 +122,16 @@ elif (
 ```
 
 
-### Tricking GPT4 into thinking someone else will do it's work
+### Tricking GPT4 to prevent hallucinations
 
-Another interesting problem we had to deal with was that GPT4 thinks it must extract the new code and generate the function at the same time. This is an issue with the underlying model that we discovered. 
-
-As a toy example, if it was extracting
+Another interesting problem we dealt with was GPT4 thinking it must extract the new code and generate the function. It only needs to copy the code verbatim.
+As a toy example, if it was supposed to extract
 ```
 print(x)
 x += 1
 ```
 
-from a larger section of code, it would generate
+from a larger section of code, it would extract and incorrectly generate
 ```
 def (x):
     print(x)
@@ -139,7 +139,7 @@ def (x):
     return x
 ```
 
-even though Rope will later generate this section and replace all occurrences. We had to add a special case to our scoring algorithm to handle this, which backoffs by first deleting the first line, then the last line.
+even though Rope will later generate this section and replace all occurrences. We had to add a special case to our scoring algorithm to handle this. We first try matching without the first line, then try matching without the last line.
 This algorithm would do the following:
 
 ```
@@ -155,16 +155,16 @@ We also minimized the chance of this occurring by modifying our prompt with a si
 + Extract code verbatim from the snippets above. These snippets will be used later to refactor the code according to the user request.
 ```
 
-We hoped this would convince GPT4 that it doesn't need to handle converting the code to a function, and it seems to work!
+We hoped this would convince GPT4 that it doesn't need to handle converting the code to a function, and it seems to work! 
+We have a prompt that minimizes the chance of failure, as well as special logic that handles specific failure cases.
 
 ### Don't use the "Think step-by-step" prompt
 
-One final issue we dealt with was GPT4 extracting a MASSIVE section from the original code. This is something that's going to happen a lot, as refactor requests should reasonably happen in large files.
-When it generates >400 lines of code to extract, it risks running past the token limit (I saw it generate 4.9k tokens for one of our files), or even forgetting to close the `</extraction>` XML tag.
+One final issue we dealt with was GPT4 extracting a MASSIVE section from the original code. This is something that's going to happen a lot, as refactor requests should(reasonably) happen in large files.
+When GPT4 generates >400 lines of code to extract, it risks running past the token limit (I saw it generate >4.8k tokens for one of our files), or even forgetting to close the `</extraction>` XML tag.
 
-One trick I found helps with this is to add a sort of "anchor" to the chain-of-thought(CoT) prompting. Instead of the classic "Think step-by-step to solve the problem",
-
-Our CoT prompt looks like this:
+One trick I found helps with this is to add a sort of "anchor" to the chain-of-thought(CoT) prompting. 
+Instead of the classic "Think step-by-step to solve the problem", our CoT prompt looks like this:
 ```
 <contextual_request_analysis>
 Analyze the user request and outline the first and last few lines of code that should be extracted.
@@ -175,15 +175,16 @@ And our CoT response contains this line:
 ```
 "This section starts with the line `documents = []` and ends with the line `ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")`"
 ```
+
 This helps *a lot*. Our hypothesis is that when starting to extract the span, the transformer(underlying model architecture of GPT4) attends to and anchors the generation to the start `documents = []`, and then does the same for the end `ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")`.
 
-```Side note: We could have GPT4 generate just the start and end lines, but generating the entire code snippet allows us to further disambiguate the output with fuzzy matching.```
+Side note: We could have GPT4 generate just the start and end lines, but generating the entire code snippet allows us to further disambiguate the output with fuzzy matching.
 
-We added this section to almost all of our prompts, and it made them much more reliable. Task specific CoT with "anchors" seems to be the way to go!
+We use this strategy in almost all of our prompts, and it made them much more reliable. Task specific CoT with "anchors" seems to be the way to go!
 
 ## Final result
 
-Finally we can have GPT4 generate multiple spans to refactor, as well as the function names for these methods. We can pass Rope the extracted span (using GPT4 to make sure the span corresponds to the user request) and the AI generated function name to perfectly extract the code.
+Finally GPT4 generates multiple spans to refactor, as well as the function names for these methods. We can pass Rope the extracted span (using GPT4 to make sure the span corresponds to the user request) and the AI generated function name to perfectly extract the code.
 
 Check out this beautiful refactor:
 
@@ -273,6 +274,7 @@ def get_deeplake_vs_from_repo(
 ```
 
 Sweep was able to cleanly split this large, messy function into completely modular sub-functions:
+
 ```python
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
