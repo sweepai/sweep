@@ -20,6 +20,7 @@ def set_github_app_id():
         os.environ.get("GITHUB_APP_ID").replace("\\n", "\n").strip('"')
     )
 
+
 if os.environ["GITHUB_APP_PEM"]:
     set_github_app_id()
 
