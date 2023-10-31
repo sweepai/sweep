@@ -14,10 +14,14 @@ os.environ["GITHUB_APP_PEM"] = os.environ.get(
     base64.b64decode(os.environ.get("GITHUB_APP_PEM_BASE64", "")).decode("utf-8"),
 )
 
-if os.environ["GITHUB_APP_PEM"]:
+
+def set_github_app_id():
     os.environ["GITHUB_APP_ID"] = (
         os.environ.get("GITHUB_APP_ID").replace("\\n", "\n").strip('"')
     )
+
+if os.environ["GITHUB_APP_PEM"]:
+    set_github_app_id()
 
 os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
     "TRANSFORMERS_CACHE", "/tmp/cache/model"
