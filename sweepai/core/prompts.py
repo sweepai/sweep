@@ -225,7 +225,6 @@ Provide a list of ALL of the files we should modify, abiding by the following:
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree for reference.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Do not modify non-text files such as images, svgs, binary, etc
 
 You MUST follow the following format with the final output in XML tags:
 

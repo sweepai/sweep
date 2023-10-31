@@ -596,6 +596,10 @@ class ModifyBot:
         if (
             len(list(re.finditer(updated_pattern, update_snippets_response, re.DOTALL)))
             == 0
+            and len(
+                list(re.finditer(append_pattern, update_snippets_response, re.DOTALL))
+            )
+            == 0
         ):
             raise UnneededEditError("No snippets edited")
 
