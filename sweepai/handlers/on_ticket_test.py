@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import Mock, patch
-
-from sweepai.handlers.on_ticket import on_ticket
+import sweepai.utils.ticket_utils
 
 
 class TestOnTicket(unittest.TestCase):
@@ -19,7 +18,7 @@ class TestOnTicket(unittest.TestCase):
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket(self, mock_get_github_client):
         mock_get_github_client.return_value = (Mock(), Mock())
-        result = on_ticket(
+        result = sweepai.utils.ticket_utils.on_ticket(
             self.issue.title,
             self.issue.summary,
             self.issue.issue_number,
@@ -34,7 +33,7 @@ class TestOnTicket(unittest.TestCase):
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket_with_exception(self, mock_get_github_client):
         mock_get_github_client.side_effect = Exception("Test exception")
-        result = on_ticket(
+        result = sweepai.utils.ticket_utils.on_ticket(
             self.issue.title,
             self.issue.summary,
             self.issue.issue_number,
