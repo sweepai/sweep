@@ -12,21 +12,49 @@ from sweepai.core.update_prompts import (
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.search_and_replace import find_best_match
 
+user_prompt = """# Code
+File path: {file_path}
+<old_code>
+```
+{code}
+```
+</old_code>
+{changes_made}
+# Request
+{request}
+
+<snippets_to_update>
+{snippets}
+</snippets_to_update>
+
+# Instructions
+Indicate which snippets should be moved to the destination module.
+
+Respond in the following format:
+
+<move
+    from_file="src/utils/main.py"
+    entity_name="foo"
+    destination_module="src.utils.foo_utils"
+/>
+"""
+
 
 def move_function(
     file_path: str, method_name: str, destination: str, project_name: str
 ):
-    myproject = rope.base.project.Project(project_name)
+    project = rope.base.project.Project(project_name)
 
-    myresource = myproject.get_resource(file_path)
+    resource = project.get_resource(file_path)
     func_def = f"def {method_name}("
-    offset = myresource.read().find(func_def) + len("def ")
-    print(offset)
+    offset = resource.read().find(func_def) + len("def ")
 
-    mover = MoveGlobal(myproject, myresource, offset)
+    mover = MoveGlobal(project, resource, offset)
     change_set = mover.get_changes(destination)
     for change in change_set.changes:
-        print(change.get_description())
+        change.do()
+    result = resource.read()
+    return result, change_set
 
 
 class MoveBot(ChatGPT):
