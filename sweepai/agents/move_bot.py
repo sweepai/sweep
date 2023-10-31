@@ -1,7 +1,8 @@
 import re
 
 import rope.base.project
-from rope.refactor.move import MoveGlobal
+from loguru import logger
+from rope.refactor.move import ChangeSet, MoveGlobal
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
@@ -52,7 +53,10 @@ def move_function(
 
     resource = project.get_resource(file_path)
     func_def = f"def {method_name}("
-    offset = resource.read().find(func_def) + len("def ")
+    offset = resource.read().find(func_def)
+    if offset == -1:
+        raise Exception(f"Could not find {func_def} in {file_path}")
+    offset += len("def ")
 
     mover = MoveGlobal(project, resource, offset)
     change_set = mover.get_changes(destination)
@@ -63,16 +67,16 @@ def move_function(
 
 
 class MoveBot(ChatGPT):
-    def refactor_snippets(
+    def move_entity(
         self,
         additional_messages: list[Message] = [],
         file_path: str = "",
-        contents: str = "",
         request="",
-        changes_made="",
+        contents="",
         cloned_repo: ClonedRepo = None,
         **kwargs,
     ):
+        changes_made = ""
         self.model = (
             "gpt-4-32k-0613"
             if (self.chat_logger and self.chat_logger.is_paying_user())
@@ -96,21 +100,28 @@ class MoveBot(ChatGPT):
         )
         move_pattern = r'<move\s+from_file="(?P<from_file>.*?)"\s+entity="(?P<entity>.*?)"\s+destination_module="(?P<destination_module>.*?)"\s+/>'
         move_matches = list(re.finditer(move_pattern, move_response, re.DOTALL))
-        change_sets = []
+        change_sets: list[ChangeSet] = []
         new_code = None
         for idx, match_ in enumerate(move_matches):
             match = match_.groupdict()
             from_file = match["from_file"]
             entity = match["entity"]
             destination_module = match["destination_module"]
-            new_code, change_set = move_function(
-                from_file, entity, destination_module, cloned_repo.cache_dir
-            )
+            try:
+                new_code, change_set = move_function(
+                    from_file, entity, destination_module, cloned_repo.cache_dir
+                )
+            except Exception as e:
+                logger.error(e)  # Keep this as an error for now
+                logger.warning(
+                    f"Failed to move {entity} from {from_file} to {destination_module}"
+                )
+                continue
             change_sets.append(change_set)
         for change_set in change_sets:
             for change in change_set.changes:
                 change.undo()
-        return new_code
+        return new_code, change_sets
 
 
 if __name__ == "__main__":
@@ -129,7 +140,7 @@ _No response_""",
     request = "* Move the `get_comment_header` and `custom_config` functions from `sweepai/handlers/on_ticket.py` to `sweepai/utils/ticket_utils.py`.\n\n* Ensure that the functions are placed in a logical location within `ticket_utils.py`, such as at the end of the file."
     changes_made = ""
     bot = MoveBot()
-    bot.refactor_snippets(
+    bot.move_entity(
         additional_messages=additional_messages,
         file_path=file_path,
         request=request,
