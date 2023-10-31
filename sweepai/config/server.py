@@ -84,6 +84,7 @@ GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
 GITHUB_LABEL_DESCRIPTION = os.environ.get(
     "GITHUB_LABEL_DESCRIPTION", "Sweep your software chores"
 )
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
 GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM")
 GITHUB_APP_PEM = GITHUB_APP_PEM or os.environ.get("PRIVATE_KEY")
 if GITHUB_APP_PEM is not None:
