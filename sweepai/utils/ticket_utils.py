@@ -1,7 +1,39 @@
-from sweepai.config.client import SweepConfig
+import re
+from sweepai.config.client import SweepConfig, SLOW_MODE
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+def strip_sweep(title: str):
+    slow_mode = False
+    do_map = False
+    subissues_mode = False
+    sandbox_mode = False
+    fast_mode = False
+    lint_mode = False
+
+    if SLOW_MODE:
+        slow_mode = True
+    if "sweep:slow" in title.lower():
+        slow_mode = True
+        title = title.lower().replace("sweep:slow", "").strip()
+    if "sweep:map" in title.lower():
+        do_map = True
+        title = title.lower().replace("sweep:map", "").strip()
+    if "sweep:subissues" in title.lower():
+        subissues_mode = True
+        title = title.lower().replace("sweep:subissues", "").strip()
+    if "sweep:sandbox" in title.lower():
+        sandbox_mode = True
+        title = title.lower().replace("sweep:sandbox", "").strip()
+    if "sweep:fast" in title.lower():
+        fast_mode = True
+        title = title.lower().replace("sweep:fast", "").strip()
+    if "sweep:lint" in title.lower():
+        lint_mode = True
+        title = title.lower().replace("sweep:lint", "").strip()
+
+    title = re.sub(r"\s+", " ", title).strip()
+    return title, slow_mode, do_map, subissues_mode, sandbox_mode, fast_mode, lint_mode
 
 SLOW_MODE = False
 SLOW_MODE = True
