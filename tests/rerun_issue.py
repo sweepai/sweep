@@ -24,6 +24,8 @@ def wait_for_server(host: str):
             traceback.print_exc()  # Print the traceback when an exception occurs
             time.sleep(1)
             continue
+        if i > 0:
+            print(f"Waited for server to start ({i+1}s)")
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
     (
