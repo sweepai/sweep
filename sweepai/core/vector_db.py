@@ -177,6 +177,11 @@ def get_deeplake_vs_from_repo(
 
     snippets, files_to_scores, start, index = prepare_lexical_search_index(repo_full_name, repo, sweep_config, cloned_repo)
 
+    deeplake_vs, documents = create_vector_store(snippets, cloned_repo, files_to_scores, start, repo_full_name, deeplake_vs, commit_hash)
+
+    return deeplake_vs, index, len(documents)
+
+def create_vector_store(snippets, cloned_repo, files_to_scores, start, repo_full_name, deeplake_vs, commit_hash):
     documents = []
     metadatas = []
     ids = []
@@ -198,8 +203,7 @@ def get_deeplake_vs_from_repo(
     deeplake_vs = deeplake_vs or compute_deeplake_vs(
         collection_name, documents, ids, metadatas, commit_hash
     )
-
-    return deeplake_vs, index, len(documents)
+    return deeplake_vs, documents
 
 def prepare_lexical_search_index(repo_full_name, repo, sweep_config, cloned_repo):
     logger.info(f"Downloading repository and indexing for {repo_full_name}...")
