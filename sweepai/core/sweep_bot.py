@@ -94,6 +94,8 @@ def remove_line_numbers(s: str) -> str:
 
 
 def is_blocked(file_path: str, blocked_dirs: list[str]):
+    if blocked_dirs is None:
+        return {"success": False}
     for blocked_dir in blocked_dirs:
         if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
             return {"success": True, "path": blocked_dir}
