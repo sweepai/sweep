@@ -16,7 +16,9 @@ os.environ["GITHUB_APP_PEM"] = os.environ.get(
 
 if os.environ["GITHUB_APP_PEM"]:
     os.environ["GITHUB_APP_ID"] = (
-        os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID")).replace("\\n", "\n").strip('"')
+        os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
+        .replace("\\n", "\n")
+        .strip('"')
     )
 
 os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
