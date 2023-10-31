@@ -57,7 +57,7 @@ SWEEP_HEALTH_URL = os.environ.get("SWEEP_HEALTH_URL")
 DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
 
 # goes under Modal 'github' secret name
-GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID") or os.environ.get("APP_ID")
 # deprecated: old logic transfer so upstream can use this
 if GITHUB_APP_ID is None:
     if ENV == "prod":
