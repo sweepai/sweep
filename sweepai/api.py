@@ -16,11 +16,6 @@ from sweepai.utils.buttons import (
 )
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
-logger.init(
-    metadata=None,
-    create_file=False,
-)
-
 import ctypes
 import threading
 
@@ -68,15 +63,20 @@ from sweepai.handlers.create_pr import (  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
-from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
-app = FastAPI()
-
 import tracemalloc
+import sweepai.utils.ticket_utils
+
+logger.init(
+    metadata=None,
+    create_file=False,
+)
+
+app = FastAPI()
 
 tracemalloc.start()
 
@@ -95,7 +95,7 @@ def run_on_ticket(*args, **kwargs):
             "tracking_id": tracking_id,
         }
     ):
-        on_ticket(*args, **kwargs, tracking_id=tracking_id)
+        sweepai.utils.ticket_utils.on_ticket(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_comment(*args, **kwargs):
