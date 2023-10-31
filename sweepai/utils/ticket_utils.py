@@ -1,3 +1,8 @@
+from sweepai.config.client import SweepConfig
+from sweepai.core.entities import Snippet
+from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.str_utils import total_number_of_snippet_tokens
+=======
 from sweepai.utils.str_utils import center
 =======
 from sweepai.config.client import SweepConfig
@@ -82,3 +87,6 @@ def log_error(
         f" {issue_url}\n```{exception}```"
     )
     discord_log_error(content, priority=priority)
+    
+    def center(text: str) -> str:
+    return f"<div align='center'>{text}</div>"
