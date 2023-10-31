@@ -62,8 +62,6 @@ from sweepai.core.entities import (
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sweep_bot import SweepBot
-
-# from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import (
     create_config_pr,
     create_pr_changes,
@@ -79,24 +77,10 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.str_utils import (
-    blockquote,
-    bot_suffix,
-    checkbox_template,
-    clean_logs,
-    collapsible_template,
-    create_checkbox,
-    create_collapsible,
-    discord_suffix,
-    format_exit_code,
-    num_of_snippets_to_query,
-    ordinal,
-    sep,
-    stars_suffix,
-    strip_sweep,
-)
-from sweepai.utils.ticket_utils import center, log_error, post_process_snippets
+from sweepai.utils.str_utils import blockquote, bot_suffix, checkbox_template, clean_logs, collapsible_template, create_checkbox, create_collapsible, discord_suffix, format_exit_code, ordinal, sep, stars_suffix, strip_sweep
+from sweepai.utils.ticket_utils import center, log_error, post_process_snippets, fetch_relevant_files
+
+# from sandbox.sandbox_utils import Sandbox
 
 openai.api_key = OPENAI_API_KEY
 
@@ -1533,68 +1517,3 @@ def review_code(
     return changes_required, review_message
 
 
-def fetch_relevant_files(
-    cloned_repo,
-    title,
-    summary,
-    replies_text,
-    username,
-    metadata,
-    on_ticket_start_time,
-    tracking_id,
-    edit_sweep_comment,
-    is_paying_user,
-    is_consumer_tier,
-    issue_url,
-):
-    logger.info("Fetching relevant files...")
-    try:
-        snippets, tree, dir_obj = search_snippets(
-            cloned_repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-        )
-        assert len(snippets) > 0
-    except SystemExit:
-        logger.warning("System exit")
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                **metadata,
-                "error": "System exit",
-                "duration": time() - on_ticket_start_time,
-            },
-        )
-        raise SystemExit
-    except Exception as e:
-        trace = traceback.format_exc()
-        logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
-        edit_sweep_comment(
-            (
-                "It looks like an issue has occurred around fetching the files."
-                " Perhaps the repo has not been initialized. If this error persists"
-                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
-            ),
-            -1,
-        )
-        log_error(
-            is_paying_user,
-            is_consumer_tier,
-            username,
-            issue_url,
-            "File Fetch",
-            str(e) + "\n" + traceback.format_exc(),
-            priority=1,
-        )
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                **metadata,
-                "error": str(e),
-                "duration": time() - on_ticket_start_time,
-            },
-        )
-        raise e
-    return snippets, tree, dir_obj
