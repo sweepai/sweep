@@ -199,7 +199,7 @@ def get_last_import_line(code: str, max_: int = 150) -> int:
     lines = code.split("\n")
     for i, line in enumerate(reversed(lines)):
         if line.startswith("import ") or line.startswith("from "):
-            return max(len(lines) - i - 1, max_)
+            return min(len(lines) - i - 1, max_)
     return -1
 
 
