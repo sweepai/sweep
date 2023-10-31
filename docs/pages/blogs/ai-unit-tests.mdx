@@ -11,7 +11,7 @@ We don't have any tests for this class, so we asked Sweep to write them.
 
 Here Sweep starts by reading the original GitHub issue: **“Sweep: Write unit tests for ClonedRepo”**. https://github.com/sweepai/sweep/issues/2377
 
-Sweep searches over the codebase with our in-house code search engine, ranking this symbol and file first: `ClonedRepo:sweepai/utils/github_utils.py`. 
+Sweep searches over the codebase with our in-house code search engine, ranking this symbol and file first: `ClonedRepo:sweepai/utils/github_utils.py`.
 This file [sweepai/utils/github_utils.py](https://github.com/sweepai/sweep/blob/main/sweepai/utils/github_utils.py) is ~370 lines long, but because we know the symbol `ClonedRepo`, we extracted the relevant code (~250 lines) without the other functions and classes.
 
 ```python
@@ -111,7 +111,7 @@ Sweep updates you with a flowchart showing you the code it's written and the tes
 Sweep starts off by writing the original `github_utils_tests.py` file. <br></br>
 Then Sweep runs the tests using `python sweepai/utils/github_utils_test.py`. (this command is configurable)
 ![image](/flowchart/flowchart_2.png)
-    
+
 Sweep found the error, and suggests a new modification to the tests.
 ![image](/flowchart/flowchart_3.png)
 
@@ -123,10 +123,19 @@ Finally, we used the test feedback to fix the code and run the tests again. If t
 The benefits of this approach seem small at first: “Ok, now I don’t need to fix the tests”.
 But if you just wanted to write unit tests, you might as well use ChatGPT.
 
-With this approach, Sweep can not only write the test, but: 
+With this approach, Sweep can not only write the test, but:
 
 1. find bugs in the original code
 2. *fix the original code*
 3. run the tests again to confirm the bugfix
 
 One step closer to becoming an AI developer.
+<style>{`
+  pre {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+  code {
+    white-space: pre-wrap !important;
+  }
+`}</style>
