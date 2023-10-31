@@ -79,5 +79,6 @@ def log_error(
     )
     discord_log_error(content, priority=priority)
 
+
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
