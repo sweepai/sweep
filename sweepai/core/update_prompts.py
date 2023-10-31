@@ -58,7 +58,7 @@ File path: {file_path}
 </snippets_to_update>
 
 # Instructions
-Modify each of the {n} snippets above according to the request using diffs.
+Modify the snippets above according to the request writing REPLACE statements or APPEND statements.
 * Keep whitespace and comments.
 * Write minimal diff hunks to make changes to the snippets. Only write diffs for lines that should be changed.
 * Write multiple small changes instead of a single large change.
@@ -98,7 +98,7 @@ File path: {file_path}
 </snippets_to_update>
 
 # Instructions
-Modify each of the {n} snippets above according to the request using diffs.
+Modify the snippets above according to the request writing REPLACE statements or APPEND statements.
 * Keep whitespace and comments.
 * Write minimal diff hunks to make changes to the snippets. Only write diffs for lines that should be changed.
 * Write multiple small changes instead of a single large change.

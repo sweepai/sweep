@@ -2,7 +2,7 @@
 **William Zeng** - October 21th, 2023
 
 Hi everyone, my name is William and I’m one of the founders of Sweep. <br></br>
-Sweep is an AI junior developer that writes and fixes code by mirroring how a developer works.
+**Sweep** is an AI junior developer that writes and fixes code by mirroring how a developer works.
 
 ## 1. **Read the task description and codebase.**
 
@@ -10,6 +10,7 @@ ClonedRepo is our wrapper around the Git API that makes it easy to clone and int
 We don't have any tests for this class, so we asked Sweep to write them.
 
 Here Sweep starts by reading the original GitHub issue: **“Sweep: Write unit tests for ClonedRepo”**. https://github.com/sweepai/sweep/issues/2377
+
 
 Sweep searches over the codebase with our in-house code search engine, ranking this symbol and file first: `ClonedRepo:sweepai/utils/github_utils.py`.
 This file [sweepai/utils/github_utils.py](https://github.com/sweepai/sweep/blob/main/sweepai/utils/github_utils.py) is ~370 lines long, but because we know the symbol `ClonedRepo`, we extracted the relevant code (~250 lines) without the other functions and classes.
@@ -60,7 +61,7 @@ def get_file_contents(self, file_path, ref=None):
             raise FileNotFoundError(f"{local_path} does not exist.")
 ```
 
-We have Sweep generate mocks for `os.path.join` and `open`. <br></br>
+We have Sweep generated mocks for `os.path.join` and `open`. <br></br>
 This code looks great!
 
 ```python

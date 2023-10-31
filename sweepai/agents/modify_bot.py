@@ -199,7 +199,7 @@ def get_last_import_line(code: str, max_: int = 150) -> int:
     lines = code.split("\n")
     for i, line in enumerate(reversed(lines)):
         if line.startswith("import ") or line.startswith("from "):
-            return max(len(lines) - i - 1, max_)
+            return min(len(lines) - i - 1, max_)
     return -1
 
 
@@ -476,7 +476,7 @@ class ModifyBot:
             MatchToModify(
                 start=0,
                 end=min(IMPORT_LINES, len(file_contents.split("\n"))),
-                reason="Handle imports",
+                reason="Import statements",
             )
         )
 
@@ -491,9 +491,9 @@ class ModifyBot:
             reason = (
                 f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
             )
-            if b.reason == "Handle imports":
+            if b.reason == "Import statements":
                 reason = a.reason
-            elif a.reason == "Handle imports":
+            elif a.reason == "Import statements":
                 reason = b.reason
             elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
                 reason = a.reason
@@ -507,7 +507,7 @@ class ModifyBot:
         deduped_matches: list[MatchToModify] = []
 
         # Fuse & dedup
-        FUSE_OFFSET = 5
+        FUSE_OFFSET = 3
         for next_match_ in best_matches[1:]:
             if (
                 current_match.end > next_match_.start

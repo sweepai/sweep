@@ -172,7 +172,11 @@ def find_best_match(query: str, code_file: str):
                 best_match = Match(i, i + 1, score)
         return best_match
 
-    indent_array = [i for i in range(0, min(max_indents + 1, 20))]
+    truncate = min(40, len(code_file_lines) // 5)
+    if truncate < 1:
+        truncate = len(code_file_lines)
+
+    indent_array = [i for i in range(0, max(min(max_indents + 1, 20), 1))]
     if max_indents > 3:
         indent_array = [3, 2, 4, 0, 1] + list(range(5, max_indents + 1))
     for num_indents in indent_array:
@@ -183,7 +187,7 @@ def find_best_match(query: str, code_file: str):
             for i, line in enumerate(code_file_lines)
         ]
         start_pairs.sort(key=lambda x: x[1], reverse=True)
-        start_pairs = start_pairs[: min(40, len(start_pairs) // 5)]
+        start_pairs = start_pairs[:truncate]
         start_indices = sorted([i for i, _ in start_pairs])
 
         for i in tqdm(
@@ -197,7 +201,7 @@ def find_best_match(query: str, code_file: str):
                 for j, line in enumerate(code_file_lines[i:], start=i)
             ]
             end_pairs.sort(key=lambda x: x[1], reverse=True)
-            end_pairs = end_pairs[: min(40, len(end_pairs) // 5)]
+            end_pairs = end_pairs[:truncate]
             end_indices = sorted([j for j, _ in end_pairs])
 
             for j in tqdm(
@@ -393,10 +397,12 @@ def handle_button_click(request_dict):
     )
 
     # Find the best match
-    best_span = find_best_match(target, code_file)
+    # best_span = find_best_match(target, code_file)
+    best_span = find_best_match("a\nb", "a\nb")
+    print(best_span)
 
-    best_code_snippet = "\n".join(
-        code_file.split("\n")[best_span.start : best_span.end]
-    )
-    print(f"Best code snippet:\n{best_code_snippet}")
+    # best_code_snippet = "\n".join(
+    #     code_file.split("\n")[best_span.start : best_span.end]
+    # )
+    # print(f"Best code snippet:\n{best_code_snippet}")
     # print(f"Best match line numbers: {best_span.start}-{best_span.end}")

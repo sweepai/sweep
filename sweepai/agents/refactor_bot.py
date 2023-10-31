@@ -37,7 +37,6 @@ def extract_method(
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         raise e
-        # return contents, []
 
 
 class RefactorBot(ChatGPT):
