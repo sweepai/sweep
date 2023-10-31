@@ -50,7 +50,7 @@ GPT4 will extract this, but when it generates the new function's signature using
 
 It’s possible to rely on a unit test feedback loop to fix this (write the new code, check the tests pass, and then fix anything broken), but it’s a bit too chaotic in practice. We might not have unit tests for the code, or the unit tests might pass but not cover this case(arguably worse!).
 
-We wanted something deterministic, so we used Rope. Rope is a refactoring library for Python that uses the Python AST, allowing for refactors that work 100% of the time.
+We wanted something deterministic, so we used [Rope](https://github.com/python-rope/rope). Rope is a refactoring library for Python that uses the Python AST, allowing for refactors that work 100% of the time.
 
 To use Rope, we can ask GPT4 to define sections of the code that it wants to extract. These should correspond to the request.
 
@@ -68,12 +68,13 @@ The user request is to refactor the `get_deeplake_vs_from_repo` function in the 
 The code that prepares documents, metadatas, and ids. This section starts with the line `documents = []` and ends with the line `ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")`.
 </contextual_request_analysis>
 
+
 <new_function_names>
 "prepare_documents_metadata_ids"
 </new_function_names>
 
-<extractions>
 
+<extractions>
 <<<<<<< EXTRACT
 documents = []
 metadatas = []
