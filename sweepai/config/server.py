@@ -58,10 +58,12 @@ DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
 
 # goes under Modal 'github' secret name
 
+
 def fetch_github_app_id():
     # goes under Modal 'github' secret name
     GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
     return GITHUB_APP_ID
+
 
 GITHUB_APP_ID = fetch_github_app_id()
 # deprecated: old logic transfer so upstream can use this
