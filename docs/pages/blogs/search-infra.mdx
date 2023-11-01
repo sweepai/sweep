@@ -55,3 +55,12 @@ For more details, please visit our GitHub repo: **https://github.com/sweepai/swe
 - This approach scales to huge repositories without additional latency. We’ve handled repositories upwards of 4000 files, and we’re excited to handle even large ones.
 - We chose [ActiveLoop Deeplake](https://docs.deeplake.ai/en/latest/index.html) as our vector store because of its clean interface and the fantastic support.
 - This is way cheaper than Pinecone. We pay ~500$/month for a Redis cluster, which serves thousands of repositories. For our infrastructure, we use [https://modal.com](https://modal.com/), which lets us run serverless functions in native python.
+<style>{`
+  pre {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+  code {
+    white-space: pre-wrap !important;
+  }
+`}</style>

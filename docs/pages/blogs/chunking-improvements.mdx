@@ -340,3 +340,12 @@ On an unrelated note, we had an issue hitting the rate limits on Modal since we 
 
 1. We batched them into groups of 30, so for a 30k file repo, we would spin up only a thousand containers each sequentially chunking 30 files each instead of 30k containers chunking 1 file each.
 2. We passively re-indexed only for very active users and paying users.
+<style>{`
+  pre {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+  code {
+    white-space: pre-wrap !important;
+  }
+`}</style>
