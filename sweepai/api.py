@@ -69,6 +69,7 @@ from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.handlers.on_pr_commit import handle_pr_commit
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -77,6 +78,16 @@ from sweepai.utils.search_utils import index_full_repository
 app = FastAPI()
 
 import tracemalloc
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    event = data["action"]
+    match event:
+        case "opened" | "synchronize" if data["pull_request"]:
+            handle_pr_commit()
+        case _:
+            pass
+    return {"status": "ok"}
 
 tracemalloc.start()
 
