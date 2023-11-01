@@ -14,6 +14,3 @@ def test_webhook_handle_pr_commit(self):
 
     # Assert: Check that the handle_pr_commit function was called
     self.assertTrue(mock_handle_pr_commit.called)
-    This function is a placeholder for handling new commits added to a PR.
-    It will be developed in the future to perform specific actions when a new commit is added to a PR.
-    """
