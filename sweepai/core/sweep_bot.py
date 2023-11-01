@@ -43,7 +43,6 @@ from sweepai.core.prompts import (
     create_file_prompt,
     files_to_change_prompt,
     pull_request_prompt,
-    python_files_to_change_prompt,
     python_refactor_issue_title_guide_prompt,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
@@ -360,7 +359,7 @@ class CodeGenBot(ChatGPT):
                         "metadata", self.human_message.get_issue_metadata()
                     )
                     files_to_change_response = self.chat(
-                        python_files_to_change_prompt, message_key="files_to_change"
+                        files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
                     file_change_requests = []
                     for re_match in re.finditer(
