@@ -89,7 +89,7 @@ from sweepai.utils.str_utils import (
     stars_suffix,
     strip_sweep,
 )
-from sweepai.utils.ticket_utils import (
+from sweepai.utils.ticket_utils import review_code,
     center,
     fetch_relevant_files,
     log_error,
