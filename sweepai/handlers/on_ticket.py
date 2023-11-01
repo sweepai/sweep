@@ -67,8 +67,6 @@ from sweepai.handlers.create_pr import (
     create_pr_changes,
     safe_delete_sweep_branch,
 )
-from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -77,27 +75,8 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.str_utils import (
-    blockquote,
-    bot_suffix,
-    checkbox_template,
-    clean_logs,
-    collapsible_template,
-    create_checkbox,
-    create_collapsible,
-    discord_suffix,
-    format_exit_code,
-    ordinal,
-    sep,
-    stars_suffix,
-    strip_sweep,
-)
-from sweepai.utils.ticket_utils import (
-    center,
-    fetch_relevant_files,
-    log_error,
-    post_process_snippets,
-)
+from sweepai.utils.str_utils import blockquote, bot_suffix, checkbox_template, clean_logs, collapsible_template, create_checkbox, create_collapsible, discord_suffix, format_exit_code, sep, stars_suffix, strip_sweep
+from sweepai.utils.ticket_utils import center, fetch_relevant_files, log_error, post_process_snippets, review_code
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -1469,68 +1448,3 @@ def on_ticket(
     return {"success": True}
 
 
-def review_code(
-    repo,
-    pr_changes,
-    issue_url,
-    username,
-    repo_description,
-    title,
-    summary,
-    replies_text,
-    tree,
-    lint_output,
-    plan,
-    chat_logger,
-    commit_history,
-    review_message,
-    edit_sweep_comment,
-    repo_full_name,
-    installation_id,
-):
-    try:
-        # CODE REVIEW
-        changes_required, review_comment = review_pr(
-            repo=repo,
-            pr=pr_changes,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=summary,
-            replies_text=replies_text,
-            tree=tree,
-            lint_output=lint_output,
-            plan=plan,  # plan for the PR
-            chat_logger=chat_logger,
-            commit_history=commit_history,
-        )
-        lint_output = None
-        review_message += (
-            f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
-        )
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI'm currently addressing these suggestions.",
-                3,
-            )
-            logger.info(f"Addressing review comment {review_comment}")
-            on_comment(
-                repo_full_name=repo_full_name,
-                repo_description=repo_description,
-                comment=review_comment,
-                username=username,
-                installation_id=installation_id,
-                pr_path=None,
-                pr_line_position=None,
-                pr_number=None,
-                pr=pr_changes,
-                chat_logger=chat_logger,
-                repo=repo,
-            )
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        logger.error(e)
-    return changes_required, review_message
