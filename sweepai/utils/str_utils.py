@@ -3,7 +3,8 @@ import re
 UPDATES_MESSAGE = """\
 ### 🎉 Latest improvements to Sweep:
 
-* Sweep can now passively improve your repository! Check out [Rules](https://docs.sweep.dev/usage/config#rules) to learn more.
+* Sweep now uses the library `rope` to refactor Python! Check out [Large Language Models are Bad at Refactoring Code](https://docs.sweep.dev/blogs/refactor-python).
+* Sweep finds and fixes bugs in your code by writing unit tests! Check out [Having GPT-4 Iterate on Unit Tests like a Human](https://docs.sweep.dev/blogs/ai-unit-tests).
 """
 
 sep = "\n---\n"
