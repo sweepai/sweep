@@ -5,6 +5,9 @@ from sweepai.utils.str_utils import total_number_of_snippet_tokens, num_of_snipp
 import traceback
 from time import time
 from loguru import logger
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_review import review_pr
+from loguru import logger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.search_utils import search_snippets
 from sweepai.handlers.on_comment import on_comment
