@@ -24,6 +24,7 @@ from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name
 from sweepai.config.server import DEBUG, MINIS3_URL, SANDBOX_URL, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
+    ExtractionRequest,
     FileChangeRequest,
     FileCreation,
     MaxTokensExceeded,
@@ -41,6 +42,7 @@ from sweepai.core.entities import (
 # from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
     create_file_prompt,
+    extract_files_to_change_prompt,
     files_to_change_prompt,
     pull_request_prompt,
     python_refactor_issue_title_guide_prompt,
@@ -222,15 +224,6 @@ class CodeGenBot(ChatGPT):
                     graph_parent_bot.messages.insert(
                         1, Message(role="user", content=pr_diffs, key="pr_diffs")
                     )
-                if any(
-                    keyword in self.human_message.title.lower()
-                    for keyword in ("refactor", "extract", "replace")
-                ):
-                    self.human_message.title += python_refactor_issue_title_guide_prompt
-                    posthog.capture(
-                        self.chat_logger.data["username"],
-                        "python_refactor",
-                    )
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -354,10 +347,33 @@ class CodeGenBot(ChatGPT):
                     self.update_message_content_from_message_key(
                         "relevant_snippets", relevant_snippet_text
                     )
-                    # regenerate issue metadata
-                    self.update_message_content_from_message_key(
-                        "metadata", self.human_message.get_issue_metadata()
-                    )
+                    if any(
+                        keyword in self.human_message.title.lower()
+                        for keyword in ("refactor", "extract", "replace", "move")
+                    ):
+                        self.human_message.title += python_refactor_issue_title_guide_prompt
+                        posthog.capture(
+                            self.chat_logger.data["username"],
+                            "python_refactor",
+                        )
+                        import pdb; pdb.set_trace()
+                        # regenerate issue metadata
+                        self.update_message_content_from_message_key(
+                            "metadata", self.human_message.get_issue_metadata()
+                        )
+                        extract_response = self.chat(
+                            extract_files_to_change_prompt,
+                            message_key="extract_prompt"
+                        )
+                        extraction_request = ExtractionRequest.from_string(extract_response)
+                        file_change_requests = []
+                        if extraction_request.use_refactor:
+                            fcr_match = re.search(FileChangeRequest._regex, extract_response, re.DOTALL)
+                            file_change_request = FileChangeRequest.from_string(fcr_match.group(0))
+                            plan_str = "\n".join(
+                                [fcr.instructions_display for fcr in file_change_requests]
+                            )
+                            return file_change_requests, plan_str
                     files_to_change_response = self.chat(
                         files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here

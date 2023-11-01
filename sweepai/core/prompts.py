@@ -217,6 +217,24 @@ You MUST follow the following format:
 
 </plan>"""
 
+extract_files_to_change_prompt = """\
+Provide your response in the below format:
+<contextual_request_analysis>
+Analyze the user request to determine if this change should use the refactor tool. The refactor tool performs code transformations without making other logical changes.
+</contextual_request_analysis>
+
+<use_refactor>
+True/False
+</use_refactor>
+
+If use_refactor is True, then generate a refactor request to the tool in the below format:
+* Make sure destination_module refers to a python module and not a path.
+
+<extract file="file_path_1" destination_module="destination_module" relevant_files="space-separated list of ALL files relevant for modifying file_path_1">
+* Exact instructions for the functions that to be refactored to solve the issue.
+...
+</extract>"""
+
 refactor_files_to_change_prompt = """\
 Reference and analyze the snippets, repo, and issue to break down the requested change and propose a plan that addresses the user's request.
 
