@@ -1,3 +1,8 @@
+from unittest.mock import Mock
+from sweepai.api import webhook
+
+mock_handle_pr_commit = Mock()
+
 def handle_pr_commit():
     """
     This function is a placeholder for handling new commits added to a PR.
@@ -12,5 +17,5 @@ def test_webhook_handle_pr_commit(self):
     # Call the webhook function with the mock request
     webhook(mock_request)
 
-    # Assert: Check that the handle_pr_commit function was called
+    # Assert: Check that the mock_handle_pr_commit function was called
     self.assertTrue(mock_handle_pr_commit.called)
