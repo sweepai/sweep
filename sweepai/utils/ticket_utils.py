@@ -75,6 +75,18 @@ def fetch_relevant_files(
         raise e
     return snippets, tree, dir_obj
 
+from loguru import logger
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.search_utils import search_snippets
+from time import time
+import traceback
+=======
+from loguru import logger
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.search_utils import search_snippets
+from time import time
+import traceback
+
 SLOW_MODE = False
 SLOW_MODE = True
 
