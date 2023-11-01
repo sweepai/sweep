@@ -1,5 +1,6 @@
 import html
 import time
+import traceback  # Import the traceback module
 
 import requests
 import typer
@@ -7,7 +8,6 @@ from github import Github
 
 from sweepai.events import Account, Installation, IssueRequest
 from sweepai.utils.github_utils import get_github_client, get_installation_id
-
 
 def wait_for_server(host: str):
     for i in range(120):
@@ -21,11 +21,11 @@ def wait_for_server(host: str):
                 + ("." * (i % 4) + " " * (4 - (i % 4))),
                 end="\r",
             )
+            traceback.print_exc()  # Print the traceback when an exception occurs
             time.sleep(1)
             continue
-    if i > 0:
-        print(f"Waited for server to start ({i+1}s)")
-
+        if i > 0:
+            print(f"Waited for server to start ({i+1}s)")
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
     (
@@ -85,7 +85,6 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
 
     return issue_request
 
-
 def main(
     issue_url: str,
     host: str = "http://127.0.0.1:8080",
@@ -104,7 +103,6 @@ def main(
     print(response)
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")
-
 
 if __name__ == "__main__":
     typer.run(main)
