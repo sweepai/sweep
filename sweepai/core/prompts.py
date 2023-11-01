@@ -217,6 +217,54 @@ You MUST follow the following format:
 
 </plan>"""
 
+refactor_files_to_change_prompt = """\
+Reference and analyze the snippets, repo, and issue to break down the requested change and propose a plan that addresses the user's request.
+
+Provide a plan to solve the issue, following these rules:
+* You may only create new files, extract snippets into functions, relocate functions, or modify existing files.
+* Include the full path (e.g. src/main.py and not just main.py), using the repo_tree for reference.
+* Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
+
+You MUST follow the following format:
+
+# Contextual Request Analysis:
+<contextual_request_analysis>
+* Outline the ideal plan that solves the user request by referencing the snippets and any other necessary files/directories.
+* Describe each <create>, <modify>, <extract>, and <relocate> section in the following plan and why it will be needed. Make sure the ordering is correct.
+...
+</contextual_request_analysis>
+
+# Plan:
+<plan>
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
+* Exact instructions for creating the new file needed to solve the issue
+* Include references to all files, imports and entity names
+...
+</create>
+...
+
+<extract file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Extracts lines of code from a function into a new standalone function.
+...
+</extract>
+...
+
+<relocate file="file_path_3" new_file_path="new_file_path" handle_references="True">
+* This will move a function or variable from file_path_3 into another file while automatically resolving everything. If you use this block do not add other modifications related to imports, references, or function calls.
+</relocate>
+...
+
+<modify file="file_path_4" relevant_files="space-separated list of ALL files relevant for modifying file_path_4">
+* Modifies files by making less than 30-line changes. Be exact and mention references to all files, imports and entity names.
+* Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
+* Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
+* You may modify the same file multiple times.
+...
+</modify>
+...
+
+</plan>"""
+
 sandbox_files_to_change_prompt = """\
 Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high-quality plan that completely fixes the CI/CD run.
 
