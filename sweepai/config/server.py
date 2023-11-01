@@ -177,18 +177,13 @@ SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-SANDBOX_URL = os.environ.get("SANDBOX_URL")
-if SANDBOX_URL is None:
+SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://your-sandbox-url.com")
+if SANDBOX_URL is not None:
     try:
-        requests.get("http://0.0.0.0:8081/health").text.strip()
-        SANDBOX_URL = "http://0.0.0.0:8081"
+        requests.get(f"{SANDBOX_URL}/health").text.strip()
     except:
-        pass
-    try:
-        requests.get("http://sandbox-web:8080/health").text.strip()
-        SANDBOX_URL = "http://sandbox-web:8080"
-    except:
-        pass
+        logger.print("Sandbox URL is not accessible.")
+        SANDBOX_URL = None
 
 
 if SANDBOX_URL is not None:
