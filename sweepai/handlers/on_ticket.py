@@ -75,8 +75,27 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.str_utils import blockquote, bot_suffix, checkbox_template, clean_logs, collapsible_template, create_checkbox, create_collapsible, discord_suffix, format_exit_code, sep, stars_suffix, strip_sweep
-from sweepai.utils.ticket_utils import center, fetch_relevant_files, log_error, post_process_snippets, review_code
+from sweepai.utils.str_utils import (
+    blockquote,
+    bot_suffix,
+    checkbox_template,
+    clean_logs,
+    collapsible_template,
+    create_checkbox,
+    create_collapsible,
+    discord_suffix,
+    format_exit_code,
+    sep,
+    stars_suffix,
+    strip_sweep,
+)
+from sweepai.utils.ticket_utils import (
+    center,
+    fetch_relevant_files,
+    log_error,
+    post_process_snippets,
+    review_code,
+)
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -1446,5 +1465,3 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
-
-
