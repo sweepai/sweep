@@ -1,17 +1,21 @@
-from sweepai.config.client import SweepConfig
-from sweepai.core.entities import Snippet
-from sweepai.utils.chat_logger import discord_log_error
-from sweepai.utils.str_utils import total_number_of_snippet_tokens, num_of_snippets_to_query, blockquote, ordinal
 import traceback
 from time import time
+
 from loguru import logger
+
+from sweepai.config.client import SweepConfig
+from sweepai.core.entities import Snippet
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from loguru import logger
+from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.search_utils import search_snippets
-from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_review import review_pr
+from sweepai.utils.str_utils import (
+    blockquote,
+    num_of_snippets_to_query,
+    ordinal,
+    total_number_of_snippet_tokens,
+)
 
 
 def review_code(
@@ -146,6 +150,7 @@ def fetch_relevant_files(
         )
         raise e
     return snippets, tree, dir_obj
+
 
 SLOW_MODE = False
 SLOW_MODE = True
