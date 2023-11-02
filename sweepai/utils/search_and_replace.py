@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
-from sweepai.logn import logger, file_cache
-
+from sweepai.logn import file_cache, logger
 
 
 def score_line_function():
@@ -27,19 +26,21 @@ def score_line_function():
 
         score = 70 * (levenshtein_ratio / 100)
         return max(score, 0)
+
     return score_line
 
-score_line = score_line_function()
 
+score_line = score_line_function()
 
 
 def match_without_whitespace_function():
     def match_without_whitespace(str1: str, str2: str) -> bool:
         return str1.strip() == str2.strip()
+
     return match_without_whitespace
 
-match_without_whitespace = match_without_whitespace_function()
 
+match_without_whitespace = match_without_whitespace_function()
 
 
 def line_cost_function():
@@ -49,10 +50,11 @@ def line_cost_function():
         if line.strip().startswith("#") or line.strip().startswith("//"):
             return 50 + len(line) / (len(line) + 1) * 30
         return len(line) / (len(line) + 1) * 100
+
     return line_cost
 
-line_cost = line_cost_function()
 
+line_cost = line_cost_function()
 
 
 def score_multiline_function(match_without_whitespace, line_cost, score_line):
@@ -141,9 +143,13 @@ def score_multiline_function(match_without_whitespace, line_cost, score_line):
         final_score *= 1 - 0.05 * skipped_comments
 
         return final_score
+
     return score_multiline
 
-score_multiline = score_multiline_function(match_without_whitespace, line_cost, score_line)
+
+score_multiline = score_multiline_function(
+    match_without_whitespace, line_cost, score_line
+)
 
 
 @dataclass
@@ -171,8 +177,9 @@ def get_max_indent(content: str, indent_type: str):
 
 
 @file_cache()
-
-def find_best_match_function(Match, get_indent_type, score_multiline, get_max_indent, score_line):
+def find_best_match_function(
+    Match, get_indent_type, score_multiline, get_max_indent, score_line
+):
     def find_best_match(query: str, code_file: str):
         best_match = Match(-1, -1, 0)
 
@@ -256,7 +263,9 @@ def find_best_match_function(Match, get_indent_type, score_multiline, get_max_in
 
         # Todo: on_comment file comments able to modify multiple files
         return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
+
     return find_best_match
+
 
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)
@@ -343,7 +352,6 @@ def find_best_match(query: str, code_file: str):
     return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
 
 
-
 def split_ellipses_function():
     def split_ellipses(query: str) -> list[str]:
         queries = []
@@ -357,8 +365,8 @@ def split_ellipses_function():
         queries.append(current_query.strip("\n"))
         return queries
 
-split_ellipses_function()
 
+split_ellipses_function()
 
 
 def match_indent_function():
@@ -372,6 +380,7 @@ def match_indent_function():
                 "\n", "\n" + indent_type * diff_indents
             )
         return generated
+
 
 match_indent_function()
 
