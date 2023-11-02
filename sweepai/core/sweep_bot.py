@@ -1227,7 +1227,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     : min(60, len(first_chars_in_instructions))
                 ]
 
-                if file_change_request.change_type == "move": # TODO(add this)
+                if file_change_request.change_type == "move":
                     move_bot = MoveBot(chat_logger=self.chat_logger)
                     additional_messages = copy.deepcopy(self.messages)
                     file_ = self.repo.get_contents(
@@ -1681,7 +1681,20 @@ class SweepBot(CodeGenBot, GithubBot):
                     first_characters_in_instructions = first_characters_in_instructions[
                         : min(60, len(first_characters_in_instructions))
                     ]
-                    if any(
+                    if file_change_request.change_type == "move":
+                        move_bot = MoveBot(chat_logger=self.chat_logger)
+                        additional_messages = copy.deepcopy(self.messages)
+                        file_ = self.repo.get_contents(
+                            file_change_request.filename,
+                            ref=branch,
+                        )
+                        new_file_contents = move_bot.move_file(
+                            file_,
+                            file_change_request.instructions,
+                            additional_messages=additional_messages,
+                        )
+                        commit_message = f"feat: Moved {file_change_request.filename}"
+                    elif any(
                         keyword in first_characters_in_instructions
                         for keyword in ("refactor", "extract", "replace")
                     ) and file_change_request.filename.endswith(".py"):
