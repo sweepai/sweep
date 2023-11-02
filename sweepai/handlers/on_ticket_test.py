@@ -45,12 +45,15 @@ class TestOnTicket(unittest.TestCase):
             self.issue.installation_id,
         )
         self.assertFalse(result["success"])
+
     @patch("sweepai.handlers.on_ticket.get_github_client")
     @patch("sweepai.utils.ticket_utils.handle_payment_logic")
-    def test_handle_payment_logic(self, mock_handle_payment_logic, mock_get_github_client):
+    def test_handle_payment_logic(
+        self, mock_handle_payment_logic, mock_get_github_client
+    ):
         mock_get_github_client.return_value = (Mock(), Mock())
         mock_handle_payment_logic.return_value = (True, True, False, Mock())
-        
+
         result = on_ticket(
             self.issue.title,
             self.issue.summary,
@@ -61,7 +64,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.repo_description,
             self.issue.installation_id,
         )
-        
+
         mock_handle_payment_logic.assert_called_once_with(
             self.issue.repo_full_name,
             self.issue.title,
@@ -77,13 +80,13 @@ class TestOnTicket(unittest.TestCase):
             False,
             mock_get_github_client.return_value[1],
             False,
-            False
+            False,
         )
-        
+
         self.assertTrue(result["success"])
-        
+
         mock_handle_payment_logic.return_value = (False, False, False, Mock())
-        
+
         result = on_ticket(
             self.issue.title,
             self.issue.summary,
@@ -94,5 +97,5 @@ class TestOnTicket(unittest.TestCase):
             self.issue.repo_description,
             self.issue.installation_id,
         )
-        
+
         self.assertFalse(result["success"])
