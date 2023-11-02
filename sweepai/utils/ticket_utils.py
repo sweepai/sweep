@@ -25,7 +25,7 @@ def construct_payment_message(
     )
     gpt_tickets_left_message = (
         f"{ticket_count} GPT-4 tickets left for the month"
-        if not is_paying_user
+        if is_paying_user
         else "unlimited GPT-4 tickets"
     )
     purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href='{single_payment_link}'>our payment portal</a>. For a one week free trial, try <a href='{pro_payment_link}'>Sweep Pro</a> (unlimited GPT-4 tickets)."
