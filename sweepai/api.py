@@ -81,12 +81,18 @@ import tracemalloc
 tracemalloc.start()
 
 events = {}
-on_ticket_events = {}
-
-get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
-
-
-def run_on_ticket(*args: list, **kwargs: dict) -> dict:
+run_on_ticket(
+    title=request.issue.title,
+    summary=request.issue.body,
+    issue_number=request.issue.number,
+    issue_url=request.issue.html_url,
+    username=request.issue.user.login,
+    repo_full_name=request.repository.full_name,
+    repo_description=request.repository.description,
+    installation_id=request.installation.id,
+    comment_id=request.comment.id if not restart_sweep else None,
+    edited=True
+)
     tracking_id = get_hash()
     with loguru.logger.contextualize(
         metadata={
@@ -183,9 +189,18 @@ def call_on_ticket(*args, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
-    # Use multithreading
-    # Check if a previous process exists for the same key, cancel it
-    e = on_ticket_events.get(key, None)
+    run_on_ticket(
+        title=request.issue.title,
+        summary=request.issue.body,
+        issue_number=request.issue.number,
+        issue_url=request.issue.html_url,
+        username=request.issue.user.login,
+        repo_full_name=request.repository.full_name,
+        repo_description=request.repository.description,
+        installation_id=request.installation.id,
+        comment_id=request.comment.id if not restart_sweep else None,
+        edited=True
+    )
     if e:
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
@@ -406,12 +421,6 @@ async def webhook(raw_request: Request):
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
                         return {
-                            "success": True,
-                            "reason": "Comment does not start with 'Sweep', passing",
-                        }
-
-                    run_on_ticket(
-                        title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
                         issue_url=request.issue.html_url,
@@ -422,8 +431,17 @@ async def webhook(raw_request: Request):
                         comment_id=request.comment.id if not restart_sweep else None,
                         edited=True,
                     )
-                        title: str = request.issue.title,
-                        summary: str = request.issue.body,
+                                            title=request.issue.title,
+                                            summary=request.issue.body,
+                                            issue_number=request.issue.number,
+                                            issue_url=request.issue.html_url,
+                                            username=request.issue.user.login,
+                                            repo_full_name=request.repository.full_name,
+                                            repo_description=request.repository.description,
+                                            installation_id=request.installation.id,
+                                            comment_id=request.comment.id if not restart_sweep else None,
+                                            edited=True,
+                                        )
                         issue_number: int = request.issue.number,
                         issue_url: str = request.issue.html_url,
                         username: str = request.issue.user.login,
@@ -481,6 +499,7 @@ async def webhook(raw_request: Request):
                         repo_description=request.repository.description,
                         installation_id=request.installation.id,
                         comment_id=None,
+                        edited=True,
                     )
                 else:
                     logger.info("Issue edited, but not a sweep issue")
@@ -505,6 +524,7 @@ async def webhook(raw_request: Request):
                         repo_description=request.repository.description,
                         installation_id=request.installation.id,
                         comment_id=None,
+                        edited=True,
                     )
             case "issue_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
@@ -542,6 +562,7 @@ async def webhook(raw_request: Request):
                         repo_description=request.repository.description,
                         installation_id=request.installation.id,
                         comment_id=request.comment.id,
+                        edited=True,
                     )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
@@ -579,26 +600,34 @@ async def webhook(raw_request: Request):
                 labels = pr.get_labels()
                 comment = request.comment.body
                     run_on_ticket(
-                        title = request.issue.title,
-                        summary = request.issue.body,
-                        issue_number = request.issue.number,
-                        issue_url = request.issue.html_url,
-                        username = request.issue.user.login,
-                        repo_full_name = request.repository.full_name,
-                        repo_description = request.repository.description,
-                        installation_id = request.installation.id,
-                        comment_id = request.comment.id if not restart_sweep else None,
-                        edited = True,
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=request.comment.id if not restart_sweep else None,
+                        edited=True,
                     )
                     comment.lower().startswith("sweep:")
                     or any(label.name.lower() == "sweep" for label in labels)
                 ) and request.comment.user.type == "User":
                     pr_change_request = PRChangeRequest(
                         params={
-                            "comment_type": str = "comment",
-                            "repo_full_name": str = request.repository.full_name,
-                            "repo_description": Optional[str] = request.repository.description,
-                            "comment": str = request.comment.body,
+                            "comment_type": "comment",
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": request.comment.body,
+                            "pr_path": request.comment.path,
+                            "pr_line_position": request.comment.original_line,
+                            "username": request.comment.user.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.pull_request.number,
+                            "comment_id": request.comment.id,
+                        },
+                    )
                             "pr_path": str = request.comment.path,
                             "pr_line_position": int = request.comment.original_line,
                             "username": str = request.comment.user.login,
