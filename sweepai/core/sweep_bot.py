@@ -25,6 +25,7 @@ from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name
 from sweepai.config.server import DEBUG, MINIS3_URL, SANDBOX_URL, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
+    ExtractionRequest,
     FileChangeRequest,
     FileCreation,
     MaxTokensExceeded,
@@ -42,6 +43,7 @@ from sweepai.core.entities import (
 # from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
     create_file_prompt,
+    extract_files_to_change_prompt,
     files_to_change_prompt,
     pull_request_prompt,
     python_refactor_issue_title_guide_prompt,
@@ -223,20 +225,6 @@ class CodeGenBot(ChatGPT):
                     graph_parent_bot.messages.insert(
                         1, Message(role="user", content=pr_diffs, key="pr_diffs")
                     )
-                if any(
-                    keyword in self.human_message.title.lower()
-                    for keyword in ("refactor", "extract", "replace")
-                ):
-                    self.human_message.title += python_refactor_issue_title_guide_prompt
-                    posthog.capture(
-                        self.chat_logger.data["username"],
-                        "python_refactor",
-                        properties={
-                            "username": self.chat_logger.data["username"],
-                            "issue_url": self.chat_logger.data["issue_url"],
-                            "title": self.chat_logger.data["title"],
-                        }
-                    )
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -360,10 +348,52 @@ class CodeGenBot(ChatGPT):
                     self.update_message_content_from_message_key(
                         "relevant_snippets", relevant_snippet_text
                     )
-                    # regenerate issue metadata
-                    self.update_message_content_from_message_key(
-                        "metadata", self.human_message.get_issue_metadata()
-                    )
+                    if any(
+                        keyword in self.human_message.title.lower()
+                        for keyword in ("refactor", "extract", "replace", "move")
+                    ):
+                        self.human_message.title += (
+                            python_refactor_issue_title_guide_prompt
+                        )
+                        posthog.capture(
+                            self.chat_logger.data["username"],
+                            "python_refactor",
+                        )
+                        # regenerate issue metadata
+                        self.update_message_content_from_message_key(
+                            "metadata", self.human_message.get_issue_metadata()
+                        )
+                        extract_response = self.chat(
+                            extract_files_to_change_prompt, message_key="extract_prompt"
+                        )
+                        extraction_request = ExtractionRequest.from_string(
+                            extract_response
+                        )
+                        file_change_requests = []
+                        plan_str = ""
+                        if extraction_request.use_tools:
+                            for re_match in re.finditer(
+                                FileChangeRequest._regex, extract_response, re.DOTALL
+                            ):
+                                file_change_request = FileChangeRequest.from_string(
+                                    re_match.group(0)
+                                )
+                                if file_change_request.change_type == "test":
+                                    file_change_request.change_type = "modify"
+                                file_change_requests.append(file_change_request)
+                                if file_change_request.change_type != "extract":
+                                    new_file_change_request = copy.deepcopy(file_change_request)
+                                    new_file_change_request.change_type = "check"
+                                    new_file_change_request.parent = file_change_request
+                                    new_file_change_request.id_ = str(uuid.uuid4())
+                                    file_change_requests.append(new_file_change_request)
+                                if file_change_requests:
+                                    plan_str = "\n".join(
+                                        [fcr.instructions_display for fcr in file_change_requests]
+                                    )
+                            return file_change_requests, plan_str
+                        else:
+                            self.delete_messages_from_chat("extract_prompt")
                     files_to_change_response = self.chat(
                         files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
@@ -1197,7 +1227,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     : min(60, len(first_chars_in_instructions))
                 ]
 
-                if file_change_request.change_type == "move":
+                if file_change_request.change_type == "move": # TODO(add this)
                     move_bot = MoveBot(chat_logger=self.chat_logger)
                     additional_messages = copy.deepcopy(self.messages)
                     file_ = self.repo.get_contents(
@@ -1315,6 +1345,64 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request,
                                 changed_file,
                                 sandbox_response,
+                                commit,
+                                file_change_requests,
+                            )
+                        case "extract":
+                            file_contents_obj = self.repo.get_contents(
+                                file_change_request.filename, ref=branch
+                            )
+                            file_contents = file_contents_obj.decoded_content.decode()
+
+                            refactor_bot = RefactorBot(chat_logger=self.chat_logger)
+                            additional_messages = [
+                                Message(
+                                    role="user",
+                                    content=self.human_message.get_issue_metadata(),
+                                    key="issue_metadata",
+                                )
+                            ]
+                            # empty string
+                            cloned_repo = ClonedRepo(
+                                self.cloned_repo.repo_full_name,
+                                self.cloned_repo.installation_id,
+                                branch,
+                                self.cloned_repo.token,
+                            )
+                            new_file_contents = refactor_bot.refactor_snippets(
+                                additional_messages=additional_messages,
+                                snippets_str=file_contents,
+                                file_path=file_change_request.filename,
+                                update_snippets_code=file_contents,
+                                request=file_change_request.instructions,
+                                changes_made="",
+                                cloned_repo=cloned_repo,
+                            )
+                            if new_file_contents is None:
+                                new_file_contents = file_contents  # no changes made
+                            changed_files.append(
+                                (
+                                    file_change_request.filename,
+                                    (file_contents, new_file_contents),
+                                )
+                            )
+                            commit_message = (
+                                f"feat: Refactored {file_change_request.filename}"
+                            )
+                            response = self.repo.update_file(
+                                file_change_request.filename,
+                                commit_message,
+                                new_file_contents,
+                                sha=file_contents_obj.sha,
+                                branch=branch,
+                            )
+                            commit = response["commit"]
+                            file_change_request.commit_hash_url = commit.html_url
+                            file_change_request.status = "succeeded"
+                            yield (
+                                file_change_request,
+                                True,
+                                None,
                                 commit,
                                 file_change_requests,
                             )

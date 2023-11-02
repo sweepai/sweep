@@ -170,7 +170,7 @@ Pull Request Description: {description}{relevant_docs}""",
     {
         "role": "user",
         "content": """Please handle the user review comment using the snippets, pull request title, pull request description, and the file changes.
-User pull request review: "{comment}" """,
+User pull request review: \"{comment}\"""",
     },
 ]
 
@@ -216,6 +216,29 @@ You MUST follow the following format:
 ...
 
 </plan>"""
+
+extract_files_to_change_prompt = """\
+Provide your response in the below format:
+<contextual_request_analysis>
+Analyze the user request to determine if this change should use the refactor or unit test tools.
+The refactor tool performs code transformations in a single file without making other logical changes. The unit test tool creates or edits unit tests for a given file.
+</contextual_request_analysis>
+
+<use_tools>
+True/False
+</use_tools>
+
+If use_tools is True, then generate a plan to use the given tools in this format:
+* Make sure destination_module refers to a python module and not a path.
+
+<extract file="file_path_1" destination_module="destination_module" relevant_files="space-separated list of ALL files relevant for modifying file_path_1">
+* Exact instructions for the functions that to be refactored to solve the issue.
+...
+</extract>
+<test file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Exact and descriptive instructions for the tests to be created or modified.
+...
+</test>"""
 
 refactor_files_to_change_prompt = """\
 Reference and analyze the snippets, repo, and issue to break down the requested change and propose a plan that addresses the user's request.
@@ -334,39 +357,6 @@ Step-by-step thoughts with explanations:
 ...
 </plan>"""
 
-reply_prompt = """
-Write a 1-paragraph response to this user:
-* Tell them you have started working on this PR and a rough summary of your plan.
-* Do not start with "Here is a draft", just write the response.
-* Use github markdown to format the response.
-"""
-
-create_file_prompt = """
-You are creating a PR for creating the single new file.
-
-Think step-by-step regarding the instructions and what should be added to the new file.
-Next, identify the language and stack used in the repo, based on other files (e.g. React, Typescript, Jest etc.).
-Then, create a plan of parts of the code to create, with low-level, detailed references to functions, variables, and imports to create, and what each function does.
-Last, create the following file using the following instructions:
-
-DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
-
-file_name = "{filename}"
-instructions = "{instructions}"
-
-Reply in the following format:
-
-Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
-...
-
-<new_file>
-{{complete_new_file_contents}}
-</new_file>
-
-Commit message: \"feat/fix: the commit message\""""
-
 create_file_prompt = """You are creating a file of code as part of a PR to solve the GitHub user's request under "# Metadata". You will follow the request under "# Request" and respond based on the format under "# Format".
 
 # Request
@@ -386,7 +376,7 @@ Maximize information density in this section.
 </contextual_request_analysis>
 
 <new_file>
-The contents of the new files. NEVER write comments. All functions and classes will be fully implemented.
+The contents of the new file. NEVER write comments. All functions and classes will be fully implemented.
 When writing unit tests, they will be complete, extensive, and cover ALL edge cases. You will make up data for unit tests. Create mocks when necessary.
 </new_file>
 
