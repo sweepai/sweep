@@ -22,15 +22,7 @@ class TestGraph(unittest.TestCase):
             definitions_graph=nx.DiGraph(), references_graph=nx.DiGraph()
         )
 
-    def test_extract_first_degree(self):
-        with patch(
-            "sweepai.utils.graph.Graph.find_definitions"
-        ) as mock_find_definitions, patch(
-            "sweepai.utils.graph.Graph.find_references"
-        ) as mock_find_references, patch(
-            "sweepai.utils.graph.condense_paths"
-        ) as mock_condense_paths:
-            mock_find_definitions.return_value = [["file1", "symbol1", "file2"]]
+    first_definition_test_extract_first_degree()
     def test_file_encoding(self):
         with patch("builtins.open", new_callable=mock_open, read_data="test data") as mock_file:
             mock_file.return_value.__iter__.return_value = ["test data"]
@@ -103,6 +95,17 @@ class TestGraph(unittest.TestCase):
                     result,
                     "file1 defined in symbol1\nfile1 used in symbol1\nfile1 defined in symbol1\nfile1 used in symbol1\n",
                 )
+
+def first_definition_test_extract_first_degree():
+    def test_extract_first_degree(self):
+        with patch(
+            "sweepai.utils.graph.Graph.find_definitions"
+        ) as mock_find_definitions, patch(
+            "sweepai.utils.graph.Graph.find_references"
+        ) as mock_find_references, patch(
+            "sweepai.utils.graph.condense_paths"
+        ) as mock_condense_paths:
+            mock_find_definitions.return_value = [["file1", "symbol1", "file2"]]
 
 
 def test_extract_degree_paths():
