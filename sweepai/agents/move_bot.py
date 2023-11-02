@@ -60,7 +60,6 @@ def move_function(
 
     mover = MoveGlobal(project, resource, offset)
     change_set = mover.get_changes(destination)
-    import pdb; pdb.set_trace()
     for change in change_set.changes:
         change.do()
     result = resource.read()

@@ -13,6 +13,17 @@ from sweepai.core.update_prompts import (
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.search_and_replace import find_best_match
 
+APOSTROPHE_MARKER = "__APOSTROPHE__"
+
+
+def serialize(text: str):
+    # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
+    return re.sub(r"'(.*?)'", f"{APOSTROPHE_MARKER}\\1{APOSTROPHE_MARKER}", text)
+
+
+def deserialize(text: str):
+    return re.sub(f"{APOSTROPHE_MARKER}(.*?){APOSTROPHE_MARKER}", "'\\1'", text)
+
 
 def extract_method(
     snippet,
@@ -24,18 +35,33 @@ def extract_method(
 
     resource = project.get_resource(file_path)
     contents = resource.read()
-    start, end = contents.find(snippet), contents.find(snippet) + len(snippet)
+    serialized_contents = serialize(contents)
+    resource.write(serialized_contents)
+
+    serialized_snippet = serialize(snippet)
+    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
+        serialized_snippet
+    ) + len(serialized_snippet)
 
     try:
         extractor = ExtractMethod(project, resource, start, end)
-        change_set = extractor.get_changes(method_name, similar=True, global_=True)
+        change_set = extractor.get_changes(method_name, global_=True)
+
+        for change in change_set.changes:
+            if change.old_contents is not None:
+                change.old_contents = deserialize(change.old_contents)
+            else:
+                change.old_contents = deserialize(change.resource.read())
+            change.new_contents = deserialize(change.new_contents)
+
         for change in change_set.changes:
             change.do()
 
-        result = resource.read()
+        result = deserialize(resource.read())
         return result, change_set
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+        resource.write(contents)
         raise e
 
 

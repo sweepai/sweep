@@ -351,27 +351,37 @@ class CodeGenBot(ChatGPT):
                         keyword in self.human_message.title.lower()
                         for keyword in ("refactor", "extract", "replace", "move")
                     ):
-                        self.human_message.title += python_refactor_issue_title_guide_prompt
+                        self.human_message.title += (
+                            python_refactor_issue_title_guide_prompt
+                        )
                         posthog.capture(
                             self.chat_logger.data["username"],
                             "python_refactor",
                         )
-                        import pdb; pdb.set_trace()
                         # regenerate issue metadata
                         self.update_message_content_from_message_key(
                             "metadata", self.human_message.get_issue_metadata()
                         )
                         extract_response = self.chat(
-                            extract_files_to_change_prompt,
-                            message_key="extract_prompt"
+                            extract_files_to_change_prompt, message_key="extract_prompt"
                         )
-                        extraction_request = ExtractionRequest.from_string(extract_response)
+                        extraction_request = ExtractionRequest.from_string(
+                            extract_response
+                        )
                         file_change_requests = []
                         if extraction_request.use_refactor:
-                            fcr_match = re.search(FileChangeRequest._regex, extract_response, re.DOTALL)
-                            file_change_request = FileChangeRequest.from_string(fcr_match.group(0))
+                            fcr_match = re.search(
+                                FileChangeRequest._regex, extract_response, re.DOTALL
+                            )
+                            file_change_request = FileChangeRequest.from_string(
+                                fcr_match.group(0)
+                            )
+                            file_change_requests.append(file_change_request)
                             plan_str = "\n".join(
-                                [fcr.instructions_display for fcr in file_change_requests]
+                                [
+                                    fcr.instructions_display
+                                    for fcr in file_change_requests
+                                ]
                             )
                             return file_change_requests, plan_str
                     files_to_change_response = self.chat(
@@ -1325,6 +1335,62 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request,
                                 changed_file,
                                 sandbox_response,
+                                commit,
+                                file_change_requests,
+                            )
+                        case "extract":
+                            file_contents_obj = self.repo.get_contents(
+                                file_change_request.filename, ref=branch
+                            )
+                            file_contents = file_contents_obj.decoded_content.decode()
+
+                            refactor_bot = RefactorBot(chat_logger=self.chat_logger)
+                            additional_messages = [
+                                Message(
+                                    role="user",
+                                    content=self.human_message.get_issue_metadata(),
+                                    key="issue_metadata",
+                                )
+                            ]
+                            # empty string
+                            cloned_repo = ClonedRepo(
+                                self.cloned_repo.repo_full_name,
+                                self.cloned_repo.installation_id,
+                                branch,
+                                self.cloned_repo.token,
+                            )
+                            new_file_contents = refactor_bot.refactor_snippets(
+                                additional_messages=additional_messages,
+                                snippets_str=file_contents,
+                                file_path=file_change_request.filename,
+                                update_snippets_code=file_contents,
+                                request=file_change_request.instructions,
+                                changes_made="",
+                                cloned_repo=cloned_repo,
+                            )
+                            if new_file_contents is None:
+                                new_file_contents = file_contents  # no changes made
+                            changed_files.append(
+                                (
+                                    file_change_request.filename,
+                                    (file_contents, new_file_contents),
+                                )
+                            )
+                            commit_message = (
+                                f"feat: Refactored {file_change_request.filename}"
+                            )
+                            response = self.repo.update_file(
+                                file_change_request.filename,
+                                commit_message,
+                                new_file_contents,
+                                sha=file_contents_obj.sha,
+                                branch=branch,
+                            )
+                            commit = response["commit"]
+                            yield (
+                                file_change_request,
+                                True,
+                                None,
                                 commit,
                                 file_change_requests,
                             )
