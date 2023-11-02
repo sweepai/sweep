@@ -7,6 +7,26 @@ from time import time
 from loguru import logger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.search_utils import search_snippets
+def construct_payment_message(user_type, model_name, ticket_count, daily_ticket_count, is_paying_user):
+    payment_link = "https://sweep.dev/pricing"
+    single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
+    pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
+    daily_message = (
+        f" and {daily_ticket_count} for the day"
+        if not is_paying_user
+        else ""
+    )
+    gpt_tickets_left_message = (
+        f"{ticket_count} GPT-4 tickets left for the month"
+        if not is_paying_user
+        else "unlimited GPT-4 tickets"
+    )
+    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href='{single_payment_link}'>our payment portal</a>. For a one week free trial, try <a href='{pro_payment_link}'>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
+        + (purchase_message if not is_paying_user else "")
+    )
+    return payment_message
 
 
 def fetch_relevant_files(
