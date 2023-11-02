@@ -373,7 +373,6 @@ class ModifyBot:
 
         chunks = chunk_code(file_contents, file_path, 700, 200)
 
-        import pdb; pdb.set_trace()
         best_matches = []
         for snippet_to_modify in snippet_queries:
             best_matches.append(

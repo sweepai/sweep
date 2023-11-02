@@ -142,18 +142,18 @@ def create_error_logs(
     )
 
 class ExtractionRequest(RegexMatchableBaseModel):
-    use_refactor: bool
-    _regex = r"""<use_refactor>\s+(?P<use_refactor>.*?)</use_refactor>"""
+    use_tools: bool
+    _regex = r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        use_refactor_pattern = (
-            r"""<use_refactor>\s+(?P<use_refactor>.*?)</use_refactor>"""
+        use_tools_pattern = (
+            r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
         )
-        use_refactor_match = re.search(use_refactor_pattern, string, re.DOTALL)
-        use_refactor = use_refactor_match.groupdict()["use_refactor"].strip().lower() == "true"
+        use_tools_match = re.search(use_tools_pattern, string, re.DOTALL)
+        use_tools = use_tools_match.groupdict()["use_tools"].strip().lower() == "true"
         return cls(
-            use_refactor=use_refactor
+            use_tools=use_tools
         )
 
 class FileChangeRequest(RegexMatchableBaseModel):
@@ -161,7 +161,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     instructions: str
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
-    ] | Literal["rewrite"] | Literal["check"] | Literal["extract"]
+    ] | Literal["rewrite"] | Literal["check"] | Literal["extract"] | Literal["test"]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
     entity: str | None = None
     new_content: str | None = None

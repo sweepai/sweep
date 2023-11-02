@@ -125,19 +125,17 @@ new line(s) to append to snippet j
 extract_snippets_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming.
 
-When you write code, the code works on the first try. and is complete. Take into account the current repository's language, code style, and dependencies.
-
 # Instructions
-Extract code verbatim from the snippets above. These snippets will be used later to refactor the code according to the user request.
-* Choose specific and very informative names for these functions under new_function_name.
+Extract code verbatim from the snippets above using EXTRACT sections. These snippets will be used later to refactor the code according to the user request.
+* Choose specific and informative names for these functions under new_function_name.
 * We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
+* The code must be extracted in contiguous blocks.
 * Keep whitespace and comments.
-* Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request and outline the first and last few lines of code that should be extracted.
+Analyze the user request to identify and outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
 <new_function_names>
@@ -168,16 +166,16 @@ File path: {file_path}
 </original_code>
 
 # Instructions
-Extract code verbatim from the snippets above. These snippets will be used later to refactor the code according to the user request.
-* Choose specific and very informative names for these functions under new_function_name.
+Extract code verbatim from the snippets above using EXTRACT sections.  These snippets will be used later to refactor the code according to the user request.
+* Choose specific and informative names for these functions under new_function_name.
 * We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
+* The code must be extracted in contiguous blocks.
 * Keep whitespace and comments.
-* Use EXTRACT to isolate specific code segments from the current function and place them into new, separate functions.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request and outline the first and last few lines of code that should be extracted.
+Analyze the user request to identify and outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
 <new_function_names>

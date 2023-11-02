@@ -220,20 +220,25 @@ You MUST follow the following format:
 extract_files_to_change_prompt = """\
 Provide your response in the below format:
 <contextual_request_analysis>
-Analyze the user request to determine if this change should use the refactor tool. The refactor tool performs code transformations without making other logical changes.
+Analyze the user request to determine if this change should use the refactor or unit test tools.
+The refactor tool performs code transformations in a single file without making other logical changes. The unit test tool creates or edits unit tests for a given file.
 </contextual_request_analysis>
 
-<use_refactor>
+<use_tools>
 True/False
-</use_refactor>
+</use_tools>
 
-If use_refactor is True, then generate a refactor request to the tool in the below format:
+If use_tools is True, then generate a plan to use the given tools in this format:
 * Make sure destination_module refers to a python module and not a path.
 
 <extract file="file_path_1" destination_module="destination_module" relevant_files="space-separated list of ALL files relevant for modifying file_path_1">
 * Exact instructions for the functions that to be refactored to solve the issue.
 ...
-</extract>"""
+</extract>
+<test file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Exact and descriptive instructions for the tests to be created or modified.
+...
+</test>"""
 
 refactor_files_to_change_prompt = """\
 Reference and analyze the snippets, repo, and issue to break down the requested change and propose a plan that addresses the user's request.

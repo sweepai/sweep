@@ -369,20 +369,27 @@ class CodeGenBot(ChatGPT):
                             extract_response
                         )
                         file_change_requests = []
-                        if extraction_request.use_refactor:
-                            fcr_match = re.search(
+                        plan_str = ""
+                        if extraction_request.use_tools:
+                            for re_match in re.finditer(
                                 FileChangeRequest._regex, extract_response, re.DOTALL
-                            )
-                            file_change_request = FileChangeRequest.from_string(
-                                fcr_match.group(0)
-                            )
-                            file_change_requests.append(file_change_request)
-                            plan_str = "\n".join(
-                                [
-                                    fcr.instructions_display
-                                    for fcr in file_change_requests
-                                ]
-                            )
+                            ):
+                                file_change_request = FileChangeRequest.from_string(
+                                    re_match.group(0)
+                                )
+                                if file_change_request.change_type == "test":
+                                    file_change_request.change_type = "modify"
+                                file_change_requests.append(file_change_request)
+                                if file_change_request.change_type != "extract":
+                                    new_file_change_request = copy.deepcopy(file_change_request)
+                                    new_file_change_request.change_type = "check"
+                                    new_file_change_request.parent = file_change_request
+                                    new_file_change_request.id_ = str(uuid.uuid4())
+                                    file_change_requests.append(new_file_change_request)
+                                if file_change_requests:
+                                    plan_str = "\n".join(
+                                        [fcr.instructions_display for fcr in file_change_requests]
+                                    )
                             return file_change_requests, plan_str
                         else:
                             self.delete_messages_from_chat("extract_prompt")
