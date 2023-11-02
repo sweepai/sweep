@@ -5,6 +5,7 @@ import traceback
 import uuid
 from collections import OrderedDict
 from typing import Dict, Generator
+from celery import chain
 
 import requests
 from fuzzywuzzy import fuzz
@@ -230,6 +231,11 @@ class CodeGenBot(ChatGPT):
                     posthog.capture(
                         self.chat_logger.data["username"],
                         "python_refactor",
+                        properties={
+                            "username": self.chat_logger.data["username"],
+                            "issue_url": self.chat_logger.data["issue_url"],
+                            "title": self.chat_logger.data["title"],
+                        }
                     )
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
