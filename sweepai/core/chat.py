@@ -231,7 +231,7 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
         if (
-            model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 1000
+            model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 3000
             and not OPENAI_DO_HAVE_32K_MODEL_ACCESS
         ):  # use 16k if it's OOC and no 32k
             model = "gpt-3.5-turbo-16k-0613"

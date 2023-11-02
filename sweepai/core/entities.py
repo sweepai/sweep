@@ -147,7 +147,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     instructions: str
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
-    ] | Literal["rewrite"] | Literal["check"]
+    ] | Literal["rewrite"] | Literal["check"] | Literal["move"] | Literal["extract"]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
     entity: str | None = None
     new_content: str | None = None
@@ -207,40 +207,14 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def display_summary(self):
-        if self.change_type == "rename":
-            return f"Rename `{self.filename}` to `{self.instructions}`"
-        elif self.change_type == "delete":
-            return f"Delete `{self.filename}`"
-        elif self.change_type == "create":
-            return f"Create `{self.filename}`"
-        elif self.change_type == "modify":
-            return f"Modify `{self.filename}`"
-        elif self.change_type == "rewrite":
-            return f"Rewrite `{self.filename}`"
-        elif self.change_type == "check":
-            return f"Check `{self.filename}`"
-        else:
-            raise ValueError(f"Unknown change type {self.change_type}")
+        return f"{self.change_type.capitalize()} `{self.filename}`"
 
     @property
     def summary(self):
         prefix = {"failed": "✗", "succeeded": "✓", "queued": "▶", "running": "⋯"}[
             self.status
         ] + " "
-        if self.change_type == "rename":
-            return prefix + f"Rename\n{self.filename} to {self.instructions}"
-        elif self.change_type == "delete":
-            return prefix + f"Delete\n{self.filename}"
-        elif self.change_type == "create":
-            return prefix + f"Create\n{self.filename}"
-        elif self.change_type == "modify":
-            return prefix + f"Modify\n{self.filename}"
-        elif self.change_type == "rewrite":
-            return prefix + f"Rewrite\n{self.filename}"
-        elif self.change_type == "check":
-            return prefix + f"Check\n{self.filename}"
-        else:
-            raise ValueError(f"Unknown change type {self.change_type}")
+        return prefix + f"{self.change_type.capitalize()}\n{self.filename}"
 
     @property
     def color(self):
@@ -271,20 +245,9 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def instructions_display(self):
-        if self.change_type == "rename":
-            return f"Rename {self.filename} to {self.instructions}"
-        elif self.change_type == "delete":
-            return f"Delete {self.filename}"
-        elif self.change_type == "create":
-            return f"Create {self.filename} with contents:\n{self.instructions}"
-        elif self.change_type == "modify":
-            return f"Modify {self.filename} with contents:\n{self.instructions}"
-        elif self.change_type == "rewrite":
-            return f"Rewrite {self.filename} with contents:\n{self.instructions}"
-        elif self.change_type == "check":
-            return f"Run {self.filename} through the sandbox."
-        else:
-            raise ValueError(f"Unknown change type {self.change_type}")
+        if self.change_type == "check":
+            return f"Run `{self.filename}` through the sandbox."
+        return f"{self.change_type.capitalize()} {self.filename} with contents:\n{self.instructions}"
 
 
 class FileCreation(RegexMatchableBaseModel):

@@ -5,7 +5,7 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 
-system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to extract the necessary symbols to solve the issue. Most symbols are not relevant. Provide at most 10 symbols, ideally fewer. They should be in descending order of relevance.
+system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to extract the necessary symbols to solve the issue. Most symbols are not relevant. Provide at most 3 symbols, ideally fewer. They should be in descending order of relevance.
 
 The issue metadata, code, symbols, and files are provided in the below format:
 
@@ -32,8 +32,12 @@ symbols(function, variable, or classes) is used/defined in file
 Provide your answer in the below format:
 
 <symbol_analysis>
-Extract the symbols that are needed to solve the issue and explain why. Do not mention it if it's "likely" or "possible", only choose ones you are certain about.
+Extract the symbols that are needed to solve the issue and explain exactly why this symbol is critical to solving the issue. Do not mention it if it's "likely" or "possible", only choose ones you are certain about.
 </symbol_analysis>
+
+<symbol_filtering>
+Filter out each symbol in the above section that we are not certain about.
+</symbol_filtering>
 
 <relevant_symbols_to_files>
 {symbol}:{file_path}

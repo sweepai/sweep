@@ -82,7 +82,7 @@ def traverse_folder(folder):  # TODO(add excluded_dirs)
             if file.endswith(".py"):
                 abs_path = os.path.join(root, file)
                 rel_path = abs_path[len(folder) + 1 :]
-                with open(abs_path, "r") as f:
+                with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
                     code = f.read()
                 imports, classes, functions = extract_entities(code)
                 classes = [c for c in classes if c not in imports]
@@ -227,7 +227,9 @@ class Graph(BaseModel):
 
     def paths_to_first_degree_entities(self, file_paths: list[str]):
         file_paths = list(set(file_paths))
-        paths = [self.extract_first_degree(file_path).strip("\n") for file_path in file_paths]
+        paths = [
+            self.extract_first_degree(file_path).strip("\n") for file_path in file_paths
+        ]
         # Remove the last element if it is an empty string to avoid an extra newline at the end
         if paths and paths[-1] == "":
             paths = paths[:-1]

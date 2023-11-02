@@ -62,7 +62,7 @@ def score_multiline(query: list[str], target: list[str]) -> float:
             scores.append((score_line(q_line, t_line), weight))
             q += 1
             t += 1
-        elif "..." in q_line:
+        elif q_line.strip().startswith("...") or q_line.strip().endswith("..."):
             # Case 3: ellipsis wildcard
             t += 1
             if q + 1 == len(query):
@@ -147,6 +147,7 @@ def get_max_indent(content: str, indent_type: str):
     )
 
 
+# @file_cache()
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)
 
@@ -168,29 +169,23 @@ def find_best_match(query: str, code_file: str):
                 best_match = Match(i, i + 1, score)
         return best_match
 
-    for num_indents in range(0, min(max_indents + 1, 20)):
+    truncate = min(40, len(code_file_lines) // 5)
+    if truncate < 1:
+        truncate = len(code_file_lines)
+
+    indent_array = [i for i in range(0, max(min(max_indents + 1, 20), 1))]
+    if max_indents > 3:
+        indent_array = [3, 2, 4, 0, 1] + list(range(5, max_indents + 1))
+    for num_indents in indent_array:
         indented_query_lines = [indent * num_indents + line for line in query_lines]
 
-        start_indices = [
-            i
+        start_pairs = [
+            (i, score_line(line, indented_query_lines[0]))
             for i, line in enumerate(code_file_lines)
-            if score_line(line, indented_query_lines[0]) > 50
         ]
-        start_indices = start_indices or [
-            i
-            for i in start_indices
-            if score_multiline(indented_query_lines[:2], code_file_lines[i : i + 2])
-            > 50
-        ]
-
-        if not start_indices:
-            start_pairs = [
-                (i, score_line(line, indented_query_lines[0]))
-                for i, line in enumerate(code_file_lines)
-            ]
-            start_pairs.sort(key=lambda x: x[1], reverse=True)
-            start_pairs = start_pairs[: min(40, len(start_pairs) // 5)]
-            start_indices = sorted([i for i, _ in start_pairs])
+        start_pairs.sort(key=lambda x: x[1], reverse=True)
+        start_pairs = start_pairs[:truncate]
+        start_indices = sorted([i for i, _ in start_pairs])
 
         for i in tqdm(
             start_indices,
@@ -198,27 +193,13 @@ def find_best_match(query: str, code_file: str):
             desc=f"Indent {num_indents}/{max_indents}",
             leave=False,
         ):
-            end_indices = [
-                j
+            end_pairs = [
+                (j, score_line(line, indented_query_lines[-1]))
                 for j, line in enumerate(code_file_lines[i:], start=i)
-                if score_line(line, indented_query_lines[-1]) > 50
             ]
-            end_indices = end_indices or [
-                j
-                for j in end_indices
-                if score_multiline(
-                    indented_query_lines[-2:], code_file_lines[i + j - 1 : i + j + 1]
-                )
-                > 50
-            ]  # sus code
-            if not end_indices:
-                end_pairs = [
-                    (j, score_line(line, indented_query_lines[-1]))
-                    for j, line in enumerate(code_file_lines[i:], start=i)
-                ]
-                end_pairs.sort(key=lambda x: x[1], reverse=True)
-                end_pairs = end_pairs[: min(40, len(end_pairs) // 5)]
-                end_indices = sorted([j for j, _ in end_pairs])
+            end_pairs.sort(key=lambda x: x[1], reverse=True)
+            end_pairs = end_pairs[:truncate]
+            end_indices = sorted([j for j, _ in end_pairs])
 
             for j in tqdm(
                 end_indices, position=1, leave=False, desc=f"Starting line {i}"
@@ -261,6 +242,7 @@ def split_ellipses(query: str) -> list[str]:
             current_query = ""
         else:
             current_query += line + "\n"
+    queries.append(current_query.strip("\n"))
     return queries
 
 
@@ -322,35 +304,17 @@ from tqdm import tqdm"""
 # print(match_indent(new_code, old_code))
 
 test_code = """\
-capture_posthog_event(username, "started", properties=metadata)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={"error": str(e), "reason": "Failed to get files", **metadata},
-)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={
-        "error": "No files to change",
-        "reason": "No files to change",
-        **metadata,
-    },
-)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={
-        "error": str(e),
-        "reason": "Failed to make changes",
-        **metadata,
-    },
-)
-...
-capture_posthog_event(username, "success", properties={**metadata})
+def naive_euclidean_profile(X, q, mask):
+    r\"\"\"
+    Compute a euclidean distance profile in a brute force way.
+
+    A distance profile between a (univariate) time series :math:`X_i = {x_1, ..., x_m}`
+    and a query :math:`Q = {q_1, ..., q_m}` is defined as a vector of size :math:`m-(
+    l-1)`, such as :math:`P(X_i, Q) = {d(C_1, Q), ..., d(C_m-(l-1), Q)}` with d the
+    Euclidean distance, and :math:`C_j = {x_j, ..., x_{j+(l-1)}}` the j-th candidate
+    subsequence of size :math:`l` in :math:`X_i`.
+    \"\"\"
+    return _naive_euclidean_profile(X, q, mask)
 """
 
 if __name__ == "__main__":
@@ -430,10 +394,12 @@ def handle_button_click(request_dict):
     )
 
     # Find the best match
-    best_span = find_best_match(target, code_file)
+    # best_span = find_best_match(target, code_file)
+    best_span = find_best_match("a\nb", "a\nb")
+    print(best_span)
 
-    best_code_snippet = "\n".join(
-        code_file.split("\n")[best_span.start : best_span.end]
-    )
-    print(f"Best code snippet:\n{best_code_snippet}")
+    # best_code_snippet = "\n".join(
+    #     code_file.split("\n")[best_span.start : best_span.end]
+    # )
+    # print(f"Best code snippet:\n{best_code_snippet}")
     # print(f"Best match line numbers: {best_span.start}-{best_span.end}")

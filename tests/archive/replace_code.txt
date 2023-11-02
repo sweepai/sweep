@@ -1,0 +1,158 @@
+            logger.info("Getting file contents")
+            file_name = title.split(":")[1].strip()
+            file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
+                "utf-8"
+            )
+            try:
+                ext = file_name.split(".")[-1]
+            except:
+                ext = ""
+            displayed_contents = file_contents.replace("```", "\`\`\`")
+            sha = repo.get_branch(repo.default_branch).commit.sha
+            permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
+            logger.info("Running sandbox")
+            edit_sweep_comment(
+                f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
+                1,
+            )
+            updated_contents, sandbox_response = sweep_bot.check_sandbox(
+                file_name, file_contents, []
+            )
+            logger.info("Sandbox finished")
+            logs = (
+                (
+                    "<br/>"
+                    + create_collapsible(
+                        f"Sandbox logs",
+                        blockquote(
+                            "\n\n".join(
+                                [
+                                    create_collapsible(
+                                        f"<code>{execution.command.format(file_path=file_name)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                        f"<pre>{clean_logs(execution.output)}</pre>",
+                                        i == len(sandbox_response.executions) - 1,
+                                    )
+                                    for i, execution in enumerate(
+                                        sandbox_response.executions
+                                    )
+                                    if len(sandbox_response.executions) > 0
+                                    # And error code check
+                                ]
+                            )
+                        ),
+                        opened=True,
+                    )
+                )
+                if sandbox_response
+                else ""
+            )
+
+            updated_contents = updated_contents.replace("```", "\`\`\`")
+            diff = generate_diff(file_contents, updated_contents).replace(
+                "```", "\`\`\`"
+            )
+            diff_display = (
+                f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
+                if diff
+                else f"Sandbox made not changes to {file_name} (formatters not configured or didn't make changes)."
+            )
+
+            edit_sweep_comment(
+                f"{logs}\n{diff_display}",
+                2,
+            )
+            edit_sweep_comment("N/A", 3)
+            logger.info("Sandbox comments updated")
+            return {"success": True}
+
+        if len(title + summary) < 20:
+            logger.info("Issue too short")
+            edit_sweep_comment(
+                (
+                    "Please add more details to your issue. I need at least 20 characters"
+                    " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
+                ),
+                -1,
+            )
+            posthog.capture(
+                username,
+                "issue_too_short",
+                properties={**metadata, "duration": time() - on_ticket_start_time},
+            )
+            return {"success": True}
+
+        if (
+            repo_name.lower() not in WHITELISTED_REPOS
+            and not is_paying_user
+            and not is_consumer_tier
+        ):
+            if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
+                logger.info("Test repository detected")
+                edit_sweep_comment(
+                    (
+                        "Sweep does not work on test repositories. Please create an issue"
+                        " on a real repository. If you think this is a mistake, please"
+                        " report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
+                    ),
+                    -1,
+                )
+                posthog.capture(
+                    username,
+                    "test_repo",
+                    properties={
+                        **metadata,
+                        "duration": time() - on_ticket_start_time,
+                    },
+                )
+                return {"success": False}
+
+        logger.info("Fetching relevant files...")
+        try:
+            snippets, tree, dir_obj = search_snippets(
+                cloned_repo,
+                f"{title}\n{summary}\n{replies_text}",
+                num_files=num_of_snippets_to_query,
+            )
+            assert len(snippets) > 0
+        except SystemExit:
+            logger.warning("System exit")
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    **metadata,
+                    "error": "System exit",
+                    "duration": time() - on_ticket_start_time,
+                },
+            )
+            raise SystemExit
+        except Exception as e:
+            trace = traceback.format_exc()
+            logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
+            edit_sweep_comment(
+                (
+                    "It looks like an issue has occurred around fetching the files."
+                    " Perhaps the repo has not been initialized. If this error persists"
+                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
+                ),
+                -1,
+            )
+            log_error(
+                is_paying_user,
+                is_consumer_tier,
+                username,
+                issue_url,
+                "File Fetch",
+                str(e) + "\n" + traceback.format_exc(),
+                priority=1,
+            )
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    **metadata,
+                    "error": str(e),
+                    "duration": time() - on_ticket_start_time,
+                },
+            )
+            raise e
