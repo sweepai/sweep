@@ -96,7 +96,7 @@ def run_on_ticket(*args, **kwargs):
             "tracking_id": tracking_id,
         }
     ):
-        on_ticket(*args, **kwargs, tracking_id=tracking_id)
+        return on_ticket(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_comment(*args, **kwargs):

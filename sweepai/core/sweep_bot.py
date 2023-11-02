@@ -5,6 +5,7 @@ import traceback
 import uuid
 from collections import OrderedDict
 from typing import Dict, Generator
+from celery import chain
 
 import requests
 from fuzzywuzzy import fuzz
@@ -230,6 +231,11 @@ class CodeGenBot(ChatGPT):
                     posthog.capture(
                         self.chat_logger.data["username"],
                         "python_refactor",
+                        properties={
+                            "username": self.chat_logger.data["username"],
+                            "issue_url": self.chat_logger.data["issue_url"],
+                            "title": self.chat_logger.data["title"],
+                        }
                     )
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
@@ -369,12 +375,11 @@ class CodeGenBot(ChatGPT):
                             re_match.group(0)
                         )
                         file_change_requests.append(file_change_request)
-                        if file_change_request.change_type in ("modify", "create"):
-                            new_file_change_request = copy.deepcopy(file_change_request)
-                            new_file_change_request.change_type = "check"
-                            new_file_change_request.parent = file_change_request
-                            new_file_change_request.id_ = str(uuid.uuid4())
-                            file_change_requests.append(new_file_change_request)
+                        new_file_change_request = copy.deepcopy(file_change_request)
+                        new_file_change_request.change_type = "check"
+                        new_file_change_request.parent = file_change_request
+                        new_file_change_request.id_ = str(uuid.uuid4())
+                        file_change_requests.append(new_file_change_request)
                     if file_change_requests:
                         plan_str = "\n".join(
                             [fcr.instructions_display for fcr in file_change_requests]
@@ -1192,10 +1197,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     : min(60, len(first_chars_in_instructions))
                 ]
 
-                if (
-                    file_change_request.change_type == "modify"
-                    and " move " in first_chars_in_instructions
-                ):
+                if file_change_request.change_type == "move":
                     move_bot = MoveBot(chat_logger=self.chat_logger)
                     additional_messages = copy.deepcopy(self.messages)
                     file_ = self.repo.get_contents(
