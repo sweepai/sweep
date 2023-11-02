@@ -86,7 +86,7 @@ on_ticket_events = {}
 get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
 
 
-def run_on_ticket(*args, **kwargs):
+def run_on_ticket(*args: list, **kwargs: dict) -> dict:
     tracking_id = get_hash()
     with loguru.logger.contextualize(
         metadata={
@@ -410,17 +410,17 @@ async def webhook(raw_request: Request):
                             "reason": "Comment does not start with 'Sweep', passing",
                         }
 
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=request.comment.id if not restart_sweep else None,
-                        edited=True,
+                    run_on_ticket(
+                        title: str = request.issue.title,
+                        summary: str = request.issue.body,
+                        issue_number: int = request.issue.number,
+                        issue_url: str = request.issue.html_url,
+                        username: str = request.issue.user.login,
+                        repo_full_name: str = request.repository.full_name,
+                        repo_description: str = request.repository.description,
+                        installation_id: int = request.installation.id,
+                        comment_id: Optional[int] = request.comment.id if not restart_sweep else None,
+                        edited: bool = True,
                     )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
@@ -575,16 +575,16 @@ async def webhook(raw_request: Request):
                 ) and request.comment.user.type == "User":
                     pr_change_request = PRChangeRequest(
                         params={
-                            "comment_type": "comment",
-                            "repo_full_name": request.repository.full_name,
-                            "repo_description": request.repository.description,
-                            "comment": request.comment.body,
-                            "pr_path": request.comment.path,
-                            "pr_line_position": request.comment.original_line,
-                            "username": request.comment.user.login,
-                            "installation_id": request.installation.id,
-                            "pr_number": request.pull_request.number,
-                            "comment_id": request.comment.id,
+                            "comment_type": str = "comment",
+                            "repo_full_name": str = request.repository.full_name,
+                            "repo_description": Optional[str] = request.repository.description,
+                            "comment": str = request.comment.body,
+                            "pr_path": str = request.comment.path,
+                            "pr_line_position": int = request.comment.original_line,
+                            "username": str = request.comment.user.login,
+                            "installation_id": int = request.installation.id,
+                            "pr_number": int = request.pull_request.number,
+                            "comment_id": int = request.comment.id,
                         },
                     )
                     call_on_comment(**pr_change_request.params)
