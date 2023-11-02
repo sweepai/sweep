@@ -205,44 +205,7 @@ def on_ticket(
     else:
         logger.info(f"Overrides not detected for branch {summary}")
 
-    chat_logger = (
-        ChatLogger(
-            {
-                "repo_name": repo_name,
-                "title": title,
-                "summary": summary,
-                "issue_number": issue_number,
-                "issue_url": issue_url,
-                "username": username if not username.startswith("sweep") else assignee,
-                "repo_full_name": repo_full_name,
-                "repo_description": repo_description,
-                "installation_id": installation_id,
-                "type": "ticket",
-                "mode": ENV,
-                "comment_id": comment_id,
-                "edited": edited,
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
-
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_consumer_tier = False
-        use_faster_model = False
-
-    if fast_mode:
-        use_faster_model = True
-
-    if not comment_id and not edited and chat_logger and not sandbox_mode:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
+    use_faster_model, is_paying_user, is_consumer_tier, chat_logger = create_chat_logger_and_update_ticket_count(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode, sandbox_mode)  # moving higher, will increment the issue regardless of whether it's a success or not
 
     sweep_context = SweepContext.create(
         username=username,
@@ -386,32 +349,7 @@ def on_ticket(
             else 999
         )
 
-        model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-        payment_link = "https://sweep.dev/pricing"
-        single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
-        pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
-        daily_message = (
-            f" and {daily_ticket_count} for the day"
-            if not is_paying_user and not is_consumer_tier
-            else ""
-        )
-        user_type = (
-            "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
-        )
-        gpt_tickets_left_message = (
-            f"{ticket_count} GPT-4 tickets left for the month"
-            if not is_paying_user
-            else "unlimited GPT-4 tickets"
-        )
-        purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href='{single_payment_link}'>our payment portal</a>. For a one week free trial, try <a href='{pro_payment_link}'>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
-            + (purchase_message if not is_paying_user else "")
-        )
+        payment_message_start = generate_payment_related_variables(use_faster_model, is_paying_user, is_consumer_tier, daily_ticket_count, ticket_count)
 
         def get_comment_header(index, errored=False, pr_message="", done=False):
             config_pr_message = (
@@ -1467,6 +1405,76 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def generate_payment_related_variables(use_faster_model, is_paying_user, is_consumer_tier, daily_ticket_count, ticket_count):
+    model_name = "GPT-3.5" if use_faster_model else "GPT-4"
+    payment_link = "https://sweep.dev/pricing"
+    single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
+    pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
+    daily_message = (
+        f" and {daily_ticket_count} for the day"
+        if not is_paying_user and not is_consumer_tier
+        else ""
+    )
+    user_type = (
+        "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
+    )
+    gpt_tickets_left_message = (
+        f"{ticket_count} GPT-4 tickets left for the month"
+        if not is_paying_user
+        else "unlimited GPT-4 tickets"
+    )
+    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href='{single_payment_link}'>our payment portal</a>. For a one week free trial, try <a href='{pro_payment_link}'>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
+        + (purchase_message if not is_paying_user else "")
+    )
+    payment_message_start = (
+        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
+        + (purchase_message if not is_paying_user else "")
+    )
+    return payment_message_start
+
+def create_chat_logger_and_update_ticket_count(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode, sandbox_mode):
+    chat_logger = (
+        ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": title,
+                "summary": summary,
+                "issue_number": issue_number,
+                "issue_url": issue_url,
+                "username": username if not username.startswith("sweep") else assignee,
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "installation_id": installation_id,
+                "type": "ticket",
+                "mode": ENV,
+                "comment_id": comment_id,
+                "edited": edited,
+            }
+        )
+        if MONGODB_URI
+        else None
+    )
+
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+
+    if fast_mode:
+        use_faster_model = True
+
+    if not comment_id and not edited and chat_logger and not sandbox_mode:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
+    return use_faster_model, is_paying_user, is_consumer_tier, chat_logger
 
 
 def review_code(
