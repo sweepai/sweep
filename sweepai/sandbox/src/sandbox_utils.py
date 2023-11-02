@@ -113,23 +113,26 @@ class Sandbox(BaseModel):
             if os.path.exists(os.path.join(path, filename)):
                 logger.info(f"Found {filename} in repo, installing {script}")
                 sandbox.install = [script] + sandbox.install
-        os.listdir(path)
-        # if "requirements.txt" in ls:
-        #     sandbox.check.append(
-        #         "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. python {file_path}; else exit 0; fi"
-        #     )
-        #     contents = open(os.path.join(path, "requirements.txt")).read()
-        #     if "pytest" in contents:
-        #         sandbox.check.append(
-        #             'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. pytest {file_path}; else exit 0; fi'
-        #         )
-        # elif "pyproject.toml" in ls:
-        #     sandbox.check.append(
-        #         "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi"
-        #     )
-        #     contents = open(os.path.join(path, "pyproject.toml")).read()
-        #     if "pytest" in contents:
-        #         sandbox.check.append(
-        #             'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. poetry run pytest {file_path}; else exit 0; fi'
-        #         )
+        if os.path.isfile(os.path.join(path, "requirements.txt")):
+            sandbox.check.append(
+                "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. python {file_path}; else exit 0; fi"
+            )
+            contents = open(os.path.join(path, "requirements.txt")).read()
+            if "pytest" in contents:
+                sandbox.check.append(
+                    'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. pytest {file_path}; else exit 0; fi'
+                )
+        elif os.path.isfile(os.path.join(path, "pyproject.toml")):
+            sandbox.check.append(
+                "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi"
+            )
+            contents = open(os.path.join(path, "pyproject.toml")).read()
+            if "pytest" in contents:
+                sandbox.check.append(
+                    'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. poetry run pytest {file_path}; else exit 0; fi'
+                )
+        elif os.path.isfile(os.path.join(path, "pytest.ini")):
+            sandbox.check.append(
+                'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. pytest -c {file_path}; else exit 0; fi'
+            )
         return sandbox
