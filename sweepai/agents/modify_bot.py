@@ -170,12 +170,9 @@ class MatchToModify:
 def strip_backticks(s: str) -> str:
     s = s.strip()
     if s.startswith("```"):
-        s = s[s.find("\n") :]
+        s = s[s.find("\n") + 1 :]
     if s.endswith("```"):
         s = s[: s.rfind("\n")]
-    s = s.strip("\n")
-    if s == '""':
-        return ""
     return s
 
 
