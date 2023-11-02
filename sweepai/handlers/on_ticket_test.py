@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from sweepai.handlers.on_ticket import on_ticket
+from sweepai.handlers.on_ticket import on_ticket, calculate_remaining_tickets, check_user_payment_status
 
 
 class TestOnTicket(unittest.TestCase):
@@ -45,3 +45,46 @@ class TestOnTicket(unittest.TestCase):
             self.issue.installation_id,
         )
         self.assertFalse(result["success"])
+    @patch("sweepai.handlers.on_ticket.get_github_client")
+    def test_calculate_remaining_tickets(self, mock_get_github_client):
+        mock_chat_logger = Mock()
+        mock_chat_logger.get_ticket_count.return_value = 10
+        mock_chat_logger.is_consumer_tier.return_value = False
+        mock_chat_logger.is_paying_user.return_value = False
+        daily_ticket_count, ticket_count = calculate_remaining_tickets(mock_chat_logger, False)
+        self.assertEqual(daily_ticket_count, 3)
+        self.assertEqual(ticket_count, 490)
+
+        mock_chat_logger.is_consumer_tier.return_value = True
+        daily_ticket_count, ticket_count = calculate_remaining_tickets(mock_chat_logger, False)
+        self.assertEqual(daily_ticket_count, 3)
+        self.assertEqual(ticket_count, 490)
+
+        mock_chat_logger.is_paying_user.return_value = True
+        daily_ticket_count, ticket_count = calculate_remaining_tickets(mock_chat_logger, False)
+        self.assertEqual(daily_ticket_count, 999)
+        self.assertEqual(ticket_count, 999)
+
+        daily_ticket_count, ticket_count = calculate_remaining_tickets(mock_chat_logger, True)
+        self.assertEqual(daily_ticket_count, 999)
+        self.assertEqual(ticket_count, 999)
+
+    @patch("sweepai.handlers.on_ticket.get_github_client")
+    def test_check_user_payment_status(self, mock_get_github_client):
+        mock_chat_logger = Mock()
+        mock_chat_logger.is_consumer_tier.return_value = False
+        mock_chat_logger.is_paying_user.return_value = False
+        mock_g = Mock()
+        is_paying_user, is_consumer_tier = check_user_payment_status(mock_chat_logger, mock_g)
+        self.assertFalse(is_paying_user)
+        self.assertFalse(is_consumer_tier)
+
+        mock_chat_logger.is_consumer_tier.return_value = True
+        is_paying_user, is_consumer_tier = check_user_payment_status(mock_chat_logger, mock_g)
+        self.assertFalse(is_paying_user)
+        self.assertTrue(is_consumer_tier)
+
+        mock_chat_logger.is_paying_user.return_value = True
+        is_paying_user, is_consumer_tier = check_user_payment_status(mock_chat_logger, mock_g)
+        self.assertTrue(is_paying_user)
+        self.assertTrue(is_consumer_tier)
