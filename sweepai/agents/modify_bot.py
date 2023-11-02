@@ -3,7 +3,6 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from loguru import logger
 
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
@@ -18,9 +17,7 @@ from sweepai.core.update_prompts import (
     update_snippets_system_prompt,
     update_snippets_system_prompt_python,
 )
-from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
-from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.utils import chunk_code
 
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original sections from the code that should be modified.
@@ -302,7 +299,10 @@ class ModifyBot:
         )
         original_snippets = chunk_code(file_contents, file_path, 700, 200)
         file_contents_lines = file_contents.split("\n")
-        chunks = ["\n".join(file_contents_lines[snippet.start : snippet.end + 1]) for snippet in original_snippets]
+        chunks = [
+            "\n".join(file_contents_lines[snippet.start : snippet.end + 1])
+            for snippet in original_snippets
+        ]
         code_sections = []
         for i, chunk in enumerate(chunks):
             idx = chr(i + 65)
@@ -368,7 +368,7 @@ class ModifyBot:
     ):
         is_python_file = file_path.strip().endswith(".py")
 
-        chunks = chunk_code(file_contents, file_path, 700, 200)
+        chunk_code(file_contents, file_path, 700, 200)
 
         best_matches = []
         for snippet_to_modify in snippet_queries:
