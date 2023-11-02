@@ -29,6 +29,19 @@ class TestConstructPaymentMessage(unittest.TestCase):
     @patch("sweepai.handlers.on_ticket.ChatLogger")
     def test_construct_payment_message_non_paying_user(self, mock_chat_logger):
         mock_chat_logger.is_paying_user.return_value = False
+        mock_chat_logger.get_ticket_count.return_value = 0
+        result = construct_payment_message(
+            self.user_type,
+            self.model_name,
+            self.ticket_count,
+            self.daily_ticket_count,
+            self.is_paying_user
+        )
+        self.assertIn("Sweep Pro", result)
+        self.assertIn("GPT-3.5", result)
+        self.assertIn("0 GPT-4 tickets left for the month", result)
+        self.assertIn("For more GPT-4 tickets, visit", result)
+    
     @patch("sweepai.handlers.on_ticket.ChatLogger")
     def test_construct_payment_message_different_models(self, mock_chat_logger):
         mock_chat_logger.is_paying_user.return_value = True
@@ -44,25 +57,11 @@ class TestConstructPaymentMessage(unittest.TestCase):
         self.assertIn("Sweep Pro", result)
         self.assertIn("GPT-4", result)
         self.assertIn("unlimited GPT-4 tickets", result)
-        mock_chat_logger.get_ticket_count.return_value = 0
-        result = construct_payment_message(
-            self.user_type,
-            self.model_name,
-            self.ticket_count,
-            self.daily_ticket_count,
-            self.is_paying_user
-        )
-        self.assertIn("Sweep Pro", result)
-        self.assertIn("GPT-3.5", result)
-        self.assertIn("0 GPT-4 tickets left for the month", result)
-        self.assertIn("For more GPT-4 tickets, visit", result)
 
 
 class TestOnTicket(unittest.TestCase):
     def setUp(self):
         self.issue = Mock()
-if __name__ == '__main__':
-    unittest.main()
         self.issue.title = "Test Issue"
         self.issue.summary = "This is a test issue"
         self.issue.issue_number = 1
@@ -71,6 +70,9 @@ if __name__ == '__main__':
         self.issue.repo_full_name = "test/repo"
         self.issue.repo_description = "Test Repo"
         self.issue.installation_id = 12345
+
+if __name__ == '__main__':
+    unittest.main()
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
     def test_on_ticket(self, mock_get_github_client):
