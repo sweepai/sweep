@@ -45,9 +45,12 @@ class TestOnTicket(unittest.TestCase):
             self.issue.installation_id,
         )
         self.assertFalse(result["success"])
+
     @patch("sweepai.handlers.on_ticket.get_github_client")
     @patch("sweepai.utils.ticket_utils.handle_payment_logic")
-    def test_handle_payment_logic(self, mock_handle_payment_logic, mock_get_github_client):
+    def test_handle_payment_logic(
+        self, mock_handle_payment_logic, mock_get_github_client
+    ):
         mock_get_github_client.return_value = (Mock(), Mock())
         mock_handle_payment_logic.return_value = (True, False, False)
 
@@ -78,7 +81,9 @@ class TestOnTicket(unittest.TestCase):
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
     @patch("sweepai.utils.ticket_utils.handle_payment_logic")
-    def test_handle_payment_logic_with_fast_mode(self, mock_handle_payment_logic, mock_get_github_client):
+    def test_handle_payment_logic_with_fast_mode(
+        self, mock_handle_payment_logic, mock_get_github_client
+    ):
         mock_get_github_client.return_value = (Mock(), Mock())
         mock_handle_payment_logic.return_value = (True, False, True)
 
@@ -90,7 +95,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.username,
             self.issue.repo_full_name,
             self.issue.repo_description,
-            self.issue.installation_id
+            self.issue.installation_id,
         )
 
         mock_handle_payment_logic.assert_called_once_with(
@@ -109,7 +114,9 @@ class TestOnTicket(unittest.TestCase):
 
     @patch("sweepai.handlers.on_ticket.get_github_client")
     @patch("sweepai.utils.ticket_utils.handle_payment_logic")
-    def test_handle_payment_logic_with_exception(self, mock_handle_payment_logic, mock_get_github_client):
+    def test_handle_payment_logic_with_exception(
+        self, mock_handle_payment_logic, mock_get_github_client
+    ):
         mock_get_github_client.return_value = (Mock(), Mock())
         mock_handle_payment_logic.side_effect = Exception("Test exception")
 
