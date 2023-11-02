@@ -135,7 +135,9 @@ Extract code verbatim from the snippets above using EXTRACT sections. These snip
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request to identify and outline the first and last few lines of code that should be extracted.
+Analyze the user request to identify each section of the code that should be extracted.
+These sections should not overlap.
+For each new function outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
 <new_function_names>
@@ -175,7 +177,9 @@ Extract code verbatim from the snippets above using EXTRACT sections.  These sni
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request to identify and outline the first and last few lines of code that should be extracted.
+Analyze the user request to identify each section of the code that should be extracted.
+These sections should not overlap.
+For each new function outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
 <new_function_names>
