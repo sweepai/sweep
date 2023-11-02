@@ -90,12 +90,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.username,
             self.issue.repo_full_name,
             self.issue.repo_description,
-            self.issue.installation_id,
-            False,
-            False,
-            False,
-            False,
-            True,
+            self.issue.installation_id
         )
 
         mock_handle_payment_logic.assert_called_once_with(
