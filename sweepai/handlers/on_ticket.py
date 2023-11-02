@@ -227,14 +227,7 @@ def on_ticket(
         else None
     )
 
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_consumer_tier = False
-        use_faster_model = False
+    is_paying_user, is_consumer_tier = check_user_payment_status(chat_logger, g)
 
     if fast_mode:
         use_faster_model = True
@@ -362,29 +355,7 @@ def on_ticket(
 
         # Find the first comment made by the bot
         issue_comment = None
-        tickets_allocated = 5
-        if is_consumer_tier:
-            tickets_allocated = 15
-        if is_paying_user:
-            tickets_allocated = 500
-        purchased_ticket_count = (
-            chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
-        )
-        ticket_count = (
-            max(tickets_allocated - chat_logger.get_ticket_count(), 0)
-            + purchased_ticket_count
-            if chat_logger
-            else 999
-        )
-        daily_ticket_count = (
-            (
-                3 - chat_logger.get_ticket_count(use_date=True)
-                if not use_faster_model
-                else 0
-            )
-            if chat_logger
-            else 999
-        )
+        daily_ticket_count, ticket_count = calculate_remaining_tickets(is_consumer_tier, is_paying_user, chat_logger, use_faster_model)
 
         model_name = "GPT-3.5" if use_faster_model else "GPT-4"
         payment_link = "https://sweep.dev/pricing"
@@ -1467,6 +1438,43 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def calculate_remaining_tickets(is_consumer_tier, is_paying_user, chat_logger, use_faster_model):
+    tickets_allocated = 5
+    if is_consumer_tier:
+        tickets_allocated = 15
+    if is_paying_user:
+        tickets_allocated = 500
+    purchased_ticket_count = (
+        chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
+    )
+    ticket_count = (
+        max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+        + purchased_ticket_count
+        if chat_logger
+        else 999
+    )
+    daily_ticket_count = (
+        (
+            3 - chat_logger.get_ticket_count(use_date=True)
+            if not use_faster_model
+            else 0
+        )
+        if chat_logger
+        else 999
+    )
+    return daily_ticket_count, ticket_count
+
+def check_user_payment_status(chat_logger, g):
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+    return is_paying_user, is_consumer_tier
 
 
 def review_code(
