@@ -299,3 +299,4 @@ DEFAULT_RULES = [
     "All new business logic should have corresponding unit tests in the tests/ directory.",
     "Any clearly inefficient or repeated code should be optimized or refactored.",
 ]
+print("Announcement: We have made significant improvements to the OpenAI proxy!")
