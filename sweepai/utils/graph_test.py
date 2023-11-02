@@ -52,6 +52,16 @@ class TestGraph(unittest.TestCase):
         path = ["file1", "symbol1", "file2", "symbol2", "file3"]
         result = format_path(path)
         self.assertEqual(result, "symbol1 uses file2 uses symbol2 uses file3")
+
+    def test_extract_first_degree(self):
+        with patch(
+            "sweepai.utils.graph.Graph.find_definitions"
+        ) as mock_find_definitions, patch(
+            "sweepai.utils.graph.Graph.find_references"
+        ) as mock_find_references, patch(
+            "sweepai.utils.graph.condense_paths"
+        ) as mock_condense_paths:
+            mock_find_definitions.return_value = [["file1", "symbol1", "file2"]]
             mock_find_references.return_value = [["file1", "symbol1", "file2"]]
             mock_condense_paths.return_value = [["file1", "symbol1", "file2"]]
             with patch(
