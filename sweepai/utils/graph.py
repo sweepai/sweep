@@ -74,7 +74,7 @@ def extract_entities(code: str):
     return imported_modules, defined_classes, defined_functions
 
 
-def traverse_folder(folder, excluded_dirs=[]):  
+def traverse_folder(folder, excluded_dirs=[]):
     """
     Traverse a given folder and build a graph of definitions and references.
 
@@ -92,8 +92,7 @@ def traverse_folder(folder, excluded_dirs=[]):
             if file.endswith(".py"):
                 abs_path = os.path.join(root, file)
 
-
-# No replacement needed as the function definition should be removed
+                # No replacement needed as the function definition should be removed
                 rel_path = abs_path[len(folder) + 1 :]
                 with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
                     code = f.read()
