@@ -90,15 +90,7 @@ def traverse_folder(folder, excluded_dirs=[]):
     for root, _, files in os.walk(folder):
 
 
-def traverse_folder(folder, excluded_dirs=[]):  
-    definitions_graph = nx.DiGraph()
-    references_graph = nx.DiGraph()
-    for root, _, files in os.walk(folder):
-        if root in excluded_dirs:
-            continue
-        for file in files:
-            if file.endswith(".py"):
-                abs_path = os.path.join(root, file)
+# No replacement needed as the function definition should be removed
                 rel_path = abs_path[len(folder) + 1 :]
                 with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
                     code = f.read()
