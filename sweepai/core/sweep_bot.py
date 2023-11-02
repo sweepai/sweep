@@ -5,6 +5,7 @@ import traceback
 import uuid
 from collections import OrderedDict
 from typing import Dict, Generator
+from celery import chain
 
 import requests
 from fuzzywuzzy import fuzz
