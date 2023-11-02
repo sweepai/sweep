@@ -21,53 +21,35 @@ from sweepai.core.update_prompts import (
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
 from sweepai.utils.function_call_utils import find_function_calls
-from sweepai.utils.search_and_replace import find_best_match, split_ellipses
+from sweepai.utils.utils import chunk_code
 
-fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
+fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original sections from the code that should be modified.
 
-Extract the smallest spans that let you handle the request by adding blocks of snippet_to_modify containing the code blocks you want to modify. Use this for implementing or changing functionality.
+Extract the smallest spans that let you handle the request by adding sections of sections_to_modify containing the code you want to modify. Use this for implementing or changing functionality.
 
-Then, write search terms to extract that we need to modify from the code. The system will then modify all of the lines containing the patterns. Use this to make many small changes, such as updating all function calls after changing the signature.
-
-# Format
 <analysis_and_identification file="file_path">
 Identify all changes that need to be made to the file.
-In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
-Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
+Check the diff to make sure the changes have not previously been completed in this file.
+In a list, identify all code sections that should receive these changes and all locations code should be added. These sections will go into the sections_to_modify block.
 </analysis_and_identification>
 
-<snippets_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the first original snippet
+<sections_to_modify>
+<section_to_modify reason="justification for modifying this entity">
+X
+</section_to_modify>
+<section_to_modify reason="justification for modifying this entity">
+Y
+</section_to_modify>
 ...
-last few lines from the first original snippet (the code)
-```
-</snippet_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the second original snippet
-...
-last few lines from the second original snippet (the code)
-```
-</snippet_to_modify>
-...
-</snippets_to_modify>
+</sections_to_modify>"""
 
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>"""
-
-fetch_snippets_prompt = """
-# Code
+fetch_snippets_prompt = """# Code
 File path: {file_path}
-<old_code>
+<sections>
 ```
 {code}
 ```
-</old_code>
+</sections>
 {changes_made}
 # Request
 {request}
@@ -75,36 +57,28 @@ File path: {file_path}
 # Instructions
 {chunking_message}
 
+# Request
+Update the import statement for `construct_payment_message` to import from `sweepai.utils.ticket_utils` instead of `sweepai.handlers.on_ticket`. Ensure that all references to `construct_payment_message` in the test cases are updated to use the function from the correct module.
+
+# Instructions
+Respond with a list of all sections from the snippets that should be modified.
+
 # Format
 <analysis_and_identification file="file_path">
 Identify all changes that need to be made to the file.
-In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
-Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
+Check the diff to make sure the changes have not previously been completed in this file.
+In a list, identify all code sections that should receive these changes and all locations code should be added. These sections will go into the sections_to_modify block.
 </analysis_and_identification>
 
-<snippets_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the first original snippet
+<sections_to_modify>
+<section_to_modify reason="justification for modifying this entity">
+X
+</section_to_modify>
+<section_to_modify reason="justification for modifying this entity">
+Y
+</section_to_modify>
 ...
-last few lines from the first original snippet (the code)
-```
-</snippet_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the second original snippet
-...
-last few lines from the second original snippet (the code)
-```
-</snippet_to_modify>
-...
-</snippets_to_modify>
-
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>"""
+</sections_to_modify>"""
 
 fetch_snippets_prompt_with_diff = """
 # Code
@@ -352,13 +326,16 @@ class ModifyBot:
         fetch_prompt = (
             fetch_snippets_prompt_with_diff if diffs_message else fetch_snippets_prompt
         )
+        chunks = chunk_code(file_contents, file_path, 700, 200)
+        file_contents_lines = file_contents.split("\n")
+        code_sections = []
+        for i, chunk in enumerate(chunks):
+            code_section = "\n".join(file_contents_lines[chunk.start : chunk.end])
+            code_sections.append(f'<section id="{chr(i)}">\n{code_section}\n</section>')
+
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_prompt.format(
-                code=extract_python_span(
-                    file_contents, [file_change_request.entity]
-                ).content
-                if file_change_request.entity
-                else file_contents,
+                code="\n".join(code_sections),
                 changes_made=self.get_diffs_message(file_contents),
                 file_path=file_path,
                 request=file_change_request.instructions,
@@ -389,7 +366,8 @@ class ModifyBot:
                 if term:
                     extraction_terms.append(term)
         snippet_queries = []
-        snippets_query_pattern = r"<snippet_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</snippet_to_modify>"
+        # snippets_query_pattern = r"<snippet_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</snippet_to_modify>"
+        snippets_query_pattern = r"<sesection_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</section_to_modify>"
         for match_ in re.finditer(
             snippets_query_pattern, fetch_snippets_response, re.DOTALL
         ):
@@ -415,29 +393,40 @@ class ModifyBot:
     ):
         is_python_file = file_path.strip().endswith(".py")
 
+        chunks = chunk_code(file_contents, file_path, 700, 200)
+
         best_matches = []
         for snippet_to_modify in snippet_queries:
-            if len(split_ellipses(snippet_to_modify.code)) > 3:
-                for section in split_ellipses(snippet_to_modify.code):
-                    match_ = find_best_match(section, file_contents)
-                    if match_.score > 50:
-                        best_matches.append(
-                            MatchToModify(
-                                start=match_.start,
-                                end=match_.end,
-                                reason=snippet_to_modify.reason,
-                            )
-                        )
-            else:
-                match_ = find_best_match(snippet_to_modify.code, file_contents)
-                if match_.score > 50:
-                    best_matches.append(
-                        MatchToModify(
-                            start=match_.start,
-                            end=match_.end,
-                            reason=snippet_to_modify.reason,
-                        )
-                    )
+            current_chunk = chunks[ord(snippet_to_modify.code)]
+            best_matches.append(
+                MatchToModify(
+                    start=current_chunk.start,
+                    end=current_chunk.end,
+                    reason=snippet_to_modify.reason,
+                )
+            )
+        # for snippet_to_modify in snippet_queries:
+        #     if len(split_ellipses(snippet_to_modify.code)) > 3:
+        #         for section in split_ellipses(snippet_to_modify.code):
+        #             match_ = find_best_match(section, file_contents)
+        #             if match_.score > 50:
+        #                 best_matches.append(
+        #                     MatchToModify(
+        #                         start=match_.start,
+        #                         end=match_.end,
+        #                         reason=snippet_to_modify.reason,
+        #                     )
+        #                 )
+        #     else:
+        #         match_ = find_best_match(snippet_to_modify.code, file_contents)
+        #         if match_.score > 50:
+        #             best_matches.append(
+        #                 MatchToModify(
+        #                     start=match_.start,
+        #                     end=match_.end,
+        #                     reason=snippet_to_modify.reason,
+        #                 )
+        #             )
 
         code_tree = CodeTree.from_code(file_contents) if is_python_file else None
         for i, line in enumerate(file_contents.split("\n")):

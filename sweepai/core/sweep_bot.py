@@ -1387,6 +1387,8 @@ class SweepBot(CodeGenBot, GithubBot):
                                 branch=branch,
                             )
                             commit = response["commit"]
+                            file_change_request.commit_hash_url = commit.html_url
+                            file_change_request.status = "succeeded"
                             yield (
                                 file_change_request,
                                 True,
