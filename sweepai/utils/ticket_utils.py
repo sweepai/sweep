@@ -1,20 +1,27 @@
+import traceback
+from time import time
+
+from loguru import logger
+
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
-from sweepai.utils.str_utils import total_number_of_snippet_tokens, num_of_snippets_to_query
-import traceback
-from time import time
-from loguru import logger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.search_utils import search_snippets
-def construct_payment_message(user_type, model_name, ticket_count, daily_ticket_count, is_paying_user):
+from sweepai.utils.str_utils import (
+    num_of_snippets_to_query,
+    total_number_of_snippet_tokens,
+)
+
+
+def construct_payment_message(
+    user_type, model_name, ticket_count, daily_ticket_count, is_paying_user
+):
     payment_link = "https://sweep.dev/pricing"
     single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
     pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
     daily_message = (
-        f" and {daily_ticket_count} for the day"
-        if not is_paying_user
-        else ""
+        f" and {daily_ticket_count} for the day" if not is_paying_user else ""
     )
     gpt_tickets_left_message = (
         f"{ticket_count} GPT-4 tickets left for the month"
@@ -94,6 +101,7 @@ def fetch_relevant_files(
         )
         raise e
     return snippets, tree, dir_obj
+
 
 SLOW_MODE = False
 SLOW_MODE = True
