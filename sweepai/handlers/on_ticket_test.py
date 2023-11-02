@@ -39,7 +39,7 @@ class TestConstructPaymentMessage(unittest.TestCase):
         )
         self.assertIn("Sweep Pro", result)
         self.assertIn("GPT-3.5", result)
-        self.assertIn("0 GPT-4 tickets left for the month", result)
+        self.assertIn("unlimited GPT-4 tickets", result)
         self.assertIn("For more GPT-4 tickets, visit", result)
     
     @patch("sweepai.handlers.on_ticket.ChatLogger")
