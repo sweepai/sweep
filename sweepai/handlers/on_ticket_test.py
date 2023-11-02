@@ -29,6 +29,21 @@ class TestConstructPaymentMessage(unittest.TestCase):
     @patch("sweepai.handlers.on_ticket.ChatLogger")
     def test_construct_payment_message_non_paying_user(self, mock_chat_logger):
         mock_chat_logger.is_paying_user.return_value = False
+    @patch("sweepai.handlers.on_ticket.ChatLogger")
+    def test_construct_payment_message_different_models(self, mock_chat_logger):
+        mock_chat_logger.is_paying_user.return_value = True
+        mock_chat_logger.get_ticket_count.return_value = 500
+        self.model_name = "GPT-4"
+        result = construct_payment_message(
+            self.user_type,
+            self.model_name,
+            self.ticket_count,
+            self.daily_ticket_count,
+            self.is_paying_user
+        )
+        self.assertIn("Sweep Pro", result)
+        self.assertIn("GPT-4", result)
+        self.assertIn("unlimited GPT-4 tickets", result)
         mock_chat_logger.get_ticket_count.return_value = 0
         result = construct_payment_message(
             self.user_type,
@@ -46,6 +61,8 @@ class TestConstructPaymentMessage(unittest.TestCase):
 class TestOnTicket(unittest.TestCase):
     def setUp(self):
         self.issue = Mock()
+if __name__ == '__main__':
+    unittest.main()
         self.issue.title = "Test Issue"
         self.issue.summary = "This is a test issue"
         self.issue.issue_number = 1
