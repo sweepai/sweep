@@ -10,7 +10,7 @@ from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.config.server import DEBUG
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import FileChangeRequest, Message, UnneededEditError
+from sweepai.core.entities import FileChangeRequest, Message, Snippet, UnneededEditError
 from sweepai.core.prompts import dont_use_chunking_message, use_chunking_message
 from sweepai.core.update_prompts import (
     update_snippets_prompt,
@@ -35,10 +35,10 @@ In a list, identify all code sections that should receive these changes and all 
 
 <sections_to_modify>
 <section_to_modify reason="justification for modifying this entity">
-X
+SECTION_ID
 </section_to_modify>
 <section_to_modify reason="justification for modifying this entity">
-Y
+SECTION_ID
 </section_to_modify>
 ...
 </sections_to_modify>"""
@@ -57,37 +57,29 @@ File path: {file_path}
 # Instructions
 {chunking_message}
 
-# Request
-Update the import statement for `construct_payment_message` to import from `sweepai.utils.ticket_utils` instead of `sweepai.handlers.on_ticket`. Ensure that all references to `construct_payment_message` in the test cases are updated to use the function from the correct module.
-
-# Instructions
-Respond with a list of all sections from the snippets that should be modified.
-
 # Format
 <analysis_and_identification file="file_path">
 Identify all changes that need to be made to the file.
-Check the diff to make sure the changes have not previously been completed in this file.
 In a list, identify all code sections that should receive these changes and all locations code should be added. These sections will go into the sections_to_modify block.
 </analysis_and_identification>
 
 <sections_to_modify>
 <section_to_modify reason="justification for modifying this entity">
-X
+SECTION_ID
 </section_to_modify>
 <section_to_modify reason="justification for modifying this entity">
-Y
+SECTION_ID
 </section_to_modify>
 ...
 </sections_to_modify>"""
 
-fetch_snippets_prompt_with_diff = """
-# Code
+fetch_snippets_prompt_with_diff = """# Code
 File path: {file_path}
-<old_code>
+<sections>
 ```
 {code}
 ```
-</old_code>
+</sections>
 {changes_made}
 # Request
 {request}
@@ -99,33 +91,18 @@ File path: {file_path}
 <analysis_and_identification file="file_path">
 Identify all changes that need to be made to the file.
 Check the diff to make sure the changes have not previously been completed in this file.
-In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
-Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
+In a list, identify all code sections that should receive these changes and all locations code should be added. These sections will go into the sections_to_modify block.
 </analysis_and_identification>
 
-<snippets_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the first original snippet
+<sections_to_modify>
+<section_to_modify reason="justification for modifying this entity">
+SECTION_ID
+</section_to_modify>
+<section_to_modify reason="justification for modifying this entity">
+SECTION_ID
+</section_to_modify>
 ...
-last few lines from the first original snippet (the code)
-```
-</snippet_to_modify>
-<snippet_to_modify reason="justification for modifying this snippet">
-```
-first few lines from the second original snippet
-...
-last few lines from the second original snippet (the code)
-```
-</snippet_to_modify>
-...
-</snippets_to_modify>
-
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>"""
+</sections_to_modify>"""
 
 plan_snippets_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to plan code changes to complete the user's request.
@@ -179,7 +156,7 @@ def get_last_import_line(code: str, max_: int = 150) -> int:
 
 @dataclass
 class SnippetToModify:
-    code: str
+    snippet: Snippet
     reason: str
 
 
@@ -326,13 +303,13 @@ class ModifyBot:
         fetch_prompt = (
             fetch_snippets_prompt_with_diff if diffs_message else fetch_snippets_prompt
         )
-        chunks = chunk_code(file_contents, file_path, 700, 200)
+        original_snippets = chunk_code(file_contents, file_path, 700, 200)
         file_contents_lines = file_contents.split("\n")
+        chunks = ["\n".join(file_contents_lines[snippet.start : snippet.end + 1]) for snippet in original_snippets]
         code_sections = []
         for i, chunk in enumerate(chunks):
-            code_section = "\n".join(file_contents_lines[chunk.start : chunk.end])
             idx = chr(i + 65)
-            code_sections.append(f'<section id="{idx}">\n{code_section}\n</section>')
+            code_sections.append(f'<section id="{idx}">\n{chunk}\n</section>')
 
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_prompt.format(
@@ -367,15 +344,15 @@ class ModifyBot:
                 if term:
                     extraction_terms.append(term)
         snippet_queries = []
-        # snippets_query_pattern = r"<snippet_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</snippet_to_modify>"
-        snippets_query_pattern = r"<section_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</section_to_modify>"
+        snippets_query_pattern = r"<section_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<section>.*?)\n</section_to_modify>"
         for match_ in re.finditer(
             snippets_query_pattern, fetch_snippets_response, re.DOTALL
         ):
-            code = match_.group("code").strip()
+            section = match_.group("section").strip()
+            snippet = original_snippets[ord(section) - 65]
             reason = match_.group("reason").strip()
             snippet_queries.append(
-                SnippetToModify(reason=reason or "", code=strip_backticks(code))
+                SnippetToModify(reason=reason or "", snippet=snippet)
             )
 
         if len(snippet_queries) == 0:
@@ -396,84 +373,16 @@ class ModifyBot:
 
         chunks = chunk_code(file_contents, file_path, 700, 200)
 
+        import pdb; pdb.set_trace()
         best_matches = []
         for snippet_to_modify in snippet_queries:
-            current_chunk = chunks[ord(snippet_to_modify.code) - 65]
             best_matches.append(
                 MatchToModify(
-                    start=current_chunk.start,
-                    end=current_chunk.end,
+                    start=snippet_to_modify.snippet.start,
+                    end=snippet_to_modify.snippet.end + 1,
                     reason=snippet_to_modify.reason,
                 )
             )
-        # for snippet_to_modify in snippet_queries:
-        #     if len(split_ellipses(snippet_to_modify.code)) > 3:
-        #         for section in split_ellipses(snippet_to_modify.code):
-        #             match_ = find_best_match(section, file_contents)
-        #             if match_.score > 50:
-        #                 best_matches.append(
-        #                     MatchToModify(
-        #                         start=match_.start,
-        #                         end=match_.end,
-        #                         reason=snippet_to_modify.reason,
-        #                     )
-        #                 )
-        #     else:
-        #         match_ = find_best_match(snippet_to_modify.code, file_contents)
-        #         if match_.score > 50:
-        #             best_matches.append(
-        #                 MatchToModify(
-        #                     start=match_.start,
-        #                     end=match_.end,
-        #                     reason=snippet_to_modify.reason,
-        #                 )
-        #             )
-
-        code_tree = CodeTree.from_code(file_contents) if is_python_file else None
-        for i, line in enumerate(file_contents.split("\n")):
-            for keyword in extraction_terms:
-                if keyword in line:
-                    try:
-                        if is_python_file:
-                            start_line, end_line = code_tree.get_lines_surrounding(i)
-                        else:
-                            start_line, end_line = i, i
-                    except Exception as e:
-                        logger.error(e)
-                        start_line, end_line = i, i
-                    best_matches.append(
-                        MatchToModify(
-                            start=start_line,
-                            end=end_line + 1,
-                            reason=f"Mentioned {keyword}",
-                        )
-                    )
-
-        # Get all line matches where the keyword is either mentioned or used as a function call
-        for keyword in extraction_terms:
-            keyword = keyword.rstrip("()")
-            for start, end in find_function_calls(keyword, file_contents):
-                best_matches.append(
-                    MatchToModify(
-                        start=start,
-                        end=end + 1,
-                        reason=f"Used {keyword} as a function call",
-                    )
-                )
-
-        IMPORT_LINES = get_last_import_line(file_contents)
-        best_matches.append(
-            MatchToModify(
-                start=0,
-                end=min(IMPORT_LINES, len(file_contents.split("\n"))),
-                reason="Import statements",
-            )
-        )
-
-        if len(best_matches) == 0:
-            raise UnneededEditError("No matches found in file")
-
-        # Todo: check multiple files for matches using PR changed files
 
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
@@ -493,32 +402,7 @@ class ModifyBot:
                 start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
             )
 
-        current_match = best_matches[0]
-        deduped_matches: list[MatchToModify] = []
-
-        # Fuse & dedup
-        FUSE_OFFSET = 3
-        for next_match_ in best_matches[1:]:
-            if (
-                current_match.end > next_match_.start
-                or abs(current_match.end - next_match_.start) <= FUSE_OFFSET
-            ):
-                current_match = fuse_matches(current_match, next_match_)
-            else:
-                deduped_matches.append(current_match)
-                current_match = next_match_
-        deduped_matches.append(current_match)
-        if is_python_file:
-            new_deduped_matches = []
-            for match_ in deduped_matches:
-                start_line = code_tree.get_lines_surrounding(match_.start)[0]
-                end_line = code_tree.get_lines_surrounding(match_.end)[1]
-                new_deduped_matches.append(
-                    MatchToModify(
-                        start=start_line, end=end_line + 1, reason=match_.reason
-                    )
-                )
-            deduped_matches = new_deduped_matches
+        deduped_matches = best_matches
 
         selected_snippets: list[tuple[str, str]] = []
         file_contents_lines = file_contents.split("\n")

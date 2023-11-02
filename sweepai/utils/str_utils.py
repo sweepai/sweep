@@ -3,7 +3,7 @@ import re
 UPDATES_MESSAGE = """\
 ### 🎉 Latest improvements to Sweep:
 
-* Sweep now uses the library `rope` to refactor Python! Check out [Large Language Models are Bad at Refactoring Code](https://docs.sweep.dev/blogs/refactor-python). To have Sweep refactor your code, try `sweep: Refactor <your_file>.py to be more modular`!
+* Sweep now uses the `rope` library to refactor Python! Check out [Large Language Models are Bad at Refactoring Code](https://docs.sweep.dev/blogs/refactor-python). To have Sweep refactor your code, try `sweep: Refactor <your_file>.py to be more modular`!
 * Sweep finds and fixes bugs in your code by writing unit tests! Check out [Having GPT-4 Iterate on Unit Tests like a Human](https://docs.sweep.dev/blogs/ai-unit-tests).
 """
 

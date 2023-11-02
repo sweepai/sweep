@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
-from sweepai.logn import logger
+from sweepai.logn import logger, file_cache
 
 
 def score_line(str1: str, str2: str) -> float:
@@ -150,7 +150,7 @@ def get_max_indent(content: str, indent_type: str):
     )
 
 
-# @file_cache()
+@file_cache()
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)
 

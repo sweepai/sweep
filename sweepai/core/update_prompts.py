@@ -20,7 +20,7 @@ new line(s) to append to snippet j
 </diffs>"""
 
 update_snippets_system_prompt_python = """\
-You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming so ensure correct indentation for each indentation level.
+You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming.
 
 When you write code, the code works on the first try, and is complete. Take into account the current repository's language, code style, and dependencies.
 
@@ -123,7 +123,7 @@ new line(s) to append to snippet j
 </diffs>"""
 
 extract_snippets_system_prompt = """\
-You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming so ensure correct indentation for each indentation level.
+You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming.
 
 When you write code, the code works on the first try. and is complete. Take into account the current repository's language, code style, and dependencies.
 

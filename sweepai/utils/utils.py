@@ -205,9 +205,6 @@ def chunk_code(
         chunks = chunk_tree(
             tree, code.encode("utf-8"), MAX_CHARS=MAX_CHARS, coalesce=coalesce
         )
-        import pdb
-
-        pdb.set_trace()
         snippets = []
         for chunk in chunks:
             new_snippet = Snippet(

@@ -384,6 +384,8 @@ class CodeGenBot(ChatGPT):
                                 ]
                             )
                             return file_change_requests, plan_str
+                        else:
+                            self.delete_messages_from_chat("extract_prompt")
                     files_to_change_response = self.chat(
                         files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
@@ -1217,7 +1219,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     : min(60, len(first_chars_in_instructions))
                 ]
 
-                if file_change_request.change_type == "move":
+                if file_change_request.change_type == "move": # TODO(add this)
                     move_bot = MoveBot(chat_logger=self.chat_logger)
                     additional_messages = copy.deepcopy(self.messages)
                     file_ = self.repo.get_contents(
