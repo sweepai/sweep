@@ -227,22 +227,9 @@ def on_ticket(
         else None
     )
 
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_consumer_tier = False
-        use_faster_model = False
+    is_paying_user, is_consumer_tier = check_if_paying_user_and_set_model(chat_logger, g)
 
-    if fast_mode:
-        use_faster_model = True
-
-    if not comment_id and not edited and chat_logger and not sandbox_mode:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
+    use_faster_model = update_model_and_ticket_count_for_fast_mode(fast_mode, comment_id, edited, chat_logger, sandbox_mode)  # moving higher, will increment the issue regardless of whether it's a success or not
 
     sweep_context = SweepContext.create(
         username=username,
@@ -387,71 +374,9 @@ def on_ticket(
         )
 
         model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-        payment_link = "https://sweep.dev/pricing"
-        single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
-        pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
-        daily_message = (
-            f" and {daily_ticket_count} for the day"
-            if not is_paying_user and not is_consumer_tier
-            else ""
-        )
-        user_type = (
-            "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
-        )
-        gpt_tickets_left_message = (
-            f"{ticket_count} GPT-4 tickets left for the month"
-            if not is_paying_user
-            else "unlimited GPT-4 tickets"
-        )
-        purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href='{single_payment_link}'>our payment portal</a>. For a one week free trial, try <a href='{pro_payment_link}'>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
-            + (purchase_message if not is_paying_user else "")
-        )
+        payment_message_start = generate_payment_related_messages(is_paying_user, is_consumer_tier, daily_ticket_count, ticket_count, model_name)
 
-        def get_comment_header(index, errored=False, pr_message="", done=False):
-            config_pr_message = (
-                "\n"
-                + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
-                if config_pr_url is not None
-                else ""
-            )
-            actions_message = create_action_buttons(
-                [
-                    RESTART_SWEEP_BUTTON,
-                ]
-            )
-
-            if index < 0:
-                index = 0
-            if index == 4:
-                return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
-
-            total = len(progress_headers)
-            index += 1 if done else 0
-            index *= 100 / total
-            index = int(index)
-            index = min(100, index)
-            if errored:
-                pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
-                return (
-                    f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
-                    + f"\n\n---\n{actions_message}"
-                )
-            pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
-            return (
-                f"{center(sweeping_gif)}<br/>{center(pbar)}"
-                + ("\n" + stars_suffix if index != -1 else "")
-                + "\n"
-                + center(payment_message_start)
-                + center(f"\n\n{markdown_badge}")
-                + config_pr_message
-                + f"\n\n---\n{actions_message}"
-            )
+        get_comment_header = generate_comment_header_with_payment_info(progress_headers, payment_message_start, config_pr_url, markdown_badge)
 
         # Find Sweep's previous comment
         for comment in comments:
@@ -484,17 +409,7 @@ def on_ticket(
             " time using Sweep, I'm indexing your repository. This may take up to"
             f" {time_estimate} minutes. I'll let you know when I'm done."
         )
-        first_comment = (
-            f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I"
-            " will update the progress of the ticket in this comment. I am currently"
-            f" searching through your code, looking for relevant snippets.\n{sep}##"
-            f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
-        )
-
-        if issue_comment is None:
-            issue_comment = current_issue.create_comment(first_comment)
-        else:
-            issue_comment.edit(first_comment)
+        create_first_comment_with_payment_info(get_comment_header, progress_headers, indexing_message, issue_comment, current_issue)
 
         # Comment edit function
         past_messages = {}
@@ -1467,6 +1382,110 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def create_first_comment_with_payment_info(get_comment_header, progress_headers, indexing_message, issue_comment, current_issue):
+    first_comment = (
+        f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I"
+        " will update the progress of the ticket in this comment. I am currently"
+        f" searching through your code, looking for relevant snippets.\n{sep}##"
+        f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+    )
+
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(first_comment)
+    else:
+        issue_comment.edit(first_comment)
+
+def generate_comment_header_with_payment_info(progress_headers, payment_message_start, config_pr_url, markdown_badge):
+    def get_comment_header(index, errored=False, pr_message="", done=False):
+        config_pr_message = (
+            "\n"
+            + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
+            if config_pr_url is not None
+            else ""
+        )
+        actions_message = create_action_buttons(
+            [
+                RESTART_SWEEP_BUTTON,
+            ]
+        )
+
+        if index < 0:
+            index = 0
+        if index == 4:
+            return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
+
+        total = len(progress_headers)
+        index += 1 if done else 0
+        index *= 100 / total
+        index = int(index)
+        index = min(100, index)
+        if errored:
+            pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
+            return (
+                f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
+                + f"\n\n---\n{actions_message}"
+            )
+        pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
+        return (
+            f"{center(sweeping_gif)}<br/>{center(pbar)}"
+            + ("\n" + stars_suffix if index != -1 else "")
+            + "\n"
+            + center(payment_message_start)
+            + center(f"\n\n{markdown_badge}")
+            + config_pr_message
+            + f"\n\n---\n{actions_message}"
+        )
+    return get_comment_header
+
+def generate_payment_related_messages(is_paying_user, is_consumer_tier, daily_ticket_count, ticket_count, model_name):
+    payment_link = "https://sweep.dev/pricing"
+    single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
+    pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
+    daily_message = (
+        f" and {daily_ticket_count} for the day"
+        if not is_paying_user and not is_consumer_tier
+        else ""
+    )
+    user_type = (
+        "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
+    )
+    gpt_tickets_left_message = (
+        f"{ticket_count} GPT-4 tickets left for the month"
+        if not is_paying_user
+        else "unlimited GPT-4 tickets"
+    )
+    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href='{single_payment_link}'>our payment portal</a>. For a one week free trial, try <a href='{pro_payment_link}'>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
+        + (purchase_message if not is_paying_user else "")
+    )
+    payment_message_start = (
+        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
+        + (purchase_message if not is_paying_user else "")
+    )
+    return payment_message_start
+
+def update_model_and_ticket_count_for_fast_mode(fast_mode, comment_id, edited, chat_logger, sandbox_mode):
+    if fast_mode:
+        use_faster_model = True
+
+    if not comment_id and not edited and chat_logger and not sandbox_mode:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
+    return use_faster_model
+
+def check_if_paying_user_and_set_model(chat_logger, g):
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+    return is_paying_user, is_consumer_tier
 
 
 def review_code(
