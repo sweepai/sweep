@@ -74,10 +74,28 @@ def extract_entities(code: str):
     return imported_modules, defined_classes, defined_functions
 
 
-def traverse_folder(folder):  # TODO(add excluded_dirs)
+def traverse_folder(folder, excluded_dirs=[]):  
+    """
+    Traverse a given folder and build a graph of definitions and references.
+
+    Parameters:
+    folder (str): The folder to traverse.
+    excluded_dirs (list[str], optional): A list of directory paths to exclude from traversal. Defaults to [].
+
+    Returns:
+    tuple: A tuple containing two graphs - definitions_graph and references_graph.
+    """
     definitions_graph = nx.DiGraph()
     references_graph = nx.DiGraph()
     for root, _, files in os.walk(folder):
+
+
+def traverse_folder(folder, excluded_dirs=[]):  
+    definitions_graph = nx.DiGraph()
+    references_graph = nx.DiGraph()
+    for root, _, files in os.walk(folder):
+        if root in excluded_dirs:
+            continue
         for file in files:
             if file.endswith(".py"):
                 abs_path = os.path.join(root, file)
