@@ -113,7 +113,7 @@ class Sandbox(BaseModel):
             if os.path.exists(os.path.join(path, filename)):
                 logger.info(f"Found {filename} in repo, installing {script}")
                 sandbox.install = [script] + sandbox.install
-        os.listdir(path)
+        # os.listdir(path)
         # if "requirements.txt" in ls:
         #     sandbox.check.append(
         #         "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. python {file_path}; else exit 0; fi"
