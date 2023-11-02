@@ -411,6 +411,17 @@ async def webhook(raw_request: Request):
                         }
 
                     run_on_ticket(
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=request.comment.id if not restart_sweep else None,
+                        edited=True,
+                    )
                         title: str = request.issue.title,
                         summary: str = request.issue.body,
                         issue_number: int = request.issue.number,
@@ -460,7 +471,7 @@ async def webhook(raw_request: Request):
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
-                    call_on_ticket(
+                    run_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
@@ -484,7 +495,7 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                         request.repository.description or ""
                     )
-                    call_on_ticket(
+                    run_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
@@ -521,9 +532,7 @@ async def webhook(raw_request: Request):
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
-                        }
-
-                    call_on_ticket(
+                    run_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
@@ -569,7 +578,18 @@ async def webhook(raw_request: Request):
                 pr = repo.get_pull(request.pull_request.number)
                 labels = pr.get_labels()
                 comment = request.comment.body
-                if (
+                    run_on_ticket(
+                        title = request.issue.title,
+                        summary = request.issue.body,
+                        issue_number = request.issue.number,
+                        issue_url = request.issue.html_url,
+                        username = request.issue.user.login,
+                        repo_full_name = request.repository.full_name,
+                        repo_description = request.repository.description,
+                        installation_id = request.installation.id,
+                        comment_id = request.comment.id if not restart_sweep else None,
+                        edited = True,
+                    )
                     comment.lower().startswith("sweep:")
                     or any(label.name.lower() == "sweep" for label in labels)
                 ) and request.comment.user.type == "User":
