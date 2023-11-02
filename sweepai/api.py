@@ -93,7 +93,7 @@ run_on_ticket(
     comment_id=request.comment.id if not restart_sweep else None,
     edited=True
 )
-    tracking_id = get_hash()
+tracking_id = get_hash()
     with loguru.logger.contextualize(
         metadata={
             **kwargs,
@@ -421,7 +421,7 @@ async def webhook(raw_request: Request):
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
                         return {
-                        summary=request.issue.body,
+                            "summary": request.issue.body,
                         issue_number=request.issue.number,
                         issue_url=request.issue.html_url,
                         username=request.issue.user.login,
@@ -843,7 +843,7 @@ async def webhook(raw_request: Request):
                             # Call the write_documentation function for each of the existing fields in the "docs" mapping
                             for doc_url, _ in docs.values():
                                 logger.info(f"Writing documentation for {doc_url}")
-                                call_write_documentation(doc_url=doc_url)
+                            call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
