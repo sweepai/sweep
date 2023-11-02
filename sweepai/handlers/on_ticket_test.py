@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from sweepai.utils.ticket_utils import construct_payment_message
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.ticket_utils import construct_payment_message
 class TestConstructPaymentMessage(unittest.TestCase):
     def setUp(self):
         self.user_type = "Sweep Pro"
