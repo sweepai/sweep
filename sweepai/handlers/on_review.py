@@ -56,7 +56,7 @@ def review_pr(
     diffs = get_pr_diffs(repo, pr)
     if len(diffs) == 0:
         logger.info("No diffs found.")
-        return False, None
+        return False, ""
     human_message = HumanMessagePromptReview(
         repo_name=repo_name,
         issue_url=issue_url,

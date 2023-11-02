@@ -141,14 +141,28 @@ def create_error_logs(
         else ""
     )
 
+class ExtractionRequest(RegexMatchableBaseModel):
+    use_tools: bool
+    _regex = r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
+
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        use_tools_pattern = (
+            r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
+        )
+        use_tools_match = re.search(use_tools_pattern, string, re.DOTALL)
+        use_tools = use_tools_match.groupdict()["use_tools"].strip().lower() == "true"
+        return cls(
+            use_tools=use_tools
+        )
 
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
-    ] | Literal["rewrite"] | Literal["check"] | Literal["move"] | Literal["extract"]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
+    ] | Literal["rewrite"] | Literal["check"] | Literal["extract"] | Literal["test"]
+    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
     entity: str | None = None
     new_content: str | None = None
     raw_relevant_files: str | None = None
@@ -159,6 +173,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     status: Literal["succeeded"] | Literal["failed"] | Literal["queued"] | Literal[
         "running"
     ] = "queued"
+    destination_module: str | None = None
     sandbox_response: SandboxResponse | None = None
     commit_hash_url: str | None = None
     id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
