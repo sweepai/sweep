@@ -331,7 +331,8 @@ class ModifyBot:
         code_sections = []
         for i, chunk in enumerate(chunks):
             code_section = "\n".join(file_contents_lines[chunk.start : chunk.end])
-            code_sections.append(f'<section id="{chr(i)}">\n{code_section}\n</section>')
+            idx = chr(i + 65)
+            code_sections.append(f'<section id="{idx}">\n{code_section}\n</section>')
 
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_prompt.format(
@@ -367,7 +368,7 @@ class ModifyBot:
                     extraction_terms.append(term)
         snippet_queries = []
         # snippets_query_pattern = r"<snippet_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</snippet_to_modify>"
-        snippets_query_pattern = r"<sesection_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</section_to_modify>"
+        snippets_query_pattern = r"<section_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<code>.*?)\n</section_to_modify>"
         for match_ in re.finditer(
             snippets_query_pattern, fetch_snippets_response, re.DOTALL
         ):
@@ -397,7 +398,7 @@ class ModifyBot:
 
         best_matches = []
         for snippet_to_modify in snippet_queries:
-            current_chunk = chunks[ord(snippet_to_modify.code)]
+            current_chunk = chunks[ord(snippet_to_modify.code) - 65]
             best_matches.append(
                 MatchToModify(
                     start=current_chunk.start,
