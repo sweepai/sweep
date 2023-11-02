@@ -11,6 +11,8 @@ from sweepai.utils.graph import (
     extract_entities,
     format_path,
     traverse_folder,
+    extract_degree_paths,
+    condense_paths
 )
 
 
@@ -29,6 +31,27 @@ class TestGraph(unittest.TestCase):
             "sweepai.utils.graph.condense_paths"
         ) as mock_condense_paths:
             mock_find_definitions.return_value = [["file1", "symbol1", "file2"]]
+    def test_file_encoding(self):
+        with patch("builtins.open", new_callable=mock_open, read_data="test data") as mock_file:
+            mock_file.return_value.__iter__.return_value = ["test data"]
+            mock_file.return_value.encoding = "utf-8"
+            result = extract_entities(mock_file.return_value.read())
+            self.assertEqual(result, (["test"], [], []))
+
+        with patch("builtins.open", new_callable=mock_open, read_data="test data") as mock_file:
+            mock_file.return_value.__iter__.return_value = ["test data"]
+            mock_file.return_value.encoding = "utf-16"
+            result = extract_entities(mock_file.return_value.read())
+            self.assertEqual(result, (["test"], [], []))
+
+    def test_path_formatting(self):
+        path = ["file1", "symbol1", "file2"]
+        result = format_path(path)
+        self.assertEqual(result, "symbol1 uses file2")
+
+        path = ["file1", "symbol1", "file2", "symbol2", "file3"]
+        result = format_path(path)
+        self.assertEqual(result, "symbol1 uses file2 uses symbol2 uses file3")
             mock_find_references.return_value = [["file1", "symbol1", "file2"]]
             mock_condense_paths.return_value = [["file1", "symbol1", "file2"]]
             with patch(
