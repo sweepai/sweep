@@ -414,18 +414,7 @@ def on_ticket(
             + (purchase_message if not is_paying_user else "")
         )
 
-        def get_comment_header(index, errored=False, pr_message="", done=False):
-            pass
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
-            + (purchase_message if not is_paying_user else "")
-        )
-
-        def get_comment_header(index, errored=False, pr_message="", done=False):
+        # Removed extra definitions and updates
             config_pr_message = (
                 "\n"
                 + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
@@ -739,10 +728,11 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+        # Removed unnecessary function definition
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
+        # Check repository for sweep.yml file.
+        sweep_yml_exists = False
+        for content_file in repo.get_contents(""):
             issue_url=issue_url,
             username=username,
             repo_description=repo_description.strip(),
@@ -784,7 +774,7 @@ def on_ticket(
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
-        def get_comment_header(index, errored=False, pr_message="", done=False):
+        # Removed unnecessary function definition
             pass
             human_message=human_message,
             repo=repo,
@@ -796,6 +786,7 @@ def on_ticket(
 
         # Check repository for sweep.yml file.
         sweep_yml_exists = False
+        # Removed unnecessary function definition
         for content_file in repo.get_contents(""):
             if content_file.name == "sweep.yaml":
                 sweep_yml_exists = True
@@ -1062,11 +1053,8 @@ def on_ticket(
                                         for i, execution in enumerate(
                                             sandbox_response.executions
                                         )
-                                        if len(sandbox_response.executions) > 0
-                                        payment_message = (
-                                            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
-                                            + (purchase_message if not is_paying_user else "")
-                                        )
+                                        if len(sandbox_response.executions) > 0:
+                                            pass
                                 )
                             ),
                             opened=True,
@@ -1096,37 +1084,7 @@ def on_ticket(
                 return False
 
             for item in generator:
-                                        payment_message_start = (
-                                            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
-                                            + (purchase_message if not is_paying_user else "")
-                                        )
-                                )
-                            ),
-                            opened=True,
-                        )
-                    )
-                    if sandbox_response
-                    else ""
-                )
-
-            def update_progress(
-                entity_display: str,
-                header: str,
-                error_logs: str,
-                status: str = "X",
-            ):
-                nonlocal checkboxes_progress
-                for i, (entity_display_, instructions, status_) in enumerate(
-                    checkboxes_progress
-                ):
-                    if entity_display in entity_display_:
-                        checkboxes_progress[i] = (
-                            header,
-                            instructions + error_logs,
-                            status,
-                        )
-                        return True
-                return False
+                pass
 
             for item in generator:
                 if isinstance(item, dict):
@@ -1260,6 +1218,7 @@ def on_ticket(
                 installation_id,
             )
 
+            # Define payment_message_start and payment_message only once
             payment_message_start = (
                 f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
                 + (purchase_message if not is_paying_user else "")
