@@ -170,7 +170,8 @@ def on_ticket(
     user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
-    assignee = current_issue.assignee.login if current_issue.assignee else None
+        def get_comment_header(index, errored=False, pr_message="", done=False):
+            pass
     if assignee is None:
         assignee = current_issue.user.login
 
@@ -414,6 +415,10 @@ def on_ticket(
         )
 
         def get_comment_header(index, errored=False, pr_message="", done=False):
+            pass
+        payment_message_start = (
+            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
+            + (purchase_message if not is_paying_user else "")
         )
         payment_message_start = (
             f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
@@ -443,6 +448,7 @@ def on_ticket(
             index *= 100 / total
             index = int(index)
             index = min(100, index)
+            return index
             if errored:
                 pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
                 return (
@@ -778,7 +784,8 @@ def on_ticket(
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
-        sweep_bot = SweepBot.from_system_message_content(
+        def get_comment_header(index, errored=False, pr_message="", done=False):
+            pass
             human_message=human_message,
             repo=repo,
             is_reply=bool(comments),
