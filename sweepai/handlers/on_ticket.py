@@ -414,13 +414,7 @@ def on_ticket(
             + (purchase_message if not is_paying_user else "")
         )
 
-        # Removed extra definitions and updates
-            config_pr_message = (
-                "\n"
-                + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
-                if config_pr_url is not None
-                else ""
-            )
+        # Removed unnecessary function definition
             actions_message = create_action_buttons(
                 [
                     RESTART_SWEEP_BUTTON,
@@ -434,16 +428,7 @@ def on_ticket(
 
             total = len(progress_headers)
             index += 1 if done else 0
-            index *= 100 / total
-            index = int(index)
-            index = min(100, index)
-            return index
-            if errored:
-                pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
-                return (
-                    f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
-                    + f"\n\n---\n{actions_message}"
-                )
+            # Removed unnecessary function definition
             pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
             return (
                 f"{center(sweeping_gif)}<br/>{center(pbar)}"
@@ -458,8 +443,7 @@ def on_ticket(
         # Find Sweep's previous comment
         for comment in comments:
             if comment.user.login == GITHUB_BOT_USERNAME:
-                issue_comment = comment
-
+        # Removed unnecessary function definition
         try:
             config = SweepConfig.get_config(repo)
         except EmptyRepository as e:
@@ -472,10 +456,7 @@ def on_ticket(
             if issue_comment is None:
                 issue_comment = current_issue.create_comment(first_comment)
             else:
-                issue_comment.edit(first_comment)
-            return {"success": False}
-
-        cloned_repo = ClonedRepo(
+        # Removed unnecessary function definition
             repo_full_name, installation_id=installation_id, token=user_token
         )
         num_of_files = cloned_repo.get_num_files_from_repo()
@@ -496,13 +477,7 @@ def on_ticket(
         if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
         else:
-            issue_comment.edit(first_comment)
-
-        # Comment edit function
-        past_messages = {}
-        current_index = 0
-
-        # Random variables to save in case of errors
+        # Removed unnecessary function definition
         table = None  # Show plan so user can finetune prompt
 
         def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
@@ -512,11 +487,7 @@ def on_ticket(
             errored = index == -1
             if index >= 0:
                 past_messages[index] = message
-                current_index = index
-
-            agg_message = None
-            # Include progress history
-            # index = -2 is reserved for
+        # Removed unnecessary function definition
             for i in range(
                 current_index + 2
             ):  # go to next header (for Working on it... text)
@@ -531,9 +502,7 @@ def on_ticket(
                 if agg_message is None:
                     agg_message = msg
                 else:
-                    agg_message = agg_message + f"\n{sep}" + msg
-
-            suffix = bot_suffix + discord_suffix
+        # Removed unnecessary function definition
             if errored:
                 agg_message = (
                     "## ❌ Unable to Complete PR"
@@ -551,8 +520,7 @@ def on_ticket(
                 suffix = bot_suffix  # don't include discord suffix for error messages
 
             # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            try:
+        # Removed unnecessary function definition
                 issue_comment.edit(msg)
             except BadCredentialsException:
                 logger.error(
@@ -563,11 +531,24 @@ def on_ticket(
 
                 for comment in comments:
                     if comment.user.login == GITHUB_BOT_USERNAME:
+        # Removed unnecessary function definition
+            except BadCredentialsException:
+        cloned_repo = ClonedRepo(
+        # Removed unnecessary function definition
+            f" {time_estimate} minutes. I'll let you know when I'm done."
+        )
+        first_comment = (
+                    f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
+                )
+                _user_token, g = get_github_client(installation_id)
+                repo = g.get_repo(repo_full_name)
+
+                for comment in comments:
+                    if comment.user.login == GITHUB_BOT_USERNAME:
                         issue_comment = comment
 
                 if issue_comment is None:
-                    issue_comment = current_issue.create_comment(msg)
-                else:
+        # Removed unnecessary function definition
                     issue_comment = [
                         comment
                         for comment in issue.get_comments()
@@ -581,11 +562,7 @@ def on_ticket(
                 repo=repo,
                 sweep_context=sweep_context,
             )
-            logger.info("Getting file contents")
-            file_name = title.split(":")[1].strip()
-            file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
-                "utf-8"
-            )
+            # Removed unnecessary function definition
             try:
                 ext = file_name.split(".")[-1]
             except:
@@ -599,8 +576,7 @@ def on_ticket(
                 1,
             )
             updated_contents, sandbox_response = sweep_bot.check_sandbox(
-                file_name, file_contents, []
-            )
+            # Removed unnecessary function definition
             logger.info("Sandbox finished")
             logs = (
                 (
@@ -728,7 +704,6 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-        # Removed unnecessary function definition
 
         # Check repository for sweep.yml file.
         sweep_yml_exists = False
@@ -774,8 +749,6 @@ def on_ticket(
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
-        # Removed unnecessary function definition
-            pass
             human_message=human_message,
             repo=repo,
             is_reply=bool(comments),
@@ -786,7 +759,6 @@ def on_ticket(
 
         # Check repository for sweep.yml file.
         sweep_yml_exists = False
-        # Removed unnecessary function definition
         for content_file in repo.get_contents(""):
             if content_file.name == "sweep.yaml":
                 sweep_yml_exists = True
@@ -1003,7 +975,26 @@ def on_ticket(
 
             condensed_checkboxes_contents = (
                 "\n".join(
-                    [
+                                "\n\n".join(
+                                    [
+                                        create_collapsible(
+                                            f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                            f"<pre>{clean_logs(execution.output)}</pre>",
+                                            i == len(sandbox_response.executions) - 1,
+                                        )
+                                        for i, execution in enumerate(
+                                            sandbox_response.executions
+                                        )
+                                        if len(sandbox_response.executions) > 0:
+                                            pass
+                                )
+                            ),
+                            opened=True,
+                        )
+                    )
+                    if sandbox_response
+                    else ""
+                )
                         create_checkbox(f"`{filename}`", "", check == "X").strip()
                         for filename, instructions, check in checkboxes_progress
                     ]
@@ -1065,8 +1056,9 @@ def on_ticket(
                 )
 
             # Removed the update_progress function as it is not necessary
+            # Removed unnecessary function definition
             for item in generator:
-                pass
+                continue
 
             for item in generator:
                 if isinstance(item, dict):
@@ -1096,6 +1088,7 @@ def on_ticket(
                 commit_url_display = (
                     f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
                 )
+                # Removed unnecessary function definition
                 error_logs: str = create_error_logs(
                     commit_url_display,
                     sandbox_response,
@@ -1157,22 +1150,24 @@ def on_ticket(
 
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.entity_display}")
+                # Removed unnecessary function definition
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
             pr_changes = response["pull_request"]
 
-            edit_sweep_comment(
-                "I have finished coding the issue. I am now reviewing it for completeness.",
-                3,
-            )
-            change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-            review_message = (
-                "Here are my self-reviews of my changes at" + change_location
-            )
+                # Removed unnecessary function definition
+                edit_sweep_comment(
+                    "I have finished coding the issue. I am now reviewing it for completeness.",
+                    3,
+                )
+                change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+                review_message = (
+                    "Here are my self-reviews of my changes at" + change_location
+                )
 
-            lint_output = None
-            try:
+                lint_output = None
+                try:
                 current_issue.delete_reaction(eyes_reaction.id)
             except SystemExit:
                 raise SystemExit
@@ -1201,6 +1196,7 @@ def on_ticket(
             )
 
             # Define payment_message_start and payment_message only once
+                # Removed unnecessary function definition
             payment_message_start = (
                 f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
                 + (purchase_message if not is_paying_user else "")
@@ -1220,6 +1216,7 @@ def on_ticket(
                     3,
                 )
 
+                # Removed unnecessary function definition
             pr_actions_message = (
                 create_action_buttons(
                     [
@@ -1258,6 +1255,7 @@ def on_ticket(
             # Add comment about sandbox executions
             # for i in range(10):
             #     print(i)
+                # Removed unnecessary function definition
             sandbox_execution_comment_contents = (
                 "## Sandbox Executions\n\n"
                 + "\n".join(
@@ -1277,6 +1275,7 @@ def on_ticket(
                 )
             )
 
+                # Removed unnecessary function definition
             pr.create_issue_comment(sandbox_execution_comment_contents)
 
             if revert_buttons:
@@ -1287,6 +1286,7 @@ def on_ticket(
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
+                # Removed unnecessary function definition
             edit_sweep_comment(
                 review_message + "\n\nSuccess! 🚀",
                 4,
@@ -1308,6 +1308,7 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc(),
                 priority=2,
             )
+                # Removed unnecessary function definition
             if chat_logger.is_paying_user():
                 edit_sweep_comment(
                     (
@@ -1341,8 +1342,45 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc(),
                 priority=2,
             )
+                # Removed unnecessary function definition
             edit_sweep_comment(
                 (
+                    "I'm sorry, but it looks our model has ran out of context length. We're"
+                    " trying to make this happen less, but one way to mitigate this is to"
+                    " code smaller files. If this error persists report it at"
+                    " https://discord.gg/sweep."
+                ),
+                -1,
+            )
+            log_error(
+                is_paying_user,
+                is_consumer_tier,
+                username,
+                issue_url,
+                "Context Length",
+                str(e) + "\n" + traceback.format_exc(),
+                priority=2,
+            )
+                # Removed unnecessary function definition
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    "error": str(e),
+                    "reason": "Invalid request error / context length",
+                    **metadata,
+                    "duration": time() - on_ticket_start_time,
+                },
+            )
+            delete_branch = True
+            raise e
+            except SystemExit:
+            raise SystemExit
+            except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+            # title and summary are defined elsewhere
+            if len(title + summary) < 60:
                     "Sorry, Sweep could not find any appropriate files to edit to address"
                     " this issue. If this is a mistake, please provide more context and I"
                     f" will retry!\n\n> @{username}, please edit the issue description to"
@@ -1390,8 +1428,129 @@ def on_ticket(
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
-            # title and summary are defined elsewhere
+                # Removed unnecessary function definition
             if len(title + summary) < 60:
+                edit_sweep_comment(
+                    (
+                        "I'm sorry, but it looks like an error has occurred due to"
+                        " a planning failure. Please create a more detailed issue"
+                        " so I can better address it. If this error persists report it at"
+                        " https://discord.gg/sweep."
+                    ),
+                    -1,
+                )
+            else:
+                edit_sweep_comment(
+                    (
+                        "I'm sorry, but it looks like an error has occurred. Try changing"
+                        " the issue description to re-trigger Sweep. If this error persists"
+                        " report it at https://discord.gg/sweep."
+                    ),
+                    -1,
+                )
+            log_error(
+                is_paying_user,
+                is_consumer_tier,
+                username,
+                issue_url,
+                "Workflow",
+                str(e) + "\n" + traceback.format_exc(),
+                priority=1,
+            )
+            raise e
+        else:
+            try:
+                item_to_react_to.delete_reaction(eyes_reaction.id)
+                item_to_react_to.create_reaction("rocket")
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.error(e)
+        finally:
+            cloned_repo.delete()
+        
+        if delete_branch:
+            try:
+                if pull_request.branch_name.startswith("sweep"):
+                    repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
+                else:
+                    raise Exception(
+                        f"Branch name {pull_request.branch_name} does not start with sweep/"
+                    )
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.error(e)
+                logger.error(traceback.format_exc())
+                logger.print("Deleted branch", pull_request.branch_name)
+        except Exception as e:
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                **metadata,
+                "error": str(e),
+                "trace": traceback.format_exc(),
+                "duration": time() - on_ticket_start_time,
+            },
+        )
+        raise e
+        
+        posthog.capture(
+        username,
+        "success",
+        properties={**metadata, "duration": time() - on_ticket_start_time},
+        )
+        logger.info("on_ticket success")
+        return {"success": True}
+        
+        # Removed the unnecessary function definition
+        try:
+        # CODE REVIEW
+        changes_required, review_comment = review_pr(
+            repo=repo,
+            pr=pr_changes,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description,
+            title=title,
+            summary=summary,
+            replies_text=replies_text,
+            tree=tree,
+            lint_output=lint_output,
+            plan=plan,  # plan for the PR
+            chat_logger=chat_logger,
+            commit_history=commit_history,
+        )
+        lint_output = None
+        review_message += (
+            f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
+        )
+        if changes_required:
+            edit_sweep_comment(
+                review_message + "\n\nI'm currently addressing these suggestions.",
+                3,
+            )
+            logger.info(f"Addressing review comment {review_comment}")
+            on_comment(
+                repo_full_name=repo_full_name,
+                repo_description=repo_description,
+                comment=review_comment,
+                username=username,
+                installation_id=installation_id,
+                pr_path=None,
+                pr_line_position=None,
+                pr_number=None,
+                pr=pr_changes,
+                chat_logger=chat_logger,
+                repo=repo,
+            )
+        except SystemExit:
+        raise SystemExit
+        except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(e)
+        return changes_required, review_message
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
