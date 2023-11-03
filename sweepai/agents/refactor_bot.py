@@ -65,6 +65,13 @@ def extract_method(
         return contents, []
 
 
+def serialize_method_name(method_name):
+    # handles '1. "method_name"' -> 'method_name'
+    if "." in method_name:
+        return method_name.split(". ")[-1].strip('"')
+    return method_name.strip().strip('"')
+
+
 class RefactorBot(ChatGPT):
     def refactor_snippets(
         self,
@@ -110,7 +117,9 @@ class RefactorBot(ChatGPT):
             new_function_names = match["new_function_names"]
             new_function_names = new_function_names.split("\n")
         new_function_names = [
-            new_function_name.strip().strip('"').strip("'").strip("`")
+            serialize_method_name(
+                new_function_name.strip().strip('"').strip("'").strip("`")
+            )
             for new_function_name in new_function_names
             if new_function_name.strip()
         ]
@@ -120,7 +129,7 @@ class RefactorBot(ChatGPT):
         )
         change_sets = []
         new_code = None
-        for idx, match_ in enumerate(extract_matches):
+        for idx, match_ in enumerate(extract_matches[::-1]):
             match = match_.groupdict()
             updated_code = match["updated_code"]
             updated_code = updated_code.strip("\n")

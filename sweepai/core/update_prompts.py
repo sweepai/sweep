@@ -177,6 +177,7 @@ Extract code verbatim from the snippets above using EXTRACT sections. These snip
 Respond in the following format:
 
 <contextual_request_analysis>
+First, determine the function(s) you want to make more modular.
 Analyze the user request to identify each section of the code that should be extracted.
 These sections should not overlap.
 For each new function outline the first and last few lines of code that should be extracted.

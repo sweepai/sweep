@@ -746,15 +746,16 @@ def on_ticket(
             directories_to_expand,
         ) = context_pruning.prune_context(human_message, repo=repo, g=g)
 
-        snippets = [
-            snippet
-            for snippet in snippets
-            if any(
-                path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
-                for path_to_keep in paths_to_keep
-            )
-        ]
-        dir_obj.remove_all_not_included(paths_to_keep)
+        if paths_to_keep:
+            snippets = [
+                snippet
+                for snippet in snippets
+                if any(
+                    path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
+                    for path_to_keep in paths_to_keep
+                )
+            ]
+            dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
         human_message = HumanMessagePrompt(
@@ -911,7 +912,7 @@ def on_ticket(
                 for file_path in human_message.get_file_paths()
             )
             python_count = len(human_message.get_file_paths()) - non_python_count
-            is_python_issue = python_count > non_python_count
+            is_python_issue = python_count >= non_python_count
             posthog.capture(
                 username,
                 "is_python_issue",
@@ -1492,6 +1493,7 @@ def review_code(
 ):
     try:
         # CODE REVIEW
+        changes_required = False
         changes_required, review_comment = review_pr(
             repo=repo,
             pr=pr_changes,
