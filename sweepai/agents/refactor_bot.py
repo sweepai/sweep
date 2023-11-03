@@ -62,7 +62,8 @@ def extract_method(
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         resource.write(contents)
-        raise e
+        # raise e
+        return contents, []
 
 
 class RefactorBot(ChatGPT):
