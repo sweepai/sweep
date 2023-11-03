@@ -405,11 +405,18 @@ def on_ticket(
         )
         purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
         payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
+            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
             + (purchase_message if not is_paying_user else "")
         )
         payment_message_start = (
             f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
+            + (purchase_message if not is_paying_user else "")
+        )
+
+        def get_comment_header(index, errored=False, pr_message="", done=False):
+        )
+        payment_message_start = (
+            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
             + (purchase_message if not is_paying_user else "")
         )
 
@@ -1049,8 +1056,43 @@ def on_ticket(
                                             sandbox_response.executions
                                         )
                                         if len(sandbox_response.executions) > 0
-                                        # And error code check
-                                    ]
+                                        payment_message = (
+                                            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
+                                            + (purchase_message if not is_paying_user else "")
+                                        )
+                                )
+                            ),
+                            opened=True,
+                        )
+                    )
+                    if sandbox_response
+                    else ""
+                )
+
+            def update_progress(
+                entity_display: str,
+                header: str,
+                error_logs: str,
+                status: str = "X",
+            ):
+                nonlocal checkboxes_progress
+                for i, (entity_display_, instructions, status_) in enumerate(
+                    checkboxes_progress
+                ):
+                    if entity_display in entity_display_:
+                        checkboxes_progress[i] = (
+                            header,
+                            instructions + error_logs,
+                            status,
+                        )
+                        return True
+                return False
+
+            for item in generator:
+                                        payment_message_start = (
+                                            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
+                                            + (purchase_message if not is_paying_user else "")
+                                        )
                                 )
                             ),
                             opened=True,
@@ -1211,6 +1253,14 @@ def on_ticket(
                 installation_id,
             )
 
+            payment_message_start = (
+                f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
+                + (purchase_message if not is_paying_user else "")
+            )
+            payment_message = (
+                f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. Tracking ID: {tracking_id}"
+                + (purchase_message if not is_paying_user else "")
+            )
             if changes_required:
                 edit_sweep_comment(
                     review_message + "\n\nI finished incorporating these changes.",
