@@ -1487,6 +1487,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                         )
                                 if (
                                     sandbox_response is not None
+                                    and sandbox_response.executions
                                     and sandbox_response.executions[-1]
                                 ):
                                     error_messages.append(

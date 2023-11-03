@@ -221,7 +221,7 @@ extract_files_to_change_prompt = """\
 Provide your response in the below format:
 <contextual_request_analysis>
 Review each function of each relevant_snippet and analyze the user request to determine if this change should use the refactor or unit test tools.
-The extract tool performs code transformations in a single file without making other logical changes. Determine all sections of code from a long function that should be pulled out into it's own function.
+The extract tool performs code transformations in a single file without making other logical changes. Determine all.
 The unit test tool creates or edits unit tests for a given file. Determine all functions that should be unit tested.
 </contextual_request_analysis>
 

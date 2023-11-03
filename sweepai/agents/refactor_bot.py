@@ -95,7 +95,6 @@ class RefactorBot(ChatGPT):
                 code=update_snippets_code,
                 file_path=file_path,
                 snippets=snippets_str,
-                request=request,
                 changes_made=changes_made,
             )
         )
