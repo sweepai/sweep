@@ -268,6 +268,7 @@ You MUST follow the following format:
 
 <extract file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Extracts lines of code from a function into a new standalone function.
+* Only extract lines that reduce the overall nesting or complexity of the code.
 ...
 </extract>
 ...
