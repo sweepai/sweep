@@ -515,7 +515,7 @@ def on_ticket(
             agg_message = None
             # Include progress history
             # index = -2 is reserved for
-            for i in range(
+            for i in range(current_index + 2):  # go to next header (for Working on it... text)
                 current_index + 2
             ):  # go to next header (for Working on it... text)
                 if i == 0 or i >= len(progress_headers):
@@ -1048,8 +1048,8 @@ def on_ticket(
                                         for i, execution in enumerate(
                                             sandbox_response.executions
                                         )
-                                        if len(sandbox_response.executions) > 0
-                                        msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix} (tracking ID: `{tracking_id}`)"
+                                        if len(sandbox_response.executions) > 0:
+                                            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix} (tracking ID: `{tracking_id}`)"
                                         # And error code check
                                     ]
                                 )
@@ -1259,8 +1259,6 @@ def on_ticket(
             )
 
             # Add comment about sandbox executions
-            # for i in range(10):
-            #     print(i)
             sandbox_execution_comment_contents = (
                 "## Sandbox Executions\n\n"
                 + "\n".join(
@@ -1278,6 +1276,7 @@ def on_ticket(
                         if file_change_request.change_type == "check"
                     ]
                 )
+                + f" (tracking ID: `{tracking_id}`)"
             )
 
             pr.create_issue_comment(sandbox_execution_comment_contents)
