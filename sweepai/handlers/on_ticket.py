@@ -549,7 +549,7 @@ def on_ticket(
                 suffix = bot_suffix  # don't include discord suffix for error messages
 
             # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix} (tracking ID: `{tracking_id}`)"
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
@@ -1049,6 +1049,7 @@ def on_ticket(
                                             sandbox_response.executions
                                         )
                                         if len(sandbox_response.executions) > 0
+                                        msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix} (tracking ID: `{tracking_id}`)"
                                         # And error code check
                                     ]
                                 )
@@ -1293,7 +1294,7 @@ def on_ticket(
                 review_message + "\n\nSuccess! 🚀",
                 4,
                 pr_message=(
-                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message_start)}"
+                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message_start)} (tracking ID: `{tracking_id}`)"
                 ),
                 done=True,
             )
