@@ -295,7 +295,6 @@ RULES_TITLE = (
 RULES_LABEL = "**Apply:** "
 
 DEFAULT_RULES = [
-    "Leftover TODOs in the code should be handled.",
-    "All new business logic should have corresponding unit tests in the tests/ directory.",
-    "Any clearly inefficient or repeated code should be optimized or refactored.",
+    "All new business logic should have corresponding unit tests.",
+    "Refactor large functions to be more modular.",
 ]
