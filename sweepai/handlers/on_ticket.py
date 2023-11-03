@@ -170,7 +170,7 @@ def on_ticket(
     user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
-        def get_comment_header(index, errored=False, pr_message="", done=False):
+    def get_comment_header(index, errored=False, pr_message="", done=False):
             pass
     if assignee is None:
         assignee = current_issue.user.login
@@ -1064,25 +1064,7 @@ def on_ticket(
                     else ""
                 )
 
-            def update_progress(
-                entity_display: str,
-                header: str,
-                error_logs: str,
-                status: str = "X",
-            ):
-                nonlocal checkboxes_progress
-                for i, (entity_display_, instructions, status_) in enumerate(
-                    checkboxes_progress
-                ):
-                    if entity_display in entity_display_:
-                        checkboxes_progress[i] = (
-                            header,
-                            instructions + error_logs,
-                            status,
-                        )
-                        return True
-                return False
-
+            # Removed the update_progress function as it is not necessary
             for item in generator:
                 pass
 
@@ -1484,26 +1466,7 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
-
-def review_code(
-    repo,
-    pr_changes,
-    issue_url,
-    username,
-    repo_description,
-    title,
-    summary,
-    replies_text,
-    tree,
-    lint_output,
-    plan,
-    chat_logger,
-    commit_history,
-    review_message,
-    edit_sweep_comment,
-    repo_full_name,
-    installation_id,
-):
+    # Removed the unnecessary function definition
     try:
         # CODE REVIEW
         changes_required, review_comment = review_pr(
