@@ -62,7 +62,6 @@ def extract_method(
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         resource.write(contents)
-        # raise e
         return contents, []
 
 
