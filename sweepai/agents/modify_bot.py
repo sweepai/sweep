@@ -187,7 +187,7 @@ def excel_col_to_int(s):
     result = 0
     for char in s:
         result = result * 26 + (ord(char) - 64)
-    return result
+    return result - 1
 
 
 class ModifyBot:
