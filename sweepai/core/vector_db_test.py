@@ -41,6 +41,27 @@ class TestVectorDB(unittest.TestCase):
         self.assertEqual(embed_huggingface(["text"]), [1, 2, 3])
 
     @patch("sweepai.core.vector_db.replicate.Client")
+    @patch("sweepai.core.vector_db.SentenceTransformer")
+    def test_embed_texts(self, mock_sentence_transformer):
+        mock_sentence_transformer.return_value.encode.return_value = [1, 2, 3]
+        self.assertEqual(embed_texts(("text",)), [1, 2, 3])
+
+    @patch("sweepai.core.vector_db.prepare_lexical_search_index")
+    @patch("sweepai.core.vector_db.compute_vector_search_scores")
+    @patch("sweepai.core.vector_db.prepare_documents_metadata_ids")
+    @patch("sweepai.core.vector_db.compute_deeplake_vs")
+    def test_get_deeplake_vs_from_repo(self, mock_compute_deeplake_vs, mock_prepare_documents_metadata_ids, mock_compute_vector_search_scores, mock_prepare_lexical_search_index):
+        mock_cloned_repo = MagicMock()
+        mock_cloned_repo.repo_full_name = "repo_name"
+        mock_cloned_repo.repo.get_commits.return_value = [MagicMock()]
+        mock_compute_deeplake_vs.return_value = MagicMock()
+        mock_prepare_lexical_search_index.return_value = ([], [], MagicMock())
+        mock_compute_vector_search_scores.return_value = {}
+        mock_prepare_documents_metadata_ids.return_value = ("", [], [], [])
+        vs, index, num_docs = get_deeplake_vs_from_repo(mock_cloned_repo)
+        self.assertIsInstance(vs, VectorStore)
+        self.assertIsInstance(index, dict)
+        self.assertEqual(num_docs, 0)
     def test_embed_replicate(self, mock_client):
         mock_client.return_value.deployments.get.return_value.predictions.create.return_value.wait.return_value = None
         mock_client.return_value.deployments.get.return_value.predictions.create.return_value.output = [{"embedding": [1, 2, 3]}]
