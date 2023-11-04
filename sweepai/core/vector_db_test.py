@@ -6,6 +6,13 @@ from sweepai.utils.github_utils import ClonedRepo
 
 class TestVectorDB(unittest.TestCase):
     @patch("sweepai.core.vector_db.SentenceTransformer")
+    @patch("openai.Embedding.create")
+    def test_embed_texts(self, mock_openai, mock_transformer):
+        mock_transformer.return_value.encode.return_value = ["embedding1", "embedding2"]
+        mock_openai.return_value = {"data": [{"embedding": "embedding3"}]}
+        result = embed_texts(("text1", "text2"))
+        self.assertEqual(result, ["embedding1", "embedding2", "embedding3"])
+    @patch("sweepai.core.vector_db.SentenceTransformer")
     def test_embed_texts(self, mock_transformer):
         mock_transformer.return_value.encode.return_value = ["embedding1", "embedding2"]
         result = embed_texts(("text1", "text2"))
