@@ -87,14 +87,18 @@ class TestVectorDB(unittest.TestCase):
         self.assertEqual(len(metadatas), 3)
 
     @patch("sweepai.core.vector_db.compute_score")
-    def test_compute_vector_search_scores(self, mock_compute_score):
+    @patch("sweepai.core.vector_db.redis_client")
+    def test_compute_vector_search_scores(self, mock_redis_client, mock_compute_score):
         mock_file_list = ["file1", "file2", "file3"]
         mock_cloned_repo = MagicMock()
         mock_cloned_repo.cache_dir = "/tmp/cache/repos/repo_name"
         repo_full_name = "repo_name"
         mock_compute_score.return_value = 1
+        mock_redis_client.get.return_value = None
         files_to_scores = compute_vector_search_scores(mock_file_list, mock_cloned_repo, repo_full_name)
         self.assertEqual(files_to_scores, {"file1": 1, "file2": 1, "file3": 1})
+        mock_redis_client.get.assert_called()
+        mock_redis_client.set.assert_called()
 
     @patch("sweepai.core.vector_db.repo_to_chunks")
     def test_prepare_lexical_search_index(self, mock_repo_to_chunks):
