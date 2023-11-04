@@ -30,11 +30,12 @@ class TestVectorDB(unittest.TestCase):
         result = vector_db.embed_texts(('test text',))
         self.assertEqual(result, 'test')
 
+    import numpy as np
     @patch('vector_db.embed_texts')
     def test_embedding_function(self, mock_embed_texts):
-        mock_embed_texts.return_value = 'test'
+        mock_embed_texts.return_value = np.array(['test'])
         result = vector_db.embedding_function(['test text'])
-        self.assertEqual(result, 'test')
+        self.assertTrue(np.array_equal(result, np.array(['test'])))
 
     @patch('vector_db.prepare_lexical_search_index')
     @patch('vector_db.compute_vector_search_scores')
@@ -43,7 +44,9 @@ class TestVectorDB(unittest.TestCase):
     def test_get_deeplake_vs_from_repo(self, mock_compute_deeplake_vs, mock_prepare_documents_metadata_ids, mock_compute_vector_search_scores, mock_prepare_lexical_search_index):
         cloned_repo = MagicMock(spec=ClonedRepo)
         cloned_repo.repo_full_name = 'test/repo'
-        cloned_repo.repo.get_commits.return_value = [{'sha': 'test'}]
+        mock_commit = MagicMock()
+        mock_commit.sha = 'test'
+        cloned_repo.repo.get_commits.return_value = [mock_commit]
         mock_prepare_lexical_search_index.return_value = ('file_list', 'snippets', 'index')
         mock_compute_vector_search_scores.return_value = 'scores'
         mock_prepare_documents_metadata_ids.return_value = ('collection_name', 'documents', 'ids', 'metadatas')
