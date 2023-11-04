@@ -20,10 +20,28 @@ from sweepai.config.server import (
     BATCH_SIZE,
     HUGGINGFACE_TOKEN,
     HUGGINGFACE_URL,
-)
-redis_server = os.getenv('REDIS_SERVER', 'localhost')
-redis_port = os.getenv('REDIS_PORT', 6379)
     REPLICATE_API_KEY,
+    REPLICATE_DEPLOYMENT_URL,
+    SENTENCE_TRANSFORMERS_MODEL,
+    VECTOR_EMBEDDING_SOURCE,
+)
+from sweepai.core.entities import Snippet
+from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
+from sweepai.core.repo_parsing_utils import repo_to_chunks
+from sweepai.logn import file_cache
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.hash import hash_sha256
+from sweepai.utils.scorer import compute_score, get_scores
+
+MODEL_DIR = "/tmp/cache/model"
+DEEPLAKE_DIR = "/tmp/cache/"
+timeout = 60 * 60  # 30 minutes
+CACHE_VERSION = "v1.0.13"
+MAX_FILES = 500
+
+redis_client = Redis(host=redis_server, port=redis_port)
+redis_port = os.getenv('REDIS_PORT', 6379)
     REPLICATE_DEPLOYMENT_URL,
     SENTENCE_TRANSFORMERS_MODEL,
     VECTOR_EMBEDDING_SOURCE,
