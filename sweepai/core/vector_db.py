@@ -20,9 +20,9 @@ from sweepai.config.server import (
     BATCH_SIZE,
     HUGGINGFACE_TOKEN,
     HUGGINGFACE_URL,
-    redis_server = os.getenv('REDIS_SERVER', 'localhost')
-    redis_port = os.getenv('REDIS_PORT', 6379)
-    redis_client = Redis(host=redis_server, port=redis_port)
+)
+redis_server = os.getenv('REDIS_SERVER', 'localhost')
+redis_port = os.getenv('REDIS_PORT', 6379)
     REPLICATE_API_KEY,
     REPLICATE_DEPLOYMENT_URL,
     SENTENCE_TRANSFORMERS_MODEL,
