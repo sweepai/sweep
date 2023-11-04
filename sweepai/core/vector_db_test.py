@@ -19,7 +19,7 @@ class TestVectorDB(unittest.TestCase):
         mock_repo = MagicMock()
         mock_repo.repo_full_name = "test/repo"
         mock_compute_deeplake_vs.return_value = "deeplake_vs"
-        result = get_deeplake_vs_from_repo(ClonedRepo(mock_repo))
+        result = get_deeplake_vs_from_repo(ClonedRepo(mock_repo, installation_id=None))
         self.assertEqual(result[0], "deeplake_vs")
 
     @patch("sweepai.core.vector_db.embedding_function")
@@ -30,7 +30,7 @@ class TestVectorDB(unittest.TestCase):
         mock_repo.repo_full_name = "test/repo"
         mock_get_deeplake_vs_from_repo.return_value = ("deeplake_vs", "lexical_index", 10)
         mock_search_index.return_value = {"key": "value"}
-        result = get_relevant_snippets(ClonedRepo(mock_repo), "query")
+        result = get_relevant_snippets(ClonedRepo(mock_repo, installation_id=None), "query")
         self.assertIsInstance(result, list)
 
 if __name__ == "__main__":
