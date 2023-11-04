@@ -75,7 +75,7 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 ### Self-Hosting
 
-You can self-host Sweep with our Docker image (`https://hub.docker.com/r/sweepai/sweep`). The instructions are on our [Deployment page](https://docs.sweep.dev/deployment).
+You can self-host Sweep with our Docker image (`https://hub.docker.com/r/sweepai/sweep`). Please check out our deployment instructions here! https://docs.sweep.dev/deployment
 
 ## Development
 
