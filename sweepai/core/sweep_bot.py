@@ -595,6 +595,7 @@ class GithubBot(BaseModel):
         self, file_change_requests: list[FileChangeRequest], branch: str = ""
     ):
         blocked_dirs = get_blocked_dirs(self.repo)
+        created_files = []
         for file_change_request in file_change_requests:
             try:
                 exists = False
@@ -628,10 +629,17 @@ class GithubBot(BaseModel):
                 except Exception as e:
                     logger.error(f"FileChange Validation Error: {e}")
 
-                if exists and file_change_request.change_type == "create":
+                if (
+                    exists or file_change_request.filename in created_files
+                ) and file_change_request.change_type == "create":
                     file_change_request.change_type = "modify"
-                elif not exists and file_change_request.change_type == "modify":
+                elif (
+                    not (exists or file_change_request.filename in created_files)
+                    and file_change_request.change_type == "modify"
+                ):
                     file_change_request.change_type = "create"
+
+                created_files.append(file_change_request.filename)
 
                 block_status = is_blocked(file_change_request.filename, blocked_dirs)
                 if block_status["success"]:
