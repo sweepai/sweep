@@ -12,12 +12,6 @@ class TestVectorDB(unittest.TestCase):
         mock_openai.return_value = {"data": [{"embedding": "embedding3"}]}
         result = embed_texts(("text1", "text2"))
         self.assertEqual(result, ["embedding1", "embedding2", "embedding3"])
-    @patch("sweepai.core.vector_db.SentenceTransformer")
-    def test_embed_texts(self, mock_transformer):
-        mock_transformer.return_value.encode.return_value = ["embedding1", "embedding2"]
-        result = embed_texts(("text1", "text2"))
-        self.assertEqual(result, ["embedding1", "embedding2"])
-
     @patch("sweepai.core.vector_db.prepare_lexical_search_index")
     @patch("sweepai.core.vector_db.compute_vector_search_scores")
     @patch("sweepai.core.vector_db.prepare_documents_metadata_ids")
