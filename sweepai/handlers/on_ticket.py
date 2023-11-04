@@ -1193,26 +1193,27 @@ def on_ticket(
             except:
                 pass
 
-            changes_required = False
-            changes_required, review_message = review_code(
-                repo,
-                pr_changes,
-                issue_url,
-                username,
-                repo_description,
-                title,
-                summary,
-                replies_text,
-                tree,
-                lint_output,
-                plan,
-                chat_logger,
-                commit_history,
-                review_message,
-                edit_sweep_comment,
-                repo_full_name,
-                installation_id,
-            )
+            changes_required, review_message = False, ""
+            if False:
+                changes_required, review_message = review_code(
+                    repo,
+                    pr_changes,
+                    issue_url,
+                    username,
+                    repo_description,
+                    title,
+                    summary,
+                    replies_text,
+                    tree,
+                    lint_output,
+                    plan,
+                    chat_logger,
+                    commit_history,
+                    review_message,
+                    edit_sweep_comment,
+                    repo_full_name,
+                    installation_id,
+                )
 
             if changes_required:
                 edit_sweep_comment(
