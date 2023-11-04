@@ -83,10 +83,10 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
-get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+get_hash = lambda: str: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
 
 
-def run_on_ticket(*args, **kwargs):
+def run_on_ticket(*args: tuple, **kwargs: dict) -> None:
     tracking_id = get_hash()
     with loguru.logger.contextualize(
         metadata={
@@ -98,7 +98,7 @@ def run_on_ticket(*args, **kwargs):
         return on_ticket(*args, **kwargs, tracking_id=tracking_id)
 
 
-def run_on_comment(*args, **kwargs):
+def run_on_comment(*args: tuple, **kwargs: dict) -> None:
     tracking_id = get_hash()
     with loguru.logger.contextualize(
         metadata={
@@ -110,12 +110,12 @@ def run_on_comment(*args, **kwargs):
         on_comment(*args, **kwargs, tracking_id=tracking_id)
 
 
-def run_on_button_click(*args, **kwargs):
+def run_on_button_click(*args: tuple, **kwargs: dict) -> None:
     thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
     thread.start()
 
 
-def run_on_check_suite(*args, **kwargs):
+def run_on_check_suite(*args: tuple, **kwargs: dict) -> None:
     logger.init(
         metadata={
             "name": "check",
@@ -140,7 +140,7 @@ def run_on_check_suite(*args, **kwargs):
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
 
 
-def run_get_deeplake_vs_from_repo(*args, **kwargs):
+def run_get_deeplake_vs_from_repo(*args: tuple, **kwargs: dict) -> None:
     logger.init(
         metadata={
             **kwargs,
@@ -152,7 +152,7 @@ def run_get_deeplake_vs_from_repo(*args, **kwargs):
         get_deeplake_vs_from_repo(*args, **kwargs)
 
 
-def terminate_thread(thread):
+def terminate_thread(thread: threading.Thread) -> None:
     """Terminate a python threading.Thread."""
     try:
         if not thread.is_alive():
@@ -174,12 +174,12 @@ def terminate_thread(thread):
         logger.error(f"Failed to terminate thread: {e}")
 
 
-def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
+def delayed_kill(thread: threading.Thread, delay: int = 60 * 60) -> None:
     time.sleep(delay)
     terminate_thread(thread)
 
 
-def call_on_ticket(*args, **kwargs):
+def call_on_ticket(*args: tuple, **kwargs: dict) -> None:
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
@@ -198,16 +198,14 @@ def call_on_ticket(*args, **kwargs):
     delayed_kill_thread.start()
 
 
-def call_on_check_suite(*args, **kwargs):
+def call_on_check_suite(*args: tuple, **kwargs: dict) -> None:
     kwargs["request"].repository.full_name
     kwargs["request"].check_run.pull_requests[0].number
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
 
-def call_on_comment(
-    *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
+def call_on_comment(*args: tuple, **kwargs: dict) -> None:
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
@@ -221,7 +219,8 @@ def call_on_comment(
     comment_type = kwargs["comment_type"]
     logger.info(f"Received comment type: {comment_type}")
 
-    if key not in events:
+    # If it's a GHA, delete all previous GHA and append to the end
+    if comment_type == 'GHA':
         events[key] = SafePriorityQueue()
 
     events[key].put(0, (args, kwargs))
@@ -234,35 +233,35 @@ def call_on_comment(
         thread.start()
 
 
-def call_on_merge(*args, **kwargs):
+def call_on_merge(*args: tuple, **kwargs: dict) -> None:
     thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
     thread.start()
 
 
-def call_get_deeplake_vs_from_repo(*args, **kwargs):
+def call_get_deeplake_vs_from_repo(*args: tuple, **kwargs: dict) -> None:
     thread = threading.Thread(
         target=run_get_deeplake_vs_from_repo, args=args, kwargs=kwargs
     )
     thread.start()
 
 
-def call_write_documentation(*args, **kwargs):
+def call_write_documentation(*args: tuple, **kwargs: dict) -> None:
     thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
 
 
 @app.get("/health")
-def redirect_to_health():
+def redirect_to_health() -> dict:
     return health.health_check()
 
 
 @app.get("/", response_class=HTMLResponse)
-def home():
+def home() -> str:
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
 @app.post("/")
-async def webhook(raw_request: Request):
+async def webhook(raw_request: Request) -> dict:
     # Do not create logs for api
     logger.init(
         metadata={"name": "webhook", "request": await raw_request.json()},
@@ -294,7 +293,7 @@ async def webhook(raw_request: Request):
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
 
-                def worker():
+                def worker() -> None:
                     _, g = get_github_client(request_dict["installation"]["id"])
                     repo = g.get_repo(request_dict["repository"]["full_name"])
                     pr = repo.get_pull(request_dict["pull_request"]["number"])

@@ -5,7 +5,7 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 import re
 import time
 import traceback
-from typing import Any
+from typing import Any, Optional
 
 import openai
 from logtail import LogtailHandler
@@ -46,7 +46,9 @@ num_extended_snippets = 2
 ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/sweep) to report this issue."
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
+def post_process_snippets(
+    snippets: list[Snippet], max_num_of_snippets: int = 3
+) -> list[Snippet]:
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -77,19 +79,19 @@ def on_comment(
     repo_full_name: str,
     repo_description: str,
     comment: str,
-    pr_path: str | None,
-    pr_line_position: int | None,
+    pr_path: Optional[str],
+    pr_line_position: Optional[int],
     username: str,
     installation_id: int,
-    pr_number: int = None,
-    comment_id: int | None = None,
-    chat_logger: Any = None,
-    pr: MockPR = None,  # For on_comment calls before PR is created
-    repo: Any = None,
+    pr_number: Optional[int] = None,
+    comment_id: Optional[int] = None,
+    chat_logger: Optional[Any] = None,
+    pr: Optional[MockPR] = None,  # For on_comment calls before PR is created
+    repo: Optional[Any] = None,
     comment_type: str = "comment",
     type: str = "comment",
-    tracking_id: str = None,
-):
+    tracking_id: Optional[str] = None,
+) -> dict:
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
     logger.info(
