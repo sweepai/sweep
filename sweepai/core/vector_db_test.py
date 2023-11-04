@@ -20,7 +20,7 @@ class TestVectorDB(unittest.TestCase):
     def test_get_deeplake_vs_from_repo(self, mock_compute_deeplake_vs, mock_prepare_documents_metadata_ids, mock_compute_vector_search_scores, mock_prepare_lexical_search_index, mock_get_blocked_dirs):
         mock_repo = MagicMock()
         mock_repo.get_commits.return_value = [MagicMock(sha='commit_hash')]
-        cloned_repo = ClonedRepo(repo=mock_repo, repo_full_name='repo_full_name', cache_dir='cache_dir', installation_id='installation_id')
+        cloned_repo = ClonedRepo(repo_full_name='repo_full_name', installation_id='installation_id')
         sweep_config = SweepConfig()
         mock_get_blocked_dirs.return_value = []
         mock_prepare_lexical_search_index.return_value = ('file_list', 'snippets', 'index')
