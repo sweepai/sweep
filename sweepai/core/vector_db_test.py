@@ -33,7 +33,12 @@ class TestVectorDB(unittest.TestCase):
     import numpy as np
     @patch('vector_db.embed_texts')
     def test_embedding_function(self, mock_embed_texts):
-        mock_embed_texts.return_value = np.array(['test'])
+        =======
+        import numpy as np
+        from unittest.mock import patch, MagicMock
+        from sweepai.core import vector_db
+        from sweepai.utils.github_utils import ClonedRepo
+        from sweepai.config.client import SweepConfig
         result = vector_db.embedding_function(['test text'])
         self.assertTrue(np.array_equal(result, np.array(['test'])))
 
