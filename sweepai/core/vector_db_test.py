@@ -1,5 +1,8 @@
+import time
 import unittest
 from unittest.mock import patch, MagicMock
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from sweepai.config.client import SweepConfig
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.core.vector_db import (
     download_models,
