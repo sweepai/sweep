@@ -123,9 +123,12 @@ class ClonedRepo:
 
     def clone(self):
         if self.branch:
-            return git.Repo.clone_from(
+            logger.info("Cloning repo...")
+            repo = git.Repo.clone_from(
                 self.clone_url, self.cache_dir, branch=self.branch
             )
+            logger.info("Done cloning...")
+            return repo
         else:
             return git.Repo.clone_from(self.clone_url, self.cache_dir)
 

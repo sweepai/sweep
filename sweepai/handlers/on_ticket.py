@@ -745,16 +745,17 @@ def on_ticket(
             paths_to_keep,
             directories_to_expand,
         ) = context_pruning.prune_context(human_message, repo=repo, g=g)
-        
-        snippets = [
-            snippet
-            for snippet in snippets
-            if any(
-                path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
-                for path_to_keep in paths_to_keep
-            )
-        ]
-        dir_obj.remove_all_not_included(paths_to_keep)
+
+        if paths_to_keep:
+            snippets = [
+                snippet
+                for snippet in snippets
+                if any(
+                    path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
+                    for path_to_keep in paths_to_keep
+                )
+            ]
+            dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
         human_message = HumanMessagePrompt(
@@ -906,10 +907,12 @@ def on_ticket(
             logger.info("Fetching files to modify/create...")
             non_python_count = sum(
                 not file_path.endswith(".py")
+                and not file_path.endswith(".ipynb")
+                and not file_path.endswith(".md")
                 for file_path in human_message.get_file_paths()
             )
             python_count = len(human_message.get_file_paths()) - non_python_count
-            is_python_issue = python_count > non_python_count
+            is_python_issue = python_count >= non_python_count
             posthog.capture(
                 username,
                 "is_python_issue",
@@ -1190,26 +1193,27 @@ def on_ticket(
             except:
                 pass
 
-            changes_required = False
-            changes_required, review_message = review_code(
-                repo,
-                pr_changes,
-                issue_url,
-                username,
-                repo_description,
-                title,
-                summary,
-                replies_text,
-                tree,
-                lint_output,
-                plan,
-                chat_logger,
-                commit_history,
-                review_message,
-                edit_sweep_comment,
-                repo_full_name,
-                installation_id,
-            )
+            changes_required, review_message = False, ""
+            if False:
+                changes_required, review_message = review_code(
+                    repo,
+                    pr_changes,
+                    issue_url,
+                    username,
+                    repo_description,
+                    title,
+                    summary,
+                    replies_text,
+                    tree,
+                    lint_output,
+                    plan,
+                    chat_logger,
+                    commit_history,
+                    review_message,
+                    edit_sweep_comment,
+                    repo_full_name,
+                    installation_id,
+                )
 
             if changes_required:
                 edit_sweep_comment(
@@ -1490,6 +1494,7 @@ def review_code(
 ):
     try:
         # CODE REVIEW
+        changes_required = False
         changes_required, review_comment = review_pr(
             repo=repo,
             pr=pr_changes,

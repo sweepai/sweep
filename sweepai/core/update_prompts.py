@@ -131,6 +131,7 @@ Extract code verbatim from the snippets above using EXTRACT sections. These snip
 * We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
 * The code must be extracted in contiguous blocks.
 * Keep whitespace and comments.
+* Extracted functions should be roughly 25 lines unless the function behavior dictates otherwise.
 
 Respond in the following format:
 
@@ -160,23 +161,23 @@ extract_snippets_user_prompt = """\
 # Code
 File path: {file_path}
 {changes_made}
-# Request
-{request}
 
 <original_code>
 {snippets}
 </original_code>
 
 # Instructions
-Extract code verbatim from the snippets above using EXTRACT sections.  These snippets will be used later to refactor the code according to the user request.
+Extract code verbatim from the snippets above using EXTRACT sections. These snippets will be used later to refactor the code according to the user request.
 * Choose specific and informative names for these functions under new_function_name.
 * We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
 * The code must be extracted in contiguous blocks.
 * Keep whitespace and comments.
+* Extracted functions should be roughly 25 lines unless the function behavior dictates otherwise.
 
 Respond in the following format:
 
 <contextual_request_analysis>
+First, determine the function(s) you want to make more modular.
 Analyze the user request to identify each section of the code that should be extracted.
 These sections should not overlap.
 For each new function outline the first and last few lines of code that should be extracted.
