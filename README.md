@@ -2,7 +2,7 @@
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
 </p>
 <p align="center">
-    <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
+    <i>Github Issues ⟶&nbsp; Refactored and Tested Python Code! </i>
 </p>
 <p align="center">
     <a href="https://github.com/apps/sweep-ai">
@@ -28,7 +28,7 @@
     </a>
 </p>
 
-*🎊 This readme has been updated to reflect our recent improvements to Python!*
+*🎊 We recently updated our README to reflect our improvements to Python refactors and unit tests!*
 
 ---
 
