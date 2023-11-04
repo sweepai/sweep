@@ -25,6 +25,7 @@ from sweepai.config.server import (
     SENTENCE_TRANSFORMERS_MODEL,
     VECTOR_EMBEDDING_SOURCE,
 )
+redis_port = os.getenv('REDIS_PORT', 6379)
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
@@ -40,12 +41,13 @@ timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.13"
 MAX_FILES = 500
 
-redis_client = Redis(host=redis_server, port=redis_port)
 redis_port = os.getenv('REDIS_PORT', 6379)
+redis_client = Redis(host=redis_server, port=redis_port)
     REPLICATE_DEPLOYMENT_URL,
     SENTENCE_TRANSFORMERS_MODEL,
     VECTOR_EMBEDDING_SOURCE,
 )
+redis_port = os.getenv('REDIS_PORT', 6379)
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
