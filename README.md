@@ -2,11 +2,14 @@
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
 </p>
 <p align="center">
-    <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
+    <i>Github Issues ⟶&nbsp; Refactored and Tested Python Code! </i>
 </p>
 <p align="center">
     <a href="https://github.com/apps/sweep-ai">
-        <img alt="Install" src="https://img.shields.io/badge/Install-GitHub App-purple?link=https://github.com/apps/sweep-ai">
+        <img alt="Install Sweep Github App" src="https://img.shields.io/badge/Install Sweep-GitHub App-purple?link=https://github.com/apps/sweep-ai">
+    </a>
+    <a href="https://hub.docker.com/r/sweepai/sweep">
+        <img alt="Self Host Sweep Docker Image" src="https://img.shields.io/badge/Host Sweep-Docker Image-2496ED?link=https://hub.docker.com/r/sweepai/sweep">
     </a>
     <a href="https://discord.gg/sweep">
         <img src="https://dcbadge.vercel.app/api/server/sweep?style=flat" />
@@ -15,7 +18,7 @@
         <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/sweepai/sweep" />
     </a>
     <a href="https://docs.sweep.dev/">
-        <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
+        <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-red?link=https%3A%2F%2Fdocs.sweep.dev">
     </a>
     <a href="https://github.com/sweepai/sweep">
         <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
@@ -25,43 +28,37 @@
     </a>
 </p>
 
-*🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage. Check out https://docs.sweep.dev/deployment*
+*🎊 We recently updated our README to reflect our improvements to Python refactors and unit tests!*
 
 ---
 
-<b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes. :robot:
+<b>Sweep</b> is an AI junior developer that refactors and writes unit tests for Python. :snake: :robot:
 
-Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
-1. Reads your codebase
-2. Plans the changes
-3. **Writes a pull request with code** ⚡
+[Install Sweep](https://github.com/apps/sweep-ai) and open a Github Issue like: `Sweep: Refactor the run function in main.py` and Sweep will:
+1. Identify the best places to refactor your code
+2. Refactor and add unit tests through Github
+3. **Run and debug your code to open a Pull Request** ⚡
 
 ### Features
 
 * Turns issues directly into pull requests (without an IDE)
 * Addresses developer replies & comments on its PRs
-* Uses embedding-based code & online document search
-* Validates its changes with GitHub Actions and self-review
+* Understands your codebase using the dependency graph, text, and vector search.
+* Runs your unit tests and autoformatters to validate generated code.
 
-### How Sweep is Different
+[![Sweep Youtube Tutorial](docs/public/assets/youtube_thumbnail.png)](https://www.youtube.com/watch?v=nxIMWCaN5kM)
 
-Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the **entire flow end-to-end**. Unlike ChatGPT, Sweep is able to automatically understand and search through your code base, removing the need to tediously copy-and-paste files. Check out examples [here](https://docs.sweep.dev/about/examples)!
+---
+### What makes Sweep Different
 
-<details>
-    <summary>
-        Sweep vs. GPT-Engineer, Smol Developer and AutoGPT
-    </summary>
-    Sweep is built to improve on an existing codebase, which is a more frequent and higher need, than generating boilerplate, which is mostly a solved problem since you can just fork existing boilerplates.
-</details>
+We've been addressing code modification using LLMs for a while. We found and are fixing a lot of issues.
 
-<details>
-    <summary>
-        Sweep vs. Cody and Bloop
-    </summary>
-    We do more than just chat-with-your-code by actually writing code changes.
-</details>
-
-[Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
+-  **Refactoring Code** LLMs are bad at refactoring code. It's really challenging for them to extract all of the necessary parameters.  Check out https://docs.sweep.dev/blogs/refactor-python!
+   * Sweep solves this by using Rope and our custom DSL to perform perfect refactors every time!
+-  **Unit Test** Most AI unit test copilots don't even validate the code. They leave it to the user to make sure the generated code works, which is half of the battle. Check out https://docs.sweep.dev/blogs/ai-unit-tests!
+   * Sweep runs your code for you, which catches bugs and makes sure each line of old and new code has been properly validated!
+- **Formatting** LLMs are also bad at properly formatting code, such as by adding typehints and making sure we use tabs instead of spaces. Check out https://docs.sweep.dev/blogs/super-linter!
+   * Sweep uses it's sandbox to format your code, and uses [Rules](https://docs.sweep.dev/usage/config#tips-for-writing-rules) to perform other changes like adding typehints, or any other small chores! 
 
 ---
 
@@ -70,31 +67,15 @@ Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the 
 ### GitHub App
 Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep-ai) to your desired repositories.
 
-* For more details, visit our [Installation](docs/installation.md) page.
+* For more details, visit our [Installation page](docs/installation.md).
 
 * Note: Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an issue after it has been created, you can add the "Sweep" label to the issue.
 
-* We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
+* We focus on Python but support all languages GPT-4 can write. This includes JS/TS, Rust, Go, Java, C# and C++.
 
 ### Self-Hosting
 
-You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai/sweep`). The instructions are on our [Deployment page](https://docs.sweep.dev/deployment).
-
----
-
-## Limitations of Sweep
-
-* **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
-    * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
-
-* **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
-    * e.g. Refactor the entire codebase from TensorFlow to PyTorch
-
-* **Editing images** and other non-text assets
-    * e.g. Use the logo to create favicons for our landing page
-
-* **Performing actions involving a dashboard**, including fetching API tokens
-    * e.g. Set up sign-in using Ethereum
+You can self-host Sweep with our Docker image (`https://hub.docker.com/r/sweepai/sweep`). Please check out our deployment instructions here! https://docs.sweep.dev/deployment
 
 ## Development
 
@@ -103,32 +84,45 @@ You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai
 2. Create `.env` according to https://docs.sweep.dev/deployment.
 3. Run `docker compose up --build`. This will take a few moments to start.
 
-To build the Docker images, run `docker compose build`.
+To build our Docker images, run `docker compose build`.
 
 ---
 
 ## Story
 
-We were frustrated by small tickets, like simple bug fixes, annoying refactors, and small features. Each task required us to open our IDE to fix simple bugs. So we decided to leverage the capabilities of ChatGPT to address this directly in GitHub.
+We used to work in large, messy repositories, and we noticed how complex the code could get without regular refactors and unit tests. We realized that AI could handle these chores for us, so we built Sweep!
 
-Unlike existing AI solutions, this can solve entire tickets and can be parallelized + asynchronous: developers can spin up 10 tickets and Sweep will address them all at once.
+Unlike existing AI solutions, Sweep can solve entire tickets and can be parallelized + asynchronous: developers can spin up 10 tickets and Sweep will address them all at once.
 
 ## The Stack
-- **GPT-4 32k** & GPT-3.5 16k
-- GTE-base embedding model
-- ActiveLoop DeepLake Vector DB
-- Modal Labs for infra + deployment
+- **GPT-4 32k**
+- Code Search Engine using Python AST
+- Code Sandbox
+- Programmatic refactors using [Rope](https://github.com/python-rope/rope)!
 
 ## Highlights
 Examine pull requests created by Sweep [here](https://docs.sweep.dev/about/examples).
 
 ## Pricing
-Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. To prevent abuse, users can use 2 GPT-4 tickets a day.
+Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. For professionals who want to try unlimited GPT-4 tickets and priority support, you can get a one week free trial of [Sweep Pro](https://buy.stripe.com/00g5npeT71H2gzCfZ8).
 
-For more GPT-4 tickets, visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>. For professionals who want to try unlimited GPT-4 tickets and priority support, you can get a one week free trial of [Sweep Pro](https://buy.stripe.com/00g5npeT71H2gzCfZ8).
+For more GPT-4 tickets visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>! 
 
 You can [self-host](https://docs.sweep.dev/deployment) Sweep's docker image on any machine (AWS, Azure, your laptop) for free. You can get enterprise support by [contacting us](https://form.typeform.com/to/wliuvyWE).
 
+---
+
+## Limitations of Sweep
+
+* **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
+    * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
+
+* **Large-scale refactors**: >3 files or >150 lines of code changes
+    * e.g. Refactor the entire codebase from TensorFlow to PyTorch
+    * Sweep works best when pointed to a file, and we're continously improving Sweep's automation!
+
+* **Editing images** and other non-text assets
+    * e.g. Use the logo to create favicons for our landing page
 ---
 
 ## Contributing

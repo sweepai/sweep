@@ -1,3 +1,5 @@
+import ast
+
 import tree_sitter_languages
 from pydantic import BaseModel
 from tree_sitter import Node, Parser, Tree
@@ -63,6 +65,14 @@ class CodeTree(BaseModel):
             return valid_span
         else:
             return (min_line, max_line)
+
+
+def get_global_function_names_and_spans(node):
+    return [
+        (n.name, (n.lineno, getattr(n, "end_lineno", None)))
+        for n in node.body
+        if isinstance(n, ast.FunctionDef)
+    ]
 
 
 if __name__ == "__main__":
