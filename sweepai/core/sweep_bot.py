@@ -219,7 +219,7 @@ class CodeGenBot(ChatGPT):
             if is_python_issue:
                 if any(
                     keyword in self.human_message.title.lower()
-                    for keyword in ("refactor", "extract", "replace", "move")
+                    for keyword in ("refactor", "extract", "replace", "move", "test")
                 ):
                     self.human_message.title += python_refactor_issue_title_guide_prompt
                     posthog.capture(
@@ -1693,7 +1693,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     ]
                     if any(
                         keyword in first_characters_in_instructions
-                        for keyword in ("refactor", "extract", "replace", "test")
+                        for keyword in ("refactor", "extract", "replace")
                     ) and file_change_request.filename.endswith(".py"):
                         chunking = False
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
