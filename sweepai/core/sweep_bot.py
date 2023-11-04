@@ -668,6 +668,28 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
 
+    def validate_file_change_requests(
+        self, file_change_requests: list[FileChangeRequest], branch: str = ""
+    ):
+        file_change_requests = super().validate_file_change_requests(
+            file_change_requests, branch
+        )
+        first_file = None
+        for file_change_request in file_change_requests:
+            if file_change_request.change_type == "modify":
+                first_file = file_change_request.filename
+        if first_file is None:
+            first_file = self.repo.get_commits()[0].files[0].filename
+        contents = self.get_contents(first_file).decoded_content.decode("utf-8")
+        _, sandbox_response = self.check_sandbox(first_file, contents)
+        if sandbox_response is None or sandbox_response.success == False:
+            return [
+                file_change_request
+                for file_change_request in file_change_requests
+                if file_change_request.change_type != "check"
+            ]
+        return file_change_requests
+
     def init_asset_branch(
         self,
         branch: str = ASSET_BRANCH_NAME,
@@ -755,7 +777,7 @@ class SweepBot(CodeGenBot, GithubBot):
         self,
         file_path: str,
         content: str,
-        changed_files: list[tuple[str, str]],
+        changed_files: list[tuple[str, str]] = [],
     ):
         # Format file
         sandbox_execution: SandboxResponse | None = None
