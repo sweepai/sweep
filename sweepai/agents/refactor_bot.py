@@ -45,7 +45,7 @@ def extract_method(
 
     try:
         extractor = ExtractMethod(project, resource, start, end)
-        change_set = extractor.get_changes(method_name, similar=True, global_=True)
+        change_set = extractor.get_changes(method_name, similar=True)
 
         for change in change_set.changes:
             if change.old_contents is not None:
