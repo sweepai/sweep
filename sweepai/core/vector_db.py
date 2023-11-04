@@ -271,6 +271,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
         embeddings = [None] * len(documents)
+        # if len(documents) > 10000:
         if redis_client:
             cache_keys = [
                 hash_sha256(doc)
@@ -384,7 +385,6 @@ def compute_embeddings(documents):
     return embeddings, documents_to_compute, computed_embeddings, embedding
 
 
-# Only works on functions without side effects
 @file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
