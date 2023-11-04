@@ -286,8 +286,15 @@ async def webhook(raw_request: Request):
                 if pull_requests:
                     logger.info(pull_requests[0].number)
                     pr = repo.get_pull(pull_requests[0].number)
-                    # check if the PR was created in the last 15 minutes and turn creation time to datetime
-                    if (time.time() - pr.created_at.timestamp()) > 900:
+                    if (time.time() - pr.created_at.timestamp()) > 60 * 60 and pr.title.startswith("[Sweep Rules]"):
+                        after_sha = pr.head.sha
+                        commit = repo.get_commit(after_sha)
+                        check_suites = commit.get_check_suites()
+                        for check_suite in check_suites:
+                            if check_suite.conclusion == "failure":
+                                pr.edit(state="closed")
+                                return None
+                    if (time.time() - pr.created_at.timestamp()) > 60 * 15:
                         return None
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
                         call_on_check_suite(request=request)
@@ -798,12 +805,6 @@ async def webhook(raw_request: Request):
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
-                            if chat_logger.is_paying_user():
-                                cloned_repo = ClonedRepo(
-                                    request_dict["repository"]["full_name"],
-                                    installation_id=request_dict["installation"]["id"],
-                                )
-                                call_get_deeplake_vs_from_repo(cloned_repo)
                             update_sweep_prs_v2(
                                 request_dict["repository"]["full_name"],
                                 installation_id=request_dict["installation"]["id"],
