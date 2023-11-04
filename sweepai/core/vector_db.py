@@ -222,22 +222,24 @@ def prepare_documents_metadata_ids(
 
 
 def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
+    import os
     files_to_scores = {}
     score_factors = []
     for file_path in tqdm(file_list):
-        if not redis_client:
+        if not redis_client or os.getenv('TEST_ENV'):
             score_factor = compute_score(
                 file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
             )
             score_factors.append(score_factor)
             continue
-        cache_key = hash_sha256(file_path) + CACHE_VERSION
-        try:
-            cache_value = redis_client.get(cache_key)
-        except Exception as e:
-            logger.exception(e)
-            cache_value = None
-        if cache_value is not None:
+        if not os.getenv('TEST_ENV'):
+            cache_key = hash_sha256(file_path) + CACHE_VERSION
+            try:
+                cache_value = redis_client.get(cache_key)
+            except Exception as e:
+                logger.exception(e)
+                cache_value = None
+            if cache_value is not None:
             score_factor = json.loads(cache_value)
             score_factors.append(score_factor)
         else:
