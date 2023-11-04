@@ -35,7 +35,7 @@ class TestVectorDB(unittest.TestCase):
     @patch('sweepai.core.vector_db.search_index')
     def test_get_relevant_snippets(self, mock_search_index, mock_get_deeplake_vs_from_repo, mock_embedding_function):
         mock_repo = MagicMock()
-        cloned_repo = ClonedRepo(repo=mock_repo, repo_full_name='repo_full_name', cache_dir='cache_dir', installation_id='installation_id')
+        cloned_repo = ClonedRepo(repo_full_name='repo_full_name', installation_id='installation_id')
         sweep_config = SweepConfig()
         query = 'query'
         mock_embedding_function.return_value = 'query_embedding'
