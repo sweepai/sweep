@@ -11,6 +11,8 @@ from loguru import logger
 from networkx.drawing.layout import bipartite_layout
 from pydantic import BaseModel
 
+from sweepai.logn.cache import file_cache
+
 
 def extract_degree_paths(graph, start_node, degree=3):
     paths = []
@@ -74,6 +76,7 @@ def extract_entities(code: str):
     return imported_modules, defined_classes, defined_functions
 
 
+@file_cache()
 def traverse_folder(folder):  # TODO(add excluded_dirs)
     definitions_graph = nx.DiGraph()
     references_graph = nx.DiGraph()

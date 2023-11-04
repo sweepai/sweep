@@ -1,18 +1,29 @@
 import re
 
-from sweepai.config.client import get_description
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
-from sweepai.core.prompts import (
-    repo_description_prefix_prompt,
-    rules_prefix_prompt,
-    system_message_prompt,
-)
+from sweepai.core.prompts import system_message_prompt
 from sweepai.logn import logger
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 system_message_prompt = """\
-Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."""
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
+
+Reply in the following format:
+<contextual_request_analysis>
+Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
+Propose the most important paths with a justification.
+</contextual_request_analysis>
+
+<paths_to_keep>
+* file or directory to keep
+...
+</paths_to_keep>
+
+<directories_to_expand>
+* directory to expand
+...
+</directories_to_expand>"""
 
 pruning_prompt = """\
 The above <repo_tree>, <snippets_in_repo>, and <paths_in_repo> have unnecessary information.
@@ -93,7 +104,10 @@ class ContextPruning(ChatGPT):
                 self.messages.append(Message(**msg))
             self.model = (
                 "gpt-4-32k"
-                if (self.chat_logger and not self.chat_logger.use_faster_model(kwargs.get("g", None)))
+                if (
+                    self.chat_logger
+                    and not self.chat_logger.use_faster_model(kwargs.get("g", None))
+                )
                 else "gpt-3.5-turbo-16k-0613"
             )
             response = self.chat(pruning_prompt)

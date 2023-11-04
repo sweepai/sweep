@@ -68,7 +68,6 @@ LINT_CONFIG = """module.exports = {
 files_to_install_scripts = {
     "package-lock.json": "npm i",
     "requirements.txt": "pip install -r requirements.txt",
-    "poetry.lock": "poetry install",
     "yarn.lock": "yarn install",
     "pnpm-lock.yaml": "pnpm i",
     ".pre-commit-config.yaml": "pre-commit install",

@@ -18,11 +18,11 @@ APOSTROPHE_MARKER = "__APOSTROPHE__"
 
 def serialize(text: str):
     # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
-    return re.sub(r"'(.*?)'", f"{APOSTROPHE_MARKER}\\1{APOSTROPHE_MARKER}", text)
+    return re.sub(r"'{(.*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
 
 
 def deserialize(text: str):
-    return re.sub(f"{APOSTROPHE_MARKER}(.*?){APOSTROPHE_MARKER}", "'\\1'", text)
+    return re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
 
 
 def extract_method(
@@ -45,7 +45,7 @@ def extract_method(
 
     try:
         extractor = ExtractMethod(project, resource, start, end)
-        change_set = extractor.get_changes(method_name, global_=True)
+        change_set = extractor.get_changes(method_name, similar=True)
 
         for change in change_set.changes:
             if change.old_contents is not None:
@@ -62,7 +62,14 @@ def extract_method(
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         resource.write(contents)
-        raise e
+        return contents, []
+
+
+def serialize_method_name(method_name):
+    # handles '1. "method_name"' -> 'method_name'
+    if "." in method_name:
+        return method_name.split(". ")[-1].strip('"')
+    return method_name.strip().strip('"')
 
 
 class RefactorBot(ChatGPT):
@@ -95,7 +102,6 @@ class RefactorBot(ChatGPT):
                 code=update_snippets_code,
                 file_path=file_path,
                 snippets=snippets_str,
-                request=request,
                 changes_made=changes_made,
             )
         )
@@ -111,7 +117,9 @@ class RefactorBot(ChatGPT):
             new_function_names = match["new_function_names"]
             new_function_names = new_function_names.split("\n")
         new_function_names = [
-            new_function_name.strip().strip('"').strip("'").strip("`")
+            serialize_method_name(
+                new_function_name.strip().strip('"').strip("'").strip("`")
+            )
             for new_function_name in new_function_names
             if new_function_name.strip()
         ]
@@ -121,7 +129,7 @@ class RefactorBot(ChatGPT):
         )
         change_sets = []
         new_code = None
-        for idx, match_ in enumerate(extract_matches):
+        for idx, match_ in enumerate(extract_matches[::-1]):
             match = match_.groupdict()
             updated_code = match["updated_code"]
             updated_code = updated_code.strip("\n")

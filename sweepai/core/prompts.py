@@ -220,8 +220,9 @@ You MUST follow the following format:
 extract_files_to_change_prompt = """\
 Provide your response in the below format:
 <contextual_request_analysis>
-Analyze the user request to determine if this change should use the refactor or unit test tools.
-The refactor tool performs code transformations in a single file without making other logical changes. The unit test tool creates or edits unit tests for a given file.
+Review each function of each relevant_snippet and analyze the user request to determine if this change should use the refactor or unit test tools.
+The extract tool performs code transformations in a single file without making other logical changes. Determine the function(s) that are too long and should have it's individual parts extracted.
+The unit test tool creates or edits unit tests for a given file. Determine all functions that should be unit tested.
 </contextual_request_analysis>
 
 <use_tools>
@@ -232,10 +233,9 @@ If use_tools is True, then generate a plan to use the given tools in this format
 * Make sure destination_module refers to a python module and not a path.
 
 <extract file="file_path_1" destination_module="destination_module" relevant_files="space-separated list of ALL files relevant for modifying file_path_1">
-* Exact instructions for the functions that to be refactored to solve the issue.
-...
 </extract>
-<test file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+<test file="file_path_2" source_file="source_file_to_test" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Unit tests for source_file_to_test, to be written in file_path_2.
 * Exact and descriptive instructions for the tests to be created or modified.
 ...
 </test>"""
@@ -268,6 +268,7 @@ You MUST follow the following format:
 
 <extract file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Extracts lines of code from a function into a new standalone function.
+* Only extract lines that reduce the overall nesting or complexity of the code.
 ...
 </extract>
 ...
@@ -1036,4 +1037,4 @@ Respond with a list of the MINIMUM snippet(s) from old_code that should be modif
 Then, select terms in the code that we should extract to update. The system will then select each line containing any of the patterns. Only select terms that MUST be updated."""
 
 python_refactor_issue_title_guide_prompt = """\
-\nIdentify sections in the code that should be extracted and extract these one at a time. Do not make a new file, just extract sections of code one at a time. Try to extract larger sections of code to make the code more modular. If a single function would be too large, refactor it into multiple smaller subfunctions."""
+\nChoose parts of functions that can be extracted to reduce the complexity of the code. If a single function would be too large, refactor it into multiple smaller subfunctions."""
