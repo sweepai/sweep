@@ -234,7 +234,8 @@ If use_tools is True, then generate a plan to use the given tools in this format
 
 <extract file="file_path_1" destination_module="destination_module" relevant_files="space-separated list of ALL files relevant for modifying file_path_1">
 </extract>
-<test file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+<test file="file_path_2" source_file="source_file_to_test" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Unit tests for source_file_to_test, to be written in file_path_2.
 * Exact and descriptive instructions for the tests to be created or modified.
 ...
 </test>"""
