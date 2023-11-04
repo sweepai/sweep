@@ -1,43 +1,43 @@
 {
   "action": "completed",
   "check_run": {
-    "id": 18020206010,
+    "id": 18367801681,
     "name": "pylint",
-    "node_id": "CR_kwDOJvTCgM8AAAAEMhaFug",
-    "head_sha": "0e2834933248de820dcad9b9a53957b477a627b0",
+    "node_id": "CR_kwDOJvTCgM8AAAAERs5pUQ",
+    "head_sha": "39214793e4d2cbfdf3e2df80cc9218ba63074f5b",
     "external_id": "3374e5ff-7a01-53b4-3d03-cad230a55dfe",
-    "url": "https://api.github.com/repos/sweepai/sweep/check-runs/18020206010",
-    "html_url": "https://github.com/sweepai/sweep/actions/runs/6633106627/job/18020206010",
-    "details_url": "https://github.com/sweepai/sweep/actions/runs/6633106627/job/18020206010",
+    "url": "https://api.github.com/repos/sweepai/sweep/check-runs/18367801681",
+    "html_url": "https://github.com/sweepai/sweep/actions/runs/6757341551/job/18367801681",
+    "details_url": "https://github.com/sweepai/sweep/actions/runs/6757341551/job/18367801681",
     "status": "completed",
     "conclusion": "failure",
-    "started_at": "2023-10-24T22:11:00Z",
-    "completed_at": "2023-10-24T22:14:02Z",
+    "started_at": "2023-11-04T21:47:15Z",
+    "completed_at": "2023-11-04T21:49:45Z",
     "output": {
       "title": null,
       "summary": null,
       "text": null,
       "annotations_count": 2,
-      "annotations_url": "https://api.github.com/repos/sweepai/sweep/check-runs/18020206010/annotations"
+      "annotations_url": "https://api.github.com/repos/sweepai/sweep/check-runs/18367801681/annotations"
     },
     "check_suite": {
-      "id": 17594206902,
-      "node_id": "CS_kwDOJvTCgM8AAAAEGLJKtg",
-      "head_branch": "delete-duplicatefile",
-      "head_sha": "0e2834933248de820dcad9b9a53957b477a627b0",
+      "id": 17910522306,
+      "node_id": "CS_kwDOJvTCgM8AAAAEK4zhwg",
+      "head_branch": "sweep/resolve-todo-in-sweep-bot",
+      "head_sha": "39214793e4d2cbfdf3e2df80cc9218ba63074f5b",
       "status": "completed",
       "conclusion": "failure",
-      "url": "https://api.github.com/repos/sweepai/sweep/check-suites/17594206902",
-      "before": "01318eec8019928d394a0914b47b831f840f2b55",
-      "after": "0e2834933248de820dcad9b9a53957b477a627b0",
+      "url": "https://api.github.com/repos/sweepai/sweep/check-suites/17910522306",
+      "before": "ba3357eaf5da4ecd12ac7c024efc64d45519899f",
+      "after": "39214793e4d2cbfdf3e2df80cc9218ba63074f5b",
       "pull_requests": [
         {
-          "url": "https://api.github.com/repos/sweepai/sweep/pulls/2392",
-          "id": 1571829100,
-          "number": 2392,
+          "url": "https://api.github.com/repos/sweepai/sweep/pulls/2522",
+          "id": 1585153333,
+          "number": 2522,
           "head": {
-            "ref": "delete-duplicatefile",
-            "sha": "0e2834933248de820dcad9b9a53957b477a627b0",
+            "ref": "sweep/resolve-todo-in-sweep-bot",
+            "sha": "39214793e4d2cbfdf3e2df80cc9218ba63074f5b",
             "repo": {
               "id": 653574784,
               "url": "https://api.github.com/repos/sweepai/sweep",
@@ -46,7 +46,7 @@
           },
           "base": {
             "ref": "main",
-            "sha": "b61e9f7b2cde92c255f7c0d130971e22b1333b9b",
+            "sha": "7985b66961d7b055c9e68429fde2c617e37842da",
             "repo": {
               "id": 653574784,
               "url": "https://api.github.com/repos/sweepai/sweep",
@@ -140,8 +140,8 @@
           "workflow_run"
         ]
       },
-      "created_at": "2023-10-24T22:10:53Z",
-      "updated_at": "2023-10-24T22:14:03Z"
+      "created_at": "2023-11-04T21:47:08Z",
+      "updated_at": "2023-11-04T21:49:46Z"
     },
     "app": {
       "id": 15368,
@@ -230,12 +230,12 @@
     },
     "pull_requests": [
       {
-        "url": "https://api.github.com/repos/sweepai/sweep/pulls/2392",
-        "id": 1571829100,
-        "number": 2392,
+        "url": "https://api.github.com/repos/sweepai/sweep/pulls/2522",
+        "id": 1585153333,
+        "number": 2522,
         "head": {
-          "ref": "delete-duplicatefile",
-          "sha": "0e2834933248de820dcad9b9a53957b477a627b0",
+          "ref": "sweep/resolve-todo-in-sweep-bot",
+          "sha": "39214793e4d2cbfdf3e2df80cc9218ba63074f5b",
           "repo": {
             "id": 653574784,
             "url": "https://api.github.com/repos/sweepai/sweep",
@@ -244,7 +244,7 @@
         },
         "base": {
           "ref": "main",
-          "sha": "b61e9f7b2cde92c255f7c0d130971e22b1333b9b",
+          "sha": "7985b66961d7b055c9e68429fde2c617e37842da",
           "repo": {
             "id": 653574784,
             "url": "https://api.github.com/repos/sweepai/sweep",
@@ -321,16 +321,16 @@
     "releases_url": "https://api.github.com/repos/sweepai/sweep/releases{/id}",
     "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
     "created_at": "2023-06-14T10:08:07Z",
-    "updated_at": "2023-10-24T21:58:57Z",
-    "pushed_at": "2023-10-24T22:10:51Z",
+    "updated_at": "2023-11-04T19:49:07Z",
+    "pushed_at": "2023-11-04T21:47:07Z",
     "git_url": "git://github.com/sweepai/sweep.git",
     "ssh_url": "git@github.com:sweepai/sweep.git",
     "clone_url": "https://github.com/sweepai/sweep.git",
     "svn_url": "https://github.com/sweepai/sweep",
     "homepage": "https://sweep.dev",
-    "size": 50597,
-    "stargazers_count": 5616,
-    "watchers_count": 5616,
+    "size": 111845,
+    "stargazers_count": 5728,
+    "watchers_count": 5728,
     "language": "Python",
     "has_issues": true,
     "has_projects": false,
@@ -338,11 +338,11 @@
     "has_wiki": false,
     "has_pages": false,
     "has_discussions": true,
-    "forks_count": 234,
+    "forks_count": 250,
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 557,
+    "open_issues_count": 603,
     "license": {
       "key": "other",
       "name": "Other",
@@ -365,10 +365,13 @@
       "llm"
     ],
     "visibility": "public",
-    "forks": 234,
-    "open_issues": 557,
-    "watchers": 5616,
-    "default_branch": "main"
+    "forks": 250,
+    "open_issues": 603,
+    "watchers": 5728,
+    "default_branch": "main",
+    "custom_properties": {
+
+    }
   },
   "organization": {
     "login": "sweepai",
