@@ -47,7 +47,19 @@ class TestVectorDB(unittest.TestCase):
     @patch('vector_db.prepare_documents_metadata_ids')
     @patch('vector_db.compute_deeplake_vs')
     def test_get_deeplake_vs_from_repo(self, mock_compute_deeplake_vs, mock_prepare_documents_metadata_ids, mock_compute_vector_search_scores, mock_prepare_lexical_search_index):
-        cloned_repo = MagicMock(spec=ClonedRepo)
+        import numpy as np
+        from unittest.mock import patch, MagicMock
+        from sweepai.core import vector_db
+        from sweepai.utils.github_utils import ClonedRepo
+        from sweepai.config.client import SweepConfig
+        result = vector_db.embedding_function(['test text'])
+        self.assertTrue(np.array_equal(result, np.array(['test'])))
+    =======
+    @patch('vector_db.embed_texts')
+    def test_embedding_function(self, mock_embed_texts):
+        mock_embed_texts.return_value = np.array(['test'])
+        result = vector_db.embedding_function(['test text'])
+        self.assertTrue(np.array_equal(result, np.array(['test'])))
         cloned_repo.repo_full_name = 'test/repo'
         mock_commit = MagicMock()
         mock_commit.sha = 'test'
