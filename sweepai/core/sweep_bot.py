@@ -1693,7 +1693,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     ]
                     if any(
                         keyword in first_characters_in_instructions
-                        for keyword in ("refactor", "extract", "replace")
+                        for keyword in ("refactor", "extract", "replace", "test")
                     ) and file_change_request.filename.endswith(".py"):
                         chunking = False
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
