@@ -29,6 +29,6 @@ if __name__ == "__main__":
     response = requests.post(
         host,
         json=json.load(open("tests/jsons/merge_webhook.json", "r")),
-        headers={"X-GitHub-Event": "check_run"},
+        headers={"X-GitHub-Event": "push"},
     )
     print(response)
