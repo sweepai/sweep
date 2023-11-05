@@ -68,8 +68,6 @@ LINT_CONFIG = """module.exports = {
 files_to_install_scripts = {
     "package-lock.json": "npm i",
     "requirements.txt": "pip install -r requirements.txt",
-    "poetry.lock": "poetry install",
-    "setup.py": "pip install -e .",
     "yarn.lock": "yarn install",
     "pnpm-lock.yaml": "pnpm i",
     ".pre-commit-config.yaml": "pre-commit install",
@@ -114,16 +112,16 @@ class Sandbox(BaseModel):
             if os.path.exists(os.path.join(path, filename)):
                 logger.info(f"Found {filename} in repo, installing {script}")
                 sandbox.install = [script] + sandbox.install
-        ls = os.listdir(path)
-        if "requirements.txt" in ls:
-            sandbox.check.append(
-                "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. python {file_path}; else exit 0; fi"
-            )
-            contents = open(os.path.join(path, "requirements.txt")).read()
-            if "pytest" in contents:
-                sandbox.check.append(
-                    'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. pytest {file_path}; else exit 0; fi'
-                )
+        os.listdir(path)
+        # if "requirements.txt" in ls:
+        #     sandbox.check.append(
+        #         "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. python {file_path}; else exit 0; fi"
+        #     )
+        #     contents = open(os.path.join(path, "requirements.txt")).read()
+        #     if "pytest" in contents:
+        #         sandbox.check.append(
+        #             'if [[ "{file_path}" == *test*.py ]]; then PYTHONPATH=. pytest {file_path}; else exit 0; fi'
+        #         )
         # elif "pyproject.toml" in ls:
         #     sandbox.check.append(
         #         "if [[ $(echo \"{file_path}\" | grep 'test.*\.py$') ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi"

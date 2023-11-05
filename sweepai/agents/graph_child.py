@@ -151,7 +151,12 @@ class GraphChildBot(ChatGPT):
                 code_change_description="",
                 file_path=file_path,
             )
-        python_snippet = extract_python_span(code, entities)
+        if len(code.splitlines()) < 300:
+            python_snippet = Snippet(
+                file_path=file_path, start=0, end=len(code.splitlines()), content=code
+            )
+        else:
+            python_snippet = extract_python_span(code, entities)
         python_snippet.file_path = file_path
         return GraphContextAndPlan(
             relevant_new_snippet=[python_snippet],
