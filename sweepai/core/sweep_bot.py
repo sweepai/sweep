@@ -562,10 +562,7 @@ class GithubBot(BaseModel):
             logger.warning(
                 f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
             )
-            if retry:
-                for i in range(1, 31):
-                    try:
-                        logger.warning(f"Retrying {branch}_{i}...")
+            logger.warning(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
                             f"refs/heads/{branch}_{i}", base_branch.commit.sha
                         )
@@ -934,7 +931,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Error: {e}")
+            # logger.error(f"Error: {e}")
 
         # file_change.code, sandbox_execution = self.check_sandbox(
         #     file_change_request.filename, file_change.code, changed_files
@@ -1831,7 +1828,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             commit_message = suggested_commit_message
                             logger.info(
                                 f"Chunk {i} of {len(chunks)}: {generate_diff(chunk_contents, new_chunk)}"
-                            )
+                            # )
                             new_file_contents += new_chunk + "\n"
                 except Exception as e:
                     logger.print(e)
@@ -1868,8 +1865,8 @@ class SweepBot(CodeGenBot, GithubBot):
             if file_contents == new_file_contents:
                 logger.warning(
                     f"No changes made to {file_change_request.filename}. Skipping file"
-                    " update."
-                )
+                #     " update."
+                # )
                 return (
                     False,
                     sandbox_execution,

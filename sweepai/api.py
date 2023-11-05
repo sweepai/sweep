@@ -139,7 +139,6 @@ def run_on_check_suite(*args, **kwargs):
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
 
-
 def run_get_deeplake_vs_from_repo(*args, **kwargs):
     logger.init(
         metadata={
@@ -263,7 +262,6 @@ def home():
 
 @app.post("/")
 async def webhook(raw_request: Request):
-    # Do not create logs for api
     logger.init(
         metadata={"name": "webhook", "request": await raw_request.json()},
         create_file=False,
@@ -812,7 +810,7 @@ async def webhook(raw_request: Request):
             case "ping", None:
                 return {"message": "pong"}
     except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}")
+        # logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
@@ -865,9 +863,5 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                 raise SystemExit
             except Exception as e:
                 logger.warning(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
-                )
-    except SystemExit:
-        raise SystemExit
-    except:
-        logger.warning("Failed to update sweep PRs")
+                    # logger.warning(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
+                    # logger.warning("Failed to update sweep PRs")
