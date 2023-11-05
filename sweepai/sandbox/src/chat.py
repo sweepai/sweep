@@ -123,9 +123,7 @@ class OpenAIProxy:
                 )
                 return response["choices"][0].message.content
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
-            logger.info(
-                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
-            )
+            logger.info(f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}.")
             openai.api_type = os.getenv("OPENAI_API_TYPE")
             openai.api_base = os.getenv("OPENAI_API_BASE")
             openai.api_version = os.getenv("OPENAI_API_VERSION")
@@ -158,9 +156,8 @@ class OpenAIProxy:
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"OpenAI API Key found but error: {e}")
-            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
-
+                    logger.exception(f"OpenAI API Key found but error: {e}")
+                    logger.exception(f"OpenAI API Key not found and Azure Error: {e}")
 
 openai_proxy = OpenAIProxy()
 
@@ -204,9 +201,7 @@ class OpenAIProxy:
                 )
                 return response["choices"][0].message.content
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
-            logger.info(
-                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
-            )
+            logger.info(f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}.")
             openai.api_type = os.getenv("OPENAI_API_TYPE")
             openai.api_base = os.getenv("OPENAI_API_BASE")
             openai.api_version = os.getenv("OPENAI_API_VERSION")
@@ -239,9 +234,8 @@ class OpenAIProxy:
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"OpenAI API Key found but error: {e}")
-            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
-
+                    logger.exception(f"OpenAI API Key found but error: {e}")
+                    logger.exception(f"OpenAI API Key not found and Azure Error: {e}")
 
 openai_proxy = OpenAIProxy()
 
@@ -283,8 +277,7 @@ class ChatGPT(BaseModel):
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
         # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
-        messages_raw = "\n".join([(message.content or "") for message in self.messages])
+        logger.info(f"file_change_paths {self.file_change_paths}")
         logger.info(f"Input to call openai:\n{messages_raw}")
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
@@ -355,11 +348,8 @@ class ChatGPT(BaseModel):
                 )
                 return output
             except Exception as e:
-                logger.warning(e)
-                raise e
-
-        result = fetch()
-        logger.info(f"Output to call openai:\n{result}")
+                logger.exception(e)
+                logger.info(f"Output to call openai:\n{result}")
         return result
 
     @property

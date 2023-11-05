@@ -12,11 +12,7 @@ from sweepai.config.server import (
     OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message, SweepContext
-from sweepai.core.prompts import (
-    repo_description_prefix_prompt,
-    rules_prefix_prompt,
-    system_message_prompt,
-)
+from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -88,8 +84,8 @@ class ChatGPT(BaseModel):
         if repo:
             repo_info = get_description(repo)
             repo_description = repo_info["description"]
-            repo_rules = repo_info["rules"]
-            repo_rules = repo_info["rules"]
+            repo_info["rules"]
+            repo_info["rules"]
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
         messages = [Message(role="system", content=content, key="system")]
@@ -207,7 +203,7 @@ class ChatGPT(BaseModel):
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
-        logger.info("file_change_paths" + str(self.file_change_paths))
+        logger.info(f"file_change_paths {self.file_change_paths}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
         if len(self.file_change_paths) > 0:
@@ -300,12 +296,12 @@ class ChatGPT(BaseModel):
                     except SystemExit:
                         raise SystemExit
                     except Exception as e2:
-                        logger.warning(e2)
+                        logger.error(e2)
                 return output
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(f"{e}\n{traceback.format_exc()}")
+                logger.error(f"{e}\n{traceback.format_exc()}")
                 raise e
 
         result = fetch()
@@ -348,7 +344,7 @@ class ChatGPT(BaseModel):
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
         # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
+        logger.info(f"file_change_paths {self.file_change_paths}")
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
         if max_tokens < 0:
@@ -436,12 +432,12 @@ class ChatGPT(BaseModel):
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
-                            logger.warning(e)
+                            logger.error(e)
                     return output
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.warning(f"{e}\n{traceback.format_exc()}")
+                    logger.error(f"{e}\n{traceback.format_exc()}")
                     time.sleep(time_to_sleep + backoff.random_jitter(5))
 
         result = await fetch()
