@@ -163,7 +163,6 @@ extension_to_language = {
 def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
     if overlap >= line_count:
         raise ValueError("Overlap should be smaller than line_count.")
-
     lines = code.split("\n")
     total_lines = len(lines)
     chunks = []
@@ -188,13 +187,15 @@ def chunk_code(
         language = extension_to_language[ext]
     else:
         # Fallback to naive chunking if tree_sitter fails
-        chunks = naive_chunker(code)
+        line_count = 30
+        overlap = 15
+        chunks = naive_chunker(code, line_count, overlap)
         snippets = []
         for idx, chunk in enumerate(chunks):
             new_snippet = Snippet(
                 content=code,
-                start=idx * 30,
-                end=(idx + 1) * 30,
+                start=idx * (line_count - overlap),
+                end=(idx + 1) * (line_count - overlap),
                 file_path=path,
             )
             snippets.append(new_snippet)
