@@ -14,15 +14,19 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.search_and_replace import find_best_match
 
 APOSTROPHE_MARKER = "__APOSTROPHE__"
-
+PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
 def serialize(text: str):
     # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
-    return re.sub(r"'{(.*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
-
+    text = re.sub(r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
+    # Replace "%s" with "__PERCENT_FORMAT__"
+    text = re.sub(r"%\((.*?)\)s", f"{PERCENT_FORMAT_MARKER}{{\\1}}", text)
+    return text
 
 def deserialize(text: str):
-    return re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
+    text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
+    text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
+    return text
 
 
 def extract_method(
@@ -152,7 +156,9 @@ class RefactorBot(ChatGPT):
                 project_name=cloned_repo.cache_dir,
             )
             change_sets.append(change_set)
-        for change_set in change_sets:
+        if change_set == []:
+            return new_code
+        for change_set in change_sets:            
             for change in change_set.changes:
                 change.undo()
         return new_code
