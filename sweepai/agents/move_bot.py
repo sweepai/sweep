@@ -4,6 +4,7 @@ import rope.base.project
 from loguru import logger
 from rope.refactor.move import ChangeSet, MoveGlobal
 
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.utils.github_utils import ClonedRepo
@@ -78,7 +79,7 @@ class MoveBot(ChatGPT):
     ):
         changes_made = ""
         self.model = (
-            "gpt-4-32k-0613"
+            DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else "gpt-3.5-turbo-16k-0613"
         )

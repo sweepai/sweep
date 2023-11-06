@@ -1,5 +1,6 @@
 import re
 
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from sweepai.core.prompts import system_message_prompt
@@ -103,7 +104,7 @@ class ContextPruning(ChatGPT):
             for msg in added_messages:
                 self.messages.append(Message(**msg))
             self.model = (
-                "gpt-4-32k"
+                DEFAULT_GPT4_32K_MODEL
                 if (
                     self.chat_logger
                     and not self.chat_logger.use_faster_model(kwargs.get("g", None))

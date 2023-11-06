@@ -2,6 +2,7 @@ import re
 import traceback
 from typing import TypeVar
 
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from sweepai.logn import logger
@@ -112,7 +113,7 @@ class PostMerge(ChatGPT):
                 )
             ]
             self.model = (
-                "gpt-4-32k"
+                DEFAULT_GPT4_32K_MODEL
                 if (self.chat_logger and self.chat_logger.is_paying_user())
                 else "gpt-3.5-turbo-16k-0613"
             )
