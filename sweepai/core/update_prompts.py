@@ -123,21 +123,19 @@ new line(s) to append to snippet j
 </diffs>"""
 
 extract_snippets_system_prompt = """\
-You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming.
+You are a brilliant and meticulous engineer assigned to complete the GitHub Issue. You specialize in Python programming.
 
 # Instructions
-Extract code verbatim from the snippets above using EXTRACT sections. These snippets will be used later to refactor the code according to the user request.
+Extract code verbatim from the functions in above code using EXTRACT sections. These extractions will be used later to refactor the code according to the user request.
 * Choose specific and informative names for these functions under new_function_name.
 * We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
-* The code must be extracted in contiguous blocks.
+* Extractions must not overlap.
 * Keep whitespace and comments.
-* Extracted functions should be roughly 25 lines unless the function behavior dictates otherwise.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request to identify each section of the code that should be extracted.
-These sections should not overlap.
+Analyze the user request to identify sections of functions in the code that should be extracted.
 For each new function outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
@@ -167,19 +165,16 @@ File path: {file_path}
 </original_code>
 
 # Instructions
-Extract code verbatim from the snippets above using EXTRACT sections. These snippets will be used later to refactor the code according to the user request.
+Extract code verbatim from the functions in above code using EXTRACT sections. These extractions will be used later to refactor the code according to the user request.
 * Choose specific and informative names for these functions under new_function_name.
 * We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
-* The code must be extracted in contiguous blocks.
+* Extractions must not overlap.
 * Keep whitespace and comments.
-* Extracted functions should be roughly 25 lines unless the function behavior dictates otherwise.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-First, determine the function(s) you want to make more modular.
-Analyze the user request to identify each section of the code that should be extracted.
-These sections should not overlap.
+Analyze the user request to identify sections of functions in the code that should be extracted.
 For each new function outline the first and last few lines of code that should be extracted.
 </contextual_request_analysis>
 
