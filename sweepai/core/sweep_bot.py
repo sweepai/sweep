@@ -656,7 +656,6 @@ class GithubBot(BaseModel):
         file_change_requests = [
             file_change_request
             for file_change_request in file_change_requests
-            # if file_change_request.instructions.strip()
         ]
         return file_change_requests
 
