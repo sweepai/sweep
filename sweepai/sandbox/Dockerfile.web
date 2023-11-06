@@ -16,4 +16,4 @@ RUN pip install -r requirements.txt
 
 COPY src /app/src
 
-CMD ["sh", "-c", "uvicorn --host 0.0.0.0 --port $PORT --workers $WORKERS --log-level info src.sandbox_local:app"]
+CMD ["/bin/sh", "-c", "uvicorn --host 0.0.0.0 --port $PORT --workers $WORKERS --log-level info src.sandbox_local:app"]
