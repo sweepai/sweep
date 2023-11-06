@@ -1,7 +1,7 @@
 {
   "ref": "refs/heads/main",
-  "before": "18715475a130927d9205421ea46b37c21e0c5104",
-  "after": "c837519e3cb10b6fde62db00de8b5db38da247ca",
+  "before": "b9e2315e759a1b3e842ee0fd2dad8ae28d0edb05",
+  "after": "723a22471452de3ca01bdda7d3f40c0dae0616da",
   "repository": {
     "id": 653574784,
     "node_id": "R_kgDOJvTCgA",
@@ -71,16 +71,16 @@
     "releases_url": "https://api.github.com/repos/sweepai/sweep/releases{/id}",
     "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
     "created_at": 1686737287,
-    "updated_at": "2023-10-03T21:45:32Z",
-    "pushed_at": 1696370354,
+    "updated_at": "2023-11-05T00:05:40Z",
+    "pushed_at": 1699143684,
     "git_url": "git://github.com/sweepai/sweep.git",
     "ssh_url": "git@github.com:sweepai/sweep.git",
     "clone_url": "https://github.com/sweepai/sweep.git",
     "svn_url": "https://github.com/sweepai/sweep",
     "homepage": "https://sweep.dev",
-    "size": 45597,
-    "stargazers_count": 5470,
-    "watchers_count": 5470,
+    "size": 111913,
+    "stargazers_count": 5729,
+    "watchers_count": 5729,
     "language": "Python",
     "has_issues": true,
     "has_projects": false,
@@ -88,11 +88,11 @@
     "has_wiki": false,
     "has_pages": false,
     "has_discussions": true,
-    "forks_count": 215,
+    "forks_count": 250,
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 489,
+    "open_issues_count": 603,
     "license": {
       "key": "other",
       "name": "Other",
@@ -115,13 +115,16 @@
       "llm"
     ],
     "visibility": "public",
-    "forks": 215,
-    "open_issues": 489,
-    "watchers": 5470,
+    "forks": 250,
+    "open_issues": 603,
+    "watchers": 5729,
     "default_branch": "main",
-    "stargazers": 5470,
+    "stargazers": 5729,
     "master_branch": "main",
-    "organization": "sweepai"
+    "organization": "sweepai",
+    "custom_properties": {
+
+    }
   },
   "pusher": {
     "name": "wwzeng1",
@@ -169,15 +172,15 @@
   "deleted": false,
   "forced": false,
   "base_ref": null,
-  "compare": "https://github.com/sweepai/sweep/compare/18715475a130...c837519e3cb1",
+  "compare": "https://github.com/sweepai/sweep/compare/b9e2315e759a...723a22471452",
   "commits": [
     {
-      "id": "c837519e3cb10b6fde62db00de8b5db38da247ca",
-      "tree_id": "dba4e2315e1293fa1ef890c5c08881a44c588717",
+      "id": "f7b0a8fe2034c6c993b89402cc4e916f6cac875c",
+      "tree_id": "f521aa1ba91b56be3114a7b078b1bbb7d15b2b96",
       "distinct": true,
-      "message": "fix config",
-      "timestamp": "2023-10-03T21:59:11Z",
-      "url": "https://github.com/sweepai/sweep/commit/c837519e3cb10b6fde62db00de8b5db38da247ca",
+      "message": "push",
+      "timestamp": "2023-11-05T00:21:21Z",
+      "url": "https://github.com/sweepai/sweep/commit/f7b0a8fe2034c6c993b89402cc4e916f6cac875c",
       "author": {
         "name": "wwzeng1",
         "email": "william@sweep.dev",
@@ -195,17 +198,44 @@
 
       ],
       "modified": [
-        "sweepai/config/client.py"
+        "tests/test_run_example_webhook.py"
+      ]
+    },
+    {
+      "id": "723a22471452de3ca01bdda7d3f40c0dae0616da",
+      "tree_id": "66d03a5bbf624f029469dbf667314fb0ef8c7b71",
+      "distinct": true,
+      "message": "Merge branch 'main' of https://github.com/sweepai/sweep",
+      "timestamp": "2023-11-05T00:21:23Z",
+      "url": "https://github.com/sweepai/sweep/commit/723a22471452de3ca01bdda7d3f40c0dae0616da",
+      "author": {
+        "name": "wwzeng1",
+        "email": "william@sweep.dev",
+        "username": "wwzeng1"
+      },
+      "committer": {
+        "name": "wwzeng1",
+        "email": "william@sweep.dev",
+        "username": "wwzeng1"
+      },
+      "added": [
+
+      ],
+      "removed": [
+
+      ],
+      "modified": [
+        ".vscode/launch.json"
       ]
     }
   ],
   "head_commit": {
-    "id": "c837519e3cb10b6fde62db00de8b5db38da247ca",
-    "tree_id": "dba4e2315e1293fa1ef890c5c08881a44c588717",
+    "id": "723a22471452de3ca01bdda7d3f40c0dae0616da",
+    "tree_id": "66d03a5bbf624f029469dbf667314fb0ef8c7b71",
     "distinct": true,
-    "message": "fix config",
-    "timestamp": "2023-10-03T21:59:11Z",
-    "url": "https://github.com/sweepai/sweep/commit/c837519e3cb10b6fde62db00de8b5db38da247ca",
+    "message": "Merge branch 'main' of https://github.com/sweepai/sweep",
+    "timestamp": "2023-11-05T00:21:23Z",
+    "url": "https://github.com/sweepai/sweep/commit/723a22471452de3ca01bdda7d3f40c0dae0616da",
     "author": {
       "name": "wwzeng1",
       "email": "william@sweep.dev",
@@ -223,7 +253,7 @@
 
     ],
     "modified": [
-      "sweepai/config/client.py"
+      ".vscode/launch.json"
     ]
   }
 }
