@@ -170,12 +170,14 @@ Extract code verbatim from the functions in above code using EXTRACT sections. T
 * We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
 * Extractions must not overlap.
 * Keep whitespace and comments.
+* Extracted functions should be roughly 15 lines each.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request to identify sections of functions in the code that should be extracted.
-For each new function outline the first and last few lines of code that should be extracted.
+First, determine the function(s) you want to make more modular.
+Analyze the user request to identify each section of the code that should be extracted.
+For each new function outline the first and last lines of code that should be extracted.
 </contextual_request_analysis>
 
 <new_function_names>
