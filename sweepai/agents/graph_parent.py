@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 
@@ -91,7 +92,9 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
                 if not line:
                     continue
                 symbol, file_path = line.split(" ")[0], line.split(" ")[-1]
-                if any(file_path == file_path for file_path, _ in relevant_files_to_symbols):
+                if any(
+                    file_path == file_path for file_path, _ in relevant_files_to_symbols
+                ):
                     relevant_symbols_string += line + "\n"
         return cls(
             relevant_files_to_symbols=relevant_files_to_symbols,
@@ -117,7 +120,7 @@ class GraphParentBot(ChatGPT):
             symbols_to_files=symbols_to_files,
         )
         self.model = (
-            "gpt-4-32k-0613"
+            DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else "gpt-3.5-turbo-16k-0613"
         )

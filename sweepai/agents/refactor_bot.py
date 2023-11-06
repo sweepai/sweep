@@ -4,6 +4,7 @@ import rope.base.project
 from loguru import logger
 from rope.refactor.extract import ExtractMethod
 
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.update_prompts import (
@@ -16,12 +17,16 @@ from sweepai.utils.search_and_replace import find_best_match
 APOSTROPHE_MARKER = "__APOSTROPHE__"
 PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
+
 def serialize(text: str):
     # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
-    text = re.sub(r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
+    text = re.sub(
+        r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
+    )
     # Replace "%s" with "__PERCENT_FORMAT__"
     text = re.sub(r"%\((.*?)\)s", f"{PERCENT_FORMAT_MARKER}{{\\1}}", text)
     return text
+
 
 def deserialize(text: str):
     text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
@@ -89,7 +94,7 @@ class RefactorBot(ChatGPT):
         **kwargs,
     ):
         self.model = (
-            "gpt-4-32k-0613"
+            DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else "gpt-3.5-turbo-16k-0613"
         )
@@ -158,7 +163,7 @@ class RefactorBot(ChatGPT):
             change_sets.append(change_set)
         if change_set == []:
             return new_code
-        for change_set in change_sets:            
+        for change_set in change_sets:
             for change in change_set.changes:
                 change.undo()
         return new_code

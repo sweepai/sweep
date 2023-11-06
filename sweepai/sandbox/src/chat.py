@@ -14,6 +14,8 @@ from src.prompts import (
     sandbox_code_repair_modify_system_prompt,
 )
 
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+
 try:
     from typing import Self
 except ImportError:
@@ -254,7 +256,8 @@ class ChatGPT(BaseModel):
         )
     ]
     model: OpenAIModel = (
-        "gpt-4-32k-0613"
+        # "gpt-4-32k-0613"
+        DEFAULT_GPT4_32K_MODEL
         if os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS")
         else "gpt-4-0613"
     )
@@ -305,16 +308,17 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
-        if (
-            model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 3000
-            and not os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS")
+        if model_to_max_tokens[model] - int(
+            messages_length
+        ) - gpt_4_buffer < 3000 and not os.getenv(
+            "OPENAI_DO_HAVE_32K_MODEL_ACCESS"
         ):  # use 16k if it's OOC and no 32k
             model = "gpt-3.5-turbo-16k-0613"
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
         if "gpt-4" in model:
-            max_tokens = min(max_tokens, 5000)
+            max_tokens = min(max_tokens, 4096)
         # Fix for self hosting where TPM limit is super low for GPT-4
         if os.getenv("OPENAI_USE_3_5_MODEL_ONLY"):
             model = "gpt-3.5-turbo-16k-0613"

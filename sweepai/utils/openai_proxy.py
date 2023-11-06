@@ -1,5 +1,4 @@
 import random
-import time
 
 import baserun
 import openai
@@ -22,7 +21,9 @@ from sweepai.logn import file_cache
 if BASERUN_API_KEY is not None:
     baserun.init()
 
-OPENAI_TIMEOUT = 60 # one minute
+OPENAI_TIMEOUT = 60  # one minute
+
+OPENAI_EXCLUSIVE_MODELS = ["gpt-4-1106-preview"]
 
 
 class OpenAIProxy:
@@ -34,6 +35,8 @@ class OpenAIProxy:
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
             engine = None
+            if model in OPENAI_EXCLUSIVE_MODELS:
+                raise Exception(f"Model {model} is not supported by Azure")
             if (
                 model == "gpt-3.5-turbo-16k"
                 or model == "gpt-3.5-turbo-16k-0613"

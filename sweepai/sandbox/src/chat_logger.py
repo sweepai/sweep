@@ -142,25 +142,4 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 500
         if self.is_consumer_tier():
             return self.get_ticket_count() >= 20
-
-        # try:
-        #     loc_user = g.get_user(self.data["username"]).location
-        #     loc = Nominatim(user_agent="location_checker").geocode(
-        #         loc_user, exactly_one=True
-        #     )
-        #     g = False
-        #     for c in SUPPORT_COUNTRY:
-        #         if c.lower() in loc.raw.get("display_name").lower():
-        #             g = True
-        #             break
-        #     if not g:
-        #         logger.print("G EXCEPTION", loc_user)
-        #         return (
-        #             self.get_ticket_count() >= 5
-        #             or self.get_ticket_count(use_date=True) >= 1
-        #         )
-        # except:
-        #     pass
-
-        # Non-trial users can only create 2 GPT-4 tickets per day
         return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3

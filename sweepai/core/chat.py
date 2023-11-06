@@ -12,11 +12,7 @@ from sweepai.config.server import (
     OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message, SweepContext
-from sweepai.core.prompts import (
-    repo_description_prefix_prompt,
-    rules_prefix_prompt,
-    system_message_prompt,
-)
+from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -30,6 +26,7 @@ openai_proxy = OpenAIProxy()
 OpenAIModel = (
     Literal["gpt-3.5-turbo"]
     | Literal["gpt-4"]
+    | Literal["gpt-4-1106-preview"]
     | Literal["gpt-4-0613"]
     | Literal["gpt-3.5-turbo-16k"]
     | Literal["gpt-3.5-turbo-16k-0613"]
@@ -41,6 +38,7 @@ ChatModel = OpenAIModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
     "gpt-4": 8192,
+    "gpt-4-1106-preview": 128000,
     "gpt-4-0613": 8192,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
@@ -88,8 +86,8 @@ class ChatGPT(BaseModel):
         if repo:
             repo_info = get_description(repo)
             repo_description = repo_info["description"]
-            repo_rules = repo_info["rules"]
-            repo_rules = repo_info["rules"]
+            repo_info["rules"]
+            repo_info["rules"]
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
         messages = [Message(role="system", content=content, key="system")]
@@ -239,7 +237,7 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
         if "gpt-4" in model:
-            max_tokens = min(max_tokens, 5000)
+            max_tokens = min(max_tokens, 4096)
         # Fix for self hosting where TPM limit is super low for GPT-4
         if OPENAI_USE_3_5_MODEL_ONLY:
             model = "gpt-3.5-turbo-16k-0613"
@@ -369,13 +367,13 @@ class ChatGPT(BaseModel):
             messages_dicts.append(message_dict)
 
         gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )  # this is for the function tokens
+        # if int(messages_length) + gpt_4_buffer < 6000 and model == DEFAULT_GPT4_32K_MODEL:
+        #     model = "gpt-4-0613"
+        #     max_tokens = (
+        #         model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+        #     )  # this is for the function tokens
         if "gpt-4" in model:
-            max_tokens = min(max_tokens, 5000)
+            max_tokens = min(max_tokens, 4096)
         # Fix for self hosting where TPM limit is super low for GPT-4
         if OPENAI_USE_3_5_MODEL_ONLY:
             model = "gpt-3.5-turbo-16k-0613"

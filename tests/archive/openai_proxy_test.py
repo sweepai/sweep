@@ -24,3 +24,11 @@ resp = openai_proxy.call_openai(
     temperature=0.0,
 )
 print(resp)
+
+resp = openai_proxy.call_openai(
+    model="gpt-4-1106-preview",
+    messages=[{"role": "user", "content": "I am a human."}],
+    max_tokens=100,
+    temperature=0.0,
+)
+print(resp)
