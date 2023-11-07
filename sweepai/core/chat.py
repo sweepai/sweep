@@ -388,14 +388,14 @@ class ChatGPT(BaseModel):
                 try:
                     output = (
                         (
-                            await openai.chat.completions.acreate(
+                            await openai.ChatCompletion.acreate(
                                 model=model,
                                 messages=self.messages_dicts,
                                 max_tokens=max_tokens - token_sub,
                                 temperature=default_temperature,
                             )
                         )
-                        .choices[0]
+                        ["choices"][0]
                         .message["content"]
                     )
                     if self.chat_logger is not None:
