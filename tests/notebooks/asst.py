@@ -1,5 +1,5 @@
-from pickle import INST
 import openai
+
 from openai import OpenAI
 
 from sweepai.config.server import OPENAI_API_KEY

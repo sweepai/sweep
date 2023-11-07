@@ -161,7 +161,7 @@ class RefactorBot(ChatGPT):
                 project_name=cloned_repo.cache_dir,
             )
             change_sets.append(change_set)
-        if change_set == []:
+        if change_sets == []:
             return new_code
         for change_set in change_sets:
             for change in change_set.changes:
