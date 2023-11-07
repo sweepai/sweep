@@ -65,7 +65,6 @@ psutil = "^5.9.5"
 yamllint = "^1.32.0"
 graphviz = "^0.20.1"
 torch = {version = "^2.1.0+cpu", source = "torch"}
-baserun = "^0.6.0"
 rope = "^1.10.0"
 
 [tool.poetry.dev-dependencies]

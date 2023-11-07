@@ -1,7 +1,7 @@
 import random
 
-import baserun
 import openai
+from openai import OpenAI
 from loguru import logger
 
 from sweepai.config.server import (
@@ -19,19 +19,18 @@ from sweepai.config.server import (
 from sweepai.logn import file_cache
 
 if BASERUN_API_KEY is not None:
-    baserun.init()
+    pass
 
 OPENAI_TIMEOUT = 60  # one minute
 
-OPENAI_EXCLUSIVE_MODELS = ["gpt-4-1106-preview", "gpt-3.5-turbo-1106"]
-
+OPENAI_EXCLUSIVE_MODELS = ["gpt-4-1106-preview", "gpt-3.5-turbo-1106", "gpt-3.5-turbo-1106"]
+SEED = 100
 
 class OpenAIProxy:
     def __init__(self):
         pass
 
-    @file_cache(ignore_params=[])
-    @baserun.trace
+    # @file_cache(ignore_params=[])
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
             engine = None
@@ -61,14 +60,15 @@ class OpenAIProxy:
                 openai.api_version = None
                 openai.api_type = "open_ai"
                 logger.info(f"Calling {model} on OpenAI.")
-                response = openai.ChatCompletion.create(
+                response = openai.chat.completions.create(
                     model=model,
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
                     timeout=OPENAI_TIMEOUT,
+                    seed=SEED,
                 )
-                return response["choices"][0].message.content
+                return response.choices[0].message.content
             # validity checks for MULTI_REGION_CONFIG
             if (
                 MULTI_REGION_CONFIG is None
@@ -83,7 +83,7 @@ class OpenAIProxy:
                 openai.azure_endpoint = region_url
                 openai.api_version = OPENAI_API_VERSION
                 openai.api_key = AZURE_API_KEY
-                response = openai.ChatCompletion.create(
+                response = openai.chat.completions.create(
                     engine=engine,
                     model=model,
                     messages=messages,
@@ -91,7 +91,7 @@ class OpenAIProxy:
                     temperature=temperature,
                     timeout=OPENAI_TIMEOUT,
                 )
-                return response["choices"][0].message.content
+                return response.choices[0].message.content
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
             # randomize the order of the list
@@ -107,7 +107,7 @@ class OpenAIProxy:
                     openai.azure_endpoint = region_url
                     openai.api_version = OPENAI_API_VERSION
                     openai.api_type = OPENAI_API_TYPE
-                    response = openai.ChatCompletion.create(
+                    response = openai.chat.completions.create(
                         engine=engine,
                         model=model,
                         messages=messages,
@@ -115,7 +115,7 @@ class OpenAIProxy:
                         temperature=temperature,
                         timeout=OPENAI_TIMEOUT,
                     )
-                    return response["choices"][0].message.content
+                    return response.choices[0].message.content
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
@@ -130,15 +130,17 @@ class OpenAIProxy:
                     openai.api_base = "https://api.openai.com/v1"
                     openai.api_version = None
                     openai.api_type = "open_ai"
+                    client = OpenAI()
                     logger.info(f"Calling {model} with OpenAI.")
-                    response = openai.ChatCompletion.create(
+                    response = client.chat.completions.create(
                         model=model,
                         messages=messages,
                         max_tokens=max_tokens,
                         temperature=temperature,
                         timeout=OPENAI_TIMEOUT,
+                        seed=SEED,
                     )
-                    return response["choices"][0].message.content
+                    return response.choices[0].message.content
                 except SystemExit:
                     raise SystemExit
                 except Exception as _e:
