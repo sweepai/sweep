@@ -1,6 +1,6 @@
 import re
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+from sweepai.config.server import DEFAULT_GPT35_MODEL, DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from sweepai.core.prompts import system_message_prompt
@@ -109,7 +109,7 @@ class ContextPruning(ChatGPT):
                     self.chat_logger
                     and not self.chat_logger.use_faster_model(kwargs.get("g", None))
                 )
-                else "gpt-3.5-turbo-16k-0613"
+                else DEFAULT_GPT35_MODEL
             )
             response = self.chat(pruning_prompt)
             context_to_prune = ContextToPrune.from_string(response)
