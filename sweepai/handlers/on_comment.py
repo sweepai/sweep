@@ -14,6 +14,8 @@ from tabulate import tabulate
 
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
 from sweepai.config.server import (
+    DEFAULT_GPT4_32K_MODEL,
+    DEFAULT_GPT35_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
     LOGTAIL_SOURCE_KEY,
@@ -340,7 +342,7 @@ def on_comment(
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
-            model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
+            model=DEFAULT_GPT35_MODEL if use_faster_model else DEFAULT_GPT4_32K_MODEL,
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
         )

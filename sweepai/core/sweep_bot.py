@@ -21,7 +21,7 @@ from sweepai.agents.modify_bot import ModifyBot
 from sweepai.agents.move_bot import MoveBot
 from sweepai.agents.refactor_bot import RefactorBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEBUG, MINIS3_URL, SANDBOX_URL, SECONDARY_MODEL
+from sweepai.config.server import DEBUG, DEFAULT_GPT35_MODEL, MINIS3_URL, SANDBOX_URL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     ExtractionRequest,
@@ -467,7 +467,7 @@ class CodeGenBot(ChatGPT):
                     pr_text_response = self.chat(
                         pull_request_prompt,
                         message_key="pull_request",
-                        model=SECONDARY_MODEL,
+                        model=DEFAULT_GPT35_MODEL,
                     )
 
                 # Add triple quotes if not present
@@ -654,8 +654,7 @@ class GithubBot(BaseModel):
                 logger.info(traceback.format_exc())
                 raise e
         file_change_requests = [
-            file_change_request
-            for file_change_request in file_change_requests
+            file_change_request for file_change_request in file_change_requests
         ]
         return file_change_requests
 

@@ -229,6 +229,7 @@ TIKTOKEN_CACHE_DIR = "/tmp/cache/tiktoken"
 class Tiktoken:
     openai_models = [
         "gpt-3.5-turbo",
+        "gpt-3.5-turbo-1106",
         "gpt-4",
         "gpt-4-32k",
         "gpt-4-32k-0613",

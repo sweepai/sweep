@@ -51,7 +51,7 @@ logtail-python = "^0.2.6"
 # Backend dependencies
 fastapi = "^0.94.1"
 uvicorn = "^0.21.0"
-openai = "^1.1.0"
+openai = "0.28.1"
 pymongo = "^4.4.0"
 tiktoken = "^0.3.2"
 PyJWT = "^2.6.0"

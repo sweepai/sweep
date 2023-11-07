@@ -2,7 +2,7 @@ from openai_proxy import OpenAIProxy
 
 proxy = OpenAIProxy()
 
-model = "gpt-3.5-turbo-1106"
+model = "gpt-4"
 
 messages = [
         {"role": "system", "content": "You are an engineer"},

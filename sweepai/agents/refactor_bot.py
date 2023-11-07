@@ -4,7 +4,7 @@ import rope.base.project
 from loguru import logger
 from rope.refactor.extract import ExtractMethod
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.update_prompts import (
@@ -96,7 +96,7 @@ class RefactorBot(ChatGPT):
         self.model = (
             DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
-            else "gpt-3.5-turbo-16k-0613"
+            else DEFAULT_GPT35_MODEL
         )
         self.messages = [
             Message(

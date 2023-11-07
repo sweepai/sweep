@@ -1,5 +1,6 @@
 import subprocess
 
+from sweepai.config.server import DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.prompts import (
@@ -18,7 +19,7 @@ class CodeRepairChecker(ChatGPT):
         self.messages = [
             Message(role="system", content=code_repair_check_system_prompt)
         ]
-        self.model = "gpt-3.5-turbo-16k-0613"
+        self.model = DEFAULT_GPT35_MODEL
         response = self.chat(
             code_repair_check_prompt.format(user_code=user_code),
             message_key="code_repair",
@@ -34,7 +35,6 @@ class CodeRepairer(ChatGPT):
         return False
         filename = ""
         if file_extension == ".py":
-          
             result = subprocess.run(
                 ["black", "--check", filename], text=True, capture_output=True
             )
@@ -71,7 +71,7 @@ class CodeRepairer(ChatGPT):
                 role="system", content=code_repair_system_prompt.format(feature=feature)
             )
         ]
-        self.model = "gpt-3.5-turbo-16k-0613"
+        self.model = DEFAULT_GPT35_MODEL
         if self.code_repair_checker.check_code(diff, user_code):
             return user_code
         retry_count = 0
