@@ -173,7 +173,6 @@ SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
-SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -237,4 +236,6 @@ if WHITELISTED_USERS:
     WHITELISTED_USERS.append(GITHUB_BOT_USERNAME)
 
 DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-1106-preview")
+DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
+
 DEBUG: bool = True

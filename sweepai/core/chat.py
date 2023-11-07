@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    DEFAULT_GPT35_MODEL,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
     OPENAI_USE_3_5_MODEL_ONLY,
 )
@@ -25,6 +26,7 @@ openai_proxy = OpenAIProxy()
 
 OpenAIModel = (
     Literal["gpt-3.5-turbo"]
+    | Literal["gpt-3.5-turbo-1106"]
     | Literal["gpt-4"]
     | Literal["gpt-4-1106-preview"]
     | Literal["gpt-4-0613"]
@@ -37,6 +39,7 @@ OpenAIModel = (
 ChatModel = OpenAIModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
+    "gpt-3.5-turbo-1106": 16385,
     "gpt-4": 8192,
     "gpt-4-1106-preview": 128000,
     "gpt-4-0613": 8192,
@@ -196,7 +199,7 @@ class ChatGPT(BaseModel):
                     f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
                 )
             else:
-                model = "gpt-3.5-turbo-16k-0613"
+                model = DEFAULT_GPT35_MODEL
 
         count_tokens = Tiktoken().count
         messages_length = sum(
@@ -232,18 +235,11 @@ class ChatGPT(BaseModel):
             model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 3000
             and not OPENAI_DO_HAVE_32K_MODEL_ACCESS
         ):  # use 16k if it's OOC and no 32k
-            model = "gpt-3.5-turbo-16k-0613"
+            model = DEFAULT_GPT35_MODEL
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
-        if "gpt-4" in model:
-            max_tokens = min(max_tokens, 4096)
-        # Fix for self hosting where TPM limit is super low for GPT-4
-        if OPENAI_USE_3_5_MODEL_ONLY:
-            model = "gpt-3.5-turbo-16k-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )
+        max_tokens = min(max_tokens, 4096)
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
@@ -336,7 +332,7 @@ class ChatGPT(BaseModel):
                 model = model or self.model
                 logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
             else:
-                model = "gpt-3.5-turbo-16k-0613"
+                model = DEFAULT_GPT35_MODEL
 
         count_tokens = Tiktoken().count
         messages_length = sum(
@@ -376,7 +372,7 @@ class ChatGPT(BaseModel):
             max_tokens = min(max_tokens, 4096)
         # Fix for self hosting where TPM limit is super low for GPT-4
         if OPENAI_USE_3_5_MODEL_ONLY:
-            model = "gpt-3.5-turbo-16k-0613"
+            model = DEFAULT_GPT35_MODEL
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )

@@ -23,7 +23,7 @@ if BASERUN_API_KEY is not None:
 
 OPENAI_TIMEOUT = 60  # one minute
 
-OPENAI_EXCLUSIVE_MODELS = ["gpt-4-1106-preview"]
+OPENAI_EXCLUSIVE_MODELS = ["gpt-4-1106-preview", "gpt-3.5-turbo-1106"]
 
 
 class OpenAIProxy:
@@ -35,7 +35,7 @@ class OpenAIProxy:
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
             engine = None
-            if model in OPENAI_EXCLUSIVE_MODELS:
+            if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
                 raise Exception(f"Model {model} is not supported by Azure")
             if (
                 model == "gpt-3.5-turbo-16k"
