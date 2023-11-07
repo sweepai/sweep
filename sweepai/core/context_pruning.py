@@ -1,6 +1,6 @@
 import re
 
-from sweepai.config.server import DEFAULT_GPT35_MODEL, DEFAULT_GPT4_32K_MODEL
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from sweepai.core.prompts import system_message_prompt

@@ -71,7 +71,7 @@ from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
@@ -286,7 +286,9 @@ async def webhook(raw_request: Request):
                 if pull_requests:
                     logger.info(pull_requests[0].number)
                     pr = repo.get_pull(pull_requests[0].number)
-                    if (time.time() - pr.created_at.timestamp()) > 60 * 60 and pr.title.startswith("[Sweep Rules]"):
+                    if (
+                        time.time() - pr.created_at.timestamp()
+                    ) > 60 * 60 and pr.title.startswith("[Sweep Rules]"):
                         after_sha = pr.head.sha
                         commit = repo.get_commit(after_sha)
                         check_suites = commit.get_check_suites()
@@ -850,7 +852,11 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                     "sweep/"
                 ) and not feature_branch.startswith("sweep_"):
                     continue
-                if pr.mergeable_state != "clean" and (time.time() - pr.created_at.timestamp()) > 60 * 60 * 24 and pr.title.startswith("[Sweep Rules]"):
+                if (
+                    pr.mergeable_state != "clean"
+                    and (time.time() - pr.created_at.timestamp()) > 60 * 60 * 24
+                    and pr.title.startswith("[Sweep Rules]")
+                ):
                     pr.edit(state="closed")
                     continue
 

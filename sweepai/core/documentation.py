@@ -1,9 +1,7 @@
 import os
 import re
-from functools import lru_cache
 
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from tqdm import tqdm
 
 from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs

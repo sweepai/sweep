@@ -1,10 +1,13 @@
 import ast
 import os
 import sys
+
 import jedi
 from jedi.api.classes import Name
 
-BUILTIN_MODULES = [builtin_module_name.strip("_") for builtin_module_name in sys.builtin_module_names] + ["builtins"]
+BUILTIN_MODULES = [
+    builtin_module_name.strip("_") for builtin_module_name in sys.builtin_module_names
+] + ["builtins"]
 project_dir = "sweepai"
 file_name = "/api.py"
 min_line = 101
@@ -23,6 +26,7 @@ def print_function_source_code():
     tree = ast.parse(file_contents)
     return script, tree
 
+
 script, tree = print_function_source_code()
 
 function_definitions: set[Name] = set()
@@ -30,21 +34,28 @@ function_definitions: set[Name] = set()
 
 def collect_function_definitions():
     for node in ast.walk(tree):
-        if node.__class__.__name__ == 'Call':
+        if node.__class__.__name__ == "Call":
             if not min_line <= node.lineno <= max_line:
                 continue
             new_function_definitions = script.goto(
-                node.lineno, 
+                node.lineno,
                 node.col_offset,
                 follow_imports=True,
                 follow_builtin_imports=True,
             )
             for function_definition in new_function_definitions:
-                if function_definition.full_name and any(function_definition.full_name.startswith(builtin_module) for builtin_module in BUILTIN_MODULES):
+                if function_definition.full_name and any(
+                    function_definition.full_name.startswith(builtin_module)
+                    for builtin_module in BUILTIN_MODULES
+                ):
                     continue
-                if function_definition.type != "function" and function_definition.type != "statement":
+                if (
+                    function_definition.type != "function"
+                    and function_definition.type != "statement"
+                ):
                     continue
                 function_definitions.add(function_definition)
+
 
 collect_function_definitions()
 
@@ -57,6 +68,7 @@ def setup_jedi_project_and_parse_ast():
             module_contents = open(function_definition.module_path).read()
         else:
             module_contents = open(file_full_path).read()
-        print("\n".join(module_contents.split("\n")[max(0, start_line - 1): end_line]))
+        print("\n".join(module_contents.split("\n")[max(0, start_line - 1) : end_line]))
+
 
 setup_jedi_project_and_parse_ast()

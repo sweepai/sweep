@@ -1,8 +1,5 @@
 import openai
-
 from openai import OpenAI
-
-from sweepai.config.server import OPENAI_API_KEY
 
 client = OpenAI()
 
@@ -54,7 +51,7 @@ EXTRACTION_USER_MSG = """\
 Repo: privateGPT - Interact with your documents using the power of GPT, 100% privately, no data leaks
 Issue Title: refactor the retrieve_relevant function in private_gpt/server/chunks/chunks_service.py to become more modular
 Choose parts of functions that can be extracted to reduce the complexity of the code. If a single function would be too large, refactor it into multiple smaller subfunctions.
-Issue Description: 
+Issue Description:
 # Code
 File path: private_gpt/server/chunks/chunks_service.py
 
@@ -221,8 +218,10 @@ message = client.beta.threads.messages.create(
     content=EXTRACTION_USER_MSG,
 )
 run = client.beta.threads.runs.create(thread_id=thread.id, assistant_id=my_assistant.id)
-run = client.beta.threads.runs.retrieve(thread_id=thread.id,run_id=run.id)
+run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
 messages = client.beta.threads.messages.list(thread_id=thread.id)
 latest_message = messages.data[0].content[0].text.value
-import pdb; pdb.set_trace()
+import pdb
+
+pdb.set_trace()
 run

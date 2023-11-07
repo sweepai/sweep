@@ -2,7 +2,6 @@
 This file contains the on_merge handler which is called when a pull request is merged to master.
 on_merge is called by sweepai/api.py
 """
-import copy
 import time
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_rules
@@ -70,7 +69,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     check_suites = commit.get_check_suites()
     for check_suite in check_suites:
         if check_suite.conclusion == "failure":
-            return # if any check suite failed, return
+            return  # if any check suite failed, return
     blocked_dirs = get_blocked_dirs(repo)
     comparison = repo.compare(before_sha, after_sha)
     commits_diff = comparison_to_diff(comparison, blocked_dirs)
