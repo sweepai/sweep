@@ -80,7 +80,7 @@ class OpenAIProxy:
                     f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                 )
                 openai.api_type = OPENAI_API_TYPE
-                openai.api_base = OPENAI_API_BASE
+                openai.azure_endpoint = region_url
                 openai.api_version = OPENAI_API_VERSION
                 openai.api_key = AZURE_API_KEY
                 response = openai.ChatCompletion.create(
@@ -104,7 +104,7 @@ class OpenAIProxy:
                         f"Calling {model} with engine {engine} on Azure url {region_url}."
                     )
                     openai.api_key = api_key
-                    openai.api_base = region_url
+                    openai.azure_endpoint = region_url
                     openai.api_version = OPENAI_API_VERSION
                     openai.api_type = OPENAI_API_TYPE
                     response = openai.ChatCompletion.create(
