@@ -676,8 +676,17 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             if file_change_request.change_type == "modify":
                 first_file = file_change_request.filename
+        extension = file_change_requests[0].filename.split(".")[-1]
         if first_file is None:
-            first_file = self.repo.get_commits()[0].files[0].filename
+            commits = self.repo.get_commits()
+            commits = list(commits[:10])
+            for commit in commits:
+                for file_change in commit.files:
+                    if file_change.filename.endswith(extension):
+                        first_file = file_change.filename
+                        break
+                if first_file is not None:
+                    break
         contents = self.get_contents(first_file).decoded_content.decode("utf-8")
         _, sandbox_response = self.check_sandbox(first_file, contents)
         if sandbox_response is None or sandbox_response.success == False:
@@ -776,7 +785,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_path: str,
         content: str,
         changed_files: list[tuple[str, str]] = [],
-    ):
+    ):  
         # Format file
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
