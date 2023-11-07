@@ -51,7 +51,7 @@ logtail-python = "^0.2.6"
 # Backend dependencies
 fastapi = "^0.94.1"
 uvicorn = "^0.21.0"
-openai = "^0.27.2"
+openai = "^1.1.0"
 pymongo = "^4.4.0"
 tiktoken = "^0.3.2"
 PyJWT = "^2.6.0"
@@ -65,7 +65,6 @@ psutil = "^5.9.5"
 yamllint = "^1.32.0"
 graphviz = "^0.20.1"
 torch = {version = "^2.1.0+cpu", source = "torch"}
-baserun = "^0.6.0"
 rope = "^1.10.0"
 
 [tool.poetry.dev-dependencies]

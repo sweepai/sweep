@@ -392,7 +392,7 @@ class ChatGPT(BaseModel):
                 try:
                     output = (
                         (
-                            await openai.ChatCompletion.acreate(
+                            await openai.chat.completions.acreate(
                                 model=model,
                                 messages=self.messages_dicts,
                                 max_tokens=max_tokens - token_sub,

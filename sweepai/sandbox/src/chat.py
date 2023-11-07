@@ -117,13 +117,13 @@ class OpenAIProxy:
                 openai.api_version = None
                 openai.api_type = "open_ai"
                 logger.info(f"Calling {model} on OpenAI.")
-                response = openai.ChatCompletion.create(
+                response = openai.chat.completions.create(
                     model=model,
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
                 )
-                return response["choices"][0].message.content
+                return response.choices[0].message.content
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             logger.info(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
@@ -132,14 +132,14 @@ class OpenAIProxy:
             openai.api_base = os.getenv("OPENAI_API_BASE")
             openai.api_version = os.getenv("OPENAI_API_VERSION")
             openai.api_key = os.getenv("AZURE_API_KEY")
-            response = openai.ChatCompletion.create(
+            response = openai.chat.completions.create(
                 engine=engine,
                 model=model,
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            return response["choices"][0].message.content
+            return response.choices[0].message.content
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -150,13 +150,13 @@ class OpenAIProxy:
                     openai.api_version = None
                     openai.api_type = "open_ai"
                     logger.info(f"Calling {model} with OpenAI.")
-                    response = openai.ChatCompletion.create(
+                    response = openai.chat.completions.create(
                         model=model,
                         messages=messages,
                         max_tokens=max_tokens,
                         temperature=temperature,
                     )
-                    return response["choices"][0].message.content
+                    return response.choices[0].message.content
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
@@ -198,13 +198,13 @@ class OpenAIProxy:
                 openai.api_version = None
                 openai.api_type = "open_ai"
                 logger.info(f"Calling {model} on OpenAI.")
-                response = openai.ChatCompletion.create(
+                response = openai.chat.completions.create(
                     model=model,
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
                 )
-                return response["choices"][0].message.content
+                return response.choices[0].message.content
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             logger.info(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
@@ -213,14 +213,14 @@ class OpenAIProxy:
             openai.api_base = os.getenv("OPENAI_API_BASE")
             openai.api_version = os.getenv("OPENAI_API_VERSION")
             openai.api_key = os.getenv("AZURE_API_KEY")
-            response = openai.ChatCompletion.create(
+            response = openai.chat.completions.create(
                 engine=engine,
                 model=model,
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            return response["choices"][0].message.content
+            return response.choices[0].message.content
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -231,13 +231,13 @@ class OpenAIProxy:
                     openai.api_version = None
                     openai.api_type = "open_ai"
                     logger.info(f"Calling {model} with OpenAI.")
-                    response = openai.ChatCompletion.create(
+                    response = openai.chat.completions.create(
                         model=model,
                         messages=messages,
                         max_tokens=max_tokens,
                         temperature=temperature,
                     )
-                    return response["choices"][0].message.content
+                    return response.choices[0].message.content
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
