@@ -12,6 +12,7 @@ from sweepai.core.update_prompts import (
     extract_snippets_user_prompt,
 )
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.jedi_utils import get_all_defined_functions, get_references_from_defined_function, setup_jedi_for_file
 from sweepai.utils.search_and_replace import find_best_match
 
 APOSTROPHE_MARKER = "__APOSTROPHE__"
@@ -106,6 +107,23 @@ class RefactorBot(ChatGPT):
             )
         ]
         self.messages.extend(additional_messages)
+
+        script, tree = setup_jedi_for_file(project_dir=cloned_repo.cache_dir,
+            file_full_path=f"{cloned_repo.cache_dir}/{file_path}"
+        )
+
+        all_defined_functions = get_all_defined_functions(
+            script=script, tree=tree
+        )
+        
+        change_sets = []
+        for fn_def in all_defined_functions:
+            full_file_code = cloned_repo.get_file_contents(file_path)
+            if full_file_code.count("\n") < 10:
+                continue
+            function_and_reference = get_references_from_defined_function(fn_def, script, tree, f"{cloned_repo.cache_dir}/{file_path}", full_file_code)
+            import pdb; pdb.set_trace()
+        # everything below must operate in a loop
         extract_response = self.chat(
             extract_snippets_user_prompt.format(
                 code=update_snippets_code,
@@ -136,7 +154,6 @@ class RefactorBot(ChatGPT):
         extract_matches = list(
             re.finditer(extracted_pattern, extract_response, re.DOTALL)
         )
-        change_sets = []
         new_code = None
         for idx, match_ in enumerate(extract_matches[::-1]):
             match = match_.groupdict()
