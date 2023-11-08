@@ -300,16 +300,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
+        embeddings = convert_to_numpy_array(embeddings, documents)
 
         deeplake_vs = init_deeplake_vs(collection_name)
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
@@ -334,6 +325,19 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
                 }
             )
         return deeplake_vs
+
+def convert_to_numpy_array(embeddings, documents):
+    try:
+        embeddings = np.array(embeddings, dtype=np.float32)
+    except SystemExit:
+        raise SystemExit
+    except:
+        logger.exception(
+            "Failed to convert embeddings to numpy array, recomputing all of them"
+        )
+        embeddings = embedding_function(documents)
+        embeddings = np.array(embeddings, dtype=np.float32)
+    return embeddings
 
 
 def compute_embeddings(documents):
@@ -369,16 +373,7 @@ def compute_embeddings(documents):
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
+        embeddings = convert_to_numpy_array(embeddings, documents)
     return embeddings, documents_to_compute, computed_embeddings, embedding
 
 

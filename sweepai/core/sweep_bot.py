@@ -45,7 +45,6 @@ from sweepai.core.prompts import (
     extract_files_to_change_prompt,
     files_to_change_prompt,
     pull_request_prompt,
-    python_refactor_issue_title_guide_prompt,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     sandbox_files_to_change_prompt,
@@ -221,7 +220,6 @@ class CodeGenBot(ChatGPT):
                     keyword in self.human_message.title.lower()
                     for keyword in ("refactor", "extract", "replace", "move", "test")
                 ):
-                    self.human_message.title += python_refactor_issue_title_guide_prompt
                     if self.chat_logger is not None:
                         posthog.capture(
                             self.chat_logger.data.get("username"),
@@ -475,7 +473,7 @@ class CodeGenBot(ChatGPT):
                 if not pr_text_response.strip().endswith('"""'):
                     pr_text_response += '"""'
 
-                self.delete_messages_from_chat("pull_request")
+                self.messages = self.messages[:-2]
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -483,7 +481,7 @@ class CodeGenBot(ChatGPT):
                 if "too long" in e_str:
                     too_long = True
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
-                self.delete_messages_from_chat("pull_request")
+                self.messages = self.messages[:-2]
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
 
