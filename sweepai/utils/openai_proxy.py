@@ -40,7 +40,7 @@ class OpenAIProxy:
             engine = None
             if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
                 logger.info(f"Calling OpenAI exclusive model. {model}")
-                raise
+                raise Exception("OpenAI exclusive model.")
             if (
                 model == "gpt-3.5-turbo-16k"
                 or model == "gpt-3.5-turbo-16k-0613"
