@@ -126,56 +126,17 @@ extract_snippets_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to complete the GitHub Issue. You specialize in Python programming.
 
 # Instructions
-Extract code verbatim from the functions in above code using EXTRACT sections. These extractions will be used later to refactor the code according to the user request.
+Extract code verbatim from the function_to_refactor using EXTRACT sections according to the user request. These extractions will be used later to refactor the code.
 * Choose specific and informative names for these functions under new_function_name.
-* We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
+* We must copy the code verbatim. Keep whitespace and comments.
 * Extractions must not overlap.
-* Keep whitespace and comments.
+* Extractions should be removable without breaking the code. For example, they should not break up a try except block.
+* Extracted functions should be at least 2 lines long and at most 25 lines long.
 
 Respond in the following format:
 
 <contextual_request_analysis>
-Analyze the user request to identify sections of functions in the code that should be extracted.
-For each new function outline the first and last few lines of code that should be extracted.
-</contextual_request_analysis>
-
-<new_function_names>
-"new_function_name"
-...
-</new_function_names>
-
-<extractions>
-```
-<<<<<<< EXTRACT
-first few lines to be extracted from original_code
-...
-last few lines to be extracted from original_code
->>>>>>>
-...
-```
-</extractions>"""
-
-extract_snippets_user_prompt = """\
-# Code
-File path: {file_path}
-{changes_made}
-
-<original_code>
-{snippets}
-</original_code>
-
-# Instructions
-Extract code verbatim from the functions in above code using EXTRACT sections. These extractions will be used later to refactor the code according to the user request.
-* Choose specific and informative names for these functions under new_function_name.
-* We must copy the code verbatim, so any extra leading or trailing code will cause us to fail.
-* Extractions must not overlap.
-* Keep whitespace and comments.
-* Extracted functions should be roughly 15 lines each.
-
-Respond in the following format:
-
-<contextual_request_analysis>
-First, determine the function(s) you want to make more modular.
+First, determine the section(s) you want to make more modular. Choose extractions that simplify the overall flow of the code.
 Analyze the user request to identify each section of the code that should be extracted.
 For each new function outline the first and last lines of code that should be extracted.
 </contextual_request_analysis>
@@ -188,9 +149,48 @@ For each new function outline the first and last lines of code that should be ex
 <extractions>
 ```
 <<<<<<< EXTRACT
-first few lines to be extracted from original_code
+first few lines to be extracted from function_to_refactor
 ...
-last few lines to be extracted from original_code
+last few lines to be extracted from function_to_refactor
+>>>>>>>
+...
+```
+</extractions>"""
+
+extract_snippets_user_prompt = """\
+# Code
+File path: {file_path}
+{changes_made}
+
+{code}
+
+# Instructions
+Extract code verbatim from the function_to_refactor using EXTRACT sections according to the user request. These extractions will be used later to refactor the code.
+* Choose specific and informative names for these functions under new_function_name.
+* We must copy the code verbatim. Keep whitespace and comments.
+* Extractions must not overlap.
+* Extractions should be removable without breaking the code. For example, they should not break up a try except block.
+* Extracted functions should be at least 2 lines long and at most 25 lines long.
+
+Respond in the following format:
+
+<contextual_request_analysis>
+First, determine the section(s) you want to make more modular. Choose extractions that simplify the overall flow of the code.
+Analyze the user request to identify each section of the code that should be extracted.
+For each new function outline the first and last lines of code that should be extracted.
+</contextual_request_analysis>
+
+<new_function_names>
+"new_function_name"
+...
+</new_function_names>
+
+<extractions>
+```
+<<<<<<< EXTRACT
+first few lines to be extracted from function_to_refactor
+...
+last few lines to be extracted from function_to_refactor
 >>>>>>>
 ...
 ```

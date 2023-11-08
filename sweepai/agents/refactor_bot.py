@@ -12,6 +12,7 @@ from sweepai.core.update_prompts import (
     extract_snippets_user_prompt,
 )
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.jedi_utils import get_all_defined_functions, get_references_from_defined_function, setup_jedi_for_file
 from sweepai.utils.search_and_replace import find_best_match
 
 APOSTROPHE_MARKER = "__APOSTROPHE__"
@@ -67,6 +68,7 @@ def extract_method(
             change.do()
 
         result = deserialize(resource.read())
+        resource.write(result)
         return result, change_set
     except Exception as e:
         logger.error(f"An error occurred: {e}")
@@ -106,134 +108,94 @@ class RefactorBot(ChatGPT):
             )
         ]
         self.messages.extend(additional_messages)
-        extract_response = self.chat(
-            extract_snippets_user_prompt.format(
-                code=update_snippets_code,
-                file_path=file_path,
-                snippets=snippets_str,
-                changes_made=changes_made,
-            )
+
+        script, tree = setup_jedi_for_file(project_dir=cloned_repo.cache_dir,
+            file_full_path=f"{cloned_repo.cache_dir}/{file_path}"
         )
-        new_function_pattern = (
-            r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
+
+        all_defined_functions = get_all_defined_functions(
+            script=script, tree=tree
         )
-        new_function_matches = list(
-            re.finditer(new_function_pattern, extract_response, re.DOTALL)
-        )
-        new_function_names = []
-        for match_ in new_function_matches:
-            match = match_.groupdict()
-            new_function_names = match["new_function_names"]
-            new_function_names = new_function_names.split("\n")
-        new_function_names = [
-            serialize_method_name(
-                new_function_name.strip().strip('"').strip("'").strip("`")
-            )
-            for new_function_name in new_function_names
-            if new_function_name.strip()
-        ]
-        extracted_pattern = r"<<<<<<<\s+EXTRACT\s+(?P<updated_code>.*?)>>>>>>>"
-        extract_matches = list(
-            re.finditer(extracted_pattern, extract_response, re.DOTALL)
-        )
-        change_sets = []
         new_code = None
-        for idx, match_ in enumerate(extract_matches[::-1]):
-            match = match_.groupdict()
-            updated_code = match["updated_code"]
-            updated_code = updated_code.strip("\n")
-            best_match = find_best_match(updated_code, snippets_str)
-            if best_match.score < 70:
-                updated_code = "\n".join(updated_code.split("\n")[1:])
-                best_match = find_best_match(updated_code, snippets_str)
-                if best_match.score < 80:
-                    updated_code = "\n".join(updated_code.split("\n")[:-1])
-                    best_match = find_best_match(updated_code, snippets_str)
+        change_sets = []
+        for fn_def in all_defined_functions:
+            full_file_code = cloned_repo.get_file_contents(file_path)
+            script, tree = setup_jedi_for_file(project_dir=cloned_repo.cache_dir,
+                file_full_path=f"{cloned_repo.cache_dir}/{file_path}"
+            )
+            function_and_reference = get_references_from_defined_function(fn_def, script, tree, f"{cloned_repo.cache_dir}/{file_path}", full_file_code)
+            if function_and_reference.function_code.count("\n") < 20:
+                continue
+            self.model = "gpt-4-32k-0613"
+            # everything below must operate in a loop
+            recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
+            code = f"<original_code>\n{recent_file_contents}</original_code>\n"
+            code += function_and_reference.serialize(tag="function_to_refactor")
+            extract_response = self.chat(
+                extract_snippets_user_prompt.format(
+                    code=code,
+                    file_path=file_path,
+                    snippets=snippets_str,
+                    changes_made=changes_made,
+                )
+            )
+            self.messages = self.messages[:-2]
+            new_function_pattern = (
+                r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
+            )
+            new_function_matches = list(
+                re.finditer(new_function_pattern, extract_response, re.DOTALL)
+            )
+            new_function_names = []
+            for match_ in new_function_matches:
+                match = match_.groupdict()
+                new_function_names = match["new_function_names"]
+                new_function_names = new_function_names.split("\n")
+            new_function_names = [
+                serialize_method_name(
+                    new_function_name.strip().strip('"').strip("'").strip("`")
+                )
+                for new_function_name in new_function_names
+                if new_function_name.strip()
+            ]
+            extracted_pattern = r"<<<<<<<\s+EXTRACT\s+(?P<updated_code>.*?)>>>>>>>"
+            extract_matches = list(
+                re.finditer(extracted_pattern, extract_response, re.DOTALL)
+            )
+            new_code = None
+            for idx, match_ in enumerate(extract_matches[::-1]):
+                match = match_.groupdict()
+                updated_code = match["updated_code"]
+                updated_code = updated_code.strip("\n")
+                if len(updated_code) < 150:
+                    continue
+                best_match = find_best_match(updated_code, recent_file_contents)
+                if best_match.score < 70:
+                    updated_code = "\n".join(updated_code.split("\n")[1:])
+                    best_match = find_best_match(updated_code, recent_file_contents)
                     if best_match.score < 80:
-                        continue
-            extracted_original_code = "\n".join(
-                snippets_str.split("\n")[best_match.start : best_match.end]
-            )
-            new_code, change_set = extract_method(
-                extracted_original_code,
-                file_path,
-                new_function_names[idx],
-                project_name=cloned_repo.cache_dir,
-            )
-            change_sets.append(change_set)
+                        updated_code = "\n".join(updated_code.split("\n")[:-1])
+                        best_match = find_best_match(updated_code, recent_file_contents)
+                        if best_match.score < 80:
+                            continue
+                matched_lines = recent_file_contents.split("\n")[best_match.start : best_match.end]
+                # handle return edge case
+                if matched_lines[-1].strip().startswith("return"):
+                    matched_lines = matched_lines[:-1]
+                extracted_original_code = "\n".join(
+                    matched_lines
+                )
+                new_code, change_set = extract_method(
+                    extracted_original_code,
+                    file_path,
+                    new_function_names[idx],
+                    project_name=cloned_repo.cache_dir,
+                )
+                change_sets.append(change_set)
         if change_sets == []:
             return new_code
         for change_set in change_sets:
-            for change in change_set.changes:
-                change.undo()
+            if change_set:
+                for change in change_set.changes:
+                    change.undo()
         return new_code
-
-
-if __name__ == "__main__":
-    additional_messages = [
-        Message(
-            role="user",
-            content="""Repo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.
-Issue Title: refactor vector_db.py by pulling common functions and patterns out and putting them in the same function
-Issue Description: ### Details
-
-_No response_""",
-            key="user",
-        )
-    ]
-    snippets_str = """\
-<snippet index="0">
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
-    if len(documents) > 0:
-        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
-        # Check cache here for all documents
-        embeddings = [None] * len(documents)
-        if redis_client:
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents
-            ]
-            cache_values = redis_client.mget(cache_keys)
-            for idx, value in enumerate(cache_values):
-                if value is not None:
-                    arr = json.loads(value)
-                    if isinstance(arr, list):
-                        embeddings[idx] = np.array(arr, dtype=np.float32)
-        logger.info(
-            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
-        )
-        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
-        documents_to_compute = [documents[idx] for idx in indices_to_compute]
-        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
-        logger.info(f"Computed {len(computed_embeddings)} embeddings")
-
-        for idx, embedding in zip(indices_to_compute, computed_embeddings):
-            embeddings[idx] = embedding
-
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
-</snippet>
-"""
-    file_path = "sweepai/core/vector_db.py"
-    request = "Break this function into smaller sub-functions"
-    changes_made = ""
-    bot = RefactorBot()
-    bot.refactor_snippets(
-        additional_messages=additional_messages,
-        snippets_str=snippets_str,
-        file_path=file_path,
-        request=request,
-        changes_made=changes_made,
-    )
