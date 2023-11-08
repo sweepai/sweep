@@ -12,7 +12,11 @@ from sweepai.core.update_prompts import (
     extract_snippets_user_prompt,
 )
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.jedi_utils import get_all_defined_functions, get_references_from_defined_function, setup_jedi_for_file
+from sweepai.utils.jedi_utils import (
+    get_all_defined_functions,
+    get_references_from_defined_function,
+    setup_jedi_for_file,
+)
 from sweepai.utils.search_and_replace import find_best_match
 
 APOSTROPHE_MARKER = "__APOSTROPHE__"
@@ -109,21 +113,28 @@ class RefactorBot(ChatGPT):
         ]
         self.messages.extend(additional_messages)
 
-        script, tree = setup_jedi_for_file(project_dir=cloned_repo.cache_dir,
-            file_full_path=f"{cloned_repo.cache_dir}/{file_path}"
+        script, tree = setup_jedi_for_file(
+            project_dir=cloned_repo.cache_dir,
+            file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
         )
 
-        all_defined_functions = get_all_defined_functions(
-            script=script, tree=tree
-        )
+        all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         new_code = None
         change_sets = []
+        extracted_exact_matches = []
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
-            script, tree = setup_jedi_for_file(project_dir=cloned_repo.cache_dir,
-                file_full_path=f"{cloned_repo.cache_dir}/{file_path}"
+            script, tree = setup_jedi_for_file(
+                project_dir=cloned_repo.cache_dir,
+                file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
             )
-            function_and_reference = get_references_from_defined_function(fn_def, script, tree, f"{cloned_repo.cache_dir}/{file_path}", full_file_code)
+            function_and_reference = get_references_from_defined_function(
+                fn_def,
+                script,
+                tree,
+                f"{cloned_repo.cache_dir}/{file_path}",
+                full_file_code,
+            )
             if function_and_reference.function_code.count("\n") < 20:
                 continue
             # everything below must operate in a loop
@@ -139,9 +150,7 @@ class RefactorBot(ChatGPT):
                 )
             )
             self.messages = self.messages[:-2]
-            new_function_pattern = (
-                r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
-            )
+            new_function_pattern = r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
             new_function_matches = list(
                 re.finditer(new_function_pattern, extract_response, re.DOTALL)
             )
@@ -177,20 +186,26 @@ class RefactorBot(ChatGPT):
                         best_match = find_best_match(updated_code, recent_file_contents)
                         if best_match.score < 80:
                             continue
-                matched_lines = recent_file_contents.split("\n")[best_match.start : best_match.end]
+                matched_lines = recent_file_contents.split("\n")[
+                    best_match.start : best_match.end
+                ]
                 # handle return edge case
                 if matched_lines[-1].strip().startswith("return"):
                     matched_lines = matched_lines[:-1]
-                extracted_original_code = "\n".join(
-                    matched_lines
-                )
-                new_code, change_set = extract_method(
-                    extracted_original_code,
-                    file_path,
-                    new_function_names[idx],
-                    project_name=cloned_repo.cache_dir,
-                )
-                change_sets.append(change_set)
+                extracted_original_code = "\n".join(matched_lines)
+                extracted_exact_matches.append(extracted_original_code)
+        deduped_exact_matches = []
+        for extracted_exact_match in extracted_exact_matches:
+            if extracted_exact_match not in deduped_exact_matches:
+                deduped_exact_matches.append(extracted_exact_match)
+        for extracted_original_code in extracted_exact_matches:
+            new_code, change_set = extract_method(
+                extracted_original_code,
+                file_path,
+                new_function_names[idx],
+                project_name=cloned_repo.cache_dir,
+            )
+            change_sets.append(change_set)
         if change_sets == []:
             return new_code
         for change_set in change_sets:
