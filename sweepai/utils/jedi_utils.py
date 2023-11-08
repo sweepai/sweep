@@ -16,11 +16,12 @@ class FunctionAndReferences:
     function_definition: Name
     indices_and_references: list[tuple[int, int, str]]
 
-    def __str__(self):
-        res = ""
+    def serialize(self, tag="function_to_refactor"):
+        res = "<function_dependencies>\n"
         for _, _, reference in self.indices_and_references:
             res += f"{reference}\n\n"
-        res += f"{self.function_code}"
+        res += "</function_dependencies>\n"
+        res += f"<{tag}>\n{self.function_code}\n</{tag}>"
         return res
 
 
@@ -69,7 +70,9 @@ def get_all_defined_functions(script: jedi.Script, tree: ast.Module):
     function_definitions = [fn_def for fn_def in function_definitions if fn_def.module_name == script.get_context().module_name]        
     return function_definitions
 
+# this function cannot depend on the line no
 def get_references_from_defined_function(fn_def: Name, script: jedi.Script, tree: ast.Module, file_full_path: str, full_file_code: str):
+    fn_def = script.search(fn_def.name)[0] # may fail if it's deleted but this shouldn't happen
     start_line = max(0, (fn_def.get_definition_start_position()[0] - 1))
     end_line = fn_def.get_definition_end_position()[0]
     function_code = "\n".join(full_file_code.split("\n")[start_line: end_line])

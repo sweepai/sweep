@@ -29,7 +29,7 @@ class OpenAIProxy:
     def __init__(self):
         pass
 
-    # @file_cache(ignore_params=[])
+    @file_cache(ignore_params=[])
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
             engine = None

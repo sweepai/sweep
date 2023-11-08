@@ -68,6 +68,7 @@ def extract_method(
             change.do()
 
         result = deserialize(resource.read())
+        resource.write(result)
         return result, change_set
     except Exception as e:
         logger.error(f"An error occurred: {e}")
@@ -115,74 +116,85 @@ class RefactorBot(ChatGPT):
         all_defined_functions = get_all_defined_functions(
             script=script, tree=tree
         )
-        
+        new_code = None
         change_sets = []
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
-            if full_file_code.count("\n") < 10:
-                continue
+            script, tree = setup_jedi_for_file(project_dir=cloned_repo.cache_dir,
+                file_full_path=f"{cloned_repo.cache_dir}/{file_path}"
+            )
             function_and_reference = get_references_from_defined_function(fn_def, script, tree, f"{cloned_repo.cache_dir}/{file_path}", full_file_code)
-            import pdb; pdb.set_trace()
-        # everything below must operate in a loop
-        extract_response = self.chat(
-            extract_snippets_user_prompt.format(
-                code=update_snippets_code,
-                file_path=file_path,
-                snippets=snippets_str,
-                changes_made=changes_made,
+            if function_and_reference.function_code.count("\n") < 20:
+                continue
+            self.model = "gpt-4-32k-0613"
+            # everything below must operate in a loop
+            code = f"<original_code>\n{cloned_repo.get_file_contents(file_path=file_path)}</original_code>\n"
+            code += function_and_reference.serialize(tag="function_to_refactor")
+            extract_response = self.chat(
+                extract_snippets_user_prompt.format(
+                    code=code,
+                    file_path=file_path,
+                    snippets=snippets_str,
+                    changes_made=changes_made,
+                )
             )
-        )
-        new_function_pattern = (
-            r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
-        )
-        new_function_matches = list(
-            re.finditer(new_function_pattern, extract_response, re.DOTALL)
-        )
-        new_function_names = []
-        for match_ in new_function_matches:
-            match = match_.groupdict()
-            new_function_names = match["new_function_names"]
-            new_function_names = new_function_names.split("\n")
-        new_function_names = [
-            serialize_method_name(
-                new_function_name.strip().strip('"').strip("'").strip("`")
+            self.messages = self.messages[:-2]
+            new_function_pattern = (
+                r"<new_function_names>\s+(?P<new_function_names>.*?)</new_function_names>"
             )
-            for new_function_name in new_function_names
-            if new_function_name.strip()
-        ]
-        extracted_pattern = r"<<<<<<<\s+EXTRACT\s+(?P<updated_code>.*?)>>>>>>>"
-        extract_matches = list(
-            re.finditer(extracted_pattern, extract_response, re.DOTALL)
-        )
-        new_code = None
-        for idx, match_ in enumerate(extract_matches[::-1]):
-            match = match_.groupdict()
-            updated_code = match["updated_code"]
-            updated_code = updated_code.strip("\n")
-            best_match = find_best_match(updated_code, snippets_str)
-            if best_match.score < 70:
-                updated_code = "\n".join(updated_code.split("\n")[1:])
+            new_function_matches = list(
+                re.finditer(new_function_pattern, extract_response, re.DOTALL)
+            )
+            new_function_names = []
+            for match_ in new_function_matches:
+                match = match_.groupdict()
+                new_function_names = match["new_function_names"]
+                new_function_names = new_function_names.split("\n")
+            new_function_names = [
+                serialize_method_name(
+                    new_function_name.strip().strip('"').strip("'").strip("`")
+                )
+                for new_function_name in new_function_names
+                if new_function_name.strip()
+            ]
+            extracted_pattern = r"<<<<<<<\s+EXTRACT\s+(?P<updated_code>.*?)>>>>>>>"
+            extract_matches = list(
+                re.finditer(extracted_pattern, extract_response, re.DOTALL)
+            )
+            new_code = None
+            for idx, match_ in enumerate(extract_matches[::-1]):
+                match = match_.groupdict()
+                updated_code = match["updated_code"]
+                updated_code = updated_code.strip("\n")
+                if len(updated_code) < 150:
+                    continue
                 best_match = find_best_match(updated_code, snippets_str)
-                if best_match.score < 80:
-                    updated_code = "\n".join(updated_code.split("\n")[:-1])
+                if best_match.score < 70:
+                    updated_code = "\n".join(updated_code.split("\n")[1:])
                     best_match = find_best_match(updated_code, snippets_str)
                     if best_match.score < 80:
-                        continue
-            extracted_original_code = "\n".join(
-                snippets_str.split("\n")[best_match.start : best_match.end]
-            )
-            new_code, change_set = extract_method(
-                extracted_original_code,
-                file_path,
-                new_function_names[idx],
-                project_name=cloned_repo.cache_dir,
-            )
-            change_sets.append(change_set)
+                        updated_code = "\n".join(updated_code.split("\n")[:-1])
+                        best_match = find_best_match(updated_code, snippets_str)
+                        if best_match.score < 80:
+                            continue
+                extracted_original_code = "\n".join(
+                    snippets_str.split("\n")[best_match.start : best_match.end]
+                )
+                new_code, change_set = extract_method(
+                    extracted_original_code,
+                    file_path,
+                    new_function_names[idx],
+                    project_name=cloned_repo.cache_dir,
+                )
+                change_sets.append(change_set)
         if change_sets == []:
             return new_code
+        import pdb; pdb.set_trace()
         for change_set in change_sets:
-            for change in change_set.changes:
-                change.undo()
+            if change_set:
+                for change in change_set.changes:
+                    change.undo()
+        import pdb; pdb.set_trace()
         return new_code
 
 
