@@ -126,7 +126,6 @@ class RefactorBot(ChatGPT):
             function_and_reference = get_references_from_defined_function(fn_def, script, tree, f"{cloned_repo.cache_dir}/{file_path}", full_file_code)
             if function_and_reference.function_code.count("\n") < 20:
                 continue
-            self.model = "gpt-4-32k-0613"
             # everything below must operate in a loop
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
             code = f"<original_code>\n{recent_file_contents}</original_code>\n"
