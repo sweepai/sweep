@@ -57,7 +57,7 @@ def collect_function_definitions(
             for function_definition in new_function_definitions:
                 # print(function_definition.type)
                 # print(function_definition.full_name)
-                if "site-packages" in function_definition.module_path:
+                if "site-packages" in str(function_definition.module_path):
                     continue
                 if function_definition.full_name and any(
                     function_definition.full_name.startswith(builtin_module)
