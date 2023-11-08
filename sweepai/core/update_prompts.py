@@ -141,11 +141,6 @@ Analyze the user request to identify each section of the code that should be ext
 For each new function outline the first and last lines of code that should be extracted.
 </contextual_request_analysis>
 
-<new_function_names>
-"new_function_name"
-...
-</new_function_names>
-
 <extractions>
 ```
 <<<<<<< EXTRACT
@@ -155,7 +150,12 @@ last few lines to be extracted from function_to_refactor
 >>>>>>>
 ...
 ```
-</extractions>"""
+</extractions>
+
+<new_function_names>
+"new_function_name"
+...
+</new_function_names>"""
 
 extract_snippets_user_prompt = """\
 # Code
@@ -180,11 +180,6 @@ Analyze the user request to identify each section of the code that should be ext
 For each new function outline the first and last lines of code that should be extracted.
 </contextual_request_analysis>
 
-<new_function_names>
-"new_function_name"
-...
-</new_function_names>
-
 <extractions>
 ```
 <<<<<<< EXTRACT
@@ -194,4 +189,9 @@ last few lines to be extracted from function_to_refactor
 >>>>>>>
 ...
 ```
-</extractions>"""
+</extractions>
+
+<new_function_names>
+"new_function_name"
+...
+</new_function_names>"""
