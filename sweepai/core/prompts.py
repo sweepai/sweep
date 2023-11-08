@@ -1025,16 +1025,10 @@ Losslessly summarize the code in a ordered list for an engineer to search for re
 
 
 use_chunking_message = """\
-This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
-
-Otherwise, respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets. To insert code after a function, fetch the last few lines of the function.
-
-Then, select terms in the code that we should extract to update. The system will then select each line containing any of the patterns. Only select terms that MUST be updated."""
+Respond with a list of the MINIMUM sections that should be modified. To insert code after a function, fetch the last few lines of the function."""
 
 dont_use_chunking_message = """\
-Respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets. To insert code after a function, fetch the last few lines of the function.
-
-Then, select terms in the code that we should extract to update. The system will then select each line containing any of the patterns. Only select terms that MUST be updated."""
+Respond with a list of the MINIMUM sections that should be modified. To insert code after a function, fetch the last few lines of the function."""
 
 python_refactor_issue_title_guide_prompt = """\
 \nChoose parts of functions that can be extracted to reduce the complexity of the code. If a single function would be too large, refactor it into multiple smaller subfunctions."""

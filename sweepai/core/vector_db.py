@@ -334,9 +334,6 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
                 }
             )
         return deeplake_vs
-    else:
-        logger.error("No documents found in repository")
-        return deeplake_vs
 
 
 def compute_embeddings(documents):
