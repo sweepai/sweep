@@ -1,14 +1,15 @@
 import ast
-from dataclasses import dataclass
 import os
 import sys
+from dataclasses import dataclass
 
 import jedi
 from jedi.api.classes import Name
 
-from sweepai.utils.github_utils import ClonedRepo
+BUILTIN_MODULES = [
+    builtin_module_name.strip("_") for builtin_module_name in sys.builtin_module_names
+] + ["builtins"]
 
-BUILTIN_MODULES = [builtin_module_name.strip("_") for builtin_module_name in sys.builtin_module_names] + ["builtins"]
 
 @dataclass
 class FunctionAndReferences:
@@ -36,13 +37,15 @@ def setup_jedi_for_file(project_dir: str, file_full_path: str):
     return script, tree
 
 
-def collect_function_definitions(script: jedi.Script, tree: ast.Module, min_line=0, max_line=None):
+def collect_function_definitions(
+    script: jedi.Script, tree: ast.Module, min_line=0, max_line=None
+):
     function_definitions: set[Name] = set()
     names = script.get_names()
     classes = [name for name in names if name.type == "class"]
     function_definitions.update(classes)
     for node in ast.walk(tree):
-        if node.__class__.__name__ == 'Call':
+        if node.__class__.__name__ == "Call":
             if max_line and not min_line <= node.lineno <= max_line:
                 continue
             new_function_definitions: list[Name] = script.goto(
@@ -52,17 +55,23 @@ def collect_function_definitions(script: jedi.Script, tree: ast.Module, min_line
                 follow_builtin_imports=True,
             )
             for function_definition in new_function_definitions:
-                print(function_definition.type)
-                print(function_definition.full_name)
+                # print(function_definition.type)
+                # print(function_definition.full_name)
+                if "site-packages" in function_definition.module_path:
+                    continue
                 if function_definition.full_name and any(
                     function_definition.full_name.startswith(builtin_module)
                     for builtin_module in BUILTIN_MODULES
                 ):
                     continue
-                if function_definition.type != "function" and function_definition.type != "class":
+                if (
+                    function_definition.type != "function"
+                    and function_definition.type != "class"
+                ):
                     continue
                 function_definitions.add(function_definition)
     return function_definitions
+
 
 def get_function_references(function_definition: Name, file_full_path: str):
     start_line, _ = function_definition.get_definition_start_position()
@@ -71,23 +80,42 @@ def get_function_references(function_definition: Name, file_full_path: str):
         module_contents = open(function_definition.module_path).read()
     else:
         module_contents = open(file_full_path).read()
-    return (start_line, end_line, "\n".join(module_contents.split("\n")[max(0, start_line - 1): end_line]))
+    return (
+        start_line,
+        end_line,
+        "\n".join(module_contents.split("\n")[max(0, start_line - 1) : end_line]),
+    )
+
 
 # the modifications affect eachother so make sure it's in a loop
 def get_all_defined_functions(script: jedi.Script, tree: ast.Module):
     function_definitions = collect_function_definitions(script=script, tree=tree)
     # filter out function definitions that are not in the original file
-    function_definitions = [fn_def for fn_def in function_definitions if fn_def.module_name == script.get_context().module_name]        
+    function_definitions = [
+        fn_def
+        for fn_def in function_definitions
+        if fn_def.module_name == script.get_context().module_name
+    ]
     return function_definitions
 
 
 # this function cannot depend on the line no
-def get_references_from_defined_function(fn_def: Name, script: jedi.Script, tree: ast.Module, file_full_path: str, full_file_code: str):
-    fn_def = script.search(fn_def.name)[0] # may fail if it's deleted but this shouldn't happen
+def get_references_from_defined_function(
+    fn_def: Name,
+    script: jedi.Script,
+    tree: ast.Module,
+    file_full_path: str,
+    full_file_code: str,
+):
+    fn_def = script.search(fn_def.name)[
+        0
+    ]  # may fail if it's deleted but this shouldn't happen
     start_line = max(0, (fn_def.get_definition_start_position()[0] - 1))
     end_line = fn_def.get_definition_end_position()[0]
-    function_code = "\n".join(full_file_code.split("\n")[start_line: end_line])
-    sub_function_definitions = collect_function_definitions(script=script, tree=tree, min_line=start_line, max_line=end_line)
+    function_code = "\n".join(full_file_code.split("\n")[start_line:end_line])
+    sub_function_definitions = collect_function_definitions(
+        script=script, tree=tree, min_line=start_line, max_line=end_line
+    )
     indices_and_code = []
     for sub_fn_def in sub_function_definitions:
         if sub_fn_def.full_name != fn_def.full_name:
