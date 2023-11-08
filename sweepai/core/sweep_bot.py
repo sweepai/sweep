@@ -222,10 +222,11 @@ class CodeGenBot(ChatGPT):
                     for keyword in ("refactor", "extract", "replace", "move", "test")
                 ):
                     self.human_message.title += python_refactor_issue_title_guide_prompt
-                    posthog.capture(
-                        self.chat_logger.data["username"],
-                        "python_refactor",
-                    )
+                    if self.chat_logger is not None:
+                        posthog.capture(
+                            self.chat_logger.data.get("username"),
+                            "python_refactor",
+                        )
                     # regenerate issue metadata
                     self.update_message_content_from_message_key(
                         "metadata", self.human_message.get_issue_metadata()
