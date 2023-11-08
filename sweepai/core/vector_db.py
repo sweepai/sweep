@@ -112,28 +112,10 @@ def embed_texts(texts: tuple[str]):
     )
     match VECTOR_EMBEDDING_SOURCE:
         case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            vector = sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
+            vector = convert_embeddings_to_numpy(texts)
             return vector
         case "openai":
-            import openai
-
-            embeddings = []
-            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                try:
-                    response = openai.Embedding.create(
-                        input=batch, model="text-embedding-ada-002"
-                    )
-                    embeddings.extend([r["embedding"] for r in response["data"]])
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    logger.exception("Failed to get embeddings for batch")
-                    logger.error(f"Failed to get embeddings for {batch}")
+            embeddings = convert_embeddings_to_numpy(texts)
             return embeddings
         case "huggingface":
             if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
@@ -156,6 +138,32 @@ def embed_texts(texts: tuple[str]):
     logger.info(
         f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
     )
+
+def convert_embeddings_to_numpy(texts):
+    sentence_transformer_model = SentenceTransformer(
+        SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+    )
+    vector = sentence_transformer_model.encode(
+        texts, show_progress_bar=True, batch_size=BATCH_SIZE
+    )
+    return vector
+
+def convert_embeddings_to_numpy(texts):
+    import openai
+
+    embeddings = []
+    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+        try:
+            response = openai.Embedding.create(
+                input=batch, model="text-embedding-ada-002"
+            )
+            embeddings.extend([r["embedding"] for r in response["data"]])
+        except SystemExit:
+            raise SystemExit
+        except Exception:
+            logger.exception("Failed to get embeddings for batch")
+            logger.error(f"Failed to get embeddings for {batch}")
+    return embeddings
 
 
 def embedding_function(texts: list[str]):
@@ -300,16 +308,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
+        embeddings = convert_embeddings_to_numpy(embeddings, documents)
 
         deeplake_vs = init_deeplake_vs(collection_name)
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
@@ -334,6 +333,19 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
                 }
             )
         return deeplake_vs
+
+def convert_embeddings_to_numpy(embeddings, documents):
+    try:
+        embeddings = np.array(embeddings, dtype=np.float32)
+    except SystemExit:
+        raise SystemExit
+    except:
+        logger.exception(
+            "Failed to convert embeddings to numpy array, recomputing all of them"
+        )
+        embeddings = embedding_function(documents)
+        embeddings = np.array(embeddings, dtype=np.float32)
+    return embeddings
 
 
 def compute_embeddings(documents):
@@ -369,16 +381,7 @@ def compute_embeddings(documents):
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
+        embeddings = convert_embeddings_to_numpy(embeddings, documents)
     return embeddings, documents_to_compute, computed_embeddings, embedding
 
 
