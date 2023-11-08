@@ -371,7 +371,6 @@ file_name: "{filename}"
 Respond in the following XML format:
 
 <contextual_request_analysis>
-Concisely identify the language and stack used in the repo, based on other files (e.g. React, Typescript, Jest etc.).
 Concisely analyze the request and list step-by-step thoughts on what to create in each section, with low-level, detailed references to functions, variables, and imports to create, and what each function does. Be as explicit and specific as possible.
 Maximize information density in this section.
 </contextual_request_analysis>
