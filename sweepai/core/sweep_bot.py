@@ -475,7 +475,7 @@ class CodeGenBot(ChatGPT):
                 if not pr_text_response.strip().endswith('"""'):
                     pr_text_response += '"""'
 
-                self.delete_messages_from_chat("pull_request")
+                self.delete_messages_from_chat(key_to_delete="pull_request")
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -483,7 +483,7 @@ class CodeGenBot(ChatGPT):
                 if "too long" in e_str:
                     too_long = True
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
-                self.delete_messages_from_chat("pull_request")
+                self.delete_messages_from_chat(key_to_delete="pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
 
