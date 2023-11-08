@@ -223,7 +223,7 @@ class CodeGenBot(ChatGPT):
                 ):
                     self.human_message.title += python_refactor_issue_title_guide_prompt
                     posthog.capture(
-                        self.chat_logger.data["username"],
+                        self.chat_logger.data.get("username"),
                         "python_refactor",
                     )
                     # regenerate issue metadata
