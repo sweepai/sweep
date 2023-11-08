@@ -785,7 +785,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_path: str,
         content: str,
         changed_files: list[tuple[str, str]] = [],
-    ):  
+    ):
         # Format file
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:

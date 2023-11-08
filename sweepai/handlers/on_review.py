@@ -2,15 +2,12 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from sweepai.config.server import MONGODB_URI
-from sweepai.core.entities import DiffSummarization, PullRequestComment
+from sweepai.core.entities import PullRequestComment
 from sweepai.core.prompts import final_review_prompt, review_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.prompt_constructor import (
-    HumanMessageFinalPRComment,
-    HumanMessagePromptReview,
-)
+from sweepai.utils.prompt_constructor import HumanMessagePromptReview
 
 
 def get_pr_diffs(repo, pr):
@@ -72,8 +69,6 @@ def review_pr(
         pr_message=pr.body or "",
         plan=plan,
     )
-
-    summarization_replies = []
 
     chat_logger = (
         chat_logger

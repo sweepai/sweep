@@ -7,11 +7,9 @@ from sweepai.config.client import (
     RULES_LABEL,
     RULES_TITLE,
     get_blocked_dirs,
-    get_rules,
 )
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.post_merge import PostMerge
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.events import IssueCommentRequest
 from sweepai.handlers.on_merge import comparison_to_diff
 from sweepai.handlers.pr_utils import make_pr
@@ -83,7 +81,7 @@ def handle_revert(file_paths, pr_number, repo: Repository):
             if branch:
                 return repo.get_contents(file_path, ref=branch)
             return repo.get_contents(file_path)
-        except Exception as e:
+        except Exception:
             return None
 
     old_file_contents = [
@@ -107,15 +105,19 @@ def handle_revert(file_paths, pr_number, repo: Repository):
                     sha=current_content.sha,
                     branch=branch_name,
                 )
-        except Exception as e:
+        except Exception:
             pass  # file may not exist and this is expected
 
 
 def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
     pr = repo.get_pull(request_dict["issue"]["number"])
-    chat_logger = ChatLogger(
-        {"username": request_dict["sender"]["login"]},
-    ) if MONGODB_URI else None
+    chat_logger = (
+        ChatLogger(
+            {"username": request_dict["sender"]["login"]},
+        )
+        if MONGODB_URI
+        else None
+    )
     blocked_dirs = get_blocked_dirs(repo)
     comparison = repo.compare(pr.base.sha, pr.head.sha)  # head is the most recent
     commits_diff = comparison_to_diff(comparison, blocked_dirs)

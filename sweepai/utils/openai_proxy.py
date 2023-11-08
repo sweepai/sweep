@@ -15,15 +15,19 @@ from sweepai.config.server import (
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
 )
-from sweepai.logn import file_cache
 
 if BASERUN_API_KEY is not None:
     pass
 
 OPENAI_TIMEOUT = 60  # one minute
 
-OPENAI_EXCLUSIVE_MODELS = ["gpt-4-1106-preview", "gpt-3.5-turbo-1106", "gpt-3.5-turbo-1106"]
+OPENAI_EXCLUSIVE_MODELS = [
+    "gpt-4-1106-preview",
+    "gpt-3.5-turbo-1106",
+    "gpt-3.5-turbo-1106",
+]
 SEED = 100
+
 
 class OpenAIProxy:
     def __init__(self):

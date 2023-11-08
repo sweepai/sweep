@@ -63,7 +63,7 @@ def parse_html(html):
 
     title = soup.title.string if soup.title else ""
     content = str(soup.body) if soup.body else ""
-    
+
     markdown_content = md(content, heading_style="ATX")
     markdown_content = re.sub(r"\n{3,}", "\n\n", markdown_content)
 

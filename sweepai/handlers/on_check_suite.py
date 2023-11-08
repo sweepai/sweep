@@ -13,7 +13,6 @@ import requests
 from sweepai.config.client import get_gha_enabled
 from sweepai.core.entities import PRChangeRequest
 from sweepai.events import CheckRunCompleted
-from sweepai.logn import logger
 from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -70,7 +69,7 @@ def clean_logs(logs_str: str):
     truncated_logs = [log[log.find(" ") + 1 :] for log in log_list]
     logs_str = "\n".join(truncated_logs)
     # extract the group and delete everything between group and endgroup
-    gha_pattern = r'##\[group\](.*?)##\[endgroup\](.*?)(##\[error\].*)'
+    gha_pattern = r"##\[group\](.*?)##\[endgroup\](.*?)(##\[error\].*)"
     match = re.search(gha_pattern, logs_str, re.DOTALL)
 
     # Extract the matched groups
@@ -132,6 +131,7 @@ Here are the logs:
 {cleaned_logs_str}
 ```"""
     return cleaned_response, response_for_user
+
 
 def on_check_suite(request: CheckRunCompleted):
     pr_number = request.check_run.pull_requests[0].number

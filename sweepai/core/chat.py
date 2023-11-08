@@ -387,17 +387,13 @@ class ChatGPT(BaseModel):
                 token_sub = retry_counter * 200
                 try:
                     output = (
-                        (
-                            await openai.ChatCompletion.acreate(
-                                model=model,
-                                messages=self.messages_dicts,
-                                max_tokens=max_tokens - token_sub,
-                                temperature=default_temperature,
-                            )
+                        await openai.ChatCompletion.acreate(
+                            model=model,
+                            messages=self.messages_dicts,
+                            max_tokens=max_tokens - token_sub,
+                            temperature=default_temperature,
                         )
-                        ["choices"][0]
-                        .message["content"]
-                    )
+                    )["choices"][0].message["content"]
                     if self.chat_logger is not None:
                         self.chat_logger.add_chat(
                             {

@@ -58,7 +58,7 @@ We've been addressing code modification using LLMs for a while. We found and are
 -  **Unit Test** Most AI unit test copilots don't even validate the code. They leave it to the user to make sure the generated code works, which is half of the battle. Check out https://docs.sweep.dev/blogs/ai-unit-tests!
    * Sweep runs your code for you, which catches bugs and makes sure each line of old and new code has been properly validated!
 - **Formatting** LLMs are also bad at properly formatting code, such as by adding typehints and making sure we use tabs instead of spaces. Check out https://docs.sweep.dev/blogs/super-linter!
-   * Sweep uses it's sandbox to format your code, and uses [Rules](https://docs.sweep.dev/usage/config#tips-for-writing-rules) to perform other changes like adding typehints, or any other small chores! 
+   * Sweep uses it's sandbox to format your code, and uses [Rules](https://docs.sweep.dev/usage/config#tips-for-writing-rules) to perform other changes like adding typehints, or any other small chores!
 
 ---
 
@@ -106,7 +106,7 @@ Examine pull requests created by Sweep [here](https://docs.sweep.dev/about/examp
 ## Pricing
 Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. For professionals who want to try unlimited GPT-4 tickets and priority support, you can get a one week free trial of [Sweep Pro](https://buy.stripe.com/00g5npeT71H2gzCfZ8).
 
-For more GPT-4 tickets visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>! 
+For more GPT-4 tickets visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>!
 
 You can [self-host](https://docs.sweep.dev/deployment) Sweep's docker image on any machine (AWS, Azure, your laptop) for free. You can get enterprise support by [contacting us](https://form.typeform.com/to/wliuvyWE).
 

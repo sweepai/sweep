@@ -14,7 +14,7 @@ from src.prompts import (
     sandbox_code_repair_modify_system_prompt,
 )
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+DEFAULT_GPT4_32K_MODEL = "gpt-4-1106-preview"
 
 try:
     from typing import Self

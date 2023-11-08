@@ -58,15 +58,18 @@ def search_snippets(
     # boost the rank of any files that are mentioned in the query, move them to the top positions
     boosted_snippets = []
     non_boosted_snippets = []
-    completed_snippets = dict() # file_path -> number added
-    mention_threshold = max(1, (5 // (len(query_match_files) + 1)) - 1) # each gets a share
+    completed_snippets = dict()  # file_path -> number added
+    mention_threshold = max(
+        1, (5 // (len(query_match_files) + 1)) - 1
+    )  # each gets a share
     for snippet in snippets:
-        if (
-            snippet.file_path in query_match_files
-            and (completed_snippets.get(snippet.file_path, 0) < mention_threshold)
+        if snippet.file_path in query_match_files and (
+            completed_snippets.get(snippet.file_path, 0) < mention_threshold
         ):
             boosted_snippets.append(snippet)
-            completed_snippets[snippet.file_path] = completed_snippets.get(snippet.file_path, 0) + 1
+            completed_snippets[snippet.file_path] = (
+                completed_snippets.get(snippet.file_path, 0) + 1
+            )
         else:
             non_boosted_snippets.append(snippet)
 
@@ -76,10 +79,10 @@ def search_snippets(
             file_contents = cloned_repo.get_file_contents(
                 snippet.file_path, ref=cloned_repo.branch
             )
-            snippet_length = len("\n".join(file_contents.split("\n")[snippet.start:snippet.end]))
-            if (
-                snippet_length > sweep_config.max_file_limit
-            ):  # more than ~10000 tokens
+            snippet_length = len(
+                "\n".join(file_contents.split("\n")[snippet.start : snippet.end])
+            )
+            if snippet_length > sweep_config.max_file_limit:  # more than ~10000 tokens
                 continue
             snippet.content = file_contents
         except github.UnknownObjectException as e:

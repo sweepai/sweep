@@ -2,6 +2,7 @@ import ast
 from dataclasses import dataclass
 import os
 import sys
+
 import jedi
 from jedi.api.classes import Name
 
@@ -34,6 +35,7 @@ def setup_jedi_for_file(project_dir: str, file_full_path: str):
     tree = ast.parse(file_contents)
     return script, tree
 
+
 def collect_function_definitions(script: jedi.Script, tree: ast.Module, min_line=0, max_line=None):
     function_definitions: set[Name] = set()
     for node in ast.walk(tree):
@@ -41,13 +43,16 @@ def collect_function_definitions(script: jedi.Script, tree: ast.Module, min_line
             if max_line and not min_line <= node.lineno <= max_line:
                 continue
             new_function_definitions: list[Name] = script.goto(
-                node.lineno, 
+                node.lineno,
                 node.col_offset,
                 follow_imports=True,
                 follow_builtin_imports=True,
             )
             for function_definition in new_function_definitions:
-                if function_definition.full_name and any(function_definition.full_name.startswith(builtin_module) for builtin_module in BUILTIN_MODULES):
+                if function_definition.full_name and any(
+                    function_definition.full_name.startswith(builtin_module)
+                    for builtin_module in BUILTIN_MODULES
+                ):
                     continue
                 if function_definition.type != "function":
                     continue
@@ -69,6 +74,7 @@ def get_all_defined_functions(script: jedi.Script, tree: ast.Module):
     # filter out function definitions that are not in the original file
     function_definitions = [fn_def for fn_def in function_definitions if fn_def.module_name == script.get_context().module_name]        
     return function_definitions
+
 
 # this function cannot depend on the line no
 def get_references_from_defined_function(fn_def: Name, script: jedi.Script, tree: ast.Module, file_full_path: str, full_file_code: str):
