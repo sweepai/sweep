@@ -38,6 +38,9 @@ def setup_jedi_for_file(project_dir: str, file_full_path: str):
 
 def collect_function_definitions(script: jedi.Script, tree: ast.Module, min_line=0, max_line=None):
     function_definitions: set[Name] = set()
+    names = script.get_names()
+    classes = [name for name in names if name.type == "class"]
+    function_definitions.update(classes)
     for node in ast.walk(tree):
         if node.__class__.__name__ == 'Call':
             if max_line and not min_line <= node.lineno <= max_line:
@@ -49,12 +52,14 @@ def collect_function_definitions(script: jedi.Script, tree: ast.Module, min_line
                 follow_builtin_imports=True,
             )
             for function_definition in new_function_definitions:
+                print(function_definition.type)
+                print(function_definition.full_name)
                 if function_definition.full_name and any(
                     function_definition.full_name.startswith(builtin_module)
                     for builtin_module in BUILTIN_MODULES
                 ):
                     continue
-                if function_definition.type != "function":
+                if function_definition.type != "function" and function_definition.type != "class":
                     continue
                 function_definitions.add(function_definition)
     return function_definitions
@@ -85,7 +90,8 @@ def get_references_from_defined_function(fn_def: Name, script: jedi.Script, tree
     sub_function_definitions = collect_function_definitions(script=script, tree=tree, min_line=start_line, max_line=end_line)
     indices_and_code = []
     for sub_fn_def in sub_function_definitions:
-        indices_and_code.append(get_function_references(sub_fn_def, file_full_path))
+        if sub_fn_def.full_name != fn_def.full_name:
+            indices_and_code.append(get_function_references(sub_fn_def, file_full_path))
     fn_and_ref = FunctionAndReferences(
         function_name=fn_def.full_name,
         function_code=function_code,

@@ -128,9 +128,9 @@ You are a brilliant and meticulous engineer assigned to complete the GitHub Issu
 # Instructions
 Extract code verbatim from the function_to_refactor using EXTRACT sections according to the user request. These extractions will be used later to refactor the code.
 * Choose specific and informative names for these functions under new_function_name.
-* We must copy the code verbatim.
+* We must copy the code verbatim. Keep whitespace and comments.
 * Extractions must not overlap.
-* Keep whitespace and comments.
+* Extractions should be removable without breaking the code. For example, they should not break up a try except block.
 * Extracted functions should be at least 2 lines long and at most 25 lines long.
 
 Respond in the following format:
@@ -167,9 +167,9 @@ File path: {file_path}
 # Instructions
 Extract code verbatim from the function_to_refactor using EXTRACT sections according to the user request. These extractions will be used later to refactor the code.
 * Choose specific and informative names for these functions under new_function_name.
-* We must copy the code verbatim.
+* We must copy the code verbatim. Keep whitespace and comments.
 * Extractions must not overlap.
-* Keep whitespace and comments.
+* Extractions should be removable without breaking the code. For example, they should not break up a try except block.
 * Extracted functions should be at least 2 lines long and at most 25 lines long.
 
 Respond in the following format:

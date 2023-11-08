@@ -15,6 +15,7 @@ from sweepai.config.server import (
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
 )
+from sweepai.logn.cache import file_cache
 
 if BASERUN_API_KEY is not None:
     pass

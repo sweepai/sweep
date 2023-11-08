@@ -128,7 +128,8 @@ class RefactorBot(ChatGPT):
                 continue
             self.model = "gpt-4-32k-0613"
             # everything below must operate in a loop
-            code = f"<original_code>\n{cloned_repo.get_file_contents(file_path=file_path)}</original_code>\n"
+            recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
+            code = f"<original_code>\n{recent_file_contents}</original_code>\n"
             code += function_and_reference.serialize(tag="function_to_refactor")
             extract_response = self.chat(
                 extract_snippets_user_prompt.format(
@@ -168,17 +169,21 @@ class RefactorBot(ChatGPT):
                 updated_code = updated_code.strip("\n")
                 if len(updated_code) < 150:
                     continue
-                best_match = find_best_match(updated_code, snippets_str)
+                best_match = find_best_match(updated_code, recent_file_contents)
                 if best_match.score < 70:
                     updated_code = "\n".join(updated_code.split("\n")[1:])
-                    best_match = find_best_match(updated_code, snippets_str)
+                    best_match = find_best_match(updated_code, recent_file_contents)
                     if best_match.score < 80:
                         updated_code = "\n".join(updated_code.split("\n")[:-1])
-                        best_match = find_best_match(updated_code, snippets_str)
+                        best_match = find_best_match(updated_code, recent_file_contents)
                         if best_match.score < 80:
                             continue
+                matched_lines = recent_file_contents.split("\n")[best_match.start : best_match.end]
+                # handle return edge case
+                if matched_lines[-1].strip().startswith("return"):
+                    matched_lines = matched_lines[:-1]
                 extracted_original_code = "\n".join(
-                    snippets_str.split("\n")[best_match.start : best_match.end]
+                    matched_lines
                 )
                 new_code, change_set = extract_method(
                     extracted_original_code,
@@ -189,80 +194,8 @@ class RefactorBot(ChatGPT):
                 change_sets.append(change_set)
         if change_sets == []:
             return new_code
-        import pdb; pdb.set_trace()
         for change_set in change_sets:
             if change_set:
                 for change in change_set.changes:
                     change.undo()
-        import pdb; pdb.set_trace()
         return new_code
-
-
-if __name__ == "__main__":
-    additional_messages = [
-        Message(
-            role="user",
-            content="""Repo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.
-Issue Title: refactor vector_db.py by pulling common functions and patterns out and putting them in the same function
-Issue Description: ### Details
-
-_No response_""",
-            key="user",
-        )
-    ]
-    snippets_str = """\
-<snippet index="0">
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
-    if len(documents) > 0:
-        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
-        # Check cache here for all documents
-        embeddings = [None] * len(documents)
-        if redis_client:
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents
-            ]
-            cache_values = redis_client.mget(cache_keys)
-            for idx, value in enumerate(cache_values):
-                if value is not None:
-                    arr = json.loads(value)
-                    if isinstance(arr, list):
-                        embeddings[idx] = np.array(arr, dtype=np.float32)
-        logger.info(
-            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
-        )
-        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
-        documents_to_compute = [documents[idx] for idx in indices_to_compute]
-        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
-        logger.info(f"Computed {len(computed_embeddings)} embeddings")
-
-        for idx, embedding in zip(indices_to_compute, computed_embeddings):
-            embeddings[idx] = embedding
-
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
-        except SystemExit:
-            raise SystemExit
-        except:
-            logger.exception(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
-</snippet>
-"""
-    file_path = "sweepai/core/vector_db.py"
-    request = "Break this function into smaller sub-functions"
-    changes_made = ""
-    bot = RefactorBot()
-    bot.refactor_snippets(
-        additional_messages=additional_messages,
-        snippets_str=snippets_str,
-        file_path=file_path,
-        request=request,
-        changes_made=changes_made,
-    )
