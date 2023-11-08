@@ -29,7 +29,6 @@ from sweepai.config.server import (
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
-from sweepai.logn import file_cache
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.hash import hash_sha256
@@ -391,8 +390,8 @@ def get_relevant_snippets(
     query: str,
     username: str | None = None,
     sweep_config: SweepConfig = SweepConfig(),
-    lexical=True,
-):
+    lexical: bool = True,
+) -> List[Snippet]:
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
