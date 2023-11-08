@@ -45,7 +45,6 @@ from sweepai.core.prompts import (
     extract_files_to_change_prompt,
     files_to_change_prompt,
     pull_request_prompt,
-    python_refactor_issue_title_guide_prompt,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     sandbox_files_to_change_prompt,
@@ -221,7 +220,6 @@ class CodeGenBot(ChatGPT):
                     keyword in self.human_message.title.lower()
                     for keyword in ("refactor", "extract", "replace", "move", "test")
                 ):
-                    self.human_message.title += python_refactor_issue_title_guide_prompt
                     if self.chat_logger is not None:
                         posthog.capture(
                             self.chat_logger.data.get("username"),
