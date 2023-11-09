@@ -328,6 +328,7 @@ async def run_sandbox(request: SandboxRequest):
                         and image.id != new_image.id
                     ):
                         client.images.remove(image.id, force=True)
+                        break
             else:
                 print("Image already exists, skipping install step...")
 
