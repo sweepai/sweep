@@ -187,6 +187,10 @@ class ClonedRepo:
     def installation_string(self):
         return f"sandbox/{self.repo_full_name.lower()}:{self.installation_cache_key}"
 
+    @property
+    def installation_string_prefix(self):
+        return f"sandbox/{self.repo_full_name.lower()}"
+
 
 @app.post("/")
 async def run_sandbox(request: SandboxRequest):
@@ -195,7 +199,7 @@ async def run_sandbox(request: SandboxRequest):
         repo_full_name=f"{username}/{repo_name}", token=request.token
     )
 
-    image_id = cloned_repo.installation_string
+    image_id = cloned_repo.installimage_idation_string
     image_exists = SandboxContainer.image_exists(image_id)
 
     success, error_messages, updated_content = False, [], ""
@@ -310,8 +314,21 @@ async def run_sandbox(request: SandboxRequest):
                     "sandbox_committed_image",
                     properties={"duration": time.time() - start_time, **metadata},
                 )
+
                 new_image = container.commit()
                 new_image.tag(image_id)
+
+                print("Deleting all old images")
+                for image in client.images.list():
+                    if (
+                        image.tags
+                        and image.tags[0].startswith(
+                            cloned_repo.installation_string_prefix
+                        )
+                        and image.id != new_image.id
+                    ):
+                        client.images.remove(image.id, force=True)
+                        break
             else:
                 print("Image already exists, skipping install step...")
 

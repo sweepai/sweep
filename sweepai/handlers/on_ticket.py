@@ -59,6 +59,7 @@ from sweepai.core.entities import (
     SandboxResponse,
     SweepContext,
 )
+from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sweep_bot import SweepBot
@@ -413,7 +414,9 @@ def on_ticket(
             + (purchase_message if not is_paying_user else "")
         )
 
-        def get_comment_header(index, errored=False, pr_message="", done=False):
+        def get_comment_header(
+            index, errored=False, pr_message="", done=False, initial_sandbox_response=-1
+        ):
             config_pr_message = (
                 "\n"
                 + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
@@ -426,10 +429,39 @@ def on_ticket(
                 ]
             )
 
+            sandbox_execution_message = (
+                "\n\n## Sandbox execution failed.\n\nUnknown reason.\n\n"
+            )
+
+            if initial_sandbox_response == -1:
+                sandbox_execution_message = ""
+            elif initial_sandbox_response is not None:
+                # commit_hash = g.repo
+                success = (
+                    initial_sandbox_response.executions
+                    and initial_sandbox_response.executions[-1].exit_code == 0
+                )
+                status = "✓" if success else "X"
+                sandbox_execution_message = "\n\n## Sandbox Execution " + status
+                sandbox_execution_message += entities_create_error_logs(
+                    "", initial_sandbox_response, status
+                )
+                if success:
+                    sandbox_execution_message += (
+                        f"\n\nSandbox passed on the latest `{g.repo.default_branch}`."
+                    )
+                else:
+                    sandbox_execution_message += f"\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
+
             if index < 0:
                 index = 0
             if index == 4:
-                return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
+                return (
+                    pr_message
+                    + f"\n\n---\n{actions_message}"
+                    + sandbox_execution_message
+                    + config_pr_message
+                )
 
             total = len(progress_headers)
             index += 1 if done else 0
@@ -441,6 +473,7 @@ def on_ticket(
                 return (
                     f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
                     + f"\n\n---\n{actions_message}"
+                    + sandbox_execution_message
                 )
             pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
             return (
@@ -451,6 +484,7 @@ def on_ticket(
                 + center(f"\n\n{markdown_badge}")
                 + config_pr_message
                 + f"\n\n---\n{actions_message}"
+                + sandbox_execution_message
             )
 
         # Find Sweep's previous comment
@@ -496,15 +530,13 @@ def on_ticket(
         else:
             issue_comment.edit(first_comment)
 
-        # Comment edit function
         past_messages = {}
         current_index = 0
-
-        # Random variables to save in case of errors
-        table = None  # Show plan so user can finetune prompt
+        table = None
+        initial_sandbox_response = -1
 
         def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-            nonlocal current_index, user_token, g, repo, issue_comment
+            nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response
             # -1 = error, -2 = retry
             # Only update the progress bar if the issue generation errors.
             errored = index == -1
@@ -549,7 +581,7 @@ def on_ticket(
                 suffix = bot_suffix  # don't include discord suffix for error messages
 
             # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            msg = f"{get_comment_header(current_index, errored, pr_message, done=done, initial_sandbox_response=initial_sandbox_response)}\n{sep}{agg_message}{suffix}"
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
@@ -940,11 +972,13 @@ def on_ticket(
                     )
                 raise Exception("No files to modify.")
 
-            # sweep_bot.summarize_snippets()
+            initial_sandbox_response = sweep_bot.validate_sandbox(file_change_requests)
 
             file_change_requests: list[
                 FileChangeRequest
-            ] = sweep_bot.validate_file_change_requests(file_change_requests)
+            ] = sweep_bot.validate_file_change_requests(
+                file_change_requests, initial_sandbox_response=initial_sandbox_response
+            )
             table = tabulate(
                 [
                     [
@@ -1466,7 +1500,6 @@ def on_ticket(
             },
         )
         raise e
-
     posthog.capture(
         username,
         "success",
