@@ -415,7 +415,12 @@ def on_ticket(
         )
 
         def get_comment_header(
-            index, errored=False, pr_message="", done=False, initial_sandbox_response=-1
+            index,
+            errored=False,
+            pr_message="",
+            done=False,
+            initial_sandbox_response=-1,
+            initial_sandbox_response_file=None,
         ):
             config_pr_message = (
                 "\n"
@@ -436,7 +441,8 @@ def on_ticket(
             if initial_sandbox_response == -1:
                 sandbox_execution_message = ""
             elif initial_sandbox_response is not None:
-                # commit_hash = g.repo
+                repo = g.get_repo(repo_full_name)
+                commit_hash = repo.get_commits()[0].sha
                 success = (
                     initial_sandbox_response.executions
                     and initial_sandbox_response.executions[-1].exit_code == 0
@@ -444,10 +450,12 @@ def on_ticket(
                 status = "✓" if success else "X"
                 sandbox_execution_message = "\n\n## Sandbox Execution " + status
                 sandbox_execution_message += entities_create_error_logs(
-                    "", initial_sandbox_response, status
+                    f'<a href="https://github.com/{repo_full_name}/commit/{commit_hash}"><code>{commit_hash[:7]}</code></a>',
+                    initial_sandbox_response,
+                    initial_sandbox_response_file,
                 )
                 if success:
-                    sandbox_execution_message += f"\n\nSandbox passed on the latest `{g.repo.default_branch}`, so sandbox checks will be enabled for this issue."
+                    sandbox_execution_message += f"\n\nSandbox passed on the latest `{repo.default_branch}`, so sandbox checks will be enabled for this issue."
                 else:
                     sandbox_execution_message += f"\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
 
@@ -532,9 +540,10 @@ def on_ticket(
         current_index = 0
         table = None
         initial_sandbox_response = -1
+        initial_sandbox_response_file = None
 
         def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-            nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response
+            nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
             # -1 = error, -2 = retry
             # Only update the progress bar if the issue generation errors.
             errored = index == -1
@@ -579,7 +588,7 @@ def on_ticket(
                 suffix = bot_suffix  # don't include discord suffix for error messages
 
             # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done, initial_sandbox_response=initial_sandbox_response)}\n{sep}{agg_message}{suffix}"
+            msg = f"{get_comment_header(current_index, errored, pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file)}\n{sep}{agg_message}{suffix}"
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
@@ -970,7 +979,10 @@ def on_ticket(
                     )
                 raise Exception("No files to modify.")
 
-            initial_sandbox_response = sweep_bot.validate_sandbox(file_change_requests)
+            (
+                initial_sandbox_response,
+                initial_sandbox_response_file,
+            ) = sweep_bot.validate_sandbox(file_change_requests)
 
             file_change_requests: list[
                 FileChangeRequest

@@ -691,7 +691,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     break
         # contents = self.get_contents(first_file).decoded_content.decode("utf-8")
         _, sandbox_response = self.check_sandbox(first_file, contents)
-        return sandbox_response
+        return sandbox_response, first_file
 
     def validate_file_change_requests(
         self,
@@ -703,7 +703,7 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change_requests, branch
         )
         if initial_sandbox_response is None:
-            initial_sandbox_response = self.validate_sandbox(file_change_requests)
+            initial_sandbox_response, _ = self.validate_sandbox(file_change_requests)
         if initial_sandbox_response is None or (
             initial_sandbox_response.executions
             and initial_sandbox_response.executions[-1].exit_code != False
