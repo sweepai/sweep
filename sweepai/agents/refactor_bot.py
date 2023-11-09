@@ -3,6 +3,7 @@ import re
 import rope.base.project
 from loguru import logger
 from rope.refactor.extract import ExtractMethod
+from sweepai.agents.name_agent import NameBot
 
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
@@ -67,6 +68,11 @@ def extract_method(
                 change.old_contents = deserialize(change.resource.read())
             change.new_contents = deserialize(change.new_contents)
 
+        # adding this because the change might not replace old code. 
+        # If it replaces any code at all this will be very small(>> 200) or even negative
+        if len(change.new_contents) - len(change.old_contents) > 200:
+            logger.info("Change doesn't remove code, skipping")
+            return contents, []
         for change in change_set.changes:
             change.do()
 
@@ -77,13 +83,6 @@ def extract_method(
         logger.error(f"An error occurred: {e}")
         resource.write(contents)
         return contents, []
-
-
-def serialize_method_name(method_name):
-    # handles '1. "method_name"' -> 'method_name'
-    if "." in method_name:
-        return method_name.split(". ")[-1].strip('"')
-    return method_name.strip().strip('"')
 
 
 class RefactorBot(ChatGPT):
@@ -121,6 +120,7 @@ class RefactorBot(ChatGPT):
         new_code = None
         change_sets = []
         extracted_exact_matches = []
+        new_function_names = []
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
             script, tree = setup_jedi_for_file(
@@ -153,18 +153,10 @@ class RefactorBot(ChatGPT):
             new_function_matches = list(
                 re.finditer(new_function_pattern, extract_response, re.DOTALL)
             )
-            new_function_names = []
             for match_ in new_function_matches:
                 match = match_.groupdict()
-                new_function_names = match["new_function_names"]
-                new_function_names = new_function_names.split("\n")
-            new_function_names = [
-                serialize_method_name(
-                    new_function_name.strip().strip('"').strip("'").strip("`")
-                )
-                for new_function_name in new_function_names
-                if new_function_name.strip()
-            ]
+                new_function_matches = match["new_function_names"]
+                new_function_matches = new_function_matches.split("\n")
             extracted_pattern = r"<<<<<<<\s+EXTRACT\s+(?P<updated_code>.*?)>>>>>>>"
             extract_matches = list(
                 re.finditer(extracted_pattern, extract_response, re.DOTALL)
@@ -200,7 +192,16 @@ class RefactorBot(ChatGPT):
         for extracted_exact_match in extracted_exact_matches:
             if extracted_exact_match not in deduped_exact_matches:
                 deduped_exact_matches.append(extracted_exact_match)
-        for extracted_original_code in extracted_exact_matches:
+
+        formatted_snippets = "\n".join(
+            [f"<function>\n{snippet}\n</function>" for snippet in deduped_exact_matches]
+        )
+        existing_names = ", ".join([def_fn.name.strip("'") for def_fn in all_defined_functions])
+        new_function_names = NameBot(chat_logger=self.chat_logger).name_functions(
+            snippets=formatted_snippets,
+            existing_names=existing_names,
+        )
+        for idx, extracted_original_code in enumerate(deduped_exact_matches):
             new_code, change_set = extract_method(
                 extracted_original_code,
                 file_path,
