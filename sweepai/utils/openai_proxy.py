@@ -64,7 +64,7 @@ class OpenAIProxy:
                 openai.api_base = "https://api.openai.com/v1"
                 openai.api_version = None
                 openai.api_type = "open_ai"
-                logger.info(f"Calling {model} on OpenAI.")
+                logger.info(f"Calling {model} with OpenAI.")
                 response = openai.ChatCompletion.create(
                     model=model,
                     messages=messages,
