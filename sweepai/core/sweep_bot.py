@@ -665,17 +665,13 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
 
-    def validate_file_change_requests(
-        self, file_change_requests: list[FileChangeRequest], branch: str = ""
-    ):
-        file_change_requests = super().validate_file_change_requests(
-            file_change_requests, branch
-        )
+    def validate_sandbox(self, file_change_requests: list[FileChangeRequest]):
         first_file = None
         for file_change_request in file_change_requests:
             if file_change_request.change_type == "modify":
                 first_file = file_change_request.filename
         extension = file_change_requests[0].filename.split(".")[-1]
+        contents = ""
         if first_file is None:
             commits = self.repo.get_commits()
             commits = list(commits[:10])
@@ -683,12 +679,35 @@ class SweepBot(CodeGenBot, GithubBot):
                 for file_change in commit.files:
                     if file_change.filename.endswith(extension):
                         first_file = file_change.filename
+                        try:
+                            contents = self.get_contents(
+                                first_file
+                            ).decoded_content.decode("utf-8")
+                        except UnknownObjectException:
+                            first_file = None
+                            continue
                         break
                 if first_file is not None:
                     break
-        contents = self.get_contents(first_file).decoded_content.decode("utf-8")
+        # contents = self.get_contents(first_file).decoded_content.decode("utf-8")
         _, sandbox_response = self.check_sandbox(first_file, contents)
-        if sandbox_response is None or sandbox_response.success == False:
+        return sandbox_response
+
+    def validate_file_change_requests(
+        self,
+        file_change_requests: list[FileChangeRequest],
+        branch: str = "",
+        initial_sandbox_response: SandboxResponse | None = None,
+    ):
+        file_change_requests = super().validate_file_change_requests(
+            file_change_requests, branch
+        )
+        if initial_sandbox_response is None:
+            initial_sandbox_response = self.validate_sandbox(file_change_requests)
+        if (
+            initial_sandbox_response is None
+            or initial_sandbox_response.success == False
+        ):
             return [
                 file_change_request
                 for file_change_request in file_change_requests
