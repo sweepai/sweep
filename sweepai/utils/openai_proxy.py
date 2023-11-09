@@ -37,28 +37,7 @@ class OpenAIProxy:
     @file_cache(ignore_params=[])
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
-            engine = None
-            if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
-                logger.info(f"Calling OpenAI exclusive model. {model}")
-                raise Exception("OpenAI exclusive model.")
-            if (
-                model == "gpt-3.5-turbo-16k"
-                or model == "gpt-3.5-turbo-16k-0613"
-                and OPENAI_API_ENGINE_GPT35 is not None
-            ):
-                engine = OPENAI_API_ENGINE_GPT35
-            elif (
-                model == "gpt-4"
-                or model == "gpt-4-0613"
-                and OPENAI_API_ENGINE_GPT4 is not None
-            ):
-                engine = OPENAI_API_ENGINE_GPT4
-            elif (
-                model == "gpt-4-32k"
-                or model == "gpt-4-32k-0613"
-                and OPENAI_API_ENGINE_GPT4_32K is not None
-            ):
-                engine = OPENAI_API_ENGINE_GPT4_32K
+            engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 openai.api_key = OPENAI_API_KEY
                 openai.api_base = "https://api.openai.com/v1"
@@ -152,3 +131,28 @@ class OpenAIProxy:
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
             # Raise exception to report error
             raise e
+
+    def determine_openai_engine(self, model):
+        engine = None
+        if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
+            logger.info(f"Calling OpenAI exclusive model. {model}")
+            raise Exception("OpenAI exclusive model.")
+        if (
+            model == "gpt-3.5-turbo-16k"
+            or model == "gpt-3.5-turbo-16k-0613"
+            and OPENAI_API_ENGINE_GPT35 is not None
+        ):
+            engine = OPENAI_API_ENGINE_GPT35
+        elif (
+            model == "gpt-4"
+            or model == "gpt-4-0613"
+            and OPENAI_API_ENGINE_GPT4 is not None
+        ):
+            engine = OPENAI_API_ENGINE_GPT4
+        elif (
+            model == "gpt-4-32k"
+            or model == "gpt-4-32k-0613"
+            and OPENAI_API_ENGINE_GPT4_32K is not None
+        ):
+            engine = OPENAI_API_ENGINE_GPT4_32K
+        return engine
