@@ -75,7 +75,7 @@ model_to_max_tokens = {
     "gpt-4-32k-0613": 32000,
     "gpt-4-32k": 32000,
 }
-temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproducibility
+temperature = 0.1  # Lowered to 0 for mostly deterministic results for reproducibility
 
 tiktoken_model = None
 
