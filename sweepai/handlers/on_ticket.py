@@ -1247,12 +1247,13 @@ def on_ticket(
 
             rule_buttons = []
             repo_rules = get_rules(repo)
-            for rule in repo_rules:
-                if rule:
-                    rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-            if len(repo_rules) == 0:
-                for rule in DEFAULT_RULES:
-                    rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+            if repo_rules != [""]:
+                for rule in repo_rules:
+                    if rule:
+                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                if len(repo_rules) == 0:
+                    for rule in DEFAULT_RULES:
+                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
 
             rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
