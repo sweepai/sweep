@@ -31,16 +31,23 @@ def split_script(script: str):
         main="\n".join(main_section),
     )
 
+def remove_duplicates(seq):
+    seen = set()
+    return [x for x in seq if not (x in seen or seen.add(x))]
+
 
 def fuse_scripts(
     sections: list[str], do_remove_main: bool = True, do_format: bool = True
 ):
     decomposed_scripts = [split_script(section) for section in sections]
+    imports = remove_duplicates([script.imports for script in decomposed_scripts])
+    definitions = remove_duplicates([script.definitions for script in decomposed_scripts])
+    main = remove_duplicates([script.main for script in decomposed_scripts])
     result = "\n\n".join(
         [
-            "\n".join([script.imports for script in decomposed_scripts]),
-            "\n".join([script.definitions for script in decomposed_scripts]),
-            "\n".join([script.main for script in decomposed_scripts])
+            "\n".join(imports),
+            "\n".join(definitions),
+            "\n".join(main)
             if not do_remove_main
             else "",
         ]

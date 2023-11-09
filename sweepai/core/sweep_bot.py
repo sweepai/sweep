@@ -977,7 +977,7 @@ class SweepBot(CodeGenBot, GithubBot):
         chunking: bool = False,
         branch: str = None,
         changed_files: list[tuple[str, str]] = [],
-        temperature: float = 0.0,
+        temperature: float = 0.1,
     ):
         logger.print(f"Skipping {file_change_request.filename} because it is blocked.")
         key = f"file_change_modified_{file_change_request.filename}"
