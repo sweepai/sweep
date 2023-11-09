@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
-from sweepai.handlers import search_and_pr_logic
+from sweepai.handlers import search_and_pr_logic, ExpectedException
 
 def test_search_logic():
     # Mocking dependencies
