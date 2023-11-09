@@ -912,7 +912,7 @@ def on_ticket(
                 for file_path in human_message.get_file_paths()
             )
             python_count = len(human_message.get_file_paths()) - non_python_count
-            is_python_issue = python_count > non_python_count
+            is_python_issue = python_count >= non_python_count and python_count > 0
             posthog.capture(
                 username,
                 "is_python_issue",
