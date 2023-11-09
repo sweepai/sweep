@@ -437,12 +437,16 @@ def on_ticket(
                 sandbox_execution_message = ""
             elif initial_sandbox_response is not None:
                 # commit_hash = g.repo
-                status = "✓" if initial_sandbox_response.success else "X"
+                success = (
+                    initial_sandbox_response.executions
+                    and initial_sandbox_response.executions[-1].exit_code == 0
+                )
+                status = "✓" if success else "X"
                 sandbox_execution_message = "\n\n## Sandbox Execution " + status
                 sandbox_execution_message += entities_create_error_logs(
                     "", initial_sandbox_response, status
                 )
-                if initial_sandbox_response.success:
+                if success:
                     sandbox_execution_message += f"\n\nSandbox passed."
                 else:
                     sandbox_execution_message += f"\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
@@ -965,8 +969,6 @@ def on_ticket(
                         -1,
                     )
                 raise Exception("No files to modify.")
-
-            # sweep_bot.summarize_snippets()
 
             initial_sandbox_response = sweep_bot.validate_sandbox(file_change_requests)
 

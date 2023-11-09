@@ -704,9 +704,9 @@ class SweepBot(CodeGenBot, GithubBot):
         )
         if initial_sandbox_response is None:
             initial_sandbox_response = self.validate_sandbox(file_change_requests)
-        if (
-            initial_sandbox_response is None
-            or initial_sandbox_response.success == False
+        if initial_sandbox_response is None or (
+            initial_sandbox_response.executions
+            and initial_sandbox_response.executions[-1].exit_code != False
         ):
             return [
                 file_change_request
