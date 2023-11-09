@@ -63,3 +63,14 @@ class TestClonedRepo(unittest.TestCase):
         self.cloned_repo.git_repo = mock_repo
         commit_history = self.cloned_repo.get_commit_history()
         self.assertEqual(len(commit_history), 2)
+    @patch("sweepai.utils.github_utils.get_file_names_from_query")
+    def test_get_file_names_from_query(self, mock_get_file_names_from_query):
+        mock_get_file_names_from_query.return_value = ["file1.py", "file2.py"]
+        file_names = get_file_names_from_query("This is a test query with file1.py and file2.py")
+        self.assertEqual(file_names, ["file1.py", "file2.py"])
+
+    @patch("sweepai.utils.github_utils.get_hunks")
+    def test_get_hunks(self, mock_get_hunks):
+        mock_get_hunks.return_value = "This is a test hunk"
+        hunk = get_hunks("This is a test string", "This is a different test string")
+        self.assertEqual(hunk, "This is a test hunk")
