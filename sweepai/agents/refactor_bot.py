@@ -22,20 +22,19 @@ from sweepai.utils.search_and_replace import find_best_match
 APOSTROPHE_MARKER = "__APOSTROPHE__"
 PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
-
 def serialize(text: str):
     # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
-    text = re.sub(
-        r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
-    )
+    text = re.sub(r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
     # Replace "%s" with "__PERCENT_FORMAT__"
     text = re.sub(r"%\((.*?)\)s", f"{PERCENT_FORMAT_MARKER}{{\\1}}", text)
+    # replace f" string with "__F_STRING__
+    text = re.sub(r'f"(.*)"', r'"__F_STRING__\1"', text) # didn't use constant bc its confusing
     return text
-
 
 def deserialize(text: str):
     text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
     text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
+    text = re.sub(r'"__F_STRING__(.*)"', r'f"\1"', text) # didn't use constant bc its confusing
     return text
 
 
@@ -175,7 +174,10 @@ class RefactorBot(ChatGPT):
                 match = match_.groupdict()
                 updated_code = match["updated_code"]
                 updated_code = updated_code.strip("\n")
-                if len(updated_code) < 150:
+                if len(updated_code) < 150: # too few characters
+                    continue
+                # too close to function length, just skip for now
+                if len(updated_code) / (len(function_and_reference.function_code) + 1) > 0.9:
                     continue
                 best_match = find_best_match(updated_code, recent_file_contents)
                 if best_match.score < 70:
