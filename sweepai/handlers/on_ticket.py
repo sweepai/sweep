@@ -447,9 +447,7 @@ def on_ticket(
                     "", initial_sandbox_response, status
                 )
                 if success:
-                    sandbox_execution_message += (
-                        f"\n\nSandbox passed on the latest `{g.repo.default_branch}`."
-                    )
+                    sandbox_execution_message += f"\n\nSandbox passed on the latest `{g.repo.default_branch}`, so sandbox checks will be enabled for this issue."
                 else:
                     sandbox_execution_message += f"\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
 
