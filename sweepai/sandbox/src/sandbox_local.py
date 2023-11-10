@@ -199,7 +199,7 @@ async def run_sandbox(request: SandboxRequest):
         repo_full_name=f"{username}/{repo_name}", token=request.token
     )
 
-    image_id = cloned_repo.installimage_idation_string
+    image_id = cloned_repo.installation_string
     image_exists = SandboxContainer.image_exists(image_id)
 
     success, error_messages, updated_content = False, [], ""
