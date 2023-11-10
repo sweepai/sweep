@@ -4,10 +4,13 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
 prompt = """\
+<old_code>
+{old_code}
+</old_code>
 {snippets}
 For each of the code snippets above, we want to create function names. We must not have duplicates of the existing function names as follows:
 {existing_names}
-Generate a function name for each of these in the below format.
+Generate a function name for each of these in the below format. Use the context from the old_code and snippets to generate function names that clearly state what the function does.
 
 <function_name>
 name_of_function
@@ -23,6 +26,7 @@ def serialize_method_name(method_name):
 class NameBot(ChatGPT):
     def name_functions(
         self,
+        old_code,
         snippets,
         existing_names
     ):
@@ -34,6 +38,7 @@ class NameBot(ChatGPT):
         )
         name_response = self.chat(
             content=prompt.format(
+                    old_code=old_code,
                     snippets=snippets,
                     existing_names=existing_names
                 ),

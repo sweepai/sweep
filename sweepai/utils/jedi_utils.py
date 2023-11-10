@@ -42,8 +42,14 @@ def collect_function_definitions(
 ):
     function_definitions: set[Name] = set()
     names = script.get_names()
+    # handles class functions (only depth 1)
     classes = [name for name in names if name.type == "class"]
-    function_definitions.update(classes)
+    for name in classes:
+        class_defined_names = name.defined_names()
+        for class_defined_name in class_defined_names:
+            if class_defined_name.type == "function":
+                function_definitions.add(class_defined_name)
+    # handles all other functions
     for node in ast.walk(tree):
         if node.__class__.__name__ == "Call":
             if max_line and not min_line <= node.lineno <= max_line:
@@ -66,7 +72,6 @@ def collect_function_definitions(
                     continue
                 if (
                     function_definition.type != "function"
-                    and function_definition.type != "class"
                 ):
                     continue
                 function_definitions.add(function_definition)
@@ -107,9 +112,8 @@ def get_references_from_defined_function(
     file_full_path: str,
     full_file_code: str,
 ):
-    fn_def = script.search(fn_def.name)[
-        0
-    ]  # may fail if it's deleted but this shouldn't happen
+    # may fail if it's not present but this shouldn't happen
+    fn_def = script.search(fn_def.name, all_scopes=True)[0]
     start_line = max(0, (fn_def.get_definition_start_position()[0] - 1))
     end_line = fn_def.get_definition_end_position()[0]
     function_code = "\n".join(full_file_code.split("\n")[start_line:end_line])

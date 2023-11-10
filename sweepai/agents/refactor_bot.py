@@ -18,6 +18,7 @@ from sweepai.utils.jedi_utils import (
     get_references_from_defined_function,
     setup_jedi_for_file,
 )
+from sweepai.utils.refactor_utils import get_refactor_snippets
 from sweepai.utils.search_and_replace import find_best_match
 
 APOSTROPHE_MARKER = "__APOSTROPHE__"
@@ -102,6 +103,36 @@ class RefactorBot(ChatGPT):
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else DEFAULT_GPT35_MODEL
         )
+
+        # first perform manual refactoring step
+        script, tree = setup_jedi_for_file(
+            project_dir=cloned_repo.cache_dir,
+            file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
+        )
+
+        all_defined_functions = get_all_defined_functions(script=script, tree=tree)
+        initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
+        heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {})
+        if len(heuristic_based_extractions) > 0:
+            # some duplicated code here
+            deduped_exact_matches = heuristic_based_extractions # already deduped
+            formatted_snippets = "\n".join(
+                [f"<function>\n{snippet}\n</function>" for snippet in deduped_exact_matches]
+            )
+            existing_names = ", ".join([def_fn.name.strip("'") for def_fn in all_defined_functions])
+            new_function_names = NameBot(chat_logger=self.chat_logger).name_functions(
+                old_code=cloned_repo.get_file_contents(file_path),
+                snippets=formatted_snippets,
+                existing_names=existing_names,
+            )
+            for idx, extracted_original_code in enumerate(deduped_exact_matches):
+                new_code, _ = extract_method(
+                    extracted_original_code,
+                    file_path,
+                    new_function_names[idx],
+                    project_name=cloned_repo.cache_dir,
+                )
+
         self.messages = [
             Message(
                 role="system",
@@ -110,15 +141,7 @@ class RefactorBot(ChatGPT):
             )
         ]
         self.messages.extend(additional_messages)
-
-        script, tree = setup_jedi_for_file(
-            project_dir=cloned_repo.cache_dir,
-            file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
-        )
-
-        all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         new_code = None
-        change_sets = []
         extracted_exact_matches = []
         new_function_names = []
         for fn_def in all_defined_functions:
@@ -198,6 +221,7 @@ class RefactorBot(ChatGPT):
         )
         existing_names = ", ".join([def_fn.name.strip("'") for def_fn in all_defined_functions])
         new_function_names = NameBot(chat_logger=self.chat_logger).name_functions(
+            old_code=cloned_repo.get_file_contents(file_path),
             snippets=formatted_snippets,
             existing_names=existing_names,
         )
@@ -208,5 +232,4 @@ class RefactorBot(ChatGPT):
                 new_function_names[idx],
                 project_name=cloned_repo.cache_dir,
             )
-            change_sets.append(change_set)
         return new_code
