@@ -40,7 +40,6 @@ def test_create_pr_normal_case(mock_sweep_bot):
          patch.object(mock_sweep_bot.repo, "get_commits", return_value=Mock(totalCount=1)):
         result = create_pr([], Mock(), mock_sweep_bot, "test", 12345)
         assert result["success"]
-            create_pr([], Mock(), mock_sweep_bot, "test", 12345)
 
 def test_create_pr_invalid_request_error(mock_sweep_bot):
     with patch.object(mock_sweep_bot, "change_files_in_github_iterator", side_effect=openai.error.InvalidRequestError()):
