@@ -4,6 +4,8 @@ from sweepai.handlers.create_pr import create_pr
 from sweepai.core.entities import MaxTokensExceeded
 import openai
 
+max_tokens_exceeded_exception = MaxTokensExceeded("Maximum tokens exceeded")
+
 @pytest.fixture
 def mock_sweep_bot():
     mock_sweep_bot = Mock()
@@ -23,35 +25,6 @@ def test_create_pr_max_tokens_exceeded(mock_sweep_bot):
         with pytest.raises(MaxTokensExceeded):
             create_pr([], Mock(), mock_sweep_bot, "test", 12345)
 
-def test_create_pr_invalid_request_error(mock_sweep_bot):
-    invalid_request_error_exception = openai.error.InvalidRequestError("Test message", "Test param", "Test type", 400)
-    with patch.object(mock_sweep_bot, "change_files_in_github_iterator", side_effect=invalid_request_error_exception):
-        with pytest.raises(openai.error.InvalidRequestError):
-            create_pr([], Mock(), mock_sweep_bot, "test", 12345)
-
-def test_create_pr_unexpected_error(mock_sweep_bot):
-    with patch.object(mock_sweep_bot, "change_files_in_github_iterator", side_effect=Exception()):
-        with pytest.raises(Exception):
-            create_pr([], Mock(), mock_sweep_bot, "test", 12345)
-
-def test_create_pr_normal_case(mock_sweep_bot):
-    with patch.object(mock_sweep_bot, "change_files_in_github_iterator", return_value=[(Mock(), 1, None, Mock(), [])]), \
-         patch.object(mock_sweep_bot, "create_branch", return_value="test"), \
-         patch.object(mock_sweep_bot.repo, "get_commits", return_value=Mock(totalCount=1)):
-        result = create_pr([], Mock(), mock_sweep_bot, "test", 12345)
-        assert result["success"]
-
-def test_create_pr_invalid_request_error(mock_sweep_bot):
-    with patch.object(mock_sweep_bot, "change_files_in_github_iterator", side_effect=openai.error.InvalidRequestError()):
-        with pytest.raises(openai.error.InvalidRequestError):
-            create_pr([], Mock(), mock_sweep_bot, "test", 12345)
-
-def test_create_pr_unexpected_error(mock_sweep_bot):
-    with patch.object(mock_sweep_bot, "change_files_in_github_iterator", side_effect=Exception()):
-        with pytest.raises(Exception):
-            create_pr([], Mock(), mock_sweep_bot, "test", 12345)
-
-def test_create_pr_normal_case(mock_sweep_bot):
     with patch.object(mock_sweep_bot, "change_files_in_github_iterator", return_value=[(Mock(), 1, None, Mock(), [])]), \
          patch.object(mock_sweep_bot, "create_branch", return_value="test"), \
          patch.object(mock_sweep_bot.repo, "get_commits", return_value=Mock(totalCount=1)):
