@@ -434,9 +434,7 @@ def on_ticket(
                 ]
             )
 
-            sandbox_execution_message = (
-                "\n\n## Sandbox execution failed.\n\nUnknown reason.\n\n"
-            )
+            sandbox_execution_message = "\n\n## Sandbox execution failed\n\nThe sandbox appears to be unavailable or down.\n\n"
 
             if initial_sandbox_response == -1:
                 sandbox_execution_message = ""
