@@ -434,9 +434,7 @@ def on_ticket(
                 ]
             )
 
-            sandbox_execution_message = (
-                "\n\n## Sandbox execution failed.\n\nUnknown reason.\n\n"
-            )
+            sandbox_execution_message = "\n\n## Sandbox execution failed\n\nThe sandbox appears to be unavailable or down.\n\n"
 
             if initial_sandbox_response == -1:
                 sandbox_execution_message = ""
@@ -448,7 +446,11 @@ def on_ticket(
                     and initial_sandbox_response.executions[-1].exit_code == 0
                 )
                 status = "✓" if success else "X"
-                sandbox_execution_message = "\n\n## Sandbox Execution " + status
+                sandbox_execution_message = (
+                    "\n\n## Sandbox Execution "
+                    + status
+                    + "\n\nHere are the sandbox execution logs prior to making any changes:\n\n"
+                )
                 sandbox_execution_message += entities_create_error_logs(
                     f'<a href="https://github.com/{repo_full_name}/commit/{commit_hash}"><code>{commit_hash[:7]}</code></a>',
                     initial_sandbox_response,
