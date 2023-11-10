@@ -114,7 +114,7 @@ def create_pr_changes(
             blocked_dirs,
         ):
             completed_count += changed_file
-            logger.info(f"Completed {completed_count}/{fcr_count} files")
+            logger.info("__F_STRING__Completed {completed_count}/{fcr_count} files")
             yield file_change_request, changed_file, sandbox_error, commit, file_change_requests
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
@@ -131,7 +131,7 @@ def create_pr_changes(
             # If no changes were made, delete branch
             commits = sweep_bot.repo.get_commits(pull_request.branch_name)
             if commits.totalCount == 0:
-                branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
+                branch = sweep_bot.repo.get_git_ref("__F_STRING__heads/{pull_request.branch_name}")
                 branch.delete()
 
             return
@@ -139,11 +139,11 @@ def create_pr_changes(
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
             pr_description = (
-                f"{pull_request.content}\n\nFixes"
-                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+                "__F_STRING__{pull_request.content}\n\nFixes"
+                "__F_STRING__ #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
             )
         else:
-            pr_description = f"{pull_request.content}"
+            pr_description = "__F_STRING__{pull_request.content}"
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
@@ -221,7 +221,7 @@ def safe_delete_sweep_branch(
         and GITHUB_BOT_USERNAME in pr_commit_authors
         and pr.head.ref.startswith("sweep")
     ):
-        branch = repo.get_git_ref(f"heads/{pr.head.ref}")
+        branch = repo.get_git_ref("__F_STRING__heads/{pr.head.ref}")
         # pr.edit(state='closed')
         branch.delete()
         return True
@@ -282,7 +282,7 @@ def create_config_pr(
     else:
         # Create branch based on default branch
         branch = repo.create_git_ref(
-            ref=f"refs/heads/{branch_name}",
+            ref="__F_STRING__refs/heads/{branch_name}",
             sha=repo.get_branch(repo.default_branch).commit.sha,
         )
 
@@ -407,7 +407,7 @@ def create_gha_pr(g, repo):
     # Create a new branch
     branch_name = "sweep/gha-enable"
     branch = repo.create_git_ref(
-        ref=f"refs/heads/{branch_name}",
+        ref="__F_STRING__refs/heads/{branch_name}",
         sha=repo.get_branch(repo.default_branch).commit.sha,
     )
 
