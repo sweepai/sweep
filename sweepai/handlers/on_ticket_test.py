@@ -243,8 +243,6 @@ class TestOnTicket(unittest.TestCase):
             False,
             mock_get_github_client.return_value[1],
             False,
-            False,
-        )
         self.assertTrue(result["success"])
 
         mock_handle_payment_logic.return_value = (False, False, False, Mock())
