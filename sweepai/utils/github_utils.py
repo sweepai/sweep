@@ -144,7 +144,8 @@ class ClonedRepo:
             except:
                 logger.error("Could not pull repo")
                 self.git_repo = self.clone()
-        self.git_repo = self.clone()
+        else:
+            self.git_repo = self.clone()
         self.repo = Github(self.token).get_repo(self.repo_full_name)
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 

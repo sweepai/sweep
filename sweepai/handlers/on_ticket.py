@@ -518,7 +518,9 @@ def on_ticket(
         cloned_repo = ClonedRepo(
             repo_full_name, installation_id=installation_id, token=user_token
         )
+        logger.info("Fetching num of files")
         num_of_files = cloned_repo.get_num_files_from_repo()
+        logger.info("Done fetching num of files")
         time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
         indexing_message = (
