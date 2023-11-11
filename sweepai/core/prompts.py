@@ -218,7 +218,7 @@ You MUST follow the following format:
 </plan>"""
 
 extract_files_to_change_prompt = """\
-Provide your response in the below format:
+Create a plan that resolves the user's query and only the user's query under "Issue Title" and "Issue Description", providing your response in the below format:
 <contextual_request_analysis>
 Review each function of each relevant_snippet and analyze the user request to determine if this change should use the refactor or unit test tools.
 The extract tool performs code transformations in a single file without making other logical changes. Determine the function(s) that are too long and should have it's individual parts extracted.
