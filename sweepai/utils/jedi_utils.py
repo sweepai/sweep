@@ -52,29 +52,18 @@ def collect_function_definitions(
             ):
                 function_definitions.add(class_defined_name)
     # handles all other functions
-    for node in ast.walk(tree):
-        if node.__class__.__name__ == "Call":
-            if max_line and not min_line <= node.lineno <= max_line:
-                continue
-            new_function_definitions: list[Name] = script.goto(
-                node.lineno,
-                node.col_offset,
-                follow_imports=True,
-                follow_builtin_imports=True,
-            )
-            for function_definition in new_function_definitions:
-                # print(function_definition.type)
-                # print(function_definition.full_name)
-                if "site-packages" in str(function_definition.module_path):
-                    continue
-                if function_definition.full_name and any(
-                    function_definition.full_name.startswith(builtin_module)
-                    for builtin_module in BUILTIN_MODULES
-                ):
-                    continue
-                if function_definition.type != "function":
-                    continue
-                function_definitions.add(function_definition)
+    functions = [name for name in names if name.type == "function"]
+    for name in functions:
+        if "site-packages" in str(name.module_path):
+            continue
+        if name.full_name and any(
+            name.full_name.startswith(builtin_module)
+            for builtin_module in BUILTIN_MODULES
+        ):
+            continue
+        if name.type != "function":
+            continue
+        function_definitions.add(name)
     return function_definitions
 
 
@@ -99,7 +88,7 @@ def get_all_defined_functions(script: jedi.Script, tree: ast.Module):
     function_definitions = [
         fn_def
         for fn_def in function_definitions
-        if fn_def.module_name == script.get_context().module_name
+        if fn_def.full_name.startswith(script.get_context().module_name)
     ]
     return function_definitions
 
@@ -131,3 +120,11 @@ def get_references_from_defined_function(
         indices_and_references=indices_and_code,
     )
     return fn_and_ref
+
+
+if __name__ == "__main__":
+    script, tree = setup_jedi_for_file(
+        project_dir="tests/notebooks/src/",
+        file_full_path="tests/notebooks/src/test.py",
+    )
+    all_defined_functions = get_all_defined_functions(script=script, tree=tree)

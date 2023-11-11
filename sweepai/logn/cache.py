@@ -1,7 +1,7 @@
 import hashlib
 import os
 import pickle
-
+from loguru import logger
 from sweepai.config.server import GITHUB_BOT_USERNAME
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
@@ -67,17 +67,22 @@ def file_cache(ignore_params=[]):
                 cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
             )
 
-            # If cache exists, load and return it
-            if os.path.exists(cache_file):
-                print("Used cache for function: " + func.__name__)
-                with open(cache_file, "rb") as f:
-                    return pickle.load(f)
+            try:
+                # If cache exists, load and return it
+                if os.path.exists(cache_file):
+                    print("Used cache for function: " + func.__name__)
+                    with open(cache_file, "rb") as f:
+                        return pickle.load(f)
+            except Exception as e:
+                logger.info("Unpickling failed")
 
             # Otherwise, call the function and save its result to the cache
             result = func(*args, **kwargs)
-            with open(cache_file, "wb") as f:
-                pickle.dump(result, f)
-
+            try:
+                with open(cache_file, "wb") as f:
+                    pickle.dump(result, f)
+            except Exception as e:
+                logger.info("Pickling failed")
             return result
 
         return wrapper
