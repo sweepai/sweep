@@ -47,7 +47,9 @@ def collect_function_definitions(
     for name in classes:
         class_defined_names = name.defined_names()
         for class_defined_name in class_defined_names:
-            if class_defined_name.type == "function":
+            if class_defined_name.type == "function" and "site-packages" not in str(
+                class_defined_name.module_path
+            ):
                 function_definitions.add(class_defined_name)
     # handles all other functions
     for node in ast.walk(tree):
@@ -70,9 +72,7 @@ def collect_function_definitions(
                     for builtin_module in BUILTIN_MODULES
                 ):
                     continue
-                if (
-                    function_definition.type != "function"
-                ):
+                if function_definition.type != "function":
                     continue
                 function_definitions.add(function_definition)
     return function_definitions
