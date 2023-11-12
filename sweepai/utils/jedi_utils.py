@@ -51,7 +51,9 @@ def collect_function_definitions(
     for name in classes:
         class_defined_names = name.defined_names()
         for class_defined_name in class_defined_names:
-            if class_defined_name.type == "function":
+            if class_defined_name.type == "function" and "site-packages" not in str(
+                class_defined_name.module_path
+            ):
                 function_definitions.add(class_defined_name)
     # handles all other functions
     functions = [name for name in names if name.type == "function"]
@@ -67,9 +69,11 @@ def collect_function_definitions(
         if "site-packages" in str(name.module_path):
             continue
         if name.full_name and any(
-                    name.full_name.startswith(builtin_module)
-                    for builtin_module in BUILTIN_MODULES
-            ):
+            name.full_name.startswith(builtin_module)
+            for builtin_module in BUILTIN_MODULES
+        ):
+            continue
+        if name.type != "function":
             continue
         filtered_definitions.append(name)
     # used for getting only the functions within a span of lines
