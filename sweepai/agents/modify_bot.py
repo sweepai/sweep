@@ -317,7 +317,7 @@ class ModifyBot:
         original_snippets = chunk_code(file_contents, file_path, 700, 200)
         file_contents_lines = file_contents.split("\n")
         chunks = [
-            "\n".join(file_contents_lines[snippet.start : snippet.end + 1])
+            "\n".join(file_contents_lines[snippet.start : snippet.end])
             for snippet in original_snippets
         ]
         code_sections = []
