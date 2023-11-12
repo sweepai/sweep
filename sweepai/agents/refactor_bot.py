@@ -158,7 +158,6 @@ class RefactorBot(ChatGPT):
                 continue
             # everything below must operate in a loop
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
-            code = f"<original_code>\n{recent_file_contents}</original_code>\n"
             code += function_and_reference.serialize(tag="function_to_refactor")
             extract_response = self.chat(
                 extract_snippets_user_prompt.format(
