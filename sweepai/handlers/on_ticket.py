@@ -730,58 +730,7 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        snippets, tree, dir_obj = fetch_relevant_files(
-            cloned_repo,
-            title,
-            summary,
-            replies_text,
-            username,
-            metadata,
-            on_ticket_start_time,
-            tracking_id,
-            edit_sweep_comment,
-            is_paying_user,
-            is_consumer_tier,
-            issue_url,
-        )
-
-        # Fetch git commit history
-        commit_history = cloned_repo.get_commit_history(username=username)
-
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=2 if use_faster_model else 5
-        )
-        if not repo_description:
-            repo_description = "No description provided."
-
-        message_summary = summary + replies_text
-        external_results = ExternalSearcher.extract_summaries(message_summary)
-        if external_results:
-            message_summary += "\n\n" + external_results
-        user_dict = get_documentation_dict(repo)
-        docs_results = ""
-        try:
-            docs_results = extract_relevant_docs(
-                title + "\n" + message_summary, user_dict, chat_logger
-            )
-            if docs_results:
-                message_summary += "\n\n" + docs_results
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
-
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message, snippets, dir_obj, repo_description, message_summary, commit_history, external_results, docs_results = validate_and_extract_issue_details(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description, repo, chat_logger, repo_name)
 
         context_pruning = ContextPruning(chat_logger=chat_logger)
         (
@@ -801,17 +750,7 @@ def on_ticket(
             dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = validate_issue_length(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -1012,13 +951,8 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
             logger.info("Making PR...")
 
-            files_progress: list[tuple[str, str, str, str]] = [
-                (
-                    file_change_request.entity_display,
-                    file_change_request.instructions_display,
-                    "⏳ In Progress",
-                    "",
-                )
+            files_progress: list[tuple[hydrate_sandbox_cache(str, str, str, str)]] = [
+                hydrate_sandbox_cache("", "⏳ In Progress", file_change_request.entity_display, file_change_request.instructions_display)
                 for file_change_request in file_change_requests
             ]
 
@@ -1065,252 +999,7 @@ def on_ticket(
 
             delete_branch = False
 
-            generator = create_pr_changes(
-                file_change_requests,
-                pull_request,
-                sweep_bot,
-                username,
-                installation_id,
-                issue_number,
-                chat_logger=chat_logger,
-            )
-            edit_sweep_comment(checkboxes_contents, 2)
-            response = {"error": NoFilesException()}
-            changed_files = []
-
-            def create_error_logs(
-                commit_url_display: str,
-                sandbox_response: SandboxResponse,
-                status: str = "✓",
-            ):
-                return (
-                    (
-                        "<br/>"
-                        + create_collapsible(
-                            f"Sandbox logs for {commit_url_display} {status}",
-                            blockquote(
-                                "\n\n".join(
-                                    [
-                                        create_collapsible(
-                                            f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                                            f"<pre>{clean_logs(execution.output)}</pre>",
-                                            i == len(sandbox_response.executions) - 1,
-                                        )
-                                        for i, execution in enumerate(
-                                            sandbox_response.executions
-                                        )
-                                        if len(sandbox_response.executions) > 0
-                                        # And error code check
-                                    ]
-                                )
-                            ),
-                            opened=True,
-                        )
-                    )
-                    if sandbox_response
-                    else ""
-                )
-
-            def update_progress(
-                entity_display: str,
-                header: str,
-                error_logs: str,
-                status: str = "X",
-            ):
-                nonlocal checkboxes_progress
-                for i, (entity_display_, instructions, status_) in enumerate(
-                    checkboxes_progress
-                ):
-                    if entity_display in entity_display_:
-                        checkboxes_progress[i] = (
-                            header,
-                            instructions + error_logs,
-                            status,
-                        )
-                        return True
-                return False
-
-            for item in generator:
-                if isinstance(item, dict):
-                    response = item
-                    break
-                (
-                    file_change_request,
-                    changed_file,
-                    sandbox_response,
-                    commit,
-                    file_change_requests,
-                ) = item
-                svg = create_digraph_svg(file_change_requests)
-                svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
-                sandbox_response: SandboxResponse | None = sandbox_response
-                logger.info(sandbox_response)
-                commit_hash: str = (
-                    commit
-                    if isinstance(commit, str)
-                    else (
-                        commit.sha
-                        if commit is not None
-                        else repo.get_branch(pull_request.branch_name).commit.sha
-                    )
-                )
-                commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-                commit_url_display = (
-                    f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
-                )
-                error_logs: str = create_error_logs(
-                    commit_url_display,
-                    sandbox_response,
-                    status="✓"
-                    if (sandbox_response is None or sandbox_response.success)
-                    else "❌",
-                )
-                checkboxes_progress = [
-                    (
-                        file_change_request.display_summary
-                        + " "
-                        + file_change_request.status_display
-                        + " "
-                        + (file_change_request.commit_hash_url or ""),
-                        file_change_request.instructions_ticket_display,
-                        "X"
-                        if file_change_request.status in ("succeeded", "failed")
-                        else " ",
-                    )
-                    for file_change_request in file_change_requests
-                ]
-                checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions=blockquote(instructions),
-                        )
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
-                checkboxes_collapsible = collapsible_template.format(
-                    summary="Checklist",
-                    body=checkboxes_contents,
-                    opened="open",
-                )
-                condensed_checkboxes_contents = (
-                    "\n".join(
-                        [
-                            checkbox_template.format(
-                                check=check,
-                                filename=filename,
-                                instructions="",
-                            ).strip()
-                            for filename, instructions, check in checkboxes_progress
-                            if not instructions.lower().startswith("run")
-                        ]
-                    )
-                    + f"\n\n![Flowchart]({svg_url})"
-                )
-                condensed_checkboxes_collapsible = collapsible_template.format(
-                    summary="Checklist",
-                    body=condensed_checkboxes_contents,
-                    opened="open",
-                )
-
-                issue = repo.get_issue(number=issue_number)
-                issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
-
-                logger.info(files_progress)
-                logger.info(f"Edited {file_change_request.entity_display}")
-                edit_sweep_comment(checkboxes_contents, 2)
-            if not response.get("success"):
-                raise Exception(f"Failed to create PR: {response.get('error')}")
-            pr_changes = response["pull_request"]
-
-            edit_sweep_comment(
-                "I have finished coding the issue. I am now reviewing it for completeness.",
-                3,
-            )
-            change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-            review_message = (
-                "Here are my self-reviews of my changes at" + change_location
-            )
-
-            lint_output = None
-            try:
-                current_issue.delete_reaction(eyes_reaction.id)
-            except SystemExit:
-                raise SystemExit
-            except:
-                pass
-
-            changes_required, review_message = False, ""
-            if False:
-                changes_required, review_message = review_code(
-                    repo,
-                    pr_changes,
-                    issue_url,
-                    username,
-                    repo_description,
-                    title,
-                    summary,
-                    replies_text,
-                    tree,
-                    lint_output,
-                    plan,
-                    chat_logger,
-                    commit_history,
-                    review_message,
-                    edit_sweep_comment,
-                    repo_full_name,
-                    installation_id,
-                )
-
-            if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.",
-                    3,
-                )
-            else:
-                edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}",
-                    3,
-                )
-
-            pr_actions_message = (
-                create_action_buttons(
-                    [
-                        SWEEP_GOOD_FEEDBACK,
-                        SWEEP_BAD_FEEDBACK,
-                    ],
-                    header="### PR Feedback (click)\n",
-                )
-                + "\n"
-                if DISCORD_FEEDBACK_WEBHOOK_URL is not None
-                else ""
-            )
-            revert_buttons = []
-            for changed_file in set(changed_files):
-                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
-            revert_buttons_list = ButtonList(
-                buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
-            )
-
-            rule_buttons = []
-            repo_rules = get_rules(repo)
-            if repo_rules != [""]:
-                for rule in repo_rules:
-                    if rule:
-                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                if len(repo_rules) == 0:
-                    for rule in DEFAULT_RULES:
-                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-
-            rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
-
-            pr: PullRequest = repo.create_pull(
-                title=pr_changes.title,
-                body=pr_actions_message + pr_changes.body,
-                head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
-            )
+            file_change_request, file_change_requests, pr, revert_buttons, revert_buttons_list, rule_buttons, rules_buttons_list, review_message = create_pr_and_update_progress(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number, chat_logger, edit_sweep_comment, checkboxes_contents, sandbox_response, checkboxes_progress, repo, repo_full_name, check, filename, instructions, summary, files_progress, current_issue, eyes_reaction, issue_url, repo_description, title, replies_text, tree, plan, commit_history, file_change_request)
 
             # Add comment about sandbox executions
             # for i in range(10):
@@ -1522,6 +1211,317 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
+def validate_and_extract_issue_details(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description, repo, chat_logger, repo_name):
+    snippets, tree, dir_obj = fetch_relevant_files(
+        cloned_repo,
+        title,
+        summary,
+        replies_text,
+        username,
+        metadata,
+        on_ticket_start_time,
+        tracking_id,
+        edit_sweep_comment,
+        is_paying_user,
+        is_consumer_tier,
+        issue_url,
+    )
+
+    # Fetch git commit history
+    commit_history = cloned_repo.get_commit_history(username=username)
+
+    snippets = post_process_snippets(
+        snippets, max_num_of_snippets=2 if use_faster_model else 5
+    )
+    if not repo_description:
+        repo_description = "No description provided."
+
+    message_summary = summary + replies_text
+    external_results = ExternalSearcher.extract_summaries(message_summary)
+    if external_results:
+        message_summary += "\n\n" + external_results
+    user_dict = get_documentation_dict(repo)
+    docs_results = ""
+    try:
+        docs_results = extract_relevant_docs(
+            title + "\n" + message_summary, user_dict, chat_logger
+        )
+        if docs_results:
+            message_summary += "\n\n" + docs_results
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(f"Failed to extract docs: {e}")
+
+    human_message = validate_issue_length(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
+    return human_message, snippets, dir_obj, repo_description, message_summary, commit_history, external_results, docs_results
+
+def create_pr_and_update_progress(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number, chat_logger, edit_sweep_comment, checkboxes_contents, sandbox_response, checkboxes_progress, repo, repo_full_name, check, filename, instructions, summary, files_progress, current_issue, eyes_reaction, issue_url, repo_description, title, replies_text, tree, plan, commit_history, file_change_request):
+    generator = create_pr_changes(
+        file_change_requests,
+        pull_request,
+        sweep_bot,
+        username,
+        installation_id,
+        issue_number,
+        chat_logger=chat_logger,
+    )
+    edit_sweep_comment(checkboxes_contents, 2)
+    response = {"error": NoFilesException()}
+    changed_files = []
+
+    def create_error_logs(
+        commit_url_display: str,
+        sandbox_response: SandboxResponse,
+        status: str = "✓",
+    ):
+        return (
+            (
+                "<br/>"
+                + create_collapsible(
+                    f"Sandbox logs for {commit_url_display} {status}",
+                    blockquote(
+                        "\n\n".join(
+                            [
+                                create_collapsible(
+                                    f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                    f"<pre>{clean_logs(execution.output)}</pre>",
+                                    i == len(sandbox_response.executions) - 1,
+                                )
+                                for i, execution in enumerate(
+                                    sandbox_response.executions
+                                )
+                                if len(sandbox_response.executions) > 0
+                                # And error code check
+                            ]
+                        )
+                    ),
+                    opened=True,
+                )
+            )
+            if sandbox_response
+            else ""
+        )
+
+    def update_progress(
+        entity_display: str,
+        header: str,
+        error_logs: str,
+        status: str = "X",
+    ):
+        nonlocal checkboxes_progress
+        for i, (entity_display_, instructions, status_) in enumerate(
+            checkboxes_progress
+        ):
+            if entity_display in entity_display_:
+                checkboxes_progress[i] = (
+                    header,
+                    instructions + error_logs,
+                    status,
+                )
+                return True
+        return False
+
+    for item in generator:
+        if isinstance(item, dict):
+            response = item
+            break
+        (
+            file_change_request,
+            changed_file,
+            sandbox_response,
+            commit,
+            file_change_requests,
+        ) = item
+        svg = create_digraph_svg(file_change_requests)
+        svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
+        sandbox_response: SandboxResponse | None = sandbox_response
+        logger.info(sandbox_response)
+        commit_hash: str = (
+            commit
+            if isinstance(commit, str)
+            else (
+                commit.sha
+                if commit is not None
+                else repo.get_branch(pull_request.branch_name).commit.sha
+            )
+        )
+        commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
+        commit_url_display = (
+            f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
+        )
+        error_logs: str = create_error_logs(
+            commit_url_display,
+            sandbox_response,
+            status="✓"
+            if (sandbox_response is None or sandbox_response.success)
+            else "❌",
+        )
+        checkboxes_progress = [
+            (
+                file_change_request.display_summary
+                + " "
+                + file_change_request.status_display
+                + " "
+                + (file_change_request.commit_hash_url or ""),
+                file_change_request.instructions_ticket_display,
+                "X"
+                if file_change_request.status in ("succeeded", "failed")
+                else " ",
+            )
+            for file_change_request in file_change_requests
+        ]
+        checkboxes_contents = "\n".join(
+            [
+                checkbox_template.format(
+                    check=check,
+                    filename=filename,
+                    instructions=blockquote(instructions),
+                )
+                for filename, instructions, check in checkboxes_progress
+            ]
+        )
+        checkboxes_collapsible = collapsible_template.format(
+            summary="Checklist",
+            body=checkboxes_contents,
+            opened="open",
+        )
+        condensed_checkboxes_contents = (
+            "\n".join(
+                [
+                    checkbox_template.format(
+                        check=check,
+                        filename=filename,
+                        instructions="",
+                    ).strip()
+                    for filename, instructions, check in checkboxes_progress
+                    if not instructions.lower().startswith("run")
+                ]
+            )
+            + f"\n\n![Flowchart]({svg_url})"
+        )
+        condensed_checkboxes_collapsible = collapsible_template.format(
+            summary="Checklist",
+            body=condensed_checkboxes_contents,
+            opened="open",
+        )
+
+        issue = repo.get_issue(number=issue_number)
+        issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+
+        logger.info(files_progress)
+        logger.info(f"Edited {file_change_request.entity_display}")
+        edit_sweep_comment(checkboxes_contents, 2)
+    if not response.get("success"):
+        raise Exception(f"Failed to create PR: {response.get('error')}")
+    pr_changes = response["pull_request"]
+
+    edit_sweep_comment(
+        "I have finished coding the issue. I am now reviewing it for completeness.",
+        3,
+    )
+    change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+    review_message = (
+        "Here are my self-reviews of my changes at" + change_location
+    )
+
+    lint_output = None
+    try:
+        current_issue.delete_reaction(eyes_reaction.id)
+    except SystemExit:
+        raise SystemExit
+    except:
+        pass
+
+    changes_required, review_message = False, ""
+    if False:
+        changes_required, review_message = review_code(
+            repo,
+            pr_changes,
+            issue_url,
+            username,
+            repo_description,
+            title,
+            summary,
+            replies_text,
+            tree,
+            lint_output,
+            plan,
+            chat_logger,
+            commit_history,
+            review_message,
+            edit_sweep_comment,
+            repo_full_name,
+            installation_id,
+        )
+
+    if changes_required:
+        edit_sweep_comment(
+            review_message + "\n\nI finished incorporating these changes.",
+            3,
+        )
+    else:
+        edit_sweep_comment(
+            f"I have finished reviewing the code for completeness. I did not find errors for {change_location}",
+            3,
+        )
+
+    pr_actions_message = (
+        create_action_buttons(
+            [
+                SWEEP_GOOD_FEEDBACK,
+                SWEEP_BAD_FEEDBACK,
+            ],
+            header="### PR Feedback (click)\n",
+        )
+        + "\n"
+        if DISCORD_FEEDBACK_WEBHOOK_URL is not None
+        else ""
+    )
+    revert_buttons = []
+    for changed_file in set(changed_files):
+        revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+    revert_buttons_list = ButtonList(
+        buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
+    )
+
+    rule_buttons = []
+    repo_rules = get_rules(repo)
+    if repo_rules != [""]:
+        for rule in repo_rules:
+            if rule:
+                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+        if len(repo_rules) == 0:
+            for rule in DEFAULT_RULES:
+                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+
+    rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
+
+    pr: PullRequest = repo.create_pull(
+        title=pr_changes.title,
+        body=pr_actions_message + pr_changes.body,
+        head=pr_changes.pr_head,
+        base=SweepConfig.get_branch(repo),
+    )
+    return file_change_request, file_change_requests, pr, revert_buttons, revert_buttons_list, rule_buttons, rules_buttons_list, review_message
+
+def hydrate_sandbox_cache(issue_url, username, is_paying_user, is_consumer_tier):
+    return is_paying_user, is_consumer_tier, username, issue_url,
+
+def validate_issue_length(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
+
 
 def review_code(
     repo,
@@ -1564,28 +1564,31 @@ def review_code(
         review_message += (
             f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
         )
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI'm currently addressing these suggestions.",
-                3,
-            )
-            logger.info(f"Addressing review comment {review_comment}")
-            on_comment(
-                repo_full_name=repo_full_name,
-                repo_description=repo_description,
-                comment=review_comment,
-                username=username,
-                installation_id=installation_id,
-                pr_path=None,
-                pr_line_position=None,
-                pr_number=None,
-                pr=pr_changes,
-                chat_logger=chat_logger,
-                repo=repo,
-            )
+        address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo)
     except SystemExit:
         raise SystemExit
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
     return changes_required, review_message
+
+def address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo):
+    if changes_required:
+        edit_sweep_comment(
+            review_message + "\n\nI'm currently addressing these suggestions.",
+            3,
+        )
+        logger.info(f"Addressing review comment {review_comment}")
+        on_comment(
+            repo_full_name=repo_full_name,
+            repo_description=repo_description,
+            comment=review_comment,
+            username=username,
+            installation_id=installation_id,
+            pr_path=None,
+            pr_line_position=None,
+            pr_number=None,
+            pr=pr_changes,
+            chat_logger=chat_logger,
+            repo=repo,
+        )
