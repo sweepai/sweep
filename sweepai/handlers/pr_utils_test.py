@@ -1,5 +1,5 @@
 import pytest
-from sweepai.core.entities import FileChangeRequest
+from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.handlers.pr_utils import search_files, create_pull_request
 
 def test_search_files():
