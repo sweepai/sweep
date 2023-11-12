@@ -21,6 +21,10 @@ class FunctionAndReferences:
     def serialize(self, tag="function_to_refactor"):
         res = "<function_dependencies>\n"
         for _, _, reference in self.indices_and_references:
+            reference_lines = reference.split("\n")
+            if len(reference_lines) > 50:
+                selected_lines = reference_lines[:12] + ["..."] + reference_lines[-12:]
+                reference = "\n".join(selected_lines)
             res += f"{reference}\n\n"
         res += "</function_dependencies>\n"
         res += f"<{tag}>\n{self.function_code}\n</{tag}>"
@@ -51,7 +55,15 @@ def collect_function_definitions(
                 function_definitions.add(class_defined_name)
     # handles all other functions
     functions = [name for name in names if name.type == "function"]
+    package_prefix = script.get_context().module_name.split(".")[0]
     for name in functions:
+        function_definitions.add(name)
+    
+    function_definitions = list(function_definitions)
+    filtered_definitions = []
+    for name in function_definitions:
+        if not name.full_name.startswith(package_prefix):
+            continue
         if "site-packages" in str(name.module_path):
             continue
         if name.full_name and any(
@@ -59,8 +71,16 @@ def collect_function_definitions(
                     for builtin_module in BUILTIN_MODULES
             ):
             continue
-        function_definitions.add(name)
-    return function_definitions
+        filtered_definitions.append(name)
+    # used for getting only the functions within a span of lines
+    if min_line and max_line:
+        code_span = "\n".join(open(script.path).read().split("\n")[min_line:max_line])
+        filtered_definitions = [
+            fn_def
+            for fn_def in filtered_definitions
+            if f"{fn_def.name}(" in code_span
+        ]
+    return filtered_definitions
 
 
 def get_function_references(function_definition: Name, file_full_path: str):
@@ -106,9 +126,22 @@ def get_references_from_defined_function(
         script=script, tree=tree, min_line=start_line, max_line=end_line
     )
     indices_and_code = []
-    for sub_fn_def in sub_function_definitions:
-        if sub_fn_def.full_name != fn_def.full_name:
-            indices_and_code.append(get_function_references(sub_fn_def, file_full_path))
+    filtered_definitions = []
+    package_prefix = script.get_context().module_name.split(".")[0]
+    for sub_fn_def in sub_function_definitions: 
+        # filter out non-local functions
+        if not sub_fn_def.full_name or not sub_fn_def.name:
+            continue
+        if not sub_fn_def.full_name.startswith(package_prefix):
+            continue
+        # filter out __init__ functions
+        if sub_fn_def.name.endswith("__") and sub_fn_def.name.startswith("__"):
+            continue
+        if sub_fn_def.full_name == fn_def.full_name:
+            continue
+        filtered_definitions.append(sub_fn_def)
+    for sub_fn_def in filtered_definitions:
+        indices_and_code.append(get_function_references(sub_fn_def, file_full_path))
     fn_and_ref = FunctionAndReferences(
         function_name=fn_def.full_name,
         function_code=function_code,

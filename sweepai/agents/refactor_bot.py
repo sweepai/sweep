@@ -29,14 +29,11 @@ def serialize(text: str):
     text = re.sub(r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
     # Replace "%s" with "__PERCENT_FORMAT__"
     text = re.sub(r"%\((.*?)\)s", f"{PERCENT_FORMAT_MARKER}{{\\1}}", text)
-    # replace f" string with "__F_STRING__
-    text = re.sub(r'f"(.*)"', r'"__F_STRING__\1"', text) # didn't use constant bc its confusing
     return text
 
 def deserialize(text: str):
     text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
     text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
-    text = re.sub(r'"__F_STRING__(.*)"', r'f"\1"', text) # didn't use constant bc its confusing
     return text
 
 
