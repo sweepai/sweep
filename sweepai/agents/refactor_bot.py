@@ -161,6 +161,7 @@ class RefactorBot(ChatGPT):
             code = function_and_reference.serialize(tag="function_to_refactor")
             extract_response = self.chat(
                 extract_snippets_user_prompt.format(
+                    code=code,
                     file_path=file_path,
                     snippets=snippets_str,
                     changes_made=changes_made,
