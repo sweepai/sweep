@@ -94,8 +94,6 @@ def search_snippets(
         snippet_paths=snippet_paths, excluded_directories=excluded_directories
     )
     snippets = [snippet.expand() for snippet in snippets]
-    logger.info(f"Tree: {tree}")
-    logger.info(f"Snippets: {snippets}")
     if include_tree:
         return snippets, tree, dir_obj
     else:

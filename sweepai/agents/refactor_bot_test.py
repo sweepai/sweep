@@ -12,15 +12,15 @@ additional_messages = [
     Message(
         role="user",
         content="""Repo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.
-Issue Title: refactor openai_proxy.py by pulling common functions and patterns out and putting them in the same function
+Issue Title: refactor vector_db.py by pulling common functions and patterns out and putting them in the same function
 Issue Description: ### Details
 
 _No response_""",
         key="user",
     )
 ]
-file_path = "sweepai/utils/openai_proxy.py"
-request = "Break this function into smaller sub-functions"
+file_path = "sweepai/core/vector_db.py"
+request = "Break this vector_db into smaller sub-functions"
 changes_made = ""
 chat_logger = ChatLogger({"username": "wwzeng1"})
 bot = RefactorBot()

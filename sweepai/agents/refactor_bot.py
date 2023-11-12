@@ -29,14 +29,11 @@ def serialize(text: str):
     text = re.sub(r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
     # Replace "%s" with "__PERCENT_FORMAT__"
     text = re.sub(r"%\((.*?)\)s", f"{PERCENT_FORMAT_MARKER}{{\\1}}", text)
-    # replace f" string with "__F_STRING__
-    text = re.sub(r'f"(.*)"', r'"__F_STRING__\1"', text) # didn't use constant bc its confusing
     return text
 
 def deserialize(text: str):
     text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
     text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
-    text = re.sub(r'"__F_STRING__(.*)"', r'f"\1"', text) # didn't use constant bc its confusing
     return text
 
 
@@ -161,8 +158,7 @@ class RefactorBot(ChatGPT):
                 continue
             # everything below must operate in a loop
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
-            code = f"<original_code>\n{recent_file_contents}</original_code>\n"
-            code += function_and_reference.serialize(tag="function_to_refactor")
+            code = function_and_reference.serialize(tag="function_to_refactor")
             extract_response = self.chat(
                 extract_snippets_user_prompt.format(
                     code=code,

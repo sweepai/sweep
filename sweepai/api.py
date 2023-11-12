@@ -3,11 +3,10 @@ import hashlib
 import json
 import time
 
-import loguru
 
 from sweepai import health
 from sweepai.handlers.on_button_click import handle_button_click
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.buttons import (
     Button,
     ButtonList,
@@ -15,11 +14,6 @@ from sweepai.utils.buttons import (
     check_button_title_match,
 )
 from sweepai.utils.safe_pqueue import SafePriorityQueue
-
-logger.init(
-    metadata=None,
-    create_file=False,
-)
 
 import ctypes
 import threading
@@ -88,7 +82,7 @@ get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
 
 def run_on_ticket(*args, **kwargs):
     tracking_id = get_hash()
-    with loguru.logger.contextualize(
+    with logger.contextualize(
         metadata={
             **kwargs,
             "name": "ticket_" + kwargs["username"],
@@ -100,7 +94,7 @@ def run_on_ticket(*args, **kwargs):
 
 def run_on_comment(*args, **kwargs):
     tracking_id = get_hash()
-    with loguru.logger.contextualize(
+    with logger.contextualize(
         metadata={
             **kwargs,
             "name": "comment_" + kwargs["username"],
@@ -263,12 +257,6 @@ def home():
 
 @app.post("/")
 async def webhook(raw_request: Request):
-    # Do not create logs for api
-    logger.init(
-        metadata={"name": "webhook", "request": await raw_request.json()},
-        create_file=False,
-    )
-
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
@@ -819,6 +807,8 @@ async def webhook(raw_request: Request):
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
+    except Exception as e:
+        logger.warning(f"Failed to parse request: {e}")
     return {"success": True}
 
 
