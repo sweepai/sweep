@@ -52,7 +52,7 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 }
 default_temperature = (
-    0.0  # Lowered to 0 for mostly deterministic results for reproducibility
+    0.1
 )
 count_tokens = Tiktoken().count
 
