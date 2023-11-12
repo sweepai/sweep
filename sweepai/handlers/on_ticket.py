@@ -424,7 +424,7 @@ def on_ticket(
         ):
             config_pr_message = (
                 "\n"
-                + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
+                + f"<div align='center'>Install Sweep Configs: <a href=__APOSTROPHE__{config_pr_url}__APOSTROPHE__>Pull Request</a></div>"
                 if config_pr_url is not None
                 else ""
             )
@@ -771,17 +771,7 @@ def on_ticket(
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = process_sandbox_mode(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         context_pruning = ContextPruning(chat_logger=chat_logger)
         (
@@ -801,17 +791,7 @@ def on_ticket(
             dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = process_sandbox_mode(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -1012,13 +992,8 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
             logger.info("Making PR...")
 
-            files_progress: list[tuple[str, str, str, str]] = [
-                (
-                    file_change_request.entity_display,
-                    file_change_request.instructions_display,
-                    "⏳ In Progress",
-                    "",
-                )
+            files_progress: list[tuple[handle_empty_repository(str, str, str, str)]] = [
+                handle_empty_repository("", "⏳ In Progress", file_change_request.entity_display, file_change_request.instructions_display)
                 for file_change_request in file_change_requests
             ]
 
@@ -1156,7 +1131,7 @@ def on_ticket(
                 )
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 commit_url_display = (
-                    f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
+                    f"<a href=__APOSTROPHE__{commit_url}__APOSTROPHE__><code>{commit_hash[:7]}</code></a>"
                 )
                 error_logs: str = create_error_logs(
                     commit_url_display,
@@ -1521,6 +1496,23 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def handle_empty_repository(issue_url, username, is_paying_user, is_consumer_tier):
+    return is_paying_user, is_consumer_tier, username, issue_url,
+
+def process_sandbox_mode(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
 
 
 def review_code(
