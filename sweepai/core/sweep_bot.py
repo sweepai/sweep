@@ -481,7 +481,7 @@ class CodeGenBot(ChatGPT):
                 if "too long" in e_str:
                     too_long = True
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
-                self.messages = self.messages[:-2]
+                self.messages = self.messages[:-1]
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
 
