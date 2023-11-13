@@ -1617,13 +1617,10 @@ class SweepBot(CodeGenBot, GithubBot):
                                 f"Unknown change type {file_change_request.change_type}"
                             )
                     logger.print(f"Done processing {file_change_request.filename}.")
-            except MaxTokensExceeded as e:
-                raise e
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
                 logger.error(traceback.format_exc())
+                discord_log_error(str(e))
                 file_change_request.status = "failed"
 
             if changed_file:
