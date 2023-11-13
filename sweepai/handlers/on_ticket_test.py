@@ -54,7 +54,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.username,
             self.issue.repo_full_name,
             self.issue.repo_description,
-            self.issue.installation_id,
+            self.issue.installation_id
         )
 
     # Removed duplicate function definition
