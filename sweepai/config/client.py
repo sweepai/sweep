@@ -297,4 +297,5 @@ RULES_LABEL = "**Apply:** "
 DEFAULT_RULES = [
     "All new business logic should have corresponding unit tests.",
     "Refactor large functions to be more modular.",
+    "Add docstrings to all functions and file headers.",
 ]

@@ -110,40 +110,13 @@ def run_on_button_click(*args, **kwargs):
 
 
 def run_on_check_suite(*args, **kwargs):
-    logger.init(
-        metadata={
-            "name": "check",
-        },
-        create_file=False,
-    )
-
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
     if pr_change_request:
-        logger.init(
-            metadata={
-                **pr_change_request.params,
-                "name": "check_" + pr_change_request.params["username"],
-            },
-            create_file=False,
-        )
-        with logger:
-            call_on_comment(**pr_change_request.params, comment_type="github_action")
+        call_on_comment(**pr_change_request.params, comment_type="github_action")
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
-
-
-def run_get_deeplake_vs_from_repo(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "deeplake",
-        },
-        create_file=False,
-    )
-    with logger:
-        get_deeplake_vs_from_repo(*args, **kwargs)
 
 
 def terminate_thread(thread):
@@ -235,7 +208,7 @@ def call_on_merge(*args, **kwargs):
 
 def call_get_deeplake_vs_from_repo(*args, **kwargs):
     thread = threading.Thread(
-        target=run_get_deeplake_vs_from_repo, args=args, kwargs=kwargs
+        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
     )
     thread.start()
 
