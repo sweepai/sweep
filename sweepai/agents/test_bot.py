@@ -101,7 +101,7 @@ class TestBot(ChatGPT):
         self,
         additional_messages: list[Message] = [],
         snippets_str="",
-        file_path: str = "",
+        file_path: str = "",  # file path of the source file to test
         update_snippets_code: str = "",
         request="",
         changes_made="",
@@ -135,6 +135,8 @@ class TestBot(ChatGPT):
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         generated_code_sections = []
         for fn_def in all_defined_functions:
+            if "__init__" in fn_def.name:
+                continue
             full_file_code = cloned_repo.get_file_contents(file_path)
             script, tree = setup_jedi_for_file(
                 project_dir=cloned_repo.repo_dir,
@@ -164,7 +166,6 @@ class TestBot(ChatGPT):
 
             generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
             generated_test = strip_backticks(generated_test.group(1))
-            generated_code_sections.append(generated_test)
 
             # Check the unit test here and try to fix it
             extension_results = test_extension.chat(
