@@ -260,7 +260,7 @@ def prepare_lexical_search_index(cloned_repo, sweep_config, repo_full_name):
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
     index = prepare_index_from_snippets(
-        snippets, len_repo_cached_dir=len(cloned_repo.cached_dir) + 1
+        snippets, len_repo_cache_dir=len(cloned_repo.cached_dir) + 1
     )
     logger.print("Prepared index from snippets")
     return file_list, snippets, index
