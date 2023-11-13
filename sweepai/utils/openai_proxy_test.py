@@ -3,13 +3,7 @@ from unittest.mock import patch, MagicMock
 from sweepai.utils.openai_proxy import OpenAIProxy
 
 
-# This class definition is a duplicate and should be removed
-        model = "gpt-3.5-turbo-16k"
-        messages = [{"role": "system", "content": "You are a helpful assistant."}]
-        max_tokens = 100
-        temperature = 0.5
-        result = self.openai_proxy.call_openai(model, messages, max_tokens, temperature)
-        self.assertEqual(result, "mocked content")
+# Removed duplicate code block
 
 
 class TestOpenAIProxy(unittest.TestCase):
