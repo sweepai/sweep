@@ -377,7 +377,7 @@ def compute_embeddings(documents):
     return embeddings, documents_to_compute, computed_embeddings, embedding
 
 
-# @file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
+@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
