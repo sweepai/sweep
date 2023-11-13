@@ -68,6 +68,7 @@ torch = {version = "^2.1.0+cpu", source = "torch"}
 rope = "^1.10.0"
 jedi = "^0.19.1"
 pytest = "^7.4.3"
+black = "^23.11.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.17.4"
