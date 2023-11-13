@@ -109,8 +109,7 @@ class ClonedRepo:
             REPO_CACHE_BASE_DIR,
             self.repo_full_name,
             "base",
-            self.commit_hash,
-            self.branch,
+            self.branch or "",
         )
 
     @cached_property
