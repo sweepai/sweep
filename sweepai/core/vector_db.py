@@ -29,7 +29,6 @@ from sweepai.config.server import (
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
-from sweepai.logn import file_cache
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.hash import hash_sha256
@@ -207,7 +206,7 @@ def prepare_documents_metadata_ids(
     for snippet in snippets:
         documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
         metadata = {
-            "file_path": snippet.file_path[len(cloned_repo.cached_dir) + 1 :],
+            "file_path": snippet.file_path[len(cloned_repo.cached_dir) :],
             "start": snippet.start,
             "end": snippet.end,
             "score": files_to_scores[snippet.file_path],
@@ -378,7 +377,7 @@ def compute_embeddings(documents):
     return embeddings, documents_to_compute, computed_embeddings, embedding
 
 
-@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
+# @file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
