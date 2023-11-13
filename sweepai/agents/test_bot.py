@@ -43,7 +43,7 @@ Write a mock that perfectly mocks this access method.
 </mock_identification>
 
 <code>
-Unit test that uses the mocked response and expected behavior.
+Unit test that uses the mocked response in the setUp method (and optionally the tearDown method).
 </code>"""
 
 test_system_prompt = f"""\
@@ -55,7 +55,7 @@ test_user_prompt = rf"""<code_to_test>
 {{code_to_test}}
 </code_to_test>
 
-Write a unit test for the {{method_name}} method. Respond in the following format:
+Write a unit test using the unittest module for the {{method_name}} method. Respond in the following format:
 
 {test_prompt_response_format}"""
 
@@ -67,7 +67,6 @@ Identify all cases that should be unit-tested.
 <code>
 ```
 The additional unit test that uses the mocks defined in the original unit test. Format it like
-
 
 class TestNameOfModule(unittest.TestCase):
     ...
@@ -123,6 +122,9 @@ class TestBot(ChatGPT):
         ]
         self.messages.extend(additional_messages)
 
+        self.test_extension = ChatGPT.from_system_message_string(test_extension_prompt)
+        self.test_extension.messages.extend(additional_messages)
+
         script, tree = setup_jedi_for_file(
             project_dir=cloned_repo.repo_dir,
             file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
@@ -156,7 +158,20 @@ class TestBot(ChatGPT):
             )
             self.messages = self.messages[:-2]
 
-            generated_code = re.search(xml_pattern("code"), extract_response, re.DOTALL)
+            code_xml_pattern = xml_pattern("code")
+
+            generated_code = re.search(code_xml_pattern, extract_response, re.DOTALL)
             generated_code = strip_backticks(generated_code.group(1))
             generated_code_sections.append(generated_code)
+
+            # Check the unit test here and try to fix it
+            extension_results = self.test_extension.chat(
+                test_extension_user_prompt.format(
+                    code_to_test=function_and_reference.function_code,
+                    current_unit_test=generated_code,
+                    method_name=function_and_reference.function_name,
+                )
+            )
+            test_extension = re.search(code_xml_pattern, extension_results, re.DOTALL)
+            print(test_extension)
         return fuse_scripts(generated_code_sections)

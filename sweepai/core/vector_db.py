@@ -207,7 +207,7 @@ def prepare_documents_metadata_ids(
     for snippet in snippets:
         documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
         metadata = {
-            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
+            "file_path": snippet.file_path[len(cloned_repo.cached_dir) + 1 :],
             "start": snippet.start,
             "end": snippet.end,
             "score": files_to_scores[snippet.file_path],
@@ -227,7 +227,7 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     for file_path in tqdm(file_list):
         if not redis_client:
             score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
             )
             score_factors.append(score_factor)
             continue
@@ -242,7 +242,7 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
             score_factors.append(score_factor)
         else:
             score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
             )
             score_factors.append(score_factor)
             redis_client.set(cache_key, json.dumps(score_factor))
@@ -256,11 +256,11 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
 
 
 def prepare_lexical_search_index(cloned_repo, sweep_config, repo_full_name):
-    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    snippets, file_list = repo_to_chunks(cloned_repo.cached_dir, sweep_config)
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
     index = prepare_index_from_snippets(
-        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+        snippets, len_repo_cached_dir=len(cloned_repo.cached_dir) + 1
     )
     logger.print("Prepared index from snippets")
     return file_list, snippets, index
@@ -325,6 +325,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
                 }
             )
         return deeplake_vs
+
 
 def convert_to_numpy_array(embeddings, documents):
     try:
