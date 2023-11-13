@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import jedi
 from jedi.api.classes import Name
+from loguru import logger
 
 BUILTIN_MODULES = [
     builtin_module_name.strip("_") for builtin_module_name in sys.builtin_module_names
@@ -37,7 +38,13 @@ def setup_jedi_for_file(project_dir: str, file_full_path: str):
 
     project = jedi.Project(path=project_absolute_path)
     script = jedi.Script(file_contents, path=file_full_path, project=project)
-    tree = ast.parse(file_contents)
+    try:
+        tree = ast.parse(file_contents)
+    except SyntaxError:
+        logger.exception(
+            f"Syntax error in {file_full_path} with contents {file_contents}"
+        )
+        raise SyntaxError
     return script, tree
 
 
@@ -60,7 +67,7 @@ def collect_function_definitions(
     package_prefix = script.get_context().module_name.split(".")[0]
     for name in functions:
         function_definitions.add(name)
-    
+
     function_definitions = list(function_definitions)
     filtered_definitions = []
     for name in function_definitions:
@@ -80,9 +87,7 @@ def collect_function_definitions(
     if min_line and max_line:
         code_span = "\n".join(open(script.path).read().split("\n")[min_line:max_line])
         filtered_definitions = [
-            fn_def
-            for fn_def in filtered_definitions
-            if f"{fn_def.name}(" in code_span
+            fn_def for fn_def in filtered_definitions if f"{fn_def.name}(" in code_span
         ]
     return filtered_definitions
 
@@ -132,7 +137,7 @@ def get_references_from_defined_function(
     indices_and_code = []
     filtered_definitions = []
     package_prefix = script.get_context().module_name.split(".")[0]
-    for sub_fn_def in sub_function_definitions: 
+    for sub_fn_def in sub_function_definitions:
         # filter out non-local functions
         if not sub_fn_def.full_name or not sub_fn_def.name:
             continue
