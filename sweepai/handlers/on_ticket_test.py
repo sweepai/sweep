@@ -153,6 +153,7 @@ class TestOnTicket(unittest.TestCase):
             self.issue.repo_full_name,
             self.issue.repo_description,
             self.issue.installation_id,
+        )
     @patch("sweepai.handlers.on_ticket.search_logic")
     @patch("sweepai.handlers.on_ticket.pull_request_logic")
     def test_on_ticket_with_exception(self, mock_get_github_client, mock_search_logic, mock_pull_request_logic):
