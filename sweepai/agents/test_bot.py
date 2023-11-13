@@ -10,7 +10,7 @@ from sweepai.utils.jedi_utils import (
     setup_jedi_for_file,
 )
 from sweepai.utils.regex_utils import xml_pattern
-from sweepai.utils.unittest_utils import fuse_scripts
+from sweepai.utils.unittest_utils import fuse_scripts, split_script
 
 test_prompt = """\
 # Code
@@ -122,8 +122,10 @@ class TestBot(ChatGPT):
         ]
         self.messages.extend(additional_messages)
 
-        self.test_extension = ChatGPT.from_system_message_string(test_extension_prompt)
-        self.test_extension.messages.extend(additional_messages)
+        test_extension = ChatGPT.from_system_message_string(
+            test_extension_prompt, chat_logger=self.chat_logger
+        )
+        test_extension.messages.extend(additional_messages)
 
         script, tree = setup_jedi_for_file(
             project_dir=cloned_repo.repo_dir,
@@ -160,18 +162,34 @@ class TestBot(ChatGPT):
 
             code_xml_pattern = xml_pattern("code")
 
-            generated_code = re.search(code_xml_pattern, extract_response, re.DOTALL)
-            generated_code = strip_backticks(generated_code.group(1))
-            generated_code_sections.append(generated_code)
+            generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
+            generated_test = strip_backticks(generated_test.group(1))
+            generated_code_sections.append(generated_test)
 
             # Check the unit test here and try to fix it
-            extension_results = self.test_extension.chat(
+            extension_results = test_extension.chat(
                 test_extension_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
-                    current_unit_test=generated_code,
+                    current_unit_test=generated_test,
                     method_name=function_and_reference.function_name,
                 )
             )
+
             test_extension = re.search(code_xml_pattern, extension_results, re.DOTALL)
-            print(test_extension)
+            test_extension = strip_backticks(test_extension.group(1))
+
+            decomposed_script = split_script(generated_test)
+
+            definitions = split_script(test_extension).definitions
+
+            new_script = "\n\n".join(
+                [
+                    decomposed_script.imports,
+                    decomposed_script.definitions,
+                    "\n".join(definitions.splitlines()[3:]),
+                    decomposed_script.main,
+                ]
+            )
+
+            generated_code_sections.append(new_script)
         return fuse_scripts(generated_code_sections)

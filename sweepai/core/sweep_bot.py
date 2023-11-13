@@ -20,6 +20,7 @@ from sweepai.agents.graph_parent import GraphParentBot
 from sweepai.agents.modify_bot import ModifyBot
 from sweepai.agents.move_bot import MoveBot
 from sweepai.agents.refactor_bot import RefactorBot
+from sweepai.agents.test_bot import TestBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEBUG, DEFAULT_GPT35_MODEL, MINIS3_URL, SANDBOX_URL
 from sweepai.core.chat import ChatGPT
@@ -242,8 +243,8 @@ class CodeGenBot(ChatGPT):
                             file_change_request = FileChangeRequest.from_string(
                                 re_match.group(0)
                             )
-                            if file_change_request.change_type == "test":
-                                file_change_request.change_type = "modify"
+                            # if file_change_request.change_type == "test":
+                            #     file_change_request.change_type = "modify"
                             file_change_requests.append(file_change_request)
                             if file_change_request.change_type != "extract":
                                 new_file_change_request = copy.deepcopy(
@@ -1467,6 +1468,49 @@ class SweepBot(CodeGenBot, GithubBot):
                             yield (
                                 file_change_request,
                                 changed_file,
+                                None,
+                                commit,
+                                file_change_requests,
+                            )
+                        case "test":
+                            # Only test creation for now, not updates
+                            test_bot = TestBot(chat_logger=self.chat_logger)
+                            additional_messages = [
+                                Message(
+                                    role="user",
+                                    content=self.human_message.get_issue_metadata(),
+                                    key="issue_metadata",
+                                )
+                            ]
+                            new_test = test_bot.write_test(
+                                additional_messages=additional_messages,
+                                file_path=file_change_request.source_file,
+                                cloned_repo=self.cloned_repo,
+                            )
+                            contents = self.repo.get_contents(
+                                file_change_request.filename, ref=branch
+                            )
+                            if contents is not None:
+                                response = self.repo.update_file(
+                                    file_change_request.filename,
+                                    f"test: Add test for {file_change_request.filename}",
+                                    new_test,
+                                    sha=contents.sha,
+                                    branch=branch,
+                                )
+                            else:
+                                response = self.repo.create_file(
+                                    file_change_request.filename,
+                                    f"test: Add test for {file_change_request.filename}",
+                                    new_test,
+                                    branch=branch,
+                                )
+                            commit = response["commit"]
+                            file_change_request.commit_hash_url = commit.html_url
+                            file_change_request.status = "succeeded"
+                            yield (
+                                file_change_request,
+                                bool(new_test),
                                 None,
                                 commit,
                                 file_change_requests,

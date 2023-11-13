@@ -43,7 +43,7 @@ def search_snippets(
             cloned_repo,
             query,
         )
-        logger.info(f"Snippets for query {query}: {snippets}")
+        # logger.info(f"Snippets for query {query}: {snippets}")
 
     file_list = cloned_repo.get_file_list()
     query_file_names = get_file_names_from_query(query)
