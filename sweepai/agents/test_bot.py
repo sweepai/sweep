@@ -176,12 +176,12 @@ class TestBot(ChatGPT):
                 )
             )
 
-            test_extension = re.search(code_xml_pattern, extension_results, re.DOTALL)
-            test_extension = strip_backticks(test_extension.group(1))
+            test_extension_match = re.search(code_xml_pattern, extension_results, re.DOTALL)
+            test_extension_str = strip_backticks(test_extension_match.group(1))
 
             decomposed_script = split_script(generated_test)
 
-            definitions = split_script(test_extension).definitions
+            definitions = split_script(test_extension_str).definitions
 
             new_script = "\n\n".join(
                 [
