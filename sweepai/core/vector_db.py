@@ -213,7 +213,7 @@ def prepare_documents_metadata_ids(
             "score": files_to_scores[snippet.file_path],
         }
         metadatas.append(metadata)
-        gh_file_path = snippet.file_path[len("repo/") :]
+        gh_file_path = snippet.file_path[len("repo") :]
         ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
     logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")

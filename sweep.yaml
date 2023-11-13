@@ -26,7 +26,7 @@ sandbox:
     - poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
   check:
     - git add . && pre-commit run --files {file_path} || exit 0
-    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else exit 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run pylint --errors-only {file_path}; else exit 0; fi'
     - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi'
 
 rules:
