@@ -110,7 +110,7 @@ class MoveBot(ChatGPT):
             destination_module = match["destination_module"]
             try:
                 new_code, change_set = move_function(
-                    from_file, entity, destination_module, cloned_repo.cache_dir
+                    from_file, entity, destination_module, cloned_repo.repo_dir
                 )
             except Exception as e:
                 logger.error(e)  # Keep this as an error for now

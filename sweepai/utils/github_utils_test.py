@@ -27,7 +27,7 @@ class TestClonedRepo(unittest.TestCase):
     @patch("shutil.rmtree")
     def test_delete(self, mock_rmtree):
         self.cloned_repo.delete()
-        mock_rmtree.assert_called_once_with(self.cloned_repo.cache_dir)
+        mock_rmtree.assert_called_once_with(self.cloned_repo.repo_dir)
 
     @patch("os.listdir")
     def test_list_directory_tree(self, mock_listdir):

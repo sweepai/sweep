@@ -111,8 +111,8 @@ class RefactorBot(ChatGPT):
 
         # first perform manual refactoring step
         script, tree = setup_jedi_for_file(
-            project_dir=cloned_repo.cache_dir,
-            file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
+            project_dir=cloned_repo.repo_dir,
+            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
         )
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
@@ -140,7 +140,7 @@ class RefactorBot(ChatGPT):
                     extracted_original_code,
                     file_path,
                     new_function_names[idx],
-                    project_name=cloned_repo.cache_dir,
+                    project_name=cloned_repo.repo_dir,
                 )
 
         self.messages = [
@@ -157,14 +157,14 @@ class RefactorBot(ChatGPT):
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
             script, tree = setup_jedi_for_file(
-                project_dir=cloned_repo.cache_dir,
-                file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
+                project_dir=cloned_repo.repo_dir,
+                file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
             )
             function_and_reference = get_references_from_defined_function(
                 fn_def,
                 script,
                 tree,
-                f"{cloned_repo.cache_dir}/{file_path}",
+                f"{cloned_repo.repo_dir}/{file_path}",
                 full_file_code,
             )
             if function_and_reference.function_code.count("\n") < 20:
@@ -244,6 +244,6 @@ class RefactorBot(ChatGPT):
                 extracted_original_code,
                 file_path,
                 new_function_names[idx],
-                project_name=cloned_repo.cache_dir,
+                project_name=cloned_repo.repo_dir,
             )
         return new_code

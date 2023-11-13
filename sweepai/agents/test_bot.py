@@ -55,9 +55,45 @@ test_user_prompt = rf"""<code_to_test>
 {{code_to_test}}
 </code_to_test>
 
-Write a unit test for the OpenAIProxy.call_openai method. Respond in the following format:
+Write a unit test for the {{method_name}} method. Respond in the following format:
 
 {test_prompt_response_format}"""
+
+test_extension_format = """\
+<test_analysis>
+Identify all cases that should be unit-tested.
+</test_analysis>
+
+<code>
+```
+The additional unit test that uses the mocks defined in the original unit test. Format it like
+
+
+class TestNameOfModule(unittest.TestCase):
+    ...
+
+    def test_function(self, mocks...):
+        ... # the test here
+```
+</code>"""
+
+test_extension_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+
+{test_extension_format}"""
+
+test_extension_user_prompt = rf"""<code_to_test>
+{{code_to_test}}
+</code_to_test>
+
+<current_unit_test>
+```
+{{current_unit_test}}
+```
+</current_unit_test>
+
+Extend the unit tests using the unittest module for the {{method_name}} method. Respond in the following format:
+
+{test_extension_prompt}"""
 
 
 # This class should handle appending or creating new tests
@@ -88,8 +124,8 @@ class TestBot(ChatGPT):
         self.messages.extend(additional_messages)
 
         script, tree = setup_jedi_for_file(
-            project_dir=cloned_repo.cache_dir,
-            file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
+            project_dir=cloned_repo.repo_dir,
+            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
         )
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
@@ -97,14 +133,14 @@ class TestBot(ChatGPT):
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
             script, tree = setup_jedi_for_file(
-                project_dir=cloned_repo.cache_dir,
-                file_full_path=f"{cloned_repo.cache_dir}/{file_path}",
+                project_dir=cloned_repo.repo_dir,
+                file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
             )
             function_and_reference = get_references_from_defined_function(
                 fn_def,
                 script,
                 tree,
-                f"{cloned_repo.cache_dir}/{file_path}",
+                f"{cloned_repo.repo_dir}/{file_path}",
                 full_file_code,
             )
             if function_and_reference.function_code.count("\n") < 20:
@@ -114,7 +150,8 @@ class TestBot(ChatGPT):
             code += function_and_reference.serialize(tag="function_to_test")
             extract_response = self.chat(
                 test_user_prompt.format(
-                    code_to_test=function_and_reference.function_code
+                    code_to_test=function_and_reference.function_code,
+                    method_name=function_and_reference.function_name,
                 )
             )
             self.messages = self.messages[:-2]

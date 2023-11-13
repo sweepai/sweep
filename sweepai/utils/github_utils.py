@@ -93,6 +93,9 @@ def get_installation_id(username: str) -> str:
         raise Exception("Could not get installation id, probably not installed")
 
 
+REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
+
+
 @dataclass
 class ClonedRepo:
     repo_full_name: str
@@ -101,13 +104,23 @@ class ClonedRepo:
     token: str | None = None
 
     @cached_property
-    def cache_dir(self):
+    def cached_dir(self):
+        return os.path.join(
+            REPO_CACHE_BASE_DIR,
+            self.repo_full_name,
+            "base",
+            self.commit_hash,
+            self.branch,
+        )
+
+    @cached_property
+    def repo_dir(self):
         curr_time_str = str(time.time()).encode("utf-8")
         hash_obj = hashlib.sha256(curr_time_str)
         hash_hex = hash_obj.hexdigest()
         if self.branch:
             return os.path.join(
-                "/tmp/cache/repos",
+                REPO_CACHE_BASE_DIR,
                 self.repo_full_name,
                 hash_hex,
                 self.branch,
@@ -122,21 +135,30 @@ class ClonedRepo:
         )
 
     def clone(self):
-        if self.branch:
+        if not os.path.exists(self.cached_dir):
             logger.info("Cloning repo...")
-            repo = git.Repo.clone_from(
-                self.clone_url, self.cache_dir, branch=self.branch
-            )
-            logger.info("Done cloning...")
-            return repo
+            if self.branch:
+                repo = git.Repo.clone_from(
+                    self.clone_url, self.cached_dir, branch=self.branch
+                )
+            else:
+                repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
+            logger.info("Done cloning")
         else:
-            return git.Repo.clone_from(self.clone_url, self.cache_dir)
+            logger.info("Repo already cached, copying")
+        logger.info("Copying repo...")
+        shutil.copytree(self.cached_dir, self.repo_dir)
+        logger.info("Done copying")
+        repo = git.Repo(self.repo_dir)
+        return repo
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
+        self.repo = Github(self.token).get_repo(self.repo_full_name)
+        self.commit_hash = self.repo.get_commits()[0].sha
         self.token = self.token or get_token(self.installation_id)
-        if os.path.exists(self.cache_dir):
-            self.git_repo = git.Repo(self.cache_dir)
+        if os.path.exists(self.repo_dir):
+            self.git_repo = git.Repo(self.repo_dir)
             try:
                 self.git_repo.remotes.origin.pull()
             except SystemExit:
@@ -146,11 +168,10 @@ class ClonedRepo:
                 self.git_repo = self.clone()
         else:
             self.git_repo = self.clone()
-        self.repo = Github(self.token).get_repo(self.repo_full_name)
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
     def delete(self):
-        shutil.rmtree(self.cache_dir)
+        shutil.rmtree(self.repo_dir)
 
     def list_directory_tree(
         self,
@@ -167,7 +188,7 @@ class ClonedRepo:
         excluded_directories -- List of directory names to exclude from the tree. Default to None.
         """
 
-        root_directory = self.cache_dir
+        root_directory = self.repo_dir
 
         # Default values if parameters are not provided
         if included_directories is None:
@@ -221,7 +242,7 @@ class ClonedRepo:
         return directory_tree, dir_obj
 
     def get_file_list(self) -> str:
-        root_directory = self.cache_dir
+        root_directory = self.repo_dir
         files = []
 
         def dfs_helper(directory):
@@ -277,7 +298,7 @@ class ClonedRepo:
         return tree, dir_obj
 
     def get_file_contents(self, file_path, ref=None):
-        local_path = os.path.join(self.cache_dir, file_path)
+        local_path = os.path.join(self.repo_dir, file_path)
         if os.path.exists(local_path):
             with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()

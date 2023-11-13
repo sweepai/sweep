@@ -263,7 +263,7 @@ class CodeGenBot(ChatGPT):
                         return file_change_requests, plan_str
                     else:
                         self.delete_messages_from_chat("extract_prompt")
-                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+                graph = Graph.from_folder(folder_path=self.cloned_repo.repo_dir)
                 graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
                 if pr_diffs is not None:
                     self.delete_messages_from_chat("pr_diffs")
