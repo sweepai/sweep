@@ -279,10 +279,6 @@ def on_ticket(
         "tracking_id": tracking_id,
     }
 
-    context.context(metadata=metadata)
-    logger.bind(**metadata)
-    logger.info(f"Metadata: {metadata}")
-
     posthog.capture(username, "started", properties=metadata)
     markdown_badge = get_docker_badge()
 
