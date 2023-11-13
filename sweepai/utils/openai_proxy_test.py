@@ -2,10 +2,6 @@ import unittest
 from unittest.mock import patch, MagicMock
 from sweepai.utils.openai_proxy import OpenAIProxy
 
-import unittest
-from unittest.mock import patch, MagicMock
-from sweepai.utils.openai_proxy import OpenAIProxy
-
 
 class TestOpenAIProxy(unittest.TestCase):
     @patch("openai.ChatCompletion.create")
