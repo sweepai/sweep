@@ -40,11 +40,11 @@ def setup_jedi_for_file(project_dir: str, file_full_path: str):
     script = jedi.Script(file_contents, path=file_full_path, project=project)
     try:
         tree = ast.parse(file_contents)
-    except SyntaxError:
+    except Exception as e:
         logger.exception(
             f"Syntax error in {file_full_path} with contents {file_contents}"
         )
-        raise SyntaxError
+        raise e
     return script, tree
 
 
