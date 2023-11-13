@@ -144,12 +144,12 @@ class ClonedRepo:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Done cloning")
         else:
-            repo = git.Repo(self.cached_dir)
             try:
+                repo = git.Repo(self.cached_dir)
                 repo.remotes.origin.pull()
             except Exception:
                 logger.error("Could not pull repo")
-                shutil.rmtree(self.cached_dir)
+                shutil.rmtree(self.cached_dir, ignore_errors=True)
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Repo already cached, copying")
         logger.info("Copying repo...")
