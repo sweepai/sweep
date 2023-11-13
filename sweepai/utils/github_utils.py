@@ -144,7 +144,7 @@ class ClonedRepo:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Done cloning")
         else:
-            repo = git.Repo(self.repo_dir)
+            repo = git.Repo(self.cached_dir)
             try:
                 repo.remotes.origin.pull()
             except Exception:
