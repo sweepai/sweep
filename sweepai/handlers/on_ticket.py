@@ -771,17 +771,7 @@ def on_ticket(
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = hydrate_sandbox_cache(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         context_pruning = ContextPruning(chat_logger=chat_logger)
         (
@@ -801,17 +791,7 @@ def on_ticket(
             dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = hydrate_sandbox_cache(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -1012,13 +992,8 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
             logger.info("Making PR...")
 
-            files_progress: list[tuple[str, str, str, str]] = [
-                (
-                    file_change_request.entity_display,
-                    file_change_request.instructions_display,
-                    "⏳ In Progress",
-                    "",
-                )
+            files_progress: list[tuple[check_branch_override(str, str, str, str)]] = [
+                check_branch_override("", "⏳ In Progress", file_change_request.entity_display, file_change_request.instructions_display)
                 for file_change_request in file_change_requests
             ]
 
@@ -1522,6 +1497,23 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
+def check_branch_override(issue_url, username, is_paying_user, is_consumer_tier):
+    return is_paying_user, is_consumer_tier, username, issue_url,
+
+def hydrate_sandbox_cache(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
+
 
 def review_code(
     repo,
@@ -1564,28 +1556,31 @@ def review_code(
         review_message += (
             f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
         )
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI'm currently addressing these suggestions.",
-                3,
-            )
-            logger.info(f"Addressing review comment {review_comment}")
-            on_comment(
-                repo_full_name=repo_full_name,
-                repo_description=repo_description,
-                comment=review_comment,
-                username=username,
-                installation_id=installation_id,
-                pr_path=None,
-                pr_line_position=None,
-                pr_number=None,
-                pr=pr_changes,
-                chat_logger=chat_logger,
-                repo=repo,
-            )
+        address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo)
     except SystemExit:
         raise SystemExit
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
     return changes_required, review_message
+
+def address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo):
+    if changes_required:
+        edit_sweep_comment(
+            review_message + "\n\nI'm currently addressing these suggestions.",
+            3,
+        )
+        logger.info(f"Addressing review comment {review_comment}")
+        on_comment(
+            repo_full_name=repo_full_name,
+            repo_description=repo_description,
+            comment=review_comment,
+            username=username,
+            installation_id=installation_id,
+            pr_path=None,
+            pr_line_position=None,
+            pr_number=None,
+            pr=pr_changes,
+            chat_logger=chat_logger,
+            repo=repo,
+        )
