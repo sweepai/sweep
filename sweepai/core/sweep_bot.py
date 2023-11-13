@@ -1487,9 +1487,12 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_path=file_change_request.source_file,
                                 cloned_repo=self.cloned_repo,
                             )
-                            contents = self.repo.get_contents(
-                                file_change_request.filename, ref=branch
-                            )
+                            try:
+                                contents = self.repo.get_contents(
+                                    file_change_request.filename, ref=branch
+                                )
+                            except Exception:
+                                contents = None
                             if contents is not None:
                                 response = self.repo.update_file(
                                     file_change_request.filename,
@@ -1664,7 +1667,7 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
                 logger.error(traceback.format_exc())
-                discord_log_error(str(e))
+                discord_log_error(traceback.format_exc() + "\n" + str(e))
                 file_change_request.status = "failed"
 
             if changed_file:
