@@ -726,58 +726,7 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        snippets, tree, dir_obj = fetch_relevant_files(
-            cloned_repo,
-            title,
-            summary,
-            replies_text,
-            username,
-            metadata,
-            on_ticket_start_time,
-            tracking_id,
-            edit_sweep_comment,
-            is_paying_user,
-            is_consumer_tier,
-            issue_url,
-        )
-
-        # Fetch git commit history
-        commit_history = cloned_repo.get_commit_history(username=username)
-
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=2 if use_faster_model else 5
-        )
-        if not repo_description:
-            repo_description = "No description provided."
-
-        message_summary = summary + replies_text
-        external_results = ExternalSearcher.extract_summaries(message_summary)
-        if external_results:
-            message_summary += "\n\n" + external_results
-        user_dict = get_documentation_dict(repo)
-        docs_results = ""
-        try:
-            docs_results = extract_relevant_docs(
-                title + "\n" + message_summary, user_dict, chat_logger
-            )
-            if docs_results:
-                message_summary += "\n\n" + docs_results
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
-
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message, snippets, dir_obj, repo_description, message_summary, commit_history, external_results, docs_results = fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description, repo, chat_logger, repo_name)
 
         context_pruning = ContextPruning(chat_logger=chat_logger)
         (
@@ -797,17 +746,7 @@ def on_ticket(
             dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = handle_empty_repository(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -1008,13 +947,8 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
             logger.info("Making PR...")
 
-            files_progress: list[tuple[str, str, str, str]] = [
-                (
-                    file_change_request.entity_display,
-                    file_change_request.instructions_display,
-                    "⏳ In Progress",
-                    "",
-                )
+            files_progress: list[tuple[hydrate_sandbox_cache(str, str, str, str)]] = [
+                hydrate_sandbox_cache("", "⏳ In Progress", file_change_request.entity_display, file_change_request.instructions_display)
                 for file_change_request in file_change_requests
             ]
 
@@ -1518,6 +1452,68 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
+def fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description, repo, chat_logger, repo_name):
+    snippets, tree, dir_obj = fetch_relevant_files(
+        cloned_repo,
+        title,
+        summary,
+        replies_text,
+        username,
+        metadata,
+        on_ticket_start_time,
+        tracking_id,
+        edit_sweep_comment,
+        is_paying_user,
+        is_consumer_tier,
+        issue_url,
+    )
+
+    # Fetch git commit history
+    commit_history = cloned_repo.get_commit_history(username=username)
+
+    snippets = post_process_snippets(
+        snippets, max_num_of_snippets=2 if use_faster_model else 5
+    )
+    if not repo_description:
+        repo_description = "No description provided."
+
+    message_summary = summary + replies_text
+    external_results = ExternalSearcher.extract_summaries(message_summary)
+    if external_results:
+        message_summary += "\n\n" + external_results
+    user_dict = get_documentation_dict(repo)
+    docs_results = ""
+    try:
+        docs_results = extract_relevant_docs(
+            title + "\n" + message_summary, user_dict, chat_logger
+        )
+        if docs_results:
+            message_summary += "\n\n" + docs_results
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(f"Failed to extract docs: {e}")
+
+    human_message = handle_empty_repository(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
+    return human_message, snippets, dir_obj, repo_description, message_summary, commit_history, external_results, docs_results
+
+def hydrate_sandbox_cache(issue_url, username, is_paying_user, is_consumer_tier):
+    return is_paying_user, is_consumer_tier, username, issue_url,
+
+def handle_empty_repository(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
+
 
 def review_code(
     repo,
@@ -1560,28 +1556,31 @@ def review_code(
         review_message += (
             f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
         )
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI'm currently addressing these suggestions.",
-                3,
-            )
-            logger.info(f"Addressing review comment {review_comment}")
-            on_comment(
-                repo_full_name=repo_full_name,
-                repo_description=repo_description,
-                comment=review_comment,
-                username=username,
-                installation_id=installation_id,
-                pr_path=None,
-                pr_line_position=None,
-                pr_number=None,
-                pr=pr_changes,
-                chat_logger=chat_logger,
-                repo=repo,
-            )
+        address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo)
     except SystemExit:
         raise SystemExit
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
     return changes_required, review_message
+
+def address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo):
+    if changes_required:
+        edit_sweep_comment(
+            review_message + "\n\nI'm currently addressing these suggestions.",
+            3,
+        )
+        logger.info(f"Addressing review comment {review_comment}")
+        on_comment(
+            repo_full_name=repo_full_name,
+            repo_description=repo_description,
+            comment=review_comment,
+            username=username,
+            installation_id=installation_id,
+            pr_path=None,
+            pr_line_position=None,
+            pr_number=None,
+            pr=pr_changes,
+            chat_logger=chat_logger,
+            repo=repo,
+        )
