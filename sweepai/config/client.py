@@ -272,7 +272,7 @@ def get_rules(repo: Repository):
         )
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         rules = sweep_yaml.get("rules", [])
-        return [rule for rule in rules if rule.strip()]
+        return rules
     except SystemExit:
         raise SystemExit
     except Exception:
