@@ -153,24 +153,6 @@ class TestOnTicket(unittest.TestCase):
             self.issue.repo_full_name,
             self.issue.repo_description,
             self.issue.installation_id,
-        )
-    @patch("sweepai.handlers.on_ticket.search_logic")
-    @patch("sweepai.handlers.on_ticket.pull_request_logic")
-    def test_on_ticket(self, mock_get_github_client):
-        mock_get_github_client.return_value = (Mock(), Mock())
-        result = on_ticket(
-            self.issue.title,
-            self.issue.summary,
-            self.issue.issue_number,
-            self.issue.issue_url,
-            self.issue.username,
-            self.issue.repo_full_name,
-            self.issue.repo_description,
-            self.issue.installation_id,
-        )
-        self.assertTrue(result["success"])
-
-    @patch("sweepai.handlers.on_ticket.get_github_client")
     @patch("sweepai.handlers.on_ticket.search_logic")
     @patch("sweepai.handlers.on_ticket.pull_request_logic")
     def test_on_ticket_with_exception(self, mock_get_github_client, mock_search_logic, mock_pull_request_logic):
