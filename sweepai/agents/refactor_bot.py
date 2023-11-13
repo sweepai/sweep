@@ -3,8 +3,8 @@ import re
 import rope.base.project
 from loguru import logger
 from rope.refactor.extract import ExtractMethod
-from sweepai.agents.name_agent import NameBot
 
+from sweepai.agents.name_agent import NameBot
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
@@ -24,12 +24,16 @@ from sweepai.utils.search_and_replace import find_best_match
 APOSTROPHE_MARKER = "__APOSTROPHE__"
 PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
+
 def serialize(text: str):
     # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
-    text = re.sub(r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text)
+    text = re.sub(
+        r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
+    )
     # Replace "%s" with "__PERCENT_FORMAT__"
     text = re.sub(r"%\((.*?)\)s", f"{PERCENT_FORMAT_MARKER}{{\\1}}", text)
     return text
+
 
 def deserialize(text: str):
     text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
@@ -66,9 +70,13 @@ def extract_method(
                 change.old_contents = deserialize(change.resource.read())
             change.new_contents = deserialize(change.new_contents)
 
-        # adding this because the change might not replace old code. 
+        # adding this because the change might not replace old code.
         # If it replaces any code at all this will be very small(>> 200) or even negative
-        if len(change.new_contents) - len(change.old_contents) > 200:
+        if (
+            len(change.new_contents.splitlines())
+            - len(change.old_contents.splitlines())
+            > 20
+        ):
             logger.info("Change doesn't remove code, skipping")
             return contents, []
         for change in change_set.changes:
@@ -112,11 +120,16 @@ class RefactorBot(ChatGPT):
         heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {})
         if len(heuristic_based_extractions) > 0:
             # some duplicated code here
-            deduped_exact_matches = heuristic_based_extractions # already deduped
+            deduped_exact_matches = heuristic_based_extractions  # already deduped
             formatted_snippets = "\n".join(
-                [f"<function>\n{snippet}\n</function>" for snippet in deduped_exact_matches]
+                [
+                    f"<function>\n{snippet}\n</function>"
+                    for snippet in deduped_exact_matches
+                ]
             )
-            existing_names = ", ".join([def_fn.name.strip("'") for def_fn in all_defined_functions])
+            existing_names = ", ".join(
+                [def_fn.name.strip("'") for def_fn in all_defined_functions]
+            )
             new_function_names = NameBot(chat_logger=self.chat_logger).name_functions(
                 old_code=cloned_repo.get_file_contents(file_path),
                 snippets=formatted_snippets,
@@ -185,10 +198,13 @@ class RefactorBot(ChatGPT):
                 match = match_.groupdict()
                 updated_code = match["updated_code"]
                 updated_code = updated_code.strip("\n")
-                if len(updated_code) < 150: # too few characters
+                if len(updated_code) < 150:  # too few characters
                     continue
                 # too close to function length, just skip for now
-                if len(updated_code) / (len(function_and_reference.function_code) + 1) > 0.9:
+                if (
+                    len(updated_code) / (len(function_and_reference.function_code) + 1)
+                    > 0.9
+                ):
                     continue
                 best_match = find_best_match(updated_code, recent_file_contents)
                 if best_match.score < 70:
@@ -215,7 +231,9 @@ class RefactorBot(ChatGPT):
         formatted_snippets = "\n".join(
             [f"<function>\n{snippet}\n</function>" for snippet in deduped_exact_matches]
         )
-        existing_names = ", ".join([def_fn.name.strip("'") for def_fn in all_defined_functions])
+        existing_names = ", ".join(
+            [def_fn.name.strip("'") for def_fn in all_defined_functions]
+        )
         new_function_names = NameBot(chat_logger=self.chat_logger).name_functions(
             old_code=cloned_repo.get_file_contents(file_path),
             snippets=formatted_snippets,

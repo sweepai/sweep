@@ -1425,39 +1425,48 @@ class SweepBot(CodeGenBot, GithubBot):
                                 branch,
                                 self.cloned_repo.token,
                             )
-                            new_file_contents = refactor_bot.refactor_snippets(
-                                additional_messages=additional_messages,
-                                snippets_str=file_contents,
-                                file_path=file_change_request.filename,
-                                update_snippets_code=file_contents,
-                                request=file_change_request.instructions,
-                                changes_made="",
-                                cloned_repo=cloned_repo,
-                            )
+                            try:
+                                new_file_contents = refactor_bot.refactor_snippets(
+                                    additional_messages=additional_messages,
+                                    snippets_str=file_contents,
+                                    file_path=file_change_request.filename,
+                                    update_snippets_code=file_contents,
+                                    request=file_change_request.instructions,
+                                    changes_made="",
+                                    cloned_repo=cloned_repo,
+                                )
+                            except Exception as e:
+                                logger.exception(e)
+                                new_file_contents = None
+                            changed_file = False
                             if new_file_contents is None:
                                 new_file_contents = file_contents  # no changes made
-                            changed_files.append(
-                                (
-                                    file_change_request.filename,
-                                    (file_contents, new_file_contents),
+                                commit = None
+                                file_change_request.status = "failed"
+                            else:
+                                changed_file = True
+                                changed_files.append(
+                                    (
+                                        file_change_request.filename,
+                                        (file_contents, new_file_contents),
+                                    )
                                 )
-                            )
-                            commit_message = (
-                                f"feat: Refactored {file_change_request.filename}"
-                            )
-                            response = self.repo.update_file(
-                                file_change_request.filename,
-                                commit_message,
-                                new_file_contents,
-                                sha=file_contents_obj.sha,
-                                branch=branch,
-                            )
-                            commit = response["commit"]
-                            file_change_request.commit_hash_url = commit.html_url
-                            file_change_request.status = "succeeded"
+                                commit_message = (
+                                    f"feat: Refactored {file_change_request.filename}"
+                                )
+                                response = self.repo.update_file(
+                                    file_change_request.filename,
+                                    commit_message,
+                                    new_file_contents,
+                                    sha=file_contents_obj.sha,
+                                    branch=branch,
+                                )
+                                commit = response["commit"]
+                                file_change_request.commit_hash_url = commit.html_url
+                                file_change_request.status = "succeeded"
                             yield (
                                 file_change_request,
-                                True,
+                                changed_file,
                                 None,
                                 commit,
                                 file_change_requests,
@@ -1615,6 +1624,7 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
                 logger.error(traceback.format_exc())
+                file_change_request.status = "failed"
 
             if changed_file:
                 completed += 1
@@ -1710,7 +1720,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         changed_files: list[tuple[str, str]] = [],
     ):
-        CHUNK_SIZE = 600  # Number of lines to process at a time
+        nCHUNK_SIZE = 600  # Number of lines to process at a time
         sandbox_execution: SandboxResponse = None
         commit_message: str = None
         try:
