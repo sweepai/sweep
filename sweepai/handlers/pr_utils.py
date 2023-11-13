@@ -27,26 +27,17 @@ from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.str_utils import (
     blockquote,
     checkbox_template,
-def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
-    return pull_request
-    commit_history = cloned_repo.get_commit_history(username=username)
-    def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
-    return pull_request
-    external_results = ExternalSearcher.extract_summaries(message_summary)
+commit_history = cloned_repo.get_commit_history(username=username)
+external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
     user_dict = get_documentation_dict(cloned_repo.repo)
     docs_results = ""
-def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
-    return pull_request
-        paths_to_keep,
-        directories_to_expand,
-    ) = context_pruning.prune_context(  # TODO, ignore directories
-        human_message, repo=cloned_repo.repo
-    )
+    paths_to_keep,
+    directories_to_expand,
+) = context_pruning.prune_context(  # TODO, ignore directories
+    human_message, repo=cloned_repo.repo
+)
     snippets = [
         snippet
         for snippet in snippets
@@ -57,27 +48,19 @@ def create_pull_request(file_change_requests, initial_sandbox_response, pull_req
     dir_obj.remove_all_not_included(paths_to_keep)
     dir_obj.expand_directory(directories_to_expand)
     tree = str(dir_obj)
-def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
-    return pull_request
-        human_message=human_message,
-        repo=repo,
-        is_reply=False,
-        chat_logger=chat_logger,
-def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
-    return pull_request
-        not file_path.endswith(".py") for file_path in human_message.get_file_paths()
-    )
-    python_count = len(human_message.get_file_paths()) - non_python_count
-    is_python_issue = python_count > non_python_count
-    posthog.capture(
-        username,
-        "is_python_issue",
-        properties={"is_python_issue": is_python_issue},
-    )
-    def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
+    human_message=human_message,
+    repo=repo,
+    is_reply=False,
+    chat_logger=chat_logger,
+    not file_path.endswith(".py") for file_path in human_message.get_file_paths()
+)
+python_count = len(human_message.get_file_paths()) - non_python_count
+is_python_issue = python_count > non_python_count
+posthog.capture(
+    username,
+    "is_python_issue",
+    properties={"is_python_issue": is_python_issue},
+)
     return pull_request
         if isinstance(item, dict):
             response = item
@@ -93,14 +76,29 @@ def create_pull_request(file_change_requests, initial_sandbox_response, pull_req
         ) = item
         if changed_file:
             changed_files.append(file_change_request.filename)
-        sandbox_response: SandboxResponse | None = sandbox_response
-        format_exit_code = (
-            lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
-        )
-    pr_changes = response["pull_request"]
-    def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
-    return pull_request
+    sandbox_response: SandboxResponse | None = sandbox_response
+    format_exit_code = (
+        lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
+    )
+pr_changes = response["pull_request"]
+buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+revert_buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
+pr.create_issue_comment(revert_buttons_list.serialize())
+pr.add_to_labels(GITHUB_LABEL_NAME)
+
+sandbox_execution_comment_contents = "## Sandbox Executions\n\n" + "\n".join(
+        if isinstance(item, dict):
+            response = item
+            break
+        file_change_request,
+        changed_file,
+        sandbox_response,
+        commit,
+        file_change_requests,
+    ) = item
+    if changed_file:
+        changed_files.append(file_change_request.filename)
+    sandbox_response: SandboxResponse | None = sandbox_response
         buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
     revert_buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
     pr.create_issue_comment(revert_buttons_list.serialize())
@@ -121,7 +119,4 @@ def create_pull_request(file_change_requests, initial_sandbox_response, pull_req
             if file_change_request.change_type == "check"
         ]
     )
-def create_pull_request(file_change_requests, initial_sandbox_response, pull_request):
-    pull_request = hydrate_sandbox_cache(file_change_requests, initial_sandbox_response, pull_request)
-    return pull_request
-    return pr
+return pr
