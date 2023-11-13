@@ -1,7 +1,7 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from sweepai.utils.openai_proxy import OpenAIProxy
+from unittest.mock import MagicMock, patch
 
+from sweepai.utils.openai_proxy import OpenAIProxy
 
 # Removed duplicate code block
 
