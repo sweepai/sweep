@@ -52,6 +52,7 @@ from sweepai.core.prompts import (
     snippet_replacement_system_message,
     subissues_prompt,
 )
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
@@ -763,7 +764,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
 
     @staticmethod
-    # @file_cache(ignore_params=["token"])
+    @file_cache(ignore_params=["token"])
     def run_sandbox(
         repo_url: str,
         file_path: str,
