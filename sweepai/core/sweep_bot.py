@@ -1720,7 +1720,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         changed_files: list[tuple[str, str]] = [],
     ):
-        nCHUNK_SIZE = 600  # Number of lines to process at a time
+        CHUNK_SIZE = 600  # Number of lines to process at a time
         sandbox_execution: SandboxResponse = None
         commit_message: str = None
         try:
