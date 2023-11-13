@@ -145,6 +145,13 @@ class ClonedRepo:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Done cloning")
         else:
+            repo = git.Repo(self.repo_dir)
+            try:
+                repo.remotes.origin.pull()
+            except Exception:
+                logger.error("Could not pull repo")
+                shutil.rmtree(self.cached_dir)
+                repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Repo already cached, copying")
         logger.info("Copying repo...")
         shutil.copytree(self.cached_dir, self.repo_dir)
@@ -157,17 +164,7 @@ class ClonedRepo:
         self.repo = Github(self.token).get_repo(self.repo_full_name)
         self.commit_hash = self.repo.get_commits()[0].sha
         self.token = self.token or get_token(self.installation_id)
-        if os.path.exists(self.repo_dir):
-            self.git_repo = git.Repo(self.repo_dir)
-            try:
-                self.git_repo.remotes.origin.pull()
-            except SystemExit:
-                raise SystemExit
-            except:
-                logger.error("Could not pull repo")
-                self.git_repo = self.clone()
-        else:
-            self.git_repo = self.clone()
+        self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
     def delete(self):
