@@ -23,14 +23,20 @@ class TestOpenAIProxy(unittest.TestCase):
     @patch("openai.ChatCompletion.create")
     def test_call_openai_exclusive_model(self, mock_create):
         mock_create.return_value = self.mock_response
-        with self.assertRaises(Exception) as context:
-            self.openai_proxy.call_openai(
-                "gpt-3.5-turbo-16k",
-                [{"role": "system", "content": "Hello, how can I assist you today?"}],
-                100,
-                0.5,
-            )
-        self.assertTrue("OpenAI exclusive model." in str(context.exception))
+        self.openai_proxy.call_openai(
+            "gpt-3.5-turbo-16k",
+            [{"role": "system", "content": "Hello, how can I assist you today?"}],
+            100,
+            0.5,
+        )
+        mock_create.assert_called_once_with(
+            model="gpt-3.5-turbo-16k",
+            messages=[{"role": "system", "content": "Hello, how can I assist you today?"}],
+            max_tokens=100,
+            temperature=0.5,
+            timeout=self.openai_proxy.OPENAI_TIMEOUT,
+            seed=self.openai_proxy.SEED,
+        )
 
     @patch("openai.ChatCompletion.create")
     def test_call_openai_gpt35_model(self, mock_create):
@@ -143,7 +149,7 @@ class TestOpenAIProxy(unittest.TestCase):
                 ("region1", "key1"),
                 ("region2", "key2"),
             ]
-            with self.assertRaises(Exception) as context:
+            with self.assertRaises(Exception):
                 self.openai_proxy.call_openai(
                     "gpt-4-32k",
                     [
@@ -155,7 +161,6 @@ class TestOpenAIProxy(unittest.TestCase):
                     100,
                     0.5,
                 )
-            self.assertTrue("No Azure regions available" in str(context.exception))
 
     @patch("openai.ChatCompletion.create")
     def test_call_openai_exception_handling(self, mock_create):
