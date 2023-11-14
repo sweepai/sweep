@@ -207,7 +207,7 @@ class TestBot(ChatGPT):
             extension_plan_results = test_extension_planner.chat(
                 test_extension_planning_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
-                    current_unit_test=generated_test,
+                    current_unit_test=current_unit_test,
                     method_name=function_and_reference.function_name,
                 )
             )
@@ -222,7 +222,7 @@ class TestBot(ChatGPT):
                 extension_test_results = test_extension_creator.chat(
                     test_extension_user_prompt.format(
                         code_to_test=function_and_reference.function_code,
-                        current_unit_test=generated_test,
+                        current_unit_test=current_unit_test,
                         method_name=function_and_reference.function_name,
                         test_cases=test_cases_batch.strip(),
                     )
