@@ -1,6 +1,7 @@
 import re
 
 from sweepai.agents.modify_bot import strip_backticks
+from sweepai.config.server import DEFAULT_GPT35_MODEL, DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.utils.github_utils import ClonedRepo
@@ -137,11 +138,11 @@ class TestBot(ChatGPT):
         cloned_repo: ClonedRepo = None,
         **kwargs,
     ):
-        # self.model = (
-        #     DEFAULT_GPT4_32K_MODEL
-        #     if (self.chat_logger and self.chat_logger.is_paying_user())
-        #     else DEFAULT_GPT35_MODEL
-        # )
+        self.model = (
+            DEFAULT_GPT4_32K_MODEL
+            if (self.chat_logger and self.chat_logger.is_paying_user())
+            else DEFAULT_GPT35_MODEL
+        )
         self.messages = [
             Message(
                 role="system",

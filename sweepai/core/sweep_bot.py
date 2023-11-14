@@ -54,6 +54,7 @@ from sweepai.core.prompts import (
     subissues_prompt,
 )
 from sweepai.logn.cache import file_cache
+from sweepai.utils import chat_logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
@@ -1395,7 +1396,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 "succeeded" if changed_file else "failed"
                             )
                             file_change_requests[i].commit_hash_url = (
-                                commit.html_url if commit else None
+                                commit.html_url if commit and not isinstance(commit, str) else None # fix later
                             )
                             if i + 1 < len(file_change_requests):
                                 file_change_requests[i + 1].status = "running"
@@ -1487,6 +1488,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 additional_messages=additional_messages,
                                 file_path=file_change_request.source_file,
                                 cloned_repo=self.cloned_repo,
+                                chat_logger=self.chat_logger,
                             )
                             try:
                                 contents = self.repo.get_contents(
