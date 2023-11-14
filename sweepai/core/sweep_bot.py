@@ -1488,7 +1488,6 @@ class SweepBot(CodeGenBot, GithubBot):
                                 additional_messages=additional_messages,
                                 file_path=file_change_request.source_file,
                                 cloned_repo=self.cloned_repo,
-                                chat_logger=self.chat_logger,
                             )
                             try:
                                 contents = self.repo.get_contents(
