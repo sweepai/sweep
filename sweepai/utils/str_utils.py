@@ -75,3 +75,7 @@ def clean_logs(logs: str):
     cleaned_logs = cleaned_logs.strip("\n")
     cleaned_logs = cleaned_logs or "(nothing was outputted)"
     return cleaned_logs
+
+
+def extract_lines(text: str, start: int, end: int):
+    return "\n".join(text.splitlines(keepends=True)[start:end])

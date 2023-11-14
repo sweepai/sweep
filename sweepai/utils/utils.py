@@ -91,9 +91,9 @@ def chunk_tree(
         return []
     if len(chunks) < 2:
         return [Span(0, len(chunks[0]))]
-    for prev, curr in zip(chunks[:-1], chunks[1:]):
-        prev.end = curr.start
-    curr.start = tree.root_node.end_byte
+    for i in range(len(chunks) - 1):
+        chunks[i].end = chunks[i + 1].start
+    chunks[-1].end = tree.root_node.end_byte
 
     # 3. Combining small chunks with bigger ones
     new_chunks = []
