@@ -247,7 +247,7 @@ class CodeGenBot(ChatGPT):
                             # if file_change_request.change_type == "test":
                             #     file_change_request.change_type = "modify"
                             file_change_requests.append(file_change_request)
-                            if file_change_request.change_type != "extract":
+                            if file_change_request.change_type != "refactor":
                                 new_file_change_request = copy.deepcopy(
                                     file_change_request
                                 )
@@ -1406,7 +1406,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 commit,
                                 file_change_requests,
                             )
-                        case "extract":
+                        case "refactor":
                             file_contents_obj = self.repo.get_contents(
                                 file_change_request.filename, ref=branch
                             )

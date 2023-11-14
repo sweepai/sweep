@@ -38,30 +38,45 @@ def get_sliding_windows(lines):
 
 def get_refactor_snippets(code, hashes_dict):
     lines = [line for line in code.split("\n")]
+    active_vars = get_active_variables_per_line(code)
     for window in get_sliding_windows(lines):
         if window.hash_ in hashes_dict:
-            old_length = hashes_dict[window.hash_][0][1]
-            if old_length == 0:
-                old_length += len(window)
-            old_array = hashes_dict[window.hash_][0][2]
+            old_length = hashes_dict[window.hash_][1]
+            if old_length == len(window):
+                old_length += len(lines) # duplicates count more
+            old_array = hashes_dict[window.hash_][2]
             old_array.append((window.start_line, window.end_line))
-            hashes_dict[window.hash_] = [(window, old_length + len(window), old_array)]
+            hashes_dict[window.hash_] = (window, old_length + len(window), old_array)
         else:
-            hashes_dict[window.hash_] = [
-                (window, 0, [(window.start_line, window.end_line)])
-            ]
-    sorted_windows = sorted(hashes_dict.values(), key=lambda x: x[0][1], reverse=True)
+            hashes_dict[window.hash_] = (window, len(window), [(window.start_line, window.end_line)])
+    sorted_windows = sorted(hashes_dict.values(), key=lambda x: x[1], reverse=True)
     sorted_windows = [
-        window[0] for window in sorted_windows if window[0][1] > MIN_WINDOW_THRESHOLD
+        window for window in sorted_windows if window[1] > MIN_WINDOW_THRESHOLD
     ]
     completed_spans = []  # sections of the code that have already been complete
     final_window_code = []
-    for window in sorted_windows:
-        if overlap(window[2], completed_spans):
+    non_dup_count = 0
+    for window, window_value, start_and_end_indices in sorted_windows:
+        if overlap(start_and_end_indices, completed_spans):
             continue
-        if is_valid_window(code, window[0], window[2]):
-            completed_spans.extend(window[2])
-            final_window_code.append(window[0].code.lstrip())
+        if is_valid_window(code, window, start_and_end_indices):
+            # not a duplicate, perform more rigorous checking
+            if window_value < len(lines):
+                # basically an integration over the active variables
+                active_vars_delta = 0
+                start_vars = active_vars.get(window.start_line, 0)
+                for line in range(window.start_line, window.end_line):
+                    if line in active_vars:
+                        active_vars_delta += active_vars.get(line, 0) - start_vars
+                if active_vars_delta >= 0:
+                    non_dup_count += 1
+                    completed_spans.extend(start_and_end_indices)
+                    final_window_code.append(window.code.lstrip())
+                    if non_dup_count > 2:
+                        break
+            else:
+                completed_spans.extend(start_and_end_indices)
+                final_window_code.append(window.code.lstrip())
     return final_window_code
 
 
@@ -113,9 +128,9 @@ def is_valid_window(
             for start, end in start_and_end_indices
         )
 
-    def contains_return_or_try(node, start_and_end_indices):
+    def contains_invalid_entity(node, start_and_end_indices): # modify this later to remove cases when a function is defined inside
         for child in ast.walk(node):
-            if isinstance(child, (ast.Return, ast.Try)) and node_within_start_and_end(
+            if isinstance(child, (ast.Return, ast.Try, ast.Import, ast.ImportFrom)) and node_within_start_and_end(
                 child, start_and_end_indices
             ):
                 return True
@@ -123,7 +138,64 @@ def is_valid_window(
 
     # check if the window is within any node that we want to ignore
     for node in ast.walk(tree):
-        if contains_return_or_try(node, start_and_end_indices):
+        if contains_invalid_entity(node, start_and_end_indices):
             return False
     # If we get here, the window is valid
     return True
+
+def get_active_variables_per_line(code):
+    # Parse the Python code into an AST
+    parsed_code = ast.parse(code)
+
+    # Helper function to traverse the AST and find the spans
+    def find_usage_spans(node, usage_dict=None, parent_function=None):
+        if usage_dict is None:
+            usage_dict = {}
+        
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.Name):
+                name = child.id
+                if name not in usage_dict:
+                    usage_dict[name] = {'first_used_line': child.lineno, 'last_used_line': child.lineno, 'parent_function': parent_function}
+                else:
+                    usage_dict[name]['last_used_line'] = child.lineno
+            
+            elif isinstance(child, ast.FunctionDef):
+                parent_function = child.name
+            
+            find_usage_spans(child, usage_dict, parent_function)
+        
+        return usage_dict
+
+    # Finding the usage spans
+    usage_spans = find_usage_spans(parsed_code)
+    return active_variables(usage_spans)
+
+def active_variables(usage_spans):
+    # Initialize a dictionary to count active variables per line
+    active_vars = {}
+
+    # Iterate through each variable and its span
+    for var, spans in usage_spans.items():
+        # If the variable is within a function, we'll only count it within that function's scope
+        # for line in (spans['first_used_line'], spans['last_used_line'] + 1):
+        for line in range(spans['first_used_line'], spans['last_used_line'] + 1):
+        # for line in (spans['last_used_line'] + 1,):
+            key = line
+            if key in active_vars:
+                active_vars[key].add(var)
+            else:
+                active_vars[key] = {var}
+    
+    # Convert sets to counts
+    active_vars_counts = {key: len(vars) for key, vars in active_vars.items()}
+    
+    return active_vars_counts
+
+
+if __name__ == "__main__":
+    code = """"""
+    ast.parse(code)
+    refactor_snippets = get_refactor_snippets(code, {})
+    active_vars = get_active_variables_per_line(code)
+    print(active_vars)

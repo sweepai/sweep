@@ -54,7 +54,10 @@ def fuse_scripts(
     )
 
     if do_format:
-        result = format_str(result, mode=FileMode())
+        try:
+            result = format_str(result, mode=FileMode())
+        except Exception:
+            pass
 
     return result
 
