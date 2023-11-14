@@ -65,15 +65,19 @@ class OpenAIProxy:
                 openai.api_version = None
                 openai.api_type = "open_ai"
                 logger.info(f"Calling {model} with OpenAI.")
-                response = openai.ChatCompletion.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    timeout=OPENAI_TIMEOUT,
-                    seed=SEED,
-                )
-                return response["choices"][0].message.content
+                try:
+                    response = openai.ChatCompletion.create(
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        timeout=OPENAI_TIMEOUT,
+                        seed=SEED,
+                    )
+                    return response["choices"][0].message.content
+                except Exception as e:
+                    logger.error(f"Error while calling OpenAI: {e}")
+                    raise
             # validity checks for MULTI_REGION_CONFIG
             if (
                 MULTI_REGION_CONFIG is None
@@ -88,15 +92,19 @@ class OpenAIProxy:
                 openai.api_base = OPENAI_API_BASE
                 openai.api_version = OPENAI_API_VERSION
                 openai.api_key = AZURE_API_KEY
-                response = openai.ChatCompletion.create(
-                    engine=engine,
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    timeout=OPENAI_TIMEOUT,
-                )
-                return response["choices"][0].message.content
+                try:
+                    response = openai.ChatCompletion.create(
+                        engine=engine,
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        timeout=OPENAI_TIMEOUT,
+                    )
+                    return response["choices"][0].message.content
+                except Exception as e:
+                    logger.error(f"Error while calling OpenAI: {e}")
+                    raise
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
             # randomize the order of the list
@@ -112,15 +120,19 @@ class OpenAIProxy:
                     openai.api_base = region_url
                     openai.api_version = OPENAI_API_VERSION
                     openai.api_type = OPENAI_API_TYPE
-                    response = openai.ChatCompletion.create(
-                        engine=engine,
-                        model=model,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        timeout=OPENAI_TIMEOUT,
-                    )
-                    return response["choices"][0].message.content
+                    try:
+                        response = openai.ChatCompletion.create(
+                            engine=engine,
+                            model=model,
+                            messages=messages,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            timeout=OPENAI_TIMEOUT,
+                        )
+                        return response["choices"][0].message.content
+                    except Exception as e:
+                        logger.error(f"Error while calling OpenAI: {e}")
+                        raise
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
@@ -136,15 +148,19 @@ class OpenAIProxy:
                     openai.api_version = None
                     openai.api_type = "open_ai"
                     logger.info(f"Calling {model} with OpenAI.")
-                    response = openai.ChatCompletion.create(
-                        model=model,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        timeout=OPENAI_TIMEOUT,
-                        seed=SEED,
-                    )
-                    return response["choices"][0].message.content
+                    try:
+                        response = openai.ChatCompletion.create(
+                            model=model,
+                            messages=messages,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            timeout=OPENAI_TIMEOUT,
+                            seed=SEED,
+                        )
+                        return response["choices"][0].message.content
+                    except Exception as e:
+                        logger.error(f"Error while calling OpenAI: {e}")
+                        raise
                 except SystemExit:
                     raise SystemExit
                 except Exception as _e:
