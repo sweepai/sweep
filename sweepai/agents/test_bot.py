@@ -59,12 +59,38 @@ Write a unit test using the unittest module for the {{method_name}} method. Resp
 
 {test_prompt_response_format}"""
 
-test_extension_format = """\
-<test_analysis>
-Identify all cases that should be unit-tested.
-</test_analysis>
+test_extension_planning_format = """\
+<additional_test_cases>
+<test_case>
+Cases to unit test in natural language. Batch similar test cases with different parameters into a singular test case. Be complete and thorough but concise. Consolidate redundant statements.
+</test_case>
+<test_case>
+More cases to unit test.
+</test_case>
+...
+</additional_test_cases>"""
 
-<code>
+test_extension_planning_system_prompt = f"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+
+{test_extension_planning_format}"""
+
+test_extension_planning_user_prompt = f"""
+<code_to_test>
+{{code_to_test}}
+</code_to_test>
+
+<current_unit_test>
+```
+{{current_unit_test}}
+```
+</current_unit_test>
+
+Extend the unit tests using the unittest module for the {{method_name}} method. Respond in the following format:
+
+{test_extension_planning_format}"""
+
+test_extension_format = """\
+<additional_unit_tests>
 ```
 The additional unit test that uses the mocks defined in the original unit test. Format it like
 
@@ -74,9 +100,9 @@ class TestNameOfModule(unittest.TestCase):
     def test_function(self, mocks...):
         ... # the test here
 ```
-</code>"""
+</additional_unit_tests>"""
 
-test_extension_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+test_extension_system_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
 
 {test_extension_format}"""
 
@@ -90,9 +116,12 @@ test_extension_user_prompt = rf"""<code_to_test>
 ```
 </current_unit_test>
 
-Extend the unit tests using the unittest module for the {{method_name}} method. Respond in the following format:
+Test cases:
+{{test_cases}}
 
-{test_extension_prompt}"""
+Extend the unit tests using the unittest module for the {{method_name}} method to cover the test cases. Respond in the following format:
+
+{test_extension_format}"""
 
 
 # This class should handle appending or creating new tests
@@ -122,10 +151,15 @@ class TestBot(ChatGPT):
         ]
         self.messages.extend(additional_messages)
 
-        test_extension = ChatGPT.from_system_message_string(
-            test_extension_prompt, chat_logger=self.chat_logger
+        test_extension_planner = ChatGPT.from_system_message_string(
+            test_extension_planning_system_prompt, chat_logger=self.chat_logger
         )
-        test_extension.messages.extend(additional_messages)
+        test_extension_planner.messages.extend(additional_messages)
+
+        test_extension_creator = ChatGPT.from_system_message_string(
+            test_extension_system_prompt, chat_logger=self.chat_logger
+        )
+        test_extension_creator.messages.extend(additional_messages)
 
         script, tree = setup_jedi_for_file(
             project_dir=cloned_repo.repo_dir,
@@ -165,32 +199,55 @@ class TestBot(ChatGPT):
             code_xml_pattern = xml_pattern("code")
 
             generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
-            generated_test = strip_backticks(generated_test.group(1))
+            generated_test = strip_backticks(str(generated_test.group("code")))
+
+            current_unit_test = generated_test
 
             # Check the unit test here and try to fix it
-            extension_results = test_extension.chat(
-                test_extension_user_prompt.format(
+            extension_plan_results = test_extension_planner.chat(
+                test_extension_planning_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
                     current_unit_test=generated_test,
                     method_name=function_and_reference.function_name,
                 )
             )
 
-            test_extension = re.search(code_xml_pattern, extension_results, re.DOTALL)
-            test_extension = strip_backticks(test_extension.group(1))
+            additional_test_cases = [
+                match_.group("test_case")
+                for match_ in re.finditer(
+                    xml_pattern("test_case"), extension_plan_results, re.DOTALL
+                )
+            ]
+            for test_cases_batch in additional_test_cases:
+                extension_test_results = test_extension_creator.chat(
+                    test_extension_user_prompt.format(
+                        code_to_test=function_and_reference.function_code,
+                        current_unit_test=generated_test,
+                        method_name=function_and_reference.function_name,
+                        test_cases=test_cases_batch.strip(),
+                    )
+                )
+                extension_test_results = re.search(
+                    xml_pattern("additional_unit_tests"),
+                    extension_test_results,
+                    re.DOTALL,
+                )
+                extension_test_results = strip_backticks(
+                    str(extension_test_results.group("additional_unit_tests"))
+                )
 
-            decomposed_script = split_script(generated_test)
+                definitions = split_script(extension_test_results).definitions
+                definitions = definitions.split("\n\n", maxsplit=1)[1:]
 
-            definitions = split_script(test_extension).definitions
+                decomposed_script = split_script(current_unit_test)
+                current_unit_test = "\n\n".join(
+                    [
+                        decomposed_script.imports,
+                        decomposed_script.definitions,
+                        "\n\n".join(definitions),
+                        decomposed_script.main,
+                    ]
+                )
 
-            new_script = "\n\n".join(
-                [
-                    decomposed_script.imports,
-                    decomposed_script.definitions,
-                    "\n".join(definitions.splitlines()[3:]),
-                    decomposed_script.main,
-                ]
-            )
-
-            generated_code_sections.append(new_script)
-        return fuse_scripts(generated_code_sections)
+            generated_code_sections.append(current_unit_test)
+        return fuse_scripts(generated_code_sections, do_remove_main=False)
