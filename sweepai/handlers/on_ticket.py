@@ -20,6 +20,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
+from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.config.client import (
     DEFAULT_RULES,
     RESET_FILE,
@@ -69,7 +70,7 @@ from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_review import review_pr
+from sweepai.handlers.on_review import review_pr, get_pr_diffs
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -92,6 +93,7 @@ from sweepai.utils.str_utils import (
     sep,
     stars_suffix,
     strip_sweep,
+    UPDATES_MESSAGE,
 )
 from sweepai.utils.ticket_utils import (
     center,
@@ -114,6 +116,12 @@ rules:
     line-length: disable
     indentation: disable
 """
+
+INSTRUCTIONS_FOR_REVIEW = """\
+### 💡 To get Sweep to edit this pull request, you can:
+* Comment below, and Sweep can edit the entire PR
+* Comment on a file, Sweep will only modify the commented file
+* Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
 def on_ticket(
@@ -828,7 +836,11 @@ def on_ticket(
 
                 # Check if YAML is valid
                 yaml_content = content_file.decoded_content.decode("utf-8")
-                sweep_yaml_dict = yaml.safe_load(yaml_content)
+                sweep_yaml_dict = {}
+                try:
+                    sweep_yaml_dict = yaml.safe_load(yaml_content)
+                except:
+                    logger.error(f"Failed to load YAML file: {yaml_content}")
                 if len(sweep_yaml_dict) > 0:
                     break
                 linter_config = yamllint_config.YamlLintConfig(custom_config)
@@ -1219,6 +1231,16 @@ def on_ticket(
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
             pr_changes = response["pull_request"]
+            # change the body here
+            diff_text = get_branch_diff_text(repo, pull_request.branch_name)
+            new_description = PRDescriptionBot().describe_diffs(
+                diff_text, pull_request.title,
+            )
+            if new_description:
+                pr_changes.body = (
+                f"{new_description}\n\nFixes"
+                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+            )
 
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
@@ -1585,3 +1607,22 @@ def review_code(
         logger.error(traceback.format_exc())
         logger.error(e)
     return changes_required, review_message
+
+def get_branch_diff_text(repo, branch):
+    comparison = repo.compare(SweepConfig.get_branch(repo), branch)
+    file_diffs = comparison.files
+
+    pr_diffs = []
+    for file in file_diffs:
+        diff = file.patch
+        if (
+            file.status == "added"
+            or file.status == "modified"
+            or file.status == "removed"
+        ):
+            pr_diffs.append((file.filename, diff))
+        else:
+            logger.info(
+                f"File status {file.status} not recognized"
+            )  # TODO(sweep): We don't handle renamed files
+    return "\n".join([f"{filename}\n{diff}" for filename, diff in pr_diffs])

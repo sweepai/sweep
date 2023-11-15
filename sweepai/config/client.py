@@ -102,6 +102,7 @@ class SweepConfig(BaseModel):
         return cls.parse_obj(data)
 
     @staticmethod
+    @lru_cache()
     def get_branch(repo: Repository, override_branch: str | None = None) -> str:
         if override_branch:
             branch_name = override_branch
