@@ -1,36 +1,7 @@
-import random
-
-import openai
-from loguru import logger
-
-from sweepai.config.server import (
-    AZURE_API_KEY,
-    BASERUN_API_KEY,
-    MULTI_REGION_CONFIG,
-    OPENAI_API_BASE,
-    OPENAI_API_ENGINE_GPT4,
-    OPENAI_API_ENGINE_GPT4_32K,
-    OPENAI_API_ENGINE_GPT35,
-    OPENAI_API_KEY,
-    OPENAI_API_TYPE,
-    OPENAI_API_VERSION,
-)
-from sweepai.logn.cache import file_cache
-
-if BASERUN_API_KEY is not None:
-    pass
-
-OPENAI_TIMEOUT = 60  # one minute
-
-OPENAI_EXCLUSIVE_MODELS = [
-    "gpt-4-1106-preview",
-    "gpt-3.5-turbo-1106",
-    "gpt-3.5-turbo-1106",
-]
-SEED = 100
-
-
 class OpenAIProxy:
+    def __init__(self):
+        pass
+
     @file_cache(ignore_params=[])
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
@@ -61,6 +32,7 @@ class OpenAIProxy:
                 openai.api_base = "https://api.openai.com/v1"
                 openai.api_version = None
                 openai.api_type = "open_ai"
+                logger.info(f"Calling {model} with OpenAI.")
                 response = openai.ChatCompletion.create(
                     model=model,
                     messages=messages,
@@ -131,6 +103,7 @@ class OpenAIProxy:
                     openai.api_base = "https://api.openai.com/v1"
                     openai.api_version = None
                     openai.api_type = "open_ai"
+                    logger.info(f"Calling {model} with OpenAI.")
                     response = openai.ChatCompletion.create(
                         model=model,
                         messages=messages,
