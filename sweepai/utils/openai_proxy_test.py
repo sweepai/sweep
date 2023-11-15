@@ -30,11 +30,10 @@ class TestOpenAIProxy(unittest.TestCase):
     )
     def test_call_openai_with_exclusive_model(self, mock_create, mock_logger):
         mock_create.return_value = self.mock_response
-        with self.assertRaises(Exception) as context:
-            self.openai_proxy.call_openai(
-                self.model, self.messages, self.max_tokens, self.temperature
-            )
-        self.assertTrue("OpenAI exclusive model." in str(context.exception))
+        self.openai_proxy.call_openai(
+            self.model, self.messages, self.max_tokens, self.temperature
+        )
+        mock_logger.info.assert_called_with(f"Calling OpenAI exclusive model. {self.model}")
 
     @patch("openai.ChatCompletion.create")
     @patch("sweepai.utils.openai_proxy.OPENAI_API_ENGINE_GPT35", new="not None")
