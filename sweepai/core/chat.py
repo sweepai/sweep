@@ -91,7 +91,6 @@ class ChatGPT(BaseModel):
             repo_info = get_description(repo)
             repo_description = repo_info["description"]
             repo_info["rules"]
-            repo_info["rules"]
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
         messages = [Message(role="system", content=content, key="system")]
