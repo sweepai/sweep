@@ -4,6 +4,7 @@ from sweepai.agents.modify_bot import strip_backticks
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
+from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.jedi_utils import (
     get_all_defined_functions,
@@ -257,4 +258,7 @@ class TestBot(ChatGPT):
                 )
 
             generated_code_sections.append(current_unit_test)
-        return fuse_scripts(generated_code_sections, do_remove_main=False)
+
+        final_code = fuse_scripts(generated_code_sections, do_remove_main=False)
+        final_code = add_auto_imports(file_path, cloned_repo.repo_dir, final_code)
+        return final_code

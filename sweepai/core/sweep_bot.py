@@ -54,7 +54,7 @@ from sweepai.core.prompts import (
     subissues_prompt,
 )
 from sweepai.logn.cache import file_cache
-from sweepai.utils import chat_logger
+from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
@@ -968,12 +968,15 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             logger.error(f"Error: {e}")
 
-        # file_change.code, sandbox_execution = self.check_sandbox(
-        #     file_change_request.filename, file_change.code, changed_files
-        # )
         sandbox_execution = None
 
         self.messages = old_messages
+
+        file_change.code = add_auto_imports(
+            file_change_request.filename,
+            self.cloned_repo.repo_dir,
+            file_change.code,
+        )
 
         return file_change, sandbox_execution
 
@@ -1079,9 +1082,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_contents=contents,
                     file_change_request=file_change_request,
                     chunking=chunking,
+                    cloned_repo=self.cloned_repo,
                 )
-            except SystemExit:
-                raise SystemExit
             except UnneededEditError as e:
                 if chunking:
                     return (
@@ -1093,8 +1095,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 raise e
             except Exception as e:
                 raise e
-        except SystemExit:
-            raise SystemExit
         except Exception as e:  # Check for max tokens error
             if "max tokens" in str(e).lower():
                 logger.error(f"Max tokens exceeded for {file_change_request.filename}")
@@ -1117,8 +1117,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             )
             return new_file, commit_message, sandbox_execution, changed_files
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
@@ -1400,7 +1398,9 @@ class SweepBot(CodeGenBot, GithubBot):
                                 "succeeded" if changed_file else "failed"
                             )
                             file_change_requests[i].commit_hash_url = (
-                                commit.html_url if commit and not isinstance(commit, str) else None # fix later
+                                commit.html_url
+                                if commit and not isinstance(commit, str)
+                                else None  # fix later
                             )
                             if i + 1 < len(file_change_requests):
                                 file_change_requests[i + 1].status = "running"

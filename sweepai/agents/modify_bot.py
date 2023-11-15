@@ -16,7 +16,9 @@ from sweepai.core.update_prompts import (
     update_snippets_system_prompt,
     update_snippets_system_prompt_python,
 )
+from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.utils import chunk_code
 
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original sections from the code that should be modified.
@@ -246,6 +248,7 @@ class ModifyBot:
         file_path: str,
         file_contents: str,
         file_change_request: FileChangeRequest,
+        cloned_repo: ClonedRepo,
         chunking: bool = False,
     ):
         (
@@ -301,6 +304,7 @@ class ModifyBot:
                     chunking=chunking,
                     analysis_and_identification=analysis_and_identification,
                 )
+        new_file = add_auto_imports(cloned_repo.repo_dir, file_path, new_file)
         return new_file
 
     def get_snippets_to_modify(
