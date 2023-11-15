@@ -224,7 +224,7 @@ class TestBot(ChatGPT):
                 )
             ]
             for test_cases_batch in additional_test_cases[
-                : min(2, len(additional_test_cases))
+                : min(3, len(additional_test_cases))
             ]:
                 extension_test_results = test_extension_creator.chat(
                     test_extension_user_prompt.format(
