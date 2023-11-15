@@ -33,7 +33,7 @@ class TestOpenAIProxy(unittest.TestCase):
             self.openai_proxy.call_openai(
                 self.model, self.messages, self.max_tokens, self.temperature
             )
-        self.assertTrue("OpenAI exclusive model." in str(context.exception))
+        self.assertTrue("OpenAI exclusive model not supported." in str(context.exception))
 
     @patch("openai.ChatCompletion.create")
     @patch("sweepai.utils.openai_proxy.OPENAI_API_ENGINE_GPT35", new="not None")
