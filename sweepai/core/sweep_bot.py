@@ -1187,6 +1187,8 @@ class SweepBot(CodeGenBot, GithubBot):
         new_self.delete_messages_from_chat("changed_files_summary")
         new_self.delete_messages_from_chat("issue_metadata")
         new_self.delete_messages_from_chat("metadata")
+        new_self.delete_messages_from_chat("extract_prompt")
+        new_self.delete_messages_from_chat("files_to_change")
 
         file_path_to_contents = OrderedDict()
         for file_path, (old_contents, new_contents) in changed_files:
@@ -1492,6 +1494,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 additional_messages=additional_messages,
                                 file_path=file_change_request.source_file,
                                 cloned_repo=self.cloned_repo,
+                                check_sandbox=self.check_sandbox,
                             )
                             try:
                                 contents = self.repo.get_contents(

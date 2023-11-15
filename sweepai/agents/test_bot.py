@@ -1,9 +1,10 @@
 import re
+from typing import Callable
 
 from sweepai.agents.modify_bot import strip_backticks
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
+from sweepai.core.entities import Message, SandboxResponse
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.jedi_utils import (
@@ -130,6 +131,26 @@ Extend the unit tests using the unittest module for the {{method_name}} method t
 {test_extension_format}"""
 
 
+def skip_last_test(
+    test_code: str, message: str = "Skipping due to failing test"
+) -> str:
+    """Skip the last test in a test file, placing @unittest.skip before other decorators."""
+    code_before, last_test = test_code.rsplit("    def test_", 1)
+
+    decorator_pattern = r"(\s+@[\w\.]+\([^\)]*\)\s+)*"
+    match = re.search(decorator_pattern + r"def test_" + last_test, test_code)
+
+    skipped_test = f'    @unittest.skip("{message}")\n'
+
+    if match:
+        decorators = match.group(1) if match.group(1) is not None else ""
+        skipped_test += decorators
+
+    skipped_test += f"    def test_" + last_test
+
+    return code_before + skipped_test
+
+
 # This class should handle appending or creating new tests
 class TestBot(ChatGPT):
     def write_test(
@@ -141,6 +162,17 @@ class TestBot(ChatGPT):
         request="",
         changes_made="",
         cloned_repo: ClonedRepo = None,
+        changed_files: list[tuple[str, str]] = [],
+        check_sandbox: Callable[
+            [str, str, str], SandboxResponse
+        ] = lambda *args: SandboxResponse(
+            success=True,
+            error_messages=[],
+            output="",
+            executions=[],
+            updated_content="",
+            sandbox_dict={},
+        ),
         **kwargs,
     ):
         self.model = (
@@ -224,6 +256,15 @@ class TestBot(ChatGPT):
                     xml_pattern("test_case"), extension_plan_results, re.DOTALL
                 )
             ]
+
+            sandbox_response = check_sandbox(
+                current_unit_test,
+                file_path,
+                changed_files,
+            )
+            if sandbox_response.false == True:
+                skip_last_test(current_unit_test)
+
             for test_cases_batch in additional_test_cases[
                 : min(3, len(additional_test_cases))
             ]:
@@ -256,6 +297,14 @@ class TestBot(ChatGPT):
                         decomposed_script.main,
                     ]
                 )
+
+                sandbox_response = check_sandbox(
+                    current_unit_test,
+                    file_path,
+                    changed_files,
+                )
+                if sandbox_response.false == True:
+                    skip_last_test(current_unit_test)
 
             generated_code_sections.append(current_unit_test)
 
