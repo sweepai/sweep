@@ -91,6 +91,10 @@ Extend the unit tests using the unittest module for the {{method_name}} method. 
 {test_extension_planning_format}"""
 
 test_extension_format = """\
+<planning>
+List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions, and whether they should be patched like patch("module.CONSTANT", NEW_CONSTANT) or patch("module.function").
+</planning>
+
 <additional_unit_tests>
 ```
 The additional unit test that uses the mocks defined in the original unit test. Format it like
