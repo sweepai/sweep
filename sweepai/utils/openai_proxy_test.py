@@ -23,14 +23,15 @@ class TestOpenAIProxy(unittest.TestCase):
     @patch("openai.ChatCompletion.create")
     def test_call_openai_exclusive_model(self, mock_create):
         mock_create.return_value = self.mock_response
-        with self.assertRaises(Exception) as context:
-            self.openai_proxy.call_openai(
-                "gpt-3.5-turbo-16k",
-                [{"role": "system", "content": "Hello, how can I assist you today?"}],
-                100,
-                0.5,
-            )
-        self.assertTrue("OpenAI exclusive model." in str(context.exception))
+        with patch.dict("os.environ", {"OPENAI_API_TYPE": "azure"}):
+            with self.assertRaises(Exception) as context:
+                self.openai_proxy.call_openai(
+                    "gpt-3.5-turbo-16k",
+                    [{"role": "system", "content": "Hello, how can I assist you today?"}],
+                    100,
+                    0.5,
+                )
+            self.assertTrue("OpenAI exclusive model." in str(context.exception))
 
     @patch("openai.ChatCompletion.create")
     def test_call_openai_gpt35_model(self, mock_create):
