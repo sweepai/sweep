@@ -25,22 +25,22 @@ Write unit tests for the above function. Cover every possible edge case using th
 
 test_prompt_response_format = """\
 <mock_identification>
-# Entities to mock #
+# Entities to mock
 Identify all return objects from expensive operations entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
 ```
-code snippet of the mocked object's usage
+code snippet of each mocked object's usage
 ```
 
-# Access method #
-Identify the access method of the entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`.
+# Access method
+Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`.
 
 Then, for each chain of accesses like return_obj.foo["key"].bar, list the access type at each step of the chain and how they should be mocked, like
 - return_obj.foo is an attribute method so return_obj should be mocked like MagicMock.foo
 - return_obj.foo["key"] is a dictionary access so return_obj.foo should be mocked like {{"key": MagicMock}}
 - return_obj.foo["key"].bar is an attribute method so return_obj.foo["key"] should be mocked like MagicMock.bar
 
-# Mock Code #
-Write a mock that perfectly mocks this access method.
+# Mock Code
+Write mocks that perfectly mock these access methods.
 </mock_identification>
 
 <code>
