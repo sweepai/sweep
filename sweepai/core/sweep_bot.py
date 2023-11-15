@@ -673,7 +673,11 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             if file_change_request.change_type == "modify":
                 first_file = file_change_request.filename
-        extension = file_change_requests[0].filename.split(".")[-1]
+        extension = ""
+        for fcr in file_change_requests:
+            if fcr.change_type == "modify" and "." in fcr.filename:
+                extension = fcr.filename.split(".")[-1]
+                break
         contents = ""
         if first_file is None:
             commits = self.repo.get_commits()
