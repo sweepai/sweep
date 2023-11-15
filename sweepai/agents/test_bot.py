@@ -1,7 +1,7 @@
 import re
 
 from sweepai.agents.modify_bot import strip_backticks
-from sweepai.config.server import DEFAULT_GPT35_MODEL, DEFAULT_GPT4_32K_MODEL
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.utils.github_utils import ClonedRepo
@@ -219,7 +219,9 @@ class TestBot(ChatGPT):
                     xml_pattern("test_case"), extension_plan_results, re.DOTALL
                 )
             ]
-            for test_cases_batch in additional_test_cases:
+            for test_cases_batch in additional_test_cases[
+                : min(2, len(additional_test_cases))
+            ]:
                 extension_test_results = test_extension_creator.chat(
                     test_extension_user_prompt.format(
                         code_to_test=function_and_reference.function_code,
