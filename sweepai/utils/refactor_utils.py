@@ -195,7 +195,6 @@ def active_variables(usage_spans):
 
 if __name__ == "__main__":
     code = """"""
-    ast.parse(code)
     refactor_snippets = get_refactor_snippets(code, {})
     active_vars = get_active_variables_per_line(code)
     print(active_vars)

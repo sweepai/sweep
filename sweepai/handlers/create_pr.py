@@ -10,7 +10,7 @@ from github.Commit import Commit
 from github.Repository import Repository
 
 from sweepai.agents.sweep_yaml import SweepYamlBot
-from sweepai.config.client import SweepConfig, get_blocked_dirs
+from sweepai.config.client import DEFAULT_RULES, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -248,24 +248,24 @@ def create_config_pr(
     if sweep_bot is not None:
         branch_name = sweep_bot.create_branch(branch_name, retry=False)
         try:
-            commit_history = []
-            if cloned_repo is not None:
-                commit_history = cloned_repo.get_commit_history(
-                    limit=1000, time_limited=False
-                )
-            commit_string = "\n".join(commit_history)
+            # commit_history = []
+            # if cloned_repo is not None:
+            #     commit_history = cloned_repo.get_commit_history(
+            #         limit=1000, time_limited=False
+            #     )
+            # commit_string = "\n".join(commit_history)
 
-            sweep_yaml_bot = SweepYamlBot()
-            generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
-                commit_history=commit_string
-            )
+            # sweep_yaml_bot = SweepYamlBot()
+            # generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
+            #     commit_history=commit_string
+            # )
 
             sweep_bot.repo.create_file(
                 "sweep.yaml",
                 "Create sweep.yaml",
                 GITHUB_DEFAULT_CONFIG.format(
                     branch=sweep_bot.repo.default_branch,
-                    additional_rules=generated_rules,
+                    additional_rules=DEFAULT_RULES,
                 ),
                 branch=branch_name,
             )
@@ -287,23 +287,23 @@ def create_config_pr(
         )
 
         try:
-            commit_history = []
-            if cloned_repo is not None:
-                commit_history = cloned_repo.get_commit_history(
-                    limit=1000, time_limited=False
-                )
-            commit_string = "\n".join(commit_history)
+            # commit_history = []
+            # if cloned_repo is not None:
+            #     commit_history = cloned_repo.get_commit_history(
+            #         limit=1000, time_limited=False
+            #     )
+            # commit_string = "\n".join(commit_history)
 
-            sweep_yaml_bot = SweepYamlBot()
-            generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
-                commit_history=commit_string
-            )
+            # sweep_yaml_bot = SweepYamlBot()
+            # generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
+            #     commit_history=commit_string
+            # )
 
             repo.create_file(
                 "sweep.yaml",
                 "Create sweep.yaml",
                 GITHUB_DEFAULT_CONFIG.format(
-                    branch=repo.default_branch, additional_rules=generated_rules
+                    branch=repo.default_branch, additional_rules=DEFAULT_RULES
                 ),
                 branch=branch_name,
             )
