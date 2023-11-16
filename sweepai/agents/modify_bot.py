@@ -389,14 +389,16 @@ class ModifyBot:
     ):
         is_python_file = file_path.strip().endswith(".py")
 
-        chunk_code(file_contents, file_path, 700, 200)
-
         best_matches = []
         for snippet_to_modify in snippet_queries:
+            expand_size = 20
             best_matches.append(
                 MatchToModify(
-                    start=snippet_to_modify.snippet.start,
-                    end=snippet_to_modify.snippet.end + 1,
+                    start=max(snippet_to_modify.snippet.start - expand_size, 0),
+                    end=min(
+                        snippet_to_modify.snippet.end + 1 + expand_size,
+                        len(file_contents.splitlines()),
+                    ),
                     reason=snippet_to_modify.reason,
                 )
             )
