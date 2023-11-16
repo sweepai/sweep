@@ -91,39 +91,6 @@ class OpenAIProxy:
             # Raise exception to report error
             raise e
 
-    def validate_and_configure_for_azure(self, model, engine, messages, max_tokens, temperature, response):
-        # validity checks for MULTI_REGION_CONFIG
-        if (
-            MULTI_REGION_CONFIG is None
-            or not isinstance(MULTI_REGION_CONFIG, list)
-            or len(MULTI_REGION_CONFIG) == 0
-            or not isinstance(MULTI_REGION_CONFIG[0], list)
-        ):
-            logger.info(
-                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
-            )
-            openai.api_type = OPENAI_API_TYPE
-            openai.api_base = OPENAI_API_BASE
-            openai.api_version = OPENAI_API_VERSION
-            openai.api_key = AZURE_API_KEY
-            response = self.create_openai_chat_completion(engine, model, messages, max_tokens, temperature)
-        return response
-
-    def configure_openai_api_for_azure(self, model, engine):
-        if (
-            MULTI_REGION_CONFIG is None
-            or not isinstance(MULTI_REGION_CONFIG, list)
-            or len(MULTI_REGION_CONFIG) == 0
-            or not isinstance(MULTI_REGION_CONFIG[0], list)
-        ):
-            logger.info(
-                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
-            )
-            openai.api_type = OPENAI_API_TYPE
-            openai.api_base = OPENAI_API_BASE
-            openai.api_version = OPENAI_API_VERSION
-            openai.api_key = AZURE_API_KEY
-
     def determine_openai_engine(self, model):
         engine = None
         if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
