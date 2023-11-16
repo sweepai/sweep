@@ -18,11 +18,11 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
 
     @patch(
         "sweepai.utils.openai_proxy.OpenAIProxy.set_openai_default_api_parameters",
-        return_value=self.mock_response,
+        return_value=mock_response,
     )
     @patch(
         "sweepai.utils.openai_proxy.OpenAIProxy.create_openai_chat_completion",
-        return_value=self.mock_response,
+        return_value=mock_response,
     )
     @patch("sweepai.utils.openai_proxy.logger")
     def test_call_openai(
@@ -43,7 +43,7 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
             model, messages, max_tokens, temperature
         )
         mock_create_openai_chat_completion.assert_called_once_with(
-            anything, model, messages, max_tokens, temperature
+            None, model, messages, max_tokens, temperature
         )
 
     @patch("sweepai.utils.openai_proxy.OPENAI_API_TYPE", None)
@@ -62,7 +62,7 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         result = self.proxy.call_openai(model, messages, max_tokens, temperature)
 
         self.assertEqual(result, "mock content")
-        self.proxy.set_openai_default_api_parameters.assert_called_once_with(
+        mock_set_openai_default_api_parameters.assert_called_once_with(
             model, messages, max_tokens, temperature
         )
 
@@ -76,8 +76,8 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         result = self.proxy.call_openai(model, messages, max_tokens, temperature)
 
         self.assertEqual(result, "mock content")
-        self.proxy.create_openai_chat_completion.assert_called_once_with(
-            anything, model, messages, max_tokens, temperature
+        mock_create_openai_chat_completion.assert_called_once_with(
+            None, model, messages, max_tokens, temperature
         )
 
     @patch(
@@ -95,8 +95,8 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         result = self.proxy.call_openai(model, messages, max_tokens, temperature)
 
         self.assertEqual(result, "mock content")
-        self.proxy.create_openai_chat_completion.assert_called_once_with(
-            anything, model, messages, max_tokens, temperature
+        mock_create_openai_chat_completion.assert_called_once_with(
+            None, model, messages, max_tokens, temperature
         )
 
     @patch("sweepai.utils.openai_proxy.OPENAI_API_KEY", None)
