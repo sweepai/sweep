@@ -10,9 +10,9 @@ from sweepai.utils.openai_proxy import OpenAIProxy
 class TestOpenAIProxyCallOpenai(unittest.TestCase):
     def setUp(self):
         self.mock_response = MagicMock()
-        self.mock_response["choices"] = [MagicMock()]
-        self.mock_response["choices"][0].message = MagicMock()
-        self.mock_response["choices"][0].message.content = "mock content"
+        self.mock_response.choices = [MagicMock()]
+        self.mock_response.choices[0].message = MagicMock()
+        self.mock_response.choices[0].message.content = "mock content"
 
         self.proxy = OpenAIProxy()
 
@@ -39,10 +39,10 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         result = self.proxy.call_openai(model, messages, max_tokens, temperature)
 
         self.assertEqual(result, "mock content")
-        mock_set_openai_default_api_parameters.assert_called_once_with(
+        self.proxy.set_openai_default_api_parameters.assert_called_once_with(
             model, messages, max_tokens, temperature
         )
-        mock_create_openai_chat_completion.assert_called_once_with(
+        self.proxy.create_openai_chat_completion.assert_called_once_with(
             None, model, messages, max_tokens, temperature
         )
 
@@ -62,7 +62,7 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         result = self.proxy.call_openai(model, messages, max_tokens, temperature)
 
         self.assertEqual(result, "mock content")
-        mock_set_openai_default_api_parameters.assert_called_once_with(
+        self.proxy.set_openai_default_api_parameters.assert_called_once_with(
             model, messages, max_tokens, temperature
         )
 
@@ -76,7 +76,7 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         result = self.proxy.call_openai(model, messages, max_tokens, temperature)
 
         self.assertEqual(result, "mock content")
-        mock_create_openai_chat_completion.assert_called_once_with(
+        self.proxy.create_openai_chat_completion.assert_called_once_with(
             None, model, messages, max_tokens, temperature
         )
 
@@ -95,7 +95,7 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         result = self.proxy.call_openai(model, messages, max_tokens, temperature)
 
         self.assertEqual(result, "mock content")
-        mock_create_openai_chat_completion.assert_called_once_with(
+        self.proxy.create_openai_chat_completion.assert_called_once_with(
             None, model, messages, max_tokens, temperature
         )
 
