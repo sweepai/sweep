@@ -1,7 +1,9 @@
 import random
+from typing import List, Optional
 
 import openai
 from loguru import logger
+from openai.api_resources.abstract.api_resource import APIResource
 
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -86,12 +88,55 @@ class OpenAIProxy:
                 except SystemExit:
                     raise SystemExit
                 except Exception as _e:
-                    logger.error(f"OpenAI API Key found but error: {_e}")
-            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
-            # Raise exception to report error
+    def set_openai_default_api_parameters(self, model: str, messages: List[dict], max_tokens: int, temperature: float) -> APIResource:
+        """
+        Sets the default API parameters for OpenAI and creates a chat completion.
+    
+        Args:
+            model (str): The model to use for the chat completion.
+            messages (List[dict]): The messages to use for the chat completion.
+            max_tokens (int): The maximum number of tokens to use for the chat completion.
+            temperature (float): The temperature to use for the chat completion.
+    
+        Returns:
+            APIResource: The response from the chat completion.
+        """
+        self.configure_default_openai_api_settings()
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=OPENAI_TIMEOUT,
+            seed=SEED,
+        )
+        return response
+    
+    def configure_default_openai_api_settings(self) -> None:
+        """
+        Configures the default settings for the OpenAI API.
+        """
+        openai.api_key = OPENAI_API_KEY
+        openai.api_base = "https://api.openai.com/v1"
+        openai.api_version = None
+        openai.api_type = "open_ai"
             raise e
 
-    def validate_and_execute_single_region_call(self, model, engine, messages, max_tokens, temperature, response):
+    def validate_and_execute_single_region_call(self, model: str, engine: str, messages: List[dict], max_tokens: int, temperature: float, response: APIResource) -> APIResource:
+        """
+        Validates the MULTI_REGION_CONFIG and executes a single region call if valid.
+    
+        Args:
+            model (str): The model to use for the call.
+            engine (str): The engine to use for the call.
+            messages (List[dict]): The messages to use for the call.
+            max_tokens (int): The maximum number of tokens to use for the call.
+            temperature (float): The temperature to use for the call.
+            response (APIResource): The response object to use for the call.
+    
+        Returns:
+            APIResource: The response from the call.
+        """
         # validity checks for MULTI_REGION_CONFIG
         if (
             MULTI_REGION_CONFIG is None
@@ -109,11 +154,25 @@ class OpenAIProxy:
             response = self.create_openai_chat_completion(engine, model, messages, max_tokens, temperature)
         return response
 
-    def execute_single_region_api_call(self, model, engine, messages, max_tokens, temperature, response):
+    def execute_single_region_api_call(self, model: str, engine: str, messages: List[dict], max_tokens: int, temperature: float, response: APIResource) -> APIResource:
+        """
+        Executes a single region API call.
+
+        Args:
+            model (str): The model to use for the call.
+            engine (str): The engine to use for the call.
+            messages (List[dict]): The messages to use for the call.
+            max_tokens (int): The maximum number of tokens to use for the call.
+            temperature (float): The temperature to use for the call.
+            response (APIResource): The response object to use for the call.
+
+        Returns:
+            APIResource: The response from the call.
+        """
         response = self.validate_and_execute_single_region_call(model, engine, messages, max_tokens, temperature, response)
         return response
 
-    def determine_openai_engine(self, model):
+    def determine_openai_engine(self, model: str) -> Optional[str]:
         engine = None
         if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
             logger.info(f"Calling OpenAI exclusive model. {model}")
@@ -138,7 +197,16 @@ class OpenAIProxy:
             engine = OPENAI_API_ENGINE_GPT4_32K
         return engine
 
-    def select_engine_for_gpt35_model(self, model):
+    def select_engine_for_gpt35_model(self, model: str) -> Optional[str]:
+        """
+        Selects the engine for the gpt-3.5 model.
+
+        Args:
+            model (str): The model to select the engine for.
+
+        Returns:
+            Optional[str]: The selected engine, or None if no engine is selected.
+        """
         if (
             model == "gpt-3.5-turbo-16k"
             or model == "gpt-3.5-turbo-16k-0613"
@@ -146,7 +214,20 @@ class OpenAIProxy:
         ):
             engine = OPENAI_API_ENGINE_GPT35
 
-    def create_openai_chat_completion(self, engine, model, messages, max_tokens, temperature):
+    def create_openai_chat_completion(self, engine: str, model: str, messages: List[dict], max_tokens: int, temperature: float) -> APIResource:
+        """
+        Creates a chat completion with OpenAI.
+
+        Args:
+            engine (str): The engine to use for the chat completion.
+            model (str): The model to use for the chat completion.
+            messages (List[dict]): The messages to use for the chat completion.
+            max_tokens (int): The maximum number of tokens to use for the chat completion.
+            temperature (float): The temperature to use for the chat completion.
+
+        Returns:
+            APIResource: The response from the chat completion.
+        """
         response = openai.ChatCompletion.create(
             engine=engine,
             model=model,
@@ -157,7 +238,7 @@ class OpenAIProxy:
         )
         return response
 
-    def set_openai_default_api_parameters(self, model, messages, max_tokens, temperature):
+    def set_openai_default_api_parameters(self, model: str, messages: List[dict], max_tokens: int, temperature: float) -> APIResource:
         self.configure_default_openai_api_settings()
         response = openai.ChatCompletion.create(
             model=model,
