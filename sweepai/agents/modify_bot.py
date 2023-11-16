@@ -444,9 +444,7 @@ class ModifyBot:
                 file_path=file_path,
                 changes_made=self.get_diffs_message(file_contents),
                 old_code=update_snippets_code,
-                request=file_change_request.instructions
-                + "\n"
-                + analysis_and_identification,
+                request=file_change_request.instructions,
             )
         else:
             indices_to_keep = [0]
