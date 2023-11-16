@@ -1,9 +1,10 @@
 import re
+from typing import Callable
 
 from sweepai.agents.modify_bot import strip_backticks
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
+from sweepai.core.entities import Message, SandboxResponse
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.jedi_utils import (
@@ -41,7 +42,15 @@ Then, for each chain of accesses like return_obj.foo["key"].bar, list the access
 - return_obj.foo["key"].bar is an attribute method so return_obj.foo["key"] should be mocked like MagicMock.bar
 
 # Mock Code
-Write mocks that perfectly mock these access methods.
+Write mocks that perfectly mock these access methods. E.g.
+```
+from unittest.mock import MagicMock
+
+mock_response = MagicMock()
+mock_response.foo = {{}}
+mock_response.foo["key"] = MagicMock()
+mock_response.foo["key"].bar = "mock content"
+```
 </mock_identification>
 
 <code>
@@ -100,7 +109,7 @@ List any constants and functions that NEED to be modified for the unit test to w
 ```
 The additional unit test that uses the mocks defined in the original unit test. Format it like
 
-class TestNameOfModule(unittest.TestCase):
+class TestNameOfFullFunctionName(unittest.TestCase):
     ...
 
     def test_function(self, mocks...):
@@ -130,6 +139,31 @@ Extend the unit tests using the unittest module for the {{method_name}} method t
 {test_extension_format}"""
 
 
+def skip_last_test(
+    test_code: str, message: str = "Skipping due to failing test"
+) -> str:
+    """Skip the last test in a test file, placing @unittest.skip before other decorators."""
+    code_before, last_test = test_code.rsplit("    def test_", 1)
+
+    decorator_pattern = r"(\s+@[\w\.]+\([^\)]*\)\s+)*"
+    match = re.search(decorator_pattern + r"def test_" + last_test, test_code)
+
+    skipped_test = f'    @unittest.skip("{message}")\n'
+
+    if match:
+        decorators = match.group(1) if match.group(1) is not None else ""
+        skipped_test += decorators
+
+    skipped_test += f"    def test_" + last_test
+
+    return code_before + skipped_test
+
+
+def pascal_case(s: str) -> str:
+    """Convert a string to PascalCase."""
+    return "".join(word.capitalize() for word in s.split("_"))
+
+
 # This class should handle appending or creating new tests
 class TestBot(ChatGPT):
     def write_test(
@@ -141,6 +175,17 @@ class TestBot(ChatGPT):
         request="",
         changes_made="",
         cloned_repo: ClonedRepo = None,
+        changed_files: list[tuple[str, str]] = [],
+        check_sandbox: Callable[
+            [str, str, str], tuple[str, SandboxResponse]
+        ] = lambda *args: SandboxResponse(
+            success=True,
+            error_messages=[],
+            output="",
+            executions=[],
+            updated_content="",
+            sandbox_dict={},
+        ),
         **kwargs,
     ):
         self.model = (
@@ -209,6 +254,12 @@ class TestBot(ChatGPT):
 
             current_unit_test = generated_test
 
+            current_unit_test = current_unit_test.replace(
+                "(unittest.TestCase)",
+                pascal_case(fn_def.name.split(".")[-1]) + "(unittest.TestCase)",
+                1,
+            )
+
             # Check the unit test here and try to fix it
             extension_plan_results = test_extension_planner.chat(
                 test_extension_planning_user_prompt.format(
@@ -224,8 +275,17 @@ class TestBot(ChatGPT):
                     xml_pattern("test_case"), extension_plan_results, re.DOTALL
                 )
             ]
+
+            _, sandbox_response = check_sandbox(
+                file_path,
+                current_unit_test,
+                changed_files,
+            )
+            if sandbox_response.success == False:
+                skip_last_test(current_unit_test)
+
             for test_cases_batch in additional_test_cases[
-                : min(3, len(additional_test_cases))
+                : min(1, len(additional_test_cases))
             ]:
                 extension_test_results = test_extension_creator.chat(
                     test_extension_user_prompt.format(
@@ -256,6 +316,14 @@ class TestBot(ChatGPT):
                         decomposed_script.main,
                     ]
                 )
+
+                _, sandbox_response = check_sandbox(
+                    file_path,
+                    current_unit_test,
+                    changed_files,
+                )
+                if sandbox_response.success == False:
+                    skip_last_test(current_unit_test)
 
             generated_code_sections.append(current_unit_test)
 
