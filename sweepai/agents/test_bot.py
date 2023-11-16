@@ -247,7 +247,7 @@ class TestBot(ChatGPT):
             )
             self.messages = self.messages[:-2]
 
-            code_xml_pattern = xml_pattern("code")
+            code_xml_pattern = r"<code>(.*?)```(python)?(?P<code>.*?)(```\n)?</code>"
 
             generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
             generated_test = strip_backticks(str(generated_test.group("code")))
