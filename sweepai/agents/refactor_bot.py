@@ -246,4 +246,5 @@ class RefactorBot(ChatGPT):
                 new_function_names[idx],
                 project_name=cloned_repo.repo_dir,
             )
+        # typehint and docstring bot
         return new_code

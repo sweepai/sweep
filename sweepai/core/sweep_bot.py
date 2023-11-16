@@ -22,7 +22,7 @@ from sweepai.agents.move_bot import MoveBot
 from sweepai.agents.refactor_bot import RefactorBot
 from sweepai.agents.test_bot import TestBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEBUG, DEFAULT_GPT35_MODEL, MINIS3_URL, SANDBOX_URL
+from sweepai.config.server import DEBUG, DEFAULT_GPT35_MODEL, DEFAULT_GPT4_32K_MODEL, MINIS3_URL, SANDBOX_URL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     ExtractionRequest,
@@ -469,7 +469,7 @@ class CodeGenBot(ChatGPT):
                     pr_text_response = self.chat(
                         pull_request_prompt,
                         message_key="pull_request",
-                        model=DEFAULT_GPT35_MODEL,
+                        model=DEFAULT_GPT4_32K_MODEL,
                     )
 
                 # Add triple quotes if not present

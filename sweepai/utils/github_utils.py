@@ -105,15 +105,19 @@ class ClonedRepo:
 
     @cached_property
     def cached_dir(self):
+        self.repo = Github(self.token).get_repo(self.repo_full_name)
+        self.branch = self.branch or SweepConfig.get_branch(self.repo)
         return os.path.join(
             REPO_CACHE_BASE_DIR,
             self.repo_full_name,
             "base",
-            self.branch or "",
+            parse_collection_name(self.branch),
         )
 
     @cached_property
     def repo_dir(self):
+        self.repo = Github(self.token).get_repo(self.repo_full_name)
+        self.branch = self.branch or SweepConfig.get_branch(self.repo)
         curr_time_str = str(time.time()).encode("utf-8")
         hash_obj = hashlib.sha256(curr_time_str)
         hash_hex = hash_obj.hexdigest()
@@ -122,7 +126,7 @@ class ClonedRepo:
                 REPO_CACHE_BASE_DIR,
                 self.repo_full_name,
                 hash_hex,
-                self.branch,
+                parse_collection_name(self.branch),
             )
         else:
             return os.path.join("/tmp/cache/repos", self.repo_full_name, hash_hex)
@@ -294,7 +298,7 @@ class ClonedRepo:
         return tree, dir_obj
 
     def get_file_contents(self, file_path, ref=None):
-        local_path = os.path.join(self.repo_dir, file_path)
+        local_path = f"{self.repo_dir}{file_path}" if file_path.startswith("/") else f"{self.repo_dir}/{file_path}"
         if os.path.exists(local_path):
             with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()
@@ -384,6 +388,12 @@ def get_hunks(a: str, b: str, context=10):
 
     return "\n".join(hunks)
 
+def parse_collection_name(name: str) -> str:
+    # Replace any non-alphanumeric characters with hyphens
+    name = re.sub(r"[^\w-]", "--", name)
+    # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
+    name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
+    return name
 
 str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
 str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"

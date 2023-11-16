@@ -38,7 +38,7 @@ from sweepai.utils.scorer import compute_score, get_scores
 MODEL_DIR = "/tmp/cache/model"
 DEEPLAKE_DIR = "/tmp/cache/"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.13"
+CACHE_VERSION = "v1.0.14"
 MAX_FILES = 500
 
 redis_client = Redis.from_url(REDIS_URL)
@@ -151,6 +151,8 @@ def embed_texts(texts: tuple[str]):
                 return embeddings
             else:
                 raise Exception("Replicate URL and token not set")
+        case "none":
+            return [[0.5]] * len(texts)
         case _:
             raise Exception("Invalid vector embedding mode")
     logger.info(
@@ -207,7 +209,7 @@ def prepare_documents_metadata_ids(
     for snippet in snippets:
         documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
         metadata = {
-            "file_path": snippet.file_path[len(cloned_repo.cached_dir) :],
+            "file_path": snippet.file_path[len(cloned_repo.cached_dir) + 1:],
             "start": snippet.start,
             "end": snippet.end,
             "score": files_to_scores[snippet.file_path],

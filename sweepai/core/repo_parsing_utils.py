@@ -60,7 +60,6 @@ def repo_to_chunks(
     directory: str, sweep_config: SweepConfig
 ) -> tuple[list[Snippet], list[str]]:
     dir_file_count = {}
-
     def is_dir_too_big(file_name):
         dir_name = os.path.dirname(file_name)
         only_file_name = file_name[: len(directory)]
