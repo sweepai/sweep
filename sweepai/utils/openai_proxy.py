@@ -36,7 +36,9 @@ class OpenAIProxy:
         try:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
-                response = self.set_openai_default_api_parameters(model, messages, max_tokens, temperature)
+                response = self.set_openai_default_api_parameters(
+                    model, messages, max_tokens, temperature
+                )
                 return response["choices"][0].message.content
             # validity checks for MULTI_REGION_CONFIG
             if (
@@ -52,7 +54,9 @@ class OpenAIProxy:
                 openai.api_base = OPENAI_API_BASE
                 openai.api_version = OPENAI_API_VERSION
                 openai.api_key = AZURE_API_KEY
-                response = self.create_openai_chat_completion(engine, model, messages, max_tokens, temperature)
+                response = self.create_openai_chat_completion(
+                    engine, model, messages, max_tokens, temperature
+                )
                 return response["choices"][0].message.content
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
@@ -69,7 +73,9 @@ class OpenAIProxy:
                     openai.api_base = region_url
                     openai.api_version = OPENAI_API_VERSION
                     openai.api_type = OPENAI_API_TYPE
-                    response = self.create_openai_chat_completion(engine, model, messages, max_tokens, temperature)
+                    response = self.create_openai_chat_completion(
+                        engine, model, messages, max_tokens, temperature
+                    )
                     return response["choices"][0].message.content
                 except SystemExit:
                     raise SystemExit
@@ -81,7 +87,9 @@ class OpenAIProxy:
         except Exception as e:
             if OPENAI_API_KEY:
                 try:
-                    response = self.set_openai_default_api_parameters(model, messages, max_tokens, temperature)
+                    response = self.set_openai_default_api_parameters(
+                        model, messages, max_tokens, temperature
+                    )
                     return response["choices"][0].message.content
                 except SystemExit:
                     raise SystemExit
@@ -95,8 +103,7 @@ class OpenAIProxy:
         engine = None
         if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
             logger.info(f"Calling OpenAI exclusive model. {model}")
-            raise Exception("OpenAI exclusive model.")
-        if (
+        elif (
             model == "gpt-3.5-turbo-16k"
             or model == "gpt-3.5-turbo-16k-0613"
             and OPENAI_API_ENGINE_GPT35 is not None
@@ -116,7 +123,9 @@ class OpenAIProxy:
             engine = OPENAI_API_ENGINE_GPT4_32K
         return engine
 
-    def create_openai_chat_completion(self, engine, model, messages, max_tokens, temperature):
+    def create_openai_chat_completion(
+        self, engine, model, messages, max_tokens, temperature
+    ):
         response = openai.ChatCompletion.create(
             engine=engine,
             model=model,
@@ -127,7 +136,9 @@ class OpenAIProxy:
         )
         return response
 
-    def set_openai_default_api_parameters(self, model, messages, max_tokens, temperature):
+    def set_openai_default_api_parameters(
+        self, model, messages, max_tokens, temperature
+    ):
         openai.api_key = OPENAI_API_KEY
         openai.api_base = "https://api.openai.com/v1"
         openai.api_version = None
