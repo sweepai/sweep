@@ -109,7 +109,7 @@ List any constants and functions that NEED to be modified for the unit test to w
 ```
 The additional unit test that uses the mocks defined in the original unit test. Format it like
 
-class TestNameOfModule(unittest.TestCase):
+class TestNameOfFullFunctionName(unittest.TestCase):
     ...
 
     def test_function(self, mocks...):
@@ -157,6 +157,11 @@ def skip_last_test(
     skipped_test += f"    def test_" + last_test
 
     return code_before + skipped_test
+
+
+def pascal_case(s: str) -> str:
+    """Convert a string to PascalCase."""
+    return "".join(word.capitalize() for word in s.split("_"))
 
 
 # This class should handle appending or creating new tests
@@ -249,6 +254,12 @@ class TestBot(ChatGPT):
 
             current_unit_test = generated_test
 
+            current_unit_test = current_unit_test.replace(
+                "(unittest.TestCase)",
+                pascal_case(fn_def.name.split(".")[-1]) + "(unittest.TestCase)",
+                1,
+            )
+
             # Check the unit test here and try to fix it
             extension_plan_results = test_extension_planner.chat(
                 test_extension_planning_user_prompt.format(
@@ -274,7 +285,7 @@ class TestBot(ChatGPT):
                 skip_last_test(current_unit_test)
 
             for test_cases_batch in additional_test_cases[
-                : min(3, len(additional_test_cases))
+                : min(1, len(additional_test_cases))
             ]:
                 extension_test_results = test_extension_creator.chat(
                     test_extension_user_prompt.format(
