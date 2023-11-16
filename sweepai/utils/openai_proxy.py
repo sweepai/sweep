@@ -91,6 +91,28 @@ class OpenAIProxy:
             # Raise exception to report error
             raise e
 
+    def validate_and_execute_single_region_call(self, model, engine, messages, max_tokens, temperature, response):
+        # validity checks for MULTI_REGION_CONFIG
+        if (
+            MULTI_REGION_CONFIG is None
+            or not isinstance(MULTI_REGION_CONFIG, list)
+            or len(MULTI_REGION_CONFIG) == 0
+            or not isinstance(MULTI_REGION_CONFIG[0], list)
+        ):
+            logger.info(
+                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
+            )
+            openai.api_type = OPENAI_API_TYPE
+            openai.api_base = OPENAI_API_BASE
+            openai.api_version = OPENAI_API_VERSION
+            openai.api_key = AZURE_API_KEY
+            response = self.create_openai_chat_completion(engine, model, messages, max_tokens, temperature)
+        return response
+
+    def execute_single_region_api_call(self, model, engine, messages, max_tokens, temperature, response):
+        response = self.validate_and_execute_single_region_call(model, engine, messages, max_tokens, temperature, response)
+        return response
+
     def determine_openai_engine(self, model):
         engine = None
         if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
@@ -116,6 +138,14 @@ class OpenAIProxy:
             engine = OPENAI_API_ENGINE_GPT4_32K
         return engine
 
+    def select_engine_for_gpt35_model(self, model):
+        if (
+            model == "gpt-3.5-turbo-16k"
+            or model == "gpt-3.5-turbo-16k-0613"
+            and OPENAI_API_ENGINE_GPT35 is not None
+        ):
+            engine = OPENAI_API_ENGINE_GPT35
+
     def create_openai_chat_completion(self, engine, model, messages, max_tokens, temperature):
         response = openai.ChatCompletion.create(
             engine=engine,
@@ -128,10 +158,7 @@ class OpenAIProxy:
         return response
 
     def set_openai_default_api_parameters(self, model, messages, max_tokens, temperature):
-        openai.api_key = OPENAI_API_KEY
-        openai.api_base = "https://api.openai.com/v1"
-        openai.api_version = None
-        openai.api_type = "open_ai"
+        self.configure_default_openai_api_settings()
         response = openai.ChatCompletion.create(
             model=model,
             messages=messages,
@@ -141,3 +168,8 @@ class OpenAIProxy:
             seed=SEED,
         )
         return response
+    def configure_default_openai_api_settings(self):
+        openai.api_key = OPENAI_API_KEY
+        openai.api_base = "https://api.openai.com/v1"
+        openai.api_version = None
+        openai.api_type = "open_ai"
