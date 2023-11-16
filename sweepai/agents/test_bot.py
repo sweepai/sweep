@@ -42,7 +42,15 @@ Then, for each chain of accesses like return_obj.foo["key"].bar, list the access
 - return_obj.foo["key"].bar is an attribute method so return_obj.foo["key"] should be mocked like MagicMock.bar
 
 # Mock Code
-Write mocks that perfectly mock these access methods.
+Write mocks that perfectly mock these access methods. E.g.
+```
+from unittest.mock import MagicMock
+
+mock_response = MagicMock()
+mock_response.foo = {{}}
+mock_response.foo["key"] = MagicMock()
+mock_response.foo["key"].bar = "mock content"
+```
 </mock_identification>
 
 <code>
