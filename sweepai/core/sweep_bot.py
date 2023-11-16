@@ -1494,6 +1494,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 additional_messages=additional_messages,
                                 file_path=file_change_request.source_file,
                                 cloned_repo=self.cloned_repo,
+                                changed_files=changed_files,
                                 check_sandbox=self.check_sandbox,
                             )
                             try:

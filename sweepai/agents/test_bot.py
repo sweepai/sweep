@@ -164,7 +164,7 @@ class TestBot(ChatGPT):
         cloned_repo: ClonedRepo = None,
         changed_files: list[tuple[str, str]] = [],
         check_sandbox: Callable[
-            [str, str, str], SandboxResponse
+            [str, str, str], tuple[str, SandboxResponse]
         ] = lambda *args: SandboxResponse(
             success=True,
             error_messages=[],
@@ -257,12 +257,12 @@ class TestBot(ChatGPT):
                 )
             ]
 
-            sandbox_response = check_sandbox(
-                current_unit_test,
+            _, sandbox_response = check_sandbox(
                 file_path,
+                current_unit_test,
                 changed_files,
             )
-            if sandbox_response.false == True:
+            if sandbox_response.success == False:
                 skip_last_test(current_unit_test)
 
             for test_cases_batch in additional_test_cases[
@@ -298,12 +298,12 @@ class TestBot(ChatGPT):
                     ]
                 )
 
-                sandbox_response = check_sandbox(
-                    current_unit_test,
+                _, sandbox_response = check_sandbox(
                     file_path,
+                    current_unit_test,
                     changed_files,
                 )
-                if sandbox_response.false == True:
+                if sandbox_response.success == False:
                     skip_last_test(current_unit_test)
 
             generated_code_sections.append(current_unit_test)
