@@ -77,6 +77,5 @@ if __name__ == "__main__":
         result = self.openai_proxy.call_openai(model, messages, max_tokens, temperature)
         self.assertEqual(result, self.mock_response["choices"][0].message.content)
 
-
 if __name__ == "__main__":
     unittest.main()
