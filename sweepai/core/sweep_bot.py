@@ -257,14 +257,14 @@ class CodeGenBot(ChatGPT):
                                 new_file_change_request.id_ = str(uuid.uuid4())
                                 file_change_requests.append(new_file_change_request)
                             elif file_change_request.change_type == "refactor":
-                                new_file_change_request = copy.deepcopy(
-                                    file_change_request
-                                )
-                                new_file_change_request.change_type = "modify"
-                                new_file_change_request.parent = file_change_request
-                                new_file_change_request.instructions = "Add typehints to the newly added functions. Ensure that all imports are managed."
-                                new_file_change_request.id_ = str(uuid.uuid4())
-                                file_change_requests.append(new_file_change_request)
+                                # new_file_change_request = copy.deepcopy(
+                                #     file_change_request
+                                # )
+                                # new_file_change_request.change_type = "modify"
+                                # new_file_change_request.parent = file_change_request
+                                # new_file_change_request.instructions = "Add typehints to the newly added functions. Ensure that all imports are managed."
+                                # new_file_change_request.id_ = str(uuid.uuid4())
+                                # file_change_requests.append(new_file_change_request)
                                 new_file_change_request = copy.deepcopy(
                                     file_change_request
                                 )
