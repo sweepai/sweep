@@ -133,7 +133,7 @@ class RefactorBot(ChatGPT):
                 num_snippets = min(len(deduped_exact_matches), idx + offset) - idx
                 formatted_snippets = "\n".join(
                     [
-                        f"<function>\n{snippet}\n</function>"
+                        f"<function_to_name>\n{snippet}\n</function_to_name>"
                         for snippet in deduped_exact_matches[idx:idx+num_snippets]
                     ]
                 )
@@ -144,6 +144,8 @@ class RefactorBot(ChatGPT):
                     count=num_snippets,
                 ))
             for idx, extracted_original_code in enumerate(deduped_exact_matches):
+                if idx >= len(new_function_names):
+                    break
                 new_code, _ = extract_method(
                     extracted_original_code,
                     file_path,
@@ -245,7 +247,7 @@ class RefactorBot(ChatGPT):
             num_snippets = min(len(deduped_exact_matches), idx + offset) - idx
             formatted_snippets = "\n".join(
                 [
-                    f"<function>\n{snippet}\n</function>"
+                    f"<function_to_name>\n{snippet}\n</function_to_name>"
                     for snippet in deduped_exact_matches[idx:idx+num_snippets]
                 ]
             )
@@ -256,6 +258,8 @@ class RefactorBot(ChatGPT):
                 count=num_snippets,
             ))
         for idx, extracted_original_code in enumerate(deduped_exact_matches):
+            if idx >= len(new_function_names):
+                break
             new_code, change_set = extract_method(
                 extracted_original_code,
                 file_path,
