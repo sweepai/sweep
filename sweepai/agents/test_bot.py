@@ -215,7 +215,7 @@ The new unit test.
 
 def skip_last_test(
     test_code: str, message: str = "Skipping due to failing test"
-) -> str:
+) -> str:  # this is broken, will fix tomorrow
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
     code_before, last_test = test_code.rsplit("    def test_", 1)
 
