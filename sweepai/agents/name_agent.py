@@ -8,9 +8,9 @@ prompt = """\
 {old_code}
 </old_code>
 {snippets}
-For each of the code snippets above, we want to create function names. We must not have duplicates of the existing function names as follows:
+For each of the {count} code snippets above, we want to create function names. We must not have duplicates of the existing function names as follows:
 {existing_names}
-Generate a function name for each of these in the below format. Use the context from the old_code and snippets to generate function names that clearly state what the function does.
+Generate a function name for each of these in the below format. Use the context from the old_code and snippets to generate function names that clearly state what the function does. Optimize for readability, clarity, and similarity to the existing function names.
 
 <function_name>
 name_of_function
@@ -28,7 +28,8 @@ class NameBot(ChatGPT):
         self,
         old_code,
         snippets,
-        existing_names
+        existing_names,
+        count=1,
     ):
 
         self.model = (
@@ -40,7 +41,8 @@ class NameBot(ChatGPT):
             content=prompt.format(
                     old_code=old_code,
                     snippets=snippets,
-                    existing_names=existing_names
+                    existing_names=existing_names,
+                    count=count,
                 ),
         )
         name_pattern = r"<function_name>\n(.*?)\n</function_name>"

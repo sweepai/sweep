@@ -27,9 +27,12 @@ def hash_content(content):
 
 
 def get_sliding_windows(lines):
-    for window_size in tqdm(range(3, min(len(lines) + 1, 50))):
+    for window_size in tqdm(range(3, min(len(lines) + 1, 50))[::-1]):
         for i in range(len(lines) - window_size + 1):
             window = lines[i : i + window_size]
+            # check that the span contains >= 3 non-empty lines
+            if len([line for line in window if line.strip() != ""]) < 3:
+                continue
             window_code = "\n".join(window)
             stripped_code = "\n".join([line.strip() for line in window])
             hash_ = hash_content(stripped_code)
@@ -108,18 +111,24 @@ def is_valid_window(
                 if line.strip() != ""
             ]
         )
-        tmp_window_code = "\n".join(
+        if shortest_common_indent == 0:
+            # this handles the case when an envvar is defined, otherwise rope moves it out of scope
+            return False
+        # if the first or last line ends in a comma, do not proceed
+        if split_code[0].strip().endswith(",") or split_code[-1].strip().endswith(","):
+            return False
+        window_code = "\n".join(
             [
                 line[shortest_common_indent:]
                 for line in window.code.split("\n")
                 if line.strip() != ""
             ]
         )
-        ast.parse(tmp_window_code)
+        window_nodes = ast.parse(window_code).body
     except SyntaxError:
         # if there's a syntax error, we cannot proceed
         return False
-
+    
     def node_within_start_and_end(node, start_and_end_indices):
         node_start_line = getattr(node, "lineno", None)
         node_end_line = getattr(node, "end_lineno", node_start_line)
@@ -128,17 +137,25 @@ def is_valid_window(
             for start, end in start_and_end_indices
         )
 
-    def contains_invalid_entity(node, start_and_end_indices): # modify this later to remove cases when a function is defined inside
+    def node_inside_invalid_entity(node, start_and_end_indices): # modify this later to remove cases when a function is defined inside
         for child in ast.walk(node):
             if isinstance(child, (ast.Return, ast.Try, ast.Import, ast.ImportFrom)) and node_within_start_and_end(
                 child, start_and_end_indices
             ):
                 return True
         return False
+    
+    def invalid_entity_inside_node(window_nodes):
+        if any(isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) for node in window_nodes):
+                return True
+        return False
+
+    if invalid_entity_inside_node(window_nodes):
+        return False
 
     # check if the window is within any node that we want to ignore
     for node in ast.walk(tree):
-        if contains_invalid_entity(node, start_and_end_indices):
+        if node_inside_invalid_entity(node, start_and_end_indices):
             return False
     # If we get here, the window is valid
     return True

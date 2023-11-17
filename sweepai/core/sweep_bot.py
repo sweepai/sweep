@@ -256,6 +256,23 @@ class CodeGenBot(ChatGPT):
                                 new_file_change_request.parent = file_change_request
                                 new_file_change_request.id_ = str(uuid.uuid4())
                                 file_change_requests.append(new_file_change_request)
+                            elif file_change_request.change_type == "refactor":
+                                new_file_change_request = copy.deepcopy(
+                                    file_change_request
+                                )
+                                new_file_change_request.change_type = "modify"
+                                new_file_change_request.parent = file_change_request
+                                new_file_change_request.instructions = "Add typehints to the newly added functions. Ensure that all imports are managed."
+                                new_file_change_request.id_ = str(uuid.uuid4())
+                                file_change_requests.append(new_file_change_request)
+                                new_file_change_request = copy.deepcopy(
+                                    file_change_request
+                                )
+                                new_file_change_request.change_type = "modify"
+                                new_file_change_request.parent = file_change_request
+                                new_file_change_request.instructions = "Add docstrings to the newly added functions."
+                                new_file_change_request.id_ = str(uuid.uuid4())
+                                file_change_requests.append(new_file_change_request)
                             if file_change_requests:
                                 plan_str = "\n".join(
                                     [
@@ -677,6 +694,7 @@ class SweepBot(CodeGenBot, GithubBot):
         for fcr in file_change_requests:
             if fcr.change_type == "modify" and "." in fcr.filename:
                 extension = fcr.filename.split(".")[-1]
+                first_file = fcr.filename
                 break
         contents = ""
         if first_file is None:

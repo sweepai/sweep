@@ -310,7 +310,7 @@ def on_comment(
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=0 if file_comment else 2
         )
-        commit_history = cloned_repo.get_commit_history(username=username)
+        # commit_history = cloned_repo.get_commit_history(username=username)
         user_dict = get_documentation_dict(repo)
         docs_results = extract_relevant_docs(
             pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}",
@@ -329,7 +329,7 @@ def on_comment(
             tree=tree,
             summary=pr_body,
             snippets=snippets,
-            commit_history=commit_history,
+            # commit_history=commit_history,
             pr_file_path=pr_file_path,  # may be None
             pr_chunk=formatted_pr_chunk,  # may be None
             original_line=original_line if pr_chunk else None,
