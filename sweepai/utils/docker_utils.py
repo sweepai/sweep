@@ -28,9 +28,9 @@ def get_latest_docker_version():
         truncated_time = data["results"][0]["last_updated"].split(".")[0]
     except Exception as e:
         # subtract 6 hours
-        truncated_time = datetime.now(timezone.utc).isoformat() - timedelta(hours=6)
+        truncated_time = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
         logger.error(f"Unknown docker error: {e}")
-      # Truncate fractional seconds
+    # Truncate fractional seconds
     last_updated = datetime.fromisoformat(f"{truncated_time}+00:00")
     duration_since_last_update = datetime.now(timezone.utc) - last_updated
     return humanize_time(duration_since_last_update)
