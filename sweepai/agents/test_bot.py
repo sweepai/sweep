@@ -219,7 +219,8 @@ def skip_last_test(
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
     decomposed_code = split_script(test_code)
     code_before, last_test = decomposed_code.definitions.rsplit("\n\n", 1)
-    skipped_test = f'    @unittest.skip("{message}")\n' + last_test
+    serialized_message = message.replace('"', '\\"')
+    skipped_test = f'    @unittest.skip("{serialized_message}")\n' + last_test
     new_code = code_before + "\n\n" + skipped_test
 
     return "\n\n".join(
