@@ -336,6 +336,7 @@ class TestBot(ChatGPT):
             )
 
             current_unit_test = generated_test
+            additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?P<additional_unit_tests>.*?)(```\n)?</additional_unit_tests>"
             _, sandbox_response = check_sandbox(
                 test_file_path,
                 current_unit_test,
@@ -398,7 +399,6 @@ class TestBot(ChatGPT):
                     ),
                     message_key="test_extension_user_prompt",
                 )
-                additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?P<additional_unit_tests>.*?)(```\n)?</additional_unit_tests>"
                 extension_test_results = re.search(
                     additional_unit_tests_xml_pattern,
                     extension_test_results,
