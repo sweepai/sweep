@@ -1,4 +1,5 @@
 import re
+from regex import D
 
 import rope.base.project
 from loguru import logger
@@ -40,6 +41,10 @@ def deserialize(text: str):
     text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
     return text
 
+def count_plus_minus_in_diff(description):
+    plus_count = sum([1 for line in description.split("\n") if line.startswith("+")])
+    minus_count = sum([1 for line in description.split("\n") if line.startswith("-")])
+    return plus_count, minus_count
 
 def extract_method(
     snippet,
@@ -71,11 +76,9 @@ def extract_method(
             change.new_contents = deserialize(change.new_contents)
 
         # adding this because the change might not replace old code.
-        # If it replaces any code at all this will be very small(>> 200) or even negative
+        _, subtracted_lines = count_plus_minus_in_diff(change_set.get_description())
         if (
-            len(change.new_contents.splitlines())
-            - len(change.old_contents.splitlines())
-            > 20
+            subtracted_lines <= 3
         ):
             logger.info("Change doesn't remove code, skipping")
             return contents, []
@@ -117,25 +120,32 @@ class RefactorBot(ChatGPT):
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
-        heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {})
+        heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {}) # check heuristics
         if len(heuristic_based_extractions) > 0:
             # some duplicated code here
             deduped_exact_matches = heuristic_based_extractions  # already deduped
-            formatted_snippets = "\n".join(
-                [
-                    f"<function>\n{snippet}\n</function>"
-                    for snippet in deduped_exact_matches
-                ]
-            )
+            new_function_names = []
             existing_names = ", ".join(
                 [def_fn.name.strip("'") for def_fn in all_defined_functions]
             )
-            new_function_names = NameBot(chat_logger=self.chat_logger).name_functions(
-                old_code=cloned_repo.get_file_contents(file_path),
-                snippets=formatted_snippets,
-                existing_names=existing_names,
-            )
+            offset = 5
+            for idx in range(0, len(deduped_exact_matches), offset):
+                num_snippets = min(len(deduped_exact_matches), idx + offset) - idx
+                formatted_snippets = "\n".join(
+                    [
+                        f"<function_to_name>\n{snippet}\n</function_to_name>"
+                        for snippet in deduped_exact_matches[idx:idx+num_snippets]
+                    ]
+                )
+                new_function_names.extend(NameBot(chat_logger=self.chat_logger).name_functions(
+                    old_code=cloned_repo.get_file_contents(file_path),
+                    snippets=formatted_snippets,
+                    existing_names=existing_names,
+                    count=num_snippets,
+                ))
             for idx, extracted_original_code in enumerate(deduped_exact_matches):
+                if idx >= len(new_function_names):
+                    break
                 new_code, _ = extract_method(
                     extracted_original_code,
                     file_path,
@@ -228,23 +238,32 @@ class RefactorBot(ChatGPT):
             if extracted_exact_match not in deduped_exact_matches:
                 deduped_exact_matches.append(extracted_exact_match)
 
-        formatted_snippets = "\n".join(
-            [f"<function>\n{snippet}\n</function>" for snippet in deduped_exact_matches]
-        )
+        new_function_names = []
         existing_names = ", ".join(
             [def_fn.name.strip("'") for def_fn in all_defined_functions]
         )
-        new_function_names = NameBot(chat_logger=self.chat_logger).name_functions(
-            old_code=cloned_repo.get_file_contents(file_path),
-            snippets=formatted_snippets,
-            existing_names=existing_names,
-        )
+        offset = 5
+        for idx in range(0, len(deduped_exact_matches), offset):
+            num_snippets = min(len(deduped_exact_matches), idx + offset) - idx
+            formatted_snippets = "\n".join(
+                [
+                    f"<function_to_name>\n{snippet}\n</function_to_name>"
+                    for snippet in deduped_exact_matches[idx:idx+num_snippets]
+                ]
+            )
+            new_function_names.extend(NameBot(chat_logger=self.chat_logger).name_functions(
+                old_code=cloned_repo.get_file_contents(file_path),
+                snippets=formatted_snippets,
+                existing_names=existing_names,
+                count=num_snippets,
+            ))
         for idx, extracted_original_code in enumerate(deduped_exact_matches):
+            if idx >= len(new_function_names):
+                break
             new_code, change_set = extract_method(
                 extracted_original_code,
                 file_path,
                 new_function_names[idx],
                 project_name=cloned_repo.repo_dir,
             )
-        # typehint and docstring bot
         return new_code
