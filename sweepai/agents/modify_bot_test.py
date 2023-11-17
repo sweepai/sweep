@@ -79,7 +79,7 @@ class TestModifyBotUpdateFile(unittest.TestCase):
         # Call the method under test
         result, leftover_comments = self.modify_bot.update_file(
             file_path="test.py",
-            file_contents="print("Hello, World!")",
+            file_contents='print("Hello, World!")',
             file_change_request=MagicMock(),
             snippet_queries=[],
             extraction_terms=[],
