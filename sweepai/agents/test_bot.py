@@ -217,10 +217,18 @@ def skip_last_test(
     test_code: str, message: str = "Skipping due to failing test"
 ) -> str:  # this is broken, will fix tomorrow
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
-    code_before, last_test = test_code.rsplit("\n\n", 1)
+    decomposed_code = split_script(test_code)
+    code_before, last_test = decomposed_code.definitions.rsplit("\n\n", 1)
     skipped_test = f'    @unittest.skip("{message}")\n' + last_test
+    new_code = code_before + "\n\n" + skipped_test
 
-    return code_before + "\n\n" + skipped_test
+    return "\n\n".join(
+        [
+            decomposed_code.imports,
+            new_code,
+            decomposed_code.main,
+        ]
+    )
 
 
 def pascal_case(s: str) -> str:
