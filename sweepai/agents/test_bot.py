@@ -112,25 +112,43 @@ Extend the unit tests using the unittest module for the {{method_name}} method. 
 
 test_extension_format = """\
 <planning>
-List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions, and whether they should be patched like patch("module.CONSTANT", NEW_CONSTANT) or patch("module.function").
+List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, determine whether they should be patched using either
+
+```
+@patch("module.CONSTANT", NEW_CONSTANT)
+def test_function():
+    ...
+```
+
+or
+
+```
+@patch("module.function")
+def test_function(self, mock):
+    mock.return_value = "forced value"
+    ...
+```
+
+Only use the patch method in one of these two ways. DO NOT use other keyword arguments.
 </planning>
 
 <additional_unit_tests>
-```
-The additional unit test that uses the mocks defined in the original unit test. Format it like
+The additional unit test uses the mocks defined in the original unit test. Format it like
 
+```
 import unittest
 from unittest.mock import patch
 
-@patch("module.CONSTANT", NEW_CONSTANT)
 class TestNameOfFullFunctionName(unittest.TestCase):
     ...
 
-    @patch("module.function")
-    @patch("module.constant", NEW_CONSTANT)
+
+    # patches
     def test_function(self, mocks...):
         ... # the test here
 ```
+
+Only use patch in one of these two ways.
 </additional_unit_tests>"""
 
 test_extension_system_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:

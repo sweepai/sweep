@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from black import FileMode, format_str
+from loguru import logger
 
 
 @dataclass
@@ -61,10 +62,10 @@ def fuse_scripts(
     if do_format:
         try:
             result = format_str(result, mode=FileMode())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception(e)
 
-    return result
+    return result + "\n"
 
 
 script_content_1 = """
