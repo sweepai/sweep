@@ -217,22 +217,10 @@ def skip_last_test(
     test_code: str, message: str = "Skipping due to failing test"
 ) -> str:  # this is broken, will fix tomorrow
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
-    code_before, last_test = test_code.rsplit("    def test_", 1)
+    code_before, last_test = test_code.rsplit("\n\n", 1)
+    skipped_test = f'    @unittest.skip("{message}")\n' + last_test
 
-    decorator_pattern = r"(\s+@[\w\.]+\([^\)]*\)\s+)*"
-    match = re.search(
-        decorator_pattern + r"def test_" + re.escape(last_test), test_code
-    )
-
-    skipped_test = f'    @unittest.skip("{message}")\n'
-
-    if match:
-        decorators = match.group(1) if match.group(1) is not None else ""
-        skipped_test += decorators
-
-    skipped_test += f"    def test_" + last_test
-
-    return code_before + skipped_test
+    return code_before + "\n\n" + skipped_test
 
 
 def pascal_case(s: str) -> str:
