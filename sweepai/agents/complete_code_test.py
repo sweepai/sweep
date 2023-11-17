@@ -17,8 +17,33 @@ class TestCompleteCode(unittest.TestCase):
         # Assert that the mocked function was called with the right parameters
         mock_complete_code.assert_called_with("test input")
 
-    # Removed duplicate function definition
-
+    import unittest
+    from unittest.mock import patch, Mock
+    
+    from complete_code import complete_code, ExtractLeftoverComments
+    
+    
+    class TestCompleteCode(unittest.TestCase):
+        def setUp(self):
+            self.mock_check_comments_presence = Mock()
+            self.mock_chat = Mock()
+            self.mock_from_string = Mock()
+            self.extractor = ExtractLeftoverComments()
+    
+        @patch("complete_code.CONSTANT", "new constant")
+        @patch("complete_code.complete_code")
+        def test_complete_code(self, mock_complete_code):
+            mock_complete_code.return_value = "forced value"
+            
+            # Call the function with the parameters you want to test
+            result = complete_code("test input")
+    
+            # Assert that the mocked function was called with the right parameters
+            mock_complete_code.assert_called_with("test input")
+    
+        # Removed duplicate function definition
+    
+        @patch("sweepai.agents.complete_code.check_comments_presence", new_callable=lambda: self.mock_check_comments_presence)
     @patch("sweepai.agents.complete_code.check_comments_presence", new_callable=lambda: self.mock_check_comments_presence)
     @patch("sweepai.agents.complete_code.ExtractLeftoverComments.chat", new_callable=lambda: self.mock_chat)
     @patch("sweepai.agents.complete_code.LeftoverComments.from_string", new_callable=lambda: self.mock_from_string)
