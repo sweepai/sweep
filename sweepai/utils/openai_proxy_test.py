@@ -72,6 +72,51 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
     )
     @patch("sweepai.utils.openai_proxy.MULTI_REGION_CONFIG", None)
     def test_call_openai_when_multi_region_config_is_none(
+        self, mock_determine_openai_engine, mock_api_type, mock_multi_region_config, mock_create_openai_chat_completion
+    ):
+        result = self.proxy.call_openai(
+            "model", "messages", "max_tokens", "temperature"
+        )
+        self.assertEqual(result, "mock content")
+        mock_determine_openai_engine.assert_called_once_with("model")
+        mock_create_openai_chat_completion.assert_called_once_with(
+            "engine", "model", "messages", "max_tokens", "temperature"
+        )
+
+    @patch("sweepai.utils.openai_proxy.OPENAI_API_KEY", None)
+    def test_call_openai_when_openai_api_key_is_none(self, mock_openai_api_key):
+        with self.assertRaises(Exception):
+            self.proxy.call_openai("model", "messages", "max_tokens", "temperature")
+        self.mock_logger.error.assert_called_with(
+            "OpenAI API Key not found and Azure Error: mock_api_key"
+        )
+
+
+class TestOpenAIProxyDetermineOpenaiEngine(unittest.TestCase):
+    def setUp(self):
+        self.openai_proxy = OpenAIProxy()
+
+    def test_determine_openai_engine(self):
+        self.assertEqual(
+            self.openai_proxy.determine_openai_engine("gpt-3.5-turbo-16k"),
+            OPENAI_API_ENGINE_GPT35,
+        )
+        self.assertEqual(
+            "model", "messages", "max_tokens", "temperature"
+        )
+        self.assertEqual(result, "mock content")
+        mock_determine_openai_engine.assert_called_once_with("model")
+        mock_set_openai_default_api_parameters.assert_called_once_with(
+            "model", "messages", "max_tokens", "temperature"
+        )
+
+    @patch("sweepai.utils.openai_proxy.OPENAI_API_TYPE", "api_type")
+    @patch(
+        "sweepai.utils.openai_proxy.OpenAIProxy.determine_openai_engine",
+        return_value="engine",
+    )
+    @patch("sweepai.utils.openai_proxy.MULTI_REGION_CONFIG", None)
+    def test_call_openai_when_multi_region_config_is_none(
         self, mock_determine_openai_engine, mock_api_type, mock_multi_region_config
     ):
         result = self.proxy.call_openai(
