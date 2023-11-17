@@ -80,6 +80,7 @@ def get_refactor_snippets(code, hashes_dict):
             else:
                 completed_spans.extend(start_and_end_indices)
                 final_window_code.append(window.code.lstrip())
+    import pdb; pdb.set_trace()
     return final_window_code
 
 
@@ -131,7 +132,9 @@ def is_valid_window(
     
     def node_within_start_and_end(node, start_and_end_indices):
         node_start_line = getattr(node, "lineno", None)
-        node_end_line = getattr(node, "end_lineno", node_start_line)
+        node_end_line = getattr(node, "end_lineno", None)
+        if node_start_line is None or node_end_line is None:
+            return False
         return any(
             start < node_start_line <= end or start <= node_end_line < end
             for start, end in start_and_end_indices
@@ -139,7 +142,7 @@ def is_valid_window(
 
     def node_inside_invalid_entity(node, start_and_end_indices): # modify this later to remove cases when a function is defined inside
         for child in ast.walk(node):
-            if isinstance(child, (ast.Return, ast.Try, ast.Import, ast.ImportFrom)) and node_within_start_and_end(
+            if isinstance(child, (ast.Return, ast.Try, ast.Import, ast.ImportFrom, ast.For)) and node_within_start_and_end(
                 child, start_and_end_indices
             ):
                 return True

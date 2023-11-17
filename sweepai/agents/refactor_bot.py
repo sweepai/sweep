@@ -1,9 +1,9 @@
 import re
-from regex import D
 
 import rope.base.project
 from loguru import logger
 from rope.refactor.extract import ExtractMethod
+from rope.base.exceptions import ModuleNotFoundError
 
 from sweepai.agents.name_agent import NameBot
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -65,9 +65,15 @@ def extract_method(
     ) + len(serialized_snippet)
 
     try:
-        extractor = ExtractMethod(project, resource, start, end)
-        change_set = extractor.get_changes(method_name, similar=True)
-
+        try:
+            extractor = ExtractMethod(project, resource, start, end)
+            change_set = extractor.get_changes(method_name, similar=True)
+        except Exception as e:
+            logger.error(f"Refactor bot error: {e} for {file_path} and {serialized_snippet}")
+            project = rope.base.project.Project(project_name)
+            resource = project.get_resource(file_path)
+            extractor = ExtractMethod(project, resource, start, end)
+            change_set = extractor.get_changes(method_name, similar=True)
         for change in change_set.changes:
             if change.old_contents is not None:
                 change.old_contents = deserialize(change.old_contents)
@@ -97,13 +103,11 @@ def extract_method(
 class RefactorBot(ChatGPT):
     def refactor_snippets(
         self,
+        cloned_repo: ClonedRepo,
         additional_messages: list[Message] = [],
         snippets_str="",
         file_path: str = "",
-        update_snippets_code: str = "",
-        request="",
         changes_made="",
-        cloned_repo: ClonedRepo = None,
         **kwargs,
     ):
         self.model = (
@@ -150,7 +154,7 @@ class RefactorBot(ChatGPT):
                     extracted_original_code,
                     file_path,
                     new_function_names[idx],
-                    project_name=cloned_repo.repo_dir,
+                    project_name=cloned_repo.cached_dir,
                 )
 
         self.messages = [
@@ -174,7 +178,7 @@ class RefactorBot(ChatGPT):
                 fn_def,
                 script,
                 tree,
-                f"{cloned_repo.repo_dir}/{file_path}",
+                f"{cloned_repo.cached_dir}/{file_path}",
                 full_file_code,
             )
             if function_and_reference.function_code.count("\n") < 20:
@@ -260,10 +264,10 @@ class RefactorBot(ChatGPT):
         for idx, extracted_original_code in enumerate(deduped_exact_matches):
             if idx >= len(new_function_names):
                 break
-            new_code, change_set = extract_method(
+            new_code, _ = extract_method(
                 extracted_original_code,
                 file_path,
                 new_function_names[idx],
-                project_name=cloned_repo.repo_dir,
+                project_name=cloned_repo.cached_dir,
             )
         return new_code

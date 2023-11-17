@@ -1445,21 +1445,16 @@ class SweepBot(CodeGenBot, GithubBot):
                                     key="issue_metadata",
                                 )
                             ]
-                            # empty string
                             cloned_repo = ClonedRepo(
                                 self.cloned_repo.repo_full_name,
                                 self.cloned_repo.installation_id,
                                 branch,
-                                self.cloned_repo.token,
                             )
                             try:
                                 new_file_contents = refactor_bot.refactor_snippets(
                                     additional_messages=additional_messages,
-                                    snippets_str=file_contents,
                                     file_path=file_change_request.filename,
-                                    update_snippets_code=file_contents,
                                     request=file_change_request.instructions,
-                                    changes_made="",
                                     cloned_repo=cloned_repo,
                                 )
                             except Exception as e:
@@ -1833,20 +1828,15 @@ class SweepBot(CodeGenBot, GithubBot):
                                 key="issue_metadata",
                             )
                         ]
-                        # empty string
                         cloned_repo = ClonedRepo(
                             self.cloned_repo.repo_full_name,
                             self.cloned_repo.installation_id,
                             branch,
-                            self.cloned_repo.token,
                         )
                         new_file_contents = refactor_bot.refactor_snippets(
                             additional_messages=additional_messages,
-                            snippets_str=file_contents,
                             file_path=file_change_request.filename,
-                            update_snippets_code=file_contents,
                             request=file_change_request.instructions,
-                            changes_made="",
                             cloned_repo=cloned_repo,
                         )
                         if new_file_contents is None:

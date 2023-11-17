@@ -150,7 +150,7 @@ def get_max_indent(content: str, indent_type: str):
     )
 
 
-# @file_cache()
+@file_cache()
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)
 

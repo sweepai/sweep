@@ -121,15 +121,12 @@ class ClonedRepo:
         curr_time_str = str(time.time()).encode("utf-8")
         hash_obj = hashlib.sha256(curr_time_str)
         hash_hex = hash_obj.hexdigest()
-        if self.branch:
-            return os.path.join(
-                REPO_CACHE_BASE_DIR,
-                self.repo_full_name,
-                hash_hex,
-                parse_collection_name(self.branch),
-            )
-        else:
-            return os.path.join("/tmp/cache/repos", self.repo_full_name, hash_hex)
+        return os.path.join(
+            REPO_CACHE_BASE_DIR,
+            self.repo_full_name,
+            hash_hex,
+            parse_collection_name(self.branch),
+        )
 
     @property
     def clone_url(self):
@@ -140,12 +137,7 @@ class ClonedRepo:
     def clone(self):
         if not os.path.exists(self.cached_dir):
             logger.info("Cloning repo...")
-            if self.branch:
-                repo = git.Repo.clone_from(
-                    self.clone_url, self.cached_dir, branch=self.branch
-                )
-            else:
-                repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
+            repo = git.Repo.clone_from(self.clone_url, self.cached_dir, branch=self.branch)
             logger.info("Done cloning")
         else:
             try:
@@ -154,7 +146,7 @@ class ClonedRepo:
             except Exception:
                 logger.error("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
-                repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
+                repo = git.Repo.clone_from(self.clone_url, self.cached_dir, branch=self.branch)
             logger.info("Repo already cached, copying")
         logger.info("Copying repo...")
         shutil.copytree(self.cached_dir, self.repo_dir)
@@ -164,11 +156,11 @@ class ClonedRepo:
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
+        self.token = self.token or get_token(self.installation_id)
         self.repo = Github(self.token).get_repo(self.repo_full_name)
         self.commit_hash = self.repo.get_commits()[0].sha
-        self.token = self.token or get_token(self.installation_id)
-        self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
+        self.git_repo = self.clone()
 
     def delete(self):
         shutil.rmtree(self.repo_dir)
@@ -393,7 +385,7 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"[^\w-]", "--", name)
     # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
-    return name
+    return name if name else "default"
 
 str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
 str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
