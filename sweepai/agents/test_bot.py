@@ -1,3 +1,5 @@
+from __future__ import nested_scopes
+
 import re
 from typing import Callable
 
@@ -151,6 +153,31 @@ class TestNameOfFullFunctionName(unittest.TestCase):
 Only use patch in one of these two ways.
 </additional_unit_tests>"""
 
+test_extension_format = """\
+<planning>
+List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, determine whether they should be patched like `@patch("module.CONSTANT", "new constant")` or `@patch("module.function")` followed by setting it's return_value.
+</planning>
+
+<additional_unit_tests>
+The additional unit test uses the mocks defined in the original unit test. Format it like
+
+```
+import unittest
+from unittest.mock import patch
+
+class TestNameOfFullFunctionName(unittest.TestCase):
+    ...
+
+    @patch("module.CONSTANT", "new constant")
+    @patch("module.function")
+    def test_function(self, mock_function, ...):
+        mock_function.return_value = "forced value"
+        ... # the test here
+```
+
+Only use patch in one of these two ways.
+</additional_unit_tests>"""
+
 test_extension_system_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
 
 {test_extension_format}"""
@@ -171,6 +198,19 @@ Test cases:
 Extend the unit tests using the unittest module for the {{method_name}} method to cover the test cases. Respond in the following format:
 
 {test_extension_format}"""
+
+
+fix_unit_test_prompt = """\
+{error_message}
+
+Write the new unit test in the following format:
+
+<additional_unit_tests>
+```
+The new unit test.
+```
+</additional_unit_tests>
+"""
 
 
 def skip_last_test(
@@ -224,6 +264,7 @@ class TestBot(ChatGPT):
         ),
         **kwargs,
     ):
+        test_file_path = file_path.replace(".py", "_test.py")
         self.model = (
             DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
@@ -238,12 +279,12 @@ class TestBot(ChatGPT):
         ]
         self.messages.extend(additional_messages)
 
-        test_extension_planner = ChatGPT.from_system_message_string(
+        test_extension_planner: ChatGPT = ChatGPT.from_system_message_string(
             test_extension_planning_system_prompt, chat_logger=self.chat_logger
         )
         test_extension_planner.messages.extend(additional_messages)
 
-        test_extension_creator = ChatGPT.from_system_message_string(
+        test_extension_creator: ChatGPT = ChatGPT.from_system_message_string(
             test_extension_system_prompt, chat_logger=self.chat_logger
         )
         test_extension_creator.messages.extend(additional_messages)
@@ -295,6 +336,36 @@ class TestBot(ChatGPT):
             )
 
             current_unit_test = generated_test
+            additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?P<additional_unit_tests>.*?)(```\n)?</additional_unit_tests>"
+            _, sandbox_response = check_sandbox(
+                test_file_path,
+                current_unit_test,
+                changed_files,
+            )
+
+            if sandbox_response.success == False:
+                new_extension_tests = test_extension_creator.chat(
+                    fix_unit_test_prompt.format(
+                        error_message=sandbox_response.error_messages[-1]
+                    ),
+                    message_key="fix_unit_test_prompt",
+                )
+                new_extension_tests = re.search(
+                    additional_unit_tests_xml_pattern,  # xml_pattern("additional_unit_tests"),
+                    new_extension_tests,
+                    re.DOTALL,
+                )
+                current_unit_test = strip_backticks(
+                    str(new_extension_tests.group("additional_unit_tests"))
+                )
+                _, sandbox_response = check_sandbox(
+                    test_file_path,
+                    current_unit_test,
+                    changed_files,
+                )
+                if sandbox_response.success == False:
+                    reason = sandbox_response.error_messages[-1].splitlines()[-1]
+                    current_unit_test = skip_last_test(current_unit_test, reason)
 
             # Check the unit test here and try to fix it
             extension_plan_results = test_extension_planner.chat(
@@ -312,33 +383,62 @@ class TestBot(ChatGPT):
                 )
             ]
 
-            _, sandbox_response = check_sandbox(
-                file_path,
-                current_unit_test,
-                changed_files,
-            )
-            if sandbox_response.success == False:
-                skip_last_test(current_unit_test)
-
             for test_cases_batch in additional_test_cases[
                 : min(1, len(additional_test_cases))
             ]:
+                test_extension_creator.delete_messages_from_chat(
+                    "test_extension_user_prompt"
+                )
+                test_extension_creator.delete_messages_from_chat("fix_unit_test_prompt")
                 extension_test_results = test_extension_creator.chat(
                     test_extension_user_prompt.format(
                         code_to_test=function_and_reference.function_code,
                         current_unit_test=generated_test,
                         method_name=function_and_reference.function_name,
                         test_cases=test_cases_batch.strip(),
-                    )
+                    ),
+                    message_key="test_extension_user_prompt",
                 )
                 extension_test_results = re.search(
-                    xml_pattern("additional_unit_tests"),
+                    additional_unit_tests_xml_pattern,
                     extension_test_results,
                     re.DOTALL,
                 )
                 extension_test_results = strip_backticks(
                     str(extension_test_results.group("additional_unit_tests"))
                 )
+
+                _, sandbox_response = check_sandbox(
+                    test_file_path,
+                    extension_test_results,
+                    changed_files,
+                )
+
+                if sandbox_response.success == False:
+                    new_extension_tests = test_extension_creator.chat(
+                        fix_unit_test_prompt.format(
+                            error_message=sandbox_response.error_messages[-1]
+                        ),
+                        message_key="fix_unit_test_prompt",
+                    )
+                    new_extension_tests = re.search(
+                        additional_unit_tests_xml_pattern,  # xml_pattern("additional_unit_tests"),
+                        new_extension_tests,
+                        re.DOTALL,
+                    )
+                    new_extension_tests = strip_backticks(
+                        str(new_extension_tests.group("additional_unit_tests"))
+                    )
+                    _, sandbox_response = check_sandbox(
+                        test_file_path,
+                        new_extension_tests,
+                        changed_files,
+                    )
+                    if sandbox_response.success == False:
+                        reason = sandbox_response.error_messages[-1].splitlines()[-1]
+                        new_extension_tests = skip_last_test(
+                            new_extension_tests, reason
+                        )
 
                 definitions = split_script(extension_test_results).definitions
                 definitions = definitions.split("\n\n", maxsplit=1)[1:]
@@ -352,14 +452,6 @@ class TestBot(ChatGPT):
                         decomposed_script.main,
                     ]
                 )
-
-                _, sandbox_response = check_sandbox(
-                    file_path,
-                    current_unit_test,
-                    changed_files,
-                )
-                if sandbox_response.success == False:
-                    skip_last_test(current_unit_test)
 
             generated_code_sections.append(current_unit_test)
 
