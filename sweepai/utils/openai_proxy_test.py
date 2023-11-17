@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch, mock
 
 from sweepai.config.server import (OPENAI_API_ENGINE_GPT4,
                                    OPENAI_API_ENGINE_GPT4_32K,
@@ -70,8 +70,8 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
 
     @patch("sweepai.utils.openai_proxy.OpenAIProxy.set_openai_default_api_parameters")
     @patch("sweepai.utils.openai_proxy.OpenAIProxy.create_openai_chat_completion")
-    @patch("sweepai.utils.openai_proxy.openai", new=self.mock_openai)
-    def test_call_openai(self, mock_set_default_params, mock_create_chat_completion):
+    @patch("sweepai.utils.openai_proxy.openai", new_callable=MagicMock)
+    def test_call_openai(self, mock_openai, mock_set_default_params, mock_create_chat_completion):
         mock_set_default_params.return_value = self.mock_response
         mock_create_chat_completion.return_value = self.mock_response
 
@@ -88,7 +88,7 @@ class TestOpenAIProxyCallOpenai(unittest.TestCase):
         mock_set_default_params.assert_called_once_with(
             "model", "messages", "max_tokens", "temperature"
         )
-        mock_logger_error.assert_not_called()
+        mock_openai.logger.error.assert_not_called()
 
 
 if __name__ == "__main__":
