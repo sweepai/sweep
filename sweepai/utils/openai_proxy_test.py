@@ -1,9 +1,11 @@
 import unittest
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from sweepai.config.server import (OPENAI_API_ENGINE_GPT4,
-                                   OPENAI_API_ENGINE_GPT4_32K,
-                                   OPENAI_API_ENGINE_GPT35)
+from sweepai.config.server import (
+    OPENAI_API_ENGINE_GPT4,
+    OPENAI_API_ENGINE_GPT4_32K,
+    OPENAI_API_ENGINE_GPT35,
+)
 from sweepai.utils.openai_proxy import OpenAIProxy
 
 
