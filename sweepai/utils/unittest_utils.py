@@ -35,6 +35,7 @@ def split_script(script: str):
 def remove_duplicates(seq: list) -> list:
     new_list = []
     for item in seq:
+        item = item.replace("'", '"')
         if item not in new_list:
             new_list.append(item)
     return new_list

@@ -26,7 +26,7 @@ File path: {file_path}
 Write unit tests for the above function. Cover every possible edge case using the function's dependencies."""
 
 test_prompt_response_format = """\
-<mock_identification>
+<planning_and_mocks_identification>
 # Entities to mock
 Identify all return objects from expensive operations entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
 ```
@@ -51,7 +51,17 @@ mock_response.foo = {{}}
 mock_response.foo["key"] = MagicMock()
 mock_response.foo["key"].bar = "mock content"
 ```
-</mock_identification>
+
+# Patch Code
+Write patch code that patches the access methods to return the mocks. E.g.
+```
+from unittest.mock import patch
+
+@patch("code_to_test.expensive_operation")
+def test_code_to_test(mock_expensive_operation):
+    mock_expensive_operation.return_value = mock_response
+```
+</planning_and_mocks_identification>
 
 <code>
 Unit test that uses the mocked response in the setUp method (and optionally the tearDown method).
@@ -109,9 +119,15 @@ List any constants and functions that NEED to be modified for the unit test to w
 ```
 The additional unit test that uses the mocks defined in the original unit test. Format it like
 
+import unittest
+from unittest.mock import patch
+
+@patch("module.CONSTANT", NEW_CONSTANT)
 class TestNameOfFullFunctionName(unittest.TestCase):
     ...
 
+    @patch("module.function")
+    @patch("module.constant", NEW_CONSTANT)
     def test_function(self, mocks...):
         ... # the test here
 ```
@@ -247,18 +263,18 @@ class TestBot(ChatGPT):
             )
             self.messages = self.messages[:-2]
 
-            code_xml_pattern = xml_pattern("code")
+            code_xml_pattern = r"<code>(.*?)```(python)?(?P<code>.*?)(```\n)?</code>"
 
             generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
             generated_test = strip_backticks(str(generated_test.group("code")))
 
-            current_unit_test = generated_test
-
-            current_unit_test = current_unit_test.replace(
+            generated_test = generated_test.replace(
                 "(unittest.TestCase)",
                 pascal_case(fn_def.name.split(".")[-1]) + "(unittest.TestCase)",
                 1,
             )
+
+            current_unit_test = generated_test
 
             # Check the unit test here and try to fix it
             extension_plan_results = test_extension_planner.chat(
@@ -290,7 +306,7 @@ class TestBot(ChatGPT):
                 extension_test_results = test_extension_creator.chat(
                     test_extension_user_prompt.format(
                         code_to_test=function_and_reference.function_code,
-                        current_unit_test=current_unit_test,
+                        current_unit_test=generated_test,
                         method_name=function_and_reference.function_name,
                         test_cases=test_cases_batch.strip(),
                     )
