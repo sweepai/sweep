@@ -2,6 +2,7 @@ import copy
 import re
 import uuid
 from dataclasses import dataclass
+from typing import List, Tuple
 
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
@@ -102,67 +103,60 @@ SECTION_ID
 ...
 </sections_to_modify>"""
 
-plan_snippets_system_prompt = """\
-You are a brilliant and meticulous engineer assigned to plan code changes to complete the user's request.
+        extraction_terms: List[str] = self.gather_extraction_terms(fetch_snippets_response)
+        snippet_queries: List[SnippetToModify] = self.extract_snippet_queries(fetch_snippets_response, original_snippets)
 
-You will plan code changes to solve the user's problems. You have the utmost care for the plans you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies.
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
+        return snippet_queries, extraction_terms, analysis_and_identifications_str
 
-You will be given the old_file and potentially relevant snippets to edit. You do not necessarily have to edit all the snippets.
+    def retrieve_analysis_identification(self, fetch_snippets_response):
+        analysis_and_identification_pattern = r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
+        analysis_and_identification_match = re.search(
+            analysis_and_identification_pattern, fetch_snippets_response, re.DOTALL
+        )
+        analysis_and_identifications_str = (
+            analysis_and_identification_match.group("code").strip()
+            if analysis_and_identification_match
+            else ""
+        )
+        return analysis_and_identifications_str
 
-Respond in the following format:
+    def gather_extraction_terms(self, fetch_snippets_response):
+        extraction_terms = []
+        extraction_term_pattern = (
+            r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
+        )
+        for extraction_term in re.findall(
+            extraction_term_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            for term in extraction_term.split("\n"):
+                term = term.strip()
+                if term:
+                    extraction_terms.append(term)
+        return extraction_terms
 
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>"""
+    def extract_snippet_queries(self, fetch_snippets_response, original_snippets):
+        snippet_queries = []
+        snippets_query_pattern = r"<section_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<section>.*?)\n</section_to_modify>"
+        for match_ in re.finditer(
+            snippets_query_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            section = match_.group("section").strip()
+            snippet = original_snippets[excel_col_to_int(section)]
+            reason = match_.group("reason").strip()
+            snippet_queries.append(
+                SnippetToModify(reason=reason or "", snippet=snippet)
+            )
+        return snippet_queries
 
-plan_snippets_prompt = """# Code
-File path: {file_path}
-<old_code>
-```
-{code}
-```
-</old_code>
-{changes_made}
-# Request
-{request}
-
-<snippets_to_update>
-{snippets}
-</snippets_to_update>
-
-# Instructions
-Describe all changes that should be made.
-
-Respond in the following format:
-
-<snippets_and_plan_analysis file="file_path">
-Describe what should be changed to the snippets from the old_file to complete the request.
-Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
-Maximize information density and conciseness but be detailed.
-</snippets_and_plan_analysis>"""
-
-
-def get_last_import_line(code: str, max_: int = 150) -> int:
-    lines = code.split("\n")
-    for i, line in enumerate(reversed(lines)):
-        if line.startswith("import ") or line.startswith("from "):
-            return min(len(lines) - i - 1, max_)
-    return -1
-
-
-@dataclass
-class SnippetToModify:
-    snippet: Snippet
-    reason: str
-
-
-@dataclass
-class MatchToModify:
-    start: int
-    end: int
-    reason: str
+    def update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        snippet_queries: list[SnippetToModify],
+        extraction_terms: list[str],
 
 
 def strip_backticks(s: str) -> str:
@@ -340,10 +334,10 @@ class ModifyBot:
                 else dont_use_chunking_message,
             )
         )
-        analysis_and_identifications_str = self.retrieve_analysis_identification(fetch_snippets_response)
+        analysis_and_identifications_str: str = self.retrieve_analysis_identification(fetch_snippets_response)
 
-        extraction_terms = self.gather_extraction_terms(fetch_snippets_response)
-        snippet_queries = self.extract_snippet_queries(fetch_snippets_response, original_snippets)
+        extraction_terms: List[str] = self.gather_extraction_terms(fetch_snippets_response)
+        snippet_queries: List[SnippetToModify] = self.extract_snippet_queries(fetch_snippets_response, original_snippets)
 
         if len(snippet_queries) == 0:
             raise UnneededEditError("No snippets found in file")
@@ -405,6 +399,31 @@ class ModifyBot:
 
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
+        def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
+            reason = (
+                f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
+            )
+            if b.reason == "Import statements":
+                reason = a.reason
+            elif a.reason == "Import statements":
+                reason = b.reason
+            elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
+                reason = a.reason
+            elif a.reason.startswith("Mentioned") or a.reason.endswith("function call"):
+        extraction_terms: List[str] = self.gather_extraction_terms(fetch_snippets_response)
+        snippet_queries: List[SnippetToModify] = self.extract_snippet_queries(fetch_snippets_response, original_snippets)
+
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
+        return snippet_queries, extraction_terms, analysis_and_identifications_str
+        if file_change_request.entity:
+
+        extraction_terms: List[str] = self.gather_extraction_terms(fetch_snippets_response)
+        snippet_queries: List[SnippetToModify] = self.extract_snippet_queries(fetch_snippets_response, original_snippets)
+
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
+        return snippet_queries, extraction_terms, analysis_and_identifications_str
         def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
             reason = (
                 f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
@@ -579,6 +598,79 @@ class ModifyBot:
     def merge_updated_snippets(self, match_, selected_snippets, index, updated_snippets):
         updated_code = match_.group("updated_code").strip("\n")
 
+        _reason, current_contents = selected_snippets[index]
+        if index not in updated_snippets:
+            updated_snippets[index] = current_contents
+        else:
+            current_contents = updated_snippets[index]
+        selected_snippets: List[Tuple[str, str]] = self.assemble_selected_snippets(file_contents, deduped_matches)
+
+        update_snippets_code: str = file_contents
+        if file_change_request.entity:
+    response = """
+```python
+```"""
+    stripped = strip_backticks(response)
+    print(stripped)
+        best_matches: List[MatchToModify] = self.collect_best_match_snippets(snippet_queries, file_contents)
+
+        best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
+
+        def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
+            reason = (
+                f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
+            )
+            if b.reason == "Import statements":
+                reason = a.reason
+            elif a.reason == "Import statements":
+                reason = b.reason
+            elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
+                reason = a.reason
+            elif a.reason.startswith("Mentioned") or a.reason.endswith("function call"):
+                reason = b.reason
+            return MatchToModify(
+                start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
+            )
+
+        deduped_matches: List[MatchToModify] = best_matches
+
+        selected_snippets: List[Tuple[str, str]] = self.assemble_selected_snippets(file_contents, deduped_matches)
+
+        update_snippets_code: str = file_contents
+        if file_change_request.entity:
+if __name__ == "__main__":
+    response = """
+```python
+```"""
+    stripped = strip_backticks(response)
+    print(stripped)
+
+        best_matches: List[MatchToModify] = self.collect_best_match_snippets(snippet_queries, file_contents)
+
+        best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
+
+        def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
+            reason = (
+                f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
+            )
+            if b.reason == "Import statements":
+                reason = a.reason
+            elif a.reason == "Import statements":
+                reason = b.reason
+            elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
+                reason = a.reason
+            elif a.reason.startswith("Mentioned") or a.reason.endswith("function call"):
+                reason = b.reason
+            return MatchToModify(
+                start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
+            )
+
+        deduped_matches: List[MatchToModify] = best_matches
+
+        selected_snippets: List[Tuple[str, str]] = self.assemble_selected_snippets(file_contents, deduped_matches)
+
+        update_snippets_code: str = file_contents
+        if file_change_request.entity:
         _reason, current_contents = selected_snippets[index]
         if index not in updated_snippets:
             updated_snippets[index] = current_contents
