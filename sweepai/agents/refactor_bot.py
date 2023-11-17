@@ -27,6 +27,15 @@ PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
 
 def serialize(text: str):
+    """
+    Serialize the given text by replacing certain patterns.
+
+    Args:
+        text (str): The text to be serialized.
+
+    Returns:
+        str: The serialized text.
+    """
     # Replace "'{var}'" with "'{var}'"
     text = re.sub(
         r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
@@ -37,11 +46,29 @@ def serialize(text: str):
 
 
 def deserialize(text: str):
+    """
+    Deserialize the given text by replacing certain patterns.
+
+    Args:
+        text (str): The text to be deserialized.
+
+    Returns:
+        str: The deserialized text.
+    """
     text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
     text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
     return text
 
 def count_plus_minus_in_diff(description):
+    """
+    Count the number of additions and deletions in a diff.
+
+    Args:
+        description (str): The diff description.
+
+    Returns:
+        tuple: A tuple containing the count of additions and deletions.
+    """
     plus_count = sum([1 for line in description.split("\n") if line.startswith("+")])
     minus_count = sum([1 for line in description.split("\n") if line.startswith("-")])
     return plus_count, minus_count
@@ -52,6 +79,18 @@ def extract_method(
     method_name,
     project_name,
 ):
+    """
+    Extract a method from a given snippet.
+
+    Args:
+        snippet (str): The code snippet.
+        file_path (str): The path of the file.
+        method_name (str): The name of the method to be extracted.
+        project_name (str): The name of the project.
+
+    Returns:
+        tuple: A tuple containing the result and the change set.
+    """
     project = rope.base.project.Project(project_name)
 
     resource = project.get_resource(file_path)
@@ -83,6 +122,17 @@ def extract_method(
         return contents, []
 
 def prepare_serialized_snippet_for_extraction(contents, resource, snippet):
+    """
+    Prepare a serialized snippet for extraction.
+
+    Args:
+        contents (str): The contents of the file.
+        resource (Resource): The resource object.
+        snippet (str): The code snippet.
+
+    Returns:
+        tuple: A tuple containing the start and end indices of the snippet.
+    """
     serialized_contents = serialize(contents)
     resource.write(serialized_contents)
 
@@ -93,6 +143,12 @@ def prepare_serialized_snippet_for_extraction(contents, resource, snippet):
     return start, end
 
 def deserialize_changeset_contents(change_set):
+    """
+    Deserialize the contents of a change set.
+
+    Args:
+        change_set (ChangeSet): The change set object.
+    """
     for change in change_set.changes:
         if change.old_contents is not None:
             change.old_contents = deserialize(change.old_contents)
@@ -113,6 +169,22 @@ class RefactorBot(ChatGPT):
         cloned_repo: ClonedRepo = None,
         **kwargs,
     ):
+        """
+        Refactor the snippets in the given file.
+    
+        Args:
+            additional_messages (list[Message], optional): Additional messages. Defaults to [].
+            snippets_str (str, optional): The string of snippets. Defaults to "".
+            file_path (str, optional): The path of the file. Defaults to "".
+            update_snippets_code (str, optional): The code to update the snippets. Defaults to "".
+            request (str, optional): The request. Defaults to "".
+            changes_made (str, optional): The changes made. Defaults to "".
+            cloned_repo (ClonedRepo, optional): The cloned repository. Defaults to None.
+            **kwargs: Arbitrary keyword arguments.
+    
+        Returns:
+            str: The new code after refactoring.
+        """
         self.model = (
             DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
@@ -270,6 +342,16 @@ class RefactorBot(ChatGPT):
         return new_code
 
     def setup_script_and_tree(self, cloned_repo, file_path):
+        """
+        Setup the script and tree for the given file in the cloned repository.
+    
+        Args:
+            cloned_repo (ClonedRepo): The cloned repository.
+            file_path (str): The path of the file.
+    
+        Returns:
+            tuple: A tuple containing the script and tree.
+        """
         script, tree = setup_jedi_for_file(
             project_dir=cloned_repo.repo_dir,
             file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
