@@ -27,7 +27,7 @@ PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
 
 def serialize(text: str):
-    # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
+    # Replace "'{var}'" with "'{var}'"
     text = re.sub(
         r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
     )
@@ -52,28 +52,13 @@ def extract_method(
     method_name,
     project_name,
 ):
-    project = rope.base.project.Project(project_name)
-
-    resource = project.get_resource(file_path)
-    contents = resource.read()
-    serialized_contents = serialize(contents)
-    resource.write(serialized_contents)
-
-    serialized_snippet = serialize(snippet)
-    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
-        serialized_snippet
-    ) + len(serialized_snippet)
+    project, resource, start, end, contents = initialize_extraction_process(project_name, file_path, snippet)
 
     try:
         extractor = ExtractMethod(project, resource, start, end)
         change_set = extractor.get_changes(method_name, similar=True)
 
-        for change in change_set.changes:
-            if change.old_contents is not None:
-                change.old_contents = deserialize(change.old_contents)
-            else:
-                change.old_contents = deserialize(change.resource.read())
-            change.new_contents = deserialize(change.new_contents)
+        deserialize_changeset_contents(change_set)
 
         # adding this because the change might not replace old code.
         _, subtracted_lines = count_plus_minus_in_diff(change_set.get_description())
@@ -92,6 +77,32 @@ def extract_method(
         logger.error(f"An error occurred: {e}")
         resource.write(contents)
         return contents, []
+
+def initialize_extraction_process(project_name, file_path, snippet):
+    project = rope.base.project.Project(project_name)
+
+    resource = project.get_resource(file_path)
+    contents = resource.read()
+    start, end = serialize_and_locate_snippet(contents, resource, snippet)
+    return project, resource, start, end, contents
+
+def serialize_and_locate_snippet(contents, resource, snippet):
+    serialized_contents = serialize(contents)
+    resource.write(serialized_contents)
+
+    serialized_snippet = serialize(snippet)
+    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
+        serialized_snippet
+    ) + len(serialized_snippet)
+    return start, end
+
+def deserialize_changeset_contents(change_set):
+    for change in change_set.changes:
+        if change.old_contents is not None:
+            change.old_contents = deserialize(change.old_contents)
+        else:
+            change.old_contents = deserialize(change.resource.read())
+        change.new_contents = deserialize(change.new_contents)
 
 
 class RefactorBot(ChatGPT):
@@ -113,10 +124,7 @@ class RefactorBot(ChatGPT):
         )
 
         # first perform manual refactoring step
-        script, tree = setup_jedi_for_file(
-            project_dir=cloned_repo.repo_dir,
-            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
-        )
+        script, tree = self.setup_jedi_project_files(cloned_repo, file_path)
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
@@ -124,11 +132,7 @@ class RefactorBot(ChatGPT):
         if len(heuristic_based_extractions) > 0:
             # some duplicated code here
             deduped_exact_matches = heuristic_based_extractions  # already deduped
-            new_function_names = []
-            existing_names = ", ".join(
-                [def_fn.name.strip("'") for def_fn in all_defined_functions]
-            )
-            offset = 5
+            offset, new_function_names, existing_names = self.initialize_refactoring_environment(all_defined_functions)
             for idx in range(0, len(deduped_exact_matches), offset):
                 num_snippets = min(len(deduped_exact_matches), idx + offset) - idx
                 formatted_snippets = "\n".join(
@@ -166,10 +170,7 @@ class RefactorBot(ChatGPT):
         new_function_names = []
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
-            script, tree = setup_jedi_for_file(
-                project_dir=cloned_repo.repo_dir,
-                file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
-            )
+            script, tree = self.setup_jedi_project_files(cloned_repo, file_path)
             function_and_reference = get_references_from_defined_function(
                 fn_def,
                 script,
@@ -238,11 +239,7 @@ class RefactorBot(ChatGPT):
             if extracted_exact_match not in deduped_exact_matches:
                 deduped_exact_matches.append(extracted_exact_match)
 
-        new_function_names = []
-        existing_names = ", ".join(
-            [def_fn.name.strip("'") for def_fn in all_defined_functions]
-        )
-        offset = 5
+        offset, new_function_names, existing_names = self.generate_function_name_list(all_defined_functions)
         for idx in range(0, len(deduped_exact_matches), offset):
             num_snippets = min(len(deduped_exact_matches), idx + offset) - idx
             formatted_snippets = "\n".join(
@@ -267,3 +264,22 @@ class RefactorBot(ChatGPT):
                 project_name=cloned_repo.repo_dir,
             )
         return new_code
+
+    def setup_jedi_project_files(self, cloned_repo, file_path):
+        script, tree = setup_jedi_for_file(
+            project_dir=cloned_repo.repo_dir,
+            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
+        )
+        return script, tree
+
+    def generate_function_name_list(self, all_defined_functions):
+        offset, new_function_names, existing_names = self.initialize_refactoring_environment(all_defined_functions)
+        return offset, new_function_names, existing_names
+
+    def initialize_refactoring_environment(self, all_defined_functions):
+        new_function_names = []
+        existing_names = ", ".join(
+            [def_fn.name.strip("'") for def_fn in all_defined_functions]
+        )
+        offset = 5
+        return offset, new_function_names, existing_names
