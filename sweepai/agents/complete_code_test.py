@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from sweepai.agents.complete_code import complete_code
+from sweepai.agents.complete_code import complete_code, ExtractLeftoverComments
 
 
 class TestCompleteCode(unittest.TestCase):
@@ -11,15 +11,15 @@ class TestCompleteCode(unittest.TestCase):
     @patch("sweepai.agents.complete_code.complete_code")
     @patch("sweepai.agents.complete_code.complete_code")
     def test_complete_code(self, mock_complete_code):
-        mock_complete_code.return_value = "forced value"
-        
-        # Call the function with the parameters you want to test
-        result = complete_code("test input")
-
-        # Assert that the mocked function was called with the right parameters
-        mock_complete_code.assert_called_with("test input")
-
-        # Assert that the function returned the correct result
+    @patch("sweepai.agents.complete_code.check_comments_presence", new_callable=mock_check_comments_presence)
+    @patch("sweepai.agents.complete_code.ExtractLeftoverComments.chat", new_callable=mock_chat)
+    @patch("sweepai.agents.complete_code.LeftoverComments.from_string", new_callable=mock_from_string)
+    def test_extract_leftover_comments_no_comments(self, mock_check_comments_presence, mock_chat, mock_from_string):
+        new_code = "new code"
+        file_path = "file_path"
+        request = "request"
+        leftover_comments = self.extractor.extract_leftover_comments(new_code, file_path, request)
+        self.assertEqual(leftover_comments, [])
         self.assertEqual(result, "forced value")
 
     @patch("sweepai.agents.complete_code.check_comments_presence", new_callable=lambda: self.mock_check_comments_presence)
@@ -31,5 +31,21 @@ class TestCompleteCode(unittest.TestCase):
         request = "request"
         leftover_comments = self.extractor.extract_leftover_comments(new_code, file_path, request)
         self.assertEqual(leftover_comments, [])
+    def mock_check_comments_presence(self):
+        mock = patch("sweepai.agents.complete_code.check_comments_presence")
+        mock.return_value = True
+        return mock
+
+    def mock_chat(self):
+        mock = patch("sweepai.agents.complete_code.ExtractLeftoverComments.chat")
+        mock.return_value = "mock chat response"
+        return mock
+
+    def mock_from_string(self):
+        mock = patch("sweepai.agents.complete_code.LeftoverComments.from_string")
+        mock.return_value = []
+        return mock
+
+    extractor = ExtractLeftoverComments()
 
 
