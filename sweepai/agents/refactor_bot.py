@@ -27,7 +27,7 @@ PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
 
 def serialize(text: str):
-    # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
+    # Replace "'{var}'" with "'{var}'"
     text = re.sub(
         r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
     )
@@ -56,24 +56,13 @@ def extract_method(
 
     resource = project.get_resource(file_path)
     contents = resource.read()
-    serialized_contents = serialize(contents)
-    resource.write(serialized_contents)
-
-    serialized_snippet = serialize(snippet)
-    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
-        serialized_snippet
-    ) + len(serialized_snippet)
+    start, end = prepare_serialized_snippet_for_extraction(contents, resource, snippet)
 
     try:
         extractor = ExtractMethod(project, resource, start, end)
         change_set = extractor.get_changes(method_name, similar=True)
 
-        for change in change_set.changes:
-            if change.old_contents is not None:
-                change.old_contents = deserialize(change.old_contents)
-            else:
-                change.old_contents = deserialize(change.resource.read())
-            change.new_contents = deserialize(change.new_contents)
+        deserialize_changeset_contents(change_set)
 
         # adding this because the change might not replace old code.
         _, subtracted_lines = count_plus_minus_in_diff(change_set.get_description())
@@ -92,6 +81,24 @@ def extract_method(
         logger.error(f"An error occurred: {e}")
         resource.write(contents)
         return contents, []
+
+def prepare_serialized_snippet_for_extraction(contents, resource, snippet):
+    serialized_contents = serialize(contents)
+    resource.write(serialized_contents)
+
+    serialized_snippet = serialize(snippet)
+    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
+        serialized_snippet
+    ) + len(serialized_snippet)
+    return start, end
+
+def deserialize_changeset_contents(change_set):
+    for change in change_set.changes:
+        if change.old_contents is not None:
+            change.old_contents = deserialize(change.old_contents)
+        else:
+            change.old_contents = deserialize(change.resource.read())
+        change.new_contents = deserialize(change.new_contents)
 
 
 class RefactorBot(ChatGPT):
@@ -113,10 +120,7 @@ class RefactorBot(ChatGPT):
         )
 
         # first perform manual refactoring step
-        script, tree = setup_jedi_for_file(
-            project_dir=cloned_repo.repo_dir,
-            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
-        )
+        script, tree = self.setup_script_and_tree(cloned_repo, file_path)
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
@@ -166,10 +170,7 @@ class RefactorBot(ChatGPT):
         new_function_names = []
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
-            script, tree = setup_jedi_for_file(
-                project_dir=cloned_repo.repo_dir,
-                file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
-            )
+            script, tree = self.setup_script_and_tree(cloned_repo, file_path)
             function_and_reference = get_references_from_defined_function(
                 fn_def,
                 script,
@@ -267,3 +268,10 @@ class RefactorBot(ChatGPT):
                 project_name=cloned_repo.repo_dir,
             )
         return new_code
+
+    def setup_script_and_tree(self, cloned_repo, file_path):
+        script, tree = setup_jedi_for_file(
+            project_dir=cloned_repo.repo_dir,
+            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
+        )
+        return script, tree
