@@ -36,7 +36,20 @@ class LeftoverComments(RegexMatchableBaseModel):
     leftover_comments: list[str] = []
 
     @classmethod
-    def from_string(cls, leftover_comments_response: str, **kwargs):
+    def from_string(cls, leftover_comments_response: str, **kwargs) -> 'LeftoverComments':
+        """
+        Class method to create an instance of LeftoverComments from a string.
+    
+        This method uses regular expressions to find all leftover comments in the provided string.
+        Each found comment is stripped of newline characters and added to the list of leftover comments.
+    
+        Args:
+            leftover_comments_response (str): The string to extract leftover comments from.
+            **kwargs: Arbitrary keyword arguments.
+    
+        Returns:
+            LeftoverComments: An instance of LeftoverComments with the extracted comments.
+        """
         leftover_comments = []
         leftover_comments_pattern = (
             r"""<leftover_comment>(\n)?(?P<leftover_comment>.*?)</leftover_comment>"""
@@ -54,7 +67,23 @@ class LeftoverComments(RegexMatchableBaseModel):
 
 
 class ExtractLeftoverComments(ChatGPT):
-    def extract_leftover_comments(self, new_code, file_path, request, **kwargs):
+    def extract_leftover_comments(self, new_code: str, file_path: str, request: str, **kwargs) -> list[str]:
+        """
+        Method to extract leftover comments from the new code.
+    
+        This method first checks if there are any comments in the new code.
+        If there are, it uses the chat method to generate a response containing the leftover comments.
+        The response is then parsed to extract the actual comments.
+    
+        Args:
+            new_code (str): The new code to extract comments from.
+            file_path (str): The path of the file containing the new code.
+            request (str): The original request.
+            **kwargs: Arbitrary keyword arguments.
+    
+        Returns:
+            list[str]: A list of leftover comments. If no comments are found, an empty list is returned.
+        """
         try:
             if not check_comments_presence(file_path, new_code):
                 return []
