@@ -408,16 +408,14 @@ class ModifyBot:
                 ):
                     right_expand_size = 0
             match_to_modify = MatchToModify(
-                    start=max(snippet_to_modify.snippet.start - left_expand_size, 0),
-                    end=min(
-                        snippet_to_modify.snippet.end + 1 + right_expand_size,
-                        len(file_contents.splitlines()),
-                    ),
-                    reason=snippet_to_modify.reason,
-                )
-            best_matches.append(
-                match_to_modify
+                start=max(snippet_to_modify.snippet.start - left_expand_size, 0),
+                end=min(
+                    snippet_to_modify.snippet.end + 1 + right_expand_size,
+                    len(file_contents.splitlines()),
+                ),
+                reason=snippet_to_modify.reason,
             )
+            best_matches.append(match_to_modify)
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
         def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
@@ -438,11 +436,13 @@ class ModifyBot:
 
         deduped_matches = best_matches
 
-        selected_snippets: list[tuple[str, str]] = []
+        selected_snippets: list[tuple[str, str, tuple[int, int]]] = []
         file_contents_lines = file_contents.split("\n")
         for match_ in deduped_matches:
             current_contents = "\n".join(file_contents_lines[match_.start : match_.end])
-            selected_snippets.append((match_.reason, current_contents))
+            selected_snippets.append(
+                (match_.reason, current_contents, (match_.start, match_.end))
+            )
 
         update_snippets_code = file_contents
         if file_change_request.entity:
@@ -455,7 +455,9 @@ class ModifyBot:
                 snippets="\n\n".join(
                     [
                         f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
-                        for i, (reason, snippet) in enumerate(selected_snippets)
+                        for i, (reason, snippet, (_start, _end)) in enumerate(
+                            selected_snippets
+                        )
                     ]
                 ),
                 file_path=file_path,
@@ -491,7 +493,7 @@ class ModifyBot:
                 snippets="\n\n".join(
                     [
                         f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
-                        for i, (reason, snippet) in enumerate(selected_snippets)
+                        for i, (reason, snippet, _span) in enumerate(selected_snippets)
                     ]
                 ),
                 request=file_change_request.instructions,
@@ -500,7 +502,7 @@ class ModifyBot:
             )
         )
         updated_snippets: dict[int, str] = {}
-        updated_pattern = r"<<<<<<<\s+REPLACE\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
+        updated_pattern = r"<<<<<<<\s+(APPEND|REPLACE)\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
         append_pattern = (
             r"<<<<<<<\s+APPEND\s+\(index=(?P<index>\d+)\)(?P<updated_code>.*?)>>>>>>>"
         )
@@ -520,7 +522,7 @@ class ModifyBot:
             original_code = match_.group("original_code").strip("\n")
             updated_code = match_.group("updated_code").strip("\n")
 
-            _reason, current_contents = selected_snippets[index]
+            _reason, current_contents, _span = selected_snippets[index]
             if index not in updated_snippets:
                 updated_snippets[index] = current_contents
             else:
@@ -537,7 +539,10 @@ class ModifyBot:
             index = int(match_.group("index"))
             updated_code = match_.group("updated_code").strip("\n")
 
-            _reason, current_contents = selected_snippets[index]
+            if "=======" in updated_code:
+                continue
+
+            _reason, current_contents, _span = selected_snippets[index]
             if index not in updated_snippets:
                 updated_snippets[index] = current_contents
             else:
@@ -546,17 +551,15 @@ class ModifyBot:
 
         result = file_contents
         new_code = []
-        for idx, (_reason, search) in enumerate(selected_snippets):
+        for idx, (_reason, _search, (start, end)) in reversed(
+            list(enumerate(selected_snippets))
+        ):  # reversed so that the indices aren't messed up
             if idx not in updated_snippets:
                 continue
             replace = updated_snippets[idx]
-            result = "\n".join(
-                sliding_window_replacement(
-                    original=result.splitlines(),
-                    search=search.splitlines(),
-                    replace=replace.splitlines(),
-                )[0]
-            )
+            lines = result.splitlines()
+            lines[start:end] = replace.splitlines()
+            result = "\n".join(lines)  # sliding window coalesce
             new_code.append(replace)
 
         ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
