@@ -21,9 +21,10 @@ class TestCompleteCode(unittest.TestCase):
 
         # Assert that the mocked function was called with the right parameters
         mock_complete_code.assert_called_with("test input")
+
     @patch("sweepai.agents.complete_code.ExtractLeftoverComments.chat", new_callable=lambda: self.mock_chat)
     @patch("sweepai.agents.complete_code.LeftoverComments.from_string", new_callable=lambda: self.mock_from_string)
-    def test_extract_leftover_comments_no_comments(self, mock_check_comments_presence, mock_chat, mock_from_string):
+    def test_extract_leftover_comments_no_comments(self, mock_chat, mock_from_string):
         new_code = "new code"
         file_path = "file_path"
         request = "request"
