@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import MagicMock, PropertyMock, patch, mock
+from unittest.mock import MagicMock, PropertyMock, patch
+import mock
 
 from sweepai.config.server import (OPENAI_API_ENGINE_GPT4,
                                    OPENAI_API_ENGINE_GPT4_32K,
