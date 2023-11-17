@@ -53,7 +53,7 @@ mock_response.foo["key"].bar = "mock content"
 ```
 
 # Patch Code
-Write patch code that patches the access methods to return the mocks. E.g.
+Write patch code that patches the access methods. Then write code that assigns the mocks to the return values of the functions. E.g.
 ```
 from unittest.mock import patch
 
@@ -162,7 +162,9 @@ def skip_last_test(
     code_before, last_test = test_code.rsplit("    def test_", 1)
 
     decorator_pattern = r"(\s+@[\w\.]+\([^\)]*\)\s+)*"
-    match = re.search(decorator_pattern + r"def test_" + last_test, test_code)
+    match = re.search(
+        decorator_pattern + r"def test_" + re.escape(last_test), test_code
+    )
 
     skipped_test = f'    @unittest.skip("{message}")\n'
 
@@ -250,7 +252,7 @@ class TestBot(ChatGPT):
                 f"{cloned_repo.repo_dir}/{file_path}",
                 full_file_code,
             )
-            if function_and_reference.function_code.count("\n") < 20:
+            if function_and_reference.function_code.count("\n") < 15:
                 continue
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
             code = f"<original_code>\n{recent_file_contents}</original_code>\n"
