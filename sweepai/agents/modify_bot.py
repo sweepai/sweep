@@ -340,6 +340,16 @@ class ModifyBot:
                 else dont_use_chunking_message,
             )
         )
+        analysis_and_identifications_str = self.retrieve_analysis_identification(fetch_snippets_response)
+
+        extraction_terms = self.gather_extraction_terms(fetch_snippets_response)
+        snippet_queries = self.extract_snippet_queries(fetch_snippets_response, original_snippets)
+
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
+        return snippet_queries, extraction_terms, analysis_and_identifications_str
+
+    def retrieve_analysis_identification(self, fetch_snippets_response):
         analysis_and_identification_pattern = r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
         analysis_and_identification_match = re.search(
             analysis_and_identification_pattern, fetch_snippets_response, re.DOTALL
@@ -349,7 +359,9 @@ class ModifyBot:
             if analysis_and_identification_match
             else ""
         )
+        return analysis_and_identifications_str
 
+    def gather_extraction_terms(self, fetch_snippets_response):
         extraction_terms = []
         extraction_term_pattern = (
             r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
@@ -361,6 +373,9 @@ class ModifyBot:
                 term = term.strip()
                 if term:
                     extraction_terms.append(term)
+        return extraction_terms
+
+    def extract_snippet_queries(self, fetch_snippets_response, original_snippets):
         snippet_queries = []
         snippets_query_pattern = r"<section_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<section>.*?)\n</section_to_modify>"
         for match_ in re.finditer(
@@ -372,10 +387,7 @@ class ModifyBot:
             snippet_queries.append(
                 SnippetToModify(reason=reason or "", snippet=snippet)
             )
-
-        if len(snippet_queries) == 0:
-            raise UnneededEditError("No snippets found in file")
-        return snippet_queries, extraction_terms, analysis_and_identifications_str
+        return snippet_queries
 
     def update_file(
         self,
@@ -405,21 +417,7 @@ class ModifyBot:
 
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
-        def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
-            reason = (
-                f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
-            )
-            if b.reason == "Import statements":
-                reason = a.reason
-            elif a.reason == "Import statements":
-                reason = b.reason
-            elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
-                reason = a.reason
-            elif a.reason.startswith("Mentioned") or a.reason.endswith("function call"):
-                reason = b.reason
-            return MatchToModify(
-                start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
-            )
+        self.gather_best_matches_for_modification()
 
         deduped_matches = best_matches
 
@@ -454,11 +452,7 @@ class ModifyBot:
         if len(indices_to_keep) == 0:
             raise UnneededEditError("No snippets selected")
 
-        pruned_snippets = []
-        for idx, snippet in enumerate(selected_snippets):
-            if idx in indices_to_keep:
-                pruned_snippets.append(snippet)
-        selected_snippets = pruned_snippets
+        snippet, selected_snippets = self.combine_match_reasons(selected_snippets, indices_to_keep, snippet)
 
         if is_python_file:
             self.update_snippets_bot.messages[
@@ -505,13 +499,7 @@ class ModifyBot:
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
             original_code = match_.group("original_code").strip("\n")
-            updated_code = match_.group("updated_code").strip("\n")
-
-            _reason, current_contents = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
-            else:
-                current_contents = updated_snippets[index]
+            current_contents, updated_code = self.merge_updated_snippets(match_, selected_snippets, index, updated_snippets)
             updated_snippets[index] = "\n".join(
                 sliding_window_replacement(
                     original=current_contents.splitlines(),
@@ -522,13 +510,7 @@ class ModifyBot:
 
         for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
-            updated_code = match_.group("updated_code").strip("\n")
-
-            _reason, current_contents = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
-            else:
-                current_contents = updated_snippets[index]
+            current_contents, updated_code = self.merge_updated_snippets(match_, selected_snippets, index, updated_snippets)
             updated_snippets[index] = current_contents + "\n" + updated_code
 
         result = file_contents
@@ -563,6 +545,41 @@ class ModifyBot:
         )
 
         return result, leftover_comments
+
+    def gather_best_matches_for_modification(self):
+        def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
+            reason = (
+                f"{a.reason} & {b.reason}" if b.reason not in a.reason else a.reason
+            )
+            if b.reason == "Import statements":
+                reason = a.reason
+            elif a.reason == "Import statements":
+                reason = b.reason
+            elif b.reason.startswith("Mentioned") or b.reason.endswith("function call"):
+                reason = a.reason
+            elif a.reason.startswith("Mentioned") or a.reason.endswith("function call"):
+                reason = b.reason
+            return MatchToModify(
+                start=min(a.start, b.start), end=max(a.end, b.end), reason=reason
+            )
+
+    def combine_match_reasons(self, selected_snippets, indices_to_keep, snippet):
+        pruned_snippets = []
+        for idx, snippet in enumerate(selected_snippets):
+            if idx in indices_to_keep:
+                pruned_snippets.append(snippet)
+        selected_snippets = pruned_snippets
+        return snippet, selected_snippets
+
+    def merge_updated_snippets(self, match_, selected_snippets, index, updated_snippets):
+        updated_code = match_.group("updated_code").strip("\n")
+
+        _reason, current_contents = selected_snippets[index]
+        if index not in updated_snippets:
+            updated_snippets[index] = current_contents
+        else:
+            current_contents = updated_snippets[index]
+        return current_contents, updated_code
 
 
 if __name__ == "__main__":
