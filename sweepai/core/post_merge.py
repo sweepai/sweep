@@ -22,7 +22,7 @@ Output "True" if the rule is broken, "False" otherwise
 </changes_required>
 
 <issue_title>
-Github issue title describing the root cause of the broken rule.
+Write an issue title describing what file and rule to fix.
 </issue_title>
 
 <issue_description>
@@ -47,7 +47,7 @@ Output "True" if the rule is broken, "False" otherwise
 </changes_required>
 
 <issue_title>
-Github issue title describing the root cause of the broken rule.
+Write an issue title describing what file and rule to fix.
 </issue_title>
 
 <issue_description>
