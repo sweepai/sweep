@@ -340,6 +340,16 @@ class ModifyBot:
                 else dont_use_chunking_message,
             )
         )
+        analysis_and_identifications_str = self.retrieve_analysis_identification(fetch_snippets_response)
+
+        extraction_terms = self.gather_extraction_terms(fetch_snippets_response)
+        snippet_queries = self.extract_snippet_queries(fetch_snippets_response, original_snippets)
+
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
+        return snippet_queries, extraction_terms, analysis_and_identifications_str
+
+    def retrieve_analysis_identification(self, fetch_snippets_response):
         analysis_and_identification_pattern = r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
         analysis_and_identification_match = re.search(
             analysis_and_identification_pattern, fetch_snippets_response, re.DOTALL
@@ -349,7 +359,9 @@ class ModifyBot:
             if analysis_and_identification_match
             else ""
         )
+        return analysis_and_identifications_str
 
+    def gather_extraction_terms(self, fetch_snippets_response):
         extraction_terms = []
         extraction_term_pattern = (
             r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
@@ -361,6 +373,9 @@ class ModifyBot:
                 term = term.strip()
                 if term:
                     extraction_terms.append(term)
+        return extraction_terms
+
+    def extract_snippet_queries(self, fetch_snippets_response, original_snippets):
         snippet_queries = []
         snippets_query_pattern = r"<section_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<section>.*?)\n</section_to_modify>"
         for match_ in re.finditer(
@@ -372,10 +387,7 @@ class ModifyBot:
             snippet_queries.append(
                 SnippetToModify(reason=reason or "", snippet=snippet)
             )
-
-        if len(snippet_queries) == 0:
-            raise UnneededEditError("No snippets found in file")
-        return snippet_queries, extraction_terms, analysis_and_identifications_str
+        return snippet_queries
 
     def update_file(
         self,
@@ -389,19 +401,7 @@ class ModifyBot:
     ):
         is_python_file = file_path.strip().endswith(".py")
 
-        best_matches = []
-        for snippet_to_modify in snippet_queries:
-            expand_size = 20
-            best_matches.append(
-                MatchToModify(
-                    start=max(snippet_to_modify.snippet.start - expand_size, 0),
-                    end=min(
-                        snippet_to_modify.snippet.end + 1 + expand_size,
-                        len(file_contents.splitlines()),
-                    ),
-                    reason=snippet_to_modify.reason,
-                )
-            )
+        best_matches = self.collect_best_match_snippets(snippet_queries, file_contents)
 
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
@@ -423,11 +423,7 @@ class ModifyBot:
 
         deduped_matches = best_matches
 
-        selected_snippets: list[tuple[str, str]] = []
-        file_contents_lines = file_contents.split("\n")
-        for match_ in deduped_matches:
-            current_contents = "\n".join(file_contents_lines[match_.start : match_.end])
-            selected_snippets.append((match_.reason, current_contents))
+        selected_snippets = self.assemble_selected_snippets(file_contents, deduped_matches)
 
         update_snippets_code = file_contents
         if file_change_request.entity:
@@ -505,13 +501,7 @@ class ModifyBot:
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
             original_code = match_.group("original_code").strip("\n")
-            updated_code = match_.group("updated_code").strip("\n")
-
-            _reason, current_contents = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
-            else:
-                current_contents = updated_snippets[index]
+            current_contents, updated_code = self.merge_updated_snippets(match_, selected_snippets, index, updated_snippets)
             updated_snippets[index] = "\n".join(
                 sliding_window_replacement(
                     original=current_contents.splitlines(),
@@ -522,29 +512,10 @@ class ModifyBot:
 
         for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
-            updated_code = match_.group("updated_code").strip("\n")
-
-            _reason, current_contents = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
-            else:
-                current_contents = updated_snippets[index]
+            current_contents, updated_code = self.merge_updated_snippets(match_, selected_snippets, index, updated_snippets)
             updated_snippets[index] = current_contents + "\n" + updated_code
 
-        result = file_contents
-        new_code = []
-        for idx, (_reason, search) in enumerate(selected_snippets):
-            if idx not in updated_snippets:
-                continue
-            replace = updated_snippets[idx]
-            result = "\n".join(
-                sliding_window_replacement(
-                    original=result.splitlines(),
-                    search=search.splitlines(),
-                    replace=replace.splitlines(),
-                )[0]
-            )
-            new_code.append(replace)
+        result, new_code = self.apply_snippet_updates_to_file(file_contents, selected_snippets, updated_snippets, idx)
 
         ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
         result = result.rstrip("\n") + "\n" * ending_newlines
@@ -563,6 +534,57 @@ class ModifyBot:
         )
 
         return result, leftover_comments
+
+    def collect_best_match_snippets(self, snippet_queries, file_contents):
+        best_matches = []
+        for snippet_to_modify in snippet_queries:
+            expand_size = 20
+            best_matches.append(
+                MatchToModify(
+                    start=max(snippet_to_modify.snippet.start - expand_size, 0),
+                    end=min(
+                        snippet_to_modify.snippet.end + 1 + expand_size,
+                        len(file_contents.splitlines()),
+                    ),
+                    reason=snippet_to_modify.reason,
+                )
+            )
+        return best_matches
+
+    def assemble_selected_snippets(self, file_contents, deduped_matches):
+        selected_snippets: list[tuple[str, str]] = []
+        file_contents_lines = file_contents.split("\n")
+        for match_ in deduped_matches:
+            current_contents = "\n".join(file_contents_lines[match_.start : match_.end])
+            selected_snippets.append((match_.reason, current_contents))
+        return selected_snippets
+
+    def apply_snippet_updates_to_file(self, file_contents, selected_snippets, updated_snippets, idx):
+        result = file_contents
+        new_code = []
+        for idx, (_reason, search) in enumerate(selected_snippets):
+            if idx not in updated_snippets:
+                continue
+            replace = updated_snippets[idx]
+            result = "\n".join(
+                sliding_window_replacement(
+                    original=result.splitlines(),
+                    search=search.splitlines(),
+                    replace=replace.splitlines(),
+                )[0]
+            )
+            new_code.append(replace)
+        return result, new_code
+
+    def merge_updated_snippets(self, match_, selected_snippets, index, updated_snippets):
+        updated_code = match_.group("updated_code").strip("\n")
+
+        _reason, current_contents = selected_snippets[index]
+        if index not in updated_snippets:
+            updated_snippets[index] = current_contents
+        else:
+            current_contents = updated_snippets[index]
+        return current_contents, updated_code
 
 
 if __name__ == "__main__":
