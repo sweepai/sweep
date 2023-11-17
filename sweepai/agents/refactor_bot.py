@@ -70,10 +70,12 @@ def extract_method(
             change_set = extractor.get_changes(method_name, similar=True)
         except Exception as e:
             logger.error(f"Refactor bot error: {e} for {file_path} and {serialized_snippet}")
+            
             project = rope.base.project.Project(project_name)
             resource = project.get_resource(file_path)
             extractor = ExtractMethod(project, resource, start, end)
             change_set = extractor.get_changes(method_name, similar=True)
+        import pdb; pdb.set_trace()
         for change in change_set.changes:
             if change.old_contents is not None:
                 change.old_contents = deserialize(change.old_contents)

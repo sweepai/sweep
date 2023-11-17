@@ -12,15 +12,15 @@ additional_messages = [
     Message(
         role="user",
         content="""Repo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.
-Issue Title: Refactor github_utils.py to be more modular.
+Issue Title: Refactor refactor_bot.py to be more modular.
 Issue Description: ### Details
 
 _No response_""",
         key="user",
     )
 ]
-file_path = "sweepai/utils/github_utils.py"
-request = "Refactor github_utils.py to be more modular."
+file_path = "sweepai/agents/refactor_bot.py"
+request = "Refactor refactor_bot.py to be more modular."
 changes_made = ""
 chat_logger = ChatLogger({"username": "wwzeng1"})
 bot = RefactorBot()

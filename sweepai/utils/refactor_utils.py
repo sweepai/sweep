@@ -80,7 +80,6 @@ def get_refactor_snippets(code, hashes_dict):
             else:
                 completed_spans.extend(start_and_end_indices)
                 final_window_code.append(window.code.lstrip())
-    import pdb; pdb.set_trace()
     return final_window_code
 
 
