@@ -16,11 +16,7 @@ class TestModifyBotTryUpdateFile(unittest.TestCase):
     @patch("sweepai.agents.modify_bot.ModifyBot.update_file", new_callable=lambda: self.mock_update_file)
     @patch("sweepai.agents.modify_bot.add_auto_imports", new_callable=lambda: self.mock_add_auto_imports)
     def test_try_update_file(self):
-        file_path = "test_file_path"
-        file_contents = "test_file_contents"
-        file_change_request = MagicMock()
-        cloned_repo = MagicMock()
-        chunking = False
+        file_path, file_contents, file_change_request, cloned_repo, chunking = self.initialize_test_file_parameters()
 
         result = self.modify_bot.try_update_file(file_path, file_contents, file_change_request, cloned_repo, chunking)
 
@@ -35,6 +31,14 @@ class TestModifyBotTryUpdateFile(unittest.TestCase):
         self.mock_deepcopy = MagicMock()
         self.mock_uuid4 = MagicMock(return_value="1234")
 
+    def initialize_test_file_parameters(self):
+        file_path = "test_file_path"
+        file_contents = "test_file_contents"
+        file_change_request = MagicMock()
+        cloned_repo = MagicMock()
+        chunking = False
+        return file_path, file_contents, file_change_request, cloned_repo, chunking
+
     @patch("sweepai.agents.modify_bot.ModifyBot.get_snippets_to_modify", new_callable=lambda: self.mock_get_snippets_to_modify)
     @patch("sweepai.agents.modify_bot.ModifyBot.update_file", new_callable=lambda: self.mock_update_file)
     @patch("sweepai.agents.modify_bot.add_auto_imports", new_callable=lambda: self.mock_add_auto_imports)
@@ -42,11 +46,7 @@ class TestModifyBotTryUpdateFile(unittest.TestCase):
     @patch("uuid.uuid4", new_callable=lambda: self.mock_uuid4)
     @patch("sweepai.agents.modify_bot.DEBUG", False)
     def test_try_update_file_with_snippets_to_modify(self):
-        file_path = "test_file_path"
-        file_contents = "test_file_contents"
-        file_change_request = MagicMock()
-        cloned_repo = MagicMock()
-        chunking = False
+        file_path, file_contents, file_change_request, cloned_repo, chunking = self.initialize_test_file_parameters()
 
         self.modify_bot.fetch_snippets_bot = MagicMock()
         self.modify_bot.prune_modify_snippets_bot = MagicMock()
