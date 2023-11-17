@@ -132,11 +132,85 @@ File path: {file_path}
 {snippets}
 </snippets_to_update>
 
-# Instructions
-Describe all changes that should be made.
+        result = file_contents
+        new_code = []
+        for idx, (_reason, search) in enumerate(selected_snippets):
+            if idx not in updated_snippets:
+                continue
+            replace = updated_snippets[idx]
+            result = "\n".join(
+                sliding_window_replacement(
+                    original=result.splitlines(),
+                    search=search.splitlines(),
+                    replace=replace.splitlines(),
+                )[0]
+            )
+            new_code.append(replace)
 
-Respond in the following format:
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
 
+        new_code = "\n".join(new_code)
+        leftover_comments = (
+            (
+                self.extract_leftover_comments_bot.extract_leftover_comments(
+                    new_code,
+                    file_path,
+                    file_change_request.instructions,
+                )
+            )
+            if not DEBUG
+            else []
+        )
+
+        return result, leftover_comments
+
+    def create_best_match_list(self, snippet_queries, file_contents):
+        best_matches = []
+        for snippet_to_modify in snippet_queries:
+            expand_size = 20
+            best_matches.append(
+                MatchToModify(
+                    start=max(snippet_to_modify.snippet.start - expand_size, 0),
+                    end=min(
+                        snippet_to_modify.snippet.end + 1 + expand_size,
+                        len(file_contents.splitlines()),
+                    ),
+                    reason=snippet_to_modify.reason,
+                )
+            )
+
+        best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
+        return best_matches
+
+    def generate_selected_snippets(self, best_matches, file_contents):
+        deduped_matches = best_matches
+
+        selected_snippets: list[tuple[str, str]] = []
+        file_contents_lines = file_contents.split("\n")
+        for match_ in deduped_matches:
+            current_contents = "\n".join(file_contents_lines[match_.start : match_.end])
+            selected_snippets.append((match_.reason, current_contents))
+        return selected_snippets
+
+    def merge_updated_snippet_contents(self, match_, selected_snippets, index, updated_snippets):
+        updated_code = match_.group("updated_code").strip("\n")
+
+        _reason, current_contents = selected_snippets[index]
+        if index not in updated_snippets:
+            updated_snippets[index] = current_contents
+        else:
+            current_contents = updated_snippets[index]
+        return current_contents, updated_code
+
+
+    def create_best_match_list(self, snippet_queries, file_contents):
+=======
+    def create_best_match_list(self, snippet_queries, file_contents):
+        """
+        This function creates a list of best matches for the snippets to be modified.
+        It takes as input the snippets to be modified and the file contents, and returns a sorted list of best matches.
+        """
 <snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet, describe in natural language in a list the changes needed, with references to the lines that should be changed and what to change it to.
@@ -589,3 +663,17 @@ if __name__ == "__main__":
 ```"""
     stripped = strip_backticks(response)
     print(stripped)
+    def merge_updated_snippet_contents(self, match_, selected_snippets, index, updated_snippets):
+=======
+    def merge_updated_snippet_contents(self, match_, selected_snippets, index, updated_snippets):
+        """
+        This function merges the updated snippet contents.
+        It takes as input the match, selected snippets, index, and updated snippets, and returns the current contents and updated code.
+        """
+    def generate_selected_snippets(self, best_matches, file_contents):
+=======
+    def generate_selected_snippets(self, best_matches, file_contents):
+        """
+        This function generates the selected snippets from the best matches.
+        It takes as input the best matches and the file contents, and returns a list of selected snippets.
+        """
