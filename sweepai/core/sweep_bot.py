@@ -270,7 +270,7 @@ class CodeGenBot(ChatGPT):
                                 )
                                 new_file_change_request.change_type = "modify"
                                 new_file_change_request.parent = file_change_request
-                                new_file_change_request.instructions = "Add docstrings to the newly added functions."
+                                new_file_change_request.instructions = "Add detailed, sphinx-style docstrings to all of the new functions."
                                 new_file_change_request.id_ = str(uuid.uuid4())
                                 file_change_requests.append(new_file_change_request)
                             if file_change_requests:

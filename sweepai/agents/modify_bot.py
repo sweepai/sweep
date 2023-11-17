@@ -390,19 +390,34 @@ class ModifyBot:
         is_python_file = file_path.strip().endswith(".py")
 
         best_matches = []
-        for snippet_to_modify in snippet_queries:
-            expand_size = 20
-            best_matches.append(
-                MatchToModify(
-                    start=max(snippet_to_modify.snippet.start - expand_size, 0),
+        snippet_queries = sorted(snippet_queries, key=lambda x: x.snippet.start)
+        for idx, snippet_to_modify in enumerate(snippet_queries):
+            # only expand if there's not an adjacent snippet
+            left_expand_size = 20
+            right_expand_size = 20
+            if idx > 0:
+                if (
+                    snippet_queries[idx - 1].snippet.end
+                    == snippet_to_modify.snippet.start
+                ):
+                    left_expand_size = 0
+            if idx < len(snippet_queries) - 1:
+                if (
+                    snippet_queries[idx + 1].snippet.start
+                    == snippet_to_modify.snippet.end
+                ):
+                    right_expand_size = 0
+            match_to_modify = MatchToModify(
+                    start=max(snippet_to_modify.snippet.start - left_expand_size, 0),
                     end=min(
-                        snippet_to_modify.snippet.end + 1 + expand_size,
+                        snippet_to_modify.snippet.end + 1 + right_expand_size,
                         len(file_contents.splitlines()),
                     ),
                     reason=snippet_to_modify.reason,
                 )
+            best_matches.append(
+                match_to_modify
             )
-
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
         def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
@@ -478,9 +493,7 @@ class ModifyBot:
                         f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
                         for i, (reason, snippet) in enumerate(selected_snippets)
                     ]
-                )
-                + "\n"
-                + analysis_and_identification,
+                ),
                 request=file_change_request.instructions,
                 n=len(selected_snippets),
                 changes_made=self.get_diffs_message(file_contents),
