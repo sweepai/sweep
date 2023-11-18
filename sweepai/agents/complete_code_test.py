@@ -6,7 +6,7 @@ from complete_code import complete_code
 
 class TestCompleteCode(unittest.TestCase):
 
-    @unittest.skip("ImportError: cannot import name "complete_code" from "complete_code" (/repo/sweepai/agents/complete_code.py)")
+    @unittest.skip('ImportError: cannot import name "complete_code" from "complete_code" (/repo/sweepai/agents/complete_code.py)')
     @patch("complete_code.CONSTANT", "new constant")
     @patch("complete_code.complete_code")
     def test_complete_code(self, mock_complete_code):
