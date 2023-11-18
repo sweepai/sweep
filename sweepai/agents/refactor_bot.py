@@ -27,7 +27,7 @@ PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
 
 def serialize(text: str):
-    # Replace "'{var}'" with "__APOSTROPHE__{var}__APOSTROPHE__"
+    # Replace "__APOSTROPHE__{var}__APOSTROPHE__" with "__APOSTROPHE__{var}__APOSTROPHE__"
     text = re.sub(
         r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
     )
@@ -37,8 +37,8 @@ def serialize(text: str):
 
 
 def deserialize(text: str):
-    text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "'{\\1}'", text)
-    text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
+    text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "__APOSTROPHE__{\\1}__APOSTROPHE__", text)
+    text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "__PERCENT_FORMAT__{\\1}", text)
     return text
 
 def count_plus_minus_in_diff(description):
@@ -56,13 +56,7 @@ def extract_method(
 
     resource = project.get_resource(file_path)
     contents = resource.read()
-    serialized_contents = serialize(contents)
-    resource.write(serialized_contents)
-
-    serialized_snippet = serialize(snippet)
-    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
-        serialized_snippet
-    ) + len(serialized_snippet)
+    start, end = prepare_serialized_contents_for_extraction(contents, resource, snippet)
 
     try:
         extractor = ExtractMethod(project, resource, start, end)
@@ -93,6 +87,16 @@ def extract_method(
         resource.write(contents)
         return contents, []
 
+def prepare_serialized_contents_for_extraction(contents, resource, snippet):
+    serialized_contents = serialize(contents)
+    resource.write(serialized_contents)
+
+    serialized_snippet = serialize(snippet)
+    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
+        serialized_snippet
+    ) + len(serialized_snippet)
+    return start, end
+
 
 class RefactorBot(ChatGPT):
     def refactor_snippets(
@@ -113,10 +117,7 @@ class RefactorBot(ChatGPT):
         )
 
         # first perform manual refactoring step
-        script, tree = setup_jedi_for_file(
-            project_dir=cloned_repo.repo_dir,
-            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
-        )
+        script, tree = self.setup_script_and_tree(cloned_repo, file_path)
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
@@ -166,10 +167,7 @@ class RefactorBot(ChatGPT):
         new_function_names = []
         for fn_def in all_defined_functions:
             full_file_code = cloned_repo.get_file_contents(file_path)
-            script, tree = setup_jedi_for_file(
-                project_dir=cloned_repo.repo_dir,
-                file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
-            )
+            script, tree = self.setup_script_and_tree(cloned_repo, file_path)
             function_and_reference = get_references_from_defined_function(
                 fn_def,
                 script,
@@ -267,3 +265,10 @@ class RefactorBot(ChatGPT):
                 project_name=cloned_repo.repo_dir,
             )
         return new_code
+
+    def setup_script_and_tree(self, cloned_repo, file_path):
+        script, tree = setup_jedi_for_file(
+            project_dir=cloned_repo.repo_dir,
+            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
+        )
+        return script, tree
