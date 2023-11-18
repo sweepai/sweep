@@ -27,6 +27,16 @@ PERCENT_FORMAT_MARKER = "__PERCENT_FORMAT__"
 
 
 def serialize(text: str):
+    """
+    This function replaces certain patterns in the input text with markers.
+    It is used to prepare the text for further processing.
+
+    Args:
+        text (str): The input text to be serialized.
+
+    Returns:
+        str: The serialized text.
+    """
     # Replace "__APOSTROPHE__{var}__APOSTROPHE__" with "__APOSTROPHE__{var}__APOSTROPHE__"
     text = re.sub(
         r"'{([^'}]*?)}'", f"{APOSTROPHE_MARKER}{{\\1}}{APOSTROPHE_MARKER}", text
@@ -37,16 +47,47 @@ def serialize(text: str):
 
 
 def deserialize(text: str):
+    """
+    This function replaces markers in the input text with their original patterns.
+    It is used to revert the serialization process.
+
+    Args:
+        text (str): The input text to be deserialized.
+
+    Returns:
+        str: The deserialized text.
+    """
     text = re.sub(f"{APOSTROPHE_MARKER}{{(.*?)}}{APOSTROPHE_MARKER}", "__APOSTROPHE__{\\1}__APOSTROPHE__", text)
     text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "__PERCENT_FORMAT__{\\1}", text)
     return text
 
 def count_plus_minus_in_diff(description):
+    """
+    This function counts the number of added and removed lines in a diff description.
+
+    Args:
+        description (str): The diff description.
+
+    Returns:
+        tuple: A tuple containing the number of added lines and the number of removed lines.
+    """
     plus_count = sum([1 for line in description.split("\n") if line.startswith("+")])
     minus_count = sum([1 for line in description.split("\n") if line.startswith("-")])
     return plus_count, minus_count
 
 def extract_method(
+    """
+    This function extracts a method from a given snippet and replaces it in the original file.
+
+    Args:
+        snippet (str): The code snippet to be extracted.
+        file_path (str): The path to the file where the method should be extracted.
+        method_name (str): The name of the new method.
+        project_name (str): The name of the project.
+
+    Returns:
+        tuple: A tuple containing the new file contents and the changeset.
+    """
     snippet,
     file_path,
     method_name,
@@ -88,6 +129,17 @@ def extract_method(
         return contents, []
 
 def prepare_serialized_contents_for_extraction(contents, resource, snippet):
+    """
+    This function prepares the contents of a file for extraction by serializing them.
+
+    Args:
+        contents (str): The contents of the file.
+        resource (Resource): The resource representing the file.
+        snippet (str): The code snippet to be extracted.
+
+    Returns:
+        tuple: A tuple containing the start and end indices of the serialized snippet in the serialized contents.
+    """
     serialized_contents = serialize(contents)
     resource.write(serialized_contents)
 
@@ -103,6 +155,21 @@ class RefactorBot(ChatGPT):
         self,
         additional_messages: list[Message] = [],
         snippets_str="",
+        file_path: str = "",
+        update_snippets_code: str = "",
+        request="",
+        changes_made="",
+        cloned_repo: ClonedRepo = None,
+        **kwargs,
+    ):
+        self.model = (
+            DEFAULT_GPT4_32K_MODEL
+            if (self.chat_logger and self.chat_logger.is_paying_user())
+            else DEFAULT_GPT35_MODEL
+        )
+
+        # first perform manual refactoring step
+        script, tree = self.setup_script_and_tree(cloned_repo, file_path)
         file_path: str = "",
         update_snippets_code: str = "",
         request="",
@@ -267,6 +334,16 @@ class RefactorBot(ChatGPT):
         return new_code
 
     def setup_script_and_tree(self, cloned_repo, file_path):
+        """
+        This method sets up the Jedi script and tree for a given file.
+    
+        Args:
+            cloned_repo (ClonedRepo): The cloned repository.
+            file_path (str): The path to the file.
+    
+        Returns:
+            tuple: A tuple containing the Jedi script and tree.
+        """
         script, tree = setup_jedi_for_file(
             project_dir=cloned_repo.repo_dir,
             file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
