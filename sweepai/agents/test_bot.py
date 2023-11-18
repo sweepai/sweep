@@ -335,7 +335,7 @@ class TestBot(ChatGPT):
                 changed_files,
             )
 
-            if sandbox_response.success == False:
+            if sandbox_response.error_messages and sandbox_response.success == False:
                 new_extension_tests = self.chat(
                     fix_unit_test_prompt.format(
                         error_message=sandbox_response.error_messages[-1]
@@ -355,7 +355,7 @@ class TestBot(ChatGPT):
                     current_unit_test,
                     changed_files,
                 )
-                if sandbox_response.success == False:
+                if sandbox_response.error_messages and sandbox_response.success == False:
                     reason = sandbox_response.error_messages[-1].splitlines()[-1]
                     current_unit_test = skip_last_test(current_unit_test, reason)
 
@@ -406,7 +406,7 @@ class TestBot(ChatGPT):
                     changed_files,
                 )
 
-                if sandbox_response.success == False:
+                if sandbox_response.error_messages and sandbox_response.success == False:
                     new_extension_tests = test_extension_creator.chat(
                         fix_unit_test_prompt.format(
                             error_message=sandbox_response.error_messages[-1]
@@ -426,7 +426,7 @@ class TestBot(ChatGPT):
                         new_extension_tests,
                         changed_files,
                     )
-                    if sandbox_response.success == False:
+                    if sandbox_response.error_messages and sandbox_response.success == False:
                         reason = sandbox_response.error_messages[-1].splitlines()[-1]
                         new_extension_tests = skip_last_test(
                             new_extension_tests, reason
