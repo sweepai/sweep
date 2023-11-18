@@ -1,5 +1,4 @@
 import re
-from regex import D
 
 import rope.base.project
 from loguru import logger
@@ -60,13 +59,11 @@ def extract_method(
     resource.write(serialized_contents)
 
     serialized_snippet = serialize(snippet)
-    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
-        serialized_snippet
-    ) + len(serialized_snippet)
+    start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(serialized_snippet) + len(serialized_snippet)
 
     try:
         extractor = ExtractMethod(project, resource, start, end)
-        change_set = extractor.get_changes(method_name, similar=True)
+        change_set = extractor.get_changes(method_name, similar=True) # there's a bug that occurs when we run this on itself
 
         for change in change_set.changes:
             if change.old_contents is not None:
