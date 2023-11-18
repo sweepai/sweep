@@ -69,7 +69,30 @@ def extract_method(
         if (
             subtracted_lines <= 3
         ):
-            logger.info("Change doesn't remove code, skipping")
+            def prepare_serialized_content_for_extraction(contents, resource, snippet):
+                """
+                Prepare the serialized content for extraction.
+            
+                This function serializes the contents and the snippet, writes the serialized contents to the resource,
+                and finds the start and end indices of the serialized snippet in the serialized contents.
+            
+                Args:
+                    contents (str): The contents to be serialized.
+                    resource (rope.base.resources.File): The resource where the serialized contents will be written.
+                    snippet (str): The snippet to be serialized.
+            
+                Returns:
+                    start (int): The start index of the serialized snippet in the serialized contents.
+                    end (int): The end index of the serialized snippet in the serialized contents.
+                """
+                serialized_contents = serialize(contents)
+                resource.write(serialized_contents)
+            
+                serialized_snippet = serialize(snippet)
+                start, end = serialized_contents.find(serialized_snippet), serialized_contents.find(
+                    serialized_snippet
+                ) + len(serialized_snippet)
+                return start, end
             return contents, []
         for change in change_set.changes:
             change.do()
@@ -93,19 +116,38 @@ def prepare_serialized_content_for_extraction(contents, resource, snippet):
     return start, end
 
 def apply_deserialization_to_changes(change_set):
+    """
+    Apply deserialization to the changes in the change set.
+
+    This function iterates over the changes in the change set and applies deserialization to the old and new contents
+    of each change.
+
+    Args:
+        change_set (rope.refactor.change.ChangeSet): The change set where deserialization will be applied.
+    """
     for change in change_set.changes:
         if change.old_contents is not None:
             change.old_contents = deserialize(change.old_contents)
         else:
             change.old_contents = deserialize(change.resource.read())
-        change.new_contents = deserialize(change.new_contents)
-
-
-class RefactorBot(ChatGPT):
-    def refactor_snippets(
-        self,
-        additional_messages: list[Message] = [],
-        snippets_str="",
+    def deduplicate_extracted_matches(self, extracted_exact_matches):
+        """
+        Deduplicate the extracted matches.
+    
+        This function iterates over the extracted matches and appends each match to the deduplicated matches list
+        if it is not already in the list.
+    
+        Args:
+            extracted_exact_matches (list[str]): The list of extracted matches to be deduplicated.
+    
+        Returns:
+            deduped_exact_matches (list[str]): The list of deduplicated matches.
+        """
+        deduped_exact_matches = []
+        for extracted_exact_match in extracted_exact_matches:
+            if extracted_exact_match not in deduped_exact_matches:
+                deduped_exact_matches.append(extracted_exact_match)
+        return deduped_exact_matches
         file_path: str = "",
         update_snippets_code: str = "",
         request="",
@@ -121,12 +163,30 @@ class RefactorBot(ChatGPT):
 
         # first perform manual refactoring step
         script, tree = self.setup_script_and_tree(cloned_repo, file_path)
-
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
         heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {}) # check heuristics
         if len(heuristic_based_extractions) > 0:
-            # some duplicated code here
+    def setup_script_and_tree(self, cloned_repo, file_path):
+        """
+        Set up the script and tree for Jedi.
+    
+        This function sets up the script and tree for Jedi by calling the setup_jedi_for_file function with the
+        project directory and the full file path.
+    
+        Args:
+            cloned_repo (sweepai.utils.github_utils.ClonedRepo): The cloned repository.
+            file_path (str): The file path.
+    
+        Returns:
+            script (jedi.api.Script): The script set up for Jedi.
+            tree (jedi.api.tree.Module): The tree set up for Jedi.
+        """
+        script, tree = setup_jedi_for_file(
+            project_dir=cloned_repo.repo_dir,
+            file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
+        )
+        return script, tree
             deduped_exact_matches = heuristic_based_extractions  # already deduped
             new_function_names = []
             existing_names = ", ".join(
@@ -264,17 +324,81 @@ class RefactorBot(ChatGPT):
                 new_function_names[idx],
                 project_name=cloned_repo.repo_dir,
             )
+    def refactor_snippets(
+        self,
+        additional_messages: list[Message] = [],
+        snippets_str="",
+        file_path: str = "",
+        update_snippets_code: str = "",
+        request="",
+        changes_made="",
+        cloned_repo: ClonedRepo = None,
+        **kwargs,
+    ):
+        """
+        Refactor the snippets.
+
+        This function refactors the snippets by setting up the script and tree for Jedi, getting all defined functions,
+        getting the initial file contents, and performing heuristic-based extractions. If there are heuristic-based
+        extractions, it deduplicates the exact matches, names the functions, and extracts the method.
+
+        Args:
+            additional_messages (list[Message], optional): Additional messages. Defaults to [].
+            snippets_str (str, optional): The snippets string. Defaults to "".
+            file_path (str, optional): The file path. Defaults to "".
+            update_snippets_code (str, optional): The update snippets code. Defaults to "".
+            request (str, optional): The request. Defaults to "".
+            changes_made (str, optional): The changes made. Defaults to "".
+            cloned_repo (ClonedRepo, optional): The cloned repository. Defaults to None.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            new_code (str): The new code after refactoring.
+        """
+        self.model = (
+            DEFAULT_GPT4_32K_MODEL
+            if (self.chat_logger and self.chat_logger.is_paying_user())
+            else DEFAULT_GPT35_MODEL
+        )
+
+        # first perform manual refactoring step
+        script, tree = self.setup_script_and_tree(cloned_repo, file_path)
+
+        all_defined_functions = get_all_defined_functions(script=script, tree=tree)
+        initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
+        heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {}) # check heuristics
+        if len(heuristic_based_extractions) > 0:
+            # some duplicated code here
+            deduped_exact_matches = heuristic_based_extractions  # already deduped
+            new_function_names = []
+            existing_names = ", ".join(
+                [def_fn.name.strip("'") for def_fn in all_defined_functions]
+            )
+            offset = 5
+            for idx in range(0, len(deduped_exact_matches), offset):
+                num_snippets = min(len(deduped_exact_matches), idx + offset) - idx
+                formatted_snippets = "\n".join(
+                    [
+                        f"<function_to_name>\n{snippet}\n</function_to_name>"
+                        for snippet in deduped_exact_matches[idx:idx+num_snippets]
+                    ]
+                )
+                new_function_names.extend(NameBot(chat_logger=self.chat_logger).name_functions(
+                    old_code=cloned_repo.get_file_contents(file_path),
+                    snippets=formatted_snippets,
+                    existing_names=existing_names,
+                    count=num_snippets,
+                ))
+            for idx, extracted_original_code in enumerate(deduped_exact_matches):
+                if idx >= len(new_function_names):
+                    break
+                new_code, change_set = extract_method(
+                    extracted_original_code,
+                    file_path,
+                    new_function_names[idx],
+                    project_name=cloned_repo.repo_dir,
+                )
         return new_code
-
-    def deduplicate_extracted_matches(self, extracted_exact_matches):
-        deduped_exact_matches = []
-        for extracted_exact_match in extracted_exact_matches:
-            if extracted_exact_match not in deduped_exact_matches:
-                deduped_exact_matches.append(extracted_exact_match)
-        return deduped_exact_matches
-
-    def setup_script_and_tree(self, cloned_repo, file_path):
-        script, tree = setup_jedi_for_file(
             project_dir=cloned_repo.repo_dir,
             file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
         )
