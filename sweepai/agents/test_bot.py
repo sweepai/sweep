@@ -54,10 +54,13 @@ Use the `patch` decorator to mock the methods. Do not use keyword arguments like
 ```
 from unittest.mock import patch
 
-@patch("code_to_test.expensive_operation")
-def test_code_to_test(mock_expensive_operation):
-    mock_expensive_operation.return_value = mock_response
+@patch("code_to_test.first_expensive_operation")
+@patch("code_to_test.second_expensive_operation")
+def test_code_to_test(self, mock_second_expensive_operation, mock_first_expensive_operation):
+    mock_first_expensive_operation.return_value = first_mock_response
+    mock_second_expensive_operation.return_value = second_mock_response
 ```
+Warning: when stacking @patch decorators in Python tests, the injected mocks enter the test method in reverse order. The first decorator's mock ends up as the last argument, and vice versa.
 </planning_and_mocks_identification>
 
 <code>
