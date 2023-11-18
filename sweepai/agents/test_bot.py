@@ -36,26 +36,21 @@ code snippet of each mocked object's usage
 ```
 
 # Access method
-Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`.
-
-Then, for each chain of accesses like return_obj.foo["key"].bar, list the access type at each step of the chain and how they should be mocked, like
-- return_obj.foo is an attribute method so return_obj should be mocked like MagicMock.foo
-- return_obj.foo["key"] is a dictionary access so return_obj.foo should be mocked like {{"key": MagicMock}}
-- return_obj.foo["key"].bar is an attribute method so return_obj.foo["key"] should be mocked like MagicMock.bar
+Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`. Then, for each chain of accesses like return_obj.foo["key"].bar, list the access type at each step of the chain and how they should be mocked, like
+- return_obj.foo is an attribute method so return_obj should be mocked like magic_mock.foo
+- return_obj["key"] is a dictionary access so return_obj.foo should be mocked like {{"key": magic_mock}}
 
 # Mock Code
 Write mocks that perfectly mock these access methods. E.g.
 ```
 from unittest.mock import MagicMock
 
-mock_response = MagicMock()
-mock_response.foo = {{}}
-mock_response.foo["key"] = MagicMock()
-mock_response.foo["key"].bar = "mock content"
+mock_expensive_operation.return_value = MagicMock()
+mock_expensive_operation.return_value.foo["key"].bar = "mock content"
 ```
 
 # Patch Code
-Write patch code that patches the access methods. Then write code that assigns the mocks to the return values of the functions. E.g.
+Use the `patch` decorator to mock the methods. Do not use keyword arguments like `new` or `new_callable` in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`. E.g.
 ```
 from unittest.mock import patch
 
@@ -66,7 +61,9 @@ def test_code_to_test(mock_expensive_operation):
 </planning_and_mocks_identification>
 
 <code>
-Unit test that uses the mocked response in the setUp method (and optionally the tearDown method).
+```
+Unit test that uses the mocked response in the setUp method (and optionally the tearDown method). Use the `patch` decorator to mock the methods. Do not use keyword arguments like `new` or `new_callable` in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object.
+```
 </code>"""
 
 test_system_prompt = f"""\
@@ -114,24 +111,7 @@ Extend the unit tests using the unittest module for the {{method_name}} method. 
 
 test_extension_format = """\
 <planning>
-List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, determine whether they should be patched using either
-
-```
-@patch("module.CONSTANT", NEW_CONSTANT)
-def test_function():
-    ...
-```
-
-or
-
-```
-@patch("module.function")
-def test_function(self, mock):
-    mock.return_value = "forced value"
-    ...
-```
-
-Only use the patch method in one of these two ways. DO NOT use other keyword arguments.
+List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, write the `patch` decorator for them to mock functions or constants without using the `new_callable` argument. Use the standard mocking behavior provided by `unittest.mock`.
 </planning>
 
 <additional_unit_tests>
@@ -203,11 +183,22 @@ Extend the unit tests using the unittest module for the {{method_name}} method t
 fix_unit_test_prompt = """\
 {error_message}
 
-Write the new unit test in the following format:
+Think step by step in planning and write the new unit test in additional_unit_tests, all in the following format:
+
+<planning>
+What went wrong? What changes should be made to the unit test? Be specific and concise.
+</planning>
 
 <additional_unit_tests>
 ```
-The new unit test.
+# imports
+
+class TestNameOfFullFunctionName(unittest.TestCase):
+    ...
+
+    # patches
+    def test_function(self):
+        ... # the test here
 ```
 </additional_unit_tests>
 """
@@ -218,9 +209,12 @@ def skip_last_test(
 ) -> str:  # this is broken, will fix tomorrow
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
     decomposed_code = split_script(test_code)
-    code_before, last_test = decomposed_code.definitions.rsplit("\n\n", 1)
-    skipped_test = f'    @unittest.skip("{message}")\n' + last_test
-    new_code = code_before + "\n\n" + skipped_test
+    *code_before, last_test = re.split(
+        "\n\n\s+(?=@patch|def )", decomposed_code.definitions
+    )
+    serialized_message = message.replace('"', '\\"')
+    skipped_test = f'    @unittest.skip("{serialized_message}")\n    ' + last_test
+    new_code = "\n\n".join([*code_before, skipped_test])
 
     return "\n\n".join(
         [
@@ -312,13 +306,15 @@ class TestBot(ChatGPT):
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
             code = f"<original_code>\n{recent_file_contents}</original_code>\n"
             code += function_and_reference.serialize(tag="function_to_test")
+            self.delete_messages_from_chat("test_user_prompt")
+            self.delete_messages_from_chat("fix_unit_test_prompt")
             extract_response = self.chat(
                 test_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
                     method_name=function_and_reference.function_name,
-                )
+                ),
+                message_key="test_user_prompt",
             )
-            self.messages = self.messages[:-2]
 
             code_xml_pattern = r"<code>(.*?)```(python)?(?P<code>.*?)(```\n)?</code>"
 
@@ -340,7 +336,7 @@ class TestBot(ChatGPT):
             )
 
             if sandbox_response.success == False:
-                new_extension_tests = test_extension_creator.chat(
+                new_extension_tests = self.chat(
                     fix_unit_test_prompt.format(
                         error_message=sandbox_response.error_messages[-1]
                     ),
