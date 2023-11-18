@@ -50,7 +50,7 @@ mock_expensive_operation.return_value.foo["key"].bar = "mock content"
 ```
 
 # Patch Code
-Write `patch` decorator and code that patches the access methods WITHOUT using keyword arguments like `new` or `new_callable`. Then write code that assigns the mocks to the return values of the functions. Use the standard mocking behavior provided by `unittest.mock`. E.g.
+Use the `patch` decorator to mock the methods. Do not use keyword arguments like `new` or `new_callable` in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`. E.g.
 ```
 from unittest.mock import patch
 
@@ -62,7 +62,7 @@ def test_code_to_test(mock_expensive_operation):
 
 <code>
 ```
-Unit test that uses the mocked response in the setUp method (and optionally the tearDown method). Use the standard mocking behavior provided by `unittest.mock`.
+Unit test that uses the mocked response in the setUp method (and optionally the tearDown method). Use the `patch` decorator to mock the methods. Do not use keyword arguments like `new` or `new_callable` in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object.
 ```
 </code>"""
 
@@ -183,7 +183,11 @@ Extend the unit tests using the unittest module for the {{method_name}} method t
 fix_unit_test_prompt = """\
 {error_message}
 
-Write the new unit test in the following format:
+Think step by step in planning and write the new unit test in additional_unit_tests, all in the following format:
+
+<planning>
+What went wrong? What changes should be made to the unit test? Be specific and concise.
+</planning>
 
 <additional_unit_tests>
 ```
