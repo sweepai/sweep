@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from complete_code import complete_code
 
@@ -21,10 +21,16 @@ class TestCompleteCode(unittest.TestCase):
         # Assert that the function returned the correct result
         self.assertEqual(result, "forced value")
 
-    @patch("sweepai.agents.complete_code.check_comments_presence", new_callable=lambda: self.mock_check_comments_presence)
-    @patch("sweepai.agents.complete_code.ExtractLeftoverComments.chat", new_callable=lambda: self.mock_chat)
-    @patch("sweepai.agents.complete_code.LeftoverComments.from_string", new_callable=lambda: self.mock_from_string)
-    def test_extract_leftover_comments_no_comments(self, mock_check_comments_presence, mock_chat, mock_from_string):
+    def setUp(self):
+        self.mock_check_comments_presence = Mock()
+        self.mock_chat = Mock()
+        self.mock_from_string = Mock()
+        self.extractor = Mock()
+    
+    @patch("sweepai.agents.complete_code.check_comments_presence", new=self.mock_check_comments_presence)
+    @patch("sweepai.agents.complete_code.ExtractLeftoverComments.chat", new=self.mock_chat)
+    @patch("sweepai.agents.complete_code.LeftoverComments.from_string", new=self.mock_from_string)
+    def test_extract_leftover_comments_no_comments(self):
         new_code = "new code"
         file_path = "file_path"
         request = "request"
