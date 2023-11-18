@@ -125,8 +125,7 @@ import unittest
 from unittest.mock import patch
 
 class TestNameOfFullFunctionName(unittest.TestCase):
-    ...
-
+    # copy the setUp code
 
     # patches
     def test_function(self, mocks...):
