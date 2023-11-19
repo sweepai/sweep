@@ -8,7 +8,7 @@ from sweepai.logn import logger
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 system_message_prompt = """\
-Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
+You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
 
 Reply in the following format:
 <contextual_request_analysis>

@@ -7,7 +7,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from sweepai.logn import logger
 
-system_prompt = """Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to review the following commit diffs and make sure the file conforms to the user's rules.
+system_prompt = """You are a brilliant and meticulous engineer assigned to review the following commit diffs and make sure the file conforms to the user's rules.
 If the diffs do not conform to the rules, we should create a GitHub issue telling the user what changes should be made.
 
 Provide your response in the following format:

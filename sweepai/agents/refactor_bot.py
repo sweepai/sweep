@@ -12,6 +12,7 @@ from sweepai.core.update_prompts import (
     extract_snippets_system_prompt,
     extract_snippets_user_prompt,
 )
+from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.jedi_utils import (
     get_all_defined_functions,
@@ -92,6 +93,7 @@ def extract_method(
 
 
 class RefactorBot(ChatGPT):
+    @file_cache()
     def refactor_snippets(
         self,
         additional_messages: list[Message] = [],
@@ -120,7 +122,7 @@ class RefactorBot(ChatGPT):
         heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {}) # check heuristics
         if len(heuristic_based_extractions) > 0:
             # some duplicated code here
-            deduped_exact_matches = heuristic_based_extractions  # already deduped
+            deduped_exact_matches = heuristic_based_extractions[:3]  # already deduped
             new_function_names = []
             existing_names = ", ".join(
                 [def_fn.name.strip("'") for def_fn in all_defined_functions]
@@ -140,15 +142,20 @@ class RefactorBot(ChatGPT):
                     existing_names=existing_names,
                     count=num_snippets,
                 ))
+            prev_new_code = None
+            changes_made = 0
             for idx, extracted_original_code in enumerate(deduped_exact_matches):
-                if idx >= len(new_function_names):
+                if idx >= len(new_function_names) or changes_made >= 3:
                     break
-                new_code, _ = extract_method(
+                new_code, change_set = extract_method(
                     extracted_original_code,
                     file_path,
                     new_function_names[idx],
                     project_name=cloned_repo.repo_dir,
                 )
+                if prev_new_code != new_code:
+                    changes_made += 1
+                prev_new_code = new_code
 
         self.messages = [
             Message(
@@ -254,8 +261,10 @@ class RefactorBot(ChatGPT):
                 existing_names=existing_names,
                 count=num_snippets,
             ))
+        prev_new_code = None
+        changes_made = 0
         for idx, extracted_original_code in enumerate(deduped_exact_matches):
-            if idx >= len(new_function_names):
+            if idx >= len(new_function_names) or changes_made >= 3:
                 break
             new_code, change_set = extract_method(
                 extracted_original_code,
@@ -263,4 +272,7 @@ class RefactorBot(ChatGPT):
                 new_function_names[idx],
                 project_name=cloned_repo.repo_dir,
             )
+            if prev_new_code != new_code:
+                changes_made += 1
+            prev_new_code = new_code
         return new_code
