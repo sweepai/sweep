@@ -44,7 +44,7 @@ def parse_coverage_data_to_table(coverage_data, project_dir="."):
         file_contents = open(project_dir + "/" + file_path).readlines()
         for i, line in enumerate(file_contents):
             if i + 1 in file_detail.missing_lines:
-                file_contents[i] = f"? {line}"
+                file_contents[i] = f"- {line}"
             elif i + 1 in file_detail.excluded_lines:
                 file_contents[i] = f"? {line}"
             elif i + 1 in file_detail.executed_lines:
@@ -52,7 +52,7 @@ def parse_coverage_data_to_table(coverage_data, project_dir="."):
             else:
                 file_contents[i] = f"  {line}"
         file_contents = "".join(file_contents)
-        result += f"\nTest coverage for {file_path}\n```diff\n{file_contents}\n```\n"
+        result += f"\nTest coverage for `{file_path}`\n```diff\n{file_contents}\n```\n"
     return result
 
 
