@@ -288,7 +288,7 @@ class TestBot(ChatGPT):
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         generated_code_sections = []
-        for fn_def in all_defined_functions:
+        for fn_def in all_defined_functions[:3]:
             if "__init__" in fn_def.name:
                 continue
             full_file_code = cloned_repo.get_file_contents(file_path)
