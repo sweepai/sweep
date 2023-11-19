@@ -91,33 +91,3 @@ def file_cache(ignore_params=[]):
         return wrapper
 
     return decorator
-
-
-if __name__ == "__main__":
-
-    class State:
-        def __init__(self, state):
-            self.state = state
-
-    obj = State(0)
-
-    @file_cache(ignore_params=["self", "State"])
-    def example_function(self, a, b):
-        return a + b + self.state
-
-    print(example_function(obj, 1, 3))
-    obj.state = 4
-    print(example_function(obj, 1, 4))
-    obj.state = 3
-    print(example_function(obj, 1, 4))
-
-    @file_cache()
-    def example_function(self, a, b):
-        return a + b + self.state
-
-    obj.state = 0
-    print(example_function(obj, 1, 3))
-    obj.state = 4
-    print(example_function(obj, 1, 4))
-    obj.state = 3
-    print(example_function(obj, 1, 4))
