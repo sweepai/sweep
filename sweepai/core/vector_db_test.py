@@ -408,7 +408,7 @@ class TestChunkChunk(unittest.TestCase):
         result = list(chunk(texts, batch_size))
         self.assertEqual(result, expected_output)
 
-def test_chunk(self):
+    def test_chunk(self):
         texts = ["text1", "text2", "text3", "text4", "text5"]
         batch_size = 2
         expected_output = [["text1", "text2"], ["text3", "text4"], ["text5"]]
