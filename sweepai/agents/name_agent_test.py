@@ -8,7 +8,7 @@ class TestNameBot(unittest.TestCase):
     def setUp(self):
         self.name_bot = NameBot()
         self.name_bot.chat_logger = MagicMock()
-        self.name_bot.chat = MagicMock()
+        # self.name_bot.chat = MagicMock() # Removed as 'chat' is not an attribute of NameBot
 
     @unittest.skip("FAILED (errors=1)")
     @patch("sweepai.agents.name_agent.serialize_method_name")
@@ -32,13 +32,12 @@ class TestNameBot(unittest.TestCase):
     def test_name_functions_paying_user(
         self, mock_serialize_method_name, mock_chat, mock_chat_logger
     ):
-        mock_chat_logger.is_paying_user.return_value = True
+        self.name_bot.chat_logger.is_paying_user.return_value = True
         mock_chat.return_value = "<function_name>\nmock_function_name\n</function_name>"
         mock_serialize_method_name.return_value = "mock_function_name"
-
+    
         name_bot = NameBot()
-        name_bot.chat_logger = mock_chat_logger
-        name_bot.chat = mock_chat
+        name_bot.chat_logger = self.name_bot.chat_logger
 
         result = name_bot.name_functions("old_code", "snippets", "existing_names", 1)
         self.assertEqual(result, ["mock_function_name"])
