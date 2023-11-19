@@ -70,7 +70,7 @@ from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_review import review_pr, get_pr_diffs
+from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -80,6 +80,7 @@ from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
+    UPDATES_MESSAGE,
     blockquote,
     bot_suffix,
     checkbox_template,
@@ -93,7 +94,6 @@ from sweepai.utils.str_utils import (
     sep,
     stars_suffix,
     strip_sweep,
-    UPDATES_MESSAGE,
 )
 from sweepai.utils.ticket_utils import (
     center,
@@ -1234,13 +1234,14 @@ def on_ticket(
             # change the body here
             diff_text = get_branch_diff_text(repo, pull_request.branch_name)
             new_description = PRDescriptionBot().describe_diffs(
-                diff_text, pull_request.title,
+                diff_text,
+                pull_request.title,
             )
             if new_description:
                 pr_changes.body = (
-                f"{new_description}\n\nFixes"
-                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
-            )
+                    f"{new_description}\n\nFixes"
+                    f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+                )
 
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
@@ -1323,6 +1324,17 @@ def on_ticket(
 
             rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
+            sandbox_passed = None
+            for file_change_request in file_change_requests:
+                if file_change_request.change_type == "check":
+                    if file_change_request.sandbox_response.error_messages:
+                        sandbox_passed = False
+                    elif sandbox_passed is None:
+                        sandbox_passed = True
+
+            if sandbox_passed == True:
+                pr_changes.title = f"{pr_changes.title} (✓ Sandbox Passed)"
+
             pr: PullRequest = repo.create_pull(
                 title=pr_changes.title,
                 body=pr_actions_message + pr_changes.body,
@@ -1330,9 +1342,6 @@ def on_ticket(
                 base=SweepConfig.get_branch(repo),
             )
 
-            # Add comment about sandbox executions
-            # for i in range(10):
-            #     print(i)
             sandbox_execution_comment_contents = (
                 "## Sandbox Executions\n\n"
                 + "\n".join(
@@ -1607,6 +1616,7 @@ def review_code(
         logger.error(traceback.format_exc())
         logger.error(e)
     return changes_required, review_message
+
 
 def get_branch_diff_text(repo, branch):
     comparison = repo.compare(SweepConfig.get_branch(repo), branch)
