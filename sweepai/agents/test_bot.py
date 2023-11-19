@@ -245,7 +245,7 @@ class TestBot(ChatGPT):
         cloned_repo: ClonedRepo = None,
         changed_files: list[tuple[str, str]] = [],
         check_sandbox: Callable[
-            [str, str, str], tuple[str, SandboxResponse]
+            [str, str, str, str], tuple[str, SandboxResponse]
         ] = lambda *args: SandboxResponse(
             success=True,
             error_messages=[],
@@ -463,4 +463,14 @@ class TestBot(ChatGPT):
 
         final_code = fuse_scripts(generated_code_sections, do_remove_main=False)
         final_code = add_auto_imports(file_path, cloned_repo.repo_dir, final_code)
+
+        _, sandbox_response = check_sandbox(
+            test_file_path,
+            final_code,
+            changed_files,
+            [
+                "pip install coverage",
+                f"coverage run {test_file_path} && coverage json --include={file_path} && cat coverage.json",
+            ],
+        )
         return final_code
