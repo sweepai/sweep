@@ -1,3 +1,4 @@
+from functools import lru_cache
 import re
 from dataclasses import dataclass
 
@@ -6,7 +7,7 @@ from tqdm import tqdm
 
 from sweepai.logn import file_cache, logger
 
-
+@lru_cache()
 def score_line(str1: str, str2: str) -> float:
     if str1 == str2:
         return 100
@@ -150,7 +151,7 @@ def get_max_indent(content: str, indent_type: str):
     )
 
 
-# @file_cache()
+@file_cache()
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)
 
@@ -223,7 +224,6 @@ def find_best_match(query: str, code_file: str):
                     best_match = current_match
 
     unique_top_matches: list[Match] = []
-    print(unique_top_matches)
     unique_spans = set()
     for top_match in sorted(top_matches, reverse=True):
         if (top_match.start, top_match.end) not in unique_spans:
