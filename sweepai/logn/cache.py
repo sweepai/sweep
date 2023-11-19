@@ -1,4 +1,5 @@
 import hashlib
+import inspect
 import os
 import pickle
 from loguru import logger
@@ -37,6 +38,8 @@ def recursive_hash(value, depth=0, ignore_params=[]):
     else:
         return hashlib.md5("unknown".encode()).hexdigest()
 
+def hash_code(code):
+    return hashlib.md5(code.encode()).hexdigest()
 
 def file_cache(ignore_params=[]):
     """Decorator to cache function output based on its inputs, ignoring specified parameters."""
@@ -59,10 +62,10 @@ def file_cache(ignore_params=[]):
                 args_dict.pop(param, None)
                 kwargs_clone.pop(param, None)
 
-            # Create hash based on function name and input arguments
+            # Create hash based on function name, input arguments, and function source code
             arg_hash = recursive_hash(
                 args_dict, ignore_params=ignore_params
-            ) + recursive_hash(kwargs_clone, ignore_params=ignore_params)
+            ) + recursive_hash(kwargs_clone, ignore_params=ignore_params) + hash_code(inspect.getsource(func))
             cache_file = os.path.join(
                 cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
             )
