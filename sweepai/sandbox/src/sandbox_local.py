@@ -102,7 +102,6 @@ class SandboxRequest(BaseModel):
     file_path: str | None = None  # if none, only run install step to hydrate cache
     content: str | None = None
     token: str | None = None
-    do_fix: bool = True
     check: list[str] = []
     # TODO: need branch
 

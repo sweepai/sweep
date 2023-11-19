@@ -45,22 +45,23 @@ Write mocks that perfectly mock these access methods. E.g.
 ```
 from unittest.mock import MagicMock
 
-mock_expensive_operation.return_value = MagicMock()
+mock_expensive_operation = MagicMock()
 mock_expensive_operation.return_value.foo["key"].bar = "mock content"
 ```
 
 # Patch Code
-Use the `patch` decorator to mock the methods. Do not use keyword arguments like `new` or `new_callable` in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`. E.g.
+Use the `patch` decorator to mock the methods. Do not use keyword arguments in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`. E.g.
 ```
 from unittest.mock import patch
 
-@patch("code_to_test.first_expensive_operation")
-@patch("code_to_test.second_expensive_operation")
+@patch("module.CONSTANT", "new constant")
+@patch("module.code_to_test.first_expensive_operation")
+@patch("module.code_to_test.second_expensive_operation")
 def test_code_to_test(self, mock_second_expensive_operation, mock_first_expensive_operation):
     mock_first_expensive_operation.return_value = first_mock_response
     mock_second_expensive_operation.return_value = second_mock_response
 ```
-Warning: when stacking @patch decorators in Python tests, the injected mocks enter the test method in reverse order. The first decorator's mock ends up as the last argument, and vice versa.
+Warning: when stacking @patch decorators in Python tests, the injected mocks enter the test method in reverse order. The first decorator's mock ends up as the last argument, and vice versa. Also, you don't need to add patched constants into the arguments.
 </planning_and_mocks_identification>
 
 <code>
@@ -152,7 +153,7 @@ class TestNameOfFullFunctionName(unittest.TestCase):
 
     @patch("module.CONSTANT", "new constant")
     @patch("module.function")
-    def test_function(self, mock_function, ...):
+    def test_function(self, mock_function):
         mock_function.return_value = "forced value"
         ... # the test here
 ```
@@ -196,7 +197,7 @@ What went wrong? What changes should be made to the unit test? Be specific and c
 # imports
 
 class TestNameOfFullFunctionName(unittest.TestCase):
-    ...
+    # copy the setUp code
 
     # patches
     def test_function(self):
@@ -212,7 +213,7 @@ def skip_last_test(
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
     decomposed_code = split_script(test_code)
     *code_before, last_test = re.split(
-        "\n\n\s+(?=@patch|def )", decomposed_code.definitions
+        "(?=\n\s+@patch|def )", decomposed_code.definitions
     )
     serialized_message = message.replace('"', '\\"')
     skipped_test = f'    @unittest.skip("{serialized_message}")\n    ' + last_test
