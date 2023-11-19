@@ -1487,6 +1487,16 @@ def on_ticket(
     return {"success": True}
 
 def validate_sandbox_and_file_changes(sweep_bot, file_change_requests):
+    """
+    Validates the sandbox and file changes.
+
+    Args:
+        sweep_bot (SweepBot): The SweepBot instance.
+        file_change_requests (list[FileChangeRequest]): The list of file change requests.
+
+    Returns:
+        list[FileChangeRequest]: The list of validated file change requests.
+    """
     (
         initial_sandbox_response,
         initial_sandbox_response_file,
@@ -1510,7 +1520,17 @@ def track_files_progress_for_pull_request(sweep_bot, file_change_requests):
             "⏳ In Progress",
             "",
         )
-        for file_change_request in file_change_requests
+        def track_files_progress_for_pull_request(sweep_bot, file_change_requests):
+            """
+            Tracks the progress of files for a pull request.
+        
+            Args:
+                sweep_bot (SweepBot): The SweepBot instance.
+                file_change_requests (list[FileChangeRequest]): The list of file change requests.
+        
+            Returns:
+                PullRequest, list[tuple[str, str, str, str]]: The pull request and the progress of files.
+            """
     ]
     return pull_request, files_progress
 
@@ -1538,9 +1558,44 @@ def perform_pull_request_review(repo, pr_changes, issue_url, username, repo_desc
         )
     return changes_required, review_message
 
-def create_or_edit_issue_comment(issue_comment, current_issue, first_comment):
+def perform_pull_request_review(repo, pr_changes, issue_url, username, repo_description, title, summary, replies_text, tree, lint_output, plan, chat_logger, commit_history, edit_sweep_comment, repo_full_name, installation_id):
+    """
+    Performs a pull request review.
+
+    Args:
+        repo (Repository): The repository.
+        pr_changes (PullRequest): The pull request changes.
+        issue_url (str): The issue URL.
+        username (str): The username.
+        repo_description (str): The repository description.
+        title (str): The title.
+        summary (str): The summary.
+        replies_text (str): The replies text.
+        tree (str): The tree.
+        lint_output (str): The lint output.
+        plan (Plan): The plan.
+        chat_logger (ChatLogger): The chat logger.
+        commit_history (list[Commit]): The commit history.
+        edit_sweep_comment (function): The function to edit the sweep comment.
+        repo_full_name (str): The full name of the repository.
+        installation_id (int): The installation ID.
+
+    Returns:
+        bool, str: Whether changes are required and the review message.
+    """
     if issue_comment is None:
-        issue_comment = current_issue.create_comment(first_comment)
+        def create_or_edit_issue_comment(issue_comment, current_issue, first_comment):
+            """
+            Creates or edits an issue comment.
+        
+            Args:
+                issue_comment (IssueComment): The issue comment.
+                current_issue (Issue): The current issue.
+                first_comment (str): The first comment.
+        
+            Returns:
+                IssueComment: The issue comment.
+            """
     else:
         issue_comment.edit(first_comment)
 
@@ -1586,7 +1641,24 @@ def review_code(
             pr=pr_changes,
             issue_url=issue_url,
             username=username,
-            repo_description=repo_description,
+            def create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+                """
+                Creates a human message prompt.
+            
+                Args:
+                    repo_name (str): The repository name.
+                    issue_url (str): The issue URL.
+                    username (str): The username.
+                    repo_description (str): The repository description.
+                    title (str): The title.
+                    message_summary (str): The message summary.
+                    snippets (list[str]): The snippets.
+                    tree (str): The tree.
+                    commit_history (list[Commit]): The commit history.
+            
+                Returns:
+                    HumanMessagePrompt: The human message prompt.
+                """
             title=title,
             summary=summary,
             replies_text=replies_text,
