@@ -137,31 +137,7 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
-
-    context = LogtailContext()
-    context.context(
-        task={
-            "issue_url": issue_url,
-            "issue_number": issue_number,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "username": username,
-            "comment_id": comment_id,
-            "edited": edited,
-            "issue_title": title,
-        }
-    )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
+    title, fast_mode, sandbox_mode, slow_mode, do_map, subissues_mode = initialize_logging_context(title, issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited)
 
     on_ticket_start_time = time()
     summary = summary or ""
@@ -184,83 +160,19 @@ def on_ticket(
         assignee = current_issue.user.login
 
     # Hydrate cache of sandbox
-    if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
-        try:
-            requests.post(
-                SANDBOX_URL,
-                json={
-                    "repo_url": f"https://github.com/{repo_full_name}",
-                    "token": user_token,
-                },
-                timeout=2,
-            )
-        except Timeout:
-            logger.info("Sandbox hydration timed out.")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(
-                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
-            )
-        logger.info("Done sending, letting it run in the background.")
+    hydrate_sandbox_cache(repo_full_name, user_token, tracking_id)
 
     # Check body for "branch: <branch_name>\n" using regex
-    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
-    if branch_match:
-        branch_name = branch_match.group(1)
-        SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
-    else:
-        logger.info(f"Overrides not detected for branch {summary}")
+    detect_and_apply_branch_override(summary, repo)
 
-    chat_logger = (
-        ChatLogger(
-            {
-                "repo_name": repo_name,
-                "title": title,
-                "summary": summary,
-                "issue_number": issue_number,
-                "issue_url": issue_url,
-                "username": username if not username.startswith("sweep") else assignee,
-                "repo_full_name": repo_full_name,
-                "repo_description": repo_description,
-                "installation_id": installation_id,
-                "type": "ticket",
-                "mode": ENV,
-                "comment_id": comment_id,
-                "edited": edited,
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
-
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_consumer_tier = False
-        use_faster_model = False
-
-    if fast_mode:
-        use_faster_model = True
+    chat_logger, use_faster_model, is_paying_user, is_consumer_tier = initialize_chat_logger_and_model_settings(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode)
 
     if not comment_id and not edited and chat_logger and not sandbox_mode:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
 
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=issue_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=user_token,
-    )
+    sweep_context = create_sweep_context(username, issue_url, use_faster_model, is_paying_user, repo, user_token)
 
     organization, repo_name = repo_full_name.split("/")
     metadata = {
@@ -305,18 +217,7 @@ def on_ticket(
             return {"success": False, "reason": "Issue is closed"}
 
         # Add :eyes: emoji to ticket
-        item_to_react_to = (
-            current_issue.get_comment(comment_id) if comment_id else current_issue
-        )
-        eyes_reaction = item_to_react_to.create_reaction("eyes")
-        # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-        reactions = item_to_react_to.get_reactions()
-        for reaction in reactions:
-            if (
-                reaction.content == "rocket"
-                and reaction.user.login == GITHUB_BOT_USERNAME
-            ):
-                item_to_react_to.delete_reaction(reaction.id)
+        eyes_reaction, item_to_react_to = add_eyes_reaction_to_ticket(comment_id, current_issue)
 
         current_issue.edit(body=summary)
 
@@ -539,10 +440,7 @@ def on_ticket(
             f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
         )
 
-        if issue_comment is None:
-            issue_comment = current_issue.create_comment(first_comment)
-        else:
-            issue_comment.edit(first_comment)
+        manage_issue_comment(issue_comment, current_issue, first_comment)
 
         past_messages = {}
         current_index = 0
@@ -734,20 +632,7 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        snippets, tree, dir_obj = fetch_relevant_files(
-            cloned_repo,
-            title,
-            summary,
-            replies_text,
-            username,
-            metadata,
-            on_ticket_start_time,
-            tracking_id,
-            edit_sweep_comment,
-            is_paying_user,
-            is_consumer_tier,
-            issue_url,
-        )
+        snippets, tree, dir_obj = retrieve_relevant_code_snippets(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url)
 
         # Fetch git commit history
         commit_history = cloned_repo.get_commit_history(username=username)
@@ -775,23 +660,7 @@ def on_ticket(
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
-
-        context_pruning = ContextPruning(chat_logger=chat_logger)
-        (
-            paths_to_keep,
-            directories_to_expand,
-        ) = context_pruning.prune_context(human_message, repo=repo, g=g)
+        paths_to_keep, directories_to_expand = prune_human_message_context(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history, chat_logger, repo, g)
 
         if paths_to_keep:
             snippets = [
@@ -805,17 +674,7 @@ def on_ticket(
             dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -969,27 +828,7 @@ def on_ticket(
                 "is_python_issue",
                 properties={"is_python_issue": is_python_issue},
             )
-            file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
-
-            if not file_change_requests:
-                if len(title + summary) < 60:
-                    edit_sweep_comment(
-                        (
-                            "Sorry, I could not find any files to modify, can you please"
-                            " provide more details? Please make sure that the title and"
-                            " summary of the issue are at least 60 characters."
-                        ),
-                        -1,
-                    )
-                else:
-                    edit_sweep_comment(
-                        (
-                            "Sorry, I could not find any files to modify, can you please"
-                            " provide more details?"
-                        ),
-                        -1,
-                    )
-                raise Exception("No files to modify.")
+            file_change_requests, plan = analyze_issue_for_file_changes(sweep_bot, is_python_issue, title, summary, edit_sweep_comment)
 
             (
                 initial_sandbox_response,
@@ -1335,12 +1174,7 @@ def on_ticket(
             if sandbox_passed == True:
                 pr_changes.title = f"{pr_changes.title} (✓ Sandbox Passed)"
 
-            pr: PullRequest = repo.create_pull(
-                title=pr_changes.title,
-                body=pr_actions_message + pr_changes.body,
-                head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
-            )
+            pr = create_pull_request(repo, pr_changes, pr_actions_message)
 
             sandbox_execution_comment_contents = (
                 "## Sandbox Executions\n\n"
@@ -1549,6 +1383,210 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
+def initialize_logging_context(title, issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = strip_sweep(title)
+
+    context = LogtailContext()
+    context.context(
+        task={
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "edited": edited,
+            "issue_title": title,
+        }
+    )
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+    logger.add(handler)
+    return title, fast_mode, sandbox_mode, slow_mode, do_map, subissues_mode
+
+def hydrate_sandbox_cache(repo_full_name, user_token, tracking_id):
+    # Hydrate cache of sandbox
+    if not DEBUG:
+        logger.info("Hydrating cache of sandbox.")
+        try:
+            requests.post(
+                SANDBOX_URL,
+                json={
+                    "repo_url": f"https://github.com/{repo_full_name}",
+                    "token": user_token,
+                },
+                timeout=2,
+            )
+        except Timeout:
+            logger.info("Sandbox hydration timed out.")
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.warning(
+                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
+            )
+        logger.info("Done sending, letting it run in the background.")
+
+def detect_and_apply_branch_override(summary, repo):
+    # Check body for "branch: <branch_name>\n" using regex
+    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
+    if branch_match:
+        branch_name = branch_match.group(1)
+        SweepConfig.get_branch(repo, branch_name)
+        logger.info(f"Overrides Branch name: {branch_name}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
+
+def initialize_chat_logger_and_model_settings(repo_name, title, summary, issue_number, issue_url, username, assignee, repo_full_name, repo_description, installation_id, comment_id, edited, g, fast_mode):
+    chat_logger = (
+        ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": title,
+                "summary": summary,
+                "issue_number": issue_number,
+                "issue_url": issue_url,
+                "username": username if not username.startswith("sweep") else assignee,
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "installation_id": installation_id,
+                "type": "ticket",
+                "mode": ENV,
+                "comment_id": comment_id,
+                "edited": edited,
+            }
+        )
+        if MONGODB_URI
+        else None
+    )
+
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+
+    if fast_mode:
+        use_faster_model = True
+    return chat_logger, use_faster_model, is_paying_user, is_consumer_tier
+
+def create_sweep_context(username, issue_url, use_faster_model, is_paying_user, repo, user_token):
+    sweep_context = SweepContext.create(
+        username=username,
+        issue_url=issue_url,
+        use_faster_model=use_faster_model,
+        is_paying_user=is_paying_user,
+        repo=repo,
+        token=user_token,
+    )
+    return sweep_context
+
+def add_eyes_reaction_to_ticket(comment_id, current_issue):
+    # Add :eyes: emoji to ticket
+    item_to_react_to = (
+        current_issue.get_comment(comment_id) if comment_id else current_issue
+    )
+    eyes_reaction = item_to_react_to.create_reaction("eyes")
+    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
+    reactions = item_to_react_to.get_reactions()
+    for reaction in reactions:
+        if (
+            reaction.content == "rocket"
+            and reaction.user.login == GITHUB_BOT_USERNAME
+        ):
+            item_to_react_to.delete_reaction(reaction.id)
+    return eyes_reaction, item_to_react_to
+
+def retrieve_relevant_code_snippets(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url):
+    snippets, tree, dir_obj = fetch_relevant_files(
+        cloned_repo,
+        title,
+        summary,
+        replies_text,
+        username,
+        metadata,
+        on_ticket_start_time,
+        tracking_id,
+        edit_sweep_comment,
+        is_paying_user,
+        is_consumer_tier,
+        issue_url,
+    )
+    return snippets, tree, dir_obj
+
+def prune_human_message_context(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history, chat_logger, repo, g):
+    human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
+
+    context_pruning = ContextPruning(chat_logger=chat_logger)
+    (
+        paths_to_keep,
+        directories_to_expand,
+    ) = context_pruning.prune_context(human_message, repo=repo, g=g)
+    return paths_to_keep, directories_to_expand
+
+def analyze_issue_for_file_changes(sweep_bot, is_python_issue, title, summary, edit_sweep_comment):
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+
+    if not file_change_requests:
+        if len(title + summary) < 60:
+            edit_sweep_comment(
+                (
+                    "Sorry, I could not find any files to modify, can you please"
+                    " provide more details? Please make sure that the title and"
+                    " summary of the issue are at least 60 characters."
+                ),
+                -1,
+            )
+        else:
+            edit_sweep_comment(
+                (
+                    "Sorry, I could not find any files to modify, can you please"
+                    " provide more details?"
+                ),
+                -1,
+            )
+        raise Exception("No files to modify.")
+    return file_change_requests, plan
+
+def create_pull_request(repo, pr_changes, pr_actions_message):
+    pr: PullRequest = repo.create_pull(
+        title=pr_changes.title,
+        body=pr_actions_message + pr_changes.body,
+        head=pr_changes.pr_head,
+        base=SweepConfig.get_branch(repo),
+    )
+    return pr
+
+def manage_issue_comment(issue_comment, current_issue, first_comment):
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(first_comment)
+    else:
+        issue_comment.edit(first_comment)
+
+def create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
+
 
 def review_code(
     repo,
@@ -1591,31 +1629,34 @@ def review_code(
         review_message += (
             f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
         )
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI'm currently addressing these suggestions.",
-                3,
-            )
-            logger.info(f"Addressing review comment {review_comment}")
-            on_comment(
-                repo_full_name=repo_full_name,
-                repo_description=repo_description,
-                comment=review_comment,
-                username=username,
-                installation_id=installation_id,
-                pr_path=None,
-                pr_line_position=None,
-                pr_number=None,
-                pr=pr_changes,
-                chat_logger=chat_logger,
-                repo=repo,
-            )
+        address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo)
     except SystemExit:
         raise SystemExit
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
     return changes_required, review_message
+
+def address_review_suggestions(changes_required, edit_sweep_comment, review_message, review_comment, repo_full_name, repo_description, username, installation_id, pr_changes, chat_logger, repo):
+    if changes_required:
+        edit_sweep_comment(
+            review_message + "\n\nI'm currently addressing these suggestions.",
+            3,
+        )
+        logger.info(f"Addressing review comment {review_comment}")
+        on_comment(
+            repo_full_name=repo_full_name,
+            repo_description=repo_description,
+            comment=review_comment,
+            username=username,
+            installation_id=installation_id,
+            pr_path=None,
+            pr_line_position=None,
+            pr_number=None,
+            pr=pr_changes,
+            chat_logger=chat_logger,
+            repo=repo,
+        )
 
 
 def get_branch_diff_text(repo, branch):
