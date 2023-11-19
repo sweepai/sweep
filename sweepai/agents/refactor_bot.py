@@ -120,7 +120,7 @@ class RefactorBot(ChatGPT):
         heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {}) # check heuristics
         if len(heuristic_based_extractions) > 0:
             # some duplicated code here
-            deduped_exact_matches = heuristic_based_extractions  # already deduped
+            deduped_exact_matches = heuristic_based_extractions[:3]  # already deduped
             new_function_names = []
             existing_names = ", ".join(
                 [def_fn.name.strip("'") for def_fn in all_defined_functions]
@@ -255,7 +255,7 @@ class RefactorBot(ChatGPT):
                 count=num_snippets,
             ))
         for idx, extracted_original_code in enumerate(deduped_exact_matches):
-            if idx >= len(new_function_names):
+            if idx >= len(new_function_names) or idx >= 3:
                 break
             new_code, change_set = extract_method(
                 extracted_original_code,
