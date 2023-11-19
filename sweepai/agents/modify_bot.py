@@ -367,7 +367,15 @@ class ModifyBot:
             snippets_query_pattern, fetch_snippets_response, re.DOTALL
         ):
             section = match_.group("section").strip()
-            snippet = original_snippets[excel_col_to_int(section)]
+            # processing logic to sanitize input, sometimes adds "SECTION_ID: A"
+            if " " in section:
+                section_pieces = section.split(" ")
+                # get the smallest piece if there is a space
+                section = min(section_pieces, key=len)
+            snippet_index = excel_col_to_int(section)
+            if snippet_index < 0 or snippet_index >= len(original_snippets):
+                continue
+            snippet = original_snippets[snippet_index]
             reason = match_.group("reason").strip()
             snippet_queries.append(
                 SnippetToModify(reason=reason or "", snippet=snippet)

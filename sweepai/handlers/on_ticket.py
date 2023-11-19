@@ -1327,7 +1327,7 @@ def on_ticket(
             sandbox_passed = None
             for file_change_request in file_change_requests:
                 if file_change_request.change_type == "check":
-                    if file_change_request.sandbox_response.error_messages:
+                    if file_change_request.sandbox_response and file_change_request.sandbox_response.error_messages:
                         sandbox_passed = False
                     elif sandbox_passed is None:
                         sandbox_passed = True
