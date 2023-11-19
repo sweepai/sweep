@@ -539,10 +539,7 @@ def on_ticket(
             f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
         )
 
-        if issue_comment is None:
-            issue_comment = current_issue.create_comment(first_comment)
-        else:
-            issue_comment.edit(first_comment)
+        create_or_edit_issue_comment(issue_comment, current_issue, first_comment)
 
         past_messages = {}
         current_index = 0
@@ -775,17 +772,7 @@ def on_ticket(
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         context_pruning = ContextPruning(chat_logger=chat_logger)
         (
@@ -805,17 +792,7 @@ def on_ticket(
             dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -991,16 +968,7 @@ def on_ticket(
                     )
                 raise Exception("No files to modify.")
 
-            (
-                initial_sandbox_response,
-                initial_sandbox_response_file,
-            ) = sweep_bot.validate_sandbox(file_change_requests)
-
-            file_change_requests: list[
-                FileChangeRequest
-            ] = sweep_bot.validate_file_change_requests(
-                file_change_requests, initial_sandbox_response=initial_sandbox_response
-            )
+            file_change_requests = validate_sandbox_and_file_changes(sweep_bot, file_change_requests)
             table = tabulate(
                 [
                     [
@@ -1017,18 +985,7 @@ def on_ticket(
             )
             # CREATE PR METADATA
             logger.info("Generating PR...")
-            pull_request = sweep_bot.generate_pull_request()
-            logger.info("Making PR...")
-
-            files_progress: list[tuple[str, str, str, str]] = [
-                (
-                    file_change_request.entity_display,
-                    file_change_request.instructions_display,
-                    "⏳ In Progress",
-                    "",
-                )
-                for file_change_request in file_change_requests
-            ]
+            pull_request, files_progress = track_files_progress_for_pull_request(sweep_bot, file_change_requests)
 
             checkboxes_progress: list[tuple[str, str, str]] = [
                 (
@@ -1260,27 +1217,7 @@ def on_ticket(
             except:
                 pass
 
-            changes_required, review_message = False, ""
-            if False:
-                changes_required, review_message = review_code(
-                    repo,
-                    pr_changes,
-                    issue_url,
-                    username,
-                    repo_description,
-                    title,
-                    summary,
-                    replies_text,
-                    tree,
-                    lint_output,
-                    plan,
-                    chat_logger,
-                    commit_history,
-                    review_message,
-                    edit_sweep_comment,
-                    repo_full_name,
-                    installation_id,
-                )
+            changes_required, review_message = perform_pull_request_review(repo, pr_changes, issue_url, username, repo_description, title, summary, replies_text, tree, lint_output, plan, chat_logger, commit_history, edit_sweep_comment, repo_full_name, installation_id)
 
             if changes_required:
                 edit_sweep_comment(
@@ -1548,6 +1485,78 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def validate_sandbox_and_file_changes(sweep_bot, file_change_requests):
+    (
+        initial_sandbox_response,
+        initial_sandbox_response_file,
+    ) = sweep_bot.validate_sandbox(file_change_requests)
+
+    file_change_requests: list[
+        FileChangeRequest
+    ] = sweep_bot.validate_file_change_requests(
+        file_change_requests, initial_sandbox_response=initial_sandbox_response
+    )
+    return file_change_requests
+
+def track_files_progress_for_pull_request(sweep_bot, file_change_requests):
+    pull_request = sweep_bot.generate_pull_request()
+    logger.info("Making PR...")
+
+    files_progress: list[tuple[str, str, str, str]] = [
+        (
+            file_change_request.entity_display,
+            file_change_request.instructions_display,
+            "⏳ In Progress",
+            "",
+        )
+        for file_change_request in file_change_requests
+    ]
+    return pull_request, files_progress
+
+def perform_pull_request_review(repo, pr_changes, issue_url, username, repo_description, title, summary, replies_text, tree, lint_output, plan, chat_logger, commit_history, edit_sweep_comment, repo_full_name, installation_id):
+    changes_required, review_message = False, ""
+    if False:
+        changes_required, review_message = review_code(
+            repo,
+            pr_changes,
+            issue_url,
+            username,
+            repo_description,
+            title,
+            summary,
+            replies_text,
+            tree,
+            lint_output,
+            plan,
+            chat_logger,
+            commit_history,
+            review_message,
+            edit_sweep_comment,
+            repo_full_name,
+            installation_id,
+        )
+    return changes_required, review_message
+
+def create_or_edit_issue_comment(issue_comment, current_issue, first_comment):
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(first_comment)
+    else:
+        issue_comment.edit(first_comment)
+
+def create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
 
 
 def review_code(
