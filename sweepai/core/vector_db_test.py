@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from sweepai.core.vector_db import (VECTOR_EMBEDDING_SOURCE, embed_huggingface,
                                     embed_texts)
 
-    @unittest.skip("FAILED (errors=1)")
+@unittest.skip("FAILED (errors=1)")
     class TestEmbedTexts(unittest.TestCase):
     @patch("sentence_transformers.SentenceTransformer")
     @patch("openai.Embedding")
