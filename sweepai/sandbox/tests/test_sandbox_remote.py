@@ -5,9 +5,10 @@ if __name__ == "__main__":
     url = "http://0.0.0.0:8081"
     headers = {"accept": "application/json", "Content-Type": "application/json"}
     data = {
-        "repo_url": "https://github.com/sweepai/evals",
+        "repo_url": "https://github.com/sweepai/sweep",
         "file_path": file_path,
         "content": bad_file_contents,
+        "check": ["echo 'hello world'"],
         "do_fix": False,
     }
     response = requests.post(url, json=data, timeout=(5, 600))

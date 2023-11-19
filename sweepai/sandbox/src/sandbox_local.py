@@ -104,6 +104,7 @@ class SandboxRequest(BaseModel):
     content: str | None = None
     token: str | None = None
     do_fix: bool = True
+    check: list[str] = []
     # TODO: need branch
 
 
@@ -205,6 +206,8 @@ async def run_sandbox(request: SandboxRequest):
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
     sandbox = Sandbox.from_directory(cloned_repo.dir_path)
+    if request.check:
+        sandbox.check = request.check
 
     metadata = {
         "repo_url": request.repo_url,
