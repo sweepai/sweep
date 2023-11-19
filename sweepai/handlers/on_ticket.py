@@ -539,10 +539,7 @@ def on_ticket(
             f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
         )
 
-        if issue_comment is None:
-            issue_comment = current_issue.create_comment(first_comment)
-        else:
-            issue_comment.edit(first_comment)
+        create_or_edit_issue_comment(issue_comment, current_issue, first_comment)
 
         past_messages = {}
         current_index = 0
@@ -734,29 +731,7 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        snippets, tree, dir_obj = fetch_relevant_files(
-            cloned_repo,
-            title,
-            summary,
-            replies_text,
-            username,
-            metadata,
-            on_ticket_start_time,
-            tracking_id,
-            edit_sweep_comment,
-            is_paying_user,
-            is_consumer_tier,
-            issue_url,
-        )
-
-        # Fetch git commit history
-        commit_history = cloned_repo.get_commit_history(username=username)
-
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=2 if use_faster_model else 5
-        )
-        if not repo_description:
-            repo_description = "No description provided."
+        repo_description, snippets, tree, commit_history, dir_obj = fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description)
 
         message_summary = summary + replies_text
         external_results = ExternalSearcher.extract_summaries(message_summary)
@@ -775,47 +750,9 @@ def on_ticket(
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
-        context_pruning = ContextPruning(chat_logger=chat_logger)
-        (
-            paths_to_keep,
-            directories_to_expand,
-        ) = context_pruning.prune_context(human_message, repo=repo, g=g)
-
-        if paths_to_keep:
-            snippets = [
-                snippet
-                for snippet in snippets
-                if any(
-                    path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
-                    for path_to_keep in paths_to_keep
-                )
-            ]
-            dir_obj.remove_all_not_included(paths_to_keep)
-        dir_obj.expand_directory(directories_to_expand)
-        tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message, snippets, tree = prune_context_for_snippets(chat_logger, human_message, repo, g, snippets, dir_obj, repo_name, issue_url, username, repo_description, title, message_summary, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -1548,6 +1485,74 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description):
+    snippets, tree, dir_obj = fetch_relevant_files(
+        cloned_repo,
+        title,
+        summary,
+        replies_text,
+        username,
+        metadata,
+        on_ticket_start_time,
+        tracking_id,
+        edit_sweep_comment,
+        is_paying_user,
+        is_consumer_tier,
+        issue_url,
+    )
+
+    # Fetch git commit history
+    commit_history = cloned_repo.get_commit_history(username=username)
+
+    snippets = post_process_snippets(
+        snippets, max_num_of_snippets=2 if use_faster_model else 5
+    )
+    if not repo_description:
+        repo_description = "No description provided."
+    return repo_description, snippets, tree, commit_history, dir_obj
+
+def prune_context_for_snippets(chat_logger, human_message, repo, g, snippets, dir_obj, repo_name, issue_url, username, repo_description, title, message_summary, commit_history):
+    context_pruning = ContextPruning(chat_logger=chat_logger)
+    (
+        paths_to_keep,
+        directories_to_expand,
+    ) = context_pruning.prune_context(human_message, repo=repo, g=g)
+
+    if paths_to_keep:
+        snippets = [
+            snippet
+            for snippet in snippets
+            if any(
+                path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
+                for path_to_keep in paths_to_keep
+            )
+        ]
+        dir_obj.remove_all_not_included(paths_to_keep)
+    dir_obj.expand_directory(directories_to_expand)
+    tree = str(dir_obj)
+    human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
+    return human_message, snippets, tree
+
+def create_or_edit_issue_comment(issue_comment, current_issue, first_comment):
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(first_comment)
+    else:
+        issue_comment.edit(first_comment)
+
+def create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
 
 
 def review_code(
