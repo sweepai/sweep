@@ -97,8 +97,7 @@ test_extension_planning_system_prompt = f"""You're an expert Python QA engineer 
 
 {test_extension_planning_format}"""
 
-test_extension_planning_user_prompt = f"""
-<code_to_test>
+test_extension_planning_user_prompt = f"""<code_to_test>
 {{code_to_test}}
 </code_to_test>
 
