@@ -255,7 +255,7 @@ class RefactorBot(ChatGPT):
                 count=num_snippets,
             ))
         for idx, extracted_original_code in enumerate(deduped_exact_matches):
-            if idx >= len(new_function_names) or idx >= 3:
+            if idx >= len(new_function_names):
                 break
             new_code, change_set = extract_method(
                 extracted_original_code,
