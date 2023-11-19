@@ -15,7 +15,11 @@ from sweepai.utils.jedi_utils import (
     setup_jedi_for_file,
 )
 from sweepai.utils.regex_utils import xml_pattern
-from sweepai.utils.unittest_utils import fuse_scripts, split_script
+from sweepai.utils.unittest_utils import (
+    fuse_scripts,
+    remove_constants_from_imports,
+    split_script,
+)
 
 test_prompt = """\
 # Code
@@ -286,6 +290,10 @@ class TestBot(ChatGPT):
             project_dir=cloned_repo.repo_dir,
             file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
         )
+
+        file_contents = cloned_repo.get_file_contents(file_path)
+        decomposed_script = split_script(file_contents)
+        remove_constants_from_imports(decomposed_script.imports)
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         generated_code_sections = []
