@@ -195,7 +195,7 @@ def test_on_ticket_failure_due_to_short_title_and_summary(self):
             installation_id=123456,
             comment_id=123,
             edited=False,
-            tracking_id="mock_tracking_id"
+            tracking_id="mock_tracking_id",
         )
         # Assert that the function returns a failure response
         self.assertFalse(result["success"])
