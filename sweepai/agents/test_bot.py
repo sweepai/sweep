@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
+import isort
+
 from sweepai.agents.modify_bot import strip_backticks
 from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
@@ -135,7 +137,7 @@ class TestNameOfFullFunctionName(unittest.TestCase):
     # copy the setUp code
 
     # patches
-    def test_function(self, mocks...):
+    def test_function_edge_case_name(self, mocks...):
         ... # the test here
 ```
 
@@ -159,7 +161,7 @@ class TestNameOfFullFunctionName(unittest.TestCase):
 
     @patch("module.CONSTANT", "new constant")
     @patch("module.function")
-    def test_function(self, mock_function):
+    def test_function_edge_case_name(self, mock_function):
         mock_function.return_value = "forced value"
         ... # the test here
 ```
@@ -208,7 +210,7 @@ class TestNameOfFullFunctionName(unittest.TestCase):
     # copy the setUp code
 
     # patches
-    def test_function(self):
+    def test_function_edge_case_name(self):
         ... # the test here
 ```
 </additional_unit_tests>
@@ -510,14 +512,16 @@ class TestBot(ChatGPT):
                 new_tests = "".join(tests)
 
                 decomposed_script = split_script(current_unit_test)
-                current_unit_test = "\n\n".join(
-                    [
-                        decomposed_script.imports,
-                        decomposed_extension_script.imports,
-                        decomposed_script.definitions,
-                        new_tests,
-                        decomposed_script.main,
-                    ]
+                current_unit_test = isort.code(
+                    "\n\n".join(
+                        [
+                            decomposed_script.imports,
+                            decomposed_extension_script.imports,
+                            decomposed_script.definitions,
+                            new_tests,
+                            decomposed_script.main,
+                        ]
+                    )
                 )
 
             generated_code_sections.append(current_unit_test)

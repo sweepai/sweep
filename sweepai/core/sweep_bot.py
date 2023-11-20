@@ -814,7 +814,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 },
                 "check": check,
                 "only_lint": only_lint,
-                "do_fix": False,
             },
             timeout=(5, 500),
         )
