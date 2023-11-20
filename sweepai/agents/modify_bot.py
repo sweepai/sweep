@@ -194,6 +194,16 @@ def excel_col_to_int(s):
         result = result * 26 + (ord(char) - 64)
     return result - 1
 
+def convert_comment_to_deletion(original, updated):
+    # check both are single lines
+    if "\n" in original or "\n" in updated:
+        return updated
+    # check both are not empty
+    if original == "" or updated == "":
+        return updated
+    # if original not a comment and updated is a comment, then it's a deletion
+    if not original.startswith("#") and updated.startswith("#"):
+        return ""
 
 class ModifyBot:
     def __init__(
@@ -561,6 +571,7 @@ class ModifyBot:
                 index = int(match_.group("index"))
                 original_code = match_.group("original_code").strip("\n")
                 updated_code = match_.group("updated_code").strip("\n")
+                updated_code = convert_comment_to_deletion(original_code, updated_code)
 
                 _reason, current_contents, _span = selected_snippets[index]
                 if index not in updated_snippets:
