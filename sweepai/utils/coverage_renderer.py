@@ -35,9 +35,10 @@ class CoverageData(BaseModel):
     files: dict[str, FileDetail]
 
 
-def parse_coverage_data_to_table(coverage_data, project_dir="."):
+def render_coverage_data(coverage_data, project_dir="."):
     coverage_data = CoverageData(**coverage_data)
-    result = ""
+    version = coverage_data.meta["version"]
+    result = f"Test coverage (via coverage.py v{version}):\n"
     for file_path, file_detail in coverage_data.files.items():
         if file_path == "total":
             continue
@@ -52,7 +53,7 @@ def parse_coverage_data_to_table(coverage_data, project_dir="."):
             else:
                 file_contents[i] = f"  {line}"
         file_contents = "".join(file_contents)
-        result += f"\nTest coverage for `{file_path}`\n```diff\n{file_contents}\n```\n"
+        result += f"\nCoverage for `{file_path}` ({file_detail.summary.percent_covered_display}%)\n```diff\n{file_contents}\n```\n"
     return result
 
 
@@ -128,4 +129,4 @@ if __name__ == "__main__":
             "excluded_lines": 0,
         },
     }
-    print(parse_coverage_data_to_table(coverage_data))
+    print(render_coverage_data(coverage_data))
