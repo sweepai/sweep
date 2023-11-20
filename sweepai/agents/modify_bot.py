@@ -1,4 +1,5 @@
 import copy
+from math import e
 import re
 import uuid
 from dataclasses import dataclass
@@ -144,6 +145,8 @@ Maximize information density and conciseness but be detailed.
 </snippets_and_plan_analysis>"""
 
 
+UPDATE_SNIPPETS_MAX_TOKENS = 1450
+
 def get_last_import_line(code: str, max_: int = 150) -> int:
     lines = code.split("\n")
     for i, line in enumerate(reversed(lines)):
@@ -191,6 +194,16 @@ def excel_col_to_int(s):
         result = result * 26 + (ord(char) - 64)
     return result - 1
 
+def convert_comment_to_deletion(original, updated):
+    # check both are single lines
+    if "\n" in original or "\n" in updated:
+        return updated
+    # check both are not empty
+    if original == "" or updated == "":
+        return updated
+    # if original not a comment and updated is a comment, then it's a deletion
+    if not original.startswith("#") and updated.startswith("#"):
+        return ""
 
 class ModifyBot:
     def __init__(
@@ -494,99 +507,118 @@ class ModifyBot:
             update_prompt = update_snippets_prompt_test
         else:
             update_prompt = update_snippets_prompt
-        update_snippets_response = self.update_snippets_bot.chat(
-            update_prompt.format(
-                code=update_snippets_code,
-                file_path=file_path,
-                snippets="\n\n".join(
-                    [
-                        f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
-                        for i, (reason, snippet, _span) in enumerate(selected_snippets)
-                    ]
-                ),
-                request=file_change_request.instructions,
-                n=len(selected_snippets),
-                changes_made=self.get_diffs_message(file_contents),
-            )
-        )
-        updated_snippets: dict[int, str] = {}
-        updated_pattern = r"<<<<<<<\s+(APPEND|REPLACE)\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
-        append_pattern = (
-            r"<<<<<<<\s+APPEND\s+\(index=(?P<index>\d+)\)(?P<updated_code>.*?)>>>>>>>"
-        )
-
-        if (
-            len(list(re.finditer(updated_pattern, update_snippets_response, re.DOTALL)))
-            == 0
-            and len(
-                list(re.finditer(append_pattern, update_snippets_response, re.DOTALL))
-            )
-            == 0
-        ):
-            raise UnneededEditError("No snippets edited")
-
-        for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
-            index = int(match_.group("index"))
-            original_code = match_.group("original_code").strip("\n")
-            updated_code = match_.group("updated_code").strip("\n")
-
-            _reason, current_contents, _span = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
+        
+        problematic_message = None
+        for _ in range(3):
+            if problematic_message != None: # this means the last match failed
+                update_snippets_response = self.update_snippets_bot.chat(problematic_message)
             else:
-                current_contents = updated_snippets[index]
-            updated_snippets[index] = "\n".join(
-                sliding_window_replacement(
-                    original=current_contents.splitlines(),
-                    search=original_code.splitlines(),
-                    replace=updated_code.splitlines(),
-                )[0]
-            )
-
-        for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
-            index = int(match_.group("index"))
-            updated_code = match_.group("updated_code").strip("\n")
-
-            if "=======" in updated_code:
-                continue
-
-            _reason, current_contents, _span = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
-            else:
-                current_contents = updated_snippets[index]
-            updated_snippets[index] = current_contents + "\n" + updated_code
-
-        result = file_contents
-        new_code = []
-        for idx, (_reason, _search, (start, end)) in reversed(
-            list(enumerate(selected_snippets))
-        ):  # reversed so that the indices aren't messed up
-            if idx not in updated_snippets:
-                continue
-            replace = updated_snippets[idx]
-            lines = result.splitlines()
-            lines[start:end] = replace.splitlines()
-            result = "\n".join(lines)  # sliding window coalesce
-            new_code.append(replace)
-
-        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
-        result = result.rstrip("\n") + "\n" * ending_newlines
-
-        new_code = "\n".join(new_code)
-        leftover_comments = (
-            (
-                self.extract_leftover_comments_bot.extract_leftover_comments(
-                    new_code,
-                    file_path,
-                    file_change_request.instructions,
+                update_snippets_response = self.update_snippets_bot.chat(
+                    update_prompt.format(
+                        code=update_snippets_code,
+                        file_path=file_path,
+                        snippets="\n\n".join(
+                            [
+                                f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
+                                for i, (reason, snippet, _span) in enumerate(selected_snippets)
+                            ]
+                        ),
+                        request=file_change_request.instructions,
+                        n=len(selected_snippets),
+                        changes_made=self.get_diffs_message(file_contents),
+                    ),
+                    max_tokens=UPDATE_SNIPPETS_MAX_TOKENS,
                 )
+            updated_snippets: dict[int, str] = {}
+            # try matching append first, and if any of these match remove them from the response
+            updated_pattern = r"<<<<<<<\s+(APPEND|REPLACE)\s+\(index=(?P<index>\d+)\)(.*?)\n(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
+            append_pattern = (
+                r"<<<<<<<\s+APPEND\s+\(index=(?P<index>\d+)\)(.*?)\n(?P<updated_code>.*?)>>>>>>>"
             )
-            if not DEBUG
-            else []
-        )
 
-        return result, leftover_comments
+            if (
+                len(list(re.finditer(updated_pattern, update_snippets_response, re.DOTALL)))
+                == 0
+                and len(
+                    list(re.finditer(append_pattern, update_snippets_response, re.DOTALL))
+                )
+                == 0
+            ):
+                raise UnneededEditError("No snippets edited")
+
+            for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
+                index = int(match_.group("index"))
+                updated_code = match_.group("updated_code").strip("\n")
+
+                if "=======" in updated_code:
+                    continue
+
+                _reason, current_contents, _span = selected_snippets[index]
+                if index not in updated_snippets:
+                    updated_snippets[index] = current_contents
+                else:
+                    current_contents = updated_snippets[index]
+                updated_snippets[index] = current_contents + updated_code\
+                    if current_contents.endswith("\n")\
+                    else current_contents + "\n" + updated_code
+                selected_snippets[index] = (selected_snippets[index][0], updated_snippets[index], selected_snippets[index][2])
+
+            # delete all of the append matches to avoid re-matching them with our updated_pattern
+            update_snippets_response = re.sub(append_pattern, "", update_snippets_response, flags=re.DOTALL)
+
+            problematic_matches = []
+            for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
+                index = int(match_.group("index"))
+                original_code = match_.group("original_code").strip("\n")
+                updated_code = match_.group("updated_code").strip("\n")
+                updated_code = convert_comment_to_deletion(original_code, updated_code)
+
+                _reason, current_contents, _span = selected_snippets[index]
+                if index not in updated_snippets:
+                    updated_snippets[index] = current_contents
+                else:
+                    current_contents = updated_snippets[index]
+                joined_contents, _, error = sliding_window_replacement(
+                        original=current_contents.splitlines(),
+                        search=original_code.splitlines(),
+                        replace=updated_code.splitlines(),
+                    )
+                if error:
+                    # add message that the previous chat was bad
+                    truncated_original_code = original_code.splitlines()[0] + "\n...\n" + original_code.splitlines()[-1]
+                    truncated_updated_code = updated_code.splitlines()[0] + "\n...\n" + updated_code.splitlines()[-1]
+                    problematic_matches.append((index, truncated_original_code, truncated_updated_code))
+                else:
+                    updated_snippets[index] = "\n".join(joined_contents)
+                selected_snippets[index] = (selected_snippets[index][0], updated_snippets[index], selected_snippets[index][2])
+
+            result = file_contents
+            new_code = []
+            for idx, (_reason, _search, (start, end)) in reversed(
+                list(enumerate(selected_snippets))
+            ):  # reversed so that the indices aren't messed up
+                if idx not in updated_snippets:
+                    continue
+                replace = updated_snippets[idx]
+                lines = result.splitlines()
+                lines[start:end] = replace.splitlines()
+                result = "\n".join(lines)  # sliding window coalesce
+                new_code.append(replace)
+
+            ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+            result = result.rstrip("\n") + "\n" * ending_newlines
+
+            if problematic_matches:
+                problematic_message = f"The following replacement diffs that you generated are invalid:\n"
+                for idx, original_code, updated_code in problematic_matches:
+                    problematic_message += f"<<<<<<< REPLACE (index = {idx})\n{original_code}\n=======\n{updated_code}\n>>>>>>>\n"
+                problematic_message += "The matching failed because the replacement diffs were not contained in snippets_to_update.\nGenerate new replacement diffs taking into account the request and snippets_to_update. DO NOT repeat the previous replacement diffs."
+            else:
+                break
+
+            update_snippets_code = result # make sure prompt uses the updated code
+
+        return result, _
 
 
 if __name__ == "__main__":

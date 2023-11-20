@@ -1033,11 +1033,23 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                 ]
             file_path_to_contents = OrderedDict()
+            # use only the latest change for each file
+            # go forward to find the earliest version of each file in the array
+            earliest_version_per_file = {}
             for file_path, (old_contents, new_contents) in changed_files:
-                diffs = generate_diff(old_contents, new_contents)
-                if file_path in file_path_to_contents:
-                    file_path_to_contents[file_path] += diffs
-                else:
+                if file_path not in earliest_version_per_file:
+                    earliest_version_per_file[file_path] = old_contents
+            latest_version_per_file = {}
+            for file_path, (old_contents, new_contents) in reversed(changed_files):
+                if file_path not in latest_version_per_file:
+                    latest_version_per_file[file_path] = new_contents
+            for file_path, _ in changed_files:
+                if not latest_version_per_file[file_path].strip():
+                    continue
+                earliest_file_version = earliest_version_per_file[file_path]
+                latest_file_version = latest_version_per_file[file_path]
+                diffs = generate_diff(earliest_file_version, latest_file_version)
+                if file_path not in file_path_to_contents:
                     file_path_to_contents[file_path] = diffs
             changed_files_summary = "We have previously changed these files:\n" + "\n".join(
                 [
@@ -1213,11 +1225,23 @@ class SweepBot(CodeGenBot, GithubBot):
         new_self.delete_messages_from_chat("files_to_change")
 
         file_path_to_contents = OrderedDict()
+        # use only the latest change for each file
+        # go forward to find the earliest version of each file in the array
+        earliest_version_per_file = {}
         for file_path, (old_contents, new_contents) in changed_files:
-            diffs = generate_diff(old_contents, new_contents)
-            if file_path in file_path_to_contents:
-                file_path_to_contents[file_path] += diffs
-            else:
+            if file_path not in earliest_version_per_file:
+                earliest_version_per_file[file_path] = old_contents
+        latest_version_per_file = {}
+        for file_path, (old_contents, new_contents) in reversed(changed_files):
+            if file_path not in latest_version_per_file:
+                latest_version_per_file[file_path] = new_contents
+        for file_path, _ in changed_files:
+            if not latest_version_per_file[file_path].strip():
+                continue
+            earliest_file_version = earliest_version_per_file[file_path]
+            latest_file_version = latest_version_per_file[file_path]
+            diffs = generate_diff(earliest_file_version, latest_file_version)
+            if file_path not in file_path_to_contents:
                 file_path_to_contents[file_path] = diffs
         changed_files_summary = "We have previously changed these files:\n" + "\n".join(
             [

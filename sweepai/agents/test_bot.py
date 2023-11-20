@@ -40,7 +40,7 @@ Write unit tests for the above function. Cover every possible edge case using th
 test_prompt_response_format = """\
 <planning_and_mocks_identification>
 # Entities to mock
-Identify all return objects from expensive operations entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
+Identify all return objects that originate from expensive operations. These are the entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
 ```
 code snippet of each mocked object's usage
 ```
@@ -367,7 +367,7 @@ class TestBot(ChatGPT):
             code += function_and_reference.serialize(tag="function_to_test")
             self.delete_messages_from_chat("test_user_prompt")
             self.delete_messages_from_chat("fix_unit_test_prompt")
-            extract_response = self.chat(
+            test_response = self.chat(
                 summarized_parent_class
                 + test_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
@@ -378,7 +378,7 @@ class TestBot(ChatGPT):
 
             code_xml_pattern = r"<code>(.*?)```(python)?(?P<code>.*?)(```\n)?</code>"
 
-            generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
+            generated_test = re.search(code_xml_pattern, test_response, re.DOTALL)
             generated_test = strip_backticks(str(generated_test.group("code")))
 
             generated_test = generated_test.replace(

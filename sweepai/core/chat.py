@@ -163,6 +163,7 @@ class ChatGPT(BaseModel):
         model: ChatModel | None = None,
         message_key: str | None = None,
         temperature: float | None = None,
+        max_tokens: int | None = None,
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
@@ -173,6 +174,7 @@ class ChatGPT(BaseModel):
                 content=self.call_openai(
                     model=model,
                     temperature=temperature,
+                    requested_max_tokens=max_tokens,
                 ),
                 key=message_key,
             )
@@ -185,6 +187,7 @@ class ChatGPT(BaseModel):
         self,
         model: ChatModel | None = None,
         temperature=temperature,
+        requested_max_tokens: int | None = None,
     ):
         if self.chat_logger is not None:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
@@ -240,6 +243,7 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
         max_tokens = min(max_tokens, 4096)
+        max_tokens = min(requested_max_tokens, max_tokens) if requested_max_tokens else max_tokens
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
