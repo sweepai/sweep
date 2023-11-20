@@ -2,7 +2,7 @@ from functools import lru_cache
 import re
 from dataclasses import dataclass
 
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 from tqdm import tqdm
 
 from sweepai.logn import file_cache, logger
@@ -24,7 +24,7 @@ def score_line(str1: str, str2: str) -> float:
 
     levenshtein_ratio = fuzz.ratio(str1, str2)
 
-    score = 70 * (levenshtein_ratio / 100)
+    score = 85 * (levenshtein_ratio / 100)
     return max(score, 0)
 
 
@@ -189,7 +189,7 @@ def find_best_match(query: str, code_file: str):
         ]
         start_pairs.sort(key=lambda x: x[1], reverse=True)
         start_pairs = start_pairs[:truncate]
-        start_indices = sorted([i for i, _ in start_pairs])
+        start_indices = [i for i, _ in start_pairs]
 
         for i in tqdm(
             start_indices,
@@ -203,7 +203,7 @@ def find_best_match(query: str, code_file: str):
             ]
             end_pairs.sort(key=lambda x: x[1], reverse=True)
             end_pairs = end_pairs[:truncate]
-            end_indices = sorted([j for j, _ in end_pairs])
+            end_indices = [j for j, _ in end_pairs]
 
             for j in tqdm(
                 end_indices, position=1, leave=False, desc=f"Starting line {i}"
