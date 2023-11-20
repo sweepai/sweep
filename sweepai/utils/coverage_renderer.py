@@ -26,10 +26,10 @@ class CoverageMeta(BaseModel):
     show_contexts: bool
 
 
-class CoverageData(BaseModel):
-    meta: CoverageMeta
-    files: dict[str, FileDetail]
-    totals: FileSummary
+# class CoverageData(BaseModel):
+#     meta: CoverageMeta
+#     files: dict[str, FileDetail]
+#     totals: FileSummary
 
 
 class CoverageData(BaseModel):
