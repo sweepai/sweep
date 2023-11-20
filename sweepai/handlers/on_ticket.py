@@ -682,7 +682,7 @@ def on_ticket(
             diff_display = (
                 f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
                 if diff
-                else f"Sandbox made not changes to {file_name} (formatters not configured or didn't make changes)."
+                else f"Sandbox made no changes to {file_name} (formatters were not configured or Sweep didn't make changes)."
             )
 
             edit_sweep_comment(
