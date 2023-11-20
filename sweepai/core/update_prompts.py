@@ -73,11 +73,9 @@ old line(s) from snippet i
 =======
 new line(s) to replace
 >>>>>>>
-
 <<<<<<< APPEND (index=j)
 new line(s) to append to snippet j
 >>>>>>>
-
 ...
 ```
 </diffs>"""

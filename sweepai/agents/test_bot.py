@@ -30,13 +30,13 @@ Write unit tests for the above function. Cover every possible edge case using th
 test_prompt_response_format = """\
 <planning_and_mocks_identification>
 # Entities to mock
-Identify all return objects from expensive operations entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
+Identify all return objects that originate from expensive operations. These are the entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
 ```
 code snippet of each mocked object's usage
 ```
 
 # Access method
-Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`. Then, for each chain of accesses like return_obj.foo["key"].bar, list the access type at each step of the chain and how they should be mocked, like
+Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`. For each chain of accesses such as `return_obj.foo["key"].bar`, list the access type at each step of the chain and how the access type should be mocked, such as:
 - return_obj.foo is an attribute method so return_obj should be mocked like magic_mock.foo
 - return_obj["key"] is a dictionary access so return_obj.foo should be mocked like {{"key": magic_mock}}
 
@@ -309,7 +309,7 @@ class TestBot(ChatGPT):
             code += function_and_reference.serialize(tag="function_to_test")
             self.delete_messages_from_chat("test_user_prompt")
             self.delete_messages_from_chat("fix_unit_test_prompt")
-            extract_response = self.chat(
+            test_response = self.chat(
                 test_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
                     method_name=function_and_reference.function_name,
@@ -319,7 +319,7 @@ class TestBot(ChatGPT):
 
             code_xml_pattern = r"<code>(.*?)```(python)?(?P<code>.*?)(```\n)?</code>"
 
-            generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
+            generated_test = re.search(code_xml_pattern, test_response, re.DOTALL)
             generated_test = strip_backticks(str(generated_test.group("code")))
 
             generated_test = generated_test.replace(
@@ -369,7 +369,7 @@ class TestBot(ChatGPT):
                     code_to_test=function_and_reference.function_code,
                     current_unit_test=current_unit_test,
                     method_name=function_and_reference.function_name,
-                )
+                    )
             )
 
             additional_test_cases = [

@@ -144,6 +144,8 @@ Maximize information density and conciseness but be detailed.
 </snippets_and_plan_analysis>"""
 
 
+UPDATE_SNIPPETS_MAX_TOKENS = 1450
+
 def get_last_import_line(code: str, max_: int = 150) -> int:
     lines = code.split("\n")
     for i, line in enumerate(reversed(lines)):
@@ -507,9 +509,11 @@ class ModifyBot:
                 request=file_change_request.instructions,
                 n=len(selected_snippets),
                 changes_made=self.get_diffs_message(file_contents),
-            )
+            ),
+            max_tokens=UPDATE_SNIPPETS_MAX_TOKENS,
         )
         updated_snippets: dict[int, str] = {}
+        # try matching append first, and if any of these match remove them from the response
         updated_pattern = r"<<<<<<<\s+(APPEND|REPLACE)\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
         append_pattern = (
             r"<<<<<<<\s+APPEND\s+\(index=(?P<index>\d+)\)(?P<updated_code>.*?)>>>>>>>"
@@ -524,6 +528,25 @@ class ModifyBot:
             == 0
         ):
             raise UnneededEditError("No snippets edited")
+
+        for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
+            index = int(match_.group("index"))
+            updated_code = match_.group("updated_code").strip("\n")
+
+            if "=======" in updated_code:
+                continue
+
+            _reason, current_contents, _span = selected_snippets[index]
+            if index not in updated_snippets:
+                updated_snippets[index] = current_contents
+            else:
+                current_contents = updated_snippets[index]
+            updated_snippets[index] = current_contents + updated_code\
+                if current_contents.endswith("\n")\
+                else current_contents + "\n" + updated_code
+        
+        # delete all of the append matches to avoid re-matching them with our updated_pattern
+        update_snippets_response = re.sub(append_pattern, "", update_snippets_response, flags=re.DOTALL)
 
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
@@ -542,20 +565,6 @@ class ModifyBot:
                     replace=updated_code.splitlines(),
                 )[0]
             )
-
-        for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
-            index = int(match_.group("index"))
-            updated_code = match_.group("updated_code").strip("\n")
-
-            if "=======" in updated_code:
-                continue
-
-            _reason, current_contents, _span = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
-            else:
-                current_contents = updated_snippets[index]
-            updated_snippets[index] = current_contents + "\n" + updated_code
 
         result = file_contents
         new_code = []
