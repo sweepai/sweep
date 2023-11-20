@@ -214,6 +214,8 @@ class TestNameOfFullFunctionName(unittest.TestCase):
 </additional_unit_tests>
 """
 
+additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?P<additional_unit_tests>.*?)(```\n)?</additional_unit_tests>"
+
 
 def skip_last_test(
     test_code: str, message: str = "Skipping due to failing test"
@@ -386,7 +388,6 @@ class TestBot(ChatGPT):
             )
 
             current_unit_test = generated_test
-            additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?P<additional_unit_tests>.*?)(```\n)?</additional_unit_tests>"
             _, sandbox_response = check_sandbox(
                 test_file_path,
                 current_unit_test,
@@ -545,7 +546,9 @@ class TestBot(ChatGPT):
         if sandbox_response.success == True:
             coverage_results = json.loads(sandbox_response.outputs[-1])
             table = render_coverage_data(coverage_results, cloned_repo.repo_dir)
-            file_change_request.instructions += "\n" + table
+            file_change_request.instructions += "\n\n" + table
+        else:
+            file_change_request.instructions += f"\n\nTest coverage generation failed with error:\n\n```{sandbox_response.error_messages[-1]}```"
         return final_code
 
     def auto_fix_test(

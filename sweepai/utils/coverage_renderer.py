@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from sweepai.utils.str_utils import create_collapsible, inline_code
+
 
 class FileSummary(BaseModel):
     covered_lines: int
@@ -38,22 +40,27 @@ class CoverageData(BaseModel):
 def render_coverage_data(coverage_data, project_dir="."):
     coverage_data = CoverageData(**coverage_data)
     version = coverage_data.meta["version"]
-    result = f"Test coverage (via coverage.py v{version}):\n"
+    result = f"#### Test coverage (via coverage.py `v{version}`):\n"
     for file_path, file_detail in coverage_data.files.items():
         if file_path == "total":
             continue
         file_contents = open(project_dir + "/" + file_path).readlines()
+        mode = " "
         for i, line in enumerate(file_contents):
             if i + 1 in file_detail.missing_lines:
-                file_contents[i] = f"- {line}"
+                mode = "-"
             elif i + 1 in file_detail.excluded_lines:
-                file_contents[i] = f"? {line}"
+                mode = "?"
             elif i + 1 in file_detail.executed_lines:
-                file_contents[i] = f"+ {line}"
-            else:
-                file_contents[i] = f"  {line}"
+                mode = "+"
+            file_contents[i] = f"{mode} {line}"
         file_contents = "".join(file_contents)
-        result += f"\nCoverage for `{file_path}` ({file_detail.summary.percent_covered_display}%)\n```diff\n{file_contents}\n```\n"
+        file_contents = create_collapsible(
+            f"{inline_code(file_path)} ({file_detail.summary.percent_covered_display}%)",
+            f"```diff\n{file_contents}\n```",
+            opened=True,
+        )
+        result += file_contents
     return result
 
 

@@ -43,6 +43,14 @@ def create_collapsible(summary: str, body: str, opened: bool = False):
     )
 
 
+def inline_code(text: str):
+    return f"<code>{text}</code>" if text else ""
+
+
+def code_block(text: str):
+    return f"<pre>{text}</pre>" if text else ""
+
+
 def blockquote(text: str):
     text = text.replace("\n•", "<br/>•")
     return f"<blockquote>{text}\n</blockquote>" if text else ""
