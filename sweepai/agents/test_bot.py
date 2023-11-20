@@ -219,7 +219,7 @@ additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?
 
 def skip_last_test(
     test_code: str, message: str = "Skipping due to failing test"
-) -> str:  # this is broken, will fix tomorrow
+) -> str:
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
     decomposed_code = split_script(test_code)
     *code_before, last_test = re.split(
