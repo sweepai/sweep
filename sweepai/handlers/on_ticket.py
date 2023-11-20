@@ -512,206 +512,222 @@ def on_ticket(
                 "Sweep is currently not supported on empty repositories. Please add some"
                 f" code to your repository and try again.\n{sep}##"
                 f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+def fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description):
+    """
+    Fetches and processes relevant files from the repository.
+
+    This function fetches relevant files from the repository, fetches the git commit history,
+    post-processes the snippets, and sets the repository description if it is not provided.
+
+    Args:
+        cloned_repo (ClonedRepo): The cloned repository.
+        title (str): The title of the issue.
+        summary (str): The summary of the issue.
+        replies_text (str): The replies text of the issue.
+        username (str): The username of the user.
+        metadata (dict): The metadata of the issue.
+        on_ticket_start_time (float): The start time of the ticket.
+        tracking_id (str): The tracking ID of the issue.
+        edit_sweep_comment (function): The function to edit the sweep comment.
+        is_paying_user (bool): Whether the user is a paying user.
+        is_consumer_tier (bool): Whether the user is a consumer tier user.
+        issue_url (str): The URL of the issue.
+        use_faster_model (bool): Whether to use a faster model.
+        repo_description (str): The description of the repository.
+
+    Returns:
+        tuple: A tuple containing the repository description, snippets, tree, commit history, and directory object.
+    """
+        snippets (list): The list of snippets.
+        dir_obj (Directory): The directory object.
+        repo_name (str): The name of the repository.
+        issue_url (str): The URL of the issue.
+        username (str): The username of the user.
+        repo_description (str): The description of the repository.
+        title (str): The title of the issue.
+        message_summary (str): The summary of the message.
+        commit_history (list): The commit history.
+
+    Returns:
+        tuple: A tuple containing the human message prompt, snippets, and tree.
+    """
+
+            def create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+            """
+            Creates a human message prompt.
+            
+            This function creates a human message prompt with the given parameters.
+            
+            Args:
+            repo_name (str): The name of the repository.
+            issue_url (str): The URL of the issue.
+            username (str): The username of the user.
+            repo_description (str): The description of the repository.
+            title (str): The title of the issue.
+            message_summary (str): The summary of the message.
+            snippets (list): The list of snippets.
+            tree (str): The tree.
+            commit_history (list): The commit history.
+            
+            Returns:
+            HumanMessagePrompt: The human message prompt.
+            """
+    """
+    Creates or edits an issue comment.
+
+    This function creates an issue comment if it does not exist, otherwise it edits the existing issue comment.
+
+    Args:
+        issue_comment (github.IssueComment): The issue comment.
+        current_issue (github.Issue): The current issue.
+        first_comment (str): The first comment.
+
+    Returns:
+        None
+    """
+
+        def fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description):
+        """
+        Fetches and processes relevant files from the repository.
+        
+        This function fetches relevant files from the repository, fetches the git commit history,
+        post-processes the snippets, and sets the repository description if it is not provided.
+        
+        Args:
+        cloned_repo (ClonedRepo): The cloned repository.
+        title (str): The title of the issue.
+        summary (str): The summary of the issue.
+        replies_text (str): The replies text of the issue.
+        username (str): The username of the user.
+        metadata (dict): The metadata of the issue.
+        on_ticket_start_time (float): The start time of the ticket.
+        tracking_id (str): The tracking ID of the issue.
+        edit_sweep_comment (function): The function to edit the sweep comment.
+        is_paying_user (bool): Whether the user is a paying user.
+        is_consumer_tier (bool): Whether the user is a consumer tier user.
+        issue_url (str): The URL of the issue.
+        use_faster_model (bool): Whether to use a faster model.
+        repo_description (str): The description of the repository.
+        
+        Returns:
+        tuple: A tuple containing the repository description, snippets, tree, commit history, and directory object.
+        """
+        snippets, tree, dir_obj = fetch_relevant_files(
+        cloned_repo,
+        title,
+        summary,
+        replies_text,
+        username,
+        metadata,
+        on_ticket_start_time,
+        tracking_id,
+        edit_sweep_comment,
+        is_paying_user,
+        is_consumer_tier,
+        issue_url,
+        )
+        
+        # Fetch git commit history
+        commit_history = cloned_repo.get_commit_history(username=username)
+        
+        snippets = post_process_snippets(
+        snippets, max_num_of_snippets=2 if use_faster_model else 5
+        )
+        if not repo_description:
+        repo_description = "No description provided."
+        return repo_description, snippets, tree, commit_history, dir_obj
+            """
+            Prunes the context for snippets.
+            
+            This function prunes the context for snippets by removing all snippets that are not in the paths to keep
+            and expanding the directories to expand. It then recreates the human message prompt with the pruned snippets.
+            
+            Args:
+            chat_logger (ChatLogger): The chat logger.
+            human_message (HumanMessagePrompt): The human message prompt.
+            repo (github.Repository): The repository.
+            g (github.Github): The Github client.
+            snippets (list): The list of snippets.
+            dir_obj (Directory): The directory object.
+            repo_name (str): The name of the repository.
+            issue_url (str): The URL of the issue.
+            username (str): The username of the user.
+            repo_description (str): The description of the repository.
+            title (str): The title of the issue.
+            message_summary (str): The summary of the message.
+            commit_history (list): The commit history.
+            
+            Returns:
+            tuple: A tuple containing the human message prompt, snippets, and tree.
+            """
+            context_pruning = ContextPruning(chat_logger=chat_logger)
+            (
+            paths_to_keep,
+            directories_to_expand,
+            ) = context_pruning.prune_context(human_message, repo=repo, g=g)
+            
+            if paths_to_keep:
+            snippets = [
+            snippet
+            for snippet in snippets
+            if any(
+                path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
+                for path_to_keep in paths_to_keep
             )
+            ]
+            dir_obj.remove_all_not_included(paths_to_keep)
+            dir_obj.expand_directory(directories_to_expand)
+            tree = str(dir_obj)
+            human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
+            return human_message, snippets, tree
+            """
+            Creates or edits an issue comment.
+            
+            This function creates an issue comment if it does not exist, otherwise it edits the existing issue comment.
+            
+            Args:
+            issue_comment (github.IssueComment): The issue comment.
+            current_issue (github.Issue): The current issue.
+            first_comment (str): The first comment.
+            
+            Returns:
+            None
+            """
             if issue_comment is None:
-                issue_comment = current_issue.create_comment(first_comment)
-            else:
-                issue_comment.edit(first_comment)
-            return {"success": False}
-
-        cloned_repo = ClonedRepo(
-            repo_full_name, installation_id=installation_id, token=user_token
-        )
-        logger.info("Fetching num of files")
-        num_of_files = cloned_repo.get_num_files_from_repo()
-        logger.info("Done fetching num of files")
-        time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
-
-        indexing_message = (
-            "I'm searching for relevant snippets in your repository. If this is your first"
-            " time using Sweep, I'm indexing your repository. This may take up to"
-            f" {time_estimate} minutes. I'll let you know when I'm done."
-        )
-        first_comment = (
-            f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I"
-            " will update the progress of the ticket in this comment. I am currently"
-            f" searching through your code, looking for relevant snippets.\n{sep}##"
-            f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
-        )
-
-        if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
-        else:
+            else:
             issue_comment.edit(first_comment)
-
-        past_messages = {}
-        current_index = 0
-        table = None
-        initial_sandbox_response = -1
-        initial_sandbox_response_file = None
-
-        def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-            nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
-            # -1 = error, -2 = retry
-            # Only update the progress bar if the issue generation errors.
-            errored = index == -1
-            if index >= 0:
-                past_messages[index] = message
-                current_index = index
-
-            agg_message = None
-            # Include progress history
-            # index = -2 is reserved for
-            for i in range(
-                current_index + 2
-            ):  # go to next header (for Working on it... text)
-                if i == 0 or i >= len(progress_headers):
-                    continue  # skip None header
-                header = progress_headers[i]
-                if header is not None:
-                    header = "## " + header + "\n"
-                else:
-                    header = "No header\n"
-                msg = header + (past_messages.get(i) or "Working on it...")
-                if agg_message is None:
-                    agg_message = msg
-                else:
-                    agg_message = agg_message + f"\n{sep}" + msg
-
-            suffix = bot_suffix + discord_suffix
-            if errored:
-                agg_message = (
-                    "## ❌ Unable to Complete PR"
-                    + "\n"
-                    + message
-                    + "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                    f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: `{tracking_id}`)."
-                )
-                if table is not None:
-                    agg_message = (
-                        agg_message
-                        + f"\n{sep}Please look at the generated plan. If something looks"
-                        f" wrong, please add more details to your issue.\n\n{table}"
-                    )
-                suffix = bot_suffix  # don't include discord suffix for error messages
-
-            # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file)}\n{sep}{agg_message}{suffix}"
-            try:
-                issue_comment.edit(msg)
-            except BadCredentialsException:
-                logger.error(
-                    f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
-                )
-                _user_token, g = get_github_client(installation_id)
-                repo = g.get_repo(repo_full_name)
-
-                for comment in comments:
-                    if comment.user.login == GITHUB_BOT_USERNAME:
-                        issue_comment = comment
-
-                if issue_comment is None:
-                    issue_comment = current_issue.create_comment(msg)
-                else:
-                    issue_comment = [
-                        comment
-                        for comment in issue.get_comments()
-                        if comment.user == GITHUB_BOT_USERNAME
-                    ][0]
-                    issue_comment.edit(msg)
-
-        if sandbox_mode:
-            logger.info("Running in sandbox mode")
-            sweep_bot = SweepBot(
-                repo=repo,
-                sweep_context=sweep_context,
-            )
-            logger.info("Getting file contents")
-            file_name = title.split(":")[1].strip()
-            file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
-                "utf-8"
-            )
-            try:
-                ext = file_name.split(".")[-1]
-            except:
-                ext = ""
-            displayed_contents = file_contents.replace("```", "\`\`\`")
-            sha = repo.get_branch(repo.default_branch).commit.sha
-            permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
-            logger.info("Running sandbox")
-            edit_sweep_comment(
-                f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
-                1,
-            )
-            updated_contents, sandbox_response = sweep_bot.check_sandbox(
-                file_name, file_contents, []
-            )
-            logger.info("Sandbox finished")
-            logs = (
-                (
-                    "<br/>"
-                    + create_collapsible(
-                        f"Sandbox logs",
-                        blockquote(
-                            "\n\n".join(
-                                [
-                                    create_collapsible(
-                                        f"<code>{execution.command.format(file_path=file_name)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                                        f"<pre>{clean_logs(execution.output)}</pre>",
-                                        i == len(sandbox_response.executions) - 1,
-                                    )
-                                    for i, execution in enumerate(
-                                        sandbox_response.executions
-                                    )
-                                    if len(sandbox_response.executions) > 0
-                                    # And error code check
-                                ]
-                            )
-                        ),
-                        opened=True,
-                    )
-                )
-                if sandbox_response
-                else ""
-            )
-
-            updated_contents = updated_contents.replace("```", "\`\`\`")
-            diff = generate_diff(file_contents, updated_contents).replace(
-                "```", "\`\`\`"
-            )
-            diff_display = (
-                f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
-                if diff
-                else f"Sandbox made not changes to {file_name} (formatters not configured or didn't make changes)."
-            )
-
-            edit_sweep_comment(
-                f"{logs}\n{diff_display}",
-                2,
-            )
-            edit_sweep_comment("N/A", 3)
-            logger.info("Sandbox comments updated")
-            return {"success": True}
-
-        if len(title + summary) < 20:
-            logger.info("Issue too short")
-            edit_sweep_comment(
-                (
-                    f"Please add more details to your issue. I need at least 20 characters"
-                    f" to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            posthog.capture(
-                username,
-                "issue_too_short",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
-            )
-            return {"success": True}
-
-        if (
-            repo_name.lower() not in WHITELISTED_REPOS
-            and not is_paying_user
+    """
+    Creates a human message prompt.
+    
+    This function creates a human message prompt with the given parameters.
+    
+    Args:
+    repo_name (str): The name of the repository.
+    issue_url (str): The URL of the issue.
+    username (str): The username of the user.
+    repo_description (str): The description of the repository.
+    title (str): The title of the issue.
+    message_summary (str): The summary of the message.
+    snippets (list): The list of snippets.
+    tree (str): The tree.
+    commit_history (list): The commit history.
+    
+    Returns:
+    HumanMessagePrompt: The human message prompt.
+    """
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
             and not is_consumer_tier
         ):
             if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
@@ -734,29 +750,7 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        snippets, tree, dir_obj = fetch_relevant_files(
-            cloned_repo,
-            title,
-            summary,
-            replies_text,
-            username,
-            metadata,
-            on_ticket_start_time,
-            tracking_id,
-            edit_sweep_comment,
-            is_paying_user,
-            is_consumer_tier,
-            issue_url,
-        )
-
-        # Fetch git commit history
-        commit_history = cloned_repo.get_commit_history(username=username)
-
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=2 if use_faster_model else 5
-        )
-        if not repo_description:
-            repo_description = "No description provided."
+        repo_description, snippets, tree, commit_history, dir_obj = fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description)
 
         message_summary = summary + replies_text
         external_results = ExternalSearcher.extract_summaries(message_summary)
@@ -775,47 +769,9 @@ def on_ticket(
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
 
-        context_pruning = ContextPruning(chat_logger=chat_logger)
-        (
-            paths_to_keep,
-            directories_to_expand,
-        ) = context_pruning.prune_context(human_message, repo=repo, g=g)
-
-        if paths_to_keep:
-            snippets = [
-                snippet
-                for snippet in snippets
-                if any(
-                    path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
-                    for path_to_keep in paths_to_keep
-                )
-            ]
-            dir_obj.remove_all_not_included(paths_to_keep)
-        dir_obj.expand_directory(directories_to_expand)
-        tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        human_message, snippets, tree = prune_context_for_snippets(chat_logger, human_message, repo, g, snippets, dir_obj, repo_name, issue_url, username, repo_description, title, message_summary, commit_history)
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -1549,6 +1505,155 @@ def on_ticket(
     logger.info("on_ticket success")
     return {"success": True}
 
+def fetch_and_process_relevant_files(cloned_repo, title, summary, replies_text, username, metadata, on_ticket_start_time, tracking_id, edit_sweep_comment, is_paying_user, is_consumer_tier, issue_url, use_faster_model, repo_description):
+    """
+    Fetches and processes relevant files from the repository.
+
+    This function fetches relevant files from the repository, fetches the git commit history,
+    post-processes the snippets, and sets the repository description if it is not provided.
+
+    Args:
+        cloned_repo (ClonedRepo): The cloned repository.
+        title (str): The title of the issue.
+        summary (str): The summary of the issue.
+        replies_text (str): The replies text of the issue.
+        username (str): The username of the user.
+        metadata (dict): The metadata of the issue.
+        on_ticket_start_time (float): The start time of the ticket.
+        tracking_id (str): The tracking ID of the issue.
+        edit_sweep_comment (function): The function to edit the sweep comment.
+        is_paying_user (bool): Whether the user is a paying user.
+        is_consumer_tier (bool): Whether the user is a consumer tier user.
+        issue_url (str): The URL of the issue.
+        use_faster_model (bool): Whether to use a faster model.
+        repo_description (str): The description of the repository.
+
+    Returns:
+        tuple: A tuple containing the repository description, snippets, tree, commit history, and directory object.
+    """
+    snippets, tree, dir_obj = fetch_relevant_files(
+        cloned_repo,
+        title,
+        summary,
+        replies_text,
+        username,
+        metadata,
+        on_ticket_start_time,
+        tracking_id,
+        edit_sweep_comment,
+        is_paying_user,
+        is_consumer_tier,
+        issue_url,
+    )
+
+    # Fetch git commit history
+    commit_history = cloned_repo.get_commit_history(username=username)
+
+    snippets = post_process_snippets(
+        snippets, max_num_of_snippets=2 if use_faster_model else 5
+    )
+    if not repo_description:
+        repo_description = "No description provided."
+    return repo_description, snippets, tree, commit_history, dir_obj
+
+def prune_context_for_snippets(chat_logger, human_message, repo, g, snippets, dir_obj, repo_name, issue_url, username, repo_description, title, message_summary, commit_history):
+    """
+    Prunes the context for snippets.
+
+    This function prunes the context for snippets by removing all snippets that are not in the paths to keep
+    and expanding the directories to expand. It then recreates the human message prompt with the pruned snippets.
+
+    Args:
+        chat_logger (ChatLogger): The chat logger.
+        human_message (HumanMessagePrompt): The human message prompt.
+        repo (github.Repository): The repository.
+        g (github.Github): The Github client.
+        snippets (list): The list of snippets.
+        dir_obj (Directory): The directory object.
+        repo_name (str): The name of the repository.
+        issue_url (str): The URL of the issue.
+        username (str): The username of the user.
+        repo_description (str): The description of the repository.
+        title (str): The title of the issue.
+        message_summary (str): The summary of the message.
+        commit_history (list): The commit history.
+
+    Returns:
+        tuple: A tuple containing the human message prompt, snippets, and tree.
+    """
+    context_pruning = ContextPruning(chat_logger=chat_logger)
+    (
+        paths_to_keep,
+        directories_to_expand,
+    ) = context_pruning.prune_context(human_message, repo=repo, g=g)
+
+    if paths_to_keep:
+        snippets = [
+            snippet
+            for snippet in snippets
+            if any(
+                path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
+                for path_to_keep in paths_to_keep
+            )
+        ]
+        dir_obj.remove_all_not_included(paths_to_keep)
+    dir_obj.expand_directory(directories_to_expand)
+    tree = str(dir_obj)
+    human_message = create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history)
+    return human_message, snippets, tree
+
+def create_or_edit_issue_comment(issue_comment, current_issue, first_comment):
+    """
+    Creates or edits an issue comment.
+
+    This function creates an issue comment if it does not exist, otherwise it edits the existing issue comment.
+
+    Args:
+        issue_comment (github.IssueComment): The issue comment.
+        current_issue (github.Issue): The current issue.
+        first_comment (str): The first comment.
+
+    Returns:
+        None
+    """
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(first_comment)
+    else:
+        issue_comment.edit(first_comment)
+
+def create_human_message_prompt(repo_name, issue_url, username, repo_description, title, message_summary, snippets, tree, commit_history):
+    """
+    Creates a human message prompt.
+
+    This function creates a human message prompt with the given parameters.
+
+    Args:
+        repo_name (str): The name of the repository.
+        issue_url (str): The URL of the issue.
+        username (str): The username of the user.
+        repo_description (str): The description of the repository.
+        title (str): The title of the issue.
+        message_summary (str): The summary of the message.
+        snippets (list): The list of snippets.
+        tree (str): The tree.
+        commit_history (list): The commit history.
+
+    Returns:
+        HumanMessagePrompt: The human message prompt.
+    """
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+        commit_history=commit_history,
+    )
+    return human_message
+
 
 def review_code(
     repo,
@@ -1569,6 +1674,33 @@ def review_code(
     repo_full_name,
     installation_id,
 ):
+    """
+    Reviews the code.
+
+    This function reviews the code by checking the pull request, addressing the suggestions if there are any, and editing the sweep comment.
+
+    Args:
+        repo (github.Repository): The repository.
+        pr_changes (PullRequest): The pull request changes.
+        issue_url (str): The URL of the issue.
+        username (str): The username of the user.
+        repo_description (str): The description of the repository.
+        title (str): The title of the issue.
+        summary (str): The summary of the issue.
+        replies_text (str): The replies text of the issue.
+        tree (str): The tree.
+        lint_output (str): The lint output.
+        plan (Plan): The plan for the PR.
+        chat_logger (ChatLogger): The chat logger.
+        commit_history (list): The commit history.
+        review_message (str): The review message.
+        edit_sweep_comment (function): The function to edit the sweep comment.
+        repo_full_name (str): The full name of the repository.
+        installation_id (int): The installation ID.
+
+    Returns:
+        tuple: A tuple containing a boolean indicating whether changes are required and the review message.
+    """
     try:
         # CODE REVIEW
         changes_required = False
@@ -1596,7 +1728,36 @@ def review_code(
                 review_message + "\n\nI'm currently addressing these suggestions.",
                 3,
             )
-            logger.info(f"Addressing review comment {review_comment}")
+            def get_branch_diff_text(repo, branch):
+                """
+                Gets the branch diff text.
+            
+                This function gets the branch diff text by comparing the branch with the base branch and generating the diffs for each file.
+            
+                Args:
+                    repo (github.Repository): The repository.
+                    branch (str): The branch.
+            
+                Returns:
+                    str: The branch diff text.
+                """
+                comparison = repo.compare(SweepConfig.get_branch(repo), branch)
+                file_diffs = comparison.files
+            
+                pr_diffs = []
+                for file in file_diffs:
+                    diff = file.patch
+                    if (
+                        file.status == "added"
+                        or file.status == "modified"
+                        or file.status == "removed"
+                    ):
+                        pr_diffs.append((file.filename, diff))
+                    else:
+                        logger.info(
+                            f"File status {file.status} not recognized"
+                        )  # TODO(sweep): We don't handle renamed files
+                return "\n".join([f"{filename}\n{diff}" for filename, diff in pr_diffs])
             on_comment(
                 repo_full_name=repo_full_name,
                 repo_description=repo_description,
