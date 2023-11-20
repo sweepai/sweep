@@ -1,13 +1,16 @@
 from __future__ import nested_scopes
 
+import json
 import re
-from typing import Callable
+from pathlib import Path
+from typing import Any, Callable
 
 from sweepai.agents.modify_bot import strip_backticks
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
+from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, SandboxResponse
+from sweepai.core.entities import FileChangeRequest, Message, SandboxResponse
 from sweepai.utils.autoimport import add_auto_imports
+from sweepai.utils.coverage_renderer import render_coverage_data
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.jedi_utils import (
     get_all_defined_functions,
@@ -117,7 +120,7 @@ Extend the unit tests using the unittest module for the {{method_name}} method. 
 
 test_extension_format = """\
 <planning>
-List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, write the `patch` decorator for them to mock functions or constants without using the `new_callable` argument. Use the standard mocking behavior provided by `unittest.mock`.
+List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, use the `patch` decorator to mock the methods. Do not use keyword arguments in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`.
 </planning>
 
 <additional_unit_tests>
@@ -126,6 +129,7 @@ The additional unit test uses the mocks defined in the original unit test. Forma
 ```
 import unittest
 from unittest.mock import patch
+# any other imports
 
 class TestNameOfFullFunctionName(unittest.TestCase):
     # copy the setUp code
@@ -140,7 +144,7 @@ Only use patch in one of these two ways.
 
 test_extension_format = """\
 <planning>
-List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, determine whether they should be patched like `@patch("module.CONSTANT", "new constant")` or `@patch("module.function")` followed by setting it's return_value.
+List any constants and functions that NEED to be modified for the unit test to work as expected. Then for each entity, use the `patch` or `patch.object` decorator to mock the methods. Do not use keyword arguments in the decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`.
 </planning>
 
 <additional_unit_tests>
@@ -168,7 +172,9 @@ test_extension_system_prompt = rf"""You're an expert Python QA engineer and your
 {test_extension_format}"""
 
 test_extension_user_prompt = rf"""<code_to_test>
+```
 {{code_to_test}}
+```
 </code_to_test>
 
 <current_unit_test>
@@ -235,12 +241,19 @@ def pascal_case(s: str) -> str:
     return "".join(word.capitalize() for word in s.split("_"))
 
 
+def determine_pip_or_poetry(repo_base: str):
+    """Determine whether a repo uses pip or poetry."""
+    if (Path(repo_base) / "pyproject.toml").exists():
+        return "poetry"
+    return "pip"
+
+
 # This class should handle appending or creating new tests
 class TestBot(ChatGPT):
     def write_test(
         self,
+        file_change_request: FileChangeRequest,
         additional_messages: list[Message] = [],
-        snippets_str="",
         file_path: str = "",  # file path of the source file to test
         update_snippets_code: str = "",
         request="",
@@ -265,6 +278,8 @@ class TestBot(ChatGPT):
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else DEFAULT_GPT35_MODEL
         )
+        if DEBUG:
+            self.model = DEFAULT_GPT4_32K_MODEL
         self.messages = [
             Message(
                 role="system",
@@ -430,7 +445,8 @@ class TestBot(ChatGPT):
                 )
                 test_extension_creator.delete_messages_from_chat("fix_unit_test_prompt")
                 extension_test_results = test_extension_creator.chat(
-                    test_extension_user_prompt.format(
+                    summarized_parent_class
+                    + test_extension_user_prompt.format(
                         code_to_test=function_and_reference.function_code,
                         current_unit_test=generated_test,
                         method_name=function_and_reference.function_name,
@@ -485,9 +501,10 @@ class TestBot(ChatGPT):
                             new_extension_tests, reason
                         )
 
+                decomposed_extension_script = split_script(extension_test_results)
                 _prefix, *tests = re.split(
                     "(?=\n\s+@patch|def test)",
-                    split_script(extension_test_results).definitions,
+                    decomposed_extension_script.definitions,
                 )
                 new_tests = "".join(tests)
 
@@ -495,6 +512,7 @@ class TestBot(ChatGPT):
                 current_unit_test = "\n\n".join(
                     [
                         decomposed_script.imports,
+                        decomposed_extension_script.imports,
                         decomposed_script.definitions,
                         new_tests,
                         decomposed_script.main,
@@ -511,8 +529,38 @@ class TestBot(ChatGPT):
             final_code,
             changed_files,
             [
+                "poetry add coverage",
+                f"PYTHONPATH=. poetry run coverage run {test_file_path}",
+                f"PYTHONPATH=. poetry run coverage json --include={file_path}",
+                "cat coverage.json",
+            ]
+            if determine_pip_or_poetry(cloned_repo.repo_dir) == "poetry"
+            else [
                 "pip install coverage",
-                f"coverage run {test_file_path} && coverage json --include={file_path} && cat coverage.json",
+                f"PYTHONPATH=. coverage run {test_file_path}",
+                f"PYTHONPATH=. coverage json --include={file_path}",
+                "cat coverage.json",
             ],
         )
+        if sandbox_response.success == True:
+            coverage_results = json.loads(sandbox_response.outputs[-1])
+            table = render_coverage_data(coverage_results, cloned_repo.repo_dir)
+            file_change_request.instructions += "\n" + table
         return final_code
+
+    def auto_fix_test(
+        self, bot: ChatGPT, sandbox_response: SandboxResponse, check_sandbox: Any
+    ):
+        new_tests = bot.chat(
+            fix_unit_test_prompt.format(
+                error_message=sandbox_response.error_messages[-1]
+            ),
+            message_key="fix_unit_test_prompt",
+        )
+        new_tests = re.search(
+            additional_unit_tests_xml_pattern,
+            new_tests,
+            re.DOTALL,
+        )
+        new_tests = strip_backticks(str(new_tests.group("additional_unit_tests")))
+        return new_tests
