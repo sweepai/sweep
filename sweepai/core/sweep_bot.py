@@ -843,6 +843,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path=file_path,
                     content=content,
                     changed_files=changed_files,
+                    check=check,
                 )
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
@@ -1512,6 +1513,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 )
                             ]
                             new_test = test_bot.write_test(
+                                file_change_request=file_change_request,
                                 additional_messages=additional_messages,
                                 file_path=file_change_request.source_file,
                                 cloned_repo=self.cloned_repo,
