@@ -334,73 +334,10 @@ async def run_sandbox(request: SandboxRequest):
                 print("Image already exists, skipping install step...")
 
             if request.file_path is not None and request.content is not None:
-                # if request.file_path not in request.changed_files:
-                #     old_file = ""
-                #     try:
-                #         old_file = read_file(container, f"repo/{request.file_path}")
-                #     except Exception:
-                #         print("File does not exist, skipping check step...")
-
-                # if old_file:
-                #     print("Checking file before edit...")
-                #     for command in sandbox.check:
-                #         try:
-                #             run_command(command, stage="check", iteration=0)
-                #         except SandboxError as e:
-                #             print(old_file)
-                #             raise Exception(
-                #                 f"File failed to lint with command {command} before edit: {e}"
-                #             )
-
-                #     if request.content == old_file:
-                #         raise Exception(
-                #             "New contents are the same as the old contents."
-                # )
-
                 for file_path, file_content in request.changed_files.items():
                     print(f"Writing file {file_path}...")
                     write_file(container, f"repo/{file_path}", file_content)
-
                 write_file(container, f"repo/{request.file_path}", request.content)
-
-                # if request.do_fix:
-                #     current_file = request.content
-                #     num_iterations = 5
-                #     for i in range(1, num_iterations + 1):
-                #         try:
-                #             print(f"Trying to lint for the {i}/{num_iterations}th time")
-                #             for command in sandbox.check:
-                #                 run_command(command, stage="check", iteration=i)
-                #         except SystemExit:
-                #             raise SystemExit
-                #         except SandboxError as e:
-                #             error_message = str(e)
-                #             if (
-                #                 len(error_messages) >= 2
-                #                 and error_message == error_messages[-1]
-                #                 and error_message == error_messages[-2]
-                #             ):
-                #                 raise Exception(
-                #                     "Failed to fix the code after multiple attempts"
-                #                 )
-                #             error_messages.append(error_message)
-                #             current_file = fix_file(
-                #                 request.file_path,
-                #                 current_file,
-                #                 error_message,
-                #                 username,
-                #             )
-                #             write_file(
-                #                 container, f"repo/{request.file_path}", current_file
-                #             )
-                #         else:
-                #             break
-                #     else:
-                #         raise Exception("Failed to fix the code")
-                #     success = True
-                #     updated_content = read_file(container, f"repo/{request.file_path}")
-                #     print(f"Updated Contents:\n```\n{updated_content}\n```")
-                # else:
                 print("Checking file after edit...")
                 print("Length of content:", len(request.content))
                 request.content
