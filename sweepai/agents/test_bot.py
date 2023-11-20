@@ -11,8 +11,11 @@ from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.jedi_utils import (
     get_all_defined_functions,
+    get_function_references,
+    get_parent_class_reference,
     get_references_from_defined_function,
     setup_jedi_for_file,
+    summarize_code,
 )
 from sweepai.utils.regex_utils import xml_pattern
 from sweepai.utils.unittest_utils import (
@@ -38,14 +41,10 @@ Identify all return objects from expensive operations entities we need to mock. 
 ```
 code snippet of each mocked object's usage
 ```
+Then, for each item to be mocked, identify the source of them. ie. first_expensive_operation is from current_module so the patch will be current_module.first_expensive_operation whereas second_expensive_operation is from imported_module so the patch will be imported_module.second_expensive_operation.
 
-# Access method
-Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`. Then, for each chain of accesses like return_obj.foo["key"].bar, list the access type at each step of the chain and how they should be mocked, like
-- return_obj.foo is an attribute method so return_obj should be mocked like magic_mock.foo
-- return_obj["key"] is a dictionary access so return_obj.foo should be mocked like {{"key": magic_mock}}
-
-# Mock Code
-Write mocks that perfectly mock these access methods. E.g.
+# Access pattern
+Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`. Then, write mocks that perfectly mock these access methods. E.g.
 ```
 from unittest.mock import MagicMock
 
@@ -58,9 +57,9 @@ Use the `patch` decorator to mock the methods. Do not use keyword arguments in t
 ```
 from unittest.mock import patch
 
-@patch("module.CONSTANT", "new constant")
-@patch("module.code_to_test.first_expensive_operation")
-@patch("module.code_to_test.second_expensive_operation")
+@patch("current_module.CONSTANT", "new constant")
+@patch("current_module.first_expensive_operation")
+@patch("imported_module.second_expensive_operation")
 def test_code_to_test(self, mock_second_expensive_operation, mock_first_expensive_operation):
     mock_first_expensive_operation.return_value = first_mock_response
     mock_second_expensive_operation.return_value = second_mock_response
@@ -311,6 +310,39 @@ class TestBot(ChatGPT):
                 f"{cloned_repo.repo_dir}/{file_path}",
                 full_file_code,
             )
+            parent_scope = fn_def.parent()  # this is the class of the method
+            summarized_parent_class = ""
+            if parent_scope.type == "class":
+                parent_class_reference = get_parent_class_reference(
+                    parent_scope, script
+                )
+                if parent_class_reference is not None:
+                    function_and_reference.function_code = (
+                        f"class {parent_scope.name}({parent_class_reference.name}):\n    ...\n\n"
+                        + function_and_reference.function_code
+                    )
+                    parent_class_definition = script.goto(
+                        parent_class_reference.line, parent_class_reference.column
+                    )[0]
+                    parent_class_file_contents = open(
+                        parent_class_definition.module_path
+                    ).read()
+                    start, end, parent_class_code = get_function_references(
+                        parent_class_definition, ""
+                    )
+                    parent_imports = remove_constants_from_imports(
+                        split_script(parent_class_file_contents).imports
+                    )
+                    summarized_parent_class = f'<parent_class entity="{parent_class_definition.module_name}:{start}-{end}">\n{parent_imports}\n\n...\n\n{summarize_code(parent_class_code)}\n</parent_class>\n\n'
+                else:
+                    function_and_reference.function_code = (
+                        f"class {parent_scope.name}:\n    ...\n\n"
+                        + function_and_reference.function_code
+                    )
+            imports = remove_constants_from_imports(split_script(file_contents).imports)
+            function_and_reference.function_code = (
+                imports + "\n\n" + function_and_reference.function_code
+            )
             if function_and_reference.function_code.count("\n") < 15:
                 continue
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
@@ -319,7 +351,8 @@ class TestBot(ChatGPT):
             self.delete_messages_from_chat("test_user_prompt")
             self.delete_messages_from_chat("fix_unit_test_prompt")
             extract_response = self.chat(
-                test_user_prompt.format(
+                summarized_parent_class
+                + test_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
                     method_name=function_and_reference.function_name,
                 ),
@@ -374,7 +407,8 @@ class TestBot(ChatGPT):
 
             # Check the unit test here and try to fix it
             extension_plan_results = test_extension_planner.chat(
-                test_extension_planning_user_prompt.format(
+                summarized_parent_class
+                + test_extension_planning_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
                     current_unit_test=current_unit_test,
                     method_name=function_and_reference.function_name,

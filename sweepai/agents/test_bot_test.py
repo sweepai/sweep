@@ -11,15 +11,15 @@ additional_messages = [
     Message(
         role="user",
         content="""Repo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.
-Issue Title: write unit tests for openai_proxy.py
+Issue Title: Sweep: write unit tests for name_agent.py
 Issue Description: ### Details
 
 _No response_""",
         key="user",
     )
 ]
-file_path = "sweepai/utils/openai_proxy.py"
-request = "Write unit tests for openai_proxy.py"
+file_path = "sweepai/agents/test_bot.py"
+request = "Write unit tests for test_bot.py"
 changes_made = ""
 bot = TestBot()
 bot.model = "gpt-4-0613"
