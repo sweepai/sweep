@@ -22,7 +22,7 @@ from sweepai.agents.move_bot import MoveBot
 from sweepai.agents.refactor_bot import RefactorBot
 from sweepai.agents.test_bot import TestBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEBUG, DEFAULT_GPT35_MODEL, DEFAULT_GPT4_32K_MODEL, MINIS3_URL, SANDBOX_URL
+from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, MINIS3_URL, SANDBOX_URL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     ExtractionRequest,
@@ -796,7 +796,8 @@ class SweepBot(CodeGenBot, GithubBot):
         token: str,
         changed_files: list[tuple[str, str]],
         only_lint: bool = False,
-    ) -> Dict:
+        check: list[str] = [],
+    ) -> dict:
         if not SANDBOX_URL:
             return {"success": False}
 
@@ -811,6 +812,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path: new_contents
                     for file_path, (_old_contents, new_contents) in changed_files
                 },
+                "check": check,
                 "only_lint": only_lint,
                 "do_fix": False,
             },
@@ -828,6 +830,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_path: str,
         content: str,
         changed_files: list[tuple[str, str]] = [],
+        check: list[str] = [],
     ):
         # Format file
         sandbox_execution: SandboxResponse | None = None
@@ -840,6 +843,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path=file_path,
                     content=content,
                     changed_files=changed_files,
+                    check=check,
                 )
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
@@ -1533,6 +1537,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 )
                             ]
                             new_test = test_bot.write_test(
+                                file_change_request=file_change_request,
                                 additional_messages=additional_messages,
                                 file_path=file_change_request.source_file,
                                 cloned_repo=self.cloned_repo,

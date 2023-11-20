@@ -33,6 +33,14 @@ def split_script(script: str):
     )
 
 
+def remove_constants_from_imports(imports: str) -> str:
+    last_index = 0
+    for index, line in enumerate(imports.splitlines()):
+        if line.startswith("from") or line.startswith("import"):
+            last_index = index
+    return "\n".join(imports.splitlines()[: last_index + 1])
+
+
 def remove_duplicates(seq: list) -> list:
     new_list = []
     for item in seq:
