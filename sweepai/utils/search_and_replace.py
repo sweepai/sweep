@@ -400,9 +400,3 @@ def handle_button_click(request_dict):
     # best_span = find_best_match(target, code_file)
     best_span = find_best_match("a\nb", "a\nb")
     print(best_span)
-
-    # best_code_snippet = "\n".join(
-    #     code_file.split("\n")[best_span.start : best_span.end]
-    # )
-    # print(f"Best code snippet:\n{best_code_snippet}")
-    # print(f"Best match line numbers: {best_span.start}-{best_span.end}")

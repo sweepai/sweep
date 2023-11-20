@@ -244,10 +244,12 @@ def sliding_window_replacement(
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
-        raise Exception("No identical lines")
+        logger.print("No matches found")
+        return original, best_match, NOT_FOUND
 
     if max_similarity < 50:
         logger.print(f"Low similarity: {max_similarity}")
+        return original, best_match, NOT_FOUND
 
     snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
     if len(snippet) == 1 and len(replace) == 1:
@@ -382,7 +384,8 @@ def is_markdown(filename):
 
 
 if __name__ == "__main__":
-    old_file = """            b"sample text",
+    old_file = """\
+            b"sample text",
             b"typed sample text",
             b"3",
         ]
@@ -435,15 +438,96 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
-    unittest.main()
-        mock_curses_initscr.assert_called()
-"""
-
-    search = """if __name__ == "__main__":
-    unittest.main()
-        mock_curses_initscr.assert_called()"""
-    replace = """if __name__ == "__main__":
     unittest.main()"""
+
+    search = """\
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+        mock_curses_initscr.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()"""
+    replace = """\
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()"""
     print(
         "\n".join(
             sliding_window_replacement(
