@@ -68,7 +68,7 @@ model_to_max_tokens = {
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
-class BaseChatGPT(BaseModel):
+class SweepChatGPT(BaseModel):
     messages: list[Message] = []
     prev_message_states: list[list[Message]] = []
     model: OpenAIModel = "gpt-4-0613"
@@ -163,8 +163,8 @@ class BaseChatGPT(BaseModel):
         return self.messages
 
 
-class BaseAgent(BaseChatGPT):
-    chatgpt: BaseChatGPT | None = BaseChatGPT()
+class SweepAgent(SweepChatGPT):
+    chatgpt: SweepChatGPT | None = SweepChatGPT()
     system_prompt: str | None = ""
     user_prompt: str | None = ""
     regex_matchable_base_model: RegexMatchableBaseModel | None = None
@@ -188,6 +188,33 @@ class BaseAgent(BaseChatGPT):
             )
             return serialized_response_object
         return chatgpt_response
+    
+    def handle_task_with_retries(
+        self,
+        system_prompt_args: dict[str, str],
+        user_prompt_args: dict[str, str],
+        **kwargs,
+    ):
+        if self.system_prompt:
+            formatted_system_prompt = self.system_prompt.format(**system_prompt_args)
+            self.messages.append(
+                Message(role="system", content=formatted_system_prompt)
+            )
+        formatted_prompt = self.user_prompt.format(**user_prompt_args)
+        if self.regex_matchable_base_model:
+            num_retries = kwargs.get("num_retries", 3)
+            for _ in range(num_retries):
+                chatgpt_response = self.chat(formatted_prompt)
+                try:
+                    serialized_response_object = self.regex_matchable_base_model.from_string(
+                        chatgpt_response, **user_prompt_args
+                    )
+                except Exception as e:
+                    logger.error(e)
+                    continue
+                return serialized_response_object
+        chatgpt_response = self.chat(formatted_prompt)
+        return chatgpt_response
 
 
 if __name__ == "__main__":
@@ -196,7 +223,7 @@ if __name__ == "__main__":
         joke: str
         _regex = r"<joke>(?P<joke>.*?)</joke>"
 
-    agent = BaseAgent()
+    agent = SweepAgent()
     agent.system_prompt = "You are a comedian."
     agent.user_prompt = "Tell me a funny joke marked in <joke>...</joke> tags."
     agent.regex_matchable_base_model = Joke
