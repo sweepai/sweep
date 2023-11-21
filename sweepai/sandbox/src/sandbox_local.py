@@ -210,7 +210,6 @@ async def run_sandbox(request: SandboxRequest):
     metadata = {
         "repo_url": request.repo_url,
         "file_path": request.file_path,
-        "do_fix": request.do_fix,
         "sandbox_install_length": len(sandbox.install),
         "sandbox_check_length": len(sandbox.check),
     }

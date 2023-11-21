@@ -9,7 +9,6 @@ if __name__ == "__main__":
         "file_path": file_path,
         "content": bad_file_contents,
         "check": ["echo 'hello world'"],
-        "do_fix": False,
     }
     response = requests.post(url, json=data, timeout=(5, 600))
     print(response.text)
