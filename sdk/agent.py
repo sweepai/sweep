@@ -1,7 +1,7 @@
 import os
 from functools import lru_cache
 import re
-from typing import ClassVar, Literal, Type, TypeVar
+from typing import Any, ClassVar, Literal, Type, TypeVar
 
 import backoff
 import openai
@@ -22,12 +22,16 @@ class RegexMatchableBaseModel(BaseModel):
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
         match = re.search(cls._regex, string, re.DOTALL)
         if match is None:
-            logger.warning(f"Did not match {string} with pattern {cls._regex}")
-            raise Exception("Did not match")
+            raise Exception(f"Did not match {string} with pattern {cls._regex}")
+        post_processed_match = cls.postprocess(match.groupdict(), **kwargs)
         return cls(
-            **{k: (v if v else "").strip("\n") for k, v in match.groupdict().items()},
+            **{k: (v if v else None) for k, v in post_processed_match.items()},
             **kwargs,
         )
+
+    @classmethod
+    def postprocess(cls: Type[Self], obj: Self, **kwargs) -> dict[str, Any]:
+        return obj
 
 
 class Message(BaseModel):
@@ -188,7 +192,7 @@ class SweepAgent(SweepChatGPT):
             )
             return serialized_response_object
         return chatgpt_response
-    
+
     def handle_task_with_retries(
         self,
         system_prompt_args: dict[str, str],
@@ -206,10 +210,18 @@ class SweepAgent(SweepChatGPT):
             for _ in range(num_retries):
                 chatgpt_response = self.chat(formatted_prompt)
                 try:
-                    serialized_response_object = self.regex_matchable_base_model.from_string(
-                        chatgpt_response, **user_prompt_args
+                    serialized_response_object = (
+                        self.regex_matchable_base_model.from_string(
+                            chatgpt_response, **user_prompt_args
+                        )
                     )
                 except Exception as e:
+                    self.messages.append(
+                        Message(
+                            role="user",
+                            content=f"The previous response failed to parse using the pattern: {self.regex_matchable_base_model._regex}. Please try again.",
+                        )
+                    )
                     logger.error(e)
                     continue
                 return serialized_response_object
@@ -232,3 +244,23 @@ if __name__ == "__main__":
         user_prompt_args={"snippets": "snippets", "existing_names": "existing_names"},
     )
     print(joke_obj.joke)
+
+    class Location(RegexMatchableBaseModel):
+        locations: list[str]
+        _regex = r"<locations>(?P<locations>.*?)</locations>"
+    
+        @classmethod
+        def postprocess(cls: Type[Self], obj: Self, **kwargs) -> dict[str, Any]:
+            locations = obj["locations"]
+            obj["locations"] = [location for location in locations.split("\n") if location]
+            return obj
+    
+    agent = SweepAgent()
+    agent.system_prompt = "You are a geographer."
+    agent.user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
+    agent.regex_matchable_base_model = Location
+    location_obj = agent.handle_task(
+        system_prompt_args=dict(),
+        user_prompt_args={"first_location": "NYC", "second_location": "LA"},
+    )
+    print(location_obj.locations)
