@@ -158,7 +158,7 @@ class SweepAgent(SweepChatGPT):
     chatgpt: SweepChatGPT | None = SweepChatGPT()
     system_prompt: str | None = ""
     user_prompt: str | None = ""
-    regex_matchable_base_model: RegexExtractModel | None = None
+    regex_extract_model: RegexExtractModel | None = None
 
     def handle_task(
         self,
@@ -173,8 +173,8 @@ class SweepAgent(SweepChatGPT):
             )
         formatted_prompt = self.user_prompt.format(**user_prompt_args)
         chatgpt_response = self.chat(formatted_prompt)
-        if self.regex_matchable_base_model:
-            serialized_response_object = self.regex_matchable_base_model.from_string(
+        if self.regex_extract_model:
+            serialized_response_object = self.regex_extract_model.from_string(
                 chatgpt_response
             )
             return serialized_response_object
@@ -192,19 +192,19 @@ class SweepAgent(SweepChatGPT):
                 Message(role="system", content=formatted_system_prompt)
             )
         formatted_prompt = self.user_prompt.format(**user_prompt_args)
-        if self.regex_matchable_base_model:
+        if self.regex_extract_model:
             num_retries = kwargs.get("num_retries", 3)
             for _ in range(num_retries):
                 chatgpt_response = self.chat(formatted_prompt)
                 try:
-                    serialized_response_object = (
-                        self.regex_matchable_base_model.from_string(chatgpt_response)
+                    serialized_response_object = self.regex_extract_model.from_string(
+                        chatgpt_response
                     )
                 except Exception as e:
                     self.messages.append(
                         Message(
                             role="user",
-                            content=f"The previous response failed to parse using the pattern: {self.regex_matchable_base_model._regex}. Please try again.",
+                            content=f"The previous response failed to parse using the pattern: {self.regex_extract_model._regex}. Please try again.",
                         )
                     )
                     logger.error(e)
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     agent = SweepAgent()
     agent.system_prompt = "You are a comedian."
     agent.user_prompt = "Tell me a funny joke marked in <joke>...</joke> tags."
-    agent.regex_matchable_base_model = Joke
+    agent.regex_extract_model = Joke
     joke_obj = agent.handle_task(
         system_prompt_args=dict(),
         user_prompt_args={"snippets": "snippets", "existing_names": "existing_names"},
@@ -243,7 +243,7 @@ if __name__ == "__main__":
     agent = SweepAgent()
     agent.system_prompt = "You are a geographer."
     agent.user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
-    agent.regex_matchable_base_model = Location
+    agent.regex_extract_model = Location
     location_obj = agent.handle_task(
         system_prompt_args=dict(),
         user_prompt_args={"first_location": "NYC", "second_location": "LA"},
