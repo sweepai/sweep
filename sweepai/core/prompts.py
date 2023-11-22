@@ -191,7 +191,7 @@ Provide a plan to solve the issue, following these rules:
 * Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Each <modify> section in the plan should correspond to a GitHub commit and be at most 4 sentences. If the section would be larger, split it up into two or more sections.
 
-You MUST follow the following format:
+You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>

@@ -128,13 +128,13 @@ Extract code verbatim from the function_to_refactor using EXTRACT sections accor
 * Choose specific and informative names for these functions under new_function_name.
 * We must copy the code verbatim. Keep whitespace and comments.
 * Extractions must not overlap.
-* Extractions should be removable without breaking the code. For example, they should not break up a try except block.
+* Extractions should be removable without breaking the code. For example, they should not break up a try except block. We use rope to refactor, so DO NOT extract any code that contains `continue` or `return`
 * Extracted functions should be at least 2 lines long and at most 25 lines long.
 
-Respond in the following format:
+Respond in the following format with XML tags:
 
 <contextual_request_analysis>
-First, determine the section(s) you want to make more modular. Choose extractions that simplify the overall flow of the code.
+First, determine the valid section(s) you want to make more modular. Choose extractions that simplify the overall flow of the code and pass the instructions.
 Analyze the user request to identify each section of the code that should be extracted.
 For each new function outline the first and last lines of code that should be extracted.
 </contextual_request_analysis>
@@ -167,13 +167,13 @@ Extract code verbatim from the function_to_refactor using EXTRACT sections accor
 * Choose specific and informative names for these functions under new_function_name.
 * We must copy the code verbatim. Keep whitespace and comments.
 * Extractions must not overlap.
-* Extractions should be removable without breaking the code. For example, they should not break up a try except block.
+* Extractions should be removable without breaking the code. For example, they should not break up a try except block. We use rope to refactor, so DO NOT extract any code that contains `continue` or `return`
 * Extracted functions should be at least 2 lines long and at most 25 lines long.
 
-Respond in the following format:
+Respond in the following format with XML tags:
 
 <contextual_request_analysis>
-First, determine the section(s) you want to make more modular. Choose extractions that simplify the overall flow of the code.
+First, determine the valid section(s) you want to make more modular. Choose extractions that simplify the overall flow of the code and pass the instructions.
 Analyze the user request to identify each section of the code that should be extracted.
 For each new function outline the first and last lines of code that should be extracted.
 </contextual_request_analysis>

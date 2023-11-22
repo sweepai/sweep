@@ -190,7 +190,6 @@ class RefactorBot(ChatGPT):
                 extract_snippets_user_prompt.format(
                     code=code,
                     file_path=file_path,
-                    snippets=snippets_str,
                     changes_made=changes_made,
                 )
             )
