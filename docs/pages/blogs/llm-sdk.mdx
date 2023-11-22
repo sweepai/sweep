@@ -1,0 +1,66 @@
+Since the early days, we've used our own LLM framework at Sweep (YC S23). Its helped us ship way faster, and we're excited to branch off this framework as it's own sdk!
+
+SweepAgent is our building block for having an LLM handle any task. We’re using to thinking of LLMs as text-in, text-out. Prompt engineering is commonly understood as “change your vocabulary and grammar until the LLM works”.
+
+However, prompt engineering is more about optimizing your input (format and content), output, and parser such that you reliably achieve a given task.
+
+SweepAgent allows us to separate the concerns of a LLM Agent. Instead of a text-in and text-out interface, a SweepAgent takes in variables (like any other function) and transforms it to a Pydantic BaseModel.
+
+This takes the burden of LLM unreliability away from your main code and encapsulates it with the LLM request. For example, if we want GPT to extract a subset from a list of files, we can ask it to format it using these xml tags (XML is a lot more robust and costs fewer tokens):
+
+Here's an example prompt:
+
+```xml
+<extracted_files>
+separate each extracted file with a newline here
+</extracted_files>
+```
+
+Say GPT generates the following response:
+
+```xml
+Sure, I can help with that. Here are the extracted files:
+<extracted_files>
+src/main.py
+tests/test_main.py
+</extracted_files>
+```
+
+We can then match the inner file string using this pattern: `r"<extracted_files>(?P<extracted_files>.*?)</extracted_files>”`.
+
+The issues don't end there though.
+
+GPT might mistakenly format the extracted files using any of the following:
+
+```
+* root/main.py
+- root/main.py
+root/main.py
+file: root/main.py
+```
+
+Our []`RegexExtractModel`] handles parsing this into a string, but we also need custom logic to handle the above edge cases.
+
+We can instantiate a `RegexExtractModel` with a `@property` decorator to do this:
+```python
+class FileSubset(RegexExtractModel):
+    extracted_files_string: str
+    _regex = r"<extracted_files>(?P<extracted_files_string>.*?)</extracted_files>"
+
+    @property
+    def extracted_files(self):
+        result = []
+        for extracted_file in self.extracted_files_string.split("\n"):
+            if " " in extracted_file:
+                extracted_file = extracted_file.split(" ")[-1]
+            result.append(extracted_file)
+        return result
+```
+
+This allows us to use the `extracted_files` property as a list of files, while still having the original string available for debugging.
+
+We can then use this in our SweepAgent:
+
+```python
+
+```

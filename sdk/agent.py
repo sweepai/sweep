@@ -154,11 +154,9 @@ class SweepChatGPT(BaseModel):
         return self.messages
 
 
-class SweepAgent(SweepChatGPT):
-    chatgpt: SweepChatGPT | None = SweepChatGPT()
-    system_prompt: str | None = ""
-    user_prompt: str | None = ""
-    regex_extract_model: RegexExtractModel | None = None
+class SweepAgent(SweepChatGPT, RegexExtractModel):
+    system_prompt: ClassVar[str] = ""
+    user_prompt: ClassVar[str] = ""
 
     def handle_task(
         self,
@@ -173,12 +171,10 @@ class SweepAgent(SweepChatGPT):
             )
         formatted_prompt = self.user_prompt.format(**user_prompt_args)
         chatgpt_response = self.chat(formatted_prompt)
-        if self.regex_extract_model:
-            serialized_response_object = self.regex_extract_model.from_string(
-                chatgpt_response
-            )
-            return serialized_response_object
-        return chatgpt_response
+        serialized_response_object = self.from_string(
+            chatgpt_response
+        )
+        return serialized_response_object
 
     def handle_task_with_retries(
         self,
@@ -216,23 +212,25 @@ class SweepAgent(SweepChatGPT):
 
 if __name__ == "__main__":
 
-    class Joke(RegexExtractModel):
-        joke: str
-        _regex = r"<joke>(?P<joke>.*?)</joke>"
+    # class Joke(RegexExtractModel):
+    #     joke: str
+    #     _regex = r"<joke>(?P<joke>.*?)</joke>"
 
-    agent = SweepAgent()
-    agent.system_prompt = "You are a comedian."
-    agent.user_prompt = "Tell me a funny joke marked in <joke>...</joke> tags."
-    agent.regex_extract_model = Joke
-    joke_obj = agent.handle_task(
-        system_prompt_args=dict(),
-        user_prompt_args={"snippets": "snippets", "existing_names": "existing_names"},
-    )
-    print(joke_obj.joke)
+    # agent = SweepAgent()
+    # agent.system_prompt = "You are a comedian."
+    # agent.user_prompt = "Tell me a funny joke marked in <joke>...</joke> tags."
+    # agent.regex_extract_model = Joke
+    # joke_obj = agent.handle_task(
+    #     system_prompt_args=dict(),
+    #     user_prompt_args={"snippets": "snippets", "existing_names": "existing_names"},
+    # )
+    # print(joke_obj.joke)
 
-    class Location(RegexExtractModel):
+    class ExtractFilesAgent(SweepAgent):
         locations_string: str
         _regex = r"<locations>(?P<locations_string>.*?)</locations>"
+        system_prompt = "You are a geographer."
+        user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
 
         @property
         def locations(self):
@@ -240,11 +238,11 @@ if __name__ == "__main__":
                 location for location in self.locations_string.split("\n") if location
             ]
 
-    agent = SweepAgent()
-    agent.system_prompt = "You are a geographer."
-    agent.user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
-    agent.regex_extract_model = Location
-    location_obj = agent.handle_task(
+    # agent = ExtractFilesAgent()
+
+    # agent.system_prompt = "You are a geographer."
+    # agent.user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
+    location_obj = ExtractFilesAgent.handle_task(
         system_prompt_args=dict(),
         user_prompt_args={"first_location": "NYC", "second_location": "LA"},
     )
