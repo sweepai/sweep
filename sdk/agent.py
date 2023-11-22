@@ -1,20 +1,18 @@
 import os
 import re
-from typing import Any, ClassVar, Literal, Type, TypeVar
+from typing import ClassVar, Literal, Type, TypeVar
 
 import backoff
 import openai
 import tiktoken
-
 from loguru import logger
 from openai.error import RateLimitError
 from pydantic import BaseModel
 
-
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
-class RegexMatchableBaseModel(BaseModel):
+class RegexExtractModel(BaseModel):
     _regex: ClassVar[str]
 
     @classmethod
@@ -22,15 +20,10 @@ class RegexMatchableBaseModel(BaseModel):
         match = re.search(cls._regex, string, re.DOTALL)
         if match is None:
             raise Exception(f"Did not match {string} with pattern {cls._regex}")
-        post_processed_match = cls.postprocess(regex_match_dict=match.groupdict())
         return cls(
-            **{k: (v if v else None) for k, v in post_processed_match.items()},
+            **{k: (v if v else None) for k, v in match.groupdict()},
             **kwargs,
         )
-
-    @classmethod
-    def postprocess(cls: Type[Self], regex_match_dict: dict[str, Any]) -> dict[str, Any]:
-        return regex_match_dict
 
 
 class Message(BaseModel):
@@ -165,7 +158,7 @@ class SweepAgent(SweepChatGPT):
     chatgpt: SweepChatGPT | None = SweepChatGPT()
     system_prompt: str | None = ""
     user_prompt: str | None = ""
-    regex_matchable_base_model: RegexMatchableBaseModel | None = None
+    regex_matchable_base_model: RegexExtractModel | None = None
 
     def handle_task(
         self,
@@ -205,9 +198,7 @@ class SweepAgent(SweepChatGPT):
                 chatgpt_response = self.chat(formatted_prompt)
                 try:
                     serialized_response_object = (
-                        self.regex_matchable_base_model.from_string(
-                            chatgpt_response
-                        )
+                        self.regex_matchable_base_model.from_string(chatgpt_response)
                     )
                 except Exception as e:
                     self.messages.append(
@@ -225,7 +216,7 @@ class SweepAgent(SweepChatGPT):
 
 if __name__ == "__main__":
 
-    class Joke(RegexMatchableBaseModel):
+    class Joke(RegexExtractModel):
         joke: str
         _regex = r"<joke>(?P<joke>.*?)</joke>"
 
@@ -239,16 +230,16 @@ if __name__ == "__main__":
     )
     print(joke_obj.joke)
 
-    class Location(RegexMatchableBaseModel):
-        locations: list[str]
-        _regex = r"<locations>(?P<locations>.*?)</locations>"
-    
-        @classmethod
-        def postprocess(cls: Type[Self], regex_match_dict: dict[str, Any]) -> dict[str, Any]:
-            locations = regex_match_dict["locations"]
-            regex_match_dict["locations"] = [location for location in locations.split("\n") if location]
-            return regex_match_dict
-    
+    class Location(RegexExtractModel):
+        locations_string: str
+        _regex = r"<locations>(?P<locations_string>.*?)</locations>"
+
+        @property
+        def locations(self):
+            return [
+                location for location in self.locations_string.split("\n") if location
+            ]
+
     agent = SweepAgent()
     agent.system_prompt = "You are a geographer."
     agent.user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
