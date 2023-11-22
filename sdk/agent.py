@@ -211,21 +211,6 @@ class SweepAgent(SweepChatGPT, RegexExtractModel):
 
 
 if __name__ == "__main__":
-
-    # class Joke(RegexExtractModel):
-    #     joke: str
-    #     _regex = r"<joke>(?P<joke>.*?)</joke>"
-
-    # agent = SweepAgent()
-    # agent.system_prompt = "You are a comedian."
-    # agent.user_prompt = "Tell me a funny joke marked in <joke>...</joke> tags."
-    # agent.regex_extract_model = Joke
-    # joke_obj = agent.handle_task(
-    #     system_prompt_args=dict(),
-    #     user_prompt_args={"snippets": "snippets", "existing_names": "existing_names"},
-    # )
-    # print(joke_obj.joke)
-
     class ExtractFilesAgent(SweepAgent):
         locations_string: str
         _regex = r"<locations>(?P<locations_string>.*?)</locations>"
