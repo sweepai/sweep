@@ -1,5 +1,4 @@
 import os
-from functools import lru_cache
 import re
 from typing import Any, ClassVar, Literal, Type, TypeVar
 
@@ -99,7 +98,6 @@ class SweepChatGPT(BaseModel):
         )
         return self.messages[-1].content
 
-    @lru_cache()
     def call_openai(
         self,
         model: OpenAIModel | None = None,
