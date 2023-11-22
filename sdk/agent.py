@@ -22,15 +22,15 @@ class RegexMatchableBaseModel(BaseModel):
         match = re.search(cls._regex, string, re.DOTALL)
         if match is None:
             raise Exception(f"Did not match {string} with pattern {cls._regex}")
-        post_processed_match = cls.postprocess(match.groupdict(), **kwargs)
+        post_processed_match = cls.postprocess(regex_match_dict=match.groupdict())
         return cls(
             **{k: (v if v else None) for k, v in post_processed_match.items()},
             **kwargs,
         )
 
     @classmethod
-    def postprocess(cls: Type[Self], obj: Self, **kwargs) -> dict[str, Any]:
-        return obj
+    def postprocess(cls: Type[Self], regex_match_dict: dict[str, Any]) -> dict[str, Any]:
+        return regex_match_dict
 
 
 class Message(BaseModel):
@@ -182,7 +182,7 @@ class SweepAgent(SweepChatGPT):
         chatgpt_response = self.chat(formatted_prompt)
         if self.regex_matchable_base_model:
             serialized_response_object = self.regex_matchable_base_model.from_string(
-                chatgpt_response, **user_prompt_args
+                chatgpt_response
             )
             return serialized_response_object
         return chatgpt_response
@@ -206,7 +206,7 @@ class SweepAgent(SweepChatGPT):
                 try:
                     serialized_response_object = (
                         self.regex_matchable_base_model.from_string(
-                            chatgpt_response, **user_prompt_args
+                            chatgpt_response
                         )
                     )
                 except Exception as e:
@@ -244,10 +244,10 @@ if __name__ == "__main__":
         _regex = r"<locations>(?P<locations>.*?)</locations>"
     
         @classmethod
-        def postprocess(cls: Type[Self], obj: Self, **kwargs) -> dict[str, Any]:
-            locations = obj["locations"]
-            obj["locations"] = [location for location in locations.split("\n") if location]
-            return obj
+        def postprocess(cls: Type[Self], regex_match_dict: dict[str, Any]) -> dict[str, Any]:
+            locations = regex_match_dict["locations"]
+            regex_match_dict["locations"] = [location for location in locations.split("\n") if location]
+            return regex_match_dict
     
     agent = SweepAgent()
     agent.system_prompt = "You are a geographer."
