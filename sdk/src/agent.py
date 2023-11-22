@@ -1,6 +1,6 @@
 import os
 import re
-from typing import ClassVar, Literal, Type, TypeVar
+from typing import ClassVar, Generic, Literal, Type, TypeVar
 
 import backoff
 import openai
@@ -129,6 +129,10 @@ class SweepChatGPT(BaseModel):
         )
         def backoff_openai_call():
             try:
+                openai.api_key = os.environ["OPENAI_API_KEY"]
+                openai.api_base = "https://api.openai.com/v1"
+                openai.api_version = None
+                openai.api_type = "open_ai"
                 openai_response = openai.ChatCompletion.create(
                     model=model,
                     messages=self.messages_dicts,
@@ -154,17 +158,20 @@ class SweepChatGPT(BaseModel):
         return self.messages
 
 
-class SweepAgent(SweepChatGPT):
-    regex_extract_model: ClassVar[Type[RegexExtractModel]] = RegexExtractModel
+R = TypeVar("R", bound="RegexExtractModel")
+
+
+class SweepAgent(SweepChatGPT, Generic[R]):
+    regex_extract_model: ClassVar[Type[R]] = RegexExtractModel
     system_prompt: ClassVar[str] = ""
     user_prompt: ClassVar[str] = ""
 
     def handle_task(
         self,
-        system_prompt_args: dict[str, str],
-        user_prompt_args: dict[str, str],
+        system_prompt_args: dict[str, str] = {},
+        user_prompt_args: dict[str, str] = {},
         **kwargs,
-    ):
+    ) -> R:
         if self.system_prompt:
             formatted_system_prompt = self.system_prompt.format(**system_prompt_args)
             self.messages.append(
@@ -182,7 +189,7 @@ class SweepAgent(SweepChatGPT):
         system_prompt_args: dict[str, str],
         user_prompt_args: dict[str, str],
         **kwargs,
-    ):
+    ) -> R:
         if self.system_prompt:
             formatted_system_prompt = self.system_prompt.format(**system_prompt_args)
             self.messages.append(
@@ -212,6 +219,7 @@ class SweepAgent(SweepChatGPT):
 
 
 if __name__ == "__main__":
+
     class Locations(RegexExtractModel):
         locations_string: str
         _regex = r"<locations>(?P<locations_string>.*?)</locations>"
@@ -229,7 +237,6 @@ if __name__ == "__main__":
 
     find_locations_agent = FindLocationsAgent()
     location_obj = find_locations_agent.handle_task(
-        system_prompt_args=dict(),
         user_prompt_args={"first_location": "NYC", "second_location": "LA"},
     )
     print(location_obj.locations)

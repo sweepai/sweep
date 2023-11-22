@@ -1,4 +1,4 @@
-from __future__ import nested_scopes
+from __future__ import annotations
 
 import json
 import re
@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 import isort
+from pydantic import BaseModel
 
+from sdk.src.agent import SweepAgent
 from sweepai.agents.modify_bot import strip_backticks
 from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
@@ -22,7 +24,6 @@ from sweepai.utils.jedi_utils import (
     setup_jedi_for_file,
     summarize_code,
 )
-from sweepai.utils.regex_utils import xml_pattern
 from sweepai.utils.unittest_utils import (
     fuse_scripts,
     remove_constants_from_imports,
@@ -106,7 +107,7 @@ test_extension_planning_system_prompt = f"""You're an expert Python QA engineer 
 
 {test_extension_planning_format}"""
 
-test_extension_planning_user_prompt = f"""<code_to_test>
+test_extension_planning_user_prompt = f"""{{summarized_parent_class}}<code_to_test>
 {{code_to_test}}
 </code_to_test>
 
@@ -219,6 +220,26 @@ class TestNameOfFullFunctionName(unittest.TestCase):
 additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?P<additional_unit_tests>.*?)(```\n)?</additional_unit_tests>"
 
 
+class TestCases(BaseModel):
+    test_cases: list[str]
+    _regex = r"<test_case>(?P<test_cases_string>.*?)</test_case>"
+
+    @classmethod
+    def from_string(cls, string: str) -> TestCases:
+        test_cases = [
+            match_.group("test_cases_string").strip()
+            for match_ in re.finditer(cls._regex, string, re.DOTALL)
+            if match_.group("test_cases_string").strip()
+        ]
+        return cls(test_cases=test_cases)
+
+
+class TestExtensionPlanner(SweepAgent[TestCases]):
+    regex_extract_model = TestCases
+    system_prompt = test_extension_planning_system_prompt
+    user_prompt = test_extension_planning_user_prompt
+
+
 def skip_last_test(
     test_code: str, message: str = "Skipping due to failing test"
 ) -> str:
@@ -297,10 +318,11 @@ class TestBot(ChatGPT):
         ]
         self.messages.extend(additional_messages)
 
-        test_extension_planner: ChatGPT = ChatGPT.from_system_message_string(
-            test_extension_planning_system_prompt, chat_logger=self.chat_logger
-        )
-        test_extension_planner.messages.extend(additional_messages)
+        # test_extension_planner: ChatGPT = ChatGPT.from_system_message_string(
+        #     test_extension_planning_system_prompt, chat_logger=self.chat_logger
+        # )
+        # test_extension_planner.messages.extend(additional_messages)
+        test_extension_planner = TestExtensionPlanner()
 
         test_extension_creator: ChatGPT = ChatGPT.from_system_message_string(
             test_extension_system_prompt, chat_logger=self.chat_logger
@@ -413,7 +435,11 @@ class TestBot(ChatGPT):
                 changed_files,
             )
 
-            if sandbox_response.error_messages and sandbox_response.success == False:
+            if (
+                sandbox_response
+                and sandbox_response.error_messages
+                and sandbox_response.success == False
+            ):
                 new_extension_tests = self.chat(
                     fix_unit_test_prompt.format(
                         error_message=sandbox_response.error_messages[-1]
@@ -440,22 +466,14 @@ class TestBot(ChatGPT):
                     reason = sandbox_response.error_messages[-1].splitlines()[-1]
                     current_unit_test = skip_last_test(current_unit_test, reason)
 
-            # Check the unit test here and try to fix it
-            extension_plan_results = test_extension_planner.chat(
-                summarized_parent_class
-                + test_extension_planning_user_prompt.format(
-                    code_to_test=function_and_reference.function_code,
-                    current_unit_test=current_unit_test,
-                    method_name=function_and_reference.function_name,
-                )
-            )
-
-            additional_test_cases = [
-                match_.group("test_case")
-                for match_ in re.finditer(
-                    xml_pattern("test_case"), extension_plan_results, re.DOTALL
-                )
-            ]
+            additional_test_cases = test_extension_planner.handle_task(
+                user_prompt_args={
+                    "summarized_parent_class": summarized_parent_class,
+                    "code_to_test": function_and_reference.function_code,
+                    "current_unit_test": current_unit_test,
+                    "method_name": function_and_reference.function_name,
+                }
+            ).test_cases
 
             for test_cases_batch in additional_test_cases[
                 : min(1, len(additional_test_cases))
@@ -500,7 +518,7 @@ class TestBot(ChatGPT):
                         message_key="fix_unit_test_prompt",
                     )
                     new_extension_tests = re.search(
-                        additional_unit_tests_xml_pattern,  # xml_pattern("additional_unit_tests"),
+                        additional_unit_tests_xml_pattern,
                         new_extension_tests,
                         re.DOTALL,
                     )
@@ -570,7 +588,7 @@ class TestBot(ChatGPT):
             table = render_coverage_data(coverage_results, cloned_repo.repo_dir)
             file_change_request.instructions += "\n\n" + table
         else:
-            file_change_request.instructions += f"\n\nTest coverage generation failed with error:\n\n```{sandbox_response.output[-1]}```"
+            file_change_request.instructions += f"\n\nTest coverage generation failed with error:\n\n```{sandbox_response.outputs[-1]}```"
         return final_code
 
     def auto_fix_test(
