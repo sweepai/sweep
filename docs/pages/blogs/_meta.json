@@ -1,4 +1,5 @@
 {
+    "llm-sdk": "🎉 Releasing our Open Source LLM Framework + Playground!",
     "refactor-python": "📝 Large Language Models are Bad at Refactoring Code",
     "openai-proxy": "🕸️ A Simple Proxy for Azure and OpenAI raised our GPT4 TPM limit by 24x",
     "ai-unit-tests": "🧪 Having GPT-4 Iterate on Unit Tests like a Human",
