@@ -9,7 +9,7 @@ from loguru import logger
 from openai.error import RateLimitError
 from pydantic import BaseModel
 
-Self = TypeVar("Self", bound="RegexMatchableBaseModel")
+Self = TypeVar("Self", bound="RegexExtractModel")
 
 
 class RegexExtractModel(BaseModel):
