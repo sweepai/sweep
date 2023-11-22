@@ -103,6 +103,7 @@ class SweepChatGPT(BaseModel):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
+    @lru_cache()
     def call_openai(
         self,
         model: OpenAIModel | None = None,
@@ -139,7 +140,6 @@ class SweepChatGPT(BaseModel):
             max_tries=16,
             jitter=backoff.random_jitter,
         )
-        @lru_cache()
         def backoff_openai_call():
             try:
                 openai_response = openai.ChatCompletion.create(
