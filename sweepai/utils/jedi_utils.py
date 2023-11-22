@@ -72,7 +72,7 @@ def collect_function_definitions(
     function_definitions = list(function_definitions)
     filtered_definitions = []
     for name in function_definitions:
-        if not name.full_name.startswith(package_prefix):
+        if not name.full_name or not name.full_name.startswith(package_prefix):
             continue
         if "site-packages" in str(name.module_path):
             continue
@@ -110,11 +110,11 @@ def get_function_references(function_definition: Name, file_full_path: str):
 # the modifications affect eachother so make sure it's in a loop
 def get_all_defined_functions(script: jedi.Script, tree: ast.Module):
     function_definitions = collect_function_definitions(script=script, tree=tree)
-    # filter out function definitions that are not in the original file
+    # filter out function definitions that are not in the original file by doing an equality check
     function_definitions = [
         fn_def
         for fn_def in function_definitions
-        if fn_def.full_name.startswith(script.get_context().module_name)
+        if fn_def.module_name == script.get_context().module_name
     ]
     return function_definitions
 

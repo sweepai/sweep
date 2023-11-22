@@ -181,6 +181,7 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
 files_to_change_prompt = """\
+# Task:
 Reference and analyze the snippets, repo, and issue to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
 
 Provide a plan to solve the issue, following these rules:
@@ -218,6 +219,7 @@ You MUST follow the following format:
 </plan>"""
 
 extract_files_to_change_prompt = """\
+# Task:
 Create a plan that resolves the user's query and ONLY the user's query under "Issue Title" and "Issue Description", providing your response in the below format:
 <contextual_request_analysis>
 Review each function of each relevant_snippet and analyze the user request to determine if this change should use the refactor or unit test tools.
@@ -234,8 +236,8 @@ If use_tools is True, then generate a plan to use the given tools in this format
 
 <refactor file="file_path_1" destination_module="destination_module" relevant_files="space-separated list of ALL files relevant for modifying file_path_1">
 </refactor>
-<test file="file_path_2" source_file="source_file_to_test" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Unit tests for source_file_to_test, to be written in file_path_2.
+<test file="file_path_2" source_file="file_path_to_test" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Unit tests for the file_path_to_test, to be written in file_path_2.
 * Exact and descriptive instructions for the tests to be created or modified.
 ...
 </test>"""

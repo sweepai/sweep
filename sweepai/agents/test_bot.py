@@ -79,7 +79,7 @@ Unit test that uses the mocked response in the setUp method (and optionally the 
 </code>"""
 
 test_system_prompt = f"""\
-You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format with XML tags:
 
 {test_prompt_response_format}"""
 
@@ -87,7 +87,7 @@ test_user_prompt = rf"""<code_to_test>
 {{code_to_test}}
 </code_to_test>
 
-Write a unit test using the unittest module for the {{method_name}} method. Respond in the following format:
+Write a unit test using the unittest module for the {{method_name}} method. Respond in the following format with XML tags:
 
 {test_prompt_response_format}"""
 
@@ -102,7 +102,7 @@ More cases to unit test.
 ...
 </additional_test_cases>"""
 
-test_extension_planning_system_prompt = f"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+test_extension_planning_system_prompt = f"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format with XML tags:
 
 {test_extension_planning_format}"""
 
@@ -116,7 +116,7 @@ test_extension_planning_user_prompt = f"""<code_to_test>
 ```
 </current_unit_test>
 
-Extend the unit tests using the unittest module for the {{method_name}} method. Respond in the following format:
+Extend the unit tests using the unittest module for the {{method_name}} method. Respond in the following format with XML tags:
 
 {test_extension_planning_format}"""
 
@@ -138,7 +138,7 @@ class TestNameOfFullFunctionName(unittest.TestCase):
 
     # patches
     def test_function_edge_case_name(self, mocks...):
-        ... # the test here
+        # write the test here
 ```
 
 Only use patch in one of these two ways.
@@ -157,19 +157,19 @@ import unittest
 from unittest.mock import patch
 
 class TestNameOfFullFunctionName(unittest.TestCase):
-    ...
+    # copy the setUp code
 
     @patch("module.CONSTANT", "new constant")
     @patch("module.function")
     def test_function_edge_case_name(self, mock_function):
         mock_function.return_value = "forced value"
-        ... # the test here
+        # write the test here
 ```
 
 Only use patch in one of these two ways.
 </additional_unit_tests>"""
 
-test_extension_system_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+test_extension_system_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format with XML tags:
 
 {test_extension_format}"""
 
@@ -188,7 +188,7 @@ test_extension_user_prompt = rf"""<code_to_test>
 Test cases:
 {{test_cases}}
 
-Extend the unit tests using the unittest module for the {{method_name}} method to cover the test cases. Respond in the following format:
+Extend the unit tests using the unittest module for the {{method_name}} method to cover the test cases. Respond in the following format with XML tags:
 
 {test_extension_format}"""
 
@@ -211,7 +211,7 @@ class TestNameOfFullFunctionName(unittest.TestCase):
 
     # patches
     def test_function_edge_case_name(self):
-        ... # the test here
+        # write the test here
 ```
 </additional_unit_tests>
 """
@@ -277,6 +277,10 @@ class TestBot(ChatGPT):
         **kwargs,
     ):
         test_file_path = file_path.replace(".py", "_test.py")
+        # check if this exists
+        existing_test_file = None
+        if cloned_repo and test_file_path in cloned_repo.get_file_list():
+            existing_test_file = cloned_repo.get_file_contents(test_file_path)
         self.model = (
             DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
@@ -313,8 +317,13 @@ class TestBot(ChatGPT):
         remove_constants_from_imports(decomposed_script.imports)
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
-        generated_code_sections = []
-        for fn_def in all_defined_functions[:3]:
+        if len(all_defined_functions) == 0:
+            return f"# Unable to create unit tests for {test_file_path} as corresponding file has no defined classes/functions." if not existing_test_file else existing_test_file
+        generated_code_sections = [] if not existing_test_file else [existing_test_file]
+        attempted_tests = 0
+        for fn_def in all_defined_functions:
+            if attempted_tests > 3:
+                break
             if "__init__" in fn_def.name:
                 continue
             full_file_code = cloned_repo.get_file_contents(file_path)
@@ -343,9 +352,12 @@ class TestBot(ChatGPT):
                     parent_class_definition = script.goto(
                         parent_class_reference.line, parent_class_reference.column
                     )[0]
-                    parent_class_file_contents = open(
-                        parent_class_definition.module_path
-                    ).read()
+                    try:
+                        parent_class_file_contents = open(
+                            parent_class_definition.module_path
+                        ).read()
+                    except:
+                        parent_class_file_contents = ""
                     start, end, parent_class_code = get_function_references(
                         parent_class_definition, ""
                     )
@@ -362,7 +374,7 @@ class TestBot(ChatGPT):
             function_and_reference.function_code = (
                 imports + "\n\n" + function_and_reference.function_code
             )
-            if function_and_reference.function_code.count("\n") < 15:
+            if function_and_reference.function_code.count("\n") < 3:
                 continue
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
             code = f"<original_code>\n{recent_file_contents}</original_code>\n"
@@ -377,7 +389,6 @@ class TestBot(ChatGPT):
                 ),
                 message_key="test_user_prompt",
             )
-
             code_xml_pattern = r"<code>(.*?)```(python)?(?P<code>.*?)(```\n)?</code>"
 
             generated_test = re.search(code_xml_pattern, test_response, re.DOTALL)
@@ -525,6 +536,7 @@ class TestBot(ChatGPT):
                 )
 
             generated_code_sections.append(current_unit_test)
+            attempted_tests += 1
 
         final_code = fuse_scripts(generated_code_sections, do_remove_main=False)
         final_code = add_auto_imports(file_path, cloned_repo.repo_dir, final_code)

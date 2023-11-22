@@ -43,9 +43,11 @@ def remove_constants_from_imports(imports: str) -> str:
 
 def remove_duplicates(seq: list) -> list:
     new_list = []
+    compare_set = set()
     for item in seq:
-        item = item.replace("'", '"')
-        if item not in new_list:
+        normalized_item = item.replace("'", '"')
+        if normalized_item not in compare_set:
+            compare_set.add(normalized_item)
             new_list.append(item)
     return new_list
 

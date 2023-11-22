@@ -182,6 +182,10 @@ class FileChangeRequest(RegexMatchableBaseModel):
         result = super().from_string(string, **kwargs)
         result.filename = result.filename.strip("/")
         result.instructions = result.instructions.replace("\n*", "\n•")
+        if result.source_file:
+            result.source_file = result.source_file.strip()
+            if " " in result.source_file:
+                result.source_file = result.source_file.split(" ")[0]
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
         return result

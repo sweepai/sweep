@@ -788,7 +788,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
 
     @staticmethod
-    @file_cache(ignore_params=["token"])
+    # @file_cache(ignore_params=["token"])
     def run_sandbox(
         repo_url: str,
         file_path: str,
