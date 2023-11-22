@@ -318,7 +318,11 @@ class TestBot(ChatGPT):
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         if len(all_defined_functions) == 0:
-            return f"# Unable to create unit tests for {test_file_path} as corresponding file has no defined classes/functions." if not existing_test_file else existing_test_file
+            return (
+                f"# Unable to create unit tests for {test_file_path} as corresponding file has no defined classes/functions."
+                if not existing_test_file
+                else existing_test_file
+            )
         generated_code_sections = [] if not existing_test_file else [existing_test_file]
         attempted_tests = 0
         for fn_def in all_defined_functions:
@@ -344,6 +348,7 @@ class TestBot(ChatGPT):
                 parent_class_reference = get_parent_class_reference(
                     parent_scope, script
                 )
+                parent_class_definition = None
                 if parent_class_reference is not None:
                     function_and_reference.function_code = (
                         f"class {parent_scope.name}({parent_class_reference.name}):\n    ...\n\n"
@@ -352,6 +357,7 @@ class TestBot(ChatGPT):
                     parent_class_definition = script.goto(
                         parent_class_reference.line, parent_class_reference.column
                     )[0]
+                if parent_class_definition is not None:
                     try:
                         parent_class_file_contents = open(
                             parent_class_definition.module_path
@@ -564,7 +570,7 @@ class TestBot(ChatGPT):
             table = render_coverage_data(coverage_results, cloned_repo.repo_dir)
             file_change_request.instructions += "\n\n" + table
         else:
-            file_change_request.instructions += f"\n\nTest coverage generation failed with error:\n\n```{sandbox_response.error_messages[-1]}```"
+            file_change_request.instructions += f"\n\nTest coverage generation failed with error:\n\n```{sandbox_response.output[-1]}```"
         return final_code
 
     def auto_fix_test(
