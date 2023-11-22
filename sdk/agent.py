@@ -212,7 +212,6 @@ class SweepAgent(SweepChatGPT):
 
 
 if __name__ == "__main__":
-
     class Locations(RegexExtractModel):
         locations_string: str
         _regex = r"<locations>(?P<locations_string>.*?)</locations>"
