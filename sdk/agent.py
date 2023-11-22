@@ -74,7 +74,6 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 
 class SweepChatGPT(BaseModel):
     messages: list[Message] = []
-    prev_message_states: list[list[Message]] = []
     model: OpenAIModel = "gpt-4-0613"
     temperature: float = 0.1
 
@@ -87,20 +86,17 @@ class SweepChatGPT(BaseModel):
         max_tokens: int | None = None,
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
-        model = model or self.model
-        temperature = temperature or self.temperature
         self.messages.append(
             Message(
                 role="assistant",
                 content=self.call_openai(
-                    model=model,
-                    temperature=temperature,
+                    model=model or self.model,
+                    temperature=temperature or self.temperature,
                     requested_max_tokens=max_tokens,
                 ),
                 key=message_key,
             )
         )
-        self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
     @lru_cache()
@@ -162,8 +158,8 @@ class SweepChatGPT(BaseModel):
         return [message.to_openai() for message in self.messages]
 
     def undo_last_message(self):
-        if len(self.prev_message_states) > 0:
-            self.messages = self.prev_message_states.pop()
+        if len(self.messages) > 0:
+            self.messages.pop()
         return self.messages
 
 
