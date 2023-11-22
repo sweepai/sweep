@@ -21,7 +21,7 @@ class RegexExtractModel(BaseModel):
         if match is None:
             raise Exception(f"Did not match {string} with pattern {cls._regex}")
         return cls(
-            **{k: (v if v else None) for k, v in match.groupdict()},
+            **{k: (v if v else None) for k, v in match.groupdict().items()},
             **kwargs,
         )
 
@@ -154,7 +154,8 @@ class SweepChatGPT(BaseModel):
         return self.messages
 
 
-class SweepAgent(SweepChatGPT, RegexExtractModel):
+class SweepAgent(SweepChatGPT):
+    regex_extract_model: ClassVar[Type[RegexExtractModel]] = RegexExtractModel
     system_prompt: ClassVar[str] = ""
     user_prompt: ClassVar[str] = ""
 
@@ -171,7 +172,7 @@ class SweepAgent(SweepChatGPT, RegexExtractModel):
             )
         formatted_prompt = self.user_prompt.format(**user_prompt_args)
         chatgpt_response = self.chat(formatted_prompt)
-        serialized_response_object = self.from_string(
+        serialized_response_object = self.regex_extract_model.from_string(
             chatgpt_response
         )
         return serialized_response_object
@@ -211,11 +212,10 @@ class SweepAgent(SweepChatGPT, RegexExtractModel):
 
 
 if __name__ == "__main__":
-    class ExtractFilesAgent(SweepAgent):
+
+    class Locations(RegexExtractModel):
         locations_string: str
         _regex = r"<locations>(?P<locations_string>.*?)</locations>"
-        system_prompt = "You are a geographer."
-        user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
 
         @property
         def locations(self):
@@ -223,11 +223,13 @@ if __name__ == "__main__":
                 location for location in self.locations_string.split("\n") if location
             ]
 
-    # agent = ExtractFilesAgent()
+    class FindLocationsAgent(SweepAgent):
+        regex_extract_model = Locations
+        system_prompt = "You are a geographer."
+        user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
 
-    # agent.system_prompt = "You are a geographer."
-    # agent.user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
-    location_obj = ExtractFilesAgent.handle_task(
+    find_locations_agent = FindLocationsAgent()
+    location_obj = find_locations_agent.handle_task(
         system_prompt_args=dict(),
         user_prompt_args={"first_location": "NYC", "second_location": "LA"},
     )
