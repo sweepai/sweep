@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from sweepai.config.client import SweepConfig
+import nmslib
 from sweepai.core.lexical_search import search_index
 from sweepai.core.vector_db import (compute_deeplake_vs,
                                     get_deeplake_vs_from_repo,
