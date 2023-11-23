@@ -1,3 +1,5 @@
+from loguru import logger
+
 from sweepai.agents.assistant_wrapper import client, openai_assistant_call
 
 system_message = r"""{user_request}
@@ -33,18 +35,12 @@ prev_lines = current_lines
 ### Modification script
 For each section to change, run one of the following. Prefer modifying the least amount of lines to avoid mistakes:
 
-#### Single-line replace
 ```python
-new_content = "New content goes here".strip("\n")
-current_lines[i] = new_content
-```
-
-#### Multi-line replace
-```python
-new_content = \"\"\"
-New content goes here
-\"\"\".strip("\n")
-current_lines[i:j] = new_content
+# Remember to escape quotations
+old_content = "Old content"
+new_content = "New content"
+assert old_content in current_content
+current_content = current_content.replace(old_content, new_content, count=1) # avoid other accidental changes
 ```
 
 ### Validation
@@ -84,13 +80,18 @@ def new_modify(
     request="Add type hints to this file.",
     file_path="sweepai/agents/complete_code.py",
 ):
-    messages = openai_assistant_call(
-        name="Python Modification Assistant",
-        instructions=system_message.format(user_request=request),
-        file_paths=[file_path],
-    )
-    file_object = messages.data[0].file_ids[0]
-    file_content = client.files.content(file_id=file_object).content.decode("utf-8")
+    try:
+        messages = openai_assistant_call(
+            name="Python Modification Assistant",
+            instructions=system_message.format(user_request=request),
+            file_paths=[file_path],
+        )
+        file_object = messages.data[0].file_ids[0]
+        file_content = client.files.content(file_id=file_object).content.decode("utf-8")
+    except Exception as e:
+        logger.error(e)
+        # TODO: Discord
+        return None
     return file_content
 
 

@@ -3,6 +3,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
+from sweepai.agents.assistant_modify import new_modify
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
@@ -267,6 +268,12 @@ class ModifyBot:
         cloned_repo: ClonedRepo,
         chunking: bool = False,
     ):
+        new_file = new_modify(
+            request=file_change_request.instructions,
+            file_path=file_path,
+        )
+        if new_file is not None:
+            return add_auto_imports(new_file)
         (
             snippet_queries,
             extraction_terms,
