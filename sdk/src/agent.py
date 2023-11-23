@@ -138,7 +138,7 @@ class SweepChatGPT(BaseModel):
                     max_tokens=max_tokens,
                     temperature=temperature,
                 )
-                return openai_response.choices[0]["message"]["content"]
+                return openai_response.choices[0].message.content
             except RateLimitError as e:
                 raise e
             except Exception as e:

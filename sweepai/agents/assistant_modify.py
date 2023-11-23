@@ -1,9 +1,4 @@
-import time
-from pathlib import Path
-
-from openai import OpenAI
-
-from sweepai.config.server import OPENAI_API_KEY
+from sweepai.agents.assistant_wrapper import client, openai_assistant_call
 
 system_message = r"""{user_request}
 
@@ -80,39 +75,24 @@ current_lines = prev_lines
 for line in current_lines:
     print(line)
 ```
+
+Then give me the output and attach the file.
 """
 
-if __name__ == "__main__":
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    request = "Add type hints to this file."
-    file_object = client.files.create(
-        file=Path("sweepai/agents/complete_code.py"), purpose="assistants"
-    )
-    assistant = client.beta.assistants.create(
+
+def new_modify(
+    request="Add type hints to this file.",
+    file_path="sweepai/agents/complete_code.py",
+):
+    messages = openai_assistant_call(
         name="Python Modification Assistant",
         instructions=system_message.format(user_request=request),
-        tools=[{"type": "code_interpreter"}],
-        model="gpt-4-1106-preview",
-        file_ids=[file_object.id],
-    )
-    thread = client.beta.threads.create()
-    run = client.beta.threads.runs.create(
-        thread_id=thread.id,
-        assistant_id=assistant.id,
-    )
-    for _ in range(1200):
-        run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-        if run.status == "completed":
-            break
-        print(run.status)
-        messages = client.beta.threads.messages.list(
-            thread_id=thread.id,
-        )
-        if messages.data:
-            print(messages.data[0])
-        time.sleep(3)
-    messages = client.beta.threads.messages.list(
-        thread_id=thread.id,
+        file_paths=[file_path],
     )
     file_object = messages.data[0].file_ids[0]
     file_content = client.files.content(file_id=file_object).content.decode("utf-8")
+    return file_content
+
+
+if __name__ == "__main__":
+    new_modify()
