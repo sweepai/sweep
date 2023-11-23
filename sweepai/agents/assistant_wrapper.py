@@ -5,10 +5,13 @@ from loguru import logger
 from openai import OpenAI
 
 from sweepai.config.server import OPENAI_API_KEY
+from sweepai.logn.cache import file_cache
+from sweepai.utils.chat_logger import ChatLogger
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
+@file_cache(ignore_params=["chat_logger"])
 def openai_assistant_call(
     name: str,
     instructions: str,
@@ -16,6 +19,7 @@ def openai_assistant_call(
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
     model: str = "gpt-4-1106-preview",
     sleep_time: int = 3,
+    chat_logger: ChatLogger | None = None,
 ):
     file_ids = []
     for file_path in file_paths:
@@ -34,19 +38,33 @@ def openai_assistant_call(
         thread_id=thread.id,
         assistant_id=assistant.id,
     )
-    messages = []
+    message_strings = []
     for _ in range(1200):
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
         if run.status == "completed":
             break
-        logger.info(run.status)
         messages = client.beta.threads.messages.list(
             thread_id=thread.id,
         )
-        current_messages = [message.content[0].text.value for message in messages.data]
-        if messages != current_messages and current_messages:
-            logger.info(current_messages[0])
-            messages = current_messages
+        current_message_strings = [
+            message.content[0].text.value for message in messages.data
+        ]
+        if message_strings != current_message_strings and current_message_strings:
+            logger.info(run.status)
+            logger.info(current_message_strings[0])
+            message_strings = current_message_strings
+            if chat_logger is not None:
+                chat_logger.add_chat(
+                    {
+                        "model": model,
+                        "messages": message_strings[1:],
+                        "output": message_strings[0],
+                        "max_tokens": 1000,
+                        "temperature": 0,
+                    }
+                )
+        else:
+            logger.info(run.status)
         time.sleep(sleep_time)
     messages = client.beta.threads.messages.list(
         thread_id=thread.id,

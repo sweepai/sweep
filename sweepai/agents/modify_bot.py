@@ -268,12 +268,14 @@ class ModifyBot:
         cloned_repo: ClonedRepo,
         chunking: bool = False,
     ):
-        new_file = new_modify(
-            request=file_change_request.instructions,
-            file_path=file_path,
-        )
-        if new_file is not None:
-            return add_auto_imports(new_file)
+        if file_path.endswith(".py"):
+            new_file = new_modify(
+                request=file_change_request.instructions,
+                file_path=file_path,
+                chat_logger=self.chat_logger,
+            )
+            if new_file is not None:
+                return add_auto_imports(new_file, cloned_repo.repo_dir)
         (
             snippet_queries,
             extraction_terms,

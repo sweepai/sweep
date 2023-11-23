@@ -1,6 +1,9 @@
+import traceback
+
 from loguru import logger
 
 from sweepai.agents.assistant_wrapper import client, openai_assistant_call
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
 system_message = r"""{user_request}
 
@@ -22,18 +25,18 @@ current_lines = lines # this will be used later
 ```
 
 ## Step 2: Planning
-Then, identify and list all sections of code that should be modified. Be specific, reference line numbers, and prefer multiple small edits over one large edit. Indicate the minimal amount of lines that need to be modified to complete the task.
+Then, identify and list all sections of code that should be modified. Be specific, reference line numbers, and prefer multiple small edits over one large edit. Indicate the minimal set of lines that need to be modified to complete the task.
 
 ## Step 3: Execution
 
-First make a backup of the current_lines by running
+First make a backup of the current_content by running
 
 ```python
-prev_lines = current_lines
+prev_content = current_content
 ```
 
 ### Modification script
-For each section to change, run one of the following. Prefer modifying the least amount of lines to avoid mistakes:
+For each section to change, run one of the following. Prefer modifying the least amount of lines of code to avoid mistakes:
 
 ```python
 # Remember to escape quotations
@@ -50,50 +53,47 @@ Then review the changes by running
 # Double check the change
 import difflib
 diff = difflib.unified_diff(
-    prev_lines.splitlines(keepends=True), current_lines.splitlines(keepends=True)
+    prev_content, current_content
 )
 
 # Check for valid python
 import ast
-ast.parse("\n".join(lines))
+ast.parse(current_content)
 ```
 
 ### Revert (optional)
 If the change is bad you can revert it by running
 
 ```python
-current_lines = prev_lines
+current_content = prev_content
 # then try making the change again
 ```
 
 ## Step 4: Output
 ```python
-for line in current_lines:
-    print(line)
+print(current_content)
 ```
 
-Then give me the output and attach the file.
-"""
+Then give me the output and attach the file."""
 
 
-def new_modify(
-    request="Add type hints to this file.",
-    file_path="sweepai/agents/complete_code.py",
-):
+def new_modify(request: str, file_path: str, chat_logger: ChatLogger | None = None):
     try:
         messages = openai_assistant_call(
             name="Python Modification Assistant",
             instructions=system_message.format(user_request=request),
             file_paths=[file_path],
+            chat_logger=chat_logger,
         )
         file_object = messages.data[0].file_ids[0]
         file_content = client.files.content(file_id=file_object).content.decode("utf-8")
     except Exception as e:
         logger.error(e)
         # TODO: Discord
+        discord_log_error(e + "\n\n" + traceback.format_exc())
         return None
     return file_content
 
 
 if __name__ == "__main__":
-    new_modify()
+    new_modify("Add type hints to this file.", "sweepai/agents/complete_code.py")
