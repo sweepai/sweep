@@ -33,10 +33,38 @@ leftover comment verbatim from the new_code that mentions incomplete changes lik
 
 
 class LeftoverComments(RegexMatchableBaseModel):
+    """
+    A class used to represent the leftover comments in the code.
+
+    Attributes
+    ----------
+    leftover_comments : list[str]
+        A list of leftover comments extracted from the code.
+
+    Methods
+    -------
+    from_string(leftover_comments_response: str, **kwargs)
+        Extracts leftover comments from the response string.
+    """
     leftover_comments: list[str] = []
 
     @classmethod
     def from_string(cls, leftover_comments_response: str, **kwargs):
+        """
+        Extracts leftover comments from the response string.
+
+        Parameters
+        ----------
+        leftover_comments_response : str
+            The response string from which the leftover comments are to be extracted.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        LeftoverComments
+            An instance of the LeftoverComments class with the extracted leftover comments.
+        """
         leftover_comments = []
         leftover_comments_pattern = (
             r"""<leftover_comment>(\n)?(?P<leftover_comment>.*?)</leftover_comment>"""
@@ -54,7 +82,34 @@ class LeftoverComments(RegexMatchableBaseModel):
 
 
 class ExtractLeftoverComments(ChatGPT):
+    """
+    A class used to extract leftover comments from the code.
+
+    Methods
+    -------
+    extract_leftover_comments(new_code, file_path, request, **kwargs)
+        Extracts leftover comments from the new code.
+    """
     def extract_leftover_comments(self, new_code, file_path, request, **kwargs):
+        """
+        Extracts leftover comments from the new code.
+
+        Parameters
+        ----------
+        new_code : str
+            The new code from which the leftover comments are to be extracted.
+        file_path : str
+            The file path of the new code.
+        request : str
+            The original request for the new code.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        list[str]
+            A list of leftover comments extracted from the new code.
+        """
         try:
             if not check_comments_presence(file_path, new_code):
                 return []
