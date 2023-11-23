@@ -1,5 +1,6 @@
 import re
 import traceback
+import nmslib
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from math import log
@@ -27,6 +28,7 @@ class CustomIndex:
         self.index_document(doc_id, title + content)
 
     def index_document(self, doc_id, content):
+        self.nmslib = nmslib.init(method='hnsw', space='cosinesimil')
         tokens = [token.text for token in self.tokenizer(content)]
         doc_length = len(tokens)
         self.doc_lengths[doc_id] = doc_length
