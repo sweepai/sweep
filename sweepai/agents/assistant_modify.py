@@ -2,7 +2,11 @@ import traceback
 
 from loguru import logger
 
-from sweepai.agents.assistant_wrapper import client, openai_assistant_call
+from sweepai.agents.assistant_wrapper import (
+    client,
+    openai_assistant_call,
+    run_until_complete,
+)
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
 system_message = r"""{user_request}
@@ -79,18 +83,32 @@ Then give me the output and attach the file."""
 
 def new_modify(request: str, file_path: str, chat_logger: ChatLogger | None = None):
     try:
-        messages = openai_assistant_call(
+        response = openai_assistant_call(
             name="Python Modification Assistant",
             instructions=system_message.format(user_request=request),
             file_paths=[file_path],
             chat_logger=chat_logger,
         )
-        file_object = messages.data[0].file_ids[0]
+        messages = response.messages
+        try:
+            file_object = messages.data[0].file_ids[0]
+        except Exception as e:
+            logger.warning(e)
+            run = client.beta.threads.runs.create(
+                thread_id=response.thread_id,
+                assistant_id=response.assistant_id,
+                instructions="Please give me the final file.",
+            )
+            messages = run_until_complete(
+                thread_id=response.thread_id,
+                run_id=run.id,
+            )
+            file_object = messages.data[0].file_ids[0]
         file_content = client.files.content(file_id=file_object).content.decode("utf-8")
     except Exception as e:
-        logger.error(e)
+        logger.exception(e)
         # TODO: Discord
-        discord_log_error(e + "\n\n" + traceback.format_exc())
+        discord_log_error(str(e) + "\n\n" + traceback.format_exc())
         return None
     return file_content
 
