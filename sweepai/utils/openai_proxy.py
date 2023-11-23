@@ -52,7 +52,7 @@ class OpenAIProxy:
                 )
                 response = self.create_openai_chat_completion(
                     engine,
-                    region_url,
+                    OPENAI_API_BASE,
                     AZURE_API_KEY,
                     model,
                     messages,
