@@ -62,7 +62,7 @@ class TestSearchIndex(unittest.TestCase):
         query = [0.1, 0.2, 0.3]
         k = 3
 
-        ids, distances = search_index(data, query, k)
+        ids, distances = search_index(data, query)
 
         self.assertEqual(ids, [1, 2, 3])
         self.assertEqual(distances, [0.1, 0.2, 0.3])
@@ -79,7 +79,7 @@ class TestSearchIndex(unittest.TestCase):
         query = [0.1, 0.2, 0.3]
         k = 3
 
-        ids, distances = search_index(data, query, k)
+        ids, distances = search_index(data, query)
 
         self.assertEqual(ids, [])
         self.assertEqual(distances, [])
