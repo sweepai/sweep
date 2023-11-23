@@ -49,6 +49,7 @@ python-Levenshtein = "0.21.1"
 logtail-python = "^0.2.6"
 
 # Backend dependencies
+nmslib = "^2.1.1"
 fastapi = "^0.94.1"
 uvicorn = "^0.21.0"
 openai = "0.28.1"
