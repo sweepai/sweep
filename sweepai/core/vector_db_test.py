@@ -24,7 +24,7 @@ class TestInitDeeplakeVs(unittest.TestCase):
 
         # Assert
         mock_VectorStore.assert_called_once_with(
-            path="mem://1234567890test_repo", read_only=False, overwrite=False
+            path="mem://1234567890.123456test_repo", read_only=False, overwrite=False
         )
         self.assertEqual(result, mock_VectorStore.return_value)
 
@@ -63,7 +63,6 @@ class TestSearchIndex(unittest.TestCase):
         k = 3
 
         ids, distances = search_index(data, query)
-
         self.assertEqual(ids, [1, 2, 3])
         self.assertEqual(distances, [0.1, 0.2, 0.3])
 
