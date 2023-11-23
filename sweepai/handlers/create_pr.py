@@ -155,7 +155,7 @@ def create_pr_changes(
             },
         )
         raise e
-    except openai.InvalidRequestError as e:
+    except openai.BadRequestError as e:
         logger.error(e)
         posthog.capture(
             username,
