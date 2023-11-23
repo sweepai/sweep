@@ -1,15 +1,17 @@
-import os
 import re
 from typing import ClassVar, Generic, Literal, Type, TypeVar
 
 import backoff
-import openai
 import tiktoken
 from loguru import logger
-from openai.error import RateLimitError
+from openai import OpenAI, RateLimitError
 from pydantic import BaseModel
 
+from sweepai.config.server import OPENAI_API_KEY
+
 Self = TypeVar("Self", bound="RegexExtractModel")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 class RegexExtractModel(BaseModel):
@@ -60,8 +62,6 @@ model_to_max_tokens = {
     "gpt-4-1106-preview": 128000,
     "gpt-4-32k": 32000,
 }
-
-openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
 class SweepChatGPT(BaseModel):
@@ -129,11 +129,10 @@ class SweepChatGPT(BaseModel):
         )
         def backoff_openai_call():
             try:
-                openai.api_key = os.environ["OPENAI_API_KEY"]
-                openai.api_base = "https://api.openai.com/v1"
-                openai.api_version = None
-                openai.api_type = "open_ai"
-                openai_response = openai.ChatCompletion.create(
+                # TODO: The 'openai.api_base' option isn't read in the client API. You will need to pass it when you instantiate the client, e.g. 'OpenAI(api_base="https://api.openai.com/v1")'
+                # openai.api_base = "https://api.openai.com/v1"
+
+                openai_response = client.chat.completions.create(
                     model=model,
                     messages=self.messages_dicts,
                     max_tokens=max_tokens,

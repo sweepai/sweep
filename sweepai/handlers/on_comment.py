@@ -7,7 +7,6 @@ import time
 import traceback
 from typing import Any
 
-import openai
 from logtail import LogtailHandler
 from loguru import logger
 from tabulate import tabulate
@@ -20,7 +19,6 @@ from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
-    OPENAI_API_KEY,
 )
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
@@ -37,8 +35,6 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 from sweepai.utils.search_utils import search_snippets
-
-openai.api_key = OPENAI_API_KEY
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000

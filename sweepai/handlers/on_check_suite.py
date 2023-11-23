@@ -2,20 +2,16 @@
 This module is responsible for handling the check suite event, called from sweepai/api.py
 """
 import io
-import os
 import re
 import time
 import zipfile
 
-import openai
 import requests
 
 from sweepai.config.client import get_gha_enabled
 from sweepai.core.entities import PRChangeRequest
 from sweepai.events import CheckRunCompleted
 from sweepai.utils.github_utils import get_github_client, get_token
-
-openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 log_message = """GitHub actions yielded the following error.
 

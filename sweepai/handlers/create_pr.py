@@ -9,7 +9,6 @@ import openai
 from github.Commit import Commit
 from github.Repository import Repository
 
-from sweepai.agents.sweep_yaml import SweepYamlBot
 from sweepai.config.client import DEFAULT_RULES, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
     ENV,
@@ -18,7 +17,6 @@ from sweepai.config.server import (
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
     MONGODB_URI,
-    OPENAI_API_KEY,
 )
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -32,8 +30,6 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.str_utils import UPDATES_MESSAGE
-
-openai.api_key = OPENAI_API_KEY
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
@@ -159,7 +155,7 @@ def create_pr_changes(
             },
         )
         raise e
-    except openai.error.InvalidRequestError as e:
+    except openai.InvalidRequestError as e:
         logger.error(e)
         posthog.capture(
             username,
