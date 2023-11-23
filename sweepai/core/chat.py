@@ -3,7 +3,7 @@ import traceback
 from typing import Any, Literal
 
 import backoff
-import openai
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from sweepai.config.client import get_description
@@ -23,6 +23,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.utils import Tiktoken
 
 openai_proxy = OpenAIProxy()
+aclient = AsyncOpenAI()
 
 OpenAIModel = (
     Literal["gpt-3.5-turbo"]
@@ -51,9 +52,7 @@ model_to_max_tokens = {
     "gpt-4-32k-0613": 32000,
     "gpt-4-32k": 32000,
 }
-default_temperature = (
-    0.1
-)
+default_temperature = 0.1
 count_tokens = Tiktoken().count
 
 
@@ -243,7 +242,11 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
         max_tokens = min(max_tokens, 4096)
-        max_tokens = min(requested_max_tokens, max_tokens) if requested_max_tokens else max_tokens
+        max_tokens = (
+            min(requested_max_tokens, max_tokens)
+            if requested_max_tokens
+            else max_tokens
+        )
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
@@ -391,7 +394,7 @@ class ChatGPT(BaseModel):
                 token_sub = retry_counter * 200
                 try:
                     output = (
-                        await openai.ChatCompletion.acreate(
+                        await aclient.chat.completions.create(
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens - token_sub,

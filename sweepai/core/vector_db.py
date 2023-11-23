@@ -120,12 +120,14 @@ def embed_texts(texts: tuple[str]):
             )
             return vector
         case "openai":
-            import openai
+            from openai import OpenAI
+
+            client = OpenAI()
 
             embeddings = []
             for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
                 try:
-                    response = openai.Embedding.create(
+                    response = client.embeddings.create(
                         input=batch, model="text-embedding-ada-002"
                     )
                     embeddings.extend([r["embedding"] for r in response["data"]])
@@ -209,7 +211,7 @@ def prepare_documents_metadata_ids(
     for snippet in snippets:
         documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
         metadata = {
-            "file_path": snippet.file_path[len(cloned_repo.cached_dir) + 1:],
+            "file_path": snippet.file_path[len(cloned_repo.cached_dir) + 1 :],
             "start": snippet.start,
             "end": snippet.end,
             "score": files_to_scores[snippet.file_path],

@@ -43,7 +43,6 @@ from sweepai.config.server import (
     IS_SELF_HOSTED,
     LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
-    OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
     SANDBOX_URL,
     WHITELISTED_REPOS,
@@ -104,7 +103,6 @@ from sweepai.utils.ticket_utils import (
 
 # from sandbox.sandbox_utils import Sandbox
 
-openai.api_key = OPENAI_API_KEY
 
 sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping"></a>"""
 
@@ -1327,7 +1325,10 @@ def on_ticket(
             sandbox_passed = None
             for file_change_request in file_change_requests:
                 if file_change_request.change_type == "check":
-                    if file_change_request.sandbox_response and file_change_request.sandbox_response.error_messages:
+                    if (
+                        file_change_request.sandbox_response
+                        and file_change_request.sandbox_response.error_messages
+                    ):
                         sandbox_passed = False
                     elif sandbox_passed is None:
                         sandbox_passed = True
@@ -1436,7 +1437,7 @@ def on_ticket(
             )
             delete_branch = True
             raise e
-        except openai.error.InvalidRequestError as e:
+        except openai.BadRequestError as e:
             logger.error(traceback.format_exc())
             logger.error(e)
             edit_sweep_comment(
