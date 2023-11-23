@@ -1,6 +1,9 @@
 import time
+from pathlib import Path
 
 from openai import OpenAI
+
+from sweepai.config.server import OPENAI_API_KEY
 
 system_message = r"""{user_request}
 
@@ -80,12 +83,17 @@ for line in current_lines:
 """
 
 if __name__ == "__main__":
-    client = OpenAI()
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    request = "Add type hints to this file."
+    file_object = client.files.create(
+        file=Path("sweepai/agents/complete_code.py"), purpose="assistants"
+    )
     assistant = client.beta.assistants.create(
-        name="Math Tutor",
-        instructions="You are a personal coding genius. Print hello world in hello_world.py and write unit tests for it. Be sure to run the tests. Finally, give me hello_world.py.",
+        name="Python Modification Assistant",
+        instructions=system_message.format(user_request=request),
         tools=[{"type": "code_interpreter"}],
         model="gpt-4-1106-preview",
+        file_ids=[file_object.id],
     )
     thread = client.beta.threads.create()
     run = client.beta.threads.runs.create(
@@ -96,9 +104,15 @@ if __name__ == "__main__":
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
         if run.status == "completed":
             break
+        print(run.status)
+        messages = client.beta.threads.messages.list(
+            thread_id=thread.id,
+        )
+        if messages.data:
+            print(messages.data[0])
         time.sleep(3)
     messages = client.beta.threads.messages.list(
         thread_id=thread.id,
     )
-    file_id = messages.data[0].file_ids[0]
-    file_content = client.files.content(file_id=file_id).content.decode("utf-8")
+    file_object = messages.data[0].file_ids[0]
+    file_content = client.files.content(file_id=file_object).content.decode("utf-8")

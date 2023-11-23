@@ -1437,7 +1437,7 @@ def on_ticket(
             )
             delete_branch = True
             raise e
-        except openai.InvalidRequestError as e:
+        except openai.BadRequestError as e:
             logger.error(traceback.format_exc())
             logger.error(e)
             edit_sweep_comment(
