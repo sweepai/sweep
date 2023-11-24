@@ -9,13 +9,14 @@ from sweepai.agents.assistant_wrapper import (
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
-system_message = r"""{user_request}
+system_message = r"""# User Request
+{user_request}
 
 # Instructions
-Modify the attached file to complete the task by writing Python code to make edits to the file.
+Modify the attached file to complete the task by writing Python code to read and make edits to the file.
 
 # Guide
-## Step 1: Reading
+## Step 1: Planning
 First read the file with line numbers by running:
 
 ```python
@@ -24,11 +25,25 @@ with open(file_path, 'r') as file:
     file_content = file.read()
 original_lines = file_content.splitlines()
 for i, line in enumerate(original_lines): # 0-index is better
-    print(f"{{i}}: {{line}}")
-current_lines = lines # this will be used later
+    print(f"{i}: {line}")
+current_content = file_content # this will be used later
 ```
 
-## Step 2: Planning
+If the file is too long, search for keywords or use regex search based on the user request to find relevant lines via
+
+```python
+keywords = ["foo", "bar"]
+relevant_lines = [(i, line) for i, line in enumerate(original_lines)
+                         if any(keyword in line.lower() for keyword in keywords)]
+relevant_lines
+```
+
+Then print, the relevant lines. For example if, the relevant section seems to be between lines i to j:
+
+```python
+original_lines[i:j]
+```
+
 Then, identify and list all sections of code that should be modified. Be specific, reference line numbers, and prefer multiple small edits over one large edit. Indicate the minimal set of lines that need to be modified to complete the task.
 
 ## Step 3: Execution
@@ -47,7 +62,7 @@ For each section to change, run one of the following. Prefer modifying the least
 old_content = "Old content"
 new_content = "New content"
 assert old_content in current_content
-current_content = current_content.replace(old_content, new_content, count=1) # avoid other accidental changes
+current_content = current_content.replace(old_content, new_content, 1) # avoid other accidental changes
 ```
 
 ### Validation
@@ -74,11 +89,22 @@ current_content = prev_content
 ```
 
 ## Step 4: Output
+Make a final review once at the end with:
+
+```python
+import difflib
+diff = difflib.unified_diff(
+    file_content, current_content
+)
+```
+
+And then if everything looks good print the final file:
+
 ```python
 print(current_content)
 ```
 
-Then give me the output and attach the file."""
+Once you are done, give me the output and attach the file."""
 
 
 def new_modify(request: str, file_path: str, chat_logger: ChatLogger | None = None):
