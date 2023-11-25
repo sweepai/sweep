@@ -78,6 +78,7 @@ def openai_assistant_call(
         file_object = client.files.create(file=Path(file_path), purpose="assistants")
         file_ids.append(file_object.id)
 
+    logger.debug(instructions)
     assistant = client.beta.assistants.create(
         name=name,
         instructions=instructions,
