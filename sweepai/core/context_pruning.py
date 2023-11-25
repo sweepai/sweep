@@ -182,48 +182,48 @@ functions = [{
   "parameters": {
     "type": "object",
     "properties": {
-      "symbol": {
+      "file_path": {
         "type": "string",
-        "description": "File or directory to keep"
+        "description": "File or directory to keep."
       }
     },
     "required": [
-      "symbol"
+      "file_path"
     ]
   },
-  "description": "Keep an existing file_path"
+  "description": "Keep an existing file_path. This only works if the file_path is already present in the snippets_in_repo and repo_tree. Unless this is empty, all of the files not listed will be removed from the snippets_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description."
 }, 
 {
   "name": "expand_directory",
   "parameters": {
     "type": "object",
     "properties": {
-      "symbol": {
+      "directory_path": {
         "type": "string",
         "description": "Directory to expand"
       }
     },
     "required": [
-      "symbol"
+      "directory_path"
     ]
   },
-  "description": "Expand an existing directory that is closed."
+  "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets"
 },
 {
   "name": "add_file_path",
   "parameters": {
     "type": "object",
     "properties": {
-      "symbol": {
+      "file_path": {
         "type": "string",
         "description": "Path to add to the current snippets."
       }
     },
     "required": [
-      "symbol"
+      "file_path"
     ]
   },
-  "description": "The most relevant snippet of the file will be added to the current snippets. Do not use this tool to add an existing snippet."
+  "description": "The most relevant snippet of the file will be added to the current snippets. Do not use this tool to add an existing snippet. This only works if the file is not in the current snippets"
 }]
 
 tools = [
@@ -276,6 +276,7 @@ class RepoContextManager:
         return user_prompt
 
     def add_file_paths(self, paths_to_add: list[str]):
+        self.dir_obj.add_file_paths(paths_to_add)
         for file_path in paths_to_add:
             snippet_key = lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
             filtered_snippets = [snippet for snippet in self.snippets if snippet.file_path == file_path]
@@ -286,16 +287,13 @@ class RepoContextManager:
             self.current_top_snippets.append(
                 highest_scoring_snippet
             )
-            path_without_extension = "/".join(file_path.split("/")[:-1])
-            self.dir_obj.expand_directory(path_without_extension) # <- does not work
-            import pdb; pdb.set_trace()
 
 
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
 ):
-    pruning_iterations: int = 5
+    modify_iterations: int = 5
     try:
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
@@ -314,9 +312,8 @@ def get_relevant_context(
         )
         done = modify_context(thread, run, repo_context_manager)
         if done: return repo_context_manager
-        # after completed run
-        for _ in range(pruning_iterations):
-            user_prompt = repo_context_manager.format_context(unformatted_user_prompt=unformatted_user_prompt, query=query,)
+        for _ in range(modify_iterations):
+            user_prompt = repo_context_manager.format_context(unformatted_user_prompt=unformatted_user_prompt, query=query)
             _ = client.beta.threads.messages.create(
                 thread.id,
                 role="user",
@@ -338,10 +335,11 @@ def modify_context(
         run: Run,
         repo_context_manager: RepoContextManager,
     ) -> bool | None:
-    max_iterations: int = 1200
-    paths_to_keep = []
+    max_iterations: int = int(60 * 10 / 0.25) # 10 minutes divided by 0.25 seconds per iteration
+    paths_to_keep = [] # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
+    logger.info(f"Context Management Start:\n current snippet paths: {[snippet.file_path for snippet in repo_context_manager.current_top_snippets]}")
     for _ in range(max_iterations):
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
         if run.status == "completed":
@@ -355,27 +353,26 @@ def modify_context(
         tool_outputs = []
         for tool_call in tool_calls:
             function_input = json.loads(tool_call.function.arguments)
-            valid_path = repo_context_manager.is_path_valid(function_input["symbol"])
+            valid_path = repo_context_manager.is_path_valid(function_input["file_path"] if "file_path" in function_input else function_input["directory_path"])
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
-                    "output": "success" if valid_path else "failure",
+                    "output": "success" if valid_path else "failure, invalid path",
                 }
             )
             if valid_path:
                 if tool_call.function.name == "keep_file_path":
-                    paths_to_keep.append(function_input["symbol"])
+                    paths_to_keep.append(function_input["file_path"])
                 elif tool_call.function.name == "expand_directory":
-                    directories_to_expand.append(function_input["symbol"])
+                    directories_to_expand.append(function_input["directory_path"])
                 elif tool_call.function.name == "add_file_path":
-                    paths_to_add.append(function_input["symbol"])
+                    paths_to_add.append(function_input["file_path"])
         run = client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread.id,
             run_id=run.id,
             tool_outputs=tool_outputs,
         )
-    logger.info(f"Context Management: paths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}")
-    paths_to_add = ["sweepai/handlers/on_comment.py"]
+    logger.info(f"Context Management End:\n paths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}")
     if paths_to_keep: repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
     if directories_to_expand: repo_context_manager.expand_all_directories(directories_to_expand)
     if paths_to_add: repo_context_manager.add_file_paths(paths_to_add)
@@ -386,6 +383,6 @@ if __name__ == "__main__":
     import os
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-    query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot's files to change method"
+    query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md too."
     query, repo_context_manager = prep_snippets(cloned_repo, query)
     rcm = get_relevant_context(query, repo_context_manager)

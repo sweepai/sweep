@@ -119,7 +119,27 @@ class DirectoryTree:
                 expanded_lines.append(line)
             elif line in self.lines:
                 expanded_lines.append(line)
+            # makes this add files too
+            elif line.full_path() in dirs_to_expand:
+                if not line.parent or (line.parent and line.parent.full_path() in dirs_to_expand):
+                    expanded_lines.append(line)
         self.lines = expanded_lines
+    
+    def add_file_paths(self, file_paths):
+        # might be similar to expand_directory
+        parent_dirs = lambda path: [
+            path[: i + 1] for i in range(len(path)) if path[i] == "/"
+        ]
+        dirs_to_expand = set()
+        for file_path in file_paths:
+            file_parent_dirs = parent_dirs(file_path)
+            for dir in file_parent_dirs[::-1]:
+                # skip any that already exist
+                if any(line.full_path().startswith(dir) for line in self.lines):
+                    break
+                dirs_to_expand.add(dir)
+            dirs_to_expand.add(file_path)
+        self.expand_directory(list(dirs_to_expand))
 
     def remove_multiple(self, targets):
         for target in targets:
