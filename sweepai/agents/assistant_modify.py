@@ -104,24 +104,7 @@ If still it looks like lines a:b represent precise and relevant line numbers, gi
 
 Make sure you add 1 since the line numbers include the start and exclude the end. You may not necessarily need multiple spans."""
 
-system_message = r"""# User Request
-{user_request}
-
-# Instructions
-Modify the attached file to complete the task by writing Python code to read and make edits to the file.
-
-# Guide
-## Step 1: Reading
-First setup all the relevant modules and read the relevant lines by running:
-
-```python
-file_path = '/mnt/data/path/to/file'
-with open(file_path, 'r') as file:
-    file_content = file.read()
-original_lines = file_content.splitlines()
-
-### HELPER FUNCTIONS FOR READING CODE
-def print_lines(i, j):
+long_file_helper_functions = r"""def print_lines(i, j):
     start = max(0, i - 10)
     end = min(len(original_lines), j + 10)
 
@@ -148,10 +131,41 @@ def print_lines_with_keywords(keywords):
 
     for i in sorted(expanded_matches):
         print(f"{{i}}: {{original_lines[i]}}")
+"""
 
-### HELPER FUNCTIONS FOR WRITING CODE
+
+short_file_helper_functions = r"""def print_lines(i, j):
+    for index in range(0, len(original_lines)):
+        if index == i:
+            print("\n--- Start of snippet ---")
+        elif index == j:
+            print("--- End of snippet ---\n")
+
+        print(f"{{index}}: {{original_lines[index]}}")
+    print("\n")
+"""
+
+system_message = r"""# User Request
+{user_request}
+
+# Instructions
+Modify the attached file to complete the task by writing Python code to read and make edits to the file.
+
+# Guide
+## Step 1: Reading
+First setup all the relevant modules and read the relevant lines by running:
+
+### HELPER FUNCTIONS TO RUN
+```python
 import difflib
 import ast
+
+file_path = '/mnt/data/path/to/file'
+with open(file_path, 'r') as file:
+    file_content = file.read()
+original_lines = file_content.splitlines()
+
+{helper_functions}
 
 def check_valid_python(code):
     try:
@@ -177,14 +191,14 @@ current_content = file_content # this will be used later
 Then, use the helper functions to determine the minimal set of lines of code to modify to solve the intended task.
 
 ## Step 2: Execution
-First make a backup of the current_content by running
+You will iteratively make small edits. Before making each edit, make a backup of the current_content by running
 
 ```python
 prev_content = current_content
 ```
 
 ### Modification script
-For each section to change, run one of the following. Prefer modifying the least amount of lines of code to avoid mistakes:
+For each section to change, run one of the following. Prefer modifying the least amount of lines of code that accomplishes the task to avoid mistakes:
 
 ```python
 # Remember to escape quotations
@@ -195,7 +209,7 @@ current_content = current_content.replace(old_content, new_content, 1) # avoid o
 ```
 
 ### Validation
-Then review the changes by running
+Then review the changes of the current edit by running
 
 ```python
 # Double check the change
@@ -213,17 +227,15 @@ current_content = prev_content
 # then try making the change again
 ```
 
+Then go back to Step 2 to make the edit. Move to Step 3 once all the edits are completed.
+
 ## Step 3: Output
 Make a final review once at the end with:
 
 ```python
-print_diff(current_content)
-```
-
-And then if everything looks good print the final file:
-
-```python
 print(current_content)
+check_valid_python(current_content)
+print_diff(current_content)
 ```
 
 Once you are done, give me the output and attach the file."""
@@ -257,9 +269,15 @@ def new_modify(
 ):
     try:
         # relevant_lines = code_file_search(request, file_path, chat_logger)
+        file_content = open(file_path, "r").read()
         response = openai_assistant_call(
             name="Python Code Modification Assistant",
-            instructions=system_message.format(user_request=request),
+            instructions=system_message.format(
+                user_request=request,
+                helper_functions=short_file_helper_functions
+                if len(file_content.splitlines()) < 100
+                else long_file_helper_functions,
+            ),
             additional_messages=additional_messages,
             file_paths=[file_path],
             chat_logger=chat_logger,

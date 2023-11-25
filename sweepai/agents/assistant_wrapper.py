@@ -51,6 +51,7 @@ def run_until_complete(
                         "model": model,
                         "messages": message_strings[1:],
                         "output": message_strings[0],
+                        "thread_id": thread_id,
                         "max_tokens": 1000,
                         "temperature": 0,
                     }
