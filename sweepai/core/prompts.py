@@ -189,14 +189,12 @@ Provide a plan to solve the issue, following these rules:
 * Include the full path (e.g. src/main.py and not just main.py), using the repo_tree for reference.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Each <modify> section in the plan should correspond to a GitHub commit and be at most 4 sentences. If the section would be larger, split it up into two or more sections.
 
 You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
 * Outline the ideal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
-* Identify whether this is a large change that requires multiple <modify></modify> sections.
 * Describe each <create> and <modify> section in the following plan and why it will be needed.
 ...
 </contextual_request_analysis>

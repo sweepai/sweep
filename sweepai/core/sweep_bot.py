@@ -53,7 +53,6 @@ from sweepai.core.prompts import (
     snippet_replacement_system_message,
     subissues_prompt,
 )
-from sweepai.logn.cache import file_cache
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
@@ -899,7 +898,12 @@ class SweepBot(CodeGenBot, GithubBot):
                         ).decoded_content.decode("utf-8")
                     )
                 except Exception as e:
-                    relevant_files_contents.append("File not found")
+                    for file_path, (old_contents, new_contents) in changed_files:
+                        if file_path == file_path:
+                            relevant_files_contents.append(new_contents)
+                            break
+                    else:
+                        relevant_files_contents.append("File not found")
             if relevant_files_contents:
                 relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
                     [
@@ -1074,7 +1078,12 @@ class SweepBot(CodeGenBot, GithubBot):
                             self.get_contents(file_path).decoded_content.decode("utf-8")
                         )
                     except Exception as e:
-                        relevant_files_contents.append("File not found")
+                        for file_path, (old_contents, new_contents) in changed_files:
+                            if file_path == file_path:
+                                relevant_files_contents.append(new_contents)
+                                break
+                        else:
+                            relevant_files_contents.append("File not found")
                 if relevant_files_contents:
                     relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
                         [

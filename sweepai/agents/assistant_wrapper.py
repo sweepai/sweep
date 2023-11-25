@@ -35,6 +35,8 @@ def run_until_complete(
         run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
         if run.status == "completed":
             break
+        if run.status == "failed":
+            raise Exception("Run failed")
         messages = client.beta.threads.messages.list(
             thread_id=thread_id,
         )
@@ -52,6 +54,7 @@ def run_until_complete(
                         "messages": message_strings[1:],
                         "output": message_strings[0],
                         "thread_id": thread_id,
+                        "run_id": run_id,
                         "max_tokens": 1000,
                         "temperature": 0,
                     }
