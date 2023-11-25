@@ -295,6 +295,7 @@ def new_modify(
             messages = run_until_complete(
                 thread_id=response.thread_id,
                 run_id=run.id,
+                assistant_id=response.assistant_id,
             )
             file_object = messages.data[0].file_ids[0]
         file_content = client.files.content(file_id=file_object).content.decode("utf-8")
@@ -308,7 +309,8 @@ def new_modify(
 
 if __name__ == "__main__":
     # code_file_search("Add type hints to this file.", "sweepai/agents/complete_code.py")
-    code_file_search(
+    new_modify(
         "Move the payment-related messaging section (it's a 20-line section of code) out of on_ticket.py into a separate function at the end of the file",
         "sweepai/handlers/on_ticket.py",
+        chat_logger=ChatLogger({"username": "kevinlu1248"}),
     )

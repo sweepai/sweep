@@ -25,44 +25,64 @@ class AssistantResponse(BaseModel):
 def run_until_complete(
     thread_id: str,
     run_id: str,
+    assistant_id: str,
     model: str = "gpt-4-1106-preview",
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
     max_iterations: int = 1200,
 ):
     message_strings = []
-    for i in range(max_iterations):
-        run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        if run.status == "completed":
-            break
-        if run.status == "failed":
-            raise Exception("Run failed")
-        messages = client.beta.threads.messages.list(
-            thread_id=thread_id,
-        )
-        current_message_strings = [
-            message.content[0].text.value for message in messages.data
-        ]
-        if message_strings != current_message_strings and current_message_strings:
-            logger.info(run.status)
-            logger.info(current_message_strings[0])
-            message_strings = current_message_strings
-            if chat_logger is not None:
-                chat_logger.add_chat(
-                    {
-                        "model": model,
-                        "messages": message_strings[1:],
-                        "output": message_strings[0],
-                        "thread_id": thread_id,
-                        "run_id": run_id,
-                        "max_tokens": 1000,
-                        "temperature": 0,
-                    }
-                )
-        else:
-            if i % 10 == 0:
+    try:
+        for i in range(max_iterations):
+            run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
+            if run.status == "completed":
+                break
+            if run.status == "failed":
+                raise Exception("Run failed")
+            messages = client.beta.threads.messages.list(
+                thread_id=thread_id,
+            )
+            current_message_strings = [
+                message.content[0].text.value for message in messages.data
+            ]
+            if message_strings != current_message_strings and current_message_strings:
                 logger.info(run.status)
-        time.sleep(sleep_time)
+                logger.info(current_message_strings[0])
+                message_strings = current_message_strings
+                if chat_logger is not None:
+                    assistant = client.beta.assistants.retrieve(
+                        assistant_id=assistant_id
+                    )
+                    system_message_json = {
+                        "role": "system",
+                        "content": assistant.instructions,
+                    }
+                    messages_json = [system_message_json] + [
+                        {
+                            "role": message.role,
+                            "content": message.content[0].text.value,
+                        }
+                        for message in messages.data[:0:-1]
+                    ]
+                    chat_logger.add_chat(
+                        {
+                            "model": model,
+                            "messages": messages_json,
+                            "output": message_strings[0],
+                            "thread_id": thread_id,
+                            "run_id": run_id,
+                            "max_tokens": 1000,
+                            "temperature": 0,
+                        }
+                    )
+            else:
+                if i % 10 == 0:
+                    logger.info(run.status)
+            time.sleep(sleep_time)
+    except (KeyboardInterrupt, SystemExit):
+        client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
+        logger.warning(f"Run cancelled: {run_id}")
+        raise SystemExit
     return client.beta.threads.messages.list(
         thread_id=thread_id,
     )
@@ -108,6 +128,7 @@ def openai_assistant_call(
         run_id=run.id,
         model=model,
         chat_logger=chat_logger,
+        assistant_id=assistant.id,
         sleep_time=sleep_time,
     )
     return AssistantResponse(
