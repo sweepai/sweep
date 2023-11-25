@@ -324,6 +324,13 @@ def get_relevant_context(
                 assistant_id=assistant.id,
             )
             done = modify_context(thread, run, repo_context_manager)
+            messages = client.beta.threads.messages.list(
+                thread_id=thread.id,
+            )
+            current_message = "\n".join([
+                message.content[0].text.value for message in messages.data
+            ])
+            logger.info(f"Output from OpenAI Assistant: {current_message}")
             if done: break
         return repo_context_manager
     except Exception as e:
@@ -339,7 +346,7 @@ def modify_context(
     paths_to_keep = [] # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
-    logger.info(f"Context Management Start:\n current snippet paths: {[snippet.file_path for snippet in repo_context_manager.current_top_snippets]}")
+    logger.info(f"Context Management Start:\ncurrent snippet paths: {[snippet.file_path for snippet in repo_context_manager.current_top_snippets]}")
     for _ in range(max_iterations):
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
         if run.status == "completed":
@@ -372,7 +379,7 @@ def modify_context(
             run_id=run.id,
             tool_outputs=tool_outputs,
         )
-    logger.info(f"Context Management End:\n paths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}")
+    logger.info(f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}")
     if paths_to_keep: repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
     if directories_to_expand: repo_context_manager.expand_all_directories(directories_to_expand)
     if paths_to_add: repo_context_manager.add_file_paths(paths_to_add)
@@ -384,5 +391,5 @@ if __name__ == "__main__":
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
     query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md too."
-    query, repo_context_manager = prep_snippets(cloned_repo, query)
+    repo_context_manager = prep_snippets(cloned_repo, query)
     rcm = get_relevant_context(query, repo_context_manager)

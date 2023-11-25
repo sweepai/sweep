@@ -4,7 +4,7 @@ from time import time
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.context_pruning import RepoContextManager
+from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
 from sweepai.core.vector_db import prepare_lexical_search_index
@@ -62,7 +62,7 @@ def prep_snippets(
         snippets=snippets,
         snippet_scores=content_to_lexical_score,
     )
-    return query, repo_context_manager
+    return repo_context_manager
 
 def fetch_relevant_files(
     cloned_repo,
@@ -80,12 +80,13 @@ def fetch_relevant_files(
 ):
     logger.info("Fetching relevant files...")
     try:
-        snippets, tree, dir_obj = search_snippets(
-            cloned_repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-        )
-        assert len(snippets) > 0
+        search_query = (title + summary + replies_text).strip("\n")
+        formatted_query = (f"### Title:\n{title}\n### Summary:\n{summary}" + f"\n{replies_text}" if replies_text else "").strip("\n")
+        repo_context_manager = prep_snippets(cloned_repo, search_query)
+        repo_context_manager = get_relevant_context(formatted_query, repo_context_manager)
+        snippets = repo_context_manager.current_top_snippets
+        tree = str(repo_context_manager.dir_obj)
+        dir_obj = repo_context_manager.dir_obj
     except SystemExit:
         logger.warning("System exit")
         posthog.capture(

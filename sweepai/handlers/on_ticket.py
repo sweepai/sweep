@@ -732,7 +732,7 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        snippets, tree, dir_obj = fetch_relevant_files(
+        snippets, tree, _ = fetch_relevant_files(
             cloned_repo,
             title,
             summary,
@@ -750,9 +750,9 @@ def on_ticket(
         # Fetch git commit history
         commit_history = cloned_repo.get_commit_history(username=username)
 
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=2 if use_faster_model else 5
-        )
+        # snippets = post_process_snippets(
+        #     snippets, max_num_of_snippets=2 if use_faster_model else 5
+        # )
         if not repo_description:
             repo_description = "No description provided."
 
@@ -773,36 +773,36 @@ def on_ticket(
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
 
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-            commit_history=commit_history,
-        )
+        # human_message = HumanMessagePrompt(
+        #     repo_name=repo_name,
+        #     issue_url=issue_url,
+        #     username=username,
+        #     repo_description=repo_description.strip(),
+        #     title=title,
+        #     summary=message_summary,
+        #     snippets=snippets,
+        #     tree=tree,
+        #     commit_history=commit_history,
+        # )
 
-        context_pruning = ContextPruning(chat_logger=chat_logger)
-        (
-            paths_to_keep,
-            directories_to_expand,
-        ) = context_pruning.prune_context(human_message, repo=repo, g=g)
+        # context_pruning = ContextPruning(chat_logger=chat_logger)
+        # (
+        #     paths_to_keep,
+        #     directories_to_expand,
+        # ) = context_pruning.prune_context(human_message, repo=repo, g=g)
 
-        if paths_to_keep:
-            snippets = [
-                snippet
-                for snippet in snippets
-                if any(
-                    path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
-                    for path_to_keep in paths_to_keep
-                )
-            ]
-            dir_obj.remove_all_not_included(paths_to_keep)
-        dir_obj.expand_directory(directories_to_expand)
-        tree = str(dir_obj)
+        # if paths_to_keep:
+        #     snippets = [
+        #         snippet
+        #         for snippet in snippets
+        #         if any(
+        #             path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
+        #             for path_to_keep in paths_to_keep
+        #         )
+        #     ]
+        #     dir_obj.remove_all_not_included(paths_to_keep)
+        # dir_obj.expand_directory(directories_to_expand)
+        # tree = str(dir_obj)
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
             issue_url=issue_url,
