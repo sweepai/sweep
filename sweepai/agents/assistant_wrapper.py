@@ -8,6 +8,7 @@ from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
 from sweepai.config.server import OPENAI_API_KEY
+from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 
@@ -67,6 +68,7 @@ def run_until_complete(
 def openai_assistant_call(
     name: str,
     instructions: str,
+    additional_messages: list[Message] = [],
     file_paths: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
     model: str = "gpt-4-1106-preview",
@@ -87,6 +89,12 @@ def openai_assistant_call(
         file_ids=file_ids,
     )
     thread = client.beta.threads.create()
+    for message in additional_messages:
+        client.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=message.content,
+        )
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id,

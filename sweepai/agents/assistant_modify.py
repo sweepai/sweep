@@ -7,6 +7,7 @@ from sweepai.agents.assistant_wrapper import (
     openai_assistant_call,
     run_until_complete,
 )
+from sweepai.core.entities import Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.regex_utils import search_xml
 
@@ -113,14 +114,44 @@ Modify the attached file to complete the task by writing Python code to read and
 ## Step 1: Reading
 First setup all the relevant modules and read the relevant lines by running:
 
-### SETUP CODE TO RUN
 ```python
-import difflib
-import ast
-
 file_path = '/mnt/data/path/to/file'
 with open(file_path, 'r') as file:
     file_content = file.read()
+original_lines = file_content.splitlines()
+
+### HELPER FUNCTIONS FOR READING CODE
+def print_lines(i, j):
+    start = max(0, i - 10)
+    end = min(len(original_lines), j + 10)
+
+    for index in range(start, end):
+        if index == i:
+            print("\n--- Start of snippet ---")
+        elif index == j:
+            print("--- End of snippet ---\n")
+
+        print(f"{{index}}: {{original_lines[index]}}")
+    print("\n")
+
+def print_lines_with_keywords(keywords):
+    context = 10
+
+    matches = [i for i, line in enumerate(original_lines) if any(keyword in line.lower() for keyword in keywords)]
+    expanded_matches = set()
+
+    for match in matches:
+        start = max(0, match - context)
+        end = min(len(original_lines), match + context + 1)
+        for i in range(start, end):
+            expanded_matches.add(i)
+
+    for i in sorted(expanded_matches):
+        print(f"{{i}}: {{original_lines[i]}}")
+
+### HELPER FUNCTIONS FOR WRITING CODE
+import difflib
+import ast
 
 def check_valid_python(code):
     try:
@@ -140,14 +171,12 @@ def set_indentation(code, indent_size=4):
     min_indent = min(len(line) - len(line.lstrip()) for line in lines)
     return '\n'.join(' ' * indent_size + line[min_indent:] for line in lines)
 
-original_lines = file_content.splitlines()
-for i, line in enumerate(original_lines[i:j], i): # 0-index is better
-    print(f"{{i}}: {{line}}")
 current_content = file_content # this will be used later
 ```
 
-## Step 2: Execution
+Then, use the helper functions to determine the minimal set of lines of code to modify to solve the intended task.
 
+## Step 2: Execution
 First make a backup of the current_content by running
 
 ```python
@@ -220,18 +249,18 @@ def code_file_search(
     return relevant_lines
 
 
-def new_modify(request: str, file_path: str, chat_logger: ChatLogger | None = None):
+def new_modify(
+    request: str,
+    file_path: str,
+    additional_messages: list[Message] = [],
+    chat_logger: ChatLogger | None = None,
+):
     try:
-        relevant_lines = code_file_search(request, file_path, chat_logger)
+        # relevant_lines = code_file_search(request, file_path, chat_logger)
         response = openai_assistant_call(
             name="Python Code Modification Assistant",
-            instructions=system_message.format(
-                user_request=request
-                + "\n\nThe following edits should be made:\n\n"
-                + relevant_lines
-                + "\n\n"
-                + "But you may make edits elsewhere."
-            ),
+            instructions=system_message.format(user_request=request),
+            additional_messages=additional_messages,
             file_paths=[file_path],
             chat_logger=chat_logger,
         )
@@ -261,7 +290,7 @@ def new_modify(request: str, file_path: str, chat_logger: ChatLogger | None = No
 
 if __name__ == "__main__":
     # code_file_search("Add type hints to this file.", "sweepai/agents/complete_code.py")
-    new_modify(
+    code_file_search(
         "Move the payment-related messaging section (it's a 20-line section of code) out of on_ticket.py into a separate function at the end of the file",
         "sweepai/handlers/on_ticket.py",
     )
