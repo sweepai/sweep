@@ -275,7 +275,7 @@ class ModifyBot:
                 chat_logger=self.chat_logger,
             )
             if new_file is not None:
-                return add_auto_imports(new_file, cloned_repo.repo_dir)
+                return add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
         (
             snippet_queries,
             extraction_terms,
@@ -329,7 +329,7 @@ class ModifyBot:
                     chunking=chunking,
                     analysis_and_identification=analysis_and_identification,
                 )
-        new_file = add_auto_imports(cloned_repo.repo_dir, file_path, new_file)
+        new_file = add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
         return new_file
 
     def get_snippets_to_modify(
