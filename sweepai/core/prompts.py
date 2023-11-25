@@ -204,14 +204,14 @@ You MUST follow the following format with XML tags:
 # Plan:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Exact instructions for creating the new file needed to solve the issue
+* Instructions for creating the new file needed to solve the issue
 * Include references to all files, imports and entity names
 ...
 </create>
 ...
 
 <modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Exact instructions for the modifications needed to solve the issue. Be exact and mention references to all files, imports and entity names.
+* Instructions for the modifications needed to solve the issue. Be concise and mention references to all files, imports and entity names.
 ...
 </modify>
 ...

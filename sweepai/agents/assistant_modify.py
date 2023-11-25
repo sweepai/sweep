@@ -20,6 +20,7 @@ Find the relevant lines in the attached file to complete the task by executing P
 ## Step 1: Reading and Setup
 First, read the file and set up helper functions by running:
 
+### SETUP CODE TO RUN
 ```python
 file_path = '/mnt/data/path/to/file'
 with open(file_path, 'r') as file:
@@ -32,9 +33,9 @@ def print_lines(i, j):
 
     for index in range(start, end):
         if index == i:
-            print("--- Start of snippet ---")
+            print("\n--- Start of snippet ---")
         elif index == j:
-            print("--- End of snippet ---")
+            print("--- End of snippet ---\n")
 
         print(f"{{index}}: {{original_lines[index]}}")
     print("\n")
@@ -61,11 +62,13 @@ len(original_lines)
 ## Step 1: Iterative Search
 Then search for keywords or use regex search based on the user request to find relevant lines via
 
+### Keyword Search
 ```python
 keywords = ["foo", "bar"]
 print_lines_with_keywords(keywords)
 ```
 
+### Viewing Spans
 Then for each potentially relevant section, print the surrounding lines and determine if they are actually relevant.
 
 ```python
@@ -73,28 +76,32 @@ print_lines(a - 20, b + 20)
 print_lines(c - 20, d + 20)
 ```
 
-If necessary, re-run this with bigger spans on lines that seem more relevant.
+Ensure that the code between "--- Start of snippet ---" and "--- End of snippet ---" is valid code and doesn't break the syntax.
+
+If necessary, re-run either steps with bigger spans on lines or other keywords.
 
 ## Step 3: Review Final Answer
-Finally, identify and list the minimal precise lines of code that should be modified to complete the task and prefer multiple small edits over one large edit.
+Finally, identify and list the minimal precise lines of code that should be modified to complete the task. Prefer multiple small edits over one large edit.
 
+### Validate Answer
 Before submitting the final answer, double-check the surrounding lines. If a:b seems relevant, check for the surrounding potentially relevant sections, and check that lines a:b represent coherent unfragmented code
 
 ```python
 print_lines(a, b)
 ```
 
-If still it looks like lines a:b represent precisely relevant line numbers, give me the output in the following format:
+### Answer Format
+If still it looks like lines a:b represent precise and relevant line numbers, give me the output in the following format:
 
 ```xml
 <relevant_lines>
-- lines a:b - change foo to bar
-- line c:d - add baz
+- lines a:b+1 - change foo to bar
+- line c:d+1 - add baz
 ...
 </relevant_lines>
 ```
 
-You may not necessarily need multiple spans."""
+Make sure you add 1 since the line numbers include the start and exclude the end. You may not necessarily need multiple spans."""
 
 system_message = r"""# User Request
 {user_request}
@@ -106,6 +113,7 @@ Modify the attached file to complete the task by writing Python code to read and
 ## Step 1: Reading
 First setup all the relevant modules and read the relevant lines by running:
 
+### SETUP CODE TO RUN
 ```python
 import difflib
 import ast
