@@ -371,7 +371,7 @@ file_name: "{filename}"
 
 # Format
 
-Respond in the following XML format:
+You MUST respond in the following XML format:
 
 <contextual_request_analysis>
 Concisely analyze the request and list step-by-step thoughts on what to create in each section, with low-level, detailed references to functions, variables, and imports to create, and what each function does. Be as explicit and specific as possible.
