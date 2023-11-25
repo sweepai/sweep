@@ -746,9 +746,8 @@ def on_ticket(
             is_consumer_tier,
             issue_url,
         )
-
         # Fetch git commit history
-        commit_history = cloned_repo.get_commit_history(username=username)
+        # commit_history = cloned_repo.get_commit_history(username=username)
 
         # snippets = post_process_snippets(
         #     snippets, max_num_of_snippets=2 if use_faster_model else 5
@@ -812,7 +811,6 @@ def on_ticket(
             summary=message_summary,
             snippets=snippets,
             tree=tree,
-            commit_history=commit_history,
         )
 
         _user_token, g = get_github_client(installation_id)
