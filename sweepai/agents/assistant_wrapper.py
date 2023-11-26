@@ -22,6 +22,57 @@ class AssistantResponse(BaseModel):
     thread_id: str
 
 
+def get_json_messages(
+    thread_id: str,
+    run_id: str,
+    assistant_id: str,
+):
+    assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
+    system_message_json = {
+        "role": "system",
+        "content": assistant.instructions,
+    }
+    messages_json = [system_message_json]
+    for message_obj in list(
+        client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id).data
+    )[::-1]:
+        if message_obj.type == "message_creation":
+            message_id = message_obj.step_details.message_creation.message_id
+            message_content = (
+                client.beta.threads.messages.retrieve(
+                    message_id=message_id, thread_id=thread_id
+                )
+                .content[0]
+                .text.value
+            )
+            messages_json.append(
+                {
+                    "role": "assistant",
+                    "content": message_content,
+                }
+            )
+            # TODO: handle annotations
+        elif message_obj.type == "tool_calls":
+            code_interpreter = message_obj.step_details.tool_calls[0].code_interpreter
+            input_ = code_interpreter.input
+            if not input_:
+                continue
+            messages_json.append(
+                {
+                    "role": "assistant",
+                    "content": f"Code interpreter input:\n```\n{input_}\n```",
+                }
+            )
+            outputs = code_interpreter.outputs
+            output = outputs[0].logs if outputs else "__No output__"
+            messages_json.append(
+                {
+                    "role": "user",
+                    "content": f"Code interpreter output:\n```\n{output}\n```",
+                }
+            )
+
+
 def run_until_complete(
     thread_id: str,
     run_id: str,
@@ -50,24 +101,14 @@ def run_until_complete(
                 logger.info(current_message_strings[0])
                 message_strings = current_message_strings
                 if chat_logger is not None:
-                    assistant = client.beta.assistants.retrieve(
-                        assistant_id=assistant_id
-                    )
-                    system_message_json = {
-                        "role": "system",
-                        "content": assistant.instructions,
-                    }
-                    messages_json = [system_message_json] + [
-                        {
-                            "role": message.role,
-                            "content": message.content[0].text.value,
-                        }
-                        for message in messages.data[:0:-1]
-                    ]
                     chat_logger.add_chat(
                         {
                             "model": model,
-                            "messages": messages_json,
+                            "messages": get_json_messages(
+                                thread_id=thread_id,
+                                run_id=run_id,
+                                assistant_id=assistant_id,
+                            ),
                             "output": message_strings[0],
                             "thread_id": thread_id,
                             "run_id": run_id,

@@ -143,6 +143,10 @@ short_file_helper_functions = r"""def print_lines(i, j):
 
         print(f"{{index}}: {{original_lines[index]}}")
     print("\n")
+
+# Print all lines initially
+for i, line in enumerate(original_lines):
+    print(f"{{i}}: {{line}}")
 """
 
 system_message = r"""# User Request
