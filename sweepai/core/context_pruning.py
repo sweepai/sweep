@@ -141,7 +141,7 @@ Propose the most important paths with a justification.
 </contextual_request_analysis>
 Then get the most relevant files to solve the task using the keep_file_path, add_file_path, and expand_directory tools."""
 
-unformatted_user_prompt = """
+unformatted_user_prompt = """\
 <snippets_in_repo>
 {snippets_in_repo}
 </snippets_in_repo>
@@ -184,7 +184,7 @@ functions = [{
       "file_path"
     ]
   },
-  "description": "Keep an existing file_path. This only works if the file_path is already present in the snippets_in_repo and repo_tree. Unless this is empty, all of the files not listed will be removed from the snippets_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description."
+  "description": "Keep an existing file_path that you are certain is relevant to solving the user request. This only works if the file_path is already present in the snippets_in_repo and repo_tree. Unless this is empty, all of the files not listed will be removed from the snippets_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description."
 }, 
 {
   "name": "expand_directory",
@@ -200,7 +200,7 @@ functions = [{
       "directory_path"
     ]
   },
-  "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets"
+  "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets."
 },
 {
   "name": "add_file_path",
@@ -216,7 +216,7 @@ functions = [{
       "file_path"
     ]
   },
-  "description": "The most relevant snippet of the file will be added to the current snippets. Do not use this tool to add an existing snippet. This only works if the file is not in the current snippets"
+  "description": "The most relevant snippet of the file will be added to the current snippets. Do not use this tool to add an existing snippet. This only works if the file is not in the current snippets."
 }]
 
 tools = [
