@@ -18,6 +18,7 @@ from sweepai.utils.str_utils import (
     total_number_of_snippet_tokens,
 )
 
+
 @file_cache()
 def prep_snippets(
     cloned_repo: ClonedRepo,

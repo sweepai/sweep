@@ -1,27 +1,20 @@
-from ast import Break
 import json
 import re
 import time
 
 from attr import dataclass
-from sweepai.agents.assistant_wrapper import (
-    client,
-)
+from loguru import logger
+from openai.types.beta.thread import Thread
+from openai.types.beta.threads.run import Run
 
+from sweepai.agents.assistant_wrapper import client
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
-from sweepai.core.lexical_search import search_index
 from sweepai.core.prompts import system_message_prompt
-from loguru import logger
-from sweepai.core.vector_db import prepare_lexical_search_index
-from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.tree_utils import DirectoryTree
-from openai.types.beta.threads.run import Run
-from openai.types.beta.thread import Thread
-
 
 system_message_prompt = """\
 You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
@@ -386,8 +379,9 @@ def modify_context(
     return not (paths_to_keep or directories_to_expand or paths_to_add)
 
 if __name__ == "__main__":
-    from sweepai.utils.ticket_utils import prep_snippets
     import os
+
+    from sweepai.utils.ticket_utils import prep_snippets
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
     query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md too."
