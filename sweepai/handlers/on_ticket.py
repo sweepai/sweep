@@ -1271,7 +1271,6 @@ def on_ticket(
                     lint_output,
                     plan,
                     chat_logger,
-                    commit_history,
                     review_message,
                     edit_sweep_comment,
                     repo_full_name,
@@ -1562,7 +1561,6 @@ def review_code(
     lint_output,
     plan,
     chat_logger,
-    commit_history,
     review_message,
     edit_sweep_comment,
     repo_full_name,
@@ -1584,7 +1582,6 @@ def review_code(
             lint_output=lint_output,
             plan=plan,  # plan for the PR
             chat_logger=chat_logger,
-            commit_history=commit_history,
         )
         lint_output = None
         review_message += (
