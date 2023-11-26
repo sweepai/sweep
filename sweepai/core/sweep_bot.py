@@ -244,8 +244,6 @@ class CodeGenBot(ChatGPT):
                             file_change_request = FileChangeRequest.from_string(
                                 re_match.group(0)
                             )
-                            # if file_change_request.change_type == "test":
-                            #     file_change_request.change_type = "modify"
                             file_change_requests.append(file_change_request)
                             if file_change_request.change_type != "refactor":
                                 new_file_change_request = copy.deepcopy(
@@ -256,14 +254,6 @@ class CodeGenBot(ChatGPT):
                                 new_file_change_request.id_ = str(uuid.uuid4())
                                 file_change_requests.append(new_file_change_request)
                             elif file_change_request.change_type == "refactor":
-                                # new_file_change_request = copy.deepcopy(
-                                #     file_change_request
-                                # )
-                                # new_file_change_request.change_type = "modify"
-                                # new_file_change_request.parent = file_change_request
-                                # new_file_change_request.instructions = "Add typehints to the newly added functions. Ensure that all imports are managed."
-                                # new_file_change_request.id_ = str(uuid.uuid4())
-                                # file_change_requests.append(new_file_change_request)
                                 new_file_change_request = copy.deepcopy(
                                     file_change_request
                                 )
@@ -282,168 +272,15 @@ class CodeGenBot(ChatGPT):
                         return file_change_requests, plan_str
                     else:
                         self.delete_messages_from_chat("extract_prompt")
-                graph = Graph.from_folder(folder_path=self.cloned_repo.repo_dir)
-                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-                if pr_diffs is not None:
-                    self.delete_messages_from_chat("pr_diffs")
-                    graph_parent_bot.messages.insert(
-                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                    )
-                issue_metadata = self.human_message.get_issue_metadata()
-                relevant_snippets = self.human_message.render_snippets()
-                symbols_to_files = graph.paths_to_first_degree_entities(
-                    self.human_message.get_file_paths()
+            if pr_diffs is not None:
+                self.delete_messages_from_chat("pr_diffs")
+                self.messages.insert(
+                    1, Message(role="user", content=pr_diffs, key="pr_diffs")
                 )
-                if len(symbols_to_files) <= 1:
-                    python_issue_worked = False
 
-                if python_issue_worked:
-                    (
-                        relevant_files_to_symbols,
-                        relevant_symbols_string,
-                    ) = graph_parent_bot.relevant_files_to_symbols(
-                        issue_metadata, relevant_snippets, symbols_to_files
-                    )
-
-                    file_paths_to_contents = {}
-                    for file_path, _ in relevant_files_to_symbols:
-                        try:
-                            file_paths_to_contents[
-                                file_path
-                            ] = self.cloned_repo.get_file_contents(file_path)
-                        except FileNotFoundError:
-                            logger.warning(
-                                f"File {file_path} not found in repo. Skipping..."
-                            )
-                            continue
-
-                    # Create plan for relevant snippets first
-                    human_message_snippet_paths = set(
-                        s.file_path for s in self.human_message.snippets
-                    )
-                    non_human_message_snippet_paths = set()
-                    for file_path, _ in relevant_files_to_symbols:
-                        non_human_message_snippet_paths.add(file_path)
-                    plans: list[GraphContextAndPlan] = []
-                    for file_path in (
-                        human_message_snippet_paths | non_human_message_snippet_paths
-                    ):
-                        other_snippets = [
-                            snippet
-                            for snippet in self.human_message.snippets
-                            if snippet.file_path != file_path
-                            and file_path
-                            in human_message_snippet_paths  # <- trim these once the human messages are parsed
-                        ]
-                        if file_path in human_message_snippet_paths:
-                            snippet = next(
-                                snippet
-                                for snippet in self.human_message.snippets
-                                if snippet.file_path == file_path
-                            )
-                        else:
-                            if file_path in file_paths_to_contents:
-                                snippet = Snippet(
-                                    file_path=file_path,
-                                    start=0,
-                                    end=0,
-                                    content=file_paths_to_contents[file_path],
-                                )
-                            else:
-                                continue
-                        relevant_symbol_list = []
-                        for _, symbols in relevant_files_to_symbols:
-                            relevant_symbol_list.extend(symbols)
-                        plan_bot = GraphChildBot(chat_logger=self.chat_logger)
-                        plan = plan_bot.code_plan_extraction(
-                            code=snippet.content,
-                            file_path=file_path,
-                            entities=relevant_symbol_list,
-                            issue_metadata=issue_metadata,
-                            previous_snippets=self.human_message.render_snippet_array(
-                                other_snippets
-                            ),
-                            all_symbols_and_files=relevant_symbols_string,
-                        )
-                        if plan.relevant_new_snippet:
-                            plans.append(plan)
-                    # sort plans by their order in relevant_files_to_symbols
-                    relevant_files = [
-                        file_path for file_path, _ in relevant_files_to_symbols
-                    ]
-                    plans.sort(
-                        key=lambda plan: relevant_files.index(plan.file_path)
-                        if plan.file_path in relevant_files
-                        else len(relevant_files)
-                    )
-                    truncated_plans = []
-                    truncation_counter = 0
-                    for plan in plans:
-                        extracted_code = plan.relevant_new_snippet[0].content
-                        if (
-                            truncation_counter + len(extracted_code) < 61000
-                        ):  # 10k characters ~ 2.5k tokens
-                            truncated_plans.append(plan)
-                            truncation_counter += len(extracted_code)
-                    plans = truncated_plans
-
-                    # topologically sort the plans so that we can apply them in order
-                    file_paths = [
-                        plan.file_path
-                        for plan in plans
-                        if plan.file_path.endswith(".py")
-                    ]
-                    sorted_files = graph.topological_sort(file_paths)
-                    sorted_plans = []
-                    for file_path in sorted_files:
-                        sorted_plans.append(
-                            next(
-                                plan for plan in plans if plan.file_path == file_path
-                            )  # TODO: use a dict instead
-                        )
-                    plans = sorted_plans
-
-                    relevant_snippet_text = ""
-                    for plan in plans:
-                        extracted_code = plan.relevant_new_snippet[0].content
-                        relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>\n{extracted_code}\n</relevant_snippet>\n"
-                    relevant_snippet_text = relevant_snippet_text.strip("\n")
-                    relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
-                    self.update_message_content_from_message_key(
-                        "relevant_snippets", relevant_snippet_text
-                    )
-
-                    files_to_change_response = self.chat(
-                        files_to_change_prompt, message_key="files_to_change"
-                    )  # Dedup files to change here
-                    file_change_requests = []
-                    for re_match in re.finditer(
-                        FileChangeRequest._regex, files_to_change_response, re.DOTALL
-                    ):
-                        file_change_request = FileChangeRequest.from_string(
-                            re_match.group(0)
-                        )
-                        file_change_requests.append(file_change_request)
-                        new_file_change_request = copy.deepcopy(file_change_request)
-                        new_file_change_request.change_type = "check"
-                        new_file_change_request.parent = file_change_request
-                        new_file_change_request.id_ = str(uuid.uuid4())
-                        file_change_requests.append(new_file_change_request)
-                    if file_change_requests:
-                        plan_str = "\n".join(
-                            [fcr.instructions_display for fcr in file_change_requests]
-                        )
-                        return file_change_requests, plan_str
-            if not is_python_issue or not python_issue_worked:
-                if pr_diffs is not None:
-                    self.delete_messages_from_chat("pr_diffs")
-                    self.messages.insert(
-                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                    )
-
-                files_to_change_response = self.chat(
-                    files_to_change_prompt, message_key="files_to_change"
-                )  # Dedup files to change here
+            files_to_change_response = self.chat(
+                files_to_change_prompt, message_key="files_to_change"
+            )
             file_change_requests = []
             for re_match in re.finditer(
                 FileChangeRequest._regex, files_to_change_response, re.DOTALL
