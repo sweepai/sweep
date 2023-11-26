@@ -71,6 +71,7 @@ def get_json_messages(
                     "content": f"Code interpreter output:\n```\n{output}\n```",
                 }
             )
+    return messages_json
 
 
 def run_until_complete(
