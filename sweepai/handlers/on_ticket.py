@@ -47,7 +47,6 @@ from sweepai.config.server import (
     SANDBOX_URL,
     WHITELISTED_REPOS,
 )
-from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     EmptyRepository,
@@ -94,12 +93,7 @@ from sweepai.utils.str_utils import (
     stars_suffix,
     strip_sweep,
 )
-from sweepai.utils.ticket_utils import (
-    center,
-    fetch_relevant_files,
-    log_error,
-    post_process_snippets,
-)
+from sweepai.utils.ticket_utils import center, fetch_relevant_files, log_error
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -228,6 +222,7 @@ def on_ticket(
                 "mode": ENV,
                 "comment_id": comment_id,
                 "edited": edited,
+                "tracking_id": tracking_id,
             }
         )
         if MONGODB_URI
