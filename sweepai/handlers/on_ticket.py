@@ -1627,3 +1627,12 @@ def get_branch_diff_text(repo, branch):
                 f"File status {file.status} not recognized"
             )  # TODO(sweep): We don't handle renamed files
     return "\n".join([f"{filename}\n{diff}" for filename, diff in pr_diffs])
+
+
+def create_payment_message(user_type: str, model_name: str,
+                           gpt_tickets_left_message: str, daily_message: str,
+                           purchase_message: str, is_paying_user: bool,
+                           tracking_id: str) -> tuple[str, str]:
+    # Function content as previously provided
+    pass
+
