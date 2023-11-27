@@ -220,7 +220,7 @@ class CodeGenBot(ChatGPT):
             if is_python_issue:
                 if any(
                     keyword in self.human_message.title.lower()
-                    for keyword in ("refactor", "extract", "replace", "move", "test")
+                    for keyword in ("refactor", "extract", "replace", "test")
                 ):
                     if self.chat_logger is not None:
                         posthog.capture(

@@ -39,8 +39,7 @@ human_message_prompt = [
         "role": "user",
         "content": """# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
-Issue Title: {title}
-Issue Description: {description}""",
+Issue Title: {title}{description}""",
         "key": "metadata",
     },
 ]
