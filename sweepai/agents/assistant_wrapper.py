@@ -11,7 +11,6 @@ else:
 import json
 import os
 
-
 from sweepai.services.escrow_handler import bulk_payout, create_job, handle_results
 
 
