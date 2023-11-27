@@ -140,6 +140,7 @@ def openai_assistant_call(
     model: str = "gpt-4-1106-preview",
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
+    assistant_id: str | None = None,
 ):
     file_ids = []
     for file_path in file_paths:
@@ -147,14 +148,22 @@ def openai_assistant_call(
         file_ids.append(file_object.id)
 
     logger.debug(instructions)
-    assistant = client.beta.assistants.create(
-        name=name,
-        instructions=instructions,
-        tools=tools,
-        model=model,
+    if assistant_id is None:
+        assistant = client.beta.assistants.create(
+            name=name,
+            instructions=instructions,
+            tools=tools,
+            model=model,
+        )
+    else:
+        assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
+    thread = client.beta.threads.create()
+    client.beta.threads.messages.create(
+        thread_id=thread.id,
+        role="user",
+        content=instructions,
         file_ids=file_ids,
     )
-    thread = client.beta.threads.create()
     for message in additional_messages:
         client.beta.threads.messages.create(
             thread_id=thread.id,

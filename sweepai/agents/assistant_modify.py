@@ -270,6 +270,7 @@ def new_modify(
     file_path: str,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
+    assistant_id: str = "asst_LeUB6ROUIvzm97kjqATLGVgC",
 ):
     try:
         # relevant_lines = code_file_search(request, file_path, chat_logger)
@@ -285,6 +286,7 @@ def new_modify(
             additional_messages=additional_messages,
             file_paths=[file_path],
             chat_logger=chat_logger,
+            assistant_id=assistant_id,
         )
         messages = response.messages
         try:
@@ -313,10 +315,14 @@ def new_modify(
     return file_content
 
 
+instructions = """Sweep: Move the payment_message and payment_message_start creation logic out of on_ticket.py into a separate function at the end of the file.
+It should be the section of code relating to payment and deciding if it's a paying user 10 lines before the instantiation of payment_message.
+
+You are a genius software engineer assigned to a GitHub issue. You will be given the repo as a zip file. Your job is to find the relevant files from the repository to construct a plan."""
+
 if __name__ == "__main__":
-    # code_file_search("Add type hints to this file.", "sweepai/agents/complete_code.py")
     new_modify(
-        "Move the payment-related messaging section (it's a 20-line section of code) out of on_ticket.py into a separate function at the end of the file",
+        instructions,
         "sweepai/handlers/on_ticket.py",
         chat_logger=ChatLogger({"username": "kevinlu1248"}),
     )
