@@ -1,3 +1,4 @@
+import os
 import time
 import traceback
 from typing import Any, Literal
@@ -7,13 +8,12 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from sweepai.config.client import get_description
-from sweepai.config.server import (
-    DEFAULT_GPT35_MODEL,
-    OPENAI_DO_HAVE_32K_MODEL_ACCESS,
-    OPENAI_USE_3_5_MODEL_ONLY,
-)
+from sweepai.config.server import (DEFAULT_GPT35_MODEL,
+                                   OPENAI_DO_HAVE_32K_MODEL_ACCESS,
+                                   OPENAI_USE_3_5_MODEL_ONLY)
 from sweepai.core.entities import Message, SweepContext
-from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.core.prompts import (repo_description_prefix_prompt,
+                                  system_message_prompt)
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -23,7 +23,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.utils import Tiktoken
 
 openai_proxy = OpenAIProxy()
-aclient = AsyncOpenAI()
+aclient = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 OpenAIModel = (
     Literal["gpt-3.5-turbo"]
