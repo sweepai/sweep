@@ -137,9 +137,9 @@ sys_prompt = """You are a brilliant and meticulous engineer assigned to the foll
 Reply in the following format:
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths with a justification.
+Propose the most important paths as well as any new paths with a justification.
 </contextual_request_analysis>
-Then get the most relevant files to solve the task using the keep_file_path, add_file_path, and expand_directory tools."""
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request."""
 
 unformatted_user_prompt = """\
 <snippets_in_repo>
@@ -166,9 +166,9 @@ Keep all files or directories that are referenced in the issue title or descript
 Reply in the following format:
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths with a justification.
+Propose the most important paths as well as any new paths with a justification.
 </contextual_request_analysis>
-Then get the most relevant files to solve the task using the keep_file_path, add_file_path, and expand_directory tools."""
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request."""
 
 functions = [{
   "name": "keep_file_path",
@@ -310,7 +310,7 @@ def get_relevant_context(
             _ = client.beta.threads.messages.create(
                 thread.id,
                 role="user",
-                content=f"Here is the new context:\n{user_prompt}\nUse the keep_file_path and expand_directory tools again to remove any additional unnecessary information. If the context does not require any additional changes, do not use any of the tools.",
+                content=f"Here are the new snippets_in_repo, repo_tree, and paths_in_repo:\n{user_prompt}\nUse the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request. If the context allows us to perfectly solve the issue(does not require any additional changes), do not use any of the tools.",
             )
             run = client.beta.threads.runs.create(
                 thread_id=thread.id,
