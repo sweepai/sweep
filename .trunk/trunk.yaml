@@ -1,0 +1,16 @@
+import yaml
+
+def update_trunk_yaml(linter_paths, linter_rules, formatter_paths, formatter_rules):
+    with open('.trunk/trunk.yaml', 'w') as file:
+        config = {
+            'linters': {path: rules for path, rules in zip(linter_paths, linter_rules)},
+            'formatters': {path: rules for path, rules in zip(formatter_paths, formatter_rules)}
+        }
+        yaml.dump(config, file)
+
+linter_paths = ['path/to/linter1', 'path/to/linter2']
+linter_rules = ['rule1', 'rule2']
+formatter_paths = ['path/to/formatter1', 'path/to/formatter2']
+formatter_rules = ['rule1', 'rule2']
+
+update_trunk_yaml(linter_paths, linter_rules, formatter_paths, formatter_rules)
