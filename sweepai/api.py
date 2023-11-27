@@ -1,71 +1,46 @@
+import ctypes
 # Do not save logs for main process
 import hashlib
 import json
-import time
-
-
-from sweepai import health
-from sweepai.handlers.on_button_click import handle_button_click
-from loguru import logger
-from sweepai.utils.buttons import (
-    Button,
-    ButtonList,
-    check_button_activated,
-    check_button_title_match,
-)
-from sweepai.utils.safe_pqueue import SafePriorityQueue
-
-import ctypes
 import threading
+import time
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from health import health_check
+from loguru import logger
 from pydantic import ValidationError
 
-from sweepai.config.client import (
-    DEFAULT_RULES,
-    RESTART_SWEEP_BUTTON,
-    REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
-    RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
-    SweepConfig,
-    get_documentation_dict,
-    get_rules,
-)
-from sweepai.config.server import (
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    GITHUB_LABEL_NAME,
-)
+from sweepai import health
+from sweepai.config.client import (DEFAULT_RULES, RESTART_SWEEP_BUTTON,
+                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
+                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
+                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
+                                   get_documentation_dict, get_rules)
+from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL,
+                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_COLOR,
+                                   GITHUB_LABEL_DESCRIPTION, GITHUB_LABEL_NAME)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
-from sweepai.events import (
-    CheckRunCompleted,
-    CommentCreatedRequest,
-    InstallationCreatedRequest,
-    IssueCommentRequest,
-    IssueRequest,
-    PREdited,
-    PRRequest,
-    ReposAddedRequest,
-)
+from sweepai.events import (CheckRunCompleted, CommentCreatedRequest,
+                            InstallationCreatedRequest, IssueCommentRequest,
+                            IssueRequest, PREdited, PRRequest,
+                            ReposAddedRequest)
 from sweepai.handlers.create_pr import (  # type: ignore
-    add_config_to_top_repos,
-    create_gha_pr,
-)
+    add_config_to_top_repos, create_gha_pr)
+from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.buttons import (Button, ButtonList, check_button_activated,
+                                   check_button_title_match)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
@@ -110,13 +85,16 @@ def run_on_button_click(*args, **kwargs):
 
 
 def run_on_check_suite(*args, **kwargs):
-    request = kwargs["request"]
-    pr_change_request = on_check_suite(request)
-    if pr_change_request:
-        call_on_comment(**pr_change_request.params, comment_type="github_action")
-        logger.info("Done with on_check_suite")
-    else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
+    try:
+        request = kwargs["request"]
+        pr_change_request = on_check_suite(request)
+        if pr_change_request:
+            call_on_comment(**pr_change_request.params, comment_type="github_action")
+            logger.info("Done with on_check_suite")
+        else:
+            logger.info("Skipping on_check_suite as no pr_change_request was returned")
+    except Exception as e:
+        logger.error(f"Exception occurred in run_on_check_suite: {e}")
 
 
 def terminate_thread(thread):
@@ -226,6 +204,9 @@ def redirect_to_health():
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
+
+from health import health_check
 
 
 @app.post("/")
@@ -560,7 +541,10 @@ async def webhook(raw_request: Request):
                             "comment_id": request.comment.id,
                         },
                     )
-                    call_on_comment(**pr_change_request.params)
+                    try:
+                        call_on_comment(**pr_change_request.params)
+                    except Exception as e:
+                        logger.error(f"Exception occurred in call_on_comment: {e}")
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
