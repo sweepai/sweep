@@ -4,19 +4,20 @@ from time import time
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
+from sweepai.core.context_pruning import (RepoContextManager,
+                                          get_relevant_context)
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
 from sweepai.core.vector_db import prepare_lexical_search_index
+from sweepai.handlers import on_comment
+from sweepai.handlers.on_review import review_pr
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.str_utils import (
-    num_of_snippets_to_query,
-    total_number_of_snippet_tokens,
-)
+from sweepai.utils.str_utils import (blockquote, num_of_snippets_to_query,
+                                     ordinal, total_number_of_snippet_tokens)
 
 
 @file_cache()
@@ -213,3 +214,67 @@ def log_error(
 
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
+def review_code(
+    repo,
+    pr_changes,
+    issue_url,
+    username,
+    repo_description,
+    title,
+    summary,
+    replies_text,
+    tree,
+    lint_output,
+    plan,
+    chat_logger,
+    review_message,
+    edit_sweep_comment,
+    repo_full_name,
+    installation_id,
+):
+    try:
+        # CODE REVIEW
+        changes_required = False
+        changes_required, review_comment = review_pr(
+            repo=repo,
+            pr=pr_changes,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description,
+            title=title,
+            summary=summary,
+            replies_text=replies_text,
+            tree=tree,
+            lint_output=lint_output,
+            plan=plan,  # plan for the PR
+            chat_logger=chat_logger,
+        )
+        lint_output = None
+        review_message += (
+            f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
+        )
+        if changes_required:
+            edit_sweep_comment(
+                review_message + "\n\nI'm currently addressing these suggestions.",
+                3,
+            )
+            logger.info(f"Addressing review comment {review_comment}")
+            on_comment(
+                repo_full_name=repo_full_name,
+                repo_description=repo_description,
+                comment=review_comment,
+                username=username,
+                installation_id=installation_id,
+                pr_path=None,
+                pr_line_position=None,
+                pr_number=None,
+                pr=pr_changes,
+                chat_logger=chat_logger,
+                repo=repo,
+            )
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(e)
+    return changes_required, review_message
