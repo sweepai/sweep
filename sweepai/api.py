@@ -192,6 +192,9 @@ def call_write_documentation(*args, **kwargs):
     thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     rules = get_rules(pr.repository)
     if len(rules) == 0:
+        return
+    rules = get_rules(pr.repository)
+    if len(rules) == 0:
         continue
     thread.start()
 
