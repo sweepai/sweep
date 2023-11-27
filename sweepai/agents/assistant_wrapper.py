@@ -1,18 +1,21 @@
-from sweepai.utils.openai_proxy import OpenAI
-from sweepai.config.server import OPENAI_API_KEY
 from loguru import logger
+
+from sweepai.config.server import OPENAI_API_KEY
+from sweepai.utils.openai_proxy import OpenAI
 
 if not OPENAI_API_KEY:
     logger.error("OPENAI_API_KEY environment variable not set.")
     raise ValueError("OPENAI_API_KEY environment variable not set.")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-import os
 import json
-
+import os
 
 from modules.config import config
-from services.escrow_handler import create_job, handle_results, bulk_payout
+
+from sweepai.services.escrow_handler import (bulk_payout, create_job,
+                                             handle_results)
+
 
 def setup_module(module):
 
