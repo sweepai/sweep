@@ -401,14 +401,14 @@ def on_ticket(
             if not is_paying_user
             else "unlimited GPT-4 tickets"
         )
-        purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
+        payment_message, payment_message_start = create_payment_message(
+            user_type=user_type, 
+            model_name=model_name, 
+            gpt_tickets_left_message=gpt_tickets_left_message, 
+            daily_message=daily_message,
+            purchase_message=purchase_message, 
+            is_paying_user=is_paying_user, 
+            tracking_id=tracking_id
         )
 
         def get_comment_header(
@@ -485,7 +485,7 @@ def on_ticket(
                 f"{center(sweeping_gif)}<br/>{center(pbar)}"
                 + ("\n" + stars_suffix if index != -1 else "")
                 + "\n"
-                + center(payment_message_start)
+                + center(create_payment_message(user_type, model_name, gpt_tickets_left_message, daily_message, purchase_message, is_paying_user, tracking_id)[1])
                 + center(f"\n\n{markdown_badge}")
                 + config_pr_message
                 + f"\n\n---\n{actions_message}"
@@ -1368,7 +1368,7 @@ def on_ticket(
                 review_message + "\n\nSuccess! 🚀",
                 4,
                 pr_message=(
-                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message_start)}"
+                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(create_payment_message(user_type, model_name, gpt_tickets_left_message, daily_message, purchase_message, is_paying_user, tracking_id)[1])}"
                 ),
                 done=True,
             )
@@ -1628,11 +1628,16 @@ def get_branch_diff_text(repo, branch):
             )  # TODO(sweep): We don't handle renamed files
     return "\n".join([f"{filename}\n{diff}" for filename, diff in pr_diffs])
 
-
 def create_payment_message(user_type: str, model_name: str,
                            gpt_tickets_left_message: str, daily_message: str,
                            purchase_message: str, is_paying_user: bool,
                            tracking_id: str) -> tuple[str, str]:
-    # Function content as previously provided
-    pass
-
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+    payment_message_start = (
+        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+    return payment_message, payment_message_start
