@@ -132,8 +132,8 @@ def run_until_complete(
 
 @file_cache(ignore_params=["chat_logger"])
 def openai_assistant_call(
-    name: str,
-    instructions: str,
+    request: str,
+    instructions: str | None = None,
     additional_messages: list[Message] = [],
     file_paths: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
@@ -141,6 +141,7 @@ def openai_assistant_call(
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
+    assistant_name: str | None = None,
 ):
     file_ids = []
     for file_path in file_paths:
@@ -150,7 +151,7 @@ def openai_assistant_call(
     logger.debug(instructions)
     if assistant_id is None:
         assistant = client.beta.assistants.create(
-            name=name,
+            name=assistant_name,
             instructions=instructions,
             tools=tools,
             model=model,
@@ -158,12 +159,16 @@ def openai_assistant_call(
     else:
         assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
     thread = client.beta.threads.create()
+    if file_ids:
+        logger.info("Uploading files...")
     client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
-        content=instructions,
+        content=request,
         file_ids=file_ids,
     )
+    if file_ids:
+        logger.info("Files uploaded")
     for message in additional_messages:
         client.beta.threads.messages.create(
             thread_id=thread.id,
@@ -173,6 +178,7 @@ def openai_assistant_call(
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id,
+        instructions=instructions,
     )
     messages = run_until_complete(
         thread_id=thread.id,

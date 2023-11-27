@@ -84,20 +84,19 @@ def new_planning(
         logger.info("Zipping repository...")
         archive_name = hashlib.sha256(str(time.time()).encode()).hexdigest()
         shutil.make_archive(f"/tmp/{archive_name}", "zip", repository_path)
-        logger.info("Done zipping repository.")
+        logger.info(
+            f"Done zipping repository. Calling OpenAI Assistant {assistant_id}..."
+        )
         response = openai_assistant_call(
-            name="Planning Assistant",
-            instructions=system_message.format(
-                user_request=request,
-            ),
+            request=request,
             assistant_id=assistant_id,
             additional_messages=additional_messages,
             file_paths=[f"/tmp/{archive_name}.zip"],
             chat_logger=chat_logger,
         )
+        shutil.rmtree(f"/tmp/{archive_name}.zip")
         messages = response.messages
         final_message = messages.data[0].content[0].text.value
-        print(final_message)
         fcrs = []
         for match_ in re.finditer(FileChangeRequest._regex, final_message, re.DOTALL):
             group_dict = match_.groupdict()
@@ -112,6 +111,7 @@ def new_planning(
             new_file_change_request.parent = fcr
             new_file_change_request.id_ = str(uuid.uuid4())
             fcrs.append(new_file_change_request)
+        assert len(fcrs) > 0
         return fcrs
     except Exception as e:
         logger.exception(e)

@@ -149,11 +149,7 @@ for i, line in enumerate(original_lines):
     print(f"{{i}}: {{line}}")
 """
 
-system_message = r"""# User Request
-{user_request}
-
-# Instructions
-Modify the attached file to complete the task by writing Python code to read and make edits to the file.
+system_message = r"""You're an engineer assigned to make an edit to solve a GitHub issue. Modify the attached file to complete the task by writing Python code to read and make edits to the file.
 
 # Guide
 ## Step 1: Reading
@@ -250,7 +246,7 @@ def code_file_search(
 ):
     try:
         response = openai_assistant_call(
-            name="Python Code Search Modification Assistant",
+            assistant_name="Python Code Search Modification Assistant",
             instructions=search_system_message.format(user_request=request),
             file_paths=[file_path],
             chat_logger=chat_logger,
@@ -271,14 +267,19 @@ def new_modify(
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = "asst_LeUB6ROUIvzm97kjqATLGVgC",
+    start_line: int = -1,
+    end_line: int = -1,
 ):
     try:
         # relevant_lines = code_file_search(request, file_path, chat_logger)
         file_content = open(file_path, "r").read()
+        if start_line > 0 and end_line > 0:
+            request += (
+                f"\n\nThe relevant lines are between {start_line} and {end_line}.\n\n"
+            )
         response = openai_assistant_call(
-            name="Python Code Modification Assistant",
+            request=request,
             instructions=system_message.format(
-                user_request=request,
                 helper_functions=short_file_helper_functions
                 if len(file_content.splitlines()) < 100
                 else long_file_helper_functions,
