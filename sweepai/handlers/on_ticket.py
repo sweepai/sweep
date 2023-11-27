@@ -402,10 +402,7 @@ def on_ticket(
             else "unlimited GPT-4 tickets"
         )
         purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
+        generate_payment_message(user_type, model_name, gpt_tickets_left_message, daily_message, tracking_id, is_paying_user, purchase_message)
         payment_message_start = (
             f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
             + (purchase_message if not is_paying_user else "")
@@ -532,10 +529,7 @@ def on_ticket(
             f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
         )
 
-        if issue_comment is None:
-            issue_comment = current_issue.create_comment(first_comment)
-        else:
-            issue_comment.edit(first_comment)
+        create_or_edit_first_comment(issue_comment, current_issue, first_comment)
 
         past_messages = {}
         current_index = 0
@@ -1541,6 +1535,18 @@ def on_ticket(
     )
     logger.info("on_ticket success")
     return {"success": True}
+
+def generate_payment_message(user_type, model_name, gpt_tickets_left_message, daily_message, tracking_id, is_paying_user, purchase_message):
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+
+def create_or_edit_first_comment(issue_comment, current_issue, first_comment):
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(first_comment)
+    else:
+        issue_comment.edit(first_comment)
 
 
 def review_code(
