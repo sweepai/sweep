@@ -137,9 +137,9 @@ sys_prompt = """You are a brilliant and meticulous engineer assigned to the foll
 Reply in the following format:
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths with a justification.
+Propose the most important paths as well as any new paths with a justification.
 </contextual_request_analysis>
-Then get the most relevant files to solve the task using the keep_file_path, add_file_path, and expand_directory tools."""
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request."""
 
 unformatted_user_prompt = """\
 <snippets_in_repo>
@@ -154,23 +154,24 @@ unformatted_user_prompt = """\
 # Instructions
 ## User Request
 {query}
-The above <repo_tree>, <snippets_in_repo>, and <paths_in_repo> have unnecessary information.
-The snippets, and paths were fetched by a search engine, so they are noisy.
+The above <repo_tree> <snippets_in_repo> and <paths_in_repo> have unnecessary information.
+The snippets and paths were fetched by a search engine, so they are noisy.
 The unnecessary information will hurt your performance on this task, so modify paths_in_repo, snippets_in_repo, and repo_tree to keep only the absolutely necessary information.
 
 First, list all of the files and directories we should keep in paths_to_keep. Be as specific as you can.
 Second, list any directories that are currently closed that should be expanded.
-Third, add any files that are not in the snippets, but are relevant to the task using the add_file_path tool.
+Third, add additional relevant files to the task using the add_file_path tool.
 If you expand a directory, we automatically expand all of its subdirectories, so do not list its subdirectories.
 Keep all files or directories that are referenced in the issue title or descriptions.
 Reply in the following format:
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths with a justification.
+Propose the most important paths as well as any new paths with a justification.
 </contextual_request_analysis>
-Then get the most relevant files to solve the task using the keep_file_path, add_file_path, and expand_directory tools."""
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request."""
 
-functions = [{
+functions = [
+{
   "name": "keep_file_path",
   "parameters": {
     "type": "object",
@@ -216,8 +217,9 @@ functions = [{
       "file_path"
     ]
   },
-  "description": "The most relevant snippet of the file will be added to the current snippets. Do not use this tool to add an existing snippet. This only works if the file is not in the current snippets."
-}]
+  "description": "The most relevant snippet of the file will be added to the current snippets. If the file_path is already present, we will add the next most relevant snippet from the same file_path."
+}
+]
 
 tools = [
 {"type" : "function", "function": functions[0]}, 
@@ -272,7 +274,7 @@ class RepoContextManager:
         self.dir_obj.add_file_paths(paths_to_add)
         for file_path in paths_to_add:
             snippet_key = lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
-            filtered_snippets = [snippet for snippet in self.snippets if snippet.file_path == file_path]
+            filtered_snippets = [snippet for snippet in self.snippets if snippet.file_path == file_path and snippet not in self.current_top_snippets]
             highest_scoring_snippet = max(
                 filtered_snippets,
                 key=lambda snippet: self.snippet_scores[snippet_key(snippet)] if snippet_key(snippet) in self.snippet_scores else 0
@@ -310,7 +312,7 @@ def get_relevant_context(
             _ = client.beta.threads.messages.create(
                 thread.id,
                 role="user",
-                content=f"Here is the new context:\n{user_prompt}\nUse the keep_file_path and expand_directory tools again to remove any additional unnecessary information. If the context does not require any additional changes, do not use any of the tools.",
+                content=f"Here are the new snippets_in_repo, repo_tree, and paths_in_repo:\n{user_prompt}\nUse the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request. If the context allows us to perfectly solve the issue(does not require any additional changes), do not use any of the tools.",
             )
             run = client.beta.threads.runs.create(
                 thread_id=thread.id,
@@ -352,7 +354,11 @@ def modify_context(
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
         for tool_call in tool_calls:
-            function_input = json.loads(tool_call.function.arguments)
+            try:
+                function_input = json.loads(tool_call.function.arguments)
+            except:
+                logger.warning(f"Could not parse function arguments: {tool_call.function.arguments}")
+                continue
             valid_path = repo_context_manager.is_path_valid(function_input["file_path"] if "file_path" in function_input else function_input["directory_path"])
             tool_outputs.append(
                 {
@@ -387,3 +393,4 @@ if __name__ == "__main__":
     query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md too."
     repo_context_manager = prep_snippets(cloned_repo, query)
     rcm = get_relevant_context(query, repo_context_manager)
+    import pdb; pdb.set_trace()
