@@ -1,4 +1,4 @@
-from sweepai.handlers.on_ticket import openai
+=======
 
 """
 on_ticket is the main function that is called when a new issue is created.
