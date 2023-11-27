@@ -14,9 +14,8 @@ from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
 
+from sweepai.agents.assistant_planning import new_planning
 from sweepai.agents.complete_code import ExtractLeftoverComments
-from sweepai.agents.graph_child import GraphChildBot, GraphContextAndPlan
-from sweepai.agents.graph_parent import GraphParentBot
 from sweepai.agents.modify_bot import ModifyBot
 from sweepai.agents.move_bot import MoveBot
 from sweepai.agents.refactor_bot import RefactorBot
@@ -58,7 +57,6 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.graph import Graph
 from sweepai.utils.str_utils import clean_logs
 from sweepai.utils.utils import chunk_code
 
@@ -214,6 +212,14 @@ class CodeGenBot(ChatGPT):
     def get_files_to_change(
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
+        fcrs = new_planning(
+            "#" + self.human_message.title + "\n" + self.human_message.summary,
+            self.cloned_repo.repo_dir,
+            additional_messages=self.messages[:-1],
+        )
+        if fcrs:
+            plan_str = "\n".join([fcr.instructions_display for fcr in fcrs])
+            return fcrs, plan_str
         file_change_requests: list[FileChangeRequest] = []
         try:
             python_issue_worked = True
@@ -1665,7 +1671,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         changed_files: list[tuple[str, str]] = [],
     ):
-        CHUNK_SIZE = 600  # Number of lines to process at a time
+        CHUNK_SIZE = 10000  # Disable chunking for now
         sandbox_execution: SandboxResponse = None
         commit_message: str = None
         try:
@@ -1693,10 +1699,14 @@ class SweepBot(CodeGenBot, GithubBot):
                     first_characters_in_instructions = first_characters_in_instructions[
                         : min(60, len(first_characters_in_instructions))
                     ]
-                    if any(
-                        keyword in first_characters_in_instructions
-                        for keyword in ("refactor", "extract", "replace")
-                    ) and file_change_request.filename.endswith(".py"):
+                    if (
+                        any(
+                            keyword in first_characters_in_instructions
+                            for keyword in ("refactor", "extract", "replace")
+                        )
+                        and file_change_request.filename.endswith(".py")
+                        and False
+                    ):
                         chunking = False
                         refactor_bot = RefactorBot(chat_logger=self.chat_logger)
                         additional_messages = [

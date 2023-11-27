@@ -149,11 +149,7 @@ for i, line in enumerate(original_lines):
     print(f"{{i}}: {{line}}")
 """
 
-system_message = r"""# User Request
-{user_request}
-
-# Instructions
-Modify the attached file to complete the task by writing Python code to read and make edits to the file.
+system_message = r"""You're an engineer assigned to make an edit to solve a GitHub issue. Modify the attached file to complete the task by writing Python code to read and make edits to the file.
 
 # Guide
 ## Step 1: Reading
@@ -250,7 +246,7 @@ def code_file_search(
 ):
     try:
         response = openai_assistant_call(
-            name="Python Code Search Modification Assistant",
+            assistant_name="Python Code Search Modification Assistant",
             instructions=search_system_message.format(user_request=request),
             file_paths=[file_path],
             chat_logger=chat_logger,
@@ -270,14 +266,20 @@ def new_modify(
     file_path: str,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
+    assistant_id: str = "asst_LeUB6ROUIvzm97kjqATLGVgC",
+    start_line: int = -1,
+    end_line: int = -1,
 ):
     try:
         # relevant_lines = code_file_search(request, file_path, chat_logger)
         file_content = open(file_path, "r").read()
+        if start_line > 0 and end_line > 0:
+            request += (
+                f"\n\nThe relevant lines are between {start_line} and {end_line}.\n\n"
+            )
         response = openai_assistant_call(
-            name="Python Code Modification Assistant",
+            request=request,
             instructions=system_message.format(
-                user_request=request,
                 helper_functions=short_file_helper_functions
                 if len(file_content.splitlines()) < 100
                 else long_file_helper_functions,
@@ -285,6 +287,7 @@ def new_modify(
             additional_messages=additional_messages,
             file_paths=[file_path],
             chat_logger=chat_logger,
+            assistant_id=assistant_id,
         )
         messages = response.messages
         try:
@@ -313,10 +316,14 @@ def new_modify(
     return file_content
 
 
+instructions = """Sweep: Move the payment_message and payment_message_start creation logic out of on_ticket.py into a separate function at the end of the file.
+It should be the section of code relating to payment and deciding if it's a paying user 10 lines before the instantiation of payment_message.
+
+You are a genius software engineer assigned to a GitHub issue. You will be given the repo as a zip file. Your job is to find the relevant files from the repository to construct a plan."""
+
 if __name__ == "__main__":
-    # code_file_search("Add type hints to this file.", "sweepai/agents/complete_code.py")
     new_modify(
-        "Move the payment-related messaging section (it's a 20-line section of code) out of on_ticket.py into a separate function at the end of the file",
+        instructions,
         "sweepai/handlers/on_ticket.py",
         chat_logger=ChatLogger({"username": "kevinlu1248"}),
     )

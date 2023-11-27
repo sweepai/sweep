@@ -35,7 +35,7 @@ def get_json_messages(
     messages_json = [system_message_json]
     for message_obj in list(
         client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id).data
-    )[::-1]:
+    )[:0:-1]:
         if message_obj.type == "message_creation":
             message_id = message_obj.step_details.message_creation.message_id
             message_content = (
@@ -131,15 +131,17 @@ def run_until_complete(
 
 
 @file_cache(ignore_params=["chat_logger"])
-def openai_assistant_call(
-    name: str,
-    instructions: str,
+def openai_assistant_call_helper(
+    request: str,
+    instructions: str | None = None,
     additional_messages: list[Message] = [],
     file_paths: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
     model: str = "gpt-4-1106-preview",
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
+    assistant_id: str | None = None,
+    assistant_name: str | None = None,
 ):
     file_ids = []
     for file_path in file_paths:
@@ -147,14 +149,26 @@ def openai_assistant_call(
         file_ids.append(file_object.id)
 
     logger.debug(instructions)
-    assistant = client.beta.assistants.create(
-        name=name,
-        instructions=instructions,
-        tools=tools,
-        model=model,
+    if assistant_id is None:
+        assistant = client.beta.assistants.create(
+            name=assistant_name,
+            instructions=instructions,
+            tools=tools,
+            model=model,
+        )
+    else:
+        assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
+    thread = client.beta.threads.create()
+    if file_ids:
+        logger.info("Uploading files...")
+    client.beta.threads.messages.create(
+        thread_id=thread.id,
+        role="user",
+        content=request,
         file_ids=file_ids,
     )
-    thread = client.beta.threads.create()
+    if file_ids:
+        logger.info("Files uploaded")
     for message in additional_messages:
         client.beta.threads.messages.create(
             thread_id=thread.id,
@@ -164,8 +178,9 @@ def openai_assistant_call(
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id,
+        instructions=instructions,
     )
-    messages = run_until_complete(
+    run_until_complete(
         thread_id=thread.id,
         run_id=run.id,
         model=model,
@@ -173,9 +188,44 @@ def openai_assistant_call(
         assistant_id=assistant.id,
         sleep_time=sleep_time,
     )
+    return (
+        assistant.id,
+        run.id,
+        thread.id,
+    )
+
+
+# Split in two so it can be cached
+def openai_assistant_call(
+    request: str,
+    instructions: str | None = None,
+    additional_messages: list[Message] = [],
+    file_paths: list[str] = [],
+    tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
+    model: str = "gpt-4-1106-preview",
+    sleep_time: int = 3,
+    chat_logger: ChatLogger | None = None,
+    assistant_id: str | None = None,
+    assistant_name: str | None = None,
+):
+    (assistant_id, run_id, thread_id) = openai_assistant_call_helper(
+        request=request,
+        instructions=instructions,
+        additional_messages=additional_messages,
+        file_paths=file_paths,
+        tools=tools,
+        model=model,
+        sleep_time=sleep_time,
+        chat_logger=chat_logger,
+        assistant_id=assistant_id,
+        assistant_name=assistant_name,
+    )
+    messages = client.beta.threads.messages.list(
+        thread_id=thread_id,
+    )
     return AssistantResponse(
         messages=messages,
-        assistant_id=assistant.id,
-        run_id=run.id,
-        thread_id=thread.id,
+        assistant_id=assistant_id,
+        run_id=run_id,
+        thread_id=thread_id,
     )
