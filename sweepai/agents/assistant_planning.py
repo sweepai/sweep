@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import os
 import re
 import shutil
 import time
@@ -82,7 +83,7 @@ def new_planning(
 ) -> list[FileChangeRequest]:
     try:
         logger.info("Zipping repository...")
-        archive_name = hashlib.sha256(str(time.time()).encode()).hexdigest()
+        archive_name = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
         shutil.make_archive(f"/tmp/{archive_name}", "zip", repository_path)
         logger.info(
             f"Done zipping repository. Calling OpenAI Assistant {assistant_id}..."
@@ -94,7 +95,7 @@ def new_planning(
             file_paths=[f"/tmp/{archive_name}.zip"],
             chat_logger=chat_logger,
         )
-        shutil.rmtree(f"/tmp/{archive_name}.zip")
+        os.remove(f"/tmp/{archive_name}.zip")
         messages = response.messages
         final_message = messages.data[0].content[0].text.value
         fcrs = []
