@@ -9,7 +9,7 @@ from sweepai.core.context_pruning import (RepoContextManager,
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
 from sweepai.core.vector_db import prepare_lexical_search_index
-from sweepai.handlers import on_comment
+from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
