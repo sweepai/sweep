@@ -11,30 +11,21 @@ else:
 import json
 import os
 
-from modules.config import config
 
-from sweepai.services.escrow_handler import (bulk_payout, create_job,
-                                             handle_results)
+from sweepai.services.escrow_handler import bulk_payout, create_job, handle_results
 
 
 def setup_module(module):
-
-    os.environ['PAYLOAD_SAMPLE'] = 'test_manifest.json'
-    os.environ['RESULT_SAMPLE'] = 'test_results.json'
+    os.environ["PAYLOAD_SAMPLE"] = "test_manifest.json"
+    os.environ["RESULT_SAMPLE"] = "test_results.json"
 
     # Populate 'test_manifest.json' with mock data required for testing.
-    with open('test_manifest.json', 'w') as f:
+    with open("test_manifest.json", "w") as f:
         mock_data = {
             "Annotations": {
                 "images": [
-                    {
-                        "id": 1,
-                        "file_name": "sample1.jpg"
-                    },
-                    {
-                        "id": 2,
-                        "file_name": "sample2.jpg"
-                    }
+                    {"id": 1, "file_name": "sample1.jpg"},
+                    {"id": 2, "file_name": "sample2.jpg"},
                 ],
                 "annotations": [
                     {
@@ -44,7 +35,7 @@ def setup_module(module):
                         "label": "Car",
                         "segmentation_url": "https://s3.hmt.aws.com/0xerdsdasd/annotation/125686/2254",
                         "bbox": [19.23, 383.18, 314.5, 244.46],
-                        "acceptance_rate": 0.0
+                        "acceptance_rate": 0.0,
                     },
                     {
                         "id": 125686,
@@ -53,52 +44,45 @@ def setup_module(module):
                         "label": "Car",
                         "segmentation_url": "https://s3.hmt.aws.com/0xerdsdasd/annotation/125686/2254",
                         "bbox": [19.23, 383.18, 314.5, 244.46],
-                        "acceptance_rate": 1.0
-                    },              
-                ]
+                        "acceptance_rate": 1.0,
+                    },
+                ],
             }
         }
         json.dump(mock_data, f)
 
     # Populate 'test_results.json' with mock data required for testing.
-    with open('test_results.json', 'w') as f:
-        mock_data = {
-            "Annotations": {
-                "images": [
-                    {
-
-                    },
-                    {
-
-                    }              
-                ]
-            }
-        }
+    with open("test_results.json", "w") as f:
+        mock_data = {"Annotations": {"images": [{}, {}]}}
         json.dump(mock_data, f)
+
 
 def teardown_module(module):
     # Cleanup after tests
-    os.remove('test_manifest.json')
-    os.remove('test_results.json')
+    os.remove("test_manifest.json")
+    os.remove("test_results.json")
+
 
 def test_escrow_handler():
     if not OPENAI_API_KEY:
-        logger.warning("Skipping test_escrow_handler because OPENAI_API_KEY is not set.")
+        logger.warning(
+            "Skipping test_escrow_handler because OPENAI_API_KEY is not set."
+        )
         return
 
-    escrow_address = ''
+    escrow_address = ""
     escrow_address = create_job()
 
-    assert escrow_address != ''
+    assert escrow_address != ""
 
-    result_files = ''
+    result_files = ""
     result_files = handle_results(escrow_address)
 
-    assert 'url' in result_files and 'hash' in result_files
-    assert result_files['url'] != '' and result_files['hash'] != ''
+    assert "url" in result_files and "hash" in result_files
+    assert result_files["url"] != "" and result_files["hash"] != ""
 
-    url = result_files['url']
-    url_hash = result_files['hash']
+    url = result_files["url"]
+    url_hash = result_files["hash"]
 
     payouts = [
         {
@@ -107,7 +91,7 @@ def test_escrow_handler():
             # this is the address of the wallet that solved the job and is getting rewarded
             "public_address": "0x1e35c4D77771A118f7a96378cFb082Fe65da8e3c",
             # sample amount to be distributed, it matches the amount put in the escrow to close it
-            "amount": 1
+            "amount": 1,
         }
     ]
 
@@ -119,7 +103,7 @@ def test_escrow_handler():
 
     txId = 1
 
-    result = ''
+    result = ""
     result = bulk_payout(escrow_address, receipients, amounts, url, url_hash, txId)
 
     assert result == True
