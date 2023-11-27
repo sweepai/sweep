@@ -1,71 +1,251 @@
+import ctypes
 # Do not save logs for main process
 import hashlib
 import json
-import time
-
-
-from sweepai import health
-from sweepai.handlers.on_button_click import handle_button_click
-from loguru import logger
-from sweepai.utils.buttons import (
-    Button,
-    ButtonList,
-    check_button_activated,
-    check_button_title_match,
-)
-from sweepai.utils.safe_pqueue import SafePriorityQueue
-
-import ctypes
 import threading
+import time
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from health import health_check
+from loguru import logger
 from pydantic import ValidationError
 
-from sweepai.config.client import (
-    DEFAULT_RULES,
-    RESTART_SWEEP_BUTTON,
-    REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
-    RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
-    SweepConfig,
-    get_documentation_dict,
-    get_rules,
-)
-from sweepai.config.server import (
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    GITHUB_LABEL_NAME,
-)
+from sweepai import health
+from sweepai.config.client import (DEFAULT_RULES, RESTART_SWEEP_BUTTON,
+                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
+                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
+                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
+                                   get_documentation_dict, get_rules)
+from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL,
+                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_COLOR,
+                                   GITHUB_LABEL_DESCRIPTION, GITHUB_LABEL_NAME)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
-from sweepai.events import (
-    CheckRunCompleted,
-    CommentCreatedRequest,
-    InstallationCreatedRequest,
-    IssueCommentRequest,
-    IssueRequest,
-    PREdited,
-    PRRequest,
-    ReposAddedRequest,
-)
+from sweepai.events import (CheckRunCompleted, CommentCreatedRequest,
+                            InstallationCreatedRequest, IssueCommentRequest,
+                            IssueRequest, PREdited, PRRequest,
+                            ReposAddedRequest)
 from sweepai.handlers.create_pr import (  # type: ignore
-    add_config_to_top_repos,
-    create_gha_pr,
-)
+    add_config_to_top_repos, create_gha_pr)
+from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.buttons import (Button, ButtonList, check_button_activated,
+                                   check_button_title_match)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.safe_pqueue import SafePriorityQueue
+from sweepai.utils.search_utils import index_full_repository
+
+app = FastAPI()
+
+import tracemalloc
+
+tracemalloc.start()
+
+events = {}
+on_ticket_events = {}
+
+get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+
+
+def run_on_ticket(*args, **kwargs):
+    tracking_id = get_hash()
+    with logger.contextualize(
+        metadata={
+            **kwargs,
+            "name": "ticket_" + kwargs["username"],
+            "tracking_id": tracking_id,
+        }
+    ):
+        return on_ticket(*args, **kwargs, tracking_id=tracking_id)
+
+
+def run_on_comment(*args, **kwargs):
+    tracking_id = get_hash()
+    with logger.contextualize(
+        metadata={
+            **kwargs,
+            "name": "comment_" + kwargs["username"],
+            "tracking_id": tracking_id,
+        },
+    ):
+        on_comment(*args, **kwargs, tracking_id=tracking_id)
+
+
+def run_on_button_click(*args, **kwargs):
+    thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
+    thread.start()
+
+
+def run_on_check_suite(*args, **kwargs):
+    request = kwargs["request"]
+    pr_change_request = on_check_suite(request)
+    if pr_change_request:
+        call_on_comment(**pr_change_request.params, comment_type="github_action")
+        logger.info("Done with on_check_suite")
+    else:
+        logger.info("Skipping on_check_suite as no pr_change_request was returned")
+
+
+def terminate_thread(thread):
+    """Terminate a python threading.Thread."""
+    try:
+        if not thread.is_alive():
+            return
+
+        exc = ctypes.py_object(SystemExit)
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_long(thread.ident), exc
+        )
+        if res == 0:
+            raise ValueError("Invalid thread ID")
+        elif res != 1:
+            # Call with exception set to 0 is needed to cleanup properly.
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(f"Failed to terminate thread: {e}")
+
+
+def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
+    time.sleep(delay)
+    terminate_thread(thread)
+
+
+def call_on_ticket(*args, **kwargs):
+    global on_ticket_events
+    key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
+
+    # Use multithreading
+    # Check if a previous process exists for the same key, cancel it
+    e = on_ticket_events.get(key, None)
+    if e:
+        logger.info(f"Found previous thread for key {key} and cancelling it")
+        terminate_thread(e)
+
+    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+    on_ticket_events[key] = thread
+    thread.start()
+
+    delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
+    delayed_kill_thread.start()
+
+
+def call_on_check_suite(*args, **kwargs):
+    kwargs["request"].repository.full_name
+    kwargs["request"].check_run.pull_requests[0].number
+    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
+    thread.start()
+
+
+def call_on_comment(
+    *args, **kwargs
+):  # TODO: if its a GHA delete all previous GHA and append to the end
+    def worker():
+        while not events[key].empty():
+            task_args, task_kwargs = events[key].get()
+            run_on_comment(*task_args, **task_kwargs)
+
+    global events
+    repo_full_name = kwargs["repo_full_name"]
+    pr_id = kwargs["pr_number"]
+    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
+
+    comment_type = kwargs["comment_type"]
+    logger.info(f"Received comment type: {comment_type}")
+
+    if key not in events:
+        events[key] = SafePriorityQueue()
+
+    events[key].put(0, (args, kwargs))
+
+    # If a thread isn't running, start one
+    if not any(
+        thread.name == key and thread.is_alive() for thread in threading.enumerate()
+    ):
+        thread = threading.Thread(target=worker, name=key)
+        thread.start()
+
+
+def call_on_merge(*args, **kwargs):
+    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
+    thread.start()
+
+
+def call_get_deeplake_vs_from_repo(*args, **kwargs):
+    thread = threading.Thread(
+        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
+    )
+    thread.start()
+
+
+def call_write_documentation(*args, **kwargs):
+    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
+    thread.start()
+
+
+@app.get("/health")
+def redirect_to_health():
+    return health.health_check()
+
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
+
+import ctypes
+# Do not save logs for main process
+import hashlib
+import json
+import threading
+import time
+
+import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from health import health_check
+from loguru import logger
+from pydantic import ValidationError
+
+from sweepai import health
+from sweepai.config.client import (DEFAULT_RULES, RESTART_SWEEP_BUTTON,
+                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
+                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
+                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
+                                   get_documentation_dict, get_rules)
+from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL,
+                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_COLOR,
+                                   GITHUB_LABEL_DESCRIPTION, GITHUB_LABEL_NAME)
+from sweepai.core.documentation import write_documentation
+from sweepai.core.entities import PRChangeRequest
+from sweepai.core.vector_db import get_deeplake_vs_from_repo
+from sweepai.events import (CheckRunCompleted, CommentCreatedRequest,
+                            InstallationCreatedRequest, IssueCommentRequest,
+                            IssueRequest, PREdited, PRRequest,
+                            ReposAddedRequest)
+from sweepai.handlers.create_pr import (  # type: ignore
+    add_config_to_top_repos, create_gha_pr)
+from sweepai.handlers.on_button_click import handle_button_click
+from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_merge import on_merge
+from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.buttons import (Button, ButtonList, check_button_activated,
+                                   check_button_title_match)
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
@@ -533,6 +713,320 @@ async def webhook(raw_request: Request):
                             },
                         )
                         call_on_comment(**pr_change_request.params)
+            case "pull_request_review_comment", "created":
+                logger.info(f"Received event: {event}, {action}")
+                # Add a separate endpoint for this
+                request = CommentCreatedRequest(**request_dict)
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                labels = pr.get_labels()
+                comment = request.comment.body
+                if (
+                    comment.lower().startswith("sweep:")
+                    or any(label.name.lower() == "sweep" for label in labels)
+                ) and request.comment.user.type == "User":
+                    pr_change_request = PRChangeRequest(
+                        params={
+                            "comment_type": "comment",
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": request.comment.body,
+                            "pr_path": request.comment.path,
+                            "pr_line_position": request.comment.original_line,
+                            "username": request.comment.user.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.pull_request.number,
+                            "comment_id": request.comment.id,
+                        },
+                    )
+                    call_on_comment(**pr_change_request.params)
+                # Todo: update index on comments
+            case "pull_request_review", "submitted":
+                # request = ReviewSubmittedRequest(**request_dict)
+                pass
+            case "check_run", "completed":
+                pass  # removed for now
+            case "installation_repositories", "added":
+                repos_added_request = ReposAddedRequest(**request_dict)
+                metadata = {
+                    "installation_id": repos_added_request.installation.id,
+                    "repositories": [
+                        repo.full_name
+                        for repo in repos_added_request.repositories_added
+                    ],
+                }
+
+                try:
+                    add_config_to_top_repos(
+                        repos_added_request.installation.id,
+                        repos_added_request.installation.account.login,
+                        repos_added_request.repositories_added,
+                    )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(f"Failed to add config to top repos: {e}")
+
+                posthog.capture(
+                    "installation_repositories", "started", properties={**metadata}
+                )
+                for repo in repos_added_request.repositories_added:
+                    organization, repo_name = repo.full_name.split("/")
+                    posthog.capture(
+                        organization,
+                        "installed_repository",
+                        properties={
+                            "repo_name": repo_name,
+                            "organization": organization,
+                            "repo_full_name": repo.full_name,
+                        },
+                    )
+                    index_full_repository(
+                        repo.full_name,
+                        installation_id=repos_added_request.installation.id,
+                    )
+            case "installation", "created":
+                repos_added_request = InstallationCreatedRequest(**request_dict)
+
+                try:
+                    add_config_to_top_repos(
+                        repos_added_request.installation.id,
+                        repos_added_request.installation.account.login,
+                        repos_added_request.repositories,
+                    )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(f"Failed to add config to top repos: {e}")
+
+                # Index all repos
+                for repo in repos_added_request.repositories:
+                    index_full_repository(
+                        repo.full_name,
+                        installation_id=repos_added_request.installation.id,
+                    )
+            case "pull_request", "edited":
+                request = PREdited(**request_dict)
+
+                if (
+                    request.pull_request.user.login == GITHUB_BOT_USERNAME
+                    and not request.sender.login.endswith("[bot]")
+                    and DISCORD_FEEDBACK_WEBHOOK_URL is not None
+                ):
+                    good_button = check_button_activated(
+                        SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
+                    )
+                    bad_button = check_button_activated(
+                        SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
+                    )
+
+                    if good_button or bad_button:
+                        emoji = "😕"
+                        if good_button:
+                            emoji = "👍"
+                        elif bad_button:
+                            emoji = "👎"
+                        data = {
+                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
+                        }
+                        headers = {"Content-Type": "application/json"}
+                        response = requests.post(
+                            DISCORD_FEEDBACK_WEBHOOK_URL,
+                            data=json.dumps(data),
+                            headers=headers,
+                        )
+
+                        # Send feedback to PostHog
+                        posthog.capture(
+                            request.sender.login,
+                            "feedback",
+                            properties={
+                                "repo_name": request.repository.full_name,
+                                "pr_url": request.pull_request.html_url,
+                                "pr_commits": request.pull_request.commits,
+                                "pr_additions": request.pull_request.additions,
+                                "pr_deletions": request.pull_request.deletions,
+                                "pr_changed_files": request.pull_request.changed_files,
+                                "username": request.sender.login,
+                                "good_button": good_button,
+                                "bad_button": bad_button,
+                            },
+                        )
+
+                        def remove_buttons_from_description(body):
+                            """
+                            Replace:
+                            ### PR Feedback...
+                            ...
+                            # (until it hits the next #)
+
+                            with
+                            ### PR Feedback: {emoji}
+                            #
+                            """
+                            lines = body.split("\n")
+                            if not lines[0].startswith("### PR Feedback"):
+                                return None
+                            # Find when the second # occurs
+                            i = 0
+                            for i, line in enumerate(lines):
+                                if line.startswith("#") and i > 0:
+                                    break
+
+                            return "\n".join(
+                                [
+                                    f"### PR Feedback: {emoji}",
+                                    *lines[i:],
+                                ]
+                            )
+
+                        # Update PR description to remove buttons
+                        try:
+                            _, g = get_github_client(request.installation.id)
+                            repo = g.get_repo(request.repository.full_name)
+                            pr = repo.get_pull(request.pull_request.number)
+                            new_body = remove_buttons_from_description(
+                                request.pull_request.body
+                            )
+                            if new_body is not None:
+                                pr.edit(body=new_body)
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception as e:
+                            logger.error(f"Failed to edit PR description: {e}")
+            case "pull_request", "closed":
+                pr_request = PRRequest(**request_dict)
+                organization, repo_name = pr_request.repository.full_name.split("/")
+                commit_author = pr_request.pull_request.user.login
+                merged_by = (
+                    pr_request.pull_request.merged_by.login
+                    if pr_request.pull_request.merged_by
+                    else None
+                )
+                if GITHUB_BOT_USERNAME == commit_author and merged_by is not None:
+                    event_name = "merged_sweep_pr"
+                    if pr_request.pull_request.title.startswith("[config]"):
+                        event_name = "config_pr_merged"
+                    elif pr_request.pull_request.title.startswith("[Sweep Rules]"):
+                        event_name = "sweep_rules_pr_merged"
+                    posthog.capture(
+                        merged_by,
+                        event_name,
+                        properties={
+                            "repo_name": repo_name,
+                            "organization": organization,
+                            "repo_full_name": pr_request.repository.full_name,
+                            "username": merged_by,
+                            "additions": pr_request.pull_request.additions,
+                            "deletions": pr_request.pull_request.deletions,
+                            "total_changes": pr_request.pull_request.additions
+                            + pr_request.pull_request.deletions,
+                        },
+                    )
+                chat_logger = ChatLogger({"username": merged_by})
+            case "push", None:
+                logger.info(f"Received event: {event}, {action}")
+                if event != "pull_request" or request_dict["base"]["merged"] == True:
+                    chat_logger = ChatLogger(
+                        {"username": request_dict["pusher"]["name"]}
+                    )
+                    # on merge
+                    call_on_merge(request_dict, chat_logger)
+                    ref = request_dict["ref"] if "ref" in request_dict else ""
+                    if ref.startswith("refs/heads") and not ref.startswith(
+                        "ref/heads/sweep"
+                    ):
+                        if request_dict["head_commit"] and (
+                            "sweep.yaml" in request_dict["head_commit"]["added"]
+                            or "sweep.yaml" in request_dict["head_commit"]["modified"]
+                        ):
+                            _, g = get_github_client(request_dict["installation"]["id"])
+                            repo = g.get_repo(request_dict["repository"]["full_name"])
+                            docs = get_documentation_dict(repo)
+                            # Call the write_documentation function for each of the existing fields in the "docs" mapping
+                            for doc_url, _ in docs.values():
+                                logger.info(f"Writing documentation for {doc_url}")
+                                call_write_documentation(doc_url=doc_url)
+                        _, g = get_github_client(request_dict["installation"]["id"])
+                        repo = g.get_repo(request_dict["repository"]["full_name"])
+                        if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
+                            update_sweep_prs_v2(
+                                request_dict["repository"]["full_name"],
+                                installation_id=request_dict["installation"]["id"],
+                            )
+            case "ping", None:
+                return {"message": "pong"}
+    except ValidationError as e:
+        logger.warning(f"Failed to parse request: {e}")
+        raise HTTPException(status_code=422, detail="Failed to parse request")
+    except Exception as e:
+        logger.warning(f"Failed to parse request: {e}")
+    return {"success": True}
+
+
+# Set up cronjob for this
+@app.get("/update_sweep_prs_v2")
+def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
+    # Get a Github client
+    _, g = get_github_client(installation_id)
+
+    # Get the repository
+    repo = g.get_repo(repo_full_name)
+    config = SweepConfig.get_config(repo)
+
+    try:
+        branch_ttl = int(config.get("branch_ttl", 7))
+    except SystemExit:
+        raise SystemExit
+    except:
+        branch_ttl = 7
+    branch_ttl = max(branch_ttl, 1)
+
+    # Get all open pull requests created by Sweep
+    pulls = repo.get_pulls(
+        state="open", head="sweep", sort="updated", direction="desc"
+    )[:5]
+
+    # For each pull request, attempt to merge the changes from the default branch into the pull request branch
+    try:
+        for pr in pulls:
+            try:
+                # make sure it's a sweep ticket
+                feature_branch = pr.head.ref
+                if not feature_branch.startswith(
+                    "sweep/"
+                ) and not feature_branch.startswith("sweep_"):
+                    continue
+                if (
+                    pr.mergeable_state != "clean"
+                    and (time.time() - pr.created_at.timestamp()) > 60 * 60 * 24
+                    and pr.title.startswith("[Sweep Rules]")
+                ):
+                    pr.edit(state="closed")
+                    continue
+
+                repo.merge(
+                    feature_branch,
+                    repo.default_branch,
+                    f"Merge main into {feature_branch}",
+                )
+
+                # Check if the merged PR is the config PR
+                if pr.title == "Configure Sweep" and pr.merged:
+                    # Create a new PR to add "gha_enabled: True" to sweep.yaml
+                    create_gha_pr(g, repo)
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.warning(
+                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+                )
+    except SystemExit:
+        raise SystemExit
+    except:
+        logger.warning("Failed to update sweep PRs")
+
             case "pull_request_review_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
                 # Add a separate endpoint for this
