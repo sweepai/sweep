@@ -403,13 +403,9 @@ def on_ticket(
             else "unlimited GPT-4 tickets"
         )
         purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
+        payment_message, payment_message_start = create_payment_messages(
+            user_type, model_name, gpt_tickets_left_message, daily_message, tracking_id, 
+            is_paying_user, single_payment_link, pro_payment_link
         )
 
         def get_comment_header(
@@ -1615,3 +1611,15 @@ def get_branch_diff_text(repo, branch):
                 f"File status {file.status} not recognized"
             )  # TODO(sweep): We don't handle renamed files
     return "\n".join([f"{filename}\n{diff}" for filename, diff in pr_diffs])
+
+def create_payment_messages(user_type, model_name, gpt_tickets_left_message, daily_message, tracking_id, is_paying_user, single_payment_link, pro_payment_link):
+    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+    payment_message_start = (
+        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+    return payment_message, payment_message_start
