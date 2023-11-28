@@ -114,61 +114,6 @@ def format_contents(file_contents, is_markdown=False):
     return "\n".join(lines)
 
 
-def generate_new_file(
-    modify_file_response: str, old_file_content: str, chunk_offset: int = 0
-) -> str:
-    old_file_lines = old_file_content.split("\n")
-
-    # Extract content between <new_file> tags
-    new_file = re.search(
-        r".*?<new_file>\n?(.*)\n<\/new_file>", modify_file_response, re.DOTALL
-    ).group(1)
-    if "<copy_lines" not in new_file:
-        return new_file
-
-    # v5
-    result = []
-    lines = new_file.split("\n")
-    for line_number, line in enumerate(lines):
-        # Todo: make it support 1 number only
-        matches = re.finditer(r"<copy_lines\s(\d+-\d+)/?>", line)
-        copied_lines = False
-        for match in matches:
-            copied_lines = True
-            start, end = match.group(1).split("-")
-            start, end = int(start) - 1, int(end) - 1
-            if chunk_offset != 0:  # Correct for the line numbers being much higher
-                start -= chunk_offset
-                end -= chunk_offset
-            start = max(0, start)
-            end = min(len(old_file_lines) - 1, end)
-
-            replacements = old_file_lines[start : end + 1]
-            replacements_str = "\n".join(replacements)
-            line = line.replace(match.group(0), replacements_str)
-
-        # check if line was incorrectly duplicated
-        append = True
-        if not copied_lines:  # if bot generated, and line before is not bot generated
-            if len(result) > 0:
-                # Get last line in results
-                last_group = result[-1]
-                # last_line = last_group
-                if "\n" in last_group:
-                    last_line = last_group[
-                        last_group.rindex("\n") + 1 :
-                    ]  # if its multiple lines
-                    # if last line is same is current line
-                    if last_line == line:
-                        append = False
-
-        if append:
-            result.append(line)
-    result = "\n".join(result)
-
-    return result
-
-
 NOT_FOUND = "NOT_FOUND"
 IDENTICAL_LINES = "NO MATCHES FOUND"
 MULTIPLE_HITS = "MULTIPLE_HITS"

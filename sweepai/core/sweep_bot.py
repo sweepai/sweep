@@ -35,7 +35,6 @@ from sweepai.core.entities import (
     PullRequest,
     RegexMatchError,
     SandboxResponse,
-    SectionRewrite,
     Snippet,
     UnneededEditError,
 )
@@ -46,8 +45,6 @@ from sweepai.core.prompts import (
     extract_files_to_change_prompt,
     files_to_change_prompt,
     pull_request_prompt,
-    rewrite_file_prompt,
-    rewrite_file_system_prompt,
     sandbox_files_to_change_prompt,
     snippet_replacement,
     snippet_replacement_system_message,
@@ -1008,56 +1005,6 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
-
-    def rewrite_section(
-        self,
-        file_change_request: FileChangeRequest,
-        contents: str,
-        section: str,
-    ) -> FileCreation:
-        section_rewrite: SectionRewrite | None = None
-        key = f"file_change_created_{file_change_request.filename}"
-        old_system_message = self.messages[0].content
-        self.messages[0].content = rewrite_file_system_prompt
-        rewrite_section_response = self.chat(
-            rewrite_file_prompt.format(
-                filename=file_change_request.filename,
-                code=contents,
-                instructions=file_change_request.instructions,
-                section=section,
-            ),
-            message_key=key,
-        )
-        self.messages[0].content = old_system_message
-        self.file_change_paths.append(file_change_request.filename)
-        try:
-            section_rewrite = SectionRewrite.from_string(rewrite_section_response)
-            self.delete_messages_from_chat(key_to_delete=key)
-
-            try:
-                implemented = self.check_completion(  # use async
-                    file_change_request.filename, section_rewrite.section
-                )
-                if not implemented:
-                    discord_log_error(
-                        f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-                        priority=2 if self.sweep_context.use_faster_model else 0,
-                    )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(f"Error: {e}")
-
-            return section_rewrite
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            # Todo: should we undo appending to file_change_paths?
-            logger.info(traceback.format_exc())
-            logger.warning(e)
-            logger.warning(f"Failed to parse. Retrying for the 1st time...")
-            self.delete_messages_from_chat(key)
-        raise Exception("Failed to parse response after 5 attempts.")
 
     def get_files_to_change_from_sandbox(
         self,

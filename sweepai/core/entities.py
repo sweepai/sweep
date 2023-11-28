@@ -5,7 +5,7 @@ import re
 import string
 import uuid
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Literal, Type, TypeVar
+from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
@@ -325,30 +325,6 @@ class FileCreation(RegexMatchableBaseModel):
         return result
 
 
-class SectionRewrite(RegexMatchableBaseModel):
-    section: str
-    _regex = r"""<section>(?P<section>.*)</section>"""
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        result = super().from_string(string, **kwargs)
-
-        if len(result.section) == 1:
-            result.section = result.section.replace("```", "")
-            return result.section + "\n"
-
-        if result.section.startswith("```"):
-            first_newline = result.section.find("\n")
-            result.section = result.section[first_newline + 1 :]
-
-        result.section = result.section.strip()
-        if result.section.endswith("```"):
-            result.section = result.section[: -len("```")]
-            result.section = result.section.strip()
-        result.section += "\n"
-        return result
-
-
 class PullRequest(RegexMatchableBaseModel):
     title: str
     branch_name: str
@@ -588,54 +564,6 @@ class MatchingError(Exception):
 class EmptyRepository(Exception):
     def __init__(self):
         pass
-
-
-class CustomInstructions(BaseModel):
-    user_prompt: str | List[str]
-    system_prompt: str = None
-    # Todo: add delete_after
-    # delete_after: bool = False
-
-    def activate(self, chatbot, key: str, **kwargs):
-        # Create class for handling __enter__ and __exit__ methods
-        class CustomInstructionsContext:
-            def __init__(self, chatbot, custom_instructions: CustomInstructions):
-                self.chatbot = chatbot
-                self.custom_instructions = custom_instructions
-                self.old_system_prompt = chatbot.messages[0].content
-
-            def __enter__(self):
-                nonlocal key, kwargs
-                if self.custom_instructions.system_prompt:
-                    self.chatbot.messages[
-                        0
-                    ].content = self.custom_instructions.system_prompt.format(**kwargs)
-                if self.custom_instructions.user_prompt:
-                    if type(self.custom_instructions.user_prompt) == list:
-                        for user_prompt in self.custom_instructions.user_prompt:
-                            self.chatbot.messages.append(
-                                Message(
-                                    role="user",
-                                    content=user_prompt.format(**kwargs),
-                                    key=key,
-                                )
-                            )
-                    else:
-                        self.chatbot.messages.append(
-                            Message(
-                                role="user",
-                                content=self.custom_instructions.user_prompt.format(
-                                    **kwargs
-                                ),
-                                key=key,
-                            )
-                        )
-
-            def __exit__(self, exc_type, exc_value, traceback):
-                if self.old_system_prompt is not None:
-                    self.chatbot.messages[0].content = self.old_system_prompt
-
-        return CustomInstructionsContext(chatbot, self)
 
 
 @dataclass
