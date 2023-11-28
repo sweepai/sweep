@@ -1,16 +1,12 @@
 import copy
-import hashlib
-import os
 import re
-import shutil
-import time
 import traceback
 import uuid
 
 from loguru import logger
 
 from sweepai.agents.assistant_wrapper import openai_assistant_call
-from sweepai.core.entities import FileChangeRequest, Message
+from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
 system_message = r"""# User Request
@@ -76,24 +72,19 @@ Respond in the following format:
 
 def new_planning(
     request: str,
-    repository_path: str,
+    zip_path: str,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = "asst_E644o8UsuqdA8iDXmP6bLROl",
 ) -> list[FileChangeRequest]:
     try:
-        logger.info("Zipping repository...")
-        archive_name = hashlib.sha256(str(time.time()).encode()).hexdigest()
-        shutil.make_archive(f"/tmp/{archive_name}", "zip", repository_path)
-        logger.info("Done zipping repository.")
         response = openai_assistant_call(
             request=request,
             assistant_id=assistant_id,
             additional_messages=additional_messages,
-            file_paths=[f"/tmp/{archive_name}.zip"],
+            file_paths=[zip_path],
             chat_logger=chat_logger,
         )
-        os.remove(f"/tmp/{archive_name}.zip")
         messages = response.messages
         final_message = messages.data[0].content[0].text.value
         fcrs = []
@@ -116,6 +107,8 @@ def new_planning(
             fcrs.append(new_file_change_request)
         assert len(fcrs) > 0
         return fcrs
+    except AssistantRaisedException as e:
+        raise e
     except Exception as e:
         logger.exception(e)
         if chat_logger is not None:
