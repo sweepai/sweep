@@ -1,3 +1,7 @@
+
+
+
+
 """
 on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
@@ -767,6 +771,37 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
+
+        # human_message = HumanMessagePrompt(
+        #     repo_name=repo_name,
+        #     issue_url=issue_url,
+        #     username=username,
+        #     repo_description=repo_description.strip(),
+        #     title=title,
+        #     summary=message_summary,
+        #     snippets=snippets,
+        #     tree=tree,
+        #     commit_history=commit_history,
+        # )
+
+        # context_pruning = ContextPruning(chat_logger=chat_logger)
+        # (
+        #     paths_to_keep,
+        #     directories_to_expand,
+        # ) = context_pruning.prune_context(human_message, repo=repo, g=g)
+
+        # if paths_to_keep:
+        #     snippets = [
+        #         snippet
+        #         for snippet in snippets
+        #         if any(
+        #             path_to_keep.startswith("/".join(snippet.file_path.split("/")[:-1]))
+        #             for path_to_keep in paths_to_keep
+        #         )
+        #     ]
+        #     dir_obj.remove_all_not_included(paths_to_keep)
+        # dir_obj.expand_directory(directories_to_expand)
+        # tree = str(dir_obj)
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
             issue_url=issue_url,
@@ -791,7 +826,6 @@ def on_ticket(
 
         # Check repository for sweep.yml file.
         sweep_yml_exists = False
-        sweep_yml_failed = False
         for content_file in repo.get_contents(""):
             if content_file.name == "sweep.yaml":
                 sweep_yml_exists = True
@@ -813,10 +847,11 @@ def on_ticket(
                         for problem in problems
                     ]
                     error_message = "\n".join(errors)
-                    markdown_error_message = f"**There is something wrong with your [sweep.yaml](https://github.com/{repo_full_name}/blob/main/sweep.yaml):**\n```\n{error_message}\n```"
-                    sweep_yml_failed = True
+                    markdown_error_message = f"**There is something wrong with the YAML file:**\n```\n{error_message}\n```"
+
                     logger.error(markdown_error_message)
                     edit_sweep_comment(markdown_error_message, -1)
+                    return {"success": False}
                 else:
                     logger.info("The YAML file is valid. No errors found.")
                 break
@@ -1297,10 +1332,6 @@ def on_ticket(
 
             if sandbox_passed == True:
                 pr_changes.title = f"{pr_changes.title} (✓ Sandbox Passed)"
-
-            # delete failing sweep yaml if applicable
-            if sweep_yml_failed:
-                repo.delete_file("sweep.yaml", "Delete failing sweep.yaml", branch=pr_changes.pr_head)
 
             pr: PullRequest = repo.create_pull(
                 title=pr_changes.title,
