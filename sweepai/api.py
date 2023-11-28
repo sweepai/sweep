@@ -76,8 +76,13 @@ tracemalloc.start()
 
 events = {}
 on_ticket_events = {}
+import hashlib
+import time
 
-get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+def get_hash():
+    return hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+
+
 
 
 def run_on_ticket(*args, **kwargs):
