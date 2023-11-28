@@ -88,7 +88,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         return
 
     rules = get_rules(repo)
-    if not rules:
+    if rules is None or rules == []:
         return
     for rule in rules:
         chat_logger.data["title"] = f"Sweep Rules - {rule}"
