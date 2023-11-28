@@ -76,6 +76,11 @@ on_ticket_events = {}
 
 
 def get_hash():
+    """Generate a unique hash using the current timestamp.
+
+    Returns:
+        str: A 10-character hexadecimal hash string generated from the current timestamp.
+    """
     return hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
 
 
