@@ -312,7 +312,7 @@ def new_modify(
         logger.exception(e)
         # TODO: Discord
         discord_log_error(
-            str(e) + "\n\n" + traceback.format_exc() + "\n\n" + str(chat_logger.data)
+            str(e) + "\n\n" + traceback.format_exc() + "\n\n" + str(chat_logger.data if chat_logger else "")
         )
         return None
     return file_content

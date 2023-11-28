@@ -1,4 +1,3 @@
-from hmac import new
 import json
 import re
 import time
