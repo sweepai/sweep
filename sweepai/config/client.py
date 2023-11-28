@@ -300,3 +300,4 @@ DEFAULT_RULES = [
     "Refactor large functions to be more modular.",
     "Add docstrings to all functions and file headers.",
 ]
+print("Announcement: We have made significant improvements to the OpenAI proxy!")
