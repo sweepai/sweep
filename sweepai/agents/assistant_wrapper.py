@@ -141,7 +141,7 @@ def run_until_complete(
     )
 
 
-@file_cache(ignore_params=["chat_logger"])
+# @file_cache(ignore_params=["chat_logger"])
 def openai_assistant_call_helper(
     request: str,
     instructions: str | None = None,
@@ -219,24 +219,32 @@ def openai_assistant_call(
     assistant_id: str | None = None,
     assistant_name: str | None = None,
 ):
-    (assistant_id, run_id, thread_id) = openai_assistant_call_helper(
-        request=request,
-        instructions=instructions,
-        additional_messages=additional_messages,
-        file_paths=file_paths,
-        tools=tools,
-        model=model,
-        sleep_time=sleep_time,
-        chat_logger=chat_logger,
-        assistant_id=assistant_id,
-        assistant_name=assistant_name,
-    )
-    messages = client.beta.threads.messages.list(
-        thread_id=thread_id,
-    )
-    return AssistantResponse(
-        messages=messages,
-        assistant_id=assistant_id,
-        run_id=run_id,
-        thread_id=thread_id,
-    )
+    retries = range(3)
+    for _ in retries:
+        try:
+            (assistant_id, run_id, thread_id) = openai_assistant_call_helper(
+                request=request,
+                instructions=instructions,
+                additional_messages=additional_messages,
+                file_paths=file_paths,
+                tools=tools,
+                model=model,
+                sleep_time=sleep_time,
+                chat_logger=chat_logger,
+                assistant_id=assistant_id,
+                assistant_name=assistant_name,
+            )
+            messages = client.beta.threads.messages.list(
+                thread_id=thread_id,
+            )
+            return AssistantResponse(
+                messages=messages,
+                assistant_id=assistant_id,
+                run_id=run_id,
+                thread_id=thread_id,
+            )
+        except AssistantRaisedException as e:
+            logger.warning(e.message)
+        except Exception as e:
+            logger.error(e)
+            raise e

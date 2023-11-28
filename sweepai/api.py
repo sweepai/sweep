@@ -420,10 +420,9 @@ async def webhook(raw_request: Request):
                                 "installation_id": request.installation.id,
                                 "pr_number": request.issue.number,
                                 "comment_id": request.comment.id,
-                                "g": g,
-                                "repo": repo,
                             },
                         )
+                        call_on_comment(**pr_change_request.params)
             case "issues", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -536,7 +535,6 @@ async def webhook(raw_request: Request):
                         call_on_comment(**pr_change_request.params)
             case "pull_request_review_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
-                # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
@@ -562,12 +560,37 @@ async def webhook(raw_request: Request):
                         },
                     )
                     call_on_comment(**pr_change_request.params)
-                # Todo: update index on comments
+            case "pull_request_review_comment", "edited":
+                logger.info(f"Received event: {event}, {action}")
+                request = CommentCreatedRequest(**request_dict)
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                labels = pr.get_labels()
+                comment = request.comment.body
+                if (
+                    comment.lower().startswith("sweep:")
+                    or any(label.name.lower() == "sweep" for label in labels)
+                ) and request.comment.user.type == "User":
+                    pr_change_request = PRChangeRequest(
+                        params={
+                            "comment_type": "comment",
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": request.comment.body,
+                            "pr_path": request.comment.path,
+                            "pr_line_position": request.comment.original_line,
+                            "username": request.comment.user.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.pull_request.number,
+                            "comment_id": request.comment.id,
+                        },
+                    )
+                    call_on_comment(**pr_change_request.params)
             case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "check_run", "completed":
-                pass  # removed for now
+                pass
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {

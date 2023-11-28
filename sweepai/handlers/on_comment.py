@@ -20,6 +20,7 @@ from sweepai.config.server import (
     LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
 )
+from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -35,6 +36,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 from sweepai.utils.search_utils import search_snippets
+from sweepai.utils.ticket_utils import prep_snippets
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -272,7 +274,7 @@ def on_comment(
             pr_file_path = pr_path.strip()
             formatted_pr_chunk = (
                 "\n".join(pr_lines[start : pr_line_position - 1])
-                + f"\n{pr_lines[pr_line_position - 1]} <<<< COMMENT: {comment.strip()} <<<<\n"
+                + f"\n{pr_lines[pr_line_position - 1]} <- COMMENT: {comment.strip()}\n"
                 + "\n".join(pr_lines[pr_line_position:end])
             )
             if comment_id:
@@ -292,21 +294,15 @@ def on_comment(
             tree = ""
         else:
             try:
-                logger.info("Fetching relevant files...")
-                snippets, tree, _ = search_snippets(
-                    cloned_repo,
-                    f"{comment}\n{pr_title}" + (f"\n{pr_chunk}" if pr_chunk else ""),
-                    num_files=30,
-                )
-                assert len(snippets) > 0
+                search_query = (comment).strip("\n")
+                formatted_query = (f"{comment}").strip("\n")
+                repo_context_manager = prep_snippets(cloned_repo, search_query)
+                repo_context_manager = get_relevant_context(formatted_query, repo_context_manager)
+                snippets = repo_context_manager.current_top_snippets
+                tree = str(repo_context_manager.dir_obj)
             except Exception as e:
                 logger.error(traceback.format_exc())
                 raise e
-
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=0 if file_comment else 2
-        )
-        # commit_history = cloned_repo.get_commit_history(username=username)
         user_dict = get_documentation_dict(repo)
         docs_results = extract_relevant_docs(
             pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}",
@@ -364,7 +360,7 @@ def on_comment(
             file_change_requests = [
                 FileChangeRequest(
                     filename=pr_file_path,
-                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
+                    instructions=f"The user left this comment {comment} in this chunk of code:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
                     change_type="modify",
                     comment_line=pr_line_position + 1,
                 )
