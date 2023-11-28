@@ -215,7 +215,7 @@ class CodeGenBot(ChatGPT):
     ) -> tuple[list[FileChangeRequest], str]:
         fcrs = new_planning(
             "#" + self.human_message.title + "\n" + self.human_message.summary,
-            self.cloned_repo.repo_dir,
+            self.cloned_repo.zip_path,
             additional_messages=self.messages[:-1],
             chat_logger=self.chat_logger,
         )
