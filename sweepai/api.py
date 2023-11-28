@@ -1,28 +1,17 @@
 # Do not save logs for main process
+import ctypes
 import hashlib
 import json
-import time
-
-
-from sweepai import health
-from sweepai.handlers.on_button_click import handle_button_click
-from loguru import logger
-from sweepai.utils.buttons import (
-    Button,
-    ButtonList,
-    check_button_activated,
-    check_button_title_match,
-)
-from sweepai.utils.safe_pqueue import SafePriorityQueue
-
-import ctypes
 import threading
+import time
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from loguru import logger
 from pydantic import ValidationError
 
+from sweepai import health
 from sweepai.config.client import (
     DEFAULT_RULES,
     RESTART_SWEEP_BUTTON,
@@ -59,13 +48,21 @@ from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos,
     create_gha_pr,
 )
+from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.buttons import (
+    Button,
+    ButtonList,
+    check_button_activated,
+    check_button_title_match,
+)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
@@ -283,10 +280,14 @@ async def webhook(raw_request: Request):
                     if repo_rules:
                         for rule in repo_rules:
                             if rule:
-                                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                                rule_buttons.append(
+                                    Button(label=f"{RULES_LABEL} {rule}")
+                                )
                         if len(repo_rules) == 0:
                             for rule in DEFAULT_RULES:
-                                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                                rule_buttons.append(
+                                    Button(label=f"{RULES_LABEL} {rule}")
+                                )
                     if rule_buttons:
                         rules_buttons_list = ButtonList(
                             buttons=rule_buttons, title=RULES_TITLE
