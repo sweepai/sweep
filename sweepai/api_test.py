@@ -1,6 +1,6 @@
 import pytest
 
-from .api import get_hash
+from sweepai.api import get_hash
 
 
 def test_get_hash():
