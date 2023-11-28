@@ -75,7 +75,7 @@ events = {}
 on_ticket_events = {}
 
 
-def get_hash():
+def get_sha256_hash():
     """Generate a unique hash using the current timestamp.
 
     Returns:
@@ -85,7 +85,7 @@ def get_hash():
 
 
 def run_on_ticket(*args, **kwargs):
-    tracking_id = get_hash()
+    tracking_id = get_sha256_hash()
     with logger.contextualize(
         metadata={
             **kwargs,
@@ -97,7 +97,7 @@ def run_on_ticket(*args, **kwargs):
 
 
 def run_on_comment(*args, **kwargs):
-    tracking_id = get_hash()
+    tracking_id = get_sha256_hash()
     with logger.contextualize(
         metadata={
             **kwargs,
