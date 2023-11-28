@@ -45,6 +45,7 @@ class SweepConfig(BaseModel):
         ".png",
         ".jpg",
         ".jpeg",
+        ".download",
         ".gif",
         ".bmp",
         ".tiff",
@@ -300,3 +301,8 @@ DEFAULT_RULES = [
     "Refactor large functions to be more modular.",
     "Add docstrings to all functions and file headers.",
 ]
+
+DEFAULT_RULES_STRING = """\
+- "All new business logic should have corresponding unit tests."
+- "Refactor large functions to be more modular."
+- "Add docstrings to all functions and file headers.\""""

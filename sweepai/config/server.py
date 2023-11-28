@@ -99,7 +99,6 @@ GITHUB_DEFAULT_CONFIG = os.environ.get(
 
 # This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 rules:
-  - "All docstrings and comments should be up to date."
 {additional_rules}
 
 # This is the branch that Sweep will develop from and make pull requests to. Most people use 'main' or 'master' but some users also use 'dev' or 'staging'.

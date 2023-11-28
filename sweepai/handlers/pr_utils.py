@@ -9,7 +9,7 @@ from sweepai.config.client import (
     get_documentation_dict,
 )
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
-from sweepai.core.context_pruning import ContextPruning
+from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import NoFilesException, SandboxResponse, SweepContext
 from sweepai.core.external_searcher import ExternalSearcher
@@ -29,7 +29,7 @@ from sweepai.utils.str_utils import (
     checkbox_template,
     num_of_snippets_to_query,
 )
-from sweepai.utils.ticket_utils import post_process_snippets
+from sweepai.utils.ticket_utils import fetch_relevant_files, post_process_snippets, prep_snippets
 
 
 def make_pr(
@@ -55,26 +55,12 @@ def make_pr(
         branch=branch_name,
     )
     logger.info("Fetching relevant files...")
-    try:
-        snippets, tree, dir_obj = search_snippets(
-            cloned_repo,
-            f"{title}\n{summary}",
-            num_files=num_of_snippets_to_query,
-        )
-        assert len(snippets) > 0
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        trace = traceback.format_exc()
-        logger.error(e)
-        logger.error(trace)
-    snippets = post_process_snippets(
-        snippets, max_num_of_snippets=2 if use_faster_model else 5
-    )
-    commit_history = cloned_repo.get_commit_history(username=username)
-    if not repo_description:
-        repo_description = "No description provided."
-
+    search_query = (title + summary).strip("\n")
+    formatted_query = (f"{title.strip()}\n{summary.strip()}").strip("\n")
+    repo_context_manager = prep_snippets(cloned_repo, search_query)
+    repo_context_manager = get_relevant_context(formatted_query, repo_context_manager)
+    snippets = repo_context_manager.current_top_snippets
+    tree = str(repo_context_manager.dir_obj)
     message_summary = summary
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
@@ -99,35 +85,6 @@ def make_pr(
         summary=message_summary,
         snippets=snippets,
         tree=tree,
-        commit_history=commit_history,
-    )
-
-    context_pruning = ContextPruning(chat_logger=chat_logger)
-    (
-        paths_to_keep,
-        directories_to_expand,
-    ) = context_pruning.prune_context(  # TODO, ignore directories
-        human_message, repo=cloned_repo.repo
-    )
-    snippets = [
-        snippet
-        for snippet in snippets
-        if any(
-            snippet.file_path.startswith(path_to_keep) for path_to_keep in paths_to_keep
-        )
-    ]
-    dir_obj.remove_all_not_included(paths_to_keep)
-    dir_obj.expand_directory(directories_to_expand)
-    tree = str(dir_obj)
-    human_message = HumanMessagePrompt(
-        repo_name=repo_name,
-        username=username,
-        repo_description=repo_description.strip(),
-        title=title,
-        summary=message_summary,
-        snippets=snippets,
-        tree=tree,
-        commit_history=commit_history,
     )
 
     _user_token, g = get_github_client(installation_id)

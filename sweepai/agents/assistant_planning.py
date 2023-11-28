@@ -104,6 +104,10 @@ def new_planning(
             if group_dict["change_type"] == "modify_file":
                 group_dict["change_type"] = "modify"
             fcr = FileChangeRequest(**group_dict)
+            fcr.filename = fcr.filename.lstrip("/")
+            fcr.instructions = fcr.instructions.replace("\n*", "\n•")
+            if fcr.instructions.startswith("*"):
+                fcr.instructions = "•" + fcr.instructions[1:]
             fcrs.append(fcr)
             new_file_change_request = copy.deepcopy(fcr)
             new_file_change_request.change_type = "check"
@@ -114,7 +118,6 @@ def new_planning(
         return fcrs
     except Exception as e:
         logger.exception(e)
-        # TODO: Discord
         if chat_logger is not None:
             discord_log_error(
                 str(e)

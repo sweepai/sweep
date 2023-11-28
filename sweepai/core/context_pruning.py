@@ -1,3 +1,4 @@
+from hmac import new
 import json
 import re
 import time
@@ -17,51 +18,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.tree_utils import DirectoryTree
 
-system_message_prompt = """\
-You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
-
-Reply in the following format:
-<contextual_request_analysis>
-Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths with a justification.
-</contextual_request_analysis>
-
-<paths_to_keep>
-* file or directory to keep
-...
-</paths_to_keep>
-
-<directories_to_expand>
-* directory to expand
-...
-</directories_to_expand>"""
-
-pruning_prompt = """\
-The above <repo_tree>, <snippets_in_repo>, and <paths_in_repo> have unnecessary information.
-The snippets, and paths were fetched by a search engine, so they are noisy.
-The unnecessary information will hurt your performance on this task, so prune paths_in_repo, snippets_in_repo, and repo_tree to keep only the absolutely necessary information.
-
-First, list all of the files and directories we should keep in paths_to_keep. Be as specific as you can.
-Second, list any directories that are currently closed that should be expanded.
-If you expand a directory, we automatically expand all of its subdirectories, so do not list its subdirectories.
-Keep all files or directories that are referenced in the issue title or descriptions.
-
-Reply in the following format:
-<contextual_request_analysis>
-Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths with a justification.
-</contextual_request_analysis>
-
-<paths_to_keep>
-* file or directory to keep
-...
-</paths_to_keep>
-
-<directories_to_expand>
-* directory to expand
-...
-</directories_to_expand>"""
-
+ASSISTANT_MAX_CHARS = 4096 * 4 * .95 # ~95% of 4k tokens
 
 class ContextToPrune(RegexMatchableBaseModel):
     paths_to_keep: list[str] = []
@@ -99,40 +56,6 @@ class ContextToPrune(RegexMatchableBaseModel):
             paths_to_keep=paths_to_keep,
             directories_to_expand=directories_to_expand,
         )
-
-
-class ContextPruning(ChatGPT):
-    def prune_context(
-        self, human_message: HumanMessagePrompt, **kwargs
-    ) -> tuple[list[str], list[str]]:
-        try:
-            content = system_message_prompt
-            self.messages = [Message(role="system", content=content, key="system")]
-            added_messages = human_message.construct_prompt(
-                snippet_tag="snippets_in_repo", directory_tag="paths_in_repo"
-            )  # [ { role, content }, ... ]
-            for msg in added_messages:
-                self.messages.append(Message(**msg))
-            self.model = (
-                DEFAULT_GPT4_32K_MODEL
-                if (
-                    self.chat_logger
-                    and not self.chat_logger.use_faster_model(kwargs.get("g", None))
-                )
-                else DEFAULT_GPT35_MODEL
-            )
-            response = self.chat(pruning_prompt)
-            context_to_prune = ContextToPrune.from_string(response)
-            return (
-                context_to_prune.paths_to_keep,
-                context_to_prune.directories_to_expand,
-            )
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
-            return [], []
-
 
 sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
 
@@ -223,16 +146,17 @@ tools = [
     {"type": "function", "function": functions[2]},
 ]
 
+@staticmethod
+def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
+    return len(snippet.xml) + sum([len(snippet.xml) for snippet in current_snippets]) <= ASSISTANT_MAX_CHARS
 
 @dataclass
 class RepoContextManager:
     dir_obj: DirectoryTree
     current_top_tree: str
-    current_top_snippets: list[Snippet]
     snippets: list[Snippet]
-    snippet_scores: dict[
-        str, float
-    ]  # used later to add the option to add more snippets
+    snippet_scores: dict[str, float]
+    current_top_snippets: list[Snippet] = []
 
     def remove_all_non_kept_paths(self, paths_to_keep: list[str]):
         self.current_top_snippets = [
@@ -256,6 +180,11 @@ class RepoContextManager:
         unformatted_user_prompt: str,
         query: str,
     ):
+        new_top_snippets: list[Snippet] = []
+        for snippet in self.current_top_snippets:
+            if can_add_snippet(snippet, new_top_snippets):
+                new_top_snippets.append(snippet)
+        self.current_top_snippets = new_top_snippets
         top_snippets_str = [snippet.xml for snippet in self.current_top_snippets]
         paths_in_repo = [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
@@ -269,23 +198,21 @@ class RepoContextManager:
         )
         return user_prompt
 
+    def get_highest_scoring_snippet(self, file_path: str) -> Snippet:
+        snippet_key = lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+        filtered_snippets = [snippet for snippet in self.snippets if snippet.file_path == file_path and snippet not in self.current_top_snippets]
+        highest_scoring_snippet = max(
+            filtered_snippets,
+            key=lambda snippet: self.snippet_scores[snippet_key(snippet)] if snippet_key(snippet) in self.snippet_scores else 0
+        )
+        return highest_scoring_snippet
+
     def add_file_paths(self, paths_to_add: list[str]):
         self.dir_obj.add_file_paths(paths_to_add)
         for file_path in paths_to_add:
-            snippet_key = (
-                lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
-            )
-            filtered_snippets = [
-                snippet
-                for snippet in self.snippets
-                if snippet.file_path == file_path
-                and snippet not in self.current_top_snippets
-            ]
-            highest_scoring_snippet = max(
-                filtered_snippets,
-                key=lambda snippet: self.snippet_scores[snippet_key(snippet)]
-                if snippet_key(snippet) in self.snippet_scores
-                else 0,
+            highest_scoring_snippet = self.get_highest_scoring_snippet(file_path)
+            self.current_top_snippets.append(
+                highest_scoring_snippet
             )
             self.current_top_snippets.append(highest_scoring_snippet)
 
@@ -303,11 +230,16 @@ def get_relevant_context(
         )
         assistant = client.beta.assistants.create(
             name="Relevant Files Assistant",
-            instructions=sys_prompt + user_prompt,
+            instructions=sys_prompt,
             tools=tools,
             model="gpt-4-1106-preview",
         )
         thread = client.beta.threads.create()
+        _ = client.beta.threads.messages.create(
+            thread.id,
+            role="user",
+            content=f"Here are the snippets_in_repo, repo_tree, and paths_in_repo:\n{user_prompt}\nUse the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request.",
+        )
         run = client.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id=assistant.id,
@@ -380,15 +312,16 @@ def modify_context(
                     f"Could not parse function arguments: {tool_call.function.arguments}"
                 )
                 continue
-            valid_path = repo_context_manager.is_path_valid(
-                function_input["file_path"]
-                if "file_path" in function_input
-                else function_input["directory_path"]
-            )
+            valid_path = repo_context_manager.is_path_valid(function_input["file_path"] if "file_path" in function_input else function_input["directory_path"])
+            output = "success" if valid_path else "failure: invalid path"
+            if tool_call.function.name == "add_file_path" and valid_path:
+                valid_path = valid_path and can_add_snippet(repo_context_manager.get_highest_scoring_snippet(function_input["file_path"]), repo_context_manager.current_top_snippets)
+                paths_to_add.append(function_input["file_path"])
+                output = "success" if valid_path else "failure: no space left, current snippets are too long"
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
-                    "output": "success" if valid_path else "failure, invalid path",
+                    "output": output,
                 }
             )
             if valid_path:
@@ -396,22 +329,14 @@ def modify_context(
                     paths_to_keep.append(function_input["file_path"])
                 elif tool_call.function.name == "expand_directory":
                     directories_to_expand.append(function_input["directory_path"])
-                elif tool_call.function.name == "add_file_path":
-                    paths_to_add.append(function_input["file_path"])
         run = client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread.id,
             run_id=run.id,
             tool_outputs=tool_outputs,
         )
-    logger.info(
-        f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
-    )
-    if paths_to_keep:
-        repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
-    if directories_to_expand:
-        repo_context_manager.expand_all_directories(directories_to_expand)
-    if paths_to_add:
-        repo_context_manager.add_file_paths(paths_to_add)
+    logger.info(f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}")
+    if paths_to_keep: repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
+    if directories_to_expand: repo_context_manager.expand_all_directories(directories_to_expand)
     return not (paths_to_keep or directories_to_expand or paths_to_add)
 
 
@@ -422,7 +347,7 @@ if __name__ == "__main__":
 
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-    query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md too."
+    query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md."
     repo_context_manager = prep_snippets(cloned_repo, query)
     rcm = get_relevant_context(query, repo_context_manager)
     import pdb
