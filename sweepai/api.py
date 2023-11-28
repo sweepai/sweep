@@ -280,7 +280,7 @@ async def webhook(raw_request: Request):
                         }
                     rule_buttons = []
                     repo_rules = get_rules(repo)
-                    if repo_rules != [""]:
+                    if repo_rules:
                         for rule in repo_rules:
                             if rule:
                                 rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
