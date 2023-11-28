@@ -1300,7 +1300,7 @@ def on_ticket(
 
             # delete failing sweep yaml if applicable
             if sweep_yml_failed:
-                repo.delete_file("sweep.yaml", "Delete failing sweep.yaml", branch=pr_changes.pr_head)
+                repo.delete_file("sweep.yaml", "Delete failing sweep.yaml", branch=pr_changes.pr_head, sha=repo.get_contents("sweep.yaml").sha)
 
             pr: PullRequest = repo.create_pull(
                 title=pr_changes.title,
