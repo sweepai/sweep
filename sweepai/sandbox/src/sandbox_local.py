@@ -299,6 +299,7 @@ async def run_sandbox(request: SandboxRequest):
                         )
                     )
                 if exit_code != 0 and not ("prettier" in command and exit_code == 1):
+                    error_messages.append(output)
                     raise SandboxError(output)
                 return output
 
@@ -354,6 +355,7 @@ async def run_sandbox(request: SandboxRequest):
             else:
                 success = True
                 print("No content provided, skipping edit step...")
+            success = True
     except SystemExit:
         raise SystemExit
     except Exception as e:
@@ -380,7 +382,7 @@ async def run_sandbox(request: SandboxRequest):
         )
 
     return {
-        "success": success,
+        "success": not error_messages,
         "error_messages": error_messages,
         "outputs": [execution.output for execution in executions],
         "executions": [asdict(execution) for execution in executions],
