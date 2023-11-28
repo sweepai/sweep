@@ -83,7 +83,7 @@ def fetch_relevant_files(
     try:
         search_query = (title + summary + replies_text).strip("\n")
         replies_text = f"\n{replies_text}" if replies_text else ""
-        formatted_query = (f"\n{title.strip()}\n{summary.strip()}" + replies_text).strip("\n")
+        formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip("\n")
         repo_context_manager = prep_snippets(cloned_repo, search_query)
         repo_context_manager = get_relevant_context(formatted_query, repo_context_manager)
         snippets = repo_context_manager.current_top_snippets
