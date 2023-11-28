@@ -1,3 +1,5 @@
+from sweepai.handlers.on_ticket import review_code
+
 """
 on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
@@ -21,52 +23,29 @@ from tqdm import tqdm
 from yamllint import linter
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
-from sweepai.config.client import (
-    DEFAULT_RULES,
-    RESET_FILE,
-    RESTART_SWEEP_BUTTON,
-    REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
-    RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
-    SweepConfig,
-    get_documentation_dict,
-    get_rules,
-)
-from sweepai.config.server import (
-    DEBUG,
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-    ENV,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    IS_SELF_HOSTED,
-    LOGTAIL_SOURCE_KEY,
-    MONGODB_URI,
-    OPENAI_USE_3_5_MODEL_ONLY,
-    SANDBOX_URL,
-    WHITELISTED_REPOS,
-)
+from sweepai.config.client import (DEFAULT_RULES, RESET_FILE,
+                                   RESTART_SWEEP_BUTTON,
+                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
+                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
+                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
+                                   get_documentation_dict, get_rules)
+from sweepai.config.server import (DEBUG, DISCORD_FEEDBACK_WEBHOOK_URL, ENV,
+                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME,
+                                   IS_SELF_HOSTED, LOGTAIL_SOURCE_KEY,
+                                   MONGODB_URI, OPENAI_USE_3_5_MODEL_ONLY,
+                                   SANDBOX_URL, WHITELISTED_REPOS)
 from sweepai.core.documentation_searcher import extract_relevant_docs
-from sweepai.core.entities import (
-    EmptyRepository,
-    FileChangeRequest,
-    MaxTokensExceeded,
-    NoFilesException,
-    ProposedIssue,
-    PullRequest,
-    SandboxResponse,
-    SweepContext,
-)
-from sweepai.core.entities import create_error_logs as entities_create_error_logs
+from sweepai.core.entities import (EmptyRepository, FileChangeRequest,
+                                   MaxTokensExceeded, NoFilesException,
+                                   ProposedIssue, PullRequest, SandboxResponse,
+                                   SweepContext)
+from sweepai.core.entities import \
+    create_error_logs as entities_create_error_logs
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.create_pr import (
-    create_config_pr,
-    create_pr_changes,
-    safe_delete_sweep_branch,
-)
+from sweepai.handlers.create_pr import (create_config_pr, create_pr_changes,
+                                        safe_delete_sweep_branch)
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
@@ -77,22 +56,12 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.str_utils import (
-    UPDATES_MESSAGE,
-    blockquote,
-    bot_suffix,
-    checkbox_template,
-    clean_logs,
-    collapsible_template,
-    create_checkbox,
-    create_collapsible,
-    discord_suffix,
-    format_exit_code,
-    ordinal,
-    sep,
-    stars_suffix,
-    strip_sweep,
-)
+from sweepai.utils.str_utils import (UPDATES_MESSAGE, blockquote, bot_suffix,
+                                     checkbox_template, clean_logs,
+                                     collapsible_template, create_checkbox,
+                                     create_collapsible, discord_suffix,
+                                     format_exit_code, ordinal, sep,
+                                     stars_suffix, strip_sweep)
 from sweepai.utils.ticket_utils import center, fetch_relevant_files, log_error
 
 # from sandbox.sandbox_utils import Sandbox
@@ -1543,70 +1512,6 @@ def on_ticket(
     return {"success": True}
 
 
-def review_code(
-    repo,
-    pr_changes,
-    issue_url,
-    username,
-    repo_description,
-    title,
-    summary,
-    replies_text,
-    tree,
-    lint_output,
-    plan,
-    chat_logger,
-    review_message,
-    edit_sweep_comment,
-    repo_full_name,
-    installation_id,
-):
-    try:
-        # CODE REVIEW
-        changes_required = False
-        changes_required, review_comment = review_pr(
-            repo=repo,
-            pr=pr_changes,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=summary,
-            replies_text=replies_text,
-            tree=tree,
-            lint_output=lint_output,
-            plan=plan,  # plan for the PR
-            chat_logger=chat_logger,
-        )
-        lint_output = None
-        review_message += (
-            f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
-        )
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI'm currently addressing these suggestions.",
-                3,
-            )
-            logger.info(f"Addressing review comment {review_comment}")
-            on_comment(
-                repo_full_name=repo_full_name,
-                repo_description=repo_description,
-                comment=review_comment,
-                username=username,
-                installation_id=installation_id,
-                pr_path=None,
-                pr_line_position=None,
-                pr_number=None,
-                pr=pr_changes,
-                chat_logger=chat_logger,
-                repo=repo,
-            )
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        logger.error(e)
-    return changes_required, review_message
 
 
 def get_branch_diff_text(repo, branch):
