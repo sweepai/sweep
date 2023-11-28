@@ -1466,7 +1466,7 @@ def on_ticket(
         except AssistantRaisedException as e:
             logger.exception(e)
             edit_sweep_comment(
-                f"I'm sorry but it looks like the assistant has raised an exception with the following message.\n{blockquote(e.message)}",
+                f"Sweep raised an error with the following message:\n{blockquote(e.message)}",
                 -1,
             )
             log_error(
