@@ -273,8 +273,8 @@ def get_rules(repo: Repository):
             "utf-8"
         )
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        rules = sweep_yaml.get("rules", [])
-        return rules
+        rules = sweep_yaml.get("rules")
+        return rules if rules is not None else []
     except SystemExit:
         raise SystemExit
     except Exception:
