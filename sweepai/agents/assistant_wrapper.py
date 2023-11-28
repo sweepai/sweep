@@ -37,7 +37,7 @@ def get_json_messages(
     messages_json = [system_message_json]
     for message_obj in list(
         client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id).data
-    )[::-1]:
+    )[:0:-1]:
         if message_obj.type == "message_creation":
             message_id = message_obj.step_details.message_creation.message_id
             message_content = (

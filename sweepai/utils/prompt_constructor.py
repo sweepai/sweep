@@ -120,11 +120,11 @@ class HumanMessagePrompt(BaseModel):
 
     def get_issue_metadata(self):
         self.summary = (
-            self.summary
-            if not self.summary.strip().endswith("_No response_")
-            else ""
+            self.summary if not self.summary.strip().endswith("_No response_") else ""
         )
-        issue_description = f"\nIssue Description: {self.summary}" if self.summary else ""
+        issue_description = (
+            f"\nIssue Description: {self.summary}" if self.summary else ""
+        )
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
 Issue Title: {self.title}{issue_description}"""
@@ -216,9 +216,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     diff=self.format_diffs(),
                     title=self.title,
                     tree=self.tree,
-                    description=self.summary
-                    if self.summary.strip()
-                    else "",
+                    description=self.summary if self.summary.strip() else "",
                     relevant_directories=self.get_relevant_directories(),
                     relevant_snippets=self.render_snippets(),
                     relevant_commit_history=self.get_commit_history(),
@@ -233,11 +231,11 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
 
     def get_issue_metadata(self):
         self.summary = (
-            self.summary
-            if not self.summary.strip().endswith("_No response_")
-            else ""
+            self.summary if not self.summary.strip().endswith("_No response_") else ""
         )
-        issue_description = f"\nIssue Description: {self.summary}" if self.summary.strip() else ""
+        issue_description = (
+            f"\nIssue Description: {self.summary}" if self.summary.strip() else ""
+        )
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
 Issue Title: {self.title}{issue_description}

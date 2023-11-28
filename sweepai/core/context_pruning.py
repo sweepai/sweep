@@ -8,16 +8,13 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
-from sweepai.core.prompts import system_message_prompt
+from sweepai.core.entities import RegexMatchableBaseModel, Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.tree_utils import DirectoryTree
 
-ASSISTANT_MAX_CHARS = 4096 * 4 * .95 # ~95% of 4k tokens
+ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
+
 
 class ContextToPrune(RegexMatchableBaseModel):
     paths_to_keep: list[str] = []
@@ -55,6 +52,7 @@ class ContextToPrune(RegexMatchableBaseModel):
             paths_to_keep=paths_to_keep,
             directories_to_expand=directories_to_expand,
         )
+
 
 sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
 
@@ -145,9 +143,14 @@ tools = [
     {"type": "function", "function": functions[2]},
 ]
 
+
 @staticmethod
 def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
-    return len(snippet.xml) + sum([len(snippet.xml) for snippet in current_snippets]) <= ASSISTANT_MAX_CHARS
+    return (
+        len(snippet.xml) + sum([len(snippet.xml) for snippet in current_snippets])
+        <= ASSISTANT_MAX_CHARS
+    )
+
 
 @dataclass
 class RepoContextManager:
@@ -198,11 +201,20 @@ class RepoContextManager:
         return user_prompt
 
     def get_highest_scoring_snippet(self, file_path: str) -> Snippet:
-        snippet_key = lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
-        filtered_snippets = [snippet for snippet in self.snippets if snippet.file_path == file_path and snippet not in self.current_top_snippets]
+        snippet_key = (
+            lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+        )
+        filtered_snippets = [
+            snippet
+            for snippet in self.snippets
+            if snippet.file_path == file_path
+            and snippet not in self.current_top_snippets
+        ]
         highest_scoring_snippet = max(
             filtered_snippets,
-            key=lambda snippet: self.snippet_scores[snippet_key(snippet)] if snippet_key(snippet) in self.snippet_scores else 0
+            key=lambda snippet: self.snippet_scores[snippet_key(snippet)]
+            if snippet_key(snippet) in self.snippet_scores
+            else 0,
         )
         return highest_scoring_snippet
 
@@ -335,9 +347,13 @@ def modify_context(
             run_id=run.id,
             tool_outputs=tool_outputs,
         )
-    logger.info(f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}")
-    if paths_to_keep: repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
-    if directories_to_expand: repo_context_manager.expand_all_directories(directories_to_expand)
+    logger.info(
+        f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
+    )
+    if paths_to_keep:
+        repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
+    if directories_to_expand:
+        repo_context_manager.expand_all_directories(directories_to_expand)
     return not (paths_to_keep or directories_to_expand or paths_to_add)
 
 

@@ -214,7 +214,7 @@ class CodeGenBot(ChatGPT):
     ) -> tuple[list[FileChangeRequest], str]:
         fcrs = new_planning(
             "#" + self.human_message.title + "\n" + self.human_message.summary,
-            self.cloned_repo.repo_dir,
+            self.cloned_repo.zip_path,
             additional_messages=self.messages[:-1],
             chat_logger=self.chat_logger,
         )
@@ -1614,60 +1614,6 @@ class SweepBot(CodeGenBot, GithubBot):
 
         return True, sandbox_response, result["commit"], changed_files
 
-    def handle_create_file_iterator(
-        self,
-        file_change_request: FileChangeRequest,
-        branch: str,
-        changed_files: list[tuple[str, str]] = [],
-    ):
-        (
-            file_changed,
-            sandbox_response,
-            commit,
-            changed_files,
-        ) = self.handle_create_file_main(
-            file_change_request,
-            branch,
-            changed_files,
-        )
-
-        yield True, sandbox_response, commit, changed_files
-
-        if not sandbox_response.success:
-            new_file_change_request = file_change_request
-            new_file_change_request.change_type = "modify"
-            new_file_change_request.id_ = str(uuid.uuid4())
-            sandbox_command = sandbox_response.executions[-1].command.format(
-                file_path=file_change_request.filename
-            )
-            if "test" in sandbox_command:
-                sandbox_prompt = sandbox_error_prompt_test
-                new_file_change_request.failed_sandbox_test = True
-            else:
-                sandbox_prompt = sandbox_error_prompt
-            new_file_change_request.instructions = sandbox_prompt.format(
-                command=sandbox_command,
-                error_logs=sandbox_response.executions[-1].output,
-            )
-            logger.warning(sandbox_response.executions[-1].output)
-            for (
-                new_file_contents,
-                new_sandbox_execution,
-                commit_message,
-                changed_files,
-            ) in self.handle_modify_file_iterator(
-                file_change_request=new_file_change_request,
-                branch=branch,
-                changed_files=changed_files,
-            ):
-                file_change_request.new_content = new_file_contents
-                yield True, new_sandbox_execution, commit_message, changed_files
-
-    def handle_create_file(self, *args, **kwargs):
-        for response in self.handle_create_file_iterator(*args, **kwargs):
-            pass
-        return response
-
     def handle_modify_file_main(
         self,
         file_change_request: FileChangeRequest,
@@ -1897,69 +1843,3 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
             return False, sandbox_execution, None, changed_files
-
-    def handle_modify_file_iterator(
-        self,
-        file_change_request: FileChangeRequest,
-        branch: str,
-        changed_files: list[tuple[str, str]] = [],
-    ):
-        (
-            file_changed,
-            sandbox_response,
-            commit_message,
-            changed_files,
-        ) = self.handle_modify_file_main(
-            file_change_request=file_change_request,
-            branch=branch,
-            changed_files=changed_files,
-        )
-        yield file_changed, sandbox_response, commit_message, changed_files
-        prev_sandbox_response_str = None
-        prev_num_changed_files = []
-        for _ in range(5):
-            # if sandbox success, same response, or no changes, break
-            sandbox_response_str = (
-                "\n".join(sandbox_response.error_messages) if sandbox_response else ""
-            )
-            if (
-                sandbox_response
-                and sandbox_response.success
-                or prev_sandbox_response_str == sandbox_response_str
-                or prev_num_changed_files == len(changed_files)
-            ):
-                break
-            if sandbox_response and not sandbox_response.success:
-                new_file_change_request = file_change_request
-                new_file_change_request.id_ = str(uuid.uuid4())
-                sandbox_command = sandbox_response.executions[-1].command.format(
-                    file_path=file_change_request.filename
-                )
-                if "test" in sandbox_command:
-                    sandbox_prompt = sandbox_error_prompt_test
-                    new_file_change_request.failed_sandbox_test = True
-                else:
-                    sandbox_prompt = sandbox_error_prompt
-                new_file_change_request.instructions = sandbox_prompt.format(
-                    command=sandbox_command,
-                    error_logs=sandbox_response.executions[-1].output,
-                )
-                logger.warning(sandbox_response.executions[-1].output)
-                (
-                    file_changed,
-                    sandbox_response,
-                    commit_message,
-                    changed_files,
-                ) = self.handle_modify_file_main(
-                    file_change_request=new_file_change_request,
-                    branch=branch,
-                    changed_files=changed_files,
-                )
-            prev_num_changed_files = len(changed_files)
-            prev_sandbox_response_str = sandbox_response_str
-            yield file_changed, sandbox_response, commit_message, changed_files
-
-    def handle_modify_file(self, *args, **kwargs):
-        for response in self.handle_modify_file_iterator(*args, **kwargs):
-            pass
-        return response

@@ -90,6 +90,10 @@ name = "torch"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
 
+
+[tool.poetry.group.dev.dependencies]
+vulture = "^2.10"
+
 [tool.isort]
 profile = "black"
 

@@ -1,4 +1,3 @@
-from sweepai.core.context_pruning import ContextToPrune
 from sweepai.utils.tree_utils import DirectoryTree
 
 tree_str = """\
@@ -149,7 +148,13 @@ tree = DirectoryTree()
 tree.parse(tree_str)
 serialized_list = ["README.md"]
 # tree.remove_all_not_included(context_to_prune.paths_to_keep)
-tree.remove_all_not_included(['sweepai/handlers/on_comment.py', 'sweepai/handlers/on_ticket.py', 'sweepai/core/sweep_bot.py'])
+tree.remove_all_not_included(
+    [
+        "sweepai/handlers/on_comment.py",
+        "sweepai/handlers/on_ticket.py",
+        "sweepai/core/sweep_bot.py",
+    ]
+)
 print()
 print(tree)
 

@@ -9,100 +9,6 @@ from sweepai.agents.assistant_wrapper import (
 )
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.regex_utils import search_xml
-
-search_system_message = r"""# User Request
-{user_request}
-
-# Instructions
-Find the relevant lines in the attached file to complete the task by executing Python code to read sections of the file.
-
-# Guide
-## Step 1: Reading and Setup
-First, read the file and set up helper functions by running:
-
-### SETUP CODE TO RUN
-```python
-file_path = '/mnt/data/path/to/file'
-with open(file_path, 'r') as file:
-    file_content = file.read()
-original_lines = file_content.splitlines()
-
-def print_lines(i, j):
-    start = max(0, i - 10)
-    end = min(len(original_lines), j + 10)
-
-    for index in range(start, end):
-        if index == i:
-            print("\n--- Start of snippet ---")
-        elif index == j:
-            print("--- End of snippet ---\n")
-
-        print(f"{{index}}: {{original_lines[index]}}")
-    print("\n")
-
-def print_lines_with_keywords(keywords):
-    context = 10
-
-    matches = [i for i, line in enumerate(original_lines) if any(keyword in line.lower() for keyword in keywords)]
-    expanded_matches = set()
-
-    for match in matches:
-        start = max(0, match - context)
-        end = min(len(original_lines), match + context + 1)
-        for i in range(start, end):
-            expanded_matches.add(i)
-
-    for i in sorted(expanded_matches):
-        print(f"{{i}}: {{original_lines[i]}}")
-
-
-len(original_lines)
-```
-
-## Step 1: Iterative Search
-Then search for keywords or use regex search based on the user request to find relevant lines via
-
-### Keyword Search
-```python
-keywords = ["foo", "bar"]
-print_lines_with_keywords(keywords)
-```
-
-### Viewing Spans
-Then for each potentially relevant section, print the surrounding lines and determine if they are actually relevant.
-
-```python
-print_lines(a - 20, b + 20)
-print_lines(c - 20, d + 20)
-```
-
-Ensure that the code between "--- Start of snippet ---" and "--- End of snippet ---" is valid code and doesn't break the syntax.
-
-If necessary, re-run either steps with bigger spans on lines or other keywords.
-
-## Step 3: Review Final Answer
-Finally, identify and list the minimal precise lines of code that should be modified to complete the task. Prefer multiple small edits over one large edit.
-
-### Validate Answer
-Before submitting the final answer, double-check the surrounding lines. If a:b seems relevant, check for the surrounding potentially relevant sections, and check that lines a:b represent coherent unfragmented code
-
-```python
-print_lines(a, b)
-```
-
-### Answer Format
-If still it looks like lines a:b represent precise and relevant line numbers, give me the output in the following format:
-
-```xml
-<relevant_lines>
-- lines a:b+1 - change foo to bar
-- line c:d+1 - add baz
-...
-</relevant_lines>
-```
-
-Make sure you add 1 since the line numbers include the start and exclude the end. You may not necessarily need multiple spans."""
 
 long_file_helper_functions = r"""def print_lines(i, j):
     start = max(0, i - 10)
@@ -241,26 +147,6 @@ print_diff(current_content)
 Once you are done, give me the output and attach the file."""
 
 
-def code_file_search(
-    request: str, file_path: str, chat_logger: ChatLogger | None = None
-):
-    try:
-        response = openai_assistant_call(
-            assistant_name="Python Code Search Modification Assistant",
-            instructions=search_system_message.format(user_request=request),
-            file_paths=[file_path],
-            chat_logger=chat_logger,
-        )
-        messages = response.messages
-        final_response = messages.data[0].content[0].text.value
-        relevant_lines = search_xml(final_response, "relevant_lines")
-    except Exception as e:
-        logger.exception(e)
-        discord_log_error(str(e) + "\n\n" + traceback.format_exc())
-        return None
-    return relevant_lines
-
-
 def new_modify(
     request: str,
     file_path: str,
@@ -271,7 +157,6 @@ def new_modify(
     end_line: int = -1,
 ):
     try:
-        # relevant_lines = code_file_search(request, file_path, chat_logger)
         file_content = open(file_path, "r").read()
         if start_line > 0 and end_line > 0:
             request += (
@@ -312,7 +197,11 @@ def new_modify(
         logger.exception(e)
         # TODO: Discord
         discord_log_error(
-            str(e) + "\n\n" + traceback.format_exc() + "\n\n" + str(chat_logger.data if chat_logger else "")
+            str(e)
+            + "\n\n"
+            + traceback.format_exc()
+            + "\n\n"
+            + str(chat_logger.data if chat_logger else "")
         )
         return None
     return file_content

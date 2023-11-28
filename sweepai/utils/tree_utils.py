@@ -121,10 +121,12 @@ class DirectoryTree:
                 expanded_lines.append(line)
             # makes this add files too
             elif line.full_path() in dirs_to_expand:
-                if not line.parent or (line.parent and line.parent.full_path() in dirs_to_expand):
+                if not line.parent or (
+                    line.parent and line.parent.full_path() in dirs_to_expand
+                ):
                     expanded_lines.append(line)
         self.lines = expanded_lines
-    
+
     def add_file_paths(self, file_paths):
         # might be similar to expand_directory
         parent_dirs = lambda path: [

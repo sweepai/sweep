@@ -115,6 +115,13 @@ class ClonedRepo:
         )
 
     @cached_property
+    def zip_path(self):
+        logger.info("Zipping repository...")
+        shutil.make_archive(self.repo_dir, "zip", self.repo_dir)
+        logger.info("Done zipping")
+        return f"{self.repo_dir}.zip"
+
+    @cached_property
     def repo_dir(self):
         self.repo = Github(self.token).get_repo(self.repo_full_name)
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
@@ -172,6 +179,10 @@ class ClonedRepo:
 
     def delete(self):
         shutil.rmtree(self.repo_dir)
+        try:
+            os.remove(self.zip_path)
+        except FileNotFoundError:
+            pass
 
     def list_directory_tree(
         self,
@@ -298,7 +309,11 @@ class ClonedRepo:
         return tree, dir_obj
 
     def get_file_contents(self, file_path, ref=None):
-        local_path = f"{self.repo_dir}{file_path}" if file_path.startswith("/") else f"{self.repo_dir}/{file_path}"
+        local_path = (
+            f"{self.repo_dir}{file_path}"
+            if file_path.startswith("/")
+            else f"{self.repo_dir}/{file_path}"
+        )
         if os.path.exists(local_path):
             with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()
@@ -388,12 +403,14 @@ def get_hunks(a: str, b: str, context=10):
 
     return "\n".join(hunks)
 
+
 def parse_collection_name(name: str) -> str:
     # Replace any non-alphanumeric characters with hyphens
     name = re.sub(r"[^\w-]", "--", name)
     # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
+
 
 str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
 str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"

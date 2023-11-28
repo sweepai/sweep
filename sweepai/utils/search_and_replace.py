@@ -1,11 +1,12 @@
-from functools import lru_cache
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 
 from rapidfuzz import fuzz
 from tqdm import tqdm
 
 from sweepai.logn import file_cache, logger
+
 
 @lru_cache()
 def score_line(str1: str, str2: str) -> float:

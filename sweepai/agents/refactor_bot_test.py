@@ -33,5 +33,7 @@ new_code = bot.refactor_snippets(
     changes_made=changes_made,
     cloned_repo=cloned_repo,
 )
-import pdb; pdb.set_trace()
+import pdb
+
+pdb.set_trace()
 refactor_bot = RefactorBot()

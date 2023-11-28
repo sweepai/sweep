@@ -1,5 +1,4 @@
 import re
-from regex import D
 
 import rope.base.project
 from loguru import logger
@@ -41,10 +40,12 @@ def deserialize(text: str):
     text = re.sub(f"{PERCENT_FORMAT_MARKER}{{(.*?)}}", "%(\\1)s", text)
     return text
 
+
 def count_plus_minus_in_diff(description):
     plus_count = sum([1 for line in description.split("\n") if line.startswith("+")])
     minus_count = sum([1 for line in description.split("\n") if line.startswith("-")])
     return plus_count, minus_count
+
 
 def extract_method(
     snippet,
@@ -65,7 +66,9 @@ def extract_method(
     ) + len(serialized_snippet)
 
     try:
-        import pdb; pdb.set_trace()
+        import pdb
+
+        pdb.set_trace()
         extractor = ExtractMethod(project, resource, start, end)
         change_set = extractor.get_changes(method_name, similar=True)
 
@@ -78,9 +81,7 @@ def extract_method(
 
         # adding this because the change might not replace old code.
         _, subtracted_lines = count_plus_minus_in_diff(change_set.get_description())
-        if (
-            subtracted_lines <= 3
-        ):
+        if subtracted_lines <= 3:
             logger.info("Change doesn't remove code, skipping")
             return contents, []
         for change in change_set.changes:
@@ -121,7 +122,9 @@ class RefactorBot(ChatGPT):
 
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
         initial_file_contents = cloned_repo.get_file_contents(file_path=file_path)
-        heuristic_based_extractions = get_refactor_snippets(initial_file_contents, {}) # check heuristics
+        heuristic_based_extractions = get_refactor_snippets(
+            initial_file_contents, {}
+        )  # check heuristics
         if len(heuristic_based_extractions) > 0:
             # some duplicated code here
             deduped_exact_matches = heuristic_based_extractions  # already deduped
@@ -135,15 +138,17 @@ class RefactorBot(ChatGPT):
                 formatted_snippets = "\n".join(
                     [
                         f"<function_to_name>\n{snippet}\n</function_to_name>"
-                        for snippet in deduped_exact_matches[idx:idx+num_snippets]
+                        for snippet in deduped_exact_matches[idx : idx + num_snippets]
                     ]
                 )
-                new_function_names.extend(NameBot(chat_logger=self.chat_logger).name_functions(
-                    old_code=cloned_repo.get_file_contents(file_path),
-                    snippets=formatted_snippets,
-                    existing_names=existing_names,
-                    count=num_snippets,
-                ))
+                new_function_names.extend(
+                    NameBot(chat_logger=self.chat_logger).name_functions(
+                        old_code=cloned_repo.get_file_contents(file_path),
+                        snippets=formatted_snippets,
+                        existing_names=existing_names,
+                        count=num_snippets,
+                    )
+                )
             for idx, extracted_original_code in enumerate(deduped_exact_matches):
                 if idx >= len(new_function_names):
                     break
@@ -249,15 +254,17 @@ class RefactorBot(ChatGPT):
             formatted_snippets = "\n".join(
                 [
                     f"<function_to_name>\n{snippet}\n</function_to_name>"
-                    for snippet in deduped_exact_matches[idx:idx+num_snippets]
+                    for snippet in deduped_exact_matches[idx : idx + num_snippets]
                 ]
             )
-            new_function_names.extend(NameBot(chat_logger=self.chat_logger).name_functions(
-                old_code=cloned_repo.get_file_contents(file_path),
-                snippets=formatted_snippets,
-                existing_names=existing_names,
-                count=num_snippets,
-            ))
+            new_function_names.extend(
+                NameBot(chat_logger=self.chat_logger).name_functions(
+                    old_code=cloned_repo.get_file_contents(file_path),
+                    snippets=formatted_snippets,
+                    existing_names=existing_names,
+                    count=num_snippets,
+                )
+            )
         for idx, extracted_original_code in enumerate(deduped_exact_matches):
             if idx >= len(new_function_names):
                 break
