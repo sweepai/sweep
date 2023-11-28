@@ -40,7 +40,6 @@ from sweepai.core.entities import (
     UnneededEditError,
 )
 
-# from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
     create_file_prompt,
     extract_files_to_change_prompt,
