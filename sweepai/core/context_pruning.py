@@ -12,6 +12,7 @@ from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 from sweepai.core.prompts import system_message_prompt
+from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.tree_utils import DirectoryTree
@@ -132,6 +133,7 @@ class ContextPruning(ChatGPT):
             logger.error(f"An error occurred: {e}")
             return [], []
 
+
 sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
 
 Reply in the following format:
@@ -171,61 +173,56 @@ Propose the most important paths as well as any new paths with a justification.
 Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request."""
 
 functions = [
-{
-  "name": "keep_file_path",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "file_path": {
-        "type": "string",
-        "description": "File or directory to keep."
-      }
+    {
+        "name": "keep_file_path",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "File or directory to keep.",
+                }
+            },
+            "required": ["file_path"],
+        },
+        "description": "Keep an existing file_path that you are certain is relevant to solving the user request. This only works if the file_path is already present in the snippets_in_repo and repo_tree. Unless this is empty, all of the files not listed will be removed from the snippets_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description.",
     },
-    "required": [
-      "file_path"
-    ]
-  },
-  "description": "Keep an existing file_path that you are certain is relevant to solving the user request. This only works if the file_path is already present in the snippets_in_repo and repo_tree. Unless this is empty, all of the files not listed will be removed from the snippets_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description."
-}, 
-{
-  "name": "expand_directory",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "directory_path": {
-        "type": "string",
-        "description": "Directory to expand"
-      }
+    {
+        "name": "expand_directory",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "directory_path": {
+                    "type": "string",
+                    "description": "Directory to expand",
+                }
+            },
+            "required": ["directory_path"],
+        },
+        "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets.",
     },
-    "required": [
-      "directory_path"
-    ]
-  },
-  "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets."
-},
-{
-  "name": "add_file_path",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "file_path": {
-        "type": "string",
-        "description": "Path to add to the current snippets."
-      }
+    {
+        "name": "add_file_path",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to add to the current snippets.",
+                }
+            },
+            "required": ["file_path"],
+        },
+        "description": "The most relevant snippet of the file will be added to the current snippets. If the file_path is already present, we will add the next most relevant snippet from the same file_path.",
     },
-    "required": [
-      "file_path"
-    ]
-  },
-  "description": "The most relevant snippet of the file will be added to the current snippets. If the file_path is already present, we will add the next most relevant snippet from the same file_path."
-}
 ]
 
 tools = [
-{"type" : "function", "function": functions[0]}, 
-{"type" : "function", "function": functions[1]},
-{"type" : "function", "function": functions[2]}
+    {"type": "function", "function": functions[0]},
+    {"type": "function", "function": functions[1]},
+    {"type": "function", "function": functions[2]},
 ]
+
 
 @dataclass
 class RepoContextManager:
@@ -233,7 +230,9 @@ class RepoContextManager:
     current_top_tree: str
     current_top_snippets: list[Snippet]
     snippets: list[Snippet]
-    snippet_scores: dict[str, float] # used later to add the option to add more snippets
+    snippet_scores: dict[
+        str, float
+    ]  # used later to add the option to add more snippets
 
     def remove_all_non_kept_paths(self, paths_to_keep: list[str]):
         self.current_top_snippets = [
@@ -245,13 +244,13 @@ class RepoContextManager:
             )
         ]
         self.dir_obj.remove_all_not_included(paths_to_keep)
-    
+
     def expand_all_directories(self, directories_to_expand: list[str]):
         self.dir_obj.expand_directory(directories_to_expand)
-    
+
     def is_path_valid(self, path: str):
         return any(snippet.file_path.startswith(path) for snippet in self.snippets)
-    
+
     def format_context(
         self,
         unformatted_user_prompt: str,
@@ -273,17 +272,25 @@ class RepoContextManager:
     def add_file_paths(self, paths_to_add: list[str]):
         self.dir_obj.add_file_paths(paths_to_add)
         for file_path in paths_to_add:
-            snippet_key = lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
-            filtered_snippets = [snippet for snippet in self.snippets if snippet.file_path == file_path and snippet not in self.current_top_snippets]
+            snippet_key = (
+                lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+            )
+            filtered_snippets = [
+                snippet
+                for snippet in self.snippets
+                if snippet.file_path == file_path
+                and snippet not in self.current_top_snippets
+            ]
             highest_scoring_snippet = max(
                 filtered_snippets,
-                key=lambda snippet: self.snippet_scores[snippet_key(snippet)] if snippet_key(snippet) in self.snippet_scores else 0
+                key=lambda snippet: self.snippet_scores[snippet_key(snippet)]
+                if snippet_key(snippet) in self.snippet_scores
+                else 0,
             )
-            self.current_top_snippets.append(
-                highest_scoring_snippet
-            )
+            self.current_top_snippets.append(highest_scoring_snippet)
 
 
+@file_cache()
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -306,9 +313,12 @@ def get_relevant_context(
             assistant_id=assistant.id,
         )
         done = modify_context(thread, run, repo_context_manager)
-        if done: return repo_context_manager
+        if done:
+            return repo_context_manager
         for _ in range(modify_iterations):
-            user_prompt = repo_context_manager.format_context(unformatted_user_prompt=unformatted_user_prompt, query=query)
+            user_prompt = repo_context_manager.format_context(
+                unformatted_user_prompt=unformatted_user_prompt, query=query
+            )
             _ = client.beta.threads.messages.create(
                 thread.id,
                 role="user",
@@ -322,33 +332,42 @@ def get_relevant_context(
             messages = client.beta.threads.messages.list(
                 thread_id=thread.id,
             )
-            current_message = "\n".join([
-                message.content[0].text.value for message in messages.data
-            ])
+            current_message = "\n".join(
+                [message.content[0].text.value for message in messages.data]
+            )
             logger.info(f"Output from OpenAI Assistant: {current_message}")
-            if done: break
+            if done:
+                break
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
         return repo_context_manager
 
+
 def modify_context(
-        thread: Thread,
-        run: Run,
-        repo_context_manager: RepoContextManager,
-    ) -> bool | None:
-    max_iterations: int = int(60 * 10 / 0.25) # 10 minutes divided by 0.25 seconds per iteration
-    paths_to_keep = [] # consider persisting these across runs
+    thread: Thread,
+    run: Run,
+    repo_context_manager: RepoContextManager,
+) -> bool | None:
+    max_iterations: int = int(
+        60 * 10 / 0.25
+    )  # 10 minutes divided by 0.25 seconds per iteration
+    paths_to_keep = []  # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
-    logger.info(f"Context Management Start:\ncurrent snippet paths: {[snippet.file_path for snippet in repo_context_manager.current_top_snippets]}")
+    logger.info(
+        f"Context Management Start:\ncurrent snippet paths: {[snippet.file_path for snippet in repo_context_manager.current_top_snippets]}"
+    )
     for _ in range(max_iterations):
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
         if run.status == "completed":
             break
-        if run.status != "requires_action" or run.required_action is None\
-        or run.required_action.submit_tool_outputs is None\
-        or run.required_action.submit_tool_outputs.tool_calls is None:
+        if (
+            run.status != "requires_action"
+            or run.required_action is None
+            or run.required_action.submit_tool_outputs is None
+            or run.required_action.submit_tool_outputs.tool_calls is None
+        ):
             time.sleep(0.25)
             continue
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
@@ -357,9 +376,15 @@ def modify_context(
             try:
                 function_input = json.loads(tool_call.function.arguments)
             except:
-                logger.warning(f"Could not parse function arguments: {tool_call.function.arguments}")
+                logger.warning(
+                    f"Could not parse function arguments: {tool_call.function.arguments}"
+                )
                 continue
-            valid_path = repo_context_manager.is_path_valid(function_input["file_path"] if "file_path" in function_input else function_input["directory_path"])
+            valid_path = repo_context_manager.is_path_valid(
+                function_input["file_path"]
+                if "file_path" in function_input
+                else function_input["directory_path"]
+            )
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -378,19 +403,28 @@ def modify_context(
             run_id=run.id,
             tool_outputs=tool_outputs,
         )
-    logger.info(f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}")
-    if paths_to_keep: repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
-    if directories_to_expand: repo_context_manager.expand_all_directories(directories_to_expand)
-    if paths_to_add: repo_context_manager.add_file_paths(paths_to_add)
+    logger.info(
+        f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
+    )
+    if paths_to_keep:
+        repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
+    if directories_to_expand:
+        repo_context_manager.expand_all_directories(directories_to_expand)
+    if paths_to_add:
+        repo_context_manager.add_file_paths(paths_to_add)
     return not (paths_to_keep or directories_to_expand or paths_to_add)
+
 
 if __name__ == "__main__":
     import os
 
     from sweepai.utils.ticket_utils import prep_snippets
+
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
     query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md too."
     repo_context_manager = prep_snippets(cloned_repo, query)
     rcm = get_relevant_context(query, repo_context_manager)
-    import pdb; pdb.set_trace()
+    import pdb
+
+    pdb.set_trace()
