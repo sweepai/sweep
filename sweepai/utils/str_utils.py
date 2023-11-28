@@ -3,8 +3,8 @@ import re
 UPDATES_MESSAGE = """\
 ### 🎉 Latest improvements to Sweep:
 
+* Sweep uses OpenAI's latest Assistant API to **plan code changes** and **modify code**! This is 3x faster and *significantly* more reliable as it allows Sweep to edit code and validate the changes in tight iterations, the same way as a human would.
 * Sweep now uses the `rope` library to refactor Python! Check out [Large Language Models are Bad at Refactoring Code](https://docs.sweep.dev/blogs/refactor-python). To have Sweep refactor your code, try `sweep: Refactor <your_file>.py`!
-* Sweep finds and fixes bugs in your code by writing unit tests! Check out [Having GPT-4 Iterate on Unit Tests like a Human](https://docs.sweep.dev/blogs/ai-unit-tests).
 """
 
 sep = "\n---\n"
