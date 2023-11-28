@@ -301,7 +301,8 @@ Provide a list of ALL of the files we should modify, abiding by the following:
 You MUST follow the following format with the final output in XML tags:
 
 <analysis_and_plan>
-Why the CI/CD run failed and the root cause. MINIMAL amount of changes to fix, with reference to entities, in the following format:
+Whether the change was caused by the user's change or not. If not, then leave the plan empty.
+Otherwise, determine why the CI/CD run failed and the root cause. Determine the MINIMAL amount of changes to fix, with reference to entities, in the following format:
 
 <minimal_changes>
 * Change x: file to make the change

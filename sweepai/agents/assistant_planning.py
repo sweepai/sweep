@@ -83,11 +83,9 @@ def new_planning(
 ) -> list[FileChangeRequest]:
     try:
         logger.info("Zipping repository...")
-        archive_name = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+        archive_name = hashlib.sha256(str(time.time()).encode()).hexdigest()
         shutil.make_archive(f"/tmp/{archive_name}", "zip", repository_path)
-        logger.info(
-            f"Done zipping repository. Calling OpenAI Assistant {assistant_id}..."
-        )
+        logger.info("Done zipping repository.")
         response = openai_assistant_call(
             request=request,
             assistant_id=assistant_id,
@@ -120,10 +118,14 @@ def new_planning(
         return fcrs
     except Exception as e:
         logger.exception(e)
-        # TODO: Discord
-        discord_log_error(
-            str(e) + "\n\n" + traceback.format_exc() + "\n\n" + str(chat_logger.data if chat_logger else "")
-        )
+        if chat_logger is not None:
+            discord_log_error(
+                str(e)
+                + "\n\n"
+                + traceback.format_exc()
+                + "\n\n"
+                + str(chat_logger.data)
+            )
         return None
 
 

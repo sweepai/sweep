@@ -49,6 +49,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
+    AssistantRaisedException,
     EmptyRepository,
     FileChangeRequest,
     MaxTokensExceeded,
@@ -1435,8 +1436,22 @@ def on_ticket(
             )
             delete_branch = True
             raise e
-        except SystemExit:
-            raise SystemExit
+        except AssistantRaisedException as e:
+            logger.exception(e)
+            edit_sweep_comment(
+                f"I'm sorry but it looks like the assistant has raised an exception with the following message.\n{blockquote(e.message)}",
+                -1,
+            )
+            log_error(
+                is_paying_user,
+                is_consumer_tier,
+                username,
+                issue_url,
+                "Workflow",
+                str(e) + "\n" + traceback.format_exc(),
+                priority=1,
+            )
+            raise e
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)

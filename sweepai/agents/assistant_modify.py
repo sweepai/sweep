@@ -7,7 +7,7 @@ from sweepai.agents.assistant_wrapper import (
     openai_assistant_call,
     run_until_complete,
 )
-from sweepai.core.entities import Message
+from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.regex_utils import search_xml
 
@@ -285,7 +285,8 @@ def new_modify(
                 else long_file_helper_functions,
             ),
             additional_messages=additional_messages,
-            file_paths=[file_path],
+            file_paths=[],
+            # file_paths=[file_path],
             chat_logger=chat_logger,
             assistant_id=assistant_id,
         )
@@ -306,6 +307,8 @@ def new_modify(
             )
             file_object = messages.data[0].file_ids[0]
         file_content = client.files.content(file_id=file_object).content.decode("utf-8")
+    except AssistantRaisedException as e:
+        raise e
     except Exception as e:
         logger.exception(e)
         # TODO: Discord

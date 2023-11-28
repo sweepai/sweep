@@ -1,3 +1,4 @@
+import json
 import time
 from pathlib import Path
 
@@ -7,8 +8,9 @@ from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
+from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import OPENAI_API_KEY
-from sweepai.core.entities import Message
+from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 
@@ -91,6 +93,15 @@ def run_until_complete(
                 break
             if run.status == "failed":
                 raise Exception("Run failed")
+            if run.status == "requires_action":
+                tool_calls = [
+                    tool_call
+                    for tool_call in run.required_action.submit_tool_outputs.tool_calls
+                    if tool_call.function.name == raise_error_schema["name"]
+                ]
+                if tool_calls:
+                    arguments_parsed = json.loads(tool_calls[0].function.arguments)
+                    raise AssistantRaisedException(arguments_parsed["message"])
             messages = client.beta.threads.messages.list(
                 thread_id=thread_id,
             )
