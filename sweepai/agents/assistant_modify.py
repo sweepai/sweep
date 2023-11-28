@@ -285,8 +285,7 @@ def new_modify(
                 else long_file_helper_functions,
             ),
             additional_messages=additional_messages,
-            file_paths=[],
-            # file_paths=[file_path],
+            file_paths=[file_path],
             chat_logger=chat_logger,
             assistant_id=assistant_id,
         )
