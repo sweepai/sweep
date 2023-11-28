@@ -24,6 +24,10 @@ class TestExtractLeftoverCommentsExtractLeftoverComments(unittest.TestCase):
     def test_extract_leftover_comments(
         self, mock_check_comments_presence, mock_chat, mock_leftover_comments
     ):
+        """
+        Test the 'extract_leftover_comments' method of the 'ExtractLeftoverComments' class.
+        This test checks the case when the 'check_comments_presence' function returns True.
+        """
         result = self.extractor.extract_leftover_comments(
             "new_code", "file_path", "request"
         )
@@ -41,6 +45,10 @@ class TestExtractLeftoverCommentsExtractLeftoverComments(unittest.TestCase):
     def test_extract_leftover_comments(
         self, mock_check_comments_presence, mock_chat, mock_leftover_comments
     ):
+        """
+        Test the 'extract_leftover_comments' method of the 'ExtractLeftoverComments' class.
+        This test checks the case when the 'check_comments_presence' function returns True.
+        """
         result = self.extractor.extract_leftover_comments(
             "new_code", "file_path", "request"
         )
