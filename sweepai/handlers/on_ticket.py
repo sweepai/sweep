@@ -1,8 +1,12 @@
 """
+
+from typing import Tuple
+
 on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
+from typing import Tuple
 import math
 import re
 import traceback
@@ -394,22 +398,15 @@ def on_ticket(
             if not is_paying_user and not is_consumer_tier
             else ""
         )
-        user_type = (
-            "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
-        )
-        gpt_tickets_left_message = (
-            f"{ticket_count} GPT-4 tickets left for the month"
-            if not is_paying_user
-            else "unlimited GPT-4 tickets"
-        )
-        purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
+        payment_message, payment_message_start = create_payment_messages(
+            user_type=user_type,
+            model_name=model_name,
+            gpt_tickets_left_message=gpt_tickets_left_message,
+            daily_message=daily_message,
+            tracking_id=tracking_id,
+            is_paying_user=is_paying_user,
+            single_payment_link=single_payment_link,
+            pro_payment_link=pro_payment_link
         )
 
         def get_comment_header(
