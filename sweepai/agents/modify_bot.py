@@ -276,7 +276,9 @@ class ModifyBot:
             chat_logger=self.chat_logger,
         )
         if new_file is not None:
-            return add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
+            return add_auto_imports(
+                file_path, cloned_repo.repo_dir, new_file, run_isort=False
+            )
         (
             snippet_queries,
             extraction_terms,

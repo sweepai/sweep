@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT35_MODEL,
+    OPENAI_API_KEY,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
     OPENAI_USE_3_5_MODEL_ONLY,
 )
@@ -23,7 +24,6 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.utils import Tiktoken
 
 openai_proxy = OpenAIProxy()
-aclient = AsyncOpenAI()
 
 OpenAIModel = (
     Literal["gpt-3.5-turbo"]
@@ -393,6 +393,7 @@ class ChatGPT(BaseModel):
                 retry_counter += 1
                 token_sub = retry_counter * 200
                 try:
+                    aclient = AsyncOpenAI(api_key=OPENAI_API_KEY)
                     output = (
                         await aclient.chat.completions.create(
                             model=model,
