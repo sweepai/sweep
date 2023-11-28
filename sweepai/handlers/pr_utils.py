@@ -1,5 +1,3 @@
-import traceback
-
 from sweepai.config.client import (
     RESET_FILE,
     REVERT_CHANGED_FILES_TITLE,
@@ -23,13 +21,8 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.str_utils import (
-    blockquote,
-    checkbox_template,
-    num_of_snippets_to_query,
-)
-from sweepai.utils.ticket_utils import fetch_relevant_files, post_process_snippets, prep_snippets
+from sweepai.utils.str_utils import blockquote, checkbox_template
+from sweepai.utils.ticket_utils import prep_snippets
 
 
 def make_pr(

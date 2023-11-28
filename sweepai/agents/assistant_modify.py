@@ -9,7 +9,6 @@ from sweepai.agents.assistant_wrapper import (
 )
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.regex_utils import search_xml
 
 search_system_message = r"""# User Request
 {user_request}
@@ -241,26 +240,6 @@ print_diff(current_content)
 Once you are done, give me the output and attach the file."""
 
 
-def code_file_search(
-    request: str, file_path: str, chat_logger: ChatLogger | None = None
-):
-    try:
-        response = openai_assistant_call(
-            assistant_name="Python Code Search Modification Assistant",
-            instructions=search_system_message.format(user_request=request),
-            file_paths=[file_path],
-            chat_logger=chat_logger,
-        )
-        messages = response.messages
-        final_response = messages.data[0].content[0].text.value
-        relevant_lines = search_xml(final_response, "relevant_lines")
-    except Exception as e:
-        logger.exception(e)
-        discord_log_error(str(e) + "\n\n" + traceback.format_exc())
-        return None
-    return relevant_lines
-
-
 def new_modify(
     request: str,
     file_path: str,
@@ -271,7 +250,6 @@ def new_modify(
     end_line: int = -1,
 ):
     try:
-        # relevant_lines = code_file_search(request, file_path, chat_logger)
         file_content = open(file_path, "r").read()
         if start_line > 0 and end_line > 0:
             request += (
@@ -312,7 +290,11 @@ def new_modify(
         logger.exception(e)
         # TODO: Discord
         discord_log_error(
-            str(e) + "\n\n" + traceback.format_exc() + "\n\n" + str(chat_logger.data if chat_logger else "")
+            str(e)
+            + "\n\n"
+            + traceback.format_exc()
+            + "\n\n"
+            + str(chat_logger.data if chat_logger else "")
         )
         return None
     return file_content

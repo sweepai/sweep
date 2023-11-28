@@ -12,11 +12,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.str_utils import (
-    num_of_snippets_to_query,
-    total_number_of_snippet_tokens,
-)
+from sweepai.utils.str_utils import total_number_of_snippet_tokens
 
 
 @file_cache()
@@ -25,13 +21,16 @@ def prep_snippets(
     query: str,
 ):
     sweep_config: SweepConfig = SweepConfig()
-    
+
     file_list, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo, sweep_config, cloned_repo.repo_full_name
     )
-    for snippet in snippets: snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
+    for snippet in snippets:
+        snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
     content_to_lexical_score = search_index(query, lexical_index)
-    snippet_to_key = lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+    snippet_to_key = (
+        lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+    )
 
     snippet_scores = []
     for snippet in snippets:
@@ -40,7 +39,9 @@ def prep_snippets(
             snippet_score = content_to_lexical_score[snippet_to_key(snippet)]
         snippet_scores.append(snippet_score)
     ranked_snippets = sorted(
-        snippets, key=lambda snippet: snippet_scores[snippets.index(snippet)], reverse=True
+        snippets,
+        key=lambda snippet: snippet_scores[snippets.index(snippet)],
+        reverse=True,
     )
     ranked_snippets = ranked_snippets[:7]
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
@@ -65,6 +66,7 @@ def prep_snippets(
     )
     return repo_context_manager
 
+
 def fetch_relevant_files(
     cloned_repo,
     title,
@@ -83,9 +85,13 @@ def fetch_relevant_files(
     try:
         search_query = (title + summary + replies_text).strip("\n")
         replies_text = f"\n{replies_text}" if replies_text else ""
-        formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip("\n")
+        formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
+            "\n"
+        )
         repo_context_manager = prep_snippets(cloned_repo, search_query)
-        repo_context_manager = get_relevant_context(formatted_query, repo_context_manager)
+        repo_context_manager = get_relevant_context(
+            formatted_query, repo_context_manager
+        )
         snippets = repo_context_manager.current_top_snippets
         tree = str(repo_context_manager.dir_obj)
         dir_obj = repo_context_manager.dir_obj
