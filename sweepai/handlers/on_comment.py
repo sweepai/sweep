@@ -369,19 +369,6 @@ def on_comment(
                     comment_line=pr_line_position + 1,
                 )
             ]
-        else:
-            non_python_count = sum(
-                not file_path.endswith(".py")
-                for file_path in human_message.get_file_paths()
-            )
-            python_count = len(human_message.get_file_paths()) - non_python_count
-            is_python_issue = python_count > non_python_count
-            file_change_requests, _ = sweep_bot.get_files_to_change(
-                is_python_issue, retries=1, pr_diffs=pr_diff_string
-            )
-            file_change_requests = sweep_bot.validate_file_change_requests(
-                file_change_requests, branch=branch_name
-            )
 
         sweep_response = "I couldn't find any relevant files to change."
         if file_change_requests:
