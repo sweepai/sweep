@@ -636,3 +636,8 @@ class CustomInstructions(BaseModel):
                     self.chatbot.messages[0].content = self.old_system_prompt
 
         return CustomInstructionsContext(chatbot, self)
+
+
+@dataclass
+class AssistantRaisedException(Exception):
+    message: str

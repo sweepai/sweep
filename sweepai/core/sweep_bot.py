@@ -24,6 +24,7 @@ from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name
 from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, MINIS3_URL, SANDBOX_URL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
+    AssistantRaisedException,
     ExtractionRequest,
     FileChangeRequest,
     FileCreation,
@@ -216,6 +217,7 @@ class CodeGenBot(ChatGPT):
             "#" + self.human_message.title + "\n" + self.human_message.summary,
             self.cloned_repo.repo_dir,
             additional_messages=self.messages[:-1],
+            chat_logger=self.chat_logger,
         )
         if fcrs:
             plan_str = "\n".join([fcr.instructions_display for fcr in fcrs])
@@ -1571,6 +1573,8 @@ class SweepBot(CodeGenBot, GithubBot):
                                 f"Unknown change type {file_change_request.change_type}"
                             )
                     logger.print(f"Done processing {file_change_request.filename}.")
+            except AssistantRaisedException as e:
+                raise e
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
                 logger.error(traceback.format_exc())
@@ -1874,8 +1878,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
-            except SystemExit:
-                raise SystemExit
+            except AssistantRaisedException as e:
+                raise e
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
                 file = self.get_file(file_change_request.filename, branch=branch)
@@ -1888,10 +1892,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             file_change_request.new_content = new_file_contents
             return True, sandbox_execution, result["commit"], changed_files
-        except MaxTokensExceeded as e:
+        except (MaxTokensExceeded, AssistantRaisedException) as e:
             raise e
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
