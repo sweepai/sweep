@@ -1402,32 +1402,54 @@ class SweepBot(CodeGenBot, GithubBot):
                                         for check_run in check_runs
                                     )
 
-                                while not check_run_is_complete():
-                                    time.sleep(5)
-                                    logger.info("Waiting for check runs to complete")
-                                succeeded = True
-                                additional_instructions = "\n\n"
-                                for check_run in check_runs:
-                                    if (
-                                        check_run.app.url == "/app/github-actions"
-                                        and check_run.conclusion != "success"
-                                    ):
-                                        succeeded = False
-                                    additional_instructions += f"• {check_run.name}: {check_run.conclusion} ({check_run.html_url})\n"
-                                file_change_request.status = (
-                                    "succeeded" if succeeded else "failed"
-                                )
-                                file_change_request.instructions += (
-                                    additional_instructions
-                                )
+                                completed = True
+                                total_wait_time = 3600
+                                sleep_time = 5
+                                for i in range(total_wait_time // sleep_time):
+                                    if not check_run_is_complete():
+                                        time.sleep(sleep_time)
+                                        logger.info(
+                                            "Waiting for check runs to complete"
+                                        )
+                                else:
+                                    logger.error("Check runs did not complete in time")
+                                    completed = False
 
-                                yield (
-                                    file_change_request,
-                                    True,
-                                    None,
-                                    None,
-                                    file_change_requests,
-                                )
+                                if not completed:
+                                    file_change_request.status = "succeeded"
+                                    file_change_request.instructions += "\n\nCheck runs did not complete in 60 minutes, skipping."
+                                    yield (
+                                        file_change_request,
+                                        False,
+                                        None,
+                                        None,
+                                        file_change_requests,
+                                    )
+                                    continue
+                                else:
+                                    succeeded = True
+                                    additional_instructions = "\n\n"
+                                    for check_run in check_runs:
+                                        if (
+                                            check_run.app.url == "/app/github-actions"
+                                            and check_run.conclusion != "success"
+                                        ):
+                                            succeeded = False
+                                        additional_instructions += f"• {check_run.name}: {check_run.conclusion} ({check_run.html_url})\n"
+                                    file_change_request.status = (
+                                        "succeeded" if succeeded else "failed"
+                                    )
+                                    file_change_request.instructions += (
+                                        additional_instructions
+                                    )
+
+                                    yield (
+                                        file_change_request,
+                                        True,
+                                        None,
+                                        None,
+                                        file_change_requests,
+                                    )
 
                                 # contents_obj = self.get_contents(
                                 #     file_change_request.filename, branch
