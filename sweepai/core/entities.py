@@ -261,8 +261,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def instructions_display(self):
-        if self.change_type == "check":
-            return f"Run GitHub Actions for `{self.filename}`."
+        # if self.change_type == "check":
+        #     return f"Run GitHub Actions for `{self.filename}` with results:\n{self.instructions}"
         return f"{self.change_type.capitalize()} {self.filename} with contents:\n{self.instructions}"
 
 

@@ -252,7 +252,7 @@ class CodeGenBot(ChatGPT):
                                 new_file_change_request = copy.deepcopy(
                                     file_change_request
                                 )
-                                new_file_change_request.change_type = "check"
+                                new_file_change_request.instructions = ""
                                 new_file_change_request.parent = file_change_request
                                 new_file_change_request.id_ = str(uuid.uuid4())
                                 file_change_requests.append(new_file_change_request)
@@ -293,6 +293,7 @@ class CodeGenBot(ChatGPT):
                 if file_change_request.change_type in ("modify", "create"):
                     new_file_change_request = copy.deepcopy(file_change_request)
                     new_file_change_request.change_type = "check"
+                    new_file_change_request.instructions = ""
                     new_file_change_request.parent = file_change_request
                     new_file_change_request.id_ = str(uuid.uuid4())
                     file_change_requests.append(new_file_change_request)
@@ -1078,6 +1079,7 @@ class SweepBot(CodeGenBot, GithubBot):
             if file_change_request.change_type in ("modify", "create"):
                 new_file_change_request = copy.deepcopy(file_change_request)
                 new_file_change_request.change_type = "check"
+                new_file_change_request.instructions = ""
                 new_file_change_request.id_ = str(uuid.uuid4())
                 new_file_change_request.parent = file_change_request
                 file_change_requests.append(new_file_change_request)
@@ -1405,7 +1407,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 completed = True
                                 total_wait_time = 3600
                                 sleep_time = 5
-                                for i in range(total_wait_time // sleep_time):
+                                for j in range(total_wait_time // sleep_time):
                                     if check_run_is_complete():
                                         break
                                     time.sleep(sleep_time)
