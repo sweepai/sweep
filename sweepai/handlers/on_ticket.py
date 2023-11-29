@@ -848,9 +848,7 @@ def on_ticket(
                 " these snippets and come up with a plan."
                 + "\n\n"
                 + create_collapsible(
-                    "Some code snippets I looked at (click to expand). If some file is"
-                    " missing from here, you can mention the path in the ticket"
-                    " description.",
+                    "Some code snippets I think are relevant in decreasing order of relevance (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
                     "\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
@@ -1192,6 +1190,39 @@ def on_ticket(
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
+
+            checkboxes_contents = "\n".join(
+                [
+                    checkbox_template.format(
+                        check=check,
+                        filename=filename,
+                        instructions=blockquote(instructions),
+                    )
+                    for filename, instructions, check in checkboxes_progress
+                ]
+            )
+            condensed_checkboxes_contents = (
+                "\n".join(
+                    [
+                        checkbox_template.format(
+                            check=check,
+                            filename=filename,
+                            instructions="",
+                        ).strip()
+                        for filename, instructions, check in checkboxes_progress
+                        if not instructions.lower().startswith("run")
+                    ]
+                )
+                + f"\n\n![Flowchart]({svg_url})"
+            )
+            condensed_checkboxes_collapsible = collapsible_template.format(
+                summary="Checklist",
+                body=condensed_checkboxes_contents,
+                opened="open",
+            )
+            issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+            edit_sweep_comment(checkboxes_contents, 2)
+
             pr_changes = response["pull_request"]
             # change the body here
             diff_text = get_branch_diff_text(repo, pull_request.branch_name)

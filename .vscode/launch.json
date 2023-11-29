@@ -20,9 +20,8 @@
             "console":"integratedTerminal",
             "justMyCode":true,
             "args": [
+                // "https://github.com/sweepai/sweep/issues/2647"
                 "https://github.com/sweepai/sweep/issues/2632"
-                // "https://github.com/sweepai/evals/issues/9",
-                // "https://github.com/kevinlu1248/sweep-landing-page/issues/13"
             ]
         },
         {

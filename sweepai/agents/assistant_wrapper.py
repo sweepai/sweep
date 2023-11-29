@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from pathlib import Path
 
@@ -11,7 +12,6 @@ from pydantic import BaseModel
 from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -22,6 +22,36 @@ class AssistantResponse(BaseModel):
     assistant_id: str
     run_id: str
     thread_id: str
+
+
+allowed_exts = [
+    "c",
+    "cpp",
+    "csv",
+    "docx",
+    "html",
+    "java",
+    "json",
+    "md",
+    "pdf",
+    "php",
+    "pptx",
+    "py",
+    "rb",
+    "tex",
+    "txt",
+    "css",
+    "jpeg",
+    "jpg",
+    "js",
+    "gif",
+    "png",
+    "tar",
+    "ts",
+    "xlsx",
+    "xml",
+    "zip",
+]
 
 
 def get_json_messages(
@@ -156,6 +186,9 @@ def openai_assistant_call_helper(
 ):
     file_ids = []
     for file_path in file_paths:
+        if not any(file_path.endswith(extension) for extension in allowed_exts):
+            os.rename(file_path, file_path + ".txt")
+            file_path += ".txt"
         file_object = client.files.create(file=Path(file_path), purpose="assistants")
         file_ids.append(file_object.id)
 
