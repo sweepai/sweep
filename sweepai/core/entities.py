@@ -226,7 +226,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     @property
     def display_summary(self):
         if self.change_type == "check":
-            return f"Ran sandbox for `{self.filename}`."
+            return f"Running GitHub Actions for `{self.filename}`"
         return f"{self.change_type.capitalize()} `{self.filename}`"
 
     @property
@@ -235,7 +235,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
             self.status
         ] + " "
         if self.change_type == "check":
-            return prefix + f"Ran sandbox for `{self.filename}`."
+            return prefix + f"Run GitHub Actions for `{self.filename}`"
         return prefix + f"{self.change_type.capitalize()}\n{self.filename}"
 
     @property
@@ -257,18 +257,12 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def instructions_ticket_display(self):
-        if self.change_type == "check" and self.sandbox_response is not None:
-            return create_error_logs(
-                self.commit_hash_url if self.commit_hash_url is not None else "",
-                self.sandbox_response,
-                file_path=self.filename,
-            )
         return self.instructions_display
 
     @property
     def instructions_display(self):
         if self.change_type == "check":
-            return f"Run `{self.filename}` through the sandbox."
+            return f"Run GitHub Actions for `{self.filename}`."
         return f"{self.change_type.capitalize()} {self.filename} with contents:\n{self.instructions}"
 
 
