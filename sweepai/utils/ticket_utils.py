@@ -4,7 +4,8 @@ from time import time
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
+from sweepai.core.context_pruning import (RepoContextManager,
+                                          get_relevant_context)
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
 from sweepai.core.vector_db import prepare_lexical_search_index
@@ -36,6 +37,14 @@ def prep_snippets(
     for snippet in snippets:
         snippet_score = 0.1
         if snippet_to_key(snippet) in content_to_lexical_score:
+class PreFilterBot:
+    def pre_filter_query(self, query):
+        # Implement logic to pre-filter key terms from the query
+        # This is a placeholder and may need to be updated based on the specific requirements
+        key_terms = ["term1", "term2", "term3"]
+        for term in key_terms:
+            query = query.replace(term, "")
+        return query
             snippet_score = content_to_lexical_score[snippet_to_key(snippet)]
         snippet_scores.append(snippet_score)
     ranked_snippets = sorted(
@@ -83,7 +92,8 @@ def fetch_relevant_files(
 ):
     logger.info("Fetching relevant files...")
     try:
-        search_query = (title + summary + replies_text).strip("\n")
+        pre_filter_bot = PreFilterBot()
+        search_query = pre_filter_bot.pre_filter_query((title + summary + replies_text).strip("\n"))
         replies_text = f"\n{replies_text}" if replies_text else ""
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
