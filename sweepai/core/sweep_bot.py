@@ -1406,11 +1406,10 @@ class SweepBot(CodeGenBot, GithubBot):
                                 total_wait_time = 3600
                                 sleep_time = 5
                                 for i in range(total_wait_time // sleep_time):
-                                    if not check_run_is_complete():
-                                        time.sleep(sleep_time)
-                                        logger.info(
-                                            "Waiting for check runs to complete"
-                                        )
+                                    if check_run_is_complete():
+                                        break
+                                    time.sleep(sleep_time)
+                                    logger.info("Waiting for check runs to complete")
                                 else:
                                     logger.error("Check runs did not complete in time")
                                     completed = False
