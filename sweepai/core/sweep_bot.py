@@ -1,13 +1,13 @@
 import copy
 import hashlib
 import re
+import time
 import traceback
 import uuid
 from collections import OrderedDict
 from typing import Dict, Generator
 
 import requests
-from fuzzywuzzy import fuzz
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
@@ -38,7 +38,6 @@ from sweepai.core.entities import (
     Snippet,
     UnneededEditError,
 )
-
 from sweepai.core.prompts import (
     create_file_prompt,
     extract_files_to_change_prompt,
@@ -1384,97 +1383,143 @@ class SweepBot(CodeGenBot, GithubBot):
                                     file_change_requests,
                                 )
                             else:
-                                contents_obj = self.get_contents(
-                                    file_change_request.filename, branch
+                                commit_hash = self.repo.get_branch(
+                                    branch=branch
+                                ).commit.sha
+                                check_runs = list(
+                                    self.repo.get_commit(commit_hash).get_check_runs()
                                 )
-                                contents = contents_obj.decoded_content.decode("utf-8")
-                                updated_contents, sandbox_response = self.check_sandbox(
-                                    file_change_request.filename,
-                                    contents,
-                                    changed_files,
-                                )
-                                if contents != updated_contents:
-                                    result = self.repo.update_file(
-                                        file_change_request.filename,
-                                        f"Sandbox run {file_change_request.filename}",
-                                        updated_contents,
-                                        sha=contents_obj.sha,
-                                        branch=branch,
+
+                                def check_run_is_complete():
+                                    nonlocal check_runs
+                                    check_runs = list(
+                                        self.repo.get_commit(
+                                            commit_hash
+                                        ).get_check_runs()
                                     )
-                                    commit = result["commit"]
-                                    file_change_request.commit_hash_url = (
-                                        commit.html_url
+                                    return not any(
+                                        check_run.status == None
+                                        for check_run in check_runs
                                     )
-                                if sandbox_response is not None:
-                                    file_change_request.sandbox_response = (
-                                        sandbox_response
-                                    )
-                                if (
-                                    sandbox_response is not None
-                                    and sandbox_response.success is False
-                                    and sandbox_response.executions
-                                    and (
-                                        not error_messages
-                                        or fuzz.ratio(
-                                            sandbox_response.executions[-1].output,
-                                            error_messages[-1],
-                                        )
-                                    )
-                                    < 90
-                                ):
-                                    additional_file_change_requests = (
-                                        self.get_files_to_change_from_sandbox(
-                                            file_change_request.filename,
-                                            updated_contents,
-                                            sandbox_response,
-                                            changed_files,
-                                            parent_fcr=file_change_request,
-                                        )
-                                    )
-                                    additional_file_change_requests = (
-                                        self.validate_file_change_requests(
-                                            additional_file_change_requests,
-                                            branch=branch,
-                                        )
-                                    )
-                                    if additional_file_change_requests:
-                                        new_check_fcr = copy.deepcopy(
-                                            file_change_request
-                                        )
-                                        new_check_fcr.status = "queued"
-                                        new_check_fcr.id_ = str(uuid.uuid4())
-                                        additional_file_change_requests.append(
-                                            new_check_fcr
-                                        )
-                                        file_change_requests = (
-                                            file_change_requests[: i + 1]
-                                            + additional_file_change_requests
-                                            + file_change_requests[i + 1 :]
-                                        )
-                                if (
-                                    sandbox_response is not None
-                                    and sandbox_response.executions
-                                    and sandbox_response.executions[-1]
-                                ):
-                                    error_messages.append(
-                                        clean_logs(
-                                            sandbox_response.executions[-1].output
-                                        )
-                                    )
+
+                                while not check_run_is_complete():
+                                    time.sleep(5)
+                                    logger.info("Waiting for check runs to complete")
+                                succeeded = True
+                                additional_instructions = "\n\n"
+                                for check_run in check_runs:
+                                    if (
+                                        check_run.app.url == "/app/github-actions"
+                                        and check_run.conclusion != "success"
+                                    ):
+                                        succeeded = False
+                                    additional_instructions += f"• {check_run.name}: {check_run.conclusion} ({check_run.html_url})\n"
                                 file_change_request.status = (
-                                    "succeeded"
-                                    if (sandbox_response and sandbox_response.success)
-                                    else "failed"
+                                    "succeeded" if succeeded else "failed"
                                 )
-                                if i + 1 < len(file_change_requests):
-                                    file_change_requests[i + 1].status = "running"
+                                file_change_request.instructions += (
+                                    additional_instructions
+                                )
+
                                 yield (
                                     file_change_request,
                                     True,
-                                    sandbox_response,
-                                    commit,
+                                    None,
+                                    None,
                                     file_change_requests,
                                 )
+
+                                # contents_obj = self.get_contents(
+                                #     file_change_request.filename, branch
+                                # )
+                                # contents = contents_obj.decoded_content.decode("utf-8")
+                                # updated_contents, sandbox_response = self.check_sandbox(
+                                #     file_change_request.filename,
+                                #     contents,
+                                #     changed_files,
+                                # )
+                                # if contents != updated_contents:
+                                #     result = self.repo.update_file(
+                                #         file_change_request.filename,
+                                #         f"Sandbox run {file_change_request.filename}",
+                                #         updated_contents,
+                                #         sha=contents_obj.sha,
+                                #         branch=branch,
+                                #     )
+                                #     commit = result["commit"]
+                                #     file_change_request.commit_hash_url = (
+                                #         commit.html_url
+                                #     )
+                                # if sandbox_response is not None:
+                                #     file_change_request.sandbox_response = (
+                                #         sandbox_response
+                                #     )
+                                # if (
+                                #     sandbox_response is not None
+                                #     and sandbox_response.success is False
+                                #     and sandbox_response.executions
+                                #     and (
+                                #         not error_messages
+                                #         or fuzz.ratio(
+                                #             sandbox_response.executions[-1].output,
+                                #             error_messages[-1],
+                                #         )
+                                #     )
+                                #     < 90
+                                # ):
+                                #     additional_file_change_requests = (
+                                #         self.get_files_to_change_from_sandbox(
+                                #             file_change_request.filename,
+                                #             updated_contents,
+                                #             sandbox_response,
+                                #             changed_files,
+                                #             parent_fcr=file_change_request,
+                                #         )
+                                #     )
+                                #     additional_file_change_requests = (
+                                #         self.validate_file_change_requests(
+                                #             additional_file_change_requests,
+                                #             branch=branch,
+                                #         )
+                                #     )
+                                #     if additional_file_change_requests:
+                                #         new_check_fcr = copy.deepcopy(
+                                #             file_change_request
+                                #         )
+                                #         new_check_fcr.status = "queued"
+                                #         new_check_fcr.id_ = str(uuid.uuid4())
+                                #         additional_file_change_requests.append(
+                                #             new_check_fcr
+                                #         )
+                                #         file_change_requests = (
+                                #             file_change_requests[: i + 1]
+                                #             + additional_file_change_requests
+                                #             + file_change_requests[i + 1 :]
+                                #         )
+                                # if (
+                                #     sandbox_response is not None
+                                #     and sandbox_response.executions
+                                #     and sandbox_response.executions[-1]
+                                # ):
+                                #     error_messages.append(
+                                #         clean_logs(
+                                #             sandbox_response.executions[-1].output
+                                #         )
+                                #     )
+                                # file_change_request.status = (
+                                #     "succeeded"
+                                #     if (sandbox_response and sandbox_response.success)
+                                #     else "failed"
+                                # )
+                                # if i + 1 < len(file_change_requests):
+                                #     file_change_requests[i + 1].status = "running"
+                                # yield (
+                                #     file_change_request,
+                                #     True,
+                                #     sandbox_response,
+                                #     commit,
+                                #     file_change_requests,
+                                # )
                         case "delete":
                             contents = self.repo.get_contents(
                                 file_change_request.filename, ref=branch
