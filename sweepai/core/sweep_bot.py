@@ -1408,6 +1408,41 @@ class SweepBot(CodeGenBot, GithubBot):
                                 total_wait_time = 3600
                                 sleep_time = 5
                                 for j in range(total_wait_time // sleep_time):
+                                    if j % 4 == 0:
+                                        succeeded = True
+                                        commit_hash_url = f'<a href="https://github.com/{self.repo.full_name}/commit/{commit_hash}">{commit_hash}</a>'
+                                        for check_run in check_runs:
+                                            if check_run.conclusion is None:
+                                                succeeded = None
+                                            elif (
+                                                check_run.conclusion != "failure"
+                                                and succeeded == True
+                                            ):
+                                                succeeded = False
+                                            conclusion = (
+                                                (
+                                                    "✓"
+                                                    if check_run.conclusion == "success"
+                                                    else "✗"
+                                                )
+                                                if check_run.conclusion is not None
+                                                else "⋯"
+                                            )
+                                            additional_instructions += f'• {check_run.name}: <a href="{check_run.html_url}">{conclusion}</a>\n'
+                                        if succeeded:
+                                            file_change_request.status = "succeeded"
+                                        elif succeeded is False:
+                                            file_change_request.status = "failed"
+                                        file_change_request.instructions = f"\nRan GitHub Actions for {commit_hash_url}:\n{additional_instructions}"
+                                        yield (
+                                            file_change_request,
+                                            True,
+                                            None,
+                                            None,
+                                            file_change_requests,
+                                        )
+                                        if succeeded is not None:
+                                            break
                                     if check_run_is_complete():
                                         break
                                     time.sleep(sleep_time)
@@ -1418,7 +1453,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
                                 if not completed:
                                     file_change_request.status = "succeeded"
-                                    file_change_request.instructions += "\n\nCheck runs did not complete in 60 minutes, skipping."
+                                    file_change_request.instructions += "\n\nCheck runs did not complete in 60 minutes, skipping the rest."
                                     yield (
                                         file_change_request,
                                         False,
@@ -1426,31 +1461,32 @@ class SweepBot(CodeGenBot, GithubBot):
                                         None,
                                         file_change_requests,
                                     )
-                                    continue
-                                else:
-                                    succeeded = True
-                                    additional_instructions = "\n\n"
-                                    for check_run in check_runs:
-                                        if (
-                                            check_run.app.url == "/app/github-actions"
-                                            and check_run.conclusion != "success"
-                                        ):
-                                            succeeded = False
-                                        additional_instructions += f"• {check_run.name}: {check_run.conclusion} ({check_run.html_url})\n"
-                                    file_change_request.status = (
-                                        "succeeded" if succeeded else "failed"
-                                    )
-                                    file_change_request.instructions += (
-                                        additional_instructions
-                                    )
+                                # else:
+                                #     succeeded = True
+                                #     commit_hash_url = f"<a href=\"https://github.com/{self.repo.full_name}/commit/{commit_hash}\">{commit_hash}</a>"
+                                #     additional_instructions = f"\n\nRan GitHub Actions for {commit_hash_url}:\n"
+                                #     for check_run in check_runs:
+                                #         if (
+                                #             check_run.app.url == "/app/github-actions"
+                                #             and check_run.conclusion != "success"
+                                #         ):
+                                #             succeeded = False
+                                #         conclusion = "✓" if check_run.conclusion == "success" else "✗"
+                                #         additional_instructions += f"• {check_run.name}: <a href=\"{check_run.html_url}\">{conclusion}</a>\n"
+                                #     file_change_request.status = (
+                                #         "succeeded" if succeeded else "failed"
+                                #     )
+                                #     file_change_request.instructions += (
+                                #         additional_instructions
+                                #     )
 
-                                    yield (
-                                        file_change_request,
-                                        True,
-                                        None,
-                                        None,
-                                        file_change_requests,
-                                    )
+                                #     yield (
+                                #         file_change_request,
+                                #         True,
+                                #         None,
+                                #         None,
+                                #         file_change_requests,
+                                #     )
 
                                 # contents_obj = self.get_contents(
                                 #     file_change_request.filename, branch
