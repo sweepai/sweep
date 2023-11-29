@@ -203,7 +203,7 @@ class ClonedRepo:
 
         # Default values if parameters are not provided
         if included_directories is None:
-            included_directories = []
+            included_directories = [] # gets all directories
         if excluded_directories is None:
             excluded_directories = [".git"]
         else:
@@ -230,13 +230,10 @@ class ClonedRepo:
                 complete_path = os.path.join(current_directory, name)
 
                 if os.path.isdir(complete_path):
-                    if relative_path in included_directories:
-                        directory_tree_string += f"{indentation}{relative_path}/\n"
-                        directory_tree_string += list_directory_contents(
-                            complete_path, indentation + "  ", ctags=ctags
-                        )
-                    else:
-                        directory_tree_string += f"{indentation}{name}/...\n"
+                    directory_tree_string += f"{indentation}{relative_path}/\n"
+                    directory_tree_string += list_directory_contents(
+                        complete_path, indentation + "  ", ctags=ctags
+                    )
                 else:
                     directory_tree_string += f"{indentation}{name}\n"
                     # if os.path.isfile(complete_path) and relative_path in included_files:
@@ -250,6 +247,8 @@ class ClonedRepo:
         dir_obj = DirectoryTree()
         directory_tree = list_directory_contents(root_directory, ctags=ctags)
         dir_obj.parse(directory_tree)
+        if included_directories:
+            dir_obj.remove_all_not_included(included_directories)
         return directory_tree, dir_obj
 
     def get_file_list(self) -> str:
@@ -279,7 +278,8 @@ class ClonedRepo:
         prefixes = []
         for snippet_path in snippet_paths:
             file_list = ""
-            for directory in snippet_path.split("/")[:-1]:
+            snippet_depth = len(snippet_path.split("/"))
+            for directory in snippet_path.split("/")[snippet_depth // 2:-1]: # heuristic
                 file_list += directory + "/"
                 prefixes.append(file_list.rstrip("/"))
             file_list += snippet_path.split("/")[-1]

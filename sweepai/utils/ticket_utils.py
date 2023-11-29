@@ -47,10 +47,10 @@ def prep_snippets(
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
     prefixes = []
     for snippet_path in snippet_paths:
-        file_list = ""
-        for directory in snippet_path.split("/")[:-1]:
-            file_list += directory + "/"
-            prefixes.append(file_list.rstrip("/"))
+        snippet_depth = len(snippet_path.split("/"))
+        for idx in range(snippet_depth): # heuristic
+            if idx > snippet_depth // 2:
+                prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
         prefixes.append(snippet_path)
     included_files = [snippet.file_path for snippet in ranked_snippets]
     _, dir_obj = cloned_repo.list_directory_tree(

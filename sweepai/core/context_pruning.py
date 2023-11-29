@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 import re
 import time
@@ -57,11 +58,19 @@ class ContextToPrune(RegexMatchableBaseModel):
 sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
 
 Reply in the following format:
+
+First, list all of the files and directories we should keep in paths_to_keep. Be as specific as you can.
+Second, list any directories that are currently closed that should be expanded.
+Third, add additional relevant files to the task using the add_file_path tool.
+If you expand a directory, we automatically expand all of its subdirectories, so do not list its subdirectories.
+Keep all files or directories that are referenced in the issue title or descriptions.
+
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths as well as any new paths with a justification.
+Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
-Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request."""
+
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
 
 unformatted_user_prompt = """\
 <snippets_in_repo>
@@ -80,17 +89,20 @@ The above <repo_tree> <snippets_in_repo> and <paths_in_repo> have unnecessary in
 The snippets and paths were fetched by a search engine, so they are noisy.
 The unnecessary information will hurt your performance on this task, so modify paths_in_repo, snippets_in_repo, and repo_tree to keep only the absolutely necessary information.
 
+Reply in the following format:
+
 First, list all of the files and directories we should keep in paths_to_keep. Be as specific as you can.
 Second, list any directories that are currently closed that should be expanded.
 Third, add additional relevant files to the task using the add_file_path tool.
 If you expand a directory, we automatically expand all of its subdirectories, so do not list its subdirectories.
 Keep all files or directories that are referenced in the issue title or descriptions.
-Reply in the following format:
+
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths as well as any new paths with a justification.
+Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
-Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request."""
+
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
 
 functions = [
     {
@@ -100,12 +112,16 @@ functions = [
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "File or directory to keep.",
+                    "description": "Existing file or directory to keep.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for keeping the file_path.",
                 }
             },
-            "required": ["file_path"],
+            "required": ["file_path", "justification"],
         },
-        "description": "Keep an existing file_path that you are certain is relevant to solving the user request. This only works if the file_path is already present in the snippets_in_repo and repo_tree. Unless this is empty, all of the files not listed will be removed from the snippets_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description.",
+        "description": "Keep an existing file_path from paths_in_repo that you are certain is relevant to solving the user request. This only works if the file_path is already present in the paths_in_repo. Unless this is empty, all of the files not listed will be removed from the paths_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description.",
     },
     {
         "name": "expand_directory",
@@ -115,9 +131,13 @@ functions = [
                 "directory_path": {
                     "type": "string",
                     "description": "Directory to expand",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for expanding the directory.",
                 }
             },
-            "required": ["directory_path"],
+            "required": ["directory_path", "justification"],
         },
         "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets.",
     },
@@ -128,12 +148,16 @@ functions = [
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "Path to add to the current snippets.",
+                    "description": "File path to add to the current paths_in_repo.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for adding the file_path.",
                 }
             },
-            "required": ["file_path"],
+            "required": ["file_path", "justification"],
         },
-        "description": "The most relevant snippet of the file will be added to the current snippets. If the file_path is already present, we will add the next most relevant snippet from the same file_path.",
+        "description": "The most relevant snippet of the file will be added to the current paths_in_repo. If the file_path is already present, we will add the next most relevant snippet from the same file_path.",
     },
 ]
 
@@ -160,6 +184,10 @@ class RepoContextManager:
     snippet_scores: dict[str, float]
     current_top_snippets: list[Snippet] = []
 
+    @property
+    def top_snippet_paths(self):
+        return [snippet.file_path for snippet in self.current_top_snippets]
+
     def remove_all_non_kept_paths(self, paths_to_keep: list[str]):
         self.current_top_snippets = [
             snippet
@@ -174,8 +202,10 @@ class RepoContextManager:
     def expand_all_directories(self, directories_to_expand: list[str]):
         self.dir_obj.expand_directory(directories_to_expand)
 
-    def is_path_valid(self, path: str):
-        return any(snippet.file_path.startswith(path) for snippet in self.snippets)
+    def is_path_valid(self, path: str, directory: bool = False):
+        if directory:
+            return any(snippet.file_path.startswith(path) for snippet in self.snippets)
+        return any(snippet.file_path == path for snippet in self.snippets)
 
     def format_context(
         self,
@@ -210,6 +240,8 @@ class RepoContextManager:
             if snippet.file_path == file_path
             and snippet not in self.current_top_snippets
         ]
+        if not filtered_snippets:
+            return None
         highest_scoring_snippet = max(
             filtered_snippets,
             key=lambda snippet: self.snippet_scores[snippet_key(snippet)]
@@ -221,18 +253,25 @@ class RepoContextManager:
     def add_file_paths(self, paths_to_add: list[str]):
         self.dir_obj.add_file_paths(paths_to_add)
         for file_path in paths_to_add:
-            if not can_add_snippet(self.get_highest_scoring_snippet(file_path), self.current_top_snippets):
-                continue
             highest_scoring_snippet = self.get_highest_scoring_snippet(file_path)
-            self.current_top_snippets.append(highest_scoring_snippet)
+            if highest_scoring_snippet is None:
+                continue
+            if can_add_snippet(highest_scoring_snippet, self.current_top_snippets):
+                self.current_top_snippets.append(highest_scoring_snippet)
+                continue
+            # otherwise try adding it by removing others
+            prev_top_snippets = deepcopy(self.current_top_snippets)
+            self.current_top_snippets = [highest_scoring_snippet]
+            for snippet in prev_top_snippets:
+                if can_add_snippet(snippet, self.current_top_snippets):
+                    self.current_top_snippets.append(snippet)
 
-
-@file_cache()
+# @file_cache()
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
 ):
-    modify_iterations: int = 5
+    modify_iterations: int = 4
     try:
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
@@ -248,7 +287,7 @@ def get_relevant_context(
         _ = client.beta.threads.messages.create(
             thread.id,
             role="user",
-            content=f"Here are the snippets_in_repo, repo_tree, and paths_in_repo:\n{user_prompt}\nUse the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request.",
+            content=f"{user_prompt}",
         )
         run = client.beta.threads.runs.create(
             thread_id=thread.id,
@@ -258,26 +297,20 @@ def get_relevant_context(
         if done:
             return repo_context_manager
         for _ in range(modify_iterations):
+            thread = client.beta.threads.create()
             user_prompt = repo_context_manager.format_context(
                 unformatted_user_prompt=unformatted_user_prompt, query=query
             )
             _ = client.beta.threads.messages.create(
                 thread.id,
                 role="user",
-                content=f"Here are the new snippets_in_repo, repo_tree, and paths_in_repo:\n{user_prompt}\nUse the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request. If the context allows us to perfectly solve the issue(does not require any additional changes), do not use any of the tools.",
+                content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow us to solve the issue, keep all of the existing file paths.",
             )
             run = client.beta.threads.runs.create(
                 thread_id=thread.id,
                 assistant_id=assistant.id,
             )
             done = modify_context(thread, run, repo_context_manager)
-            messages = client.beta.threads.messages.list(
-                thread_id=thread.id,
-            )
-            current_message = "\n".join(
-                [message.content[0].text.value for message in messages.data]
-            )
-            logger.info(f"Output from OpenAI Assistant: {current_message}")
             if done:
                 break
         return repo_context_manager
@@ -292,16 +325,26 @@ def modify_context(
     repo_context_manager: RepoContextManager,
 ) -> bool | None:
     max_iterations: int = int(
-        60 * 10 / 0.25
-    )  # 10 minutes divided by 0.25 seconds per iteration
+        60 * 10 / 3
+    )  # 10 minutes divided by 3 seconds per iteration
     paths_to_keep = []  # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
     logger.info(
-        f"Context Management Start:\ncurrent snippet paths: {[snippet.file_path for snippet in repo_context_manager.current_top_snippets]}"
+        f"Context Management Start:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
     )
+    initial_messages = client.beta.threads.messages.list(thread_id=thread.id)
+    initial_file_paths = repo_context_manager.top_snippet_paths
+    for message in initial_messages.data:
+        logger.info(f"{message.content[0].text.value}")
     for _ in range(max_iterations):
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+        # log messages
+        new_messages = client.beta.threads.messages.list(thread_id=thread.id)
+        if len(new_messages.data) > len(initial_messages.data):
+            for message in new_messages.data[::-1][len(initial_messages.data) :]:
+                logger.info(f"{message.content[0].text.value}")
+            initial_messages = new_messages
         if run.status == "completed":
             break
         if (
@@ -310,7 +353,7 @@ def modify_context(
             or run.required_action.submit_tool_outputs is None
             or run.required_action.submit_tool_outputs.tool_calls is None
         ):
-            time.sleep(0.25)
+            time.sleep(3)
             continue
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
@@ -323,25 +366,37 @@ def modify_context(
                 )
                 continue
             function_path_or_dir = function_input["file_path"] if "file_path" in function_input else function_input["directory_path"]
-            valid_path = repo_context_manager.is_path_valid(function_path_or_dir if "file_path" in function_input else function_input["directory_path"])
-            output = "success" if valid_path else "failure: invalid path"
-            if tool_call.function.name == "add_file_path" and valid_path:
-                valid_path = valid_path and can_add_snippet(repo_context_manager.get_highest_scoring_snippet(function_path_or_dir), repo_context_manager.current_top_snippets)
+            valid_path = False
+            output = ""
+            if tool_call.function.name == "keep_file_path":
+                valid_path = function_path_or_dir in repo_context_manager.top_snippet_paths
+                # NOTE the outputs should probably not be status codes. they should contain the actual expanded files, etc
+                # move all handlers to here.
+                output = "SUCCESS" if valid_path else "FAILURE: Path not in paths_in_repo. Try adding the file path first."
+            elif tool_call.function.name == "expand_directory":
+                valid_path = repo_context_manager.is_path_valid(function_path_or_dir, directory=True)
+                repo_context_manager.expand_all_directories([function_path_or_dir])
+                dir_string = str(repo_context_manager.dir_obj)
+                output = f"SUCCESS: New repo_tree\n{dir_string}" if valid_path else "FAILURE: Invalid directory path."
+            elif tool_call.function.name == "add_file_path":
+                valid_path = repo_context_manager.is_path_valid(function_path_or_dir, directory=False)
+                new_file_contents = repo_context_manager.get_highest_scoring_snippet(function_path_or_dir).content
                 repo_context_manager.add_file_paths([function_path_or_dir])
                 paths_to_add.append(function_path_or_dir)
-                output = "success" if valid_path else "failure: no space left, current snippets are too long"
+                output = f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}." if valid_path else "FAILURE: Invalid file path."
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
                     "output": output,
                 }
             )
-            logger.info(f"Tool Call: {tool_call.function.name} {function_path_or_dir} Output: {output}")
+            justification = function_input["justification"]
+            logger.info(f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Path: {valid_path}")
             if valid_path:
                 if tool_call.function.name == "keep_file_path":
                     paths_to_keep.append(function_path_or_dir)
                 elif tool_call.function.name == "expand_directory":
-                    directories_to_expand.append(function_input["directory_path"])
+                    directories_to_expand.append(function_path_or_dir)
         run = client.beta.threads.runs.submit_tool_outputs(
             thread_id=thread.id,
             run_id=run.id,
@@ -351,10 +406,15 @@ def modify_context(
         f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
     )
     if paths_to_keep:
-        repo_context_manager.remove_all_non_kept_paths(paths_to_keep)
+        repo_context_manager.remove_all_non_kept_paths(paths_to_keep + paths_to_add)
     if directories_to_expand:
         repo_context_manager.expand_all_directories(directories_to_expand)
-    return not (paths_to_keep or directories_to_expand or paths_to_add)
+    logger.info(
+        f"Context Management End:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
+    )
+    paths_changed = initial_file_paths != repo_context_manager.top_snippet_paths
+    # if the paths have not changed or all tools were empty, we are done
+    return not (paths_changed and (paths_to_keep or directories_to_expand or paths_to_add))
 
 
 if __name__ == "__main__":

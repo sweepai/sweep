@@ -107,13 +107,16 @@ class DirectoryTree:
         ]
         dir_parents = []
         for dir in dirs_to_expand:
+            # if it's not an extension and it doesn't end in /, add /
+            if not dir.endswith("/") and "." not in dir:
+                dir += "/"
             dir_parents.extend(parent_dirs(dir))
         dirs_to_expand = list(set(dirs_to_expand))
         expanded_lines = []
         for line in self.original_lines:
             if (
-                line.parent
-                and any(line.parent.full_path() == dir for dir in dirs_to_expand)
+                (line.parent
+                and any(line.parent.full_path().startswith(dir) for dir in dirs_to_expand))
                 or line.full_path() in dir_parents
             ):
                 expanded_lines.append(line)

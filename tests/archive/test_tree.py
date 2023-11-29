@@ -1,24 +1,19 @@
 from sweepai.utils.tree_utils import DirectoryTree
 
 tree_str = """\
-.assets/...
-.github/...
-.gitignore
-.pre-commit-config.yaml
-.replit
-.vscode/...
-CONTRIBUTING.md
-Dockerfile
-LICENSE
-README.md
-bin/...
-docker-compose.yml
 docs/
-  .github/...
+  docs/.github/
+    screenshot.png
   .gitignore
   README.md
   Recipes.md
-  components/...
+  docs/components/
+    Cards.tsx
+    PRPreview.jsx
+    RepoPreview.jsx
+    ShowMore.jsx
+    counters.module.css
+    counters.tsx
   extension-post-install.md
   installation.md
   next-env.d.ts
@@ -26,7 +21,11 @@ docs/
   package.json
   docs/pages/
     _meta.json
-    about/...
+    docs/pages/about/
+      _meta.json
+      examples.mdx
+      limitations.mdx
+      roadmap.mdx
     docs/pages/blogs/
       _meta.json
       ai-code-planning.mdx
@@ -54,26 +53,118 @@ docs/
     faq.mdx
     index.mdx
     privacy.mdx
-    usage/...
-    videos/...
+    docs/pages/usage/
+      _meta.json
+      advanced.mdx
+      config.mdx
+      extra-self-host.mdx
+      sandbox.mdx
+      tutorial.mdx
+    docs/pages/videos/
+      _meta.json
+      adding_banner.mdx
+      adding_walrus.mdx
+      ai_junior_dev_refactors_itself.mdx
+      ai_junior_developer_adds_an_easter_egg_to_our_logo.mdx
+      introducing_sweep.mdx
   pnpm-lock.yaml
-  public/...
+  docs/public/
+    docs/public/assets/
+      azure_playground.png
+      youtube_thumbnail.png
+    banner.png
+    docs/public/covers/
+      ai-code-planning.png
+      ai-unit-tests.png
+      automate-tech-debt.png
+      building-code-search.png
+      chunking-2m-files.png
+      chunking-improvements.png
+      generating-50k-embeddings-with-gte.png
+      giving-dev-tools.png
+      gpt-32k-open-source.png
+      gpt-4-modification.png
+      llm-sdk.png
+      openai-proxy.png
+      reading-docs.png
+      refactor-python.png
+      search-infra.png
+      self-hosting.png
+      super-linter.png
+      sweeps-core-algo.png
+      understanding-codebase-with-ctags.png
+      zero-downtime-deployment.png
+    docs/public/deployment/
+      appid.png
+      appsettings.png
+      digitalocean_step1.png
+      digitalocean_step2.png
+      digitalocean_step3.png
+      digitalocean_step4.png
+      digitalocean_step5.png
+      digitalocean_step6.png
+      digitalocean_step7.png
+      digitalocean_step8.png
+      digitalocean_step9.png
+      do.png
+      events.png
+      fcr.png
+      graph.png
+      graph_pruned.png
+      pem.png
+      tech_debt.png
+    favicon.ico
+    final-sweep-wizard_128x128.png
+    final-sweep-wizard_16x16.png
+    final-sweep-wizard_256x256.png
+    final-sweep-wizard_32x32.png
+    final-sweep-wizard_48x48.png
+    final-sweep-wizard_64x64.png
+    docs/public/flowchart/
+      flowchart_1.png
+      flowchart_2.png
+      flowchart_3.png
+      flowchart_4.png
+    logo.png
+    docs/public/modification/
+      drake.jpg
+    og_image.png
+    docs/public/openai_proxy/
+      azure_us_east_rate_limits.png
+      multi_region_azure_openai_proxy.png
+      openai_cost_graph.png
+      openai_rate_limits.png
+      simple_azure_openai_proxy.png
+    resume.pdf
+    docs/public/sweep-core-algo/
+      execute.png
+      flowchart.png
+      flowchart.svg
+      inputs.png
+      plan.png
+      search.png
+      sweep_contributions.png
+      validation.png
+    docs/public/trunk/
+      executions.png
+    docs/public/tutorial/
+      comment.png
+      congratulations.png
+      deployment.png
+      final.png
+      github_actions.png
+      initial.png
+      installation.png
+      issue.png
+      new.png
   theme.config.tsx
   tsconfig.json
-extension/...
-minis3/...
-notebooks/...
-package.json
-push_image.sh
-pyproject.toml
-redis.conf
-sdk/...
-self_deploy/...
-sweep.yaml
 sweepai/
   __init__.py
   sweepai/agents/
+    assistant_functions.py
     assistant_modify.py
+    assistant_planning.py
     assistant_wrapper.py
     complete_code.py
     complete_code_test.py
@@ -93,11 +184,13 @@ sweepai/
     test_bot_test.py
     validate_code.py
   api.py
-  config/...
+  sweepai/config/
+    __init__.py
+    client.py
+    server.py
   sweepai/core/
     __init__.py
     chat.py
-    code_repair.py
     context_pruning.py
     documentation.py
     documentation_searcher.py
@@ -107,7 +200,6 @@ sweepai/
     lexical_search.py
     post_merge.py
     prompts.py
-    react.py
     repo_parsing_utils.py
     robots.py
     slow_mode_expand.py
@@ -116,7 +208,9 @@ sweepai/
     vector_db.py
     webscrape.py
   events.py
-  extension/...
+  sweepai/extension/
+    backend.py
+    test.txt
   sweepai/handlers/
     __init__.py
     create_pr.py
@@ -130,13 +224,196 @@ sweepai/
     pr_utils.py
   health.py
   health_test.py
-  logn/...
+  sweepai/logn/
+    README.md
+    __init__.py
+    cache.py
+    logn.py
+    test.py
   pre_indexed_docs.py
-  sandbox/...
+  sweepai/sandbox/
+    .gitignore
+    Dockerfile.sandbox
+    Dockerfile.web
+    LICENSE
+    __init__.py
+    cli.py
+    deploy_sandbox.sh
+    requirements.txt
+    serve.sh
+    sweepai/sandbox/src/
+      __init__.py
+      chat.py
+      chat_logger.py
+      diff.py
+      prompts.py
+      sandbox_container.py
+      sandbox_local.py
+      sandbox_utils.py
+    start.sh
+    sweepai/sandbox/tests/
+      __init__.py
+      test_data.py
+      test_sandbox.py
+      test_sandbox_remote.py
   startup.py
-  utils/...
-tests/...
-"""
+  sweepai/utils/
+    __init__.py
+    autoimport.py
+    buttons.py
+    buttons_test.py
+    chat_logger.py
+    code_tree.py
+    code_tree_test.py
+    comment_utils.py
+    comment_utils_test.py
+    coverage_renderer.py
+    ctags.py
+    ctags_chunker.py
+    diff.py
+    diff_test.py
+    docker_utils.py
+    docker_utils_test.py
+    event_logger.py
+    fcr_tree_utils.py
+    function_call_utils.py
+    function_call_utils_test.py
+    github_utils.py
+    github_utils_test.py
+    graph.py
+    graph_test.py
+    hash.py
+    html_extractor.py
+    jedi_utils.py
+    openai_proxy.py
+    openai_proxy_test.py
+    prompt_constructor.py
+    refactor_utils.py
+    regex_utils.py
+    safe_pqueue.py
+    scorer.py
+    search_and_replace.py
+    search_and_replace_test.py
+    search_utils.py
+    str_utils.py
+    ticket_utils.py
+    tree_utils.py
+    unittest_utils.py
+    utils.py
+tests/
+  __init__.py
+  tests/archive/
+    additional_modify_prompt.txt
+    api.ipynb
+    async_playwrite.py
+    context.xml
+    example_diff.diff
+    health.py
+    link_matcher.py
+    modify_prompt.txt
+    multithreading_test.py
+    openai_proxy_test.py
+    planning.xml
+    replace_code.txt
+    search_code.txt
+    test_api.py
+    test_chunker.py
+    test_create_file.py
+    test_cst_splitter.py
+    test_dag.py
+    test_data_extractor.py
+    test_diff.py
+    test_diff_code.py
+    test_diff_parsing.py
+    test_diff_parsing2.py
+    test_diff_parsing3.py
+    test_diff_parsing4.py
+    test_external_docs.py
+    test_external_search.py
+    test_file_change_requests.py
+    test_gha_logs.py
+    test_huggingface.py
+    test_jedi.py
+    test_jedi_code.py
+    test_langchain_chunker.py
+    test_match.py
+    test_modal_sandbox.py
+    test_modify.py
+    test_modify_bot.py
+    test_modify_bot2.py
+    test_modify_replace.py
+    test_naive_chunker.py
+    test_redis_api.py
+    test_regex.py
+    test_replicate.py
+    test_repo_tree.py
+    test_scraper.py
+    test_search.py
+    test_search_and_replace.py
+    test_section_rewrite.py
+    test_spq.py
+    test_tabulate.py
+  tests/coverage/
+    coverage_unittest.py
+  tests/fastapi/
+    test_auto_kill.py
+  tests/js_tests/
+    package.json
+    test_create_issue.js
+    yarn.lock
+  tests/jsons/
+    check_suite_webhook.json
+    comment_webhook.json
+    example_checkrun.json
+    example_webhook.json
+    issue_armbian_map_webhook.json
+    issue_armbian_webhook.json
+    issue_edit_webhook.json
+    issue_exception_webhook.json
+    issue_landing_webhook.json
+    issue_webhook.json
+    label_webhook.json
+    landing_page_issue_webhook.json
+    merge_webhook.json
+    move_file_comment.json
+    pr_activate_hey_button.json
+    summaries.json
+    sweep_yaml.json
+  tests/modify_tests/
+    modify_test.py
+    test_tabs.py
+  tests/multiprocessing/
+    server_test.py
+    server_test2.py
+  tests/notebooks/
+    asst.ipynb
+    asst.py
+    graph.ipynb
+    heatmap.ipynb
+    importmagic.ipynb
+    jedi.ipynb
+    rope.ipynb
+    rope_class.ipynb
+    rope_move.ipynb
+    rope_reorder.ipynb
+    tests/notebooks/src/
+      class_refactor.py
+      tests/notebooks/src/helpers/
+        test2.py
+        utils.py
+      jedi_test.py
+      mod1.py
+      mod2.py
+      mod3.py
+      test.py
+      test2.py
+  redirect_api.py
+  rerun_issue.py
+  rerun_issue_direct.py
+  tests/search/
+    test_lexical_search.py
+  sliding_window_test.py
+  test_run_example_webhook.py"""
 
 
 response = """
@@ -150,15 +427,13 @@ serialized_list = ["README.md"]
 # tree.remove_all_not_included(context_to_prune.paths_to_keep)
 tree.remove_all_not_included(
     [
-        "sweepai/handlers/on_comment.py",
-        "sweepai/handlers/on_ticket.py",
-        "sweepai/core/sweep_bot.py",
+        "sweepai/agents/",
     ]
 )
 print()
 print(tree)
 
-# tree.expand_directory(context_to_prune.directories_to_expand)
-tree.add_file_paths(serialized_list)
+tree.expand_directory(["sweepai/utils"])
+# tree.add_file_paths(serialized_list)
 print()
 print(tree)

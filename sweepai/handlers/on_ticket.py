@@ -167,6 +167,7 @@ def on_ticket(
     summary = re.sub(
         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
+    summary = re.sub("### Details\n\n_No response_", "", summary, flags=re.DOTALL).strip()
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
