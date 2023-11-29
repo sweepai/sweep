@@ -189,9 +189,21 @@ def new_modify(
                 run_id=run.id,
                 assistant_id=response.assistant_id,
             )
-            file_object = messages.data[0].file_ids[0]
+            try:
+                file_object = messages.data[0].file_ids[0]
+            except Exception:
+                raise AssistantRaisedException(
+                    f"Assistant never provided a file. Here is the last message: {messages.data[0].content[0].text.value}"
+                )
         file_content = client.files.content(file_id=file_object).content.decode("utf-8")
     except AssistantRaisedException as e:
+        discord_log_error(
+            str(e)
+            + "\n\n"
+            + traceback.format_exc()
+            + "\n\n"
+            + str(chat_logger.data if chat_logger else "")
+        )
         raise e
     except Exception as e:
         logger.exception(e)
