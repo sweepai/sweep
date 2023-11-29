@@ -372,6 +372,7 @@ def modify_context(
                 valid_path = function_path_or_dir in repo_context_manager.top_snippet_paths
                 # NOTE the outputs should probably not be status codes. they should contain the actual expanded files, etc
                 # move all handlers to here.
+                # maybe fuse keep_or_add file path
                 output = "SUCCESS" if valid_path else "FAILURE: Path not in paths_in_repo. Try adding the file path first."
             elif tool_call.function.name == "expand_directory":
                 valid_path = repo_context_manager.is_path_valid(function_path_or_dir, directory=True)
@@ -380,7 +381,8 @@ def modify_context(
                 output = f"SUCCESS: New repo_tree\n{dir_string}" if valid_path else "FAILURE: Invalid directory path."
             elif tool_call.function.name == "add_file_path":
                 valid_path = repo_context_manager.is_path_valid(function_path_or_dir, directory=False)
-                new_file_contents = repo_context_manager.get_highest_scoring_snippet(function_path_or_dir).content
+                highest_scoring_snippet = repo_context_manager.get_highest_scoring_snippet(function_path_or_dir)
+                new_file_contents = highest_scoring_snippet.xml if highest_scoring_snippet is not None else ""
                 repo_context_manager.add_file_paths([function_path_or_dir])
                 paths_to_add.append(function_path_or_dir)
                 output = f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}." if valid_path else "FAILURE: Invalid file path."
