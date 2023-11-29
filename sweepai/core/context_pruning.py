@@ -221,7 +221,9 @@ class RepoContextManager:
     def add_file_paths(self, paths_to_add: list[str]):
         self.dir_obj.add_file_paths(paths_to_add)
         for file_path in paths_to_add:
-            if not can_add_snippet(self.get_highest_scoring_snippet(file_path), self.current_top_snippets):
+            if not can_add_snippet(
+                self.get_highest_scoring_snippet(file_path), self.current_top_snippets
+            ):
                 continue
             highest_scoring_snippet = self.get_highest_scoring_snippet(file_path)
             self.current_top_snippets.append(highest_scoring_snippet)
@@ -292,8 +294,8 @@ def modify_context(
     repo_context_manager: RepoContextManager,
 ) -> bool | None:
     max_iterations: int = int(
-        60 * 10 / 0.25
-    )  # 10 minutes divided by 0.25 seconds per iteration
+        60 * 10 / 3
+    )  # 10 minutes divided by 3 seconds per iteration
     paths_to_keep = []  # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
@@ -310,7 +312,7 @@ def modify_context(
             or run.required_action.submit_tool_outputs is None
             or run.required_action.submit_tool_outputs.tool_calls is None
         ):
-            time.sleep(0.25)
+            time.sleep(3)
             continue
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
@@ -322,21 +324,40 @@ def modify_context(
                     f"Could not parse function arguments: {tool_call.function.arguments}"
                 )
                 continue
-            function_path_or_dir = function_input["file_path"] if "file_path" in function_input else function_input["directory_path"]
-            valid_path = repo_context_manager.is_path_valid(function_path_or_dir if "file_path" in function_input else function_input["directory_path"])
+            function_path_or_dir = (
+                function_input["file_path"]
+                if "file_path" in function_input
+                else function_input["directory_path"]
+            )
+            valid_path = repo_context_manager.is_path_valid(
+                function_path_or_dir
+                if "file_path" in function_input
+                else function_input["directory_path"]
+            )
             output = "success" if valid_path else "failure: invalid path"
             if tool_call.function.name == "add_file_path" and valid_path:
-                valid_path = valid_path and can_add_snippet(repo_context_manager.get_highest_scoring_snippet(function_path_or_dir), repo_context_manager.current_top_snippets)
+                valid_path = valid_path and can_add_snippet(
+                    repo_context_manager.get_highest_scoring_snippet(
+                        function_path_or_dir
+                    ),
+                    repo_context_manager.current_top_snippets,
+                )
                 repo_context_manager.add_file_paths([function_path_or_dir])
                 paths_to_add.append(function_path_or_dir)
-                output = "success" if valid_path else "failure: no space left, current snippets are too long"
+                output = (
+                    "success"
+                    if valid_path
+                    else "failure: no space left, current snippets are too long"
+                )
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
                     "output": output,
                 }
             )
-            logger.info(f"Tool Call: {tool_call.function.name} {function_path_or_dir} Output: {output}")
+            logger.info(
+                f"Tool Call: {tool_call.function.name} {function_path_or_dir} Output: {output}"
+            )
             if valid_path:
                 if tool_call.function.name == "keep_file_path":
                     paths_to_keep.append(function_path_or_dir)
