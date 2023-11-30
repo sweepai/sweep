@@ -144,7 +144,7 @@ check_valid_python(current_content)
 print_diff(current_content)
 ```
 
-Once you are done, give me the output and attach the file."""
+Once you are done, generate and return a new document with the current_content."""
 
 
 def new_modify(
@@ -152,7 +152,7 @@ def new_modify(
     file_path: str,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
-    assistant_id: str = "asst_LeUB6ROUIvzm97kjqATLGVgC",
+    assistant_id: str = "asst_iFwIYazVKJx1fn4g28vkVZ70",
     start_line: int = -1,
     end_line: int = -1,
 ):
@@ -196,6 +196,8 @@ def new_modify(
                     f"Assistant never provided a file. Here is the last message: {messages.data[0].content[0].text.value}"
                 )
         file_content = client.files.content(file_id=file_object).content.decode("utf-8")
+        # delete the file afterwards
+        client.files.delete(file_id=file_object)
     except AssistantRaisedException as e:
         discord_log_error(
             str(e)

@@ -359,7 +359,7 @@ Step-by-step thoughts with explanations:
 ...
 </plan>"""
 
-create_file_prompt = """You are creating a file of code as part of a PR to solve the GitHub user's request under "# Metadata". You will follow the request under "# Request" and respond based on the format under "# Format".
+create_file_prompt = """You are creating a file of code as part of a PR to solve the GitHub user's request. You will follow the request under "# Request" and respond based on the format under "# Format".
 
 # Request
 
