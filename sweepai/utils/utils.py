@@ -176,6 +176,17 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
     return chunks
 
+def check_syntax(file_path: str, code: str) -> bool:
+    # perhaps this can even return a line number
+    from tree_sitter_languages import get_parser
+    ext = file_path.split(".")[-1]
+    if ext in extension_to_language:
+        language = extension_to_language[ext]
+    parser = get_parser(language)
+    tree = parser.parse(code.encode("utf-8"))
+    is_valid_syntax = not tree.root_node.has_error
+    return not is_valid_syntax
+
 
 def chunk_code(
     code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100
