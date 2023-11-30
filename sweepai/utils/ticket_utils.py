@@ -3,8 +3,10 @@ from time import time
 
 from loguru import logger
 
+from sweepai.agents.key_term_agent import KeyTermAgent
 from sweepai.config.client import SweepConfig
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
+from sweepai.core.context_pruning import (RepoContextManager,
+                                          get_relevant_context)
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
 from sweepai.core.vector_db import prepare_lexical_search_index
@@ -22,12 +24,15 @@ def prep_snippets(
 ):
     sweep_config: SweepConfig = SweepConfig()
 
+    key_term_agent = KeyTermAgent()
+    pre_filtered_query = key_term_agent.pre_filter_query(query)
+
     file_list, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo, sweep_config, cloned_repo.repo_full_name
     )
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    content_to_lexical_score = search_index(query, lexical_index)
+    content_to_lexical_score = search_index(pre_filtered_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
