@@ -54,7 +54,7 @@ from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.str_utils import clean_logs
-from sweepai.utils.utils import chunk_code
+from sweepai.utils.utils import check_syntax, chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
@@ -209,7 +209,7 @@ class CodeGenBot(ChatGPT):
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         fcrs = new_planning(
-            "#" + self.human_message.title + "\n" + self.human_message.summary,
+            "#" + self.human_message.title + "\n" + self.human_message.summary + "\n" + self.human_message.render_snippets() + "\n" + self.human_message.tree,
             self.cloned_repo.zip_path,
             additional_messages=self.messages[:-1],
             chat_logger=self.chat_logger,
@@ -673,25 +673,19 @@ class SweepBot(CodeGenBot, GithubBot):
     ):
         # Format file
         sandbox_execution: SandboxResponse | None = None
-        if SANDBOX_URL:
-            try:
-                logger.info(f"Running sandbox for {file_path}...")
-                output = SweepBot.run_sandbox(
-                    token=self.sweep_context.token,
-                    repo_url=self.repo.html_url,
-                    file_path=file_path,
-                    content=content,
-                    changed_files=changed_files,
-                    check=check,
-                )
-                sandbox_execution = SandboxResponse(**output)
-                if output["success"]:
-                    content = output["updated_content"]
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(f"Sandbox Error: {e}")
-                logger.error(traceback.format_exc())
+        # import pdb; pdb.set_trace()
+        # is_valid_syntax = check_syntax(file_path, content)
+        # output = SandboxResponse()
+        # output["success"] = is_valid_syntax
+        # if not is_valid_syntax:
+        #     output["executions"] = [
+        #         {
+        #             "command": "check_syntax",
+        #             "exit_code": 1,
+        #             "logs": f"Syntax Error in {file_path}",
+        #         }
+        #     ]
+        # return GHA instead
         return content, sandbox_execution
 
     def create_file(
