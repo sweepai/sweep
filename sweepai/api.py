@@ -9,7 +9,7 @@ import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from sweepai import health
 from sweepai.config.client import (
@@ -62,6 +62,7 @@ from sweepai.utils.buttons import (
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
 
@@ -223,6 +224,16 @@ def redirect_to_health():
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
+
+class TicketProgressRequest(BaseModel):
+    tracking_id: str
+
+
+@app.get("/ticket_progress")
+def progress(request: TicketProgressRequest):
+    ticket_progress = TicketProgress.load(request.tracking_id)
+    return ticket_progress.dict()
 
 
 @app.post("/")

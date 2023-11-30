@@ -77,6 +77,7 @@ from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.progress import TicketContext, TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     UPDATES_MESSAGE,
@@ -167,7 +168,9 @@ def on_ticket(
     summary = re.sub(
         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
-    summary = re.sub("### Details\n\n_No response_", "", summary, flags=re.DOTALL).strip()
+    summary = re.sub(
+        "### Details\n\n_No response_", "", summary, flags=re.DOTALL
+    ).strip()
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -176,6 +179,17 @@ def on_ticket(
     assignee = current_issue.assignee.login if current_issue.assignee else None
     if assignee is None:
         assignee = current_issue.user.login
+
+    ticket_progress = TicketProgress(
+        tracking_id=tracking_id,
+        context=TicketContext(
+            title=title,
+            description=summary,
+            repo_full_name=repo_full_name,
+            issue_number=issue_number,
+            is_public=repo.private is False,
+        ),
+    )
 
     # Hydrate cache of sandbox
     if not DEBUG:
@@ -199,7 +213,6 @@ def on_ticket(
             )
         logger.info("Done sending, letting it run in the background.")
 
-    # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
         branch_name = branch_match.group(1)

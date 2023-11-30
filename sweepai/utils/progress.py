@@ -51,17 +51,18 @@ class CodingProgress(BaseModel):
     file_change_requests: list[tuple[FileChangeRequest, AssistantConversation]] = []
 
 
-class Context(BaseModel):
+class TicketContext(BaseModel):
     title: str = ""
     description: str = ""
     repo_full_name: str = ""
     issue_number: int = 0
+    is_public: bool = True
     pr_id: int = -1
 
 
 class TicketProgress(BaseModel):
     tracking_id: str
-    context: Context = Context()
+    context: TicketContext = TicketContext()
     status: Status = Status.SEARCHING
     search_progress: SearchProgress = SearchProgress()
     planning_progress: PlanningProgress = PlanningProgress()
