@@ -266,7 +266,7 @@ class RepoContextManager:
                 if can_add_snippet(snippet, self.current_top_snippets):
                     self.current_top_snippets.append(snippet)
 
-# @file_cache()
+@file_cache()
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,

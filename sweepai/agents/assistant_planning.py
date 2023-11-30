@@ -13,15 +13,16 @@ system_message = r"""# User Request
 {user_request}
 
 # Guide
-## Step 1: Unzip the file into /mnt/data/repo and list all root level directory
+## Step 1: Unzip the file into /mnt/data/repo and list all root level directories.
 
 ## Step 2: Find the relevant files.
 You can search by file name or by keyword search in the contents.
 
 ## Step 3: Find relevant lines.
 1. Locate the lines of code that contain the identified keywords or are at the specified line number. You can use keyword search or manually look through the file 100 lines at a time.
-2. Check the surrounding lines to establish the full context of the code block. If the initial lines identified do not seem to include the entire logical code block related to the task, adjust the starting line to include the necessary context for the entire functionality that needs to be refactored or moved.
-4. Finally determine the exact line spans that includes a logical and complete section of code that should be edited.
+2. Check the surrounding lines to establish the full context of the code block. 
+3. Adjust the starting line to include the entire functionality that needs to be refactored or moved.
+4. Finally determine the exact line spans that include a logical and complete section of code to be edited.
 
 ```python
 def print_lines_with_keyword(content, keywords):
@@ -40,7 +41,7 @@ def print_lines_with_keyword(content, keywords):
             expanded_matches.add(i)
 
     for i in sorted(expanded_matches):
-        print(f"{{i}}: {{original_lines[i]}}")
+        print(f"{{i}}: {{content.splitlines()[i]}}")
 ```
 
 ## Step 4: Construct a plan
@@ -53,15 +54,16 @@ Respond in the following format:
 
 ```xml
 <plan>
-<create_file file="file_path_1" read_only_relevant_snippets="optional list of space-separated relevant read-only file paths.">
-* Natural language instructions for creating the new file needed to solve the issue
-* Include references to all files, imports and entity names
+<create_file file="file_path_1">
+* Natural language instructions for creating the new file needed to solve the issue.
+* Reference necessary files, imports and entity names.
 ...
 </create_file>
 ...
 
-<modify_file file="file_path_2" start_line="i" end_line="j" read_only_relevant_snippets="optional list of space-separated relevant read-only file paths">
-* Natural language instructions for the modifications needed to solve the issue. Be concise and mention references to all files, imports and entity names.
+<modify_file file="file_path_2" start_line="i" end_line="j">
+* Natural language instructions for the modifications needed to solve the issue. 
+* Be concise and reference necessary files, imports and entity names.
 ...
 </modify_file>
 ...
@@ -75,7 +77,7 @@ def new_planning(
     zip_path: str,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
-    assistant_id: str = "asst_E644o8UsuqdA8iDXmP6bLROl",
+    assistant_id: str = "asst_iFwIYazVKJx1fn4g28vkVZ70",
 ) -> list[FileChangeRequest]:
     try:
         response = openai_assistant_call(
@@ -84,6 +86,7 @@ def new_planning(
             additional_messages=additional_messages,
             file_paths=[zip_path],
             chat_logger=chat_logger,
+            instructions=system_message,
         )
         messages = response.messages
         final_message = messages.data[0].content[0].text.value

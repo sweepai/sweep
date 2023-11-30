@@ -106,7 +106,7 @@ class HumanMessagePrompt(BaseModel):
                     tree=self.tree.strip("\n"),
                     title=self.title,
                     description=f"Issue Description: {self.summary}"
-                    if not self.summary.strip().endswith("_No response_")
+                    if self.summary.strip()
                     else "",
                     relevant_snippets=relevant_snippets,
                     relevant_directories=relevant_directories,
