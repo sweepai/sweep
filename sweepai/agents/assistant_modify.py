@@ -144,7 +144,7 @@ check_valid_python(current_content)
 print_diff(current_content)
 ```
 
-Once you are done, generate and return a new document with the current_content."""
+Once you are done, give me the output and attach the file."""
 
 
 def new_modify(
@@ -152,7 +152,7 @@ def new_modify(
     file_path: str,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
-    assistant_id: str = "asst_iFwIYazVKJx1fn4g28vkVZ70",
+    assistant_id: str = "asst_LeUB6ROUIvzm97kjqATLGVgC",
     start_line: int = -1,
     end_line: int = -1,
 ):
