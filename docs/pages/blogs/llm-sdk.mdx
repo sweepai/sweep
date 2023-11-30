@@ -56,7 +56,7 @@ Topeka
 file: Topeka
 ```
 
-Our [`RegexExtractModel`](https://github.com/sweepai/sweep/blob/main/sdk/agent.py#L15) parses this into a string, but we also need custom logic to handle the above edge cases.<br></br>
+Our [`RegexExtractModel`](https://github.com/sweepai/sweep/blob/main/sdk/src/agent.py#L17) parses this into a string, but we also need custom logic to handle the above edge cases.<br></br>
 To do this, we can instantiate a `RegexExtractModel` with a `@property` decorator:
 ```python
 class Locations(RegexExtractModel):
@@ -95,6 +95,6 @@ Our main logic just has to treat FindLocationsAgent as a function that takes in 
 
 ## Try it out
 
-Try it out by copying the code from https://github.com/sweepai/sweep/blob/main/sdk/agent.py or installing the package with `pip install sweep-sdk`. We'd love to hear your feedback!
+Try it out by copying the code from https://github.com/sweepai/sweep/blob/main/sdk/src/agent.py or installing the package with `pip install sweep-sdk`. We'd love to hear your feedback!
 
 In addition, we released the first version of our corresponding prompt playground at https://playground.sweep.dev!
