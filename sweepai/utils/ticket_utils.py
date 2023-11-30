@@ -19,6 +19,7 @@ from sweepai.utils.str_utils import total_number_of_snippet_tokens
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
+    query_filter_agent: QueryFilterAgent,
 ):
     sweep_config: SweepConfig = SweepConfig()
 
@@ -27,7 +28,16 @@ def prep_snippets(
     )
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    content_to_lexical_score = search_index(query, lexical_index)
+        # Instantiate QueryFilterAgent and preprocess the query
+    query_filter_agent = QueryFilterAgent()
+    try:
+        refined_query = query_filter_agent.filter_query(query)
+    except Exception as e:
+        # Log the error and proceed with original query in case of any issue
+        logger.error(f"Error while filtering query: {{e}}")
+        discord_log_error(traceback.format_exc())
+        refined_query = query
+    content_to_lexical_score = search_index(refined_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
