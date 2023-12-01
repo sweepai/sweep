@@ -6,10 +6,10 @@ import threading
 import time
 
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from sweepai import health
 from sweepai.config.client import (
@@ -226,13 +226,9 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
-class TicketProgressRequest(BaseModel):
-    tracking_id: str
-
-
-@app.get("/ticket_progress")
-def progress(request: TicketProgressRequest):
-    ticket_progress = TicketProgress.load(request.tracking_id)
+@app.get("/ticket_progress/{tracking_id}")
+def progress(tracking_id: str = Path(...)):
+    ticket_progress = TicketProgress.load(tracking_id)
     return ticket_progress.dict()
 
 
