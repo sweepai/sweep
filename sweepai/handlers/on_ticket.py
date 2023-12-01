@@ -9,13 +9,11 @@ import traceback
 from time import time
 
 import openai
-import requests
 import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
 from logtail import LogtailContext, LogtailHandler
 from loguru import logger
-from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
@@ -35,7 +33,6 @@ from sweepai.config.client import (
     get_rules,
 )
 from sweepai.config.server import (
-    DEBUG,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GITHUB_BOT_USERNAME,
@@ -44,7 +41,6 @@ from sweepai.config.server import (
     LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
     OPENAI_USE_3_5_MODEL_ONLY,
-    SANDBOX_URL,
     WHITELISTED_REPOS,
 )
 from sweepai.core.documentation_searcher import extract_relevant_docs
@@ -77,6 +73,7 @@ from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.progress import TicketContext, TicketProgress, TicketProgressStatus
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     UPDATES_MESSAGE,
@@ -167,7 +164,9 @@ def on_ticket(
     summary = re.sub(
         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
-    summary = re.sub("### Details\n\n_No response_", "", summary, flags=re.DOTALL).strip()
+    summary = re.sub(
+        "### Details\n\n_No response_", "", summary, flags=re.DOTALL
+    ).strip()
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -177,29 +176,17 @@ def on_ticket(
     if assignee is None:
         assignee = current_issue.user.login
 
-    # Hydrate cache of sandbox
-    if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
-        try:
-            requests.post(
-                SANDBOX_URL,
-                json={
-                    "repo_url": f"https://github.com/{repo_full_name}",
-                    "token": user_token,
-                },
-                timeout=2,
-            )
-        except Timeout:
-            logger.info("Sandbox hydration timed out.")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(
-                f"Error hydrating cache of sandbox (tracking ID: `{tracking_id}`): {e}"
-            )
-        logger.info("Done sending, letting it run in the background.")
+    ticket_progress = TicketProgress(
+        tracking_id=tracking_id,
+        context=TicketContext(
+            title=title,
+            description=summary,
+            repo_full_name=repo_full_name,
+            issue_number=issue_number,
+            is_public=repo.private is False,
+        ),
+    )
 
-    # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
         branch_name = branch_match.group(1)
@@ -331,17 +318,19 @@ def on_ticket(
             )
         summary = summary if summary else ""
 
+        logger.info("Deleting old PRs...")  # this step takes 12 seconds
         prs = repo.get_pulls(
             state="open", sort="created", base=SweepConfig.get_branch(repo)
         )
-        for pr in prs:
-            # Check if this issue is mentioned in the PR, and pr is owned by bot
-            # This is done in create_pr, (pr_description = ...)
+        for pr in tqdm(prs):
+            # # Check if this issue is mentioned in the PR, and pr is owned by bot
+            # # This is done in create_pr, (pr_description = ...)
             if (
                 pr.user.login == GITHUB_BOT_USERNAME
                 and f"Fixes #{issue_number}.\n" in pr.body
             ):
                 success = safe_delete_sweep_branch(pr, repo)
+                break
 
         # Removed 1, 3
         if not sandbox_mode:
@@ -726,6 +715,8 @@ def on_ticket(
                 )
                 return {"success": False}
 
+        ticket_progress.search_progress.indexing_total = num_of_files
+        ticket_progress.save()
         snippets, tree, _ = fetch_relevant_files(
             cloned_repo,
             title,
@@ -739,13 +730,13 @@ def on_ticket(
             is_paying_user,
             is_consumer_tier,
             issue_url,
+            ticket_progress,
         )
-        # Fetch git commit history
-        # commit_history = cloned_repo.get_commit_history(username=username)
+        ticket_progress.search_progress.indexing_progress = num_of_files
+        ticket_progress.status = TicketProgressStatus.PLANNING
+        ticket_progress.save()
 
-        # snippets = post_process_snippets(
-        #     snippets, max_num_of_snippets=2 if use_faster_model else 5
-        # )
+        # Fetch git commit history
         if not repo_description:
             repo_description = "No description provided."
 

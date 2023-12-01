@@ -33,6 +33,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.hash import hash_sha256
+from sweepai.utils.progress import TicketProgress
 from sweepai.utils.scorer import compute_score, get_scores
 
 MODEL_DIR = "/tmp/cache/model"
@@ -259,7 +260,9 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     return files_to_scores
 
 
-def prepare_lexical_search_index(cloned_repo, sweep_config, repo_full_name):
+def prepare_lexical_search_index(
+    cloned_repo, sweep_config, repo_full_name, ticket_progress: TicketProgress
+):
     snippets, file_list = repo_to_chunks(cloned_repo.cached_dir, sweep_config)
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
