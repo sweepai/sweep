@@ -12,34 +12,29 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.progress import TicketProgress
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+from sweepai.agents.query_filter_agent import QueryFilterAgent
 
 
 @file_cache()
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
-    ticket_progress: TicketProgress,
 ):
     sweep_config: SweepConfig = SweepConfig()
 
     file_list, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
+        cloned_repo, sweep_config, cloned_repo.repo_full_name
     )
-    ticket_progress.search_progress.indexing_progress = (
-        ticket_progress.search_progress.indexing_total
-    )
-    ticket_progress.save()
-
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-
-    content_to_lexical_score = search_index(query, lexical_index)
+    # Here, we use QueryFilterAgent to filter the search query before execution
+    query_filter_agent = QueryFilterAgent()
+    filtered_query = query_filter_agent.filter_query(query)
+    content_to_lexical_score = search_index(filtered_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
-
     snippet_scores = []
     for snippet in snippets:
         snippet_score = 0.1
@@ -52,13 +47,11 @@ def prep_snippets(
         reverse=True,
     )
     ranked_snippets = ranked_snippets[:7]
-    ticket_progress.search_progress.retrieved_snippets = ranked_snippets
-    ticket_progress.save()
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
     prefixes = []
     for snippet_path in snippet_paths:
         snippet_depth = len(snippet_path.split("/"))
-        for idx in range(snippet_depth):  # heuristic
+        for idx in range(snippet_depth): # heuristic
             if idx > snippet_depth // 2:
                 prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
         prefixes.append(snippet_path)
@@ -90,7 +83,6 @@ def fetch_relevant_files(
     is_paying_user,
     is_consumer_tier,
     issue_url,
-    ticket_progress: TicketProgress,
 ):
     logger.info("Fetching relevant files...")
     try:
@@ -99,18 +91,11 @@ def fetch_relevant_files(
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
         )
-        repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
-        ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
-        ticket_progress.save()
-
+        repo_context_manager = prep_snippets(cloned_repo, search_query)
         repo_context_manager = get_relevant_context(
-            formatted_query, repo_context_manager, ticket_progress
+            formatted_query, repo_context_manager
         )
         snippets = repo_context_manager.current_top_snippets
-        ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
-        ticket_progress.search_progress.final_snippets = snippets
-        ticket_progress.save()
-
         tree = str(repo_context_manager.dir_obj)
         dir_obj = repo_context_manager.dir_obj
     except SystemExit:
