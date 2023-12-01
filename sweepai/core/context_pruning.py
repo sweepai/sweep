@@ -1,7 +1,7 @@
-from copy import deepcopy
 import json
 import re
 import time
+from copy import deepcopy
 
 from attr import dataclass
 from loguru import logger
@@ -12,6 +12,7 @@ from sweepai.agents.assistant_wrapper import client
 from sweepai.core.entities import RegexMatchableBaseModel, Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
@@ -117,7 +118,7 @@ functions = [
                 "justification": {
                     "type": "string",
                     "description": "Justification for keeping the file_path.",
-                }
+                },
             },
             "required": ["file_path", "justification"],
         },
@@ -135,7 +136,7 @@ functions = [
                 "justification": {
                     "type": "string",
                     "description": "Justification for expanding the directory.",
-                }
+                },
             },
             "required": ["directory_path", "justification"],
         },
@@ -153,7 +154,7 @@ functions = [
                 "justification": {
                     "type": "string",
                     "description": "Justification for adding the file_path.",
-                }
+                },
             },
             "required": ["file_path", "justification"],
         },
@@ -266,10 +267,12 @@ class RepoContextManager:
                 if can_add_snippet(snippet, self.current_top_snippets):
                     self.current_top_snippets.append(snippet)
 
+
 @file_cache()
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
+    ticket_progress: TicketProgress,
 ):
     modify_iterations: int = 4
     try:
@@ -293,7 +296,7 @@ def get_relevant_context(
             thread_id=thread.id,
             assistant_id=assistant.id,
         )
-        done = modify_context(thread, run, repo_context_manager)
+        done = modify_context(thread, run, repo_context_manager, ticket_progress)
         if done:
             return repo_context_manager
         for _ in range(modify_iterations):
@@ -310,7 +313,7 @@ def get_relevant_context(
                 thread_id=thread.id,
                 assistant_id=assistant.id,
             )
-            done = modify_context(thread, run, repo_context_manager)
+            done = modify_context(thread, run, repo_context_manager, ticket_progress)
             if done:
                 break
         return repo_context_manager
@@ -323,6 +326,7 @@ def modify_context(
     thread: Thread,
     run: Run,
     repo_context_manager: RepoContextManager,
+    ticket_progress: TicketProgress,
 ) -> bool | None:
     max_iterations: int = int(
         60 * 10 / 3
@@ -339,6 +343,18 @@ def modify_context(
         logger.info(f"{message.content[0].text.value}")
     for _ in range(max_iterations):
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+        ticket_progress.search_progress.pruning_conversation = (
+            AssistantConversation.from_ids(
+                assistant_id=run.assistant_id,
+                run_id=run.id,
+                thread_id=thread.id,
+            )
+        )
+        ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
+        ticket_progress.search_progress.final_snippets = (
+            repo_context_manager.current_top_snippets
+        )
+        ticket_progress.save()
         # log messages
         new_messages = client.beta.threads.messages.list(thread_id=thread.id)
         if len(new_messages.data) > len(initial_messages.data):
@@ -365,27 +381,57 @@ def modify_context(
                     f"Could not parse function arguments: {tool_call.function.arguments}"
                 )
                 continue
-            function_path_or_dir = function_input["file_path"] if "file_path" in function_input else function_input["directory_path"]
+            function_path_or_dir = (
+                function_input["file_path"]
+                if "file_path" in function_input
+                else function_input["directory_path"]
+            )
             valid_path = False
             output = ""
             if tool_call.function.name == "keep_file_path":
-                valid_path = function_path_or_dir in repo_context_manager.top_snippet_paths
+                valid_path = (
+                    function_path_or_dir in repo_context_manager.top_snippet_paths
+                )
                 # NOTE the outputs should probably not be status codes. they should contain the actual expanded files, etc
                 # move all handlers to here.
                 # maybe fuse keep_or_add file path
-                output = "SUCCESS" if valid_path else "FAILURE: Path not in paths_in_repo. Try adding the file path first."
+                output = (
+                    "SUCCESS"
+                    if valid_path
+                    else "FAILURE: Path not in paths_in_repo. Try adding the file path first."
+                )
             elif tool_call.function.name == "expand_directory":
-                valid_path = repo_context_manager.is_path_valid(function_path_or_dir, directory=True)
+                valid_path = repo_context_manager.is_path_valid(
+                    function_path_or_dir, directory=True
+                )
                 repo_context_manager.expand_all_directories([function_path_or_dir])
                 dir_string = str(repo_context_manager.dir_obj)
-                output = f"SUCCESS: New repo_tree\n{dir_string}" if valid_path else "FAILURE: Invalid directory path."
+                output = (
+                    f"SUCCESS: New repo_tree\n{dir_string}"
+                    if valid_path
+                    else "FAILURE: Invalid directory path."
+                )
             elif tool_call.function.name == "add_file_path":
-                valid_path = repo_context_manager.is_path_valid(function_path_or_dir, directory=False)
-                highest_scoring_snippet = repo_context_manager.get_highest_scoring_snippet(function_path_or_dir)
-                new_file_contents = highest_scoring_snippet.xml if highest_scoring_snippet is not None else ""
+                valid_path = repo_context_manager.is_path_valid(
+                    function_path_or_dir, directory=False
+                )
+                highest_scoring_snippet = (
+                    repo_context_manager.get_highest_scoring_snippet(
+                        function_path_or_dir
+                    )
+                )
+                new_file_contents = (
+                    highest_scoring_snippet.xml
+                    if highest_scoring_snippet is not None
+                    else ""
+                )
                 repo_context_manager.add_file_paths([function_path_or_dir])
                 paths_to_add.append(function_path_or_dir)
-                output = f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}." if valid_path else "FAILURE: Invalid file path."
+                output = (
+                    f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
+                    if valid_path
+                    else "FAILURE: Invalid file path."
+                )
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -393,7 +439,9 @@ def modify_context(
                 }
             )
             justification = function_input["justification"]
-            logger.info(f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Path: {valid_path}")
+            logger.info(
+                f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Path: {valid_path}"
+            )
             if valid_path:
                 if tool_call.function.name == "keep_file_path":
                     paths_to_keep.append(function_path_or_dir)
@@ -404,6 +452,14 @@ def modify_context(
             run_id=run.id,
             tool_outputs=tool_outputs,
         )
+    ticket_progress.search_progress.pruning_conversation = (
+        AssistantConversation.from_ids(
+            assistant_id=run.assistant_id,
+            run_id=run.id,
+            thread_id=thread.id,
+        )
+    )
+    ticket_progress.save()
     logger.info(
         f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
     )
@@ -416,7 +472,9 @@ def modify_context(
     )
     paths_changed = initial_file_paths != repo_context_manager.top_snippet_paths
     # if the paths have not changed or all tools were empty, we are done
-    return not (paths_changed and (paths_to_keep or directories_to_expand or paths_to_add))
+    return not (
+        paths_changed and (paths_to_keep or directories_to_expand or paths_to_add)
+    )
 
 
 if __name__ == "__main__":
