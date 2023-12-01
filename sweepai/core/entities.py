@@ -15,7 +15,7 @@ from sweepai.utils.str_utils import (
     blockquote,
     clean_logs,
     create_collapsible,
-    format_exit_code,
+    format_sandbox_success,
 )
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
@@ -125,13 +125,12 @@ def create_error_logs(
                 "\n\n".join(
                     [
                         create_collapsible(
-                            f"<code>{execution.command.format(file_path=file_path)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                            f"<pre>{clean_logs(execution.output)}</pre>",
-                            i == len(sandbox_response.executions) - 1,
+                            f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                            f"<pre>{clean_logs(output)}</pre>",
+                            i == len(sandbox_response.outputs) - 1,
                         )
-                        for i, execution in enumerate(sandbox_response.executions)
-                        if len(sandbox_response.executions) > 0
-                        # And error code check
+                        for i, output in enumerate(sandbox_response.outputs)
+                        if len(sandbox_response.outputs) > 0
                     ]
                 )
             ),
@@ -533,11 +532,9 @@ class SandboxExecution:
 
 class SandboxResponse(BaseModel):
     success: bool
-    error_messages: list[str]
     outputs: list[str]
-    executions: list[SandboxExecution]
     updated_content: str
-    sandbox: dict
+    error_messages: list[str]
 
 
 class MaxTokensExceeded(Exception):

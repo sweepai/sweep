@@ -88,7 +88,7 @@ from sweepai.utils.str_utils import (
     create_checkbox,
     create_collapsible,
     discord_suffix,
-    format_exit_code,
+    format_sandbox_success,
     ordinal,
     sep,
     stars_suffix,
@@ -418,7 +418,7 @@ def on_ticket(
             errored=False,
             pr_message="",
             done=False,
-            initial_sandbox_response=-1,
+            initial_sandbox_response: int | SandboxResponse = -1,
             initial_sandbox_response_file=None,
         ):
             config_pr_message = (
@@ -441,8 +441,8 @@ def on_ticket(
                 repo = g.get_repo(repo_full_name)
                 commit_hash = repo.get_commits()[0].sha
                 success = (
-                    initial_sandbox_response.executions
-                    and initial_sandbox_response.executions[-1].exit_code == 0
+                    initial_sandbox_response.outputs
+                    and initial_sandbox_response.success
                 )
                 status = "✓" if success else "X"
                 sandbox_execution_message = (
@@ -651,15 +651,12 @@ def on_ticket(
                             "\n\n".join(
                                 [
                                     create_collapsible(
-                                        f"<code>{execution.command.format(file_path=file_name)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                                        f"<pre>{clean_logs(execution.output)}</pre>",
-                                        i == len(sandbox_response.executions) - 1,
+                                        f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                                        f"<pre>{clean_logs(output)}</pre>",
+                                        i == len(sandbox_response.outputs) - 1,
                                     )
-                                    for i, execution in enumerate(
-                                        sandbox_response.executions
-                                    )
-                                    if len(sandbox_response.executions) > 0
-                                    # And error code check
+                                    for i, output in enumerate(sandbox_response.outputs)
+                                    if len(sandbox_response.outputs) > 0
                                 ]
                             )
                         ),
@@ -1060,15 +1057,12 @@ def on_ticket(
                                 "\n\n".join(
                                     [
                                         create_collapsible(
-                                            f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                                            f"<pre>{clean_logs(execution.output)}</pre>",
-                                            i == len(sandbox_response.executions) - 1,
+                                            f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                                            f"<pre>{clean_logs(output)}</pre>",
+                                            i == len(sandbox_response.outputs) - 1,
                                         )
-                                        for i, execution in enumerate(
-                                            sandbox_response.executions
-                                        )
-                                        if len(sandbox_response.executions) > 0
-                                        # And error code check
+                                        for i, output in enumerate(sandbox_response.outputs)
+                                        if len(sandbox_response.outputs) > 0
                                     ]
                                 )
                             ),
@@ -1220,7 +1214,14 @@ def on_ticket(
                 body=condensed_checkboxes_contents,
                 opened="open",
             )
-            issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+            for _ in range(3):
+                try:
+                    issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+                    break
+                except:
+                    from time import sleep
+                    sleep(1)
+                    pass
             edit_sweep_comment(checkboxes_contents, 2)
 
             pr_changes = response["pull_request"]

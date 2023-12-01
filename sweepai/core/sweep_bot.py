@@ -209,7 +209,7 @@ class CodeGenBot(ChatGPT):
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         fcrs = new_planning(
-            "#" + self.human_message.title + "\n" + self.human_message.summary + "\n" + self.human_message.render_snippets() + "\n" + self.human_message.tree,
+            "## Title:" + self.human_message.title + "\n" + self.human_message.summary + "\n" + self.human_message.render_snippets() + "\n" + self.human_message.tree,
             self.cloned_repo.zip_path,
             additional_messages=self.messages[:-1],
             chat_logger=self.chat_logger,
@@ -526,37 +526,19 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_files_modified: Dict[str, str] | None = None
 
     def validate_sandbox(self, file_change_requests: list[FileChangeRequest]):
-        first_file = None
-        for file_change_request in file_change_requests:
-            if file_change_request.change_type == "modify":
-                first_file = file_change_request.filename
-        extension = ""
-        for fcr in file_change_requests:
-            if fcr.change_type == "modify" and "." in fcr.filename:
-                extension = fcr.filename.split(".")[-1]
-                first_file = fcr.filename
-                break
-        contents = ""
-        if first_file is None:
-            commits = self.repo.get_commits()
-            commits = list(commits[:10])
-            for commit in commits:
-                for file_change in commit.files:
-                    if file_change.filename.endswith(extension):
-                        first_file = file_change.filename
-                        try:
-                            contents = self.get_contents(
-                                first_file
-                            ).decoded_content.decode("utf-8")
-                        except UnknownObjectException:
-                            first_file = None
-                            continue
-                        break
-                if first_file is not None:
-                    break
-        # contents = self.get_contents(first_file).decoded_content.decode("utf-8")
-        _, sandbox_response = self.check_sandbox(first_file, contents)
-        return sandbox_response, first_file
+        # if all are successful return the first one, otherwise return dummy one
+        fcr_file_paths = [fcr.filename for fcr in file_change_requests if fcr.change_type == "modify"]
+        sandbox_responses: list[SandboxResponse] = []
+        for fcr_file_path in fcr_file_paths:
+            try:
+                contents = self.get_contents(fcr_file_path).decoded_content.decode("utf-8")
+                _, sandbox_response = self.check_sandbox(fcr_file_path, contents)
+                sandbox_responses.append(sandbox_response)
+            except Exception as e:
+                logger.error(f"Error: {e}")
+        if all(sandbox_response.success for sandbox_response in sandbox_responses):
+            return sandbox_responses[0], fcr_file_paths[0]
+        return None, fcr_file_paths[0]
 
     def validate_file_change_requests(
         self,
@@ -570,8 +552,8 @@ class SweepBot(CodeGenBot, GithubBot):
         if initial_sandbox_response is None:
             initial_sandbox_response, _ = self.validate_sandbox(file_change_requests)
         if initial_sandbox_response is None or (
-            initial_sandbox_response.executions
-            and initial_sandbox_response.executions[-1].exit_code != False
+            initial_sandbox_response.outputs
+            and not initial_sandbox_response.success
         ):
             return [
                 file_change_request
@@ -671,21 +653,19 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: list[tuple[str, str]] = [],
         check: list[str] = [],
     ):
-        # Format file
         sandbox_execution: SandboxResponse | None = None
-        # import pdb; pdb.set_trace()
-        # is_valid_syntax = check_syntax(file_path, content)
-        # output = SandboxResponse()
-        # output["success"] = is_valid_syntax
-        # if not is_valid_syntax:
-        #     output["executions"] = [
-        #         {
-        #             "command": "check_syntax",
-        #             "exit_code": 1,
-        #             "logs": f"Syntax Error in {file_path}",
-        #         }
-        #     ]
-        # return GHA instead
+        is_valid_syntax, error_message = check_syntax(file_path, content)
+        output_message = f"Checking {file_path} for syntax errors...\n" + (
+            f"✅ {file_path} has no syntax errors!" if is_valid_syntax else\
+            f"❌ {file_path} has syntax errors:\n{error_message}"
+        )
+        sandbox_execution = {
+            "success": is_valid_syntax,
+            "error_messages": [error_message],
+            "outputs": [output_message],
+            "updated_content": content,
+        }
+        sandbox_execution = SandboxResponse(**sandbox_execution)
         return content, sandbox_execution
 
     def create_file(
@@ -1054,8 +1034,8 @@ class SweepBot(CodeGenBot, GithubBot):
             Message(
                 content=f'<code file_path="{file_path}">\n{file_contents}\n</code>\n\n'
                 + sandbox_error_prompt.format(
-                    command=sandbox_response.executions[-1].command,
-                    error_logs=clean_logs(sandbox_response.executions[-1].output),
+                    command=sandbox_response.outputs[-1],
+                    error_logs=sandbox_response.error_messages[-1],
                 ),
                 role="user",
             )
@@ -1385,47 +1365,28 @@ class SweepBot(CodeGenBot, GithubBot):
                                 check_runs = list(
                                     self.repo.get_commit(commit_hash).get_check_runs()
                                 )
-
-                                def check_run_is_complete():
-                                    nonlocal check_runs
-                                    check_runs = list(
-                                        self.repo.get_commit(
-                                            commit_hash
-                                        ).get_check_runs()
-                                    )
-                                    return not any(
-                                        check_run.status == None
-                                        for check_run in check_runs
-                                    )
-
                                 completed = True
                                 total_wait_time = 3600
                                 sleep_time = 5
                                 for j in range(total_wait_time // sleep_time):
                                     if j % 4 == 0:
-                                        succeeded = True
                                         commit_hash_url = f'<a href="https://github.com/{self.repo.full_name}/commit/{commit_hash}">{commit_hash}</a>'
+                                        additional_instructions = ""
+                                        conclusions = []
+                                        check_runs = list(
+                                            self.repo.get_commit(commit_hash).get_check_runs()
+                                        )
                                         for check_run in check_runs:
-                                            if check_run.conclusion is None:
-                                                succeeded = None
-                                            elif (
-                                                check_run.conclusion != "failure"
-                                                and succeeded == True
-                                            ):
-                                                succeeded = False
-                                            conclusion = (
-                                                (
-                                                    "✓"
-                                                    if check_run.conclusion == "success"
-                                                    else "✗"
-                                                )
-                                                if check_run.conclusion is not None
-                                                else "⋯"
-                                            )
-                                            additional_instructions += f'• {check_run.name}: <a href="{check_run.html_url}">{conclusion}</a>\n'
+                                            conclusions.append(check_run.conclusion)
+                                            conclusion_str = "✓" if check_run.conclusion == "success" else "✗" if check_run.conclusion == "failure" else "⋯"
+                                            additional_instructions += f'• {check_run.name}: <a href="{check_run.html_url}">{conclusion_str}</a>\n'
+                                        # these are distinct, it's None if it's not done so succeeded and failed can both be false
+                                        succeeded = all(conclusion == "success" for conclusion in conclusions)
+                                        failed = any(conclusion == "failure" for conclusion in conclusions)
+                                        waiting = any(conclusion == None for conclusion in conclusions)
                                         if succeeded:
                                             file_change_request.status = "succeeded"
-                                        elif succeeded is False:
+                                        elif failed:
                                             file_change_request.status = "failed"
                                         file_change_request.instructions = f"\nRan GitHub Actions for {commit_hash_url}:\n{additional_instructions}"
                                         yield (
@@ -1435,10 +1396,8 @@ class SweepBot(CodeGenBot, GithubBot):
                                             None,
                                             file_change_requests,
                                         )
-                                        if succeeded is not None:
+                                        if not waiting or failed or succeeded:
                                             break
-                                    if check_run_is_complete():
-                                        break
                                     time.sleep(sleep_time)
                                     logger.info("Waiting for check runs to complete")
                                 else:

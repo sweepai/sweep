@@ -185,13 +185,14 @@ def openai_assistant_call_helper(
     assistant_name: str | None = None,
 ):
     file_ids = []
+    file_object = None
     for file_path in file_paths:
         if not any(file_path.endswith(extension) for extension in allowed_exts):
             os.rename(file_path, file_path + ".txt")
             file_path += ".txt"
         file_object = client.files.create(file=Path(file_path), purpose="assistants")
         file_ids.append(file_object.id)
-
+    
     logger.debug(instructions)
     if assistant_id is None:
         assistant = client.beta.assistants.create(
@@ -232,6 +233,7 @@ def openai_assistant_call_helper(
         assistant_id=assistant.id,
         sleep_time=sleep_time,
     )
+    if file_object: client.files.delete(file_id=file_object.id)
     return (
         assistant.id,
         run.id,

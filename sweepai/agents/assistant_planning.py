@@ -7,6 +7,7 @@ from loguru import logger
 
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
 system_message = r"""# User Request
@@ -46,8 +47,9 @@ def print_lines_with_keyword(content, keywords):
 
 ## Step 4: Construct a plan
 Provide the final plan to solve the issue, following these rules:
-* You may only create new files and modify existing files
-* File paths should be relative paths from the root of the repo
+* You may only create new files and modify existing files.
+* File paths should be relative paths from the root of the repo.
+* Do not generate more than one modification or creation per file unless absolutely necessary.
 * Start and end lines indicate the exact start and end lines to edit. Expand this to encompass more lines if you're unsure where to make the exact edit.
 
 Respond in the following format:
@@ -71,7 +73,7 @@ Respond in the following format:
 </plan>
 ```"""
 
-
+@file_cache(ignore_params=["zip_path", "chat_logger"])
 def new_planning(
     request: str,
     zip_path: str,
@@ -86,7 +88,7 @@ def new_planning(
             additional_messages=additional_messages,
             file_paths=[zip_path],
             chat_logger=chat_logger,
-            instructions=system_message,
+            instructions=system_message.format(user_request=request),
         )
         messages = response.messages
         final_message = messages.data[0].content[0].text.value
@@ -100,6 +102,7 @@ def new_planning(
             fcr = FileChangeRequest(**group_dict)
             fcr.filename = fcr.filename.lstrip("/")
             fcr.instructions = fcr.instructions.replace("\n*", "\n•")
+            fcr.instructions = fcr.instructions.strip("\n")
             if fcr.instructions.startswith("*"):
                 fcr.instructions = "•" + fcr.instructions[1:]
             fcrs.append(fcr)
