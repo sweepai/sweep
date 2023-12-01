@@ -8,6 +8,7 @@ from sweepai.agents.assistant_wrapper import (
     run_until_complete,
 )
 from sweepai.core.entities import AssistantRaisedException, Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
 long_file_helper_functions = r"""def print_lines(i, j):
@@ -146,7 +147,7 @@ print_diff(current_content)
 
 Once you are done, give me the output and attach the file."""
 
-
+@file_cache(ignore_params=["file_path", "chat_logger"])
 def new_modify(
     request: str,
     file_path: str,
@@ -182,7 +183,7 @@ def new_modify(
             run = client.beta.threads.runs.create(
                 thread_id=response.thread_id,
                 assistant_id=response.assistant_id,
-                instructions="Please give me the final file.",
+                instructions="Give me the final file as part of your output response's file_ids.",
             )
             messages = run_until_complete(
                 thread_id=response.thread_id,
