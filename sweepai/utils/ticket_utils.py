@@ -3,6 +3,7 @@ from time import time
 
 from loguru import logger
 
+from sweepai.agents.filter_agent import FilterAgent
 from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import Snippet
@@ -20,6 +21,11 @@ def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
 ):
+    # Initialize FilterAgent and filter query
+    filter_agent = FilterAgent()
+    query = filter_agent.filter_search_query(query)[0] # Assuming the agent returns a list with one item
+
+    # The rest of the function remains unchanged
     sweep_config: SweepConfig = SweepConfig()
 
     file_list, snippets, lexical_index = prepare_lexical_search_index(
