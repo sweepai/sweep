@@ -8,6 +8,7 @@ from loguru import logger
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.progress import AssistantConversation, TicketProgress
 
 system_message = r"""# User Request
 {user_request}
@@ -20,7 +21,7 @@ You can search by file name or by keyword search in the contents.
 
 ## Step 3: Find relevant lines.
 1. Locate the lines of code that contain the identified keywords or are at the specified line number. You can use keyword search or manually look through the file 100 lines at a time.
-2. Check the surrounding lines to establish the full context of the code block. 
+2. Check the surrounding lines to establish the full context of the code block.
 3. Adjust the starting line to include the entire functionality that needs to be refactored or moved.
 4. Finally determine the exact line spans that include a logical and complete section of code to be edited.
 
@@ -62,7 +63,7 @@ Respond in the following format:
 ...
 
 <modify_file file="file_path_2" start_line="i" end_line="j">
-* Natural language instructions for the modifications needed to solve the issue. 
+* Natural language instructions for the modifications needed to solve the issue.
 * Be concise and reference necessary files, imports and entity names.
 ...
 </modify_file>
@@ -78,8 +79,18 @@ def new_planning(
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = "asst_iFwIYazVKJx1fn4g28vkVZ70",
+    ticket_progress: TicketProgress | None = None,
 ) -> list[FileChangeRequest]:
     try:
+
+        def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
+            ticket_progress.planning_progress.assistant_conversation = (
+                AssistantConversation.from_ids(
+                    assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+                )
+            )
+            ticket_progress.save()
+
         response = openai_assistant_call(
             request=request,
             assistant_id=assistant_id,
@@ -87,6 +98,9 @@ def new_planning(
             file_paths=[zip_path],
             chat_logger=chat_logger,
             instructions=system_message,
+            save_ticket_progress=save_ticket_progress
+            if ticket_progress is not None
+            else None,
         )
         messages = response.messages
         final_message = messages.data[0].content[0].text.value

@@ -53,8 +53,9 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.progress import TicketProgress
 from sweepai.utils.str_utils import clean_logs
-from sweepai.utils.utils import check_syntax, chunk_code
+from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
@@ -209,10 +210,18 @@ class CodeGenBot(ChatGPT):
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         fcrs = new_planning(
-            "#" + self.human_message.title + "\n" + self.human_message.summary + "\n" + self.human_message.render_snippets() + "\n" + self.human_message.tree,
+            "#"
+            + self.human_message.title
+            + "\n"
+            + self.human_message.summary
+            + "\n"
+            + self.human_message.render_snippets()
+            + "\n"
+            + self.human_message.tree,
             self.cloned_repo.zip_path,
             additional_messages=self.messages[:-1],
             chat_logger=self.chat_logger,
+            ticket_progress=self.ticket_progress,
         )
         if fcrs:
             plan_str = "\n".join([fcr.instructions_display for fcr in fcrs])
@@ -524,6 +533,7 @@ ASSET_BRANCH_NAME = "sweep/assets"
 class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
+    ticket_progress: TicketProgress | None = None
 
     def validate_sandbox(self, file_change_requests: list[FileChangeRequest]):
         first_file = None
@@ -951,6 +961,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 current_file_diff=current_file_diff,
                 is_pr=bool(self.comment_pr_diff_str),
                 temperature=temperature,
+                ticket_progress=self.ticket_progress,
             )
             try:
                 new_file = modify_file_bot.try_update_file(

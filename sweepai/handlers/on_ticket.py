@@ -607,8 +607,7 @@ def on_ticket(
         if sandbox_mode:
             logger.info("Running in sandbox mode")
             sweep_bot = SweepBot(
-                repo=repo,
-                sweep_context=sweep_context,
+                repo=repo, sweep_context=sweep_context, ticket_progress=ticket_progress
             )
             logger.info("Getting file contents")
             file_name = title.split(":")[1].strip()

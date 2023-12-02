@@ -21,6 +21,7 @@ from sweepai.core.update_prompts import (
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.progress import TicketProgress
 from sweepai.utils.utils import chunk_code
 
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original sections from the code that should be modified.
@@ -218,6 +219,7 @@ class ModifyBot:
         parent_bot: ChatGPT = None,
         old_file_contents: str = "",
         current_file_diff: str = "",
+        ticket_progress: TicketProgress | None = None,
         **kwargs,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
@@ -243,6 +245,7 @@ class ModifyBot:
         self.old_file_contents = old_file_contents
         self.current_file_diff = current_file_diff
         self.additional_diffs = ""
+        self.ticket_progress = ticket_progress
 
     def get_diffs_message(self, file_contents: str):
         if self.current_file_diff == "" and self.old_file_contents == file_contents:
@@ -274,6 +277,7 @@ class ModifyBot:
             file_path=os.path.join(cloned_repo.repo_dir, file_path),
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
+            ticket_progress=self.ticket_progress,
         )
         if new_file is not None:
             return add_auto_imports(

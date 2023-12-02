@@ -2,6 +2,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Callable
 
 from loguru import logger
 from openai import OpenAI
@@ -15,6 +16,8 @@ from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+save_ticket_progress_type = Callable[[str, str, str], None]
 
 
 class AssistantResponse(BaseModel):
@@ -114,6 +117,7 @@ def run_until_complete(
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
     max_iterations: int = 1200,
+    save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     message_strings = []
     try:
@@ -132,6 +136,12 @@ def run_until_complete(
                 if tool_calls:
                     arguments_parsed = json.loads(tool_calls[0].function.arguments)
                     raise AssistantRaisedException(arguments_parsed["message"])
+            if save_ticket_progress is not None:
+                save_ticket_progress(
+                    assistant_id=assistant_id,
+                    thread_id=thread_id,
+                    run_id=run_id,
+                )
             messages = client.beta.threads.messages.list(
                 thread_id=thread_id,
             )
@@ -183,6 +193,7 @@ def openai_assistant_call_helper(
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
     assistant_name: str | None = None,
+    save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     file_ids = []
     for file_path in file_paths:
@@ -231,6 +242,7 @@ def openai_assistant_call_helper(
         chat_logger=chat_logger,
         assistant_id=assistant.id,
         sleep_time=sleep_time,
+        save_ticket_progress=save_ticket_progress,
     )
     return (
         assistant.id,
@@ -251,6 +263,7 @@ def openai_assistant_call(
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
     assistant_name: str | None = None,
+    save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     retries = range(3)
     for _ in retries:
@@ -266,6 +279,7 @@ def openai_assistant_call(
                 chat_logger=chat_logger,
                 assistant_id=assistant_id,
                 assistant_name=assistant_name,
+                save_ticket_progress=save_ticket_progress,
             )
             messages = client.beta.threads.messages.list(
                 thread_id=thread_id,

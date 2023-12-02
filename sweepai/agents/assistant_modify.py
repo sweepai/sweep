@@ -10,6 +10,7 @@ from sweepai.agents.assistant_wrapper import (
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.progress import AssistantConversation, TicketProgress
 
 long_file_helper_functions = r"""def print_lines(i, j):
     start = max(0, i - 10)
@@ -147,6 +148,7 @@ print_diff(current_content)
 
 Once you are done, give me the output and attach the file."""
 
+
 @file_cache(ignore_params=["file_path", "chat_logger"])
 def new_modify(
     request: str,
@@ -156,8 +158,16 @@ def new_modify(
     assistant_id: str = "asst_LeUB6ROUIvzm97kjqATLGVgC",
     start_line: int = -1,
     end_line: int = -1,
+    ticket_progress: TicketProgress | None = None,
 ):
     try:
+
+        def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
+            ticket_progress.coding_progress[0][1] = AssistantConversation.from_ids(
+                assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+            )
+            ticket_progress.save()
+
         file_content = open(file_path, "r").read()
         if start_line > 0 and end_line > 0:
             request += (
@@ -174,6 +184,9 @@ def new_modify(
             file_paths=[file_path],
             chat_logger=chat_logger,
             assistant_id=assistant_id,
+            save_ticket_progress=save_ticket_progress
+            if ticket_progress is not None
+            else None,
         )
         messages = response.messages
         try:
@@ -189,6 +202,9 @@ def new_modify(
                 thread_id=response.thread_id,
                 run_id=run.id,
                 assistant_id=response.assistant_id,
+                save_ticket_progress=save_ticket_progress
+                if ticket_progress is not None
+                else None,
             )
             try:
                 file_object = messages.data[0].file_ids[0]
