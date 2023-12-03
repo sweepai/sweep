@@ -7,6 +7,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
+from sweepai.agents.filter_agent import FilterBot
 from sweepai.core.vector_db import prepare_lexical_search_index
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
@@ -34,8 +35,10 @@ def prep_snippets(
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-
-    content_to_lexical_score = search_index(query, lexical_index)
+    # Instantiate FilterBot and use it to filter the query
+    filter_bot = FilterBot()
+    filtered_query = filter_bot.filter_query(query)
+    content_to_lexical_score = search_index(filtered_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
