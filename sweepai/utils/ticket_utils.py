@@ -3,8 +3,10 @@ from time import time
 
 from loguru import logger
 
+from sweepai.agents.filter_agent import FilterAgent
 from sweepai.config.client import SweepConfig
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
+from sweepai.core.context_pruning import (RepoContextManager,
+                                          get_relevant_context)
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
 from sweepai.core.vector_db import prepare_lexical_search_index
@@ -24,6 +26,16 @@ def prep_snippets(
 ):
     sweep_config: SweepConfig = SweepConfig()
 
+    # Instantiate the FilterAgent
+    filter_agent = FilterAgent()
+
+    try:
+        # Filter the search query
+        query = filter_agent.filter_search_query(query)
+    except Exception as e:
+        logger.error(f"Error filtering search query: {e}")
+        raise e
+
     file_list, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
     )
@@ -35,6 +47,7 @@ def prep_snippets(
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
 
+    # Use the filtered query for the lexical search
     content_to_lexical_score = search_index(query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
