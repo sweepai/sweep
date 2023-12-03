@@ -40,7 +40,7 @@ First instantiate and run all of the following code. Then identify the relevant 
 
 ### HELPER FUNCTIONS TO RUN
 ```python
-# First read and load the helper functions into the current context. This will allow us to use the helper functions in the rest of the code.
+# First read and load the helper functions into the current context. This will allow you to use the helper functions in the rest of the code.
 helper_methods_path = '/mnt/data/{file_id}'
 with open(helper_methods_path, 'r') as f:
     helper_methods = f.read()
@@ -48,7 +48,7 @@ print(helper_methods)
 exec(helper_methods)
 ```
 
-Use the helper functions to identify the minimum set of lines of code we should modify.
+Use the helper functions to identify the minimum set of lines of code you must modify.
 
 ## Step 2: Iterative Code Modification
 You will iteratively make small edits. Before making each edit, make a backup of the current_content by running:

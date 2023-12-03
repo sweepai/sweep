@@ -209,7 +209,7 @@ class CodeGenBot(ChatGPT):
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         fcrs = new_planning(
-            "## Title:" + self.human_message.title + "\n" + self.human_message.summary + "\n" + self.human_message.render_snippets() + "\n" + self.human_message.tree,
+            "## Title: " + self.human_message.title + "\n" + self.human_message.summary + "\n" + self.human_message.render_snippets() + "\n" + self.human_message.tree,
             self.cloned_repo.zip_path,
             additional_messages=self.messages[:-1],
             chat_logger=self.chat_logger,
