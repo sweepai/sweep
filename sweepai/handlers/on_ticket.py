@@ -73,7 +73,12 @@ from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.progress import TicketContext, TicketProgress, TicketProgressStatus
+from sweepai.utils.progress import (
+    PaymentContext,
+    TicketContext,
+    TicketProgress,
+    TicketProgressStatus,
+)
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     UPDATES_MESSAGE,
@@ -401,6 +406,14 @@ def on_ticket(
             f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
             + (purchase_message if not is_paying_user else "")
         )
+
+        ticket_progress.context.payment_context = PaymentContext(
+            use_faster_model=use_faster_model,
+            pro_user=is_paying_user,
+            daily_tickets_used=chat_logger.get_ticket_count(use_date=True),
+            monthly_tickets_used=chat_logger.get_ticket_count(),
+        )
+        ticket_progress.save()
 
         def get_comment_header(
             index,
@@ -778,6 +791,7 @@ def on_ticket(
             chat_logger=chat_logger,
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
+            ticket_progress=ticket_progress,
         )
 
         # Check repository for sweep.yml file.
@@ -920,6 +934,11 @@ def on_ticket(
                 properties={"is_python_issue": is_python_issue},
             )
             file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+            ticket_progress.planning_progress.file_change_requests = (
+                file_change_requests
+            )
+            ticket_progress.status = TicketProgressStatus.CODING
+            ticket_progress.save()
 
             if not file_change_requests:
                 if len(title + summary) < 60:
@@ -951,6 +970,11 @@ def on_ticket(
             ] = sweep_bot.validate_file_change_requests(
                 file_change_requests, initial_sandbox_response=initial_sandbox_response
             )
+            ticket_progress.planning_progress.file_change_requests = (
+                file_change_requests
+            )
+            ticket_progress.save()
+
             table = tabulate(
                 [
                     [

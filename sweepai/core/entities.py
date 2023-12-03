@@ -163,8 +163,11 @@ class FileChangeRequest(RegexMatchableBaseModel):
     _regex = r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( start_line=\"(?P<start_line>.*?)\")?( end_line=\"(?P<end_line>.*?)\")?( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?(.*?)>(?P<instructions>.*?)\s*<\/\1>"""
     entity: str | None = None
     source_file: str | None = None
+    old_content: str | None = None
     new_content: str | None = None
     raw_relevant_files: str | None = None
+    start_line: int | str | None = None
+    end_line: int | str | None = None
     start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
     failed_sandbox_test: bool | None = False
@@ -188,6 +191,10 @@ class FileChangeRequest(RegexMatchableBaseModel):
                 result.source_file = result.source_file.split(" ")[0]
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
+        if result.start_line:
+            result.start_line = int(result.start_line)
+        if result.end_line:
+            result.end_line = int(result.end_line)
         return result
 
     @property

@@ -139,18 +139,18 @@ def new_planning(
         return None
 
 
-instructions = """Sweep: Move the payment_message and payment_message_start creation logic out of on_ticket.py into a separate function at the end of the file.
-It should be the section of code relating to payment and deciding if it's a paying user 10 lines before the instantiation of payment_message.
+instructions = """Sweep: create a new agent to be used in ticket_utils.py
 
-You are a genius software engineer assigned to a GitHub issue. You will be given the repo as a zip file. Your job is to find the relevant files from the repository to construct a plan."""
+The agent should filter unnecessary terms out of the search query to be sent into lexical search. Use a prompt to do this, using name_agent.py as a reference"""
 
 if __name__ == "__main__":
     print(
         new_planning(
             instructions,
-            "/tmp/sweep",
+            "/tmp/sweep_archive.zip",
             chat_logger=ChatLogger(
                 {"username": "kevinlu1248", "title": "Unit test for planning"}
             ),
+            ticket_progress=TicketProgress(tracking_id="ed47605a38"),
         )
     )
