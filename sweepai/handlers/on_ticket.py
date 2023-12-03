@@ -190,7 +190,7 @@ def on_ticket(
             repo_full_name=repo_full_name,
             issue_number=issue_number,
             is_public=repo.private is False,
-            start=time.time(),
+            start_time=time(),
         ),
     )
 
@@ -1300,10 +1300,6 @@ def on_ticket(
                     installation_id,
                 )
 
-            ticket_progress.status = TicketProgressStatus.COMPLETE
-            # ticket_progress.context.pr_id = pr.id
-            ticket_progress.save()
-
             if changes_required:
                 edit_sweep_comment(
                     review_message + "\n\nI finished incorporating these changes.",
@@ -1375,6 +1371,10 @@ def on_ticket(
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
             )
+
+            ticket_progress.status = TicketProgressStatus.COMPLETE
+            ticket_progress.context.pr_id = pr.id
+            ticket_progress.save()
 
             sandbox_execution_comment_contents = (
                 "## Sandbox Executions\n\n"
