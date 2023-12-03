@@ -74,6 +74,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import (
+    AssistantConversation,
     PaymentContext,
     TicketContext,
     TicketProgress,
@@ -189,6 +190,7 @@ def on_ticket(
             repo_full_name=repo_full_name,
             issue_number=issue_number,
             is_public=repo.private is False,
+            start=time.time(),
         ),
     )
 
@@ -937,6 +939,10 @@ def on_ticket(
             ticket_progress.planning_progress.file_change_requests = (
                 file_change_requests
             )
+            ticket_progress.coding_progress.file_change_requests = file_change_requests
+            ticket_progress.coding_progress.assistant_conversations = [
+                AssistantConversation() for fcr in file_change_requests
+            ]
             ticket_progress.status = TicketProgressStatus.CODING
             ticket_progress.save()
 
@@ -973,6 +979,9 @@ def on_ticket(
             ticket_progress.planning_progress.file_change_requests = (
                 file_change_requests
             )
+            ticket_progress.coding_progress.assistant_conversations = [
+                AssistantConversation() for fcr in file_change_requests
+            ]
             ticket_progress.save()
 
             table = tabulate(
@@ -1287,6 +1296,10 @@ def on_ticket(
                     repo_full_name,
                     installation_id,
                 )
+
+            ticket_progress.status = TicketProgressStatus.COMPLETE
+            # ticket_progress.context.pr_id = pr.id
+            ticket_progress.save()
 
             if changes_required:
                 edit_sweep_comment(

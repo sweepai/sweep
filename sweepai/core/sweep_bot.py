@@ -53,7 +53,7 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.progress import TicketProgress
+from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.str_utils import clean_logs
 from sweepai.utils.utils import chunk_code
 
@@ -862,6 +862,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str = None,
         changed_files: list[tuple[str, str]] = [],
         temperature: float = 0.1,
+        assistant_conversation: AssistantConversation | None = None,
     ):
         key = f"file_change_modified_{file_change_request.filename}"
         new_file = None
@@ -974,6 +975,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_change_request=file_change_request,
                     chunking=chunking,
                     cloned_repo=self.cloned_repo,
+                    assistant_conversation=assistant_conversation,
                 )
             except UnneededEditError as e:
                 if chunking:
@@ -1254,6 +1256,9 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request=file_change_request,
                                 branch=branch,
                                 changed_files=changed_files,
+                                assistant_conversation=self.ticket_progress.coding_progress.assistant_conversations[
+                                    i
+                                ],
                             )
                             file_change_requests[i].status = (
                                 "succeeded" if changed_file else "failed"
@@ -1571,6 +1576,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_request: FileChangeRequest,
         branch: str,
         changed_files: list[tuple[str, str]] = [],
+        assistant_conversation: AssistantConversation | None = None,
     ):
         CHUNK_SIZE = 10000  # Disable chunking for now
         sandbox_execution: SandboxResponse = None
@@ -1656,6 +1662,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             chunking=True,
                             temperature=temperature,
                             changed_files=changed_files,
+                            assistant_conversation=assistant_conversation,
                         )
                         commit_message = suggested_commit_message
                     elif not chunking:
@@ -1670,6 +1677,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             chunking=chunking,
                             changed_files=changed_files,
                             temperature=temperature,
+                            assistant_conversation=assistant_conversation,
                         )
                         commit_message = suggested_commit_message
                     elif file_change_request.comment_line is not None:

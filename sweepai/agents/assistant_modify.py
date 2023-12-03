@@ -159,11 +159,12 @@ def new_modify(
     start_line: int = -1,
     end_line: int = -1,
     ticket_progress: TicketProgress | None = None,
+    assistant_conversation: AssistantConversation | None = None,
 ):
     try:
 
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
-            ticket_progress.coding_progress[0][1] = AssistantConversation.from_ids(
+            assistant_conversation.update_from_ids(
                 assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
             )
             ticket_progress.save()

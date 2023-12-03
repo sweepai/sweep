@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import time
 from enum import Enum
 
 from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
 from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
@@ -125,6 +124,20 @@ class AssistantConversation(BaseModel):
             is_active=run.status not in ("succeeded", "failed"),
         )
 
+    def update_from_ids(
+        self,
+        assistant_id: str,
+        run_id: str,
+        thread_id: str,
+    ) -> AssistantConversation:
+        assistant_conversation = AssistantConversation.from_ids(
+            assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+        )
+        self.messages = assistant_conversation.messages
+        self.is_active = assistant_conversation.is_active
+        self.status = assistant_conversation.status
+        return self
+
 
 class TicketProgressStatus(Enum):
     SEARCHING = "searching"
@@ -171,7 +184,7 @@ class TicketContext(BaseModel):
     issue_number: int = 0
     is_public: bool = True
     pr_id: int = -1
-    start_time: int = Field(default_factory=lambda: int(time.time()))
+    start_time: int = 0
     payment_context: PaymentContext = PaymentContext()
 
 
