@@ -120,6 +120,7 @@ def new_planning(
                 user_request=request, file_path=f"mnt/data/{zip_path}"
             ),
         )
+        save_ticket_progress()
         try:
             client.files.delete(zip_file_id)
         except:

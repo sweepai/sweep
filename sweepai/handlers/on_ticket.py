@@ -1424,7 +1424,7 @@ def on_ticket(
                 review_message + "\n\nSuccess! 🚀",
                 4,
                 pr_message=(
-                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message_start)}"
+                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}). See Sweep's process at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">dashboard</a>. \n{center(payment_message_start)}"
                 ),
                 done=True,
             )
