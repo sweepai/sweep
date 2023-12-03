@@ -185,6 +185,7 @@ class TicketContext(BaseModel):
     is_public: bool = True
     pr_id: int = -1
     start_time: int = 0
+    done_time: int = 0
     payment_context: PaymentContext = PaymentContext()
 
 
