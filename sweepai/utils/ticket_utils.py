@@ -32,13 +32,13 @@ def prep_snippets(
         cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
     )
     ticket_progress.search_progress.indexing_progress = (
-        ticket_progress.search_progress.indexing_total
-    )
-    ticket_progress.save()
-
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
 
+    content_to_lexical_score = search_index(filtered_query, lexical_index)
+    snippet_to_key = (
+        lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+    )
     content_to_lexical_score = search_index(filtered_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
