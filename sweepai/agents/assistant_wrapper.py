@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -89,18 +90,20 @@ def get_json_messages(
             input_ = code_interpreter.input
             if not input_:
                 continue
+            input_content = f"Code interpreter input:\n```\n{input_}\n```"
             messages_json.append(
                 {
                     "role": "assistant",
-                    "content": f"Code interpreter input:\n```\n{input_}\n```",
+                    "content": input_content,
                 }
             )
             outputs = code_interpreter.outputs
             output = outputs[0].logs if outputs else "__No output__"
+            output_content = f"Code interpreter output:\n```\n{output}\n```"
             messages_json.append(
                 {
                     "role": "user",
-                    "content": f"Code interpreter output:\n```\n{output}\n```",
+                    "content": output_content,
                 }
             )
     return messages_json
@@ -116,12 +119,15 @@ def run_until_complete(
     max_iterations: int = 1200,
 ):
     message_strings = []
+    json_messages = []
     try:
         for i in range(max_iterations):
             run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
             if run.status == "completed":
+                logger.info(f"Run completed with {run.status}")
                 break
             if run.status == "failed":
+                logger.info(f"Run completed with {run.status}")
                 raise Exception("Run failed")
             if run.status == "requires_action":
                 tool_calls = [
@@ -142,15 +148,16 @@ def run_until_complete(
                 logger.info(run.status)
                 logger.info(current_message_strings[0])
                 message_strings = current_message_strings
+                json_messages = get_json_messages(
+                    thread_id=thread_id,
+                    run_id=run_id,
+                    assistant_id=assistant_id,
+                )
                 if chat_logger is not None:
                     chat_logger.add_chat(
                         {
                             "model": model,
-                            "messages": get_json_messages(
-                                thread_id=thread_id,
-                                run_id=run_id,
-                                assistant_id=assistant_id,
-                            ),
+                            "messages": json_messages,
                             "output": message_strings[0],
                             "thread_id": thread_id,
                             "run_id": run_id,
@@ -166,17 +173,19 @@ def run_until_complete(
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
         logger.warning(f"Run cancelled: {run_id}")
         raise SystemExit
+    for json_message in json_messages:
+        logger.info(json_message["content"])
     return client.beta.threads.messages.list(
         thread_id=thread_id,
     )
 
 
-# @file_cache(ignore_params=["chat_logger"])
 def openai_assistant_call_helper(
     request: str,
     instructions: str | None = None,
     additional_messages: list[Message] = [],
-    file_paths: list[str] = [],
+    file_paths: list[str] = [], # use either file_paths or file_ids
+    uploaded_file_ids: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
     model: str = "gpt-4-1106-preview",
     sleep_time: int = 3,
@@ -184,14 +193,15 @@ def openai_assistant_call_helper(
     assistant_id: str | None = None,
     assistant_name: str | None = None,
 ):
-    file_ids = []
+    file_ids = [] if not uploaded_file_ids else uploaded_file_ids
     file_object = None
-    for file_path in file_paths:
-        if not any(file_path.endswith(extension) for extension in allowed_exts):
-            os.rename(file_path, file_path + ".txt")
-            file_path += ".txt"
-        file_object = client.files.create(file=Path(file_path), purpose="assistants")
-        file_ids.append(file_object.id)
+    if not file_ids:
+        for file_path in file_paths:
+            if not any(file_path.endswith(extension) for extension in allowed_exts):
+                os.rename(file_path, file_path + ".txt")
+                file_path += ".txt"
+            file_object = client.files.create(file=Path(file_path), purpose="assistants")
+            file_ids.append(file_object.id)
     
     logger.debug(instructions)
     if assistant_id is None:
@@ -233,7 +243,7 @@ def openai_assistant_call_helper(
         assistant_id=assistant.id,
         sleep_time=sleep_time,
     )
-    if file_object: client.files.delete(file_id=file_object.id)
+    if file_ids: client.files.delete(file_id=file_ids[0])
     return (
         assistant.id,
         run.id,
@@ -247,6 +257,7 @@ def openai_assistant_call(
     instructions: str | None = None,
     additional_messages: list[Message] = [],
     file_paths: list[str] = [],
+    uploaded_file_ids: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
     model: str = "gpt-4-1106-preview",
     sleep_time: int = 3,
@@ -262,6 +273,7 @@ def openai_assistant_call(
                 instructions=instructions,
                 additional_messages=additional_messages,
                 file_paths=file_paths,
+                uploaded_file_ids=uploaded_file_ids,
                 tools=tools,
                 model=model,
                 sleep_time=sleep_time,
