@@ -34,7 +34,7 @@ num_full_files = 2
 ordinal = lambda n: str(n) + (
     "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 )
-format_exit_code = lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
+format_sandbox_success = lambda success: "✓" if success else f"❌ (`Sandbox Failed`)"
 
 
 def create_collapsible(summary: str, body: str, opened: bool = False):

@@ -276,6 +276,7 @@ class ModifyBot:
         new_file = new_modify(
             request=file_change_request.instructions,
             file_path=os.path.join(cloned_repo.repo_dir, file_path),
+            file_contents=file_contents,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,

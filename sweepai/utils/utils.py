@@ -5,6 +5,7 @@ import traceback
 from dataclasses import dataclass
 
 import tiktoken
+from tree_sitter import Node
 
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
@@ -176,16 +177,32 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
     return chunks
 
-def check_syntax(file_path: str, code: str) -> bool:
-    # perhaps this can even return a line number
+def check_syntax(file_path: str, code: str) -> tuple(bool, str):
     from tree_sitter_languages import get_parser
     ext = file_path.split(".")[-1]
     if ext in extension_to_language:
         language = extension_to_language[ext]
     parser = get_parser(language)
     tree = parser.parse(code.encode("utf-8"))
-    is_valid_syntax = not tree.root_node.has_error
-    return not is_valid_syntax
+
+    def find_deepest_error(node: Node):
+        deepest_error = None
+        if node.has_error:
+            deepest_error = node
+        for child in node.children:
+            child_error = find_deepest_error(child)
+            if child_error:
+                deepest_error = child_error
+        return deepest_error
+
+    error_location = find_deepest_error(tree.root_node)
+    if error_location:
+        line_number, _ = error_location.start_point
+        error_start = max(0, line_number - 10)
+        error_span = "\n".join(code.split("\n")[error_start:line_number])
+        error_message = f"Invalid syntax found within or before the lines {error_start}-{line_number}, displayed below:\n{error_span}"
+        return (False, error_message)
+    return True, ""
 
 
 def chunk_code(
