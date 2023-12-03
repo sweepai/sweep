@@ -1,3 +1,4 @@
+from sweepai.agents.query_filter_agent import QueryFilterAgent
 import traceback
 from time import time
 
@@ -34,6 +35,10 @@ def prep_snippets(
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
+
+        # Instantiate QueryFilterAgent and use it to filter the query
+    query_filter_agent = QueryFilterAgent()
+    query = query_filter_agent.filter_query(query)
 
     content_to_lexical_score = search_index(query, lexical_index)
     snippet_to_key = (
