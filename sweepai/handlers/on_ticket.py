@@ -1374,7 +1374,7 @@ def on_ticket(
 
             ticket_progress.status = TicketProgressStatus.COMPLETE
             ticket_progress.context.done_time = time()
-            ticket_progress.context.pr_id = pr.id
+            ticket_progress.context.pr_id = pr.number
             ticket_progress.save()
 
             sandbox_execution_comment_contents = (
