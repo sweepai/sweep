@@ -14,6 +14,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+from sweepai.agents.query_filter_agent import QueryFilterBot
 
 
 @file_cache()
@@ -23,6 +24,8 @@ def prep_snippets(
     ticket_progress: TicketProgress,
 ):
     sweep_config: SweepConfig = SweepConfig()
+
+    query_filter_bot = QueryFilterBot()
 
     file_list, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
@@ -35,7 +38,8 @@ def prep_snippets(
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
 
-    content_to_lexical_score = search_index(query, lexical_index)
+        filtered_query = query_filter_bot.filter_query(query)
+    content_to_lexical_score = search_index(filtered_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
