@@ -48,7 +48,7 @@ print(helper_methods)
 exec(helper_methods)
 ```
 
-Use the helper functions to identify the set of lines of code to modify.
+Use the helper functions to identify the minimum set of lines of code we should modify.
 
 ## Step 2: Iterative Code Modification
 You will iteratively make small edits. Before making each edit, make a backup of the current_content by running:
