@@ -496,6 +496,9 @@ def on_ticket(
             pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
             return (
                 f"{center(sweeping_gif)}<br/>{center(pbar)}"
+                + center(
+                    f'\n\n<h3>✨ Track Sweep\'s progress on the new <a href="https://progress.sweep.dev/issues/{tracking_id}">dashboard</a>.</h3>'
+                )
                 + ("\n" + stars_suffix if index != -1 else "")
                 + "\n"
                 + center(payment_message_start)
