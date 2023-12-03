@@ -144,6 +144,7 @@ def new_modify(
     ticket_progress: TicketProgress | None = None,
     assistant_conversation: AssistantConversation | None = None,
 ):
+    modify_iterations = 5
     try:
 
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
@@ -191,49 +192,13 @@ def new_modify(
         messages = response.messages
         final_diff = None
         final_diff_pattern = r"<final_diff>\n(.*?)</final_diff>"
-        try:
-            # try to get the patch
-            steps = client.beta.threads.runs.steps.list(
-                run_id=response.run_id, thread_id=response.thread_id
-            )
-            all_code_interpreter_outputs = []
-            for step in steps.data:
-                if step.type == "tool_calls":
-                    code_interpreter = step.step_details.tool_calls[0].code_interpreter
-                    if (
-                        code_interpreter
-                        and code_interpreter.outputs
-                        and code_interpreter.outputs[0].logs
-                    ):
-                        all_code_interpreter_outputs.append(
-                            code_interpreter.outputs[0].logs
-                        )
-            for output in all_code_interpreter_outputs:
-                if final_diff_match := re.search(final_diff_pattern, output, re.DOTALL):
-                    final_diff = final_diff_match.group(1)
-                    return apply_patch(file_contents, final_diff)
-            else:
-                raise AssistantRaisedException(
-                    f"Assistant never provided a final_diff. Here is the last message: {messages.data[0].content[0].text.value}"
-                )
-        except Exception as e:
-            logger.warning(e)
-            run = client.beta.threads.runs.create(
-                thread_id=response.thread_id,
-                assistant_id=response.assistant_id,
-                instructions="A valid final_diff was not provided. Please start from the beginning, until the final step. At the end run print_diff(current_content, final_diff=True) to provide a valid final_diff.",
-            )
-            messages = run_until_complete(
-                thread_id=response.thread_id,
-                run_id=run.id,
-                assistant_id=response.assistant_id,
-                save_ticket_progress=save_ticket_progress
-                if ticket_progress is not None
-                else None,
-            )
+        run_id = response.run_id
+        thread_id = response.thread_id
+        for _ in range(modify_iterations):
             try:
+                # try to get the patch
                 steps = client.beta.threads.runs.steps.list(
-                    run_id=run.id, thread_id=response.thread_id
+                    run_id=run_id, thread_id=thread_id
                 )
                 all_code_interpreter_outputs = []
                 for step in steps.data:
@@ -255,6 +220,25 @@ def new_modify(
                     ):
                         final_diff = final_diff_match.group(1)
                         return apply_patch(file_contents, final_diff)
+                else:
+                    logger.warning(
+                        f"Assistant never provided a final_diff. Here is the last message: {messages.data[0].content[0].text.value}"
+                    )
+                    client.beta.threads.messages.create(
+                        thread_id=thread_id,
+                        role="user",
+                        content="A valid final_diff was not provided. Please continue working on the code. If you are stuck, consider starting over.",
+                    )
+                    run = client.beta.threads.runs.create(
+                        thread_id=response.thread_id,
+                        assistant_id=response.assistant_id,
+                    )
+                    run_id = run.id
+                    messages = run_until_complete(
+                        thread_id=thread_id,
+                        run_id=run_id,
+                        assistant_id=response.assistant_id,
+                    )
             except Exception:
                 raise AssistantRaisedException(
                     f"Assistant never provided a final_diff. Here is the last message: {messages.data[0].content[0].text.value}"
@@ -262,8 +246,8 @@ def new_modify(
         try:
             client.files.delete(target_file_id)
             client.files.delete(helper_methods_file_id)
-        except:
-            pass
+        except Exception as e:
+            logger.warning(e)
     except AssistantRaisedException as e:
         discord_log_error(
             str(e)
@@ -272,7 +256,6 @@ def new_modify(
             + "\n\n"
             + str(chat_logger.data if chat_logger else "")
         )
-        # raise e
     except Exception as e:
         logger.exception(e)
         # TODO: Discord
@@ -311,7 +294,7 @@ if __name__ == "__main__":
     response = new_modify(
         instructions,
         "sweepai/utils/ticket_utils.py",
-        file_contents=open("sweepai/utils/ticket_utils.py", "r").read(),
+        file_contents=file_contents,
         chat_logger=ChatLogger({"username": "kevinlu1248"}),
         additional_messages=additional_messages,
     )

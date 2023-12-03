@@ -553,7 +553,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 sandbox_responses.append(sandbox_response)
             except Exception as e:
                 logger.error(f"Error: {e}")
-        if all(sandbox_response.success for sandbox_response in sandbox_responses):
+        if sandbox_responses and all(
+            sandbox_response.success for sandbox_response in sandbox_responses
+        ):
             return sandbox_responses[0], fcr_file_paths[0]
         return None, fcr_file_paths[0]
 
@@ -886,7 +888,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 diffs = generate_diff(earliest_file_version, latest_file_version)
                 if file_path not in file_path_to_contents:
                     file_path_to_contents[file_path] = diffs
-            changed_files_summary = "We have previously changed these files:\n" + "\n".join(
+            changed_files_summary = "You have previously changed these files:\n" + "\n".join(
                 [
                     f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
                     for file_path, diffs in file_path_to_contents.items()
@@ -1035,11 +1037,14 @@ class SweepBot(CodeGenBot, GithubBot):
             diffs = generate_diff(earliest_file_version, latest_file_version)
             if file_path not in file_path_to_contents:
                 file_path_to_contents[file_path] = diffs
-        changed_files_summary = "We have previously changed these files:\n" + "\n".join(
-            [
-                f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                for file_path, diffs in file_path_to_contents.items()
-            ]
+        changed_files_summary = (
+            "You have previously changed these files:\n"
+            + "\n".join(
+                [
+                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
+                    for file_path, diffs in file_path_to_contents.items()
+                ]
+            )
         )
         if changed_files:
             new_self.messages.append(
