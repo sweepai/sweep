@@ -73,7 +73,13 @@ from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.progress import TicketContext, TicketProgress, TicketProgressStatus
+from sweepai.utils.progress import (
+    AssistantConversation,
+    PaymentContext,
+    TicketContext,
+    TicketProgress,
+    TicketProgressStatus,
+)
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     UPDATES_MESSAGE,
@@ -184,6 +190,7 @@ def on_ticket(
             repo_full_name=repo_full_name,
             issue_number=issue_number,
             is_public=repo.private is False,
+            start_time=time(),
         ),
     )
 
@@ -320,7 +327,10 @@ def on_ticket(
 
         logger.info("Deleting old PRs...")
         prs = repo.get_pulls(
-            state="open", sort="created", direction="desc", base=SweepConfig.get_branch(repo)
+            state="open",
+            sort="created",
+            direction="desc",
+            base=SweepConfig.get_branch(repo),
         )
         checked_pr_count = 0
         for pr in tqdm(prs):
@@ -398,13 +408,21 @@ def on_ticket(
         )
         purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
         payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+            f'{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <a href="https://progress.sweep.dev/issues/{tracking_id}"><code>{tracking_id}</code></a>)'
             + (purchase_message if not is_paying_user else "")
         )
         payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+            f'{user_type}: I\'m using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <a href="https://progress.sweep.dev/issues/{tracking_id}"><code>{tracking_id}</code></a>)'
             + (purchase_message if not is_paying_user else "")
         )
+
+        ticket_progress.context.payment_context = PaymentContext(
+            use_faster_model=use_faster_model,
+            pro_user=is_paying_user,
+            daily_tickets_used=chat_logger.get_ticket_count(use_date=True),
+            monthly_tickets_used=chat_logger.get_ticket_count(),
+        )
+        ticket_progress.save()
 
         def get_comment_header(
             index,
@@ -611,8 +629,7 @@ def on_ticket(
         if sandbox_mode:
             logger.info("Running in sandbox mode")
             sweep_bot = SweepBot(
-                repo=repo,
-                sweep_context=sweep_context,
+                repo=repo, sweep_context=sweep_context, ticket_progress=ticket_progress
             )
             logger.info("Getting file contents")
             file_name = title.split(":")[1].strip()
@@ -780,6 +797,7 @@ def on_ticket(
             chat_logger=chat_logger,
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
+            ticket_progress=ticket_progress,
         )
 
         # Check repository for sweep.yml file.
@@ -922,6 +940,15 @@ def on_ticket(
                 properties={"is_python_issue": is_python_issue},
             )
             file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+            ticket_progress.planning_progress.file_change_requests = (
+                file_change_requests
+            )
+            ticket_progress.coding_progress.file_change_requests = file_change_requests
+            ticket_progress.coding_progress.assistant_conversations = [
+                AssistantConversation() for fcr in file_change_requests
+            ]
+            ticket_progress.status = TicketProgressStatus.CODING
+            ticket_progress.save()
 
             if not file_change_requests:
                 if len(title + summary) < 60:
@@ -953,6 +980,14 @@ def on_ticket(
             ] = sweep_bot.validate_file_change_requests(
                 file_change_requests, initial_sandbox_response=initial_sandbox_response
             )
+            ticket_progress.planning_progress.file_change_requests = (
+                file_change_requests
+            )
+            ticket_progress.coding_progress.assistant_conversations = [
+                AssistantConversation() for fcr in file_change_requests
+            ]
+            ticket_progress.save()
+
             table = tabulate(
                 [
                     [
@@ -1056,7 +1091,9 @@ def on_ticket(
                                             f"<pre>{clean_logs(output)}</pre>",
                                             i == len(sandbox_response.outputs) - 1,
                                         )
-                                        for i, output in enumerate(sandbox_response.outputs)
+                                        for i, output in enumerate(
+                                            sandbox_response.outputs
+                                        )
                                         if len(sandbox_response.outputs) > 0
                                     ]
                                 )
@@ -1215,8 +1252,8 @@ def on_ticket(
                     break
                 except:
                     from time import sleep
+
                     sleep(1)
-                    pass
             edit_sweep_comment(checkboxes_contents, 2)
 
             pr_changes = response["pull_request"]
@@ -1344,6 +1381,11 @@ def on_ticket(
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
             )
+
+            ticket_progress.status = TicketProgressStatus.COMPLETE
+            ticket_progress.context.done_time = time()
+            ticket_progress.context.pr_id = pr.number
+            ticket_progress.save()
 
             sandbox_execution_comment_contents = (
                 "## Sandbox Executions\n\n"

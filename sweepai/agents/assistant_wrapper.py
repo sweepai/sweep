@@ -2,6 +2,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Callable
 
 from loguru import logger
 from openai import OpenAI
@@ -12,10 +13,11 @@ from pydantic import BaseModel
 from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+save_ticket_progress_type = Callable[[str, str, str], None]
 
 
 class AssistantResponse(BaseModel):
@@ -117,6 +119,7 @@ def run_until_complete(
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
     max_iterations: int = 1200,
+    save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     message_strings = []
     json_messages = []
@@ -138,6 +141,12 @@ def run_until_complete(
                 if tool_calls:
                     arguments_parsed = json.loads(tool_calls[0].function.arguments)
                     raise AssistantRaisedException(arguments_parsed["message"])
+            if save_ticket_progress is not None:
+                save_ticket_progress(
+                    assistant_id=assistant_id,
+                    thread_id=thread_id,
+                    run_id=run_id,
+                )
             messages = client.beta.threads.messages.list(
                 thread_id=thread_id,
             )
@@ -184,7 +193,7 @@ def openai_assistant_call_helper(
     request: str,
     instructions: str | None = None,
     additional_messages: list[Message] = [],
-    file_paths: list[str] = [], # use either file_paths or file_ids
+    file_paths: list[str] = [],  # use either file_paths or file_ids
     uploaded_file_ids: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
     model: str = "gpt-4-1106-preview",
@@ -192,6 +201,7 @@ def openai_assistant_call_helper(
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
     assistant_name: str | None = None,
+    save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     file_ids = [] if not uploaded_file_ids else uploaded_file_ids
     file_object = None
@@ -200,9 +210,11 @@ def openai_assistant_call_helper(
             if not any(file_path.endswith(extension) for extension in allowed_exts):
                 os.rename(file_path, file_path + ".txt")
                 file_path += ".txt"
-            file_object = client.files.create(file=Path(file_path), purpose="assistants")
+            file_object = client.files.create(
+                file=Path(file_path), purpose="assistants"
+            )
             file_ids.append(file_object.id)
-    
+
     logger.debug(instructions)
     if assistant_id is None:
         assistant = client.beta.assistants.create(
@@ -242,8 +254,10 @@ def openai_assistant_call_helper(
         chat_logger=chat_logger,
         assistant_id=assistant.id,
         sleep_time=sleep_time,
+        save_ticket_progress=save_ticket_progress,
     )
-    if file_ids: client.files.delete(file_id=file_ids[0])
+    if file_ids:
+        client.files.delete(file_id=file_ids[0])
     return (
         assistant.id,
         run.id,
@@ -264,6 +278,7 @@ def openai_assistant_call(
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
     assistant_name: str | None = None,
+    save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     retries = range(3)
     for _ in retries:
@@ -280,6 +295,7 @@ def openai_assistant_call(
                 chat_logger=chat_logger,
                 assistant_id=assistant_id,
                 assistant_name=assistant_name,
+                save_ticket_progress=save_ticket_progress,
             )
             messages = client.beta.threads.messages.list(
                 thread_id=thread_id,

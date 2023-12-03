@@ -1,8 +1,8 @@
 import copy
-from pathlib import Path
 import re
 import traceback
 import uuid
+from pathlib import Path
 
 from loguru import logger
 
@@ -10,6 +10,7 @@ from sweepai.agents.assistant_wrapper import client, openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.progress import AssistantConversation, TicketProgress
 
 system_message = r"""# User Request
 {user_request}
@@ -32,7 +33,7 @@ You can search by file name or by keyword search in the contents.
 
 ## Step 3: Find relevant lines.
 1. Locate the lines of code that contain the identified keywords or are at the specified line number. You can use keyword search or manually look through the file 100 lines at a time.
-2. Check the surrounding lines to establish the full context of the code block. 
+2. Check the surrounding lines to establish the full context of the code block.
 3. Adjust the starting line to include the entire functionality that needs to be refactored or moved.
 4. Finally determine the exact line spans that include a logical and complete section of code to be edited.
 
@@ -75,7 +76,7 @@ Respond in the following format:
 ...
 
 <modify_file file="file_path_2" start_line="i" end_line="j">
-* Natural language instructions for the modifications needed to solve the issue. 
+* Natural language instructions for the modifications needed to solve the issue.
 * Be concise and reference necessary files, imports and entity names.
 ...
 </modify_file>
@@ -84,6 +85,7 @@ Respond in the following format:
 </plan>
 ```"""
 
+
 @file_cache(ignore_params=["zip_path", "chat_logger"])
 def new_planning(
     request: str,
@@ -91,8 +93,18 @@ def new_planning(
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = "asst_iFwIYazVKJx1fn4g28vkVZ70",
+    ticket_progress: TicketProgress | None = None,
 ) -> list[FileChangeRequest]:
     try:
+
+        def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
+            ticket_progress.planning_progress.assistant_conversation = (
+                AssistantConversation.from_ids(
+                    assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+                )
+            )
+            ticket_progress.save()
+
         zip_file_object = client.files.create(file=Path(zip_path), purpose="assistants")
         zip_file_id = zip_file_object.id
         response = openai_assistant_call(
@@ -101,7 +113,12 @@ def new_planning(
             additional_messages=additional_messages,
             uploaded_file_ids=[zip_file_id],
             chat_logger=chat_logger,
-            instructions=system_message.format(user_request=request, file_path=f"mnt/data/{zip_path}"),
+            save_ticket_progress=save_ticket_progress
+            if ticket_progress is not None
+            else None,
+            instructions=system_message.format(
+                user_request=request, file_path=f"mnt/data/{zip_path}"
+            ),
         )
         try:
             client.files.delete(zip_file_id)
@@ -145,18 +162,18 @@ def new_planning(
         return None
 
 
-instructions = """Sweep: Move the payment_message and payment_message_start creation logic out of on_ticket.py into a separate function at the end of the file.
-It should be the section of code relating to payment and deciding if it's a paying user 10 lines before the instantiation of payment_message.
+instructions = """Sweep: create a new agent to be used in ticket_utils.py
 
-You are a genius software engineer assigned to a GitHub issue. You will be given the repo as a zip file. Your job is to find the relevant files from the repository to construct a plan."""
+The agent should filter unnecessary terms out of the search query to be sent into lexical search. Use a prompt to do this, using name_agent.py as a reference"""
 
 if __name__ == "__main__":
     print(
         new_planning(
             instructions,
-            "/tmp/sweep",
+            "/tmp/sweep_archive.zip",
             chat_logger=ChatLogger(
                 {"username": "kevinlu1248", "title": "Unit test for planning"}
             ),
+            ticket_progress=TicketProgress(tracking_id="ed47605a38"),
         )
     )

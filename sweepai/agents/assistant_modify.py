@@ -1,8 +1,8 @@
 import os
-from pathlib import Path
 import re
 import traceback
 import uuid
+from pathlib import Path
 
 from loguru import logger
 
@@ -16,6 +16,7 @@ from sweepai.core.helpers import helper_methods_contents
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.patch_utils import apply_patch
+from sweepai.utils.progress import AssistantConversation, TicketProgress
 
 short_file_helper_functions = r"""def print_original_lines(i, j):
     for index in range(0, len(original_lines)):
@@ -129,7 +130,8 @@ allowed_exts = [
     "zip",
 ]
 
-# @file_cache(ignore_params=["file_path", "chat_logger"])
+
+@file_cache(ignore_params=["file_path", "chat_logger"])
 def new_modify(
     request: str,
     file_path: str,
@@ -139,9 +141,18 @@ def new_modify(
     assistant_id: str = "asst_SgttsEvgZWJBc0mbnHkJe1pE",
     start_line: int = -1,
     end_line: int = -1,
+    ticket_progress: TicketProgress | None = None,
+    assistant_conversation: AssistantConversation | None = None,
 ):
     modify_iterations = 5
     try:
+
+        def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
+            assistant_conversation.update_from_ids(
+                assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+            )
+            ticket_progress.save()
+
         file_content = open(file_path, "r").read()
         if start_line > 0 and end_line > 0:
             request += (
@@ -151,13 +162,19 @@ def new_modify(
         if not any(file_path.endswith(ext) for ext in allowed_exts):
             os.rename(file_path, file_path + ".txt")
             file_path += ".txt"
-        target_file_object = client.files.create(file=Path(file_path), purpose="assistants")
+        target_file_object = client.files.create(
+            file=Path(file_path), purpose="assistants"
+        )
         target_file_id = target_file_object.id
-        formatted_helper_method_contents = helper_methods_contents.format(target_file_id=f"/mnt/data/{target_file_id}")
-        tmp_helper_file_path = f'/tmp/helper_{uuid.uuid4()}.py'
-        with open(tmp_helper_file_path, 'w') as f:
+        formatted_helper_method_contents = helper_methods_contents.format(
+            target_file_id=f"/mnt/data/{target_file_id}"
+        )
+        tmp_helper_file_path = f"/tmp/helper_{uuid.uuid4()}.py"
+        with open(tmp_helper_file_path, "w") as f:
             f.write(formatted_helper_method_contents)
-        helper_methods_file_id = client.files.create(file=Path(tmp_helper_file_path), purpose="assistants").id
+        helper_methods_file_id = client.files.create(
+            file=Path(tmp_helper_file_path), purpose="assistants"
+        ).id
         os.remove(tmp_helper_file_path)
         uploaded_file_ids = [target_file_id, helper_methods_file_id]
         response = openai_assistant_call(
@@ -167,6 +184,9 @@ def new_modify(
             uploaded_file_ids=uploaded_file_ids,
             chat_logger=chat_logger,
             assistant_id=assistant_id,
+            save_ticket_progress=save_ticket_progress
+            if ticket_progress is not None
+            else None,
             assistant_name="Code Modification Assistant",
         )
         messages = response.messages
@@ -177,15 +197,27 @@ def new_modify(
         for _ in range(modify_iterations):
             try:
                 # try to get the patch
-                steps = client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id)
+                steps = client.beta.threads.runs.steps.list(
+                    run_id=run_id, thread_id=thread_id
+                )
                 all_code_interpreter_outputs = []
                 for step in steps.data:
                     if step.type == "tool_calls":
-                        code_interpreter = step.step_details.tool_calls[0].code_interpreter
-                        if code_interpreter and code_interpreter.outputs and code_interpreter.outputs[0].logs:
-                            all_code_interpreter_outputs.append(code_interpreter.outputs[0].logs)
+                        code_interpreter = step.step_details.tool_calls[
+                            0
+                        ].code_interpreter
+                        if (
+                            code_interpreter
+                            and code_interpreter.outputs
+                            and code_interpreter.outputs[0].logs
+                        ):
+                            all_code_interpreter_outputs.append(
+                                code_interpreter.outputs[0].logs
+                            )
                 for output in all_code_interpreter_outputs:
-                    if final_diff_match := re.search(final_diff_pattern, output, re.DOTALL):
+                    if final_diff_match := re.search(
+                        final_diff_pattern, output, re.DOTALL
+                    ):
                         final_diff = final_diff_match.group(1)
                         return apply_patch(file_contents, final_diff)
                 else:
@@ -193,7 +225,7 @@ def new_modify(
                         f"Assistant never provided a final_diff. Here is the last message: {messages.data[0].content[0].text.value}"
                     )
                     client.beta.threads.messages.create(
-                        thread_id = thread_id,
+                        thread_id=thread_id,
                         role="user",
                         content="A valid final_diff was not provided. Please continue working on the code. If you are stuck, consider starting over.",
                     )
@@ -237,13 +269,28 @@ def new_modify(
         return None
     return file_content
 
+
 if __name__ == "__main__":
     instructions = """• Instantiate `FilterAgent` and invoke `filter_search_query` with the query before the lexical search is performed.
 • Capture the filtered query and replace the initial query with this new filtered version.
 • Add error handling for the integration with `FilterAgent`."""
 
-    additional_messages = [Message(role='user', content='# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: create a new agent to be used in ticket_utils.py\nIssue Description: ### Details\n\nThe agent should filter unnecessary terms out of the search query to be sent into lexical search. Use a prompt to do this, using name_agent.py as a reference', name=None, function_call=None, key='issue_metadata'), Message(role='user', content='You have previously changed these files:\n<changed_file file_path="sweepai/agents/filter_agent.py">\n--- \n+++ \n@@ -0,0 +1,35 @@\n+import re\n+\n+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL\n+from sweepai.core.chat import ChatGPT\n+\n+prompt = """\\\n+<original_query>\n+{original_query}\n+</original_query>\n+Filter out unnecessary terms from the above search query and generate a new search query that is optimized for a lexical search.\n+<filtered_query>\n+filtered_query\n+</filtered_query>\n+"""\n+\n+class FilterAgent(ChatGPT):\n+    def filter_search_query(\n+        self,\n+        original_query,\n+        chat_logger=None,\n+    ):\n+        self.model = (\n+            DEFAULT_GPT4_32K_MODEL\n+            if (chat_logger and chat_logger.is_paying_user())\n+            else DEFAULT_GPT35_MODEL\n+        )\n+        filter_response = self.chat(\n+            content=prompt.format(\n+                original_query=original_query,\n+            ),\n+        )\n+        filter_pattern = r"<filtered_query>\\n(.*?)\\n</filtered_query>"\n+        filter_match = re.search(filter_pattern, filter_response, re.DOTALL)\n+        filtered_query = filter_match.group(1).strip().strip(\'"\').strip("\'").strip("`")\n+        return filtered_query\n</changed_file>\n<changed_file file_path="sweepai/agents/filter_agent_test.py">\n--- \n+++ \n@@ -0,0 +1,22 @@\n+import pytest\n+\n+from sweepai.agents.filter_agent import FilterAgent\n+\n+\n+def test_filter_search_query():\n+    filter_agent = FilterAgent()\n+\n+    # Test with empty string\n+    original_query = ""\n+    expected_output = ""\n+    assert filter_agent.filter_search_query(original_query) == expected_output\n+\n+    # Test with string containing only unnecessary terms\n+    original_query = "the and or"\n+    expected_output = ""\n+    assert filter_agent.filter_search_query(original_query) == expected_output\n+\n+    # Test with string containing a mix of necessary and unnecessary terms\n+    original_query = "the quick brown fox"\n+    expected_output = "quick brown fox"\n+    assert filter_agent.filter_search_query(original_query) == expected_output\n</changed_file>', name=None, function_call=None, key='changed_files_summary')]
-    file_contents = open("sweepai/utils/ticket_utils.py", "r").read()
+    additional_messages = [
+        Message(
+            role="user",
+            content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: create a new agent to be used in ticket_utils.py\nIssue Description: ### Details\n\nThe agent should filter unnecessary terms out of the search query to be sent into lexical search. Use a prompt to do this, using name_agent.py as a reference",
+            name=None,
+            function_call=None,
+            key="issue_metadata",
+        ),
+        Message(
+            role="user",
+            content='We have previously changed these files:\n<changed_file file_path="sweepai/agents/filter_agent.py">\n--- \n+++ \n@@ -0,0 +1,35 @@\n+import re\n+\n+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL\n+from sweepai.core.chat import ChatGPT\n+\n+prompt = """\\\n+<original_query>\n+{original_query}\n+</original_query>\n+Filter out unnecessary terms from the above search query and generate a new search query that is optimized for a lexical search.\n+<filtered_query>\n+filtered_query\n+</filtered_query>\n+"""\n+\n+class FilterAgent(ChatGPT):\n+    def filter_search_query(\n+        self,\n+        original_query,\n+        chat_logger=None,\n+    ):\n+        self.model = (\n+            DEFAULT_GPT4_32K_MODEL\n+            if (chat_logger and chat_logger.is_paying_user())\n+            else DEFAULT_GPT35_MODEL\n+        )\n+        filter_response = self.chat(\n+            content=prompt.format(\n+                original_query=original_query,\n+            ),\n+        )\n+        filter_pattern = r"<filtered_query>\\n(.*?)\\n</filtered_query>"\n+        filter_match = re.search(filter_pattern, filter_response, re.DOTALL)\n+        filtered_query = filter_match.group(1).strip().strip(\'"\').strip("\'").strip("`")\n+        return filtered_query\n</changed_file>\n<changed_file file_path="sweepai/agents/filter_agent_test.py">\n--- \n+++ \n@@ -0,0 +1,22 @@\n+import pytest\n+\n+from sweepai.agents.filter_agent import FilterAgent\n+\n+\n+def test_filter_search_query():\n+    filter_agent = FilterAgent()\n+\n+    # Test with empty string\n+    original_query = ""\n+    expected_output = ""\n+    assert filter_agent.filter_search_query(original_query) == expected_output\n+\n+    # Test with string containing only unnecessary terms\n+    original_query = "the and or"\n+    expected_output = ""\n+    assert filter_agent.filter_search_query(original_query) == expected_output\n+\n+    # Test with string containing a mix of necessary and unnecessary terms\n+    original_query = "the quick brown fox"\n+    expected_output = "quick brown fox"\n+    assert filter_agent.filter_search_query(original_query) == expected_output\n</changed_file>',
+            name=None,
+            function_call=None,
+            key="changed_files_summary",
+        ),
+    ]
     response = new_modify(
         instructions,
         "sweepai/utils/ticket_utils.py",
@@ -251,4 +298,6 @@ if __name__ == "__main__":
         chat_logger=ChatLogger({"username": "kevinlu1248"}),
         additional_messages=additional_messages,
     )
-    import pdb; pdb.set_trace()
+    import pdb
+
+    pdb.set_trace()

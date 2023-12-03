@@ -30,9 +30,21 @@ class AssistantAPIMessage(BaseModel):
     content: str = ""
 
 
+class AssistantStatus(Enum):
+    QUEUED = "queued"
+    IN_PROGRESS = "in_progress"
+    REQUIRES_ACTION = "requires_action"
+    CANCELLING = "cancelling"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
 class AssistantConversation(BaseModel):
     messages: list[AssistantAPIMessage] = []
     is_active: bool = True
+    status: AssistantStatus = "in_progress"
 
     class Config:
         use_enum_values = True
@@ -73,9 +85,9 @@ class AssistantConversation(BaseModel):
                 )
                 # TODO: handle annotations
             elif message_obj.type == "tool_calls":
-                code_interpreter = message_obj.step_details.tool_calls
                 for tool_call in message_obj.step_details.tool_calls:
                     if isinstance(tool_call, CodeToolCall):
+                        code_interpreter = tool_call.code_interpreter
                         input_ = code_interpreter.input
                         if not input_:
                             continue
@@ -107,8 +119,24 @@ class AssistantConversation(BaseModel):
                             )
                         )
         return cls(
-            messages=messages, is_active=run.status not in ("completed", "failed")
+            messages=messages,
+            status=run.status,
+            is_active=run.status not in ("succeeded", "failed"),
         )
+
+    def update_from_ids(
+        self,
+        assistant_id: str,
+        run_id: str,
+        thread_id: str,
+    ) -> AssistantConversation:
+        assistant_conversation = AssistantConversation.from_ids(
+            assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+        )
+        self.messages = assistant_conversation.messages
+        self.is_active = assistant_conversation.is_active
+        self.status = assistant_conversation.status
+        return self
 
 
 class TicketProgressStatus(Enum):
@@ -134,10 +162,19 @@ class SearchProgress(BaseModel):
 
 class PlanningProgress(BaseModel):
     assistant_conversation: AssistantConversation = AssistantConversation()
+    file_change_requests: list[FileChangeRequest] = []
 
 
 class CodingProgress(BaseModel):
-    file_change_requests: list[tuple[FileChangeRequest, AssistantConversation]] = []
+    file_change_requests: list[FileChangeRequest] = []
+    assistant_conversations: list[AssistantConversation] = []
+
+
+class PaymentContext(BaseModel):
+    use_faster_model: bool = True
+    pro_user: bool = True
+    daily_tickets_used: int = 0
+    monthly_tickets_used: int = 0
 
 
 class TicketContext(BaseModel):
@@ -147,6 +184,9 @@ class TicketContext(BaseModel):
     issue_number: int = 0
     is_public: bool = True
     pr_id: int = -1
+    start_time: int = 0
+    done_time: int = 0
+    payment_context: PaymentContext = PaymentContext()
 
 
 class TicketProgress(BaseModel):
