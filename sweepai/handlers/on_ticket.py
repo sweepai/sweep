@@ -318,19 +318,23 @@ def on_ticket(
             )
         summary = summary if summary else ""
 
-        logger.info("Deleting old PRs...")  # this step takes 12 seconds
+        logger.info("Deleting old PRs...")
         prs = repo.get_pulls(
-            state="open", sort="created", base=SweepConfig.get_branch(repo)
+            state="open", sort="created", direction="desc", base=SweepConfig.get_branch(repo)
         )
+        checked_pr_count = 0
         for pr in tqdm(prs):
             # # Check if this issue is mentioned in the PR, and pr is owned by bot
             # # This is done in create_pr, (pr_description = ...)
+            if checked_pr_count >= 20:
+                break
             if (
                 pr.user.login == GITHUB_BOT_USERNAME
                 and f"Fixes #{issue_number}.\n" in pr.body
             ):
                 success = safe_delete_sweep_branch(pr, repo)
                 break
+            checked_pr_count += 1
 
         # Removed 1, 3
         if not sandbox_mode:
@@ -1324,12 +1328,15 @@ def on_ticket(
 
             # delete failing sweep yaml if applicable
             if sweep_yml_failed:
-                repo.delete_file(
-                    "sweep.yaml",
-                    "Delete failing sweep.yaml",
-                    branch=pr_changes.pr_head,
-                    sha=repo.get_contents("sweep.yaml").sha,
-                )
+                try:
+                    repo.delete_file(
+                        "sweep.yaml",
+                        "Delete failing sweep.yaml",
+                        branch=pr_changes.pr_head,
+                        sha=repo.get_contents("sweep.yaml").sha,
+                    )
+                except:
+                    pass
 
             pr: PullRequest = repo.create_pull(
                 title=pr_changes.title,
@@ -1538,7 +1545,7 @@ def on_ticket(
             except Exception as e:
                 logger.error(e)
                 logger.error(traceback.format_exc())
-                logger.print("Deleted branch", pull_request.branch_name)
+                logger.info("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
             username,
@@ -1556,7 +1563,7 @@ def on_ticket(
         "success",
         properties={**metadata, "duration": time() - on_ticket_start_time},
     )
-    logger.info("on_ticket success")
+    logger.info("on_ticket success in " + str(time() - on_ticket_start_time))
     return {"success": True}
 
 

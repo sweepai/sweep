@@ -1,11 +1,12 @@
 import copy
+from pathlib import Path
 import re
 import traceback
 import uuid
 
 from loguru import logger
 
-from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.agents.assistant_wrapper import client, openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -14,7 +15,17 @@ system_message = r"""# User Request
 {user_request}
 
 # Guide
-## Step 1: Unzip the file into /mnt/data/repo and list all root level directories.
+## Step 1: Unzip the file into /mnt/data/repo. Then list all root level directories.
+```python
+import zipfile
+import os
+
+zip_path = '{file_path}'
+extract_to_path = 'mnt/data/repo'
+os.makedirs(extract_to_path, exist_ok=True)
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    zip_ref.extractall(extract_to_path)
+```
 
 ## Step 2: Find the relevant files.
 You can search by file name or by keyword search in the contents.
@@ -49,7 +60,7 @@ def print_lines_with_keyword(content, keywords):
 Provide the final plan to solve the issue, following these rules:
 * You may only create new files and modify existing files.
 * File paths should be relative paths from the root of the repo.
-* Do not generate more than one modification or creation per file unless absolutely necessary.
+* Use the minimum number of create and modify operations required to solve the issue.
 * Start and end lines indicate the exact start and end lines to edit. Expand this to encompass more lines if you're unsure where to make the exact edit.
 
 Respond in the following format:
@@ -82,14 +93,20 @@ def new_planning(
     assistant_id: str = "asst_iFwIYazVKJx1fn4g28vkVZ70",
 ) -> list[FileChangeRequest]:
     try:
+        zip_file_object = client.files.create(file=Path(zip_path), purpose="assistants")
+        zip_file_id = zip_file_object.id
         response = openai_assistant_call(
             request=request,
             assistant_id=assistant_id,
             additional_messages=additional_messages,
-            file_paths=[zip_path],
+            uploaded_file_ids=[zip_file_id],
             chat_logger=chat_logger,
-            instructions=system_message.format(user_request=request),
+            instructions=system_message.format(user_request=request, file_path=f"mnt/data/{zip_path}"),
         )
+        try:
+            client.files.delete(zip_file_id)
+        except:
+            pass
         messages = response.messages
         final_message = messages.data[0].content[0].text.value
         fcrs = []

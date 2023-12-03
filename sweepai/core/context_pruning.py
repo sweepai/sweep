@@ -440,7 +440,7 @@ def modify_context(
             )
             justification = function_input["justification"]
             logger.info(
-                f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Path: {valid_path}"
+                f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Tool Call: {valid_path}"
             )
             if valid_path:
                 if tool_call.function.name == "keep_file_path":

@@ -178,8 +178,8 @@ class ClonedRepo:
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
     def delete(self):
-        shutil.rmtree(self.repo_dir)
         try:
+            shutil.rmtree(self.repo_dir)
             os.remove(self.zip_path)
         except FileNotFoundError:
             pass
