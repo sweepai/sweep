@@ -1,3 +1,4 @@
+from sweepai.core.entities import AssistantRaisedException
 import traceback
 from time import time
 
@@ -14,6 +15,8 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+
+from sweepai.agents.filter_agent import FilterAgent
 
 
 @file_cache()
@@ -35,7 +38,14 @@ def prep_snippets(
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
 
-    content_to_lexical_score = search_index(query, lexical_index)
+    try:
+        filter_agent = FilterAgent()
+        filtered_query = filter_agent.filter_search_query(query)
+    except Exception as e:
+        logger.exception(f"Failed to filter search query: {str(e)}")
+        raise AssistantRaisedException("An error occurred while filtering the search query.")
+    
+    content_to_lexical_score = search_index(filtered_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
