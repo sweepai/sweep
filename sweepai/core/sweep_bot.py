@@ -208,17 +208,14 @@ class CodeGenBot(ChatGPT):
     def get_files_to_change(
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
+        first_user_message = Message(
+            content = self.human_message.render_snippets() + "\n" + self.human_message.tree,
+            role="user",
+        )
         fcrs = new_planning(
-            "#"
-            + self.human_message.title
-            + "\n"
-            + self.human_message.summary
-            + "\n"
-            + self.human_message.render_snippets()
-            + "\n"
-            + self.human_message.tree,
+            "## Title: " + self.human_message.title + "\n" + self.human_message.summary,
             self.cloned_repo.zip_path,
-            additional_messages=self.messages[:-1],
+            additional_messages=[first_user_message] + self.messages[:-1], # TODO: might have duplicates here
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,
         )

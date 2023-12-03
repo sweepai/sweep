@@ -172,7 +172,10 @@ def on_ticket(
     ).strip()
     summary = re.sub(
         "### Details\n\n_No response_", "", summary, flags=re.DOTALL
-    ).strip()
+    )
+    summary = re.sub(
+        "\n\n", "\n", summary, flags=re.DOTALL
+    )
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
