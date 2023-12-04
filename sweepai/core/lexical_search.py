@@ -231,7 +231,9 @@ def prepare_index_from_snippets(
                 title=f"{doc.title}:{doc.start}:{doc.end}", content=doc.content
             )
         if ticket_progress is not None:
-            ticket_progress.search_progress.indexing_progress = len(all_docs)
+            ticket_progress.search_progress.indexing_progress = (
+                ticket_progress.search_progress.indexing_total
+            )
             ticket_progress.save()
     except FileNotFoundError as e:
         logger.error(e)

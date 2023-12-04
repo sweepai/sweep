@@ -171,12 +171,8 @@ def on_ticket(
     summary = re.sub(
         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
-    summary = re.sub(
-        "### Details\n\n_No response_", "", summary, flags=re.DOTALL
-    )
-    summary = re.sub(
-        "\n\n", "\n", summary, flags=re.DOTALL
-    )
+    summary = re.sub("### Details\n\n_No response_", "", summary, flags=re.DOTALL)
+    summary = re.sub("\n\n", "\n", summary, flags=re.DOTALL)
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -293,7 +289,10 @@ def on_ticket(
             posthog.capture(
                 username,
                 "issue_closed",
-                properties={**metadata, "duration": round(time() - on_ticket_start_time)},
+                properties={
+                    **metadata,
+                    "duration": round(time() - on_ticket_start_time),
+                },
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -715,7 +714,10 @@ def on_ticket(
             posthog.capture(
                 username,
                 "issue_too_short",
-                properties={**metadata, "duration": round(time() - on_ticket_start_time)},
+                properties={
+                    **metadata,
+                    "duration": round(time() - on_ticket_start_time),
+                },
             )
             return {"success": True}
 
@@ -761,7 +763,9 @@ def on_ticket(
             issue_url,
             ticket_progress,
         )
-        ticket_progress.search_progress.indexing_progress = num_of_files
+        ticket_progress.search_progress.indexing_progress = (
+            ticket_progress.search_progress.indexing_total
+        )
         ticket_progress.status = TicketProgressStatus.PLANNING
         ticket_progress.save()
 
@@ -1217,7 +1221,9 @@ def on_ticket(
                 )
 
                 current_issue = repo.get_issue(number=issue_number)
-                current_issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+                current_issue.edit(
+                    body=summary + "\n\n" + condensed_checkboxes_collapsible
+                )
 
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.entity_display}")
@@ -1256,7 +1262,9 @@ def on_ticket(
             )
             for _ in range(3):
                 try:
-                    current_issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+                    current_issue.edit(
+                        body=summary + "\n\n" + condensed_checkboxes_collapsible
+                    )
                     break
                 except:
                     from time import sleep
