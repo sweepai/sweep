@@ -1,7 +1,7 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
 
-⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).*
+⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial).*
 
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
@@ -43,7 +43,7 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 * Mention filenames or function names.
 * Describe the changes or fixes you want, optionally mentioning implementation details.
 * Provide any additional context that might be helpful, e.g. see "src/App.test.tsx" for an example of a good unit test.
-* For more guidance, visit [Advanced](https://docs.sweep.dev/usage/advanced), or watch the following video.
+* For more guidance, visit [Advanced](https://docs.sweep.dev/usage/tutorial), or watch the following video.
 
 [![Video](http://img.youtube.com/vi/Qn9vB71R4UM/0.jpg)](http://www.youtube.com/watch?v=Qn9vB71R4UM "Advanced Sweep Tricks and Feedback Tips")
 
