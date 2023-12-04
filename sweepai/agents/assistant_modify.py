@@ -138,7 +138,7 @@ def new_modify(
     file_contents: str,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
-    assistant_id: str = "asst_SgttsEvgZWJBc0mbnHkJe1pE",
+    assistant_id: str = None,
     start_line: int = -1,
     end_line: int = -1,
     ticket_progress: TicketProgress | None = None,
@@ -232,7 +232,7 @@ def new_modify(
                     client.beta.threads.messages.create(
                         thread_id=thread_id,
                         role="user",
-                        content="A valid final_diff was not provided. Please continue working on the code. If you are stuck, consider starting over.",
+                        content="A valid final_diff was not provided. Make sure to run `print_diff(current_content, final_diff=True)` once you have thoroughly reviewed the code. Please continue working on the code. If you are stuck, consider starting over.",
                     )
                     run = client.beta.threads.runs.create(
                         thread_id=response.thread_id,

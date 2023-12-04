@@ -9,6 +9,8 @@ from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.core.entities import Snippet
+from sweepai.logn.cache import file_cache
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -227,13 +229,15 @@ class RepoContextManager:
                     self.current_top_snippets.append(snippet)
 
 
-# @file_cache(ignore_params=["repo_context_manager", "ticket_progress"])
+@file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
+    chat_logger: ChatLogger = None,
 ):
     modify_iterations: int = 4
+    model = "gpt-3.5-turbo-1106" if (chat_logger and not chat_logger.is_paying_user()) else "gpt-4-1106-preview"
     try:
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
@@ -243,7 +247,7 @@ def get_relevant_context(
             name="Relevant Files Assistant",
             instructions=sys_prompt,
             tools=tools,
-            model="gpt-4-1106-preview",
+            model=model,
         )
         thread = client.beta.threads.create()
         _ = client.beta.threads.messages.create(
@@ -434,7 +438,7 @@ def modify_context(
     logger.info(
         f"Context Management End:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
     )
-    paths_changed = initial_file_paths != repo_context_manager.top_snippet_paths
+    paths_changed = set(initial_file_paths) != set(repo_context_manager.top_snippet_paths)
     # if the paths have not changed or all tools were empty, we are done
     return not (
         paths_changed and (paths_to_keep or directories_to_expand or paths_to_add)
@@ -475,5 +479,5 @@ if __name__ == "__main__":
 
     sys.settrace(trace_lines)
     repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
-    rcm = get_relevant_context(query, repo_context_manager, ticket_progress)
+    rcm = get_relevant_context(query, repo_context_manager, ticket_progress, chat_logger=ChatLogger({"username": "wwzeng1"}))
     sys.settrace(None)

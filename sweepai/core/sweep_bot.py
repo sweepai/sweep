@@ -215,7 +215,7 @@ class CodeGenBot(ChatGPT):
         fcrs = new_planning(
             "## Title: " + self.human_message.title + "\n" + self.human_message.summary,
             self.cloned_repo.zip_path,
-            additional_messages=[first_user_message] + self.messages[:-1], # TODO: might have duplicates here
+            additional_messages=[first_user_message],
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,
         )

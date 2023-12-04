@@ -256,15 +256,14 @@ def openai_assistant_call_helper(
             file_ids.append(file_object.id)
 
     logger.debug(instructions)
-    if assistant_id is None:
-        assistant = client.beta.assistants.create(
-            name=assistant_name,
-            instructions=instructions,
-            tools=tools,
-            model=model,
-        )
-    else:
-        assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
+    # always create new one
+    assistant = openai_retry_with_timeout(
+        client.beta.assistants.create,
+        name=assistant_name,
+        instructions=instructions,
+        tools=tools,
+        model=model,
+    )
     thread = client.beta.threads.create()
     if file_ids:
         logger.info("Uploading files...")
@@ -286,6 +285,7 @@ def openai_assistant_call_helper(
         thread_id=thread.id,
         assistant_id=assistant.id,
         instructions=instructions,
+        model=model,
     )
     run_until_complete(
         thread_id=thread.id,
@@ -296,8 +296,8 @@ def openai_assistant_call_helper(
         sleep_time=sleep_time,
         save_ticket_progress=save_ticket_progress,
     )
-    if file_ids:
-        client.files.delete(file_id=file_ids[0])
+    for file_id in file_ids:
+        client.files.delete(file_id=file_id) 
     return (
         assistant.id,
         run.id,
@@ -320,6 +320,7 @@ def openai_assistant_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    model = "gpt-3.5-turbo-1106" if (chat_logger and not chat_logger.is_paying_user()) else "gpt-4-1106-preview"
     retries = range(3)
     for _ in retries:
         try:
