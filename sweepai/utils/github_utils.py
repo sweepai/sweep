@@ -181,7 +181,7 @@ class ClonedRepo:
         try:
             shutil.rmtree(self.repo_dir)
             os.remove(self.zip_path)
-        except FileNotFoundError:
+        except:
             pass
 
     def list_directory_tree(

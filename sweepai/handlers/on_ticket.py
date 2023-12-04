@@ -12,6 +12,7 @@ import openai
 import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
+from github.Issue import Issue
 from logtail import LogtailContext, LogtailHandler
 from loguru import logger
 from tabulate import tabulate
@@ -180,7 +181,7 @@ def on_ticket(
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
-    current_issue = repo.get_issue(number=issue_number)
+    current_issue: Issue = repo.get_issue(number=issue_number)
     assignee = current_issue.assignee.login if current_issue.assignee else None
     if assignee is None:
         assignee = current_issue.user.login
@@ -292,7 +293,7 @@ def on_ticket(
             posthog.capture(
                 username,
                 "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+                properties={**metadata, "duration": round(time() - on_ticket_start_time)},
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -622,13 +623,13 @@ def on_ticket(
                 for comment in comments:
                     if comment.user.login == GITHUB_BOT_USERNAME:
                         issue_comment = comment
-
+                current_issue = repo.get_issue(number=issue_number)
                 if issue_comment is None:
                     issue_comment = current_issue.create_comment(msg)
                 else:
                     issue_comment = [
                         comment
-                        for comment in issue.get_comments()
+                        for comment in current_issue.get_comments()
                         if comment.user == GITHUB_BOT_USERNAME
                     ][0]
                     issue_comment.edit(msg)
@@ -714,7 +715,7 @@ def on_ticket(
             posthog.capture(
                 username,
                 "issue_too_short",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+                properties={**metadata, "duration": round(time() - on_ticket_start_time)},
             )
             return {"success": True}
 
@@ -738,7 +739,7 @@ def on_ticket(
                     "test_repo",
                     properties={
                         **metadata,
-                        "duration": time() - on_ticket_start_time,
+                        "duration": round(time() - on_ticket_start_time),
                     },
                 )
                 return {"success": False}
@@ -927,7 +928,7 @@ def on_ticket(
                     properties={
                         **metadata,
                         "count": len(subissues),
-                        "duration": time() - on_ticket_start_time,
+                        "duration": round(time() - on_ticket_start_time),
                     },
                 )
                 return {"success": True}
@@ -1062,8 +1063,8 @@ def on_ticket(
                 "Checklist", condensed_checkboxes_contents, opened=True
             )
 
-            issue = repo.get_issue(number=issue_number)
-            issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+            current_issue = repo.get_issue(number=issue_number)
+            current_issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
             delete_branch = False
 
@@ -1215,8 +1216,8 @@ def on_ticket(
                     opened="open",
                 )
 
-                issue = repo.get_issue(number=issue_number)
-                issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+                current_issue = repo.get_issue(number=issue_number)
+                current_issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.entity_display}")
@@ -1255,7 +1256,7 @@ def on_ticket(
             )
             for _ in range(3):
                 try:
-                    issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+                    current_issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
                     break
                 except:
                     from time import sleep
@@ -1516,7 +1517,7 @@ def on_ticket(
                     "error": str(e),
                     "reason": "Invalid request error / context length",
                     **metadata,
-                    "duration": time() - on_ticket_start_time,
+                    "duration": round(time() - on_ticket_start_time),
                 },
             )
             delete_branch = True
@@ -1603,16 +1604,16 @@ def on_ticket(
                 **metadata,
                 "error": str(e),
                 "trace": traceback.format_exc(),
-                "duration": time() - on_ticket_start_time,
+                "duration": round(time() - on_ticket_start_time),
             },
         )
         raise e
     posthog.capture(
         username,
         "success",
-        properties={**metadata, "duration": time() - on_ticket_start_time},
+        properties={**metadata, "duration": round(time() - on_ticket_start_time)},
     )
-    logger.info("on_ticket success in " + str(time() - on_ticket_start_time))
+    logger.info("on_ticket success in " + str(round(time() - on_ticket_start_time)))
     return {"success": True}
 
 

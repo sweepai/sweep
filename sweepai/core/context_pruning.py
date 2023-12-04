@@ -56,14 +56,14 @@ class ContextToPrune(RegexMatchableBaseModel):
         )
 
 
-sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. We are currently gathering the minimum set of information that allows us to plan the solution to the issue. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right.
+sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. You are currently gathering the minimum set of information that allows you to plan the solution to the issue. It is very important that you get this right.
 
 Reply in the following format:
 
-First, list all of the files and directories we should keep in paths_to_keep. Be as specific as you can.
+First, list all of the files and directories you should keep in paths_to_keep. Be as specific as you can.
 Second, list any directories that are currently closed that should be expanded.
 Third, add additional relevant files to the task using the add_file_path tool.
-If you expand a directory, we automatically expand all of its subdirectories, so do not list its subdirectories.
+If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories.
 Keep all files or directories that are referenced in the issue title or descriptions.
 
 <contextual_request_analysis>
@@ -71,7 +71,7 @@ Use the snippets, issue metadata and other information to determine the informat
 Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
 
-Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
 
 unformatted_user_prompt = """\
 <snippets_in_repo>
@@ -88,14 +88,14 @@ unformatted_user_prompt = """\
 {query}
 The above <repo_tree> <snippets_in_repo> and <paths_in_repo> have unnecessary information.
 The snippets and paths were fetched by a search engine, so they are noisy.
-The unnecessary information will hurt your performance on this task, so modify paths_in_repo, snippets_in_repo, and repo_tree to keep only the absolutely necessary information.
+The unnecessary information will hurt your performance on this task, so you must modify paths_in_repo, snippets_in_repo, and repo_tree to keep only the absolutely necessary information.
 
 Reply in the following format:
 
-First, list all of the files and directories we should keep in paths_to_keep. Be as specific as you can.
+First, list all of the files and directories you should keep in paths_to_keep. Be as specific as you can.
 Second, list any directories that are currently closed that should be expanded.
 Third, add additional relevant files to the task using the add_file_path tool.
-If you expand a directory, we automatically expand all of its subdirectories, so do not list its subdirectories.
+If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories.
 Keep all files or directories that are referenced in the issue title or descriptions.
 
 <contextual_request_analysis>
@@ -103,7 +103,7 @@ Use the snippets, issue metadata and other information to determine the informat
 Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
 
-Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow us to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
+Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
 
 functions = [
 {
@@ -158,7 +158,7 @@ functions = [
         },
         "required": ["file_path", "justification"],
     },
-    "description": "The most relevant snippet of the file will be added to the current paths_in_repo. If the file_path is already present, we will add the next most relevant snippet from the same file_path. Only using this when you are confident that the file_path is relevant to solving the user request.",
+    "description": "The most relevant snippet of the file will be added to the current paths_in_repo. If the file_path is already present, you will add the next most relevant snippet from the same file_path. Only using this when you are confident that the file_path is relevant to solving the user request.",
 },
 ]
 
@@ -268,7 +268,7 @@ class RepoContextManager:
                     self.current_top_snippets.append(snippet)
 
 
-@file_cache()
+@file_cache(ignore_params=["repo_context_manager", "ticket_progress"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -307,7 +307,7 @@ def get_relevant_context(
             _ = client.beta.threads.messages.create(
                 thread.id,
                 role="user",
-                content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow us to solve the issue, keep all of the existing file paths.",
+                content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow you to solve the issue, keep all of the existing file paths.",
             )
             run = client.beta.threads.runs.create(
                 thread_id=thread.id,
@@ -337,10 +337,7 @@ def modify_context(
     logger.info(
         f"Context Management Start:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
     )
-    initial_messages = client.beta.threads.messages.list(thread_id=thread.id)
     initial_file_paths = repo_context_manager.top_snippet_paths
-    for message in initial_messages.data:
-        logger.info(f"{message.content[0].text.value}")
     for _ in range(max_iterations):
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
         ticket_progress.search_progress.pruning_conversation = (
@@ -355,12 +352,6 @@ def modify_context(
             repo_context_manager.current_top_snippets
         )
         ticket_progress.save()
-        # log messages
-        new_messages = client.beta.threads.messages.list(thread_id=thread.id)
-        if len(new_messages.data) > len(initial_messages.data):
-            for message in new_messages.data[::-1][len(initial_messages.data) :]:
-                logger.info(f"{message.content[0].text.value}")
-            initial_messages = new_messages
         if run.status == "completed":
             break
         if (
@@ -379,6 +370,12 @@ def modify_context(
             except:
                 logger.warning(
                     f"Could not parse function arguments: {tool_call.function.arguments}"
+                )
+                tool_outputs.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "output": "FAILURE: Could not parse function arguments.",
+                    }
                 )
                 continue
             function_path_or_dir = (
@@ -481,12 +478,23 @@ if __name__ == "__main__":
     import os
 
     from sweepai.utils.ticket_utils import prep_snippets
-
+    from sweepai.utils.progress import TicketContext
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-    query = "Delete the is_python_issue logic from the ticket file. Move this logic to sweep_bot.py's files to change method. Also change this in on_comment. Finally update the readme.md."
-    repo_context_manager = prep_snippets(cloned_repo, query)
-    rcm = get_relevant_context(query, repo_context_manager)
+    query = "replace the broken tutorial link in installation.md with https://docs.sweep.dev/usage/tutorial"
+    ticket_progress = TicketProgress(
+        tracking_id="test",
+        context=TicketContext(
+            title="",
+            description="",
+            repo_full_name="sweepai/sweep",
+            issue_number=0,
+            is_public=True,
+            start_time=time.time(),
+        ),
+    )
+    repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
+    rcm = get_relevant_context(query, repo_context_manager, ticket_progress)
     import pdb
 
     pdb.set_trace()

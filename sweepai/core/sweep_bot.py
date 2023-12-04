@@ -598,31 +598,34 @@ class SweepBot(CodeGenBot, GithubBot):
         hash_ = hashlib.sha256(content.encode("utf-8")).hexdigest()
         file_path = f"{hash_}_{file_path}"
         try:
-            response = requests.post(
-                MINIS3_URL, json={"filename": file_path, "content": content}
-            )
-            response.raise_for_status()
-            return MINIS3_URL.rstrip("/") + response.json()["url"]
-        except Exception as e:
-            logger.error(e)
-            self.init_asset_branch()
             try:
-                fetched_content = self.repo.get_contents(file_path, ASSET_BRANCH_NAME)
-                self.repo.update_file(
-                    file_path,
-                    "Update " + file_path,
-                    content,
-                    fetched_content.sha,
-                    branch=ASSET_BRANCH_NAME,
+                response = requests.post(
+                    MINIS3_URL, json={"filename": file_path, "content": content}
                 )
-            except UnknownObjectException:
-                self.repo.create_file(
-                    file_path,
-                    "Add " + file_path,
-                    content,
-                    branch=ASSET_BRANCH_NAME,
-                )
-            return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
+                response.raise_for_status()
+                return MINIS3_URL.rstrip("/") + response.json()["url"]
+            except Exception as e:
+                logger.error(e)
+                self.init_asset_branch()
+                try:
+                    fetched_content = self.repo.get_contents(file_path, ASSET_BRANCH_NAME)
+                    self.repo.update_file(
+                        file_path,
+                        "Update " + file_path,
+                        content,
+                        fetched_content.sha,
+                        branch=ASSET_BRANCH_NAME,
+                    )
+                except UnknownObjectException:
+                    self.repo.create_file(
+                        file_path,
+                        "Add " + file_path,
+                        content,
+                        branch=ASSET_BRANCH_NAME,
+                    )
+                return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
+        except:
+            return ""
 
     @staticmethod
     # @file_cache(ignore_params=["token"])
