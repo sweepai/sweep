@@ -260,9 +260,11 @@ def get_relevant_context(
             assistant_id=assistant.id,
         )
         done = modify_context(thread, run, repo_context_manager, ticket_progress)
+        ticket_progress.search_progress.pruning_conversation_counter = 1
         if done:
             return repo_context_manager
-        for _ in range(modify_iterations):
+        for i in range(modify_iterations):
+            ticket_progress.search_progress.pruning_conversation_counter = i + 1
             thread = client.beta.threads.create()
             user_prompt = repo_context_manager.format_context(
                 unformatted_user_prompt=unformatted_user_prompt, query=query

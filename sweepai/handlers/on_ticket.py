@@ -761,6 +761,7 @@ def on_ticket(
             is_paying_user,
             is_consumer_tier,
             issue_url,
+            chat_logger,
             ticket_progress,
         )
         ticket_progress.search_progress.indexing_progress = (

@@ -20,7 +20,7 @@ from sweepai.utils.str_utils import total_number_of_snippet_tokens
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
-    ticket_progress: TicketProgress,
+    ticket_progress: TicketProgress | None = None,
 ):
     sweep_config: SweepConfig = SweepConfig()
 
@@ -91,6 +91,7 @@ def fetch_relevant_files(
     is_paying_user,
     is_consumer_tier,
     issue_url,
+    chat_logger,
     ticket_progress: TicketProgress,
 ):
     logger.info("Fetching relevant files...")
@@ -105,7 +106,7 @@ def fetch_relevant_files(
         ticket_progress.save()
 
         repo_context_manager = get_relevant_context(
-            formatted_query, repo_context_manager, ticket_progress
+            formatted_query, repo_context_manager, ticket_progress, chat_logger=chat_logger
         )
         snippets = repo_context_manager.current_top_snippets
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)

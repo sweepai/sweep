@@ -58,9 +58,15 @@ class AssistantConversation(BaseModel):
     ) -> AssistantConversation | None:
         client = OpenAI(api_key=OPENAI_API_KEY)
         try:
-            assistant = client.beta.assistants.retrieve(assistant_id=assistant_id, timeout=1.5)
-            run = client.beta.threads.runs.retrieve(run_id=run_id, thread_id=thread_id, timeout=1.5)
-            message_objects = client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id, timeout=1.5).data
+            assistant = client.beta.assistants.retrieve(
+                assistant_id=assistant_id, timeout=1.5
+            )
+            run = client.beta.threads.runs.retrieve(
+                run_id=run_id, thread_id=thread_id, timeout=1.5
+            )
+            message_objects = client.beta.threads.runs.steps.list(
+                run_id=run_id, thread_id=thread_id, timeout=1.5
+            ).data
         except:
             return None
         messages: list[AssistantAPIMessage] = [
@@ -69,9 +75,7 @@ class AssistantConversation(BaseModel):
                 content=assistant.instructions,
             )
         ]
-        for message_obj in list(
-            message_objects
-        )[::-1]:
+        for message_obj in list(message_objects)[::-1]:
             if message_obj.type == "message_creation":
                 message_id = message_obj.step_details.message_creation.message_id
                 try:
@@ -166,6 +170,7 @@ class SearchProgress(BaseModel):
     retrieved_snippets: list[Snippet] = []
     final_snippets: list[Snippet] = []
     pruning_conversation: AssistantConversation = AssistantConversation()
+    pruning_conversation_counter: int = 0
     repo_tree: str = ""
 
 
