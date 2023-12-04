@@ -5,7 +5,7 @@ from enum import Enum
 from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
 from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
@@ -55,10 +55,14 @@ class AssistantConversation(BaseModel):
         assistant_id: str,
         run_id: str,
         thread_id: str,
-    ) -> AssistantConversation:
+    ) -> AssistantConversation | None:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
-        run = client.beta.threads.runs.retrieve(run_id=run_id, thread_id=thread_id)
+        try:
+            assistant = client.beta.assistants.retrieve(assistant_id=assistant_id, timeout=1.5)
+            run = client.beta.threads.runs.retrieve(run_id=run_id, thread_id=thread_id, timeout=1.5)
+            message_objects = client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id, timeout=1.5).data
+        except:
+            return None
         messages: list[AssistantAPIMessage] = [
             AssistantAPIMessage(
                 role=AssistantAPIMessageRole.SYSTEM,
@@ -66,17 +70,20 @@ class AssistantConversation(BaseModel):
             )
         ]
         for message_obj in list(
-            client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id).data
+            message_objects
         )[::-1]:
             if message_obj.type == "message_creation":
                 message_id = message_obj.step_details.message_creation.message_id
-                message_content = (
-                    client.beta.threads.messages.retrieve(
-                        message_id=message_id, thread_id=thread_id
+                try:
+                    message_content = (
+                        client.beta.threads.messages.retrieve(
+                            message_id=message_id, thread_id=thread_id, timeout=1.5
+                        )
+                        .content[0]
+                        .text.value
                     )
-                    .content[0]
-                    .text.value
-                )
+                except:
+                    return None
                 messages.append(
                     AssistantAPIMessage(
                         role=AssistantAPIMessageRole.ASSISTANT,
@@ -133,6 +140,8 @@ class AssistantConversation(BaseModel):
         assistant_conversation = AssistantConversation.from_ids(
             assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
         )
+        if not assistant_conversation:
+            return self
         self.messages = assistant_conversation.messages
         self.is_active = assistant_conversation.is_active
         self.status = assistant_conversation.status
@@ -196,6 +205,7 @@ class TicketProgress(BaseModel):
     search_progress: SearchProgress = SearchProgress()
     planning_progress: PlanningProgress = PlanningProgress()
     coding_progress: CodingProgress = CodingProgress()
+    prev_dict: dict = Field(default_factory=dict)
     error_message: str = ""
 
     class Config:
@@ -210,9 +220,12 @@ class TicketProgress(BaseModel):
         doc = collection.find_one({"tracking_id": tracking_id})
         return cls(**doc)
 
-    def save(self):  # might want a TTL
+    def save(self):
         if MONGODB_URI is None:
             return None
+        if self.dict() == self.prev_dict:
+            return
+        self.prev_dict = self.dict()
         db = global_mongo_client["progress"]
         collection = db["ticket_progress"]
         collection.update_one(

@@ -40,15 +40,16 @@ def prep_snippets(
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
 
-    snippet_scores = []
     for snippet in snippets:
         snippet_score = 0.1
         if snippet_to_key(snippet) in content_to_lexical_score:
             snippet_score = content_to_lexical_score[snippet_to_key(snippet)]
-        snippet_scores.append(snippet_score)
+        else:
+            content_to_lexical_score[snippet_to_key(snippet)] = snippet_score
+
     ranked_snippets = sorted(
         snippets,
-        key=lambda snippet: snippet_scores[snippets.index(snippet)],
+        key=lambda snippet: content_to_lexical_score[snippet_to_key(snippet)],
         reverse=True,
     )
     ranked_snippets = ranked_snippets[:7]

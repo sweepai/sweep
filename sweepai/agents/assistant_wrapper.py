@@ -1,3 +1,4 @@
+from email import message
 import json
 import os
 import time
@@ -16,6 +17,31 @@ from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+client.timeout = 90
+
+def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
+    """
+    Pass any OpenAI client call and retry it num_retries times, incorporating timeout into the call.
+
+    Usage:
+    run = openai_retry_with_timeout(client.beta.threads.runs.submit_tool_outputs, thread_id=thread.id, run_id=run.id, tool_outputs=tool_outputs, num_retries=3, timeout=10)
+
+    Parameters:
+    call (callable): The OpenAI client call to be retried.
+    *args: Positional arguments for the callable.
+    num_retries (int): The number of times to retry the call.
+    timeout (int): The timeout value to be applied to the call.
+    **kwargs: Keyword arguments for the callable.
+    
+    Returns:
+    The result of the OpenAI client call.
+    """
+    for attempt in range(num_retries):
+        try:
+            return call(*args, **kwargs, timeout=timeout)
+        except Exception as e:
+            print(f"Retry {attempt + 1} failed with error: {e}")
+    raise Exception("Maximum retries reached. The call failed.")
 
 save_ticket_progress_type = Callable[[str, str, str], None]
 
@@ -62,23 +88,32 @@ def get_json_messages(
     run_id: str,
     assistant_id: str,
 ):
-    assistant = client.beta.assistants.retrieve(assistant_id=assistant_id)
+    assistant = openai_retry_with_timeout(
+        client.beta.assistants.retrieve,
+        assistant_id=assistant_id,
+    )
+    run_steps = openai_retry_with_timeout(
+        client.beta.threads.runs.steps.list,
+        run_id=run_id, 
+        thread_id=thread_id
+    )
     system_message_json = {
         "role": "system",
         "content": assistant.instructions,
     }
     messages_json = [system_message_json]
     for message_obj in list(
-        client.beta.threads.runs.steps.list(run_id=run_id, thread_id=thread_id).data
+        run_steps.data
     )[:0:-1]:
         if message_obj.type == "message_creation":
             message_id = message_obj.step_details.message_creation.message_id
+            thread_messages = openai_retry_with_timeout(
+                client.beta.threads.messages.retrieve,
+                message_id=message_id,
+                thread_id=thread_id,
+            )
             message_content = (
-                client.beta.threads.messages.retrieve(
-                    message_id=message_id, thread_id=thread_id
-                )
-                .content[0]
-                .text.value
+                thread_messages.content[0].text.value
             )
             messages_json.append(
                 {
@@ -125,7 +160,11 @@ def run_until_complete(
     json_messages = []
     try:
         for i in range(max_iterations):
-            run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
+            run = openai_retry_with_timeout(
+                client.beta.threads.runs.retrieve,
+                thread_id=thread_id,
+                run_id=run_id,
+            )
             if run.status == "completed":
                 logger.info(f"Run completed with {run.status}")
                 break
@@ -147,7 +186,8 @@ def run_until_complete(
                     thread_id=thread_id,
                     run_id=run_id,
                 )
-            messages = client.beta.threads.messages.list(
+            messages = openai_retry_with_timeout(
+                client.beta.threads.messages.list,
                 thread_id=thread_id,
             )
             current_message_strings = [
@@ -175,7 +215,7 @@ def run_until_complete(
                         }
                     )
             else:
-                if i % 10 == 0:
+                if i % 5 == 0:
                     logger.info(run.status)
             time.sleep(sleep_time)
     except (KeyboardInterrupt, SystemExit):

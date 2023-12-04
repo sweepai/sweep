@@ -86,7 +86,7 @@ Respond in the following format:
 ```"""
 
 
-@file_cache(ignore_params=["zip_path", "chat_logger"])
+@file_cache(ignore_params=["zip_path", "chat_logger", "ticket_progress"])
 def new_planning(
     request: str,
     zip_path: str,
@@ -96,12 +96,14 @@ def new_planning(
     ticket_progress: TicketProgress | None = None,
 ) -> list[FileChangeRequest]:
     try:
-
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
+            assistant_conversation = AssistantConversation.from_ids(
+                assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+            )
+            if not assistant_conversation:
+                return
             ticket_progress.planning_progress.assistant_conversation = (
-                AssistantConversation.from_ids(
-                    assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
-                )
+                assistant_conversation
             )
             ticket_progress.save()
 
@@ -117,10 +119,14 @@ def new_planning(
             if ticket_progress is not None
             else None,
             instructions=system_message.format(
-                user_request=request, file_path=f"mnt/data/{zip_path}"
+                user_request=request, file_path=f"mnt/data/{zip_file_id}"
             ),
         )
-        save_ticket_progress()
+        save_ticket_progress(
+            assistant_id=response.assistant_id,
+            thread_id=response.thread_id,
+            run_id=response.run_id,
+        )
         try:
             client.files.delete(zip_file_id)
         except:
@@ -146,7 +152,7 @@ def new_planning(
             new_file_change_request.parent = fcr
             new_file_change_request.id_ = str(uuid.uuid4())
             fcrs.append(new_file_change_request)
-        assert len(fcrs) > 0
+        assert len(fcrs) > 0 # TODO: validate fcrs
         return fcrs
     except AssistantRaisedException as e:
         raise e

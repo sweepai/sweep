@@ -147,9 +147,10 @@ def new_modify(
     modify_iterations = 5
     try:
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
-            assistant_conversation.update_from_ids(
-                assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
-            )
+            if assistant_conversation:
+                assistant_conversation.update_from_ids(
+                    assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+                )
             ticket_progress.save()
 
         file_content = open(file_path, "r").read()
@@ -188,7 +189,11 @@ def new_modify(
             else None,
             assistant_name="Code Modification Assistant",
         )
-        save_ticket_progress()
+        save_ticket_progress(
+            assistant_id=response.assistant_id,
+            thread_id=response.thread_id,
+            run_id=response.run_id,
+        )
         messages = response.messages
         final_diff = None
         final_diff_pattern = r"<final_diff>\n(.*?)</final_diff>"

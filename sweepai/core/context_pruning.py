@@ -1,5 +1,4 @@
 import json
-import re
 import time
 from copy import deepcopy
 
@@ -8,53 +7,14 @@ from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
-from sweepai.agents.assistant_wrapper import client
-from sweepai.core.entities import RegexMatchableBaseModel, Snippet
+from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
+from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
-
-
-class ContextToPrune(RegexMatchableBaseModel):
-    paths_to_keep: list[str] = []
-    directories_to_expand: list[str] = []
-
-    @classmethod
-    def from_string(cls, string: str, **kwargs):
-        paths_to_keep = []
-        directories_to_expand = []
-        paths_to_keep_pattern = (
-            r"""<paths_to_keep>(\n)?(?P<paths_to_keep>.*)</paths_to_keep>"""
-        )
-        paths_to_keep_match = re.search(paths_to_keep_pattern, string, re.DOTALL)
-        for path in paths_to_keep_match.groupdict()["paths_to_keep"].split("\n"):
-            path = path.strip()
-            path = path.replace("* ", "")
-            path = path.replace("...", "")
-            if len(path) > 1 and " " not in path:
-                logger.info(f"paths_to_keep: {path}")
-                paths_to_keep.append(path)
-        directories_to_expand_pattern = r"""<directories_to_expand>(\n)?(?P<directories_to_expand>.*)</directories_to_expand>"""
-        directories_to_expand_match = re.search(
-            directories_to_expand_pattern, string, re.DOTALL
-        )
-        for path in directories_to_expand_match.groupdict()[
-            "directories_to_expand"
-        ].split("\n"):
-            path = path.strip()
-            path = path.replace("* ", "")
-            path = path.replace("...", "")
-            if len(path) > 1 and " " not in path:
-                logger.info(f"directories_to_expand: {path}")
-                directories_to_expand.append(path)
-        return cls(
-            paths_to_keep=paths_to_keep,
-            directories_to_expand=directories_to_expand,
-        )
-
 
 sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. You are currently gathering the minimum set of information that allows you to plan the solution to the issue. It is very important that you get this right.
 
@@ -268,7 +228,7 @@ class RepoContextManager:
                     self.current_top_snippets.append(snippet)
 
 
-@file_cache(ignore_params=["repo_context_manager", "ticket_progress"])
+# @file_cache(ignore_params=["repo_context_manager", "ticket_progress"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -338,15 +298,19 @@ def modify_context(
         f"Context Management Start:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
     )
     initial_file_paths = repo_context_manager.top_snippet_paths
-    for _ in range(max_iterations):
-        run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-        ticket_progress.search_progress.pruning_conversation = (
-            AssistantConversation.from_ids(
+    for iter in range(max_iterations):
+        run = openai_retry_with_timeout(
+            client.beta.threads.runs.retrieve,
+            thread_id=thread.id,
+            run_id=run.id,
+        )
+        if iter % 5 == 2:
+            assistant_conversation = AssistantConversation.from_ids(
                 assistant_id=run.assistant_id,
                 run_id=run.id,
                 thread_id=thread.id,
             )
-        )
+            if assistant_conversation: ticket_progress.search_progress.pruning_conversation = assistant_conversation
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.search_progress.final_snippets = (
             repo_context_manager.current_top_snippets
@@ -444,18 +408,21 @@ def modify_context(
                     paths_to_keep.append(function_path_or_dir)
                 elif tool_call.function.name == "expand_directory":
                     directories_to_expand.append(function_path_or_dir)
-        run = client.beta.threads.runs.submit_tool_outputs(
+        run = openai_retry_with_timeout(
+            client.beta.threads.runs.submit_tool_outputs,
             thread_id=thread.id,
             run_id=run.id,
             tool_outputs=tool_outputs,
         )
-    ticket_progress.search_progress.pruning_conversation = (
-        AssistantConversation.from_ids(
+    assistant_conversation = AssistantConversation.from_ids(
             assistant_id=run.assistant_id,
             run_id=run.id,
             thread_id=thread.id,
         )
-    )
+    if assistant_conversation:
+        ticket_progress.search_progress.pruning_conversation = (
+            assistant_conversation
+        )
     ticket_progress.save()
     logger.info(
         f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
@@ -476,7 +443,6 @@ def modify_context(
 
 if __name__ == "__main__":
     import os
-
     from sweepai.utils.ticket_utils import prep_snippets
     from sweepai.utils.progress import TicketContext
     installation_id = os.environ["INSTALLATION_ID"]
@@ -493,8 +459,17 @@ if __name__ == "__main__":
             start_time=time.time(),
         ),
     )
+    import sys
+    import linecache
+    def trace_lines(frame, event, arg):
+        if event == "line":
+            filename = frame.f_code.co_filename
+            if "context_pruning" in filename:
+                lineno = frame.f_lineno
+                line = linecache.getline(filename, lineno)
+                print(f"Executing {filename}:line {lineno}:{line.rstrip()}")
+        return trace_lines
+    sys.settrace(trace_lines)
     repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
     rcm = get_relevant_context(query, repo_context_manager, ticket_progress)
-    import pdb
-
-    pdb.set_trace()
+    sys.settrace(None)

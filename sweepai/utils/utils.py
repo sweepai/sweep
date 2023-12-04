@@ -182,6 +182,8 @@ def check_syntax(file_path: str, code: str) -> tuple(bool, str):
     ext = file_path.split(".")[-1]
     if ext in extension_to_language:
         language = extension_to_language[ext]
+    else:
+        return True, "Unsupported file extension, skipping syntax check."
     parser = get_parser(language)
     tree = parser.parse(code.encode("utf-8"))
 
