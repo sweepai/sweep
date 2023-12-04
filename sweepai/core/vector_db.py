@@ -261,7 +261,10 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
 
 
 def prepare_lexical_search_index(
-    cloned_repo, sweep_config, repo_full_name, ticket_progress: TicketProgress
+    cloned_repo,
+    sweep_config,
+    repo_full_name,
+    ticket_progress: TicketProgress | None = None,
 ):
     snippets, file_list = repo_to_chunks(cloned_repo.cached_dir, sweep_config)
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")

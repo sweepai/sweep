@@ -231,7 +231,7 @@ class RepoContextManager:
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
-    ticket_progress: TicketProgress,
+    ticket_progress: TicketProgress | None = None,
 ):
     modify_iterations: int = 4
     try:

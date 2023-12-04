@@ -20,7 +20,7 @@ from sweepai.utils.str_utils import total_number_of_snippet_tokens
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
-    ticket_progress: TicketProgress,
+    ticket_progress: TicketProgress | None = None,
 ):
     sweep_config: SweepConfig = SweepConfig()
 
