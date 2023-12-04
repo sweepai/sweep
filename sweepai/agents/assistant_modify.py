@@ -188,6 +188,7 @@ def new_modify(
             else None,
             assistant_name="Code Modification Assistant",
         )
+        save_ticket_progress()
         messages = response.messages
         final_diff = None
         final_diff_pattern = r"<final_diff>\n(.*?)</final_diff>"
