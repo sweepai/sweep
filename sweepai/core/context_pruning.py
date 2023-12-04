@@ -9,7 +9,6 @@ from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -66,60 +65,60 @@ Propose the most important paths as well as any new required paths, along with a
 Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
 
 functions = [
-{
-    "name": "keep_file_path",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "Existing file or directory to keep.",
+    {
+        "name": "keep_file_path",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Existing file or directory to keep.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for keeping the file_path.",
+                },
             },
-            "justification": {
-                "type": "string",
-                "description": "Justification for keeping the file_path.",
-            },
+            "required": ["file_path", "justification"],
         },
-        "required": ["file_path", "justification"],
+        "description": "Keep an existing file_path from paths_in_repo that you are certain is relevant to solving the user request. This only works if the file_path is already present in the paths_in_repo. Unless this is empty, all of the files not listed will be removed from the paths_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description.",
     },
-    "description": "Keep an existing file_path from paths_in_repo that you are certain is relevant to solving the user request. This only works if the file_path is already present in the paths_in_repo. Unless this is empty, all of the files not listed will be removed from the paths_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description.",
-},
-{
-    "name": "expand_directory",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "directory_path": {
-                "type": "string",
-                "description": "Directory to expand",
+    {
+        "name": "expand_directory",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "directory_path": {
+                    "type": "string",
+                    "description": "Directory to expand",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for expanding the directory.",
+                },
             },
-            "justification": {
-                "type": "string",
-                "description": "Justification for expanding the directory.",
-            },
+            "required": ["directory_path", "justification"],
         },
-        "required": ["directory_path", "justification"],
+        "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets.",
     },
-    "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets.",
-},
-{
-    "name": "add_file_path",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "File path to add to the current paths_in_repo.",
+    {
+        "name": "add_file_path",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "File path to add to the current paths_in_repo.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for adding the file_path.",
+                },
             },
-            "justification": {
-                "type": "string",
-                "description": "Justification for adding the file_path.",
-            },
+            "required": ["file_path", "justification"],
         },
-        "required": ["file_path", "justification"],
+        "description": "The most relevant snippet of the file will be added to the current paths_in_repo. If the file_path is already present, you will add the next most relevant snippet from the same file_path. Only using this when you are confident that the file_path is relevant to solving the user request.",
     },
-    "description": "The most relevant snippet of the file will be added to the current paths_in_repo. If the file_path is already present, you will add the next most relevant snippet from the same file_path. Only using this when you are confident that the file_path is relevant to solving the user request.",
-},
 ]
 
 tools = [
@@ -310,7 +309,10 @@ def modify_context(
                 run_id=run.id,
                 thread_id=thread.id,
             )
-            if assistant_conversation: ticket_progress.search_progress.pruning_conversation = assistant_conversation
+            if assistant_conversation:
+                ticket_progress.search_progress.pruning_conversation = (
+                    assistant_conversation
+                )
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.search_progress.final_snippets = (
             repo_context_manager.current_top_snippets
@@ -415,14 +417,12 @@ def modify_context(
             tool_outputs=tool_outputs,
         )
     assistant_conversation = AssistantConversation.from_ids(
-            assistant_id=run.assistant_id,
-            run_id=run.id,
-            thread_id=thread.id,
-        )
+        assistant_id=run.assistant_id,
+        run_id=run.id,
+        thread_id=thread.id,
+    )
     if assistant_conversation:
-        ticket_progress.search_progress.pruning_conversation = (
-            assistant_conversation
-        )
+        ticket_progress.search_progress.pruning_conversation = assistant_conversation
     ticket_progress.save()
     logger.info(
         f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
@@ -443,8 +443,10 @@ def modify_context(
 
 if __name__ == "__main__":
     import os
-    from sweepai.utils.ticket_utils import prep_snippets
+
     from sweepai.utils.progress import TicketContext
+    from sweepai.utils.ticket_utils import prep_snippets
+
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
     query = "replace the broken tutorial link in installation.md with https://docs.sweep.dev/usage/tutorial"
@@ -459,8 +461,9 @@ if __name__ == "__main__":
             start_time=time.time(),
         ),
     )
-    import sys
     import linecache
+    import sys
+
     def trace_lines(frame, event, arg):
         if event == "line":
             filename = frame.f_code.co_filename
@@ -469,6 +472,7 @@ if __name__ == "__main__":
                 line = linecache.getline(filename, lineno)
                 print(f"Executing {filename}:line {lineno}:{line.rstrip()}")
         return trace_lines
+
     sys.settrace(trace_lines)
     repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
     rcm = get_relevant_context(query, repo_context_manager, ticket_progress)
