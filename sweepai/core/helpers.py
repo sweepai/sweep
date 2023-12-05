@@ -24,7 +24,7 @@ def print_original_lines(i: int, j: int):
         print(f"{{index}}: {{original_lines[index]}}")
     print("\\n")
 
-def print_original_lines_with_keywords(keywords: list[str]):
+def print_original_lines_with_keywords(keywords: list):
     \"\"\"
     Displays the original lines when any of the keywords are found.
     Use single words.
