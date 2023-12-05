@@ -422,8 +422,8 @@ def on_ticket(
         ticket_progress.context.payment_context = PaymentContext(
             use_faster_model=use_faster_model,
             pro_user=is_paying_user,
-            daily_tickets_used=chat_logger.get_ticket_count(use_date=True),
-            monthly_tickets_used=chat_logger.get_ticket_count(),
+            daily_tickets_used=chat_logger.get_ticket_count(use_date=True) if chat_logger else 0,
+            monthly_tickets_used=chat_logger.get_ticket_count() if chat_logger else 0,
         )
         ticket_progress.save()
 
@@ -1457,7 +1457,7 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc(),
                 priority=2,
             )
-            if chat_logger.is_paying_user():
+            if chat_logger and chat_logger.is_paying_user():
                 edit_sweep_comment(
                     (
                         f"Sorry, I could not edit `{e.filename}` as this file is too long."
