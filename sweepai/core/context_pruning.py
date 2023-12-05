@@ -270,9 +270,7 @@ def modify_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
 ) -> bool | None:
-    max_iterations: int = int(
-        30
-    )
+    max_iterations = 30
     paths_to_keep = []  # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
@@ -395,7 +393,7 @@ def modify_context(
         )
     else:
         logger.warning(
-            f"Context pruning iteration {iter} taking a long time. Breaking the loop. Status: {run.status}"
+            f"Context pruning iteration taking too long. Status: {run.status}"
         )
     assistant_conversation = AssistantConversation.from_ids(
         assistant_id=run.assistant_id,
