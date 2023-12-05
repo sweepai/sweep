@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from copy import deepcopy
 
@@ -338,10 +339,11 @@ def modify_context(
         tool_outputs = []
         for tool_call in tool_calls:
             try:
-                function_input = json.loads(tool_call.function.arguments)
+                tool_call_arguments = re.sub(r"\\+'", "", tool_call.function.arguments)
+                function_input = json.loads(tool_call_arguments)
             except:
                 logger.warning(
-                    f"Could not parse function arguments: {tool_call.function.arguments}"
+                    f"Could not parse function arguments: {tool_call_arguments}"
                 )
                 tool_outputs.append(
                     {
