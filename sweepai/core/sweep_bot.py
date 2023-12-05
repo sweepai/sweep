@@ -555,7 +555,7 @@ class SweepBot(CodeGenBot, GithubBot):
             sandbox_response.success for sandbox_response in sandbox_responses
         ):
             return sandbox_responses[0], fcr_file_paths[0]
-        return None, fcr_file_paths[0]
+        return None, None
 
     def validate_file_change_requests(
         self,
