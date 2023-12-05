@@ -22,18 +22,14 @@ sys_prompt = """You are a brilliant and meticulous engineer assigned to the foll
 
 Reply in the following format:
 
-First, list all of the files and directories you should keep in paths_to_keep. Be as specific as you can.
-Second, list any directories that are currently closed that should be expanded.
-Third, add additional relevant files to the task using the add_file_path tool.
-If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories.
-Keep all files or directories that are referenced in the issue title or descriptions.
-
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
 Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
 
-Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
+Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. 
+If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
+Store as few file paths as necessary to solve the user request."""
 
 unformatted_user_prompt = """\
 <snippets_in_repo>
@@ -50,41 +46,37 @@ unformatted_user_prompt = """\
 {query}
 The above <repo_tree> <snippets_in_repo> and <paths_in_repo> have unnecessary information.
 The snippets and paths were fetched by a search engine, so they are noisy.
-The unnecessary information will hurt your performance on this task, so you must modify paths_in_repo, snippets_in_repo, and repo_tree to keep only the absolutely necessary information.
+The unnecessary information will hurt your performance on this task, so you must modify paths_in_repo, snippets_in_repo, and repo_tree to store only the absolutely necessary information.
 
 Reply in the following format:
-
-First, list all of the files and directories you should keep in paths_to_keep. Be as specific as you can.
-Second, list any directories that are currently closed that should be expanded.
-Third, add additional relevant files to the task using the add_file_path tool.
-If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories.
-Keep all files or directories that are referenced in the issue title or descriptions.
 
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
 Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
 
-Use the keep_file_path, add_file_path, and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. Keep as few file paths as necessary to solve the user request."""
+Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. 
+If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
+Store as few file paths as necessary to solve the user request."""
 
 functions = [
     {
-        "name": "keep_file_path",
+        "name": "store_file_path",
         "parameters": {
             "type": "object",
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "Existing file or directory to keep.",
+                    "description": "File or directory to store.",
                 },
                 "justification": {
                     "type": "string",
-                    "description": "Justification for keeping the file_path.",
+                    "description": "Justification for store the file_path.",
                 },
             },
             "required": ["file_path", "justification"],
         },
-        "description": "Keep an existing file_path from paths_in_repo that you are certain is relevant to solving the user request. This only works if the file_path is already present in the paths_in_repo. Unless this is empty, all of the files not listed will be removed from the paths_in_repo. Make sure to keep ALL of the files that are referenced in the issue title or description.",
+        "description": "Use this to either store an existing file_path or add a new path to paths_in_repo. Only store paths you are certain are relevant to solving the user request. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
     },
     {
         "name": "expand_directory",
@@ -104,30 +96,11 @@ functions = [
         },
         "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets.",
     },
-    {
-        "name": "add_file_path",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "file_path": {
-                    "type": "string",
-                    "description": "File path to add to the current paths_in_repo.",
-                },
-                "justification": {
-                    "type": "string",
-                    "description": "Justification for adding the file_path.",
-                },
-            },
-            "required": ["file_path", "justification"],
-        },
-        "description": "The most relevant snippet of the file will be added to the current paths_in_repo. If the file_path is already present, you will add the next most relevant snippet from the same file_path. Only using this when you are confident that the file_path is relevant to solving the user request.",
-    },
 ]
 
 tools = [
     {"type": "function", "function": functions[0]},
     {"type": "function", "function": functions[1]},
-    {"type": "function", "function": functions[2]},
 ]
 
 
@@ -244,19 +217,22 @@ def get_relevant_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
-        assistant = client.beta.assistants.create(
+        assistant = openai_retry_with_timeout(
+            client.beta.assistants.create,
             name="Relevant Files Assistant",
             instructions=sys_prompt,
             tools=tools,
             model=model,
         )
-        thread = client.beta.threads.create()
-        _ = client.beta.threads.messages.create(
+        thread = openai_retry_with_timeout(client.beta.threads.create)
+        _ = openai_retry_with_timeout(
+            client.beta.threads.messages.create,
             thread.id,
             role="user",
             content=f"{user_prompt}",
         )
-        run = client.beta.threads.runs.create(
+        run = openai_retry_with_timeout(
+            client.beta.threads.runs.create,
             thread_id=thread.id,
             assistant_id=assistant.id,
         )
@@ -266,16 +242,18 @@ def get_relevant_context(
             return repo_context_manager
         for i in range(modify_iterations):
             ticket_progress.search_progress.pruning_conversation_counter = i + 1
-            thread = client.beta.threads.create()
+            thread = openai_retry_with_timeout(client.beta.threads.create)
             user_prompt = repo_context_manager.format_context(
                 unformatted_user_prompt=unformatted_user_prompt, query=query
             )
-            _ = client.beta.threads.messages.create(
+            _ = openai_retry_with_timeout(
+                client.beta.threads.messages.create,
                 thread.id,
                 role="user",
-                content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow you to solve the issue, keep all of the existing file paths.",
+                content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow you to solve the issue, store all of the existing file paths.",
             )
-            run = client.beta.threads.runs.create(
+            run = openai_retry_with_timeout( 
+                client.beta.threads.runs.create,
                 thread_id=thread.id,
                 assistant_id=assistant.id,
             )
@@ -320,11 +298,11 @@ def modify_context(
                 ticket_progress.search_progress.pruning_conversation = (
                     assistant_conversation
                 )
-        ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
-        ticket_progress.search_progress.final_snippets = (
-            repo_context_manager.current_top_snippets
-        )
-        ticket_progress.save()
+            ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
+            ticket_progress.search_progress.final_snippets = (
+                repo_context_manager.current_top_snippets
+            )
+            ticket_progress.save()
         if run.status == "completed":
             break
         if (
@@ -359,18 +337,34 @@ def modify_context(
             )
             valid_path = False
             output = ""
-            if tool_call.function.name == "keep_file_path":
-                valid_path = (
-                    function_path_or_dir in repo_context_manager.top_snippet_paths
-                )
-                # NOTE the outputs should probably not be status codes. they should contain the actual expanded files, etc
-                # move all handlers to here.
-                # maybe fuse keep_or_add file path
-                output = (
-                    "SUCCESS"
-                    if valid_path
-                    else "FAILURE: Path not in paths_in_repo. Try adding the file path first."
-                )
+            if tool_call.function.name == "store_file_path":
+                if function_path_or_dir in repo_context_manager.top_snippet_paths:
+                    valid_path = (
+                        function_path_or_dir in repo_context_manager.top_snippet_paths
+                    )
+                    output = f"SUCCESS. {function_path_or_dir} was stored."
+                    paths_to_keep.append(function_path_or_dir)
+                else: # we should add the file path
+                    valid_path = repo_context_manager.is_path_valid(
+                        function_path_or_dir, directory=False
+                    )
+                    highest_scoring_snippet = (
+                        repo_context_manager.get_highest_scoring_snippet(
+                            function_path_or_dir
+                        )
+                    )
+                    new_file_contents = (
+                        highest_scoring_snippet.xml
+                        if highest_scoring_snippet is not None
+                        else ""
+                    )
+                    repo_context_manager.add_file_paths([function_path_or_dir])
+                    paths_to_add.append(function_path_or_dir)
+                    output = (
+                        f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
+                        if valid_path
+                        else "FAILURE: This file path does not exist. Please try a new path."
+                    )
             elif tool_call.function.name == "expand_directory":
                 valid_path = repo_context_manager.is_path_valid(
                     function_path_or_dir, directory=True
@@ -382,27 +376,8 @@ def modify_context(
                     if valid_path
                     else "FAILURE: Invalid directory path."
                 )
-            elif tool_call.function.name == "add_file_path":
-                valid_path = repo_context_manager.is_path_valid(
-                    function_path_or_dir, directory=False
-                )
-                highest_scoring_snippet = (
-                    repo_context_manager.get_highest_scoring_snippet(
-                        function_path_or_dir
-                    )
-                )
-                new_file_contents = (
-                    highest_scoring_snippet.xml
-                    if highest_scoring_snippet is not None
-                    else ""
-                )
-                repo_context_manager.add_file_paths([function_path_or_dir])
-                paths_to_add.append(function_path_or_dir)
-                output = (
-                    f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
-                    if valid_path
-                    else "FAILURE: Invalid file path."
-                )
+                if valid_path:
+                    directories_to_expand.append(function_path_or_dir)
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -413,11 +388,6 @@ def modify_context(
             logger.info(
                 f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Tool Call: {valid_path}"
             )
-            if valid_path:
-                if tool_call.function.name == "keep_file_path":
-                    paths_to_keep.append(function_path_or_dir)
-                elif tool_call.function.name == "expand_directory":
-                    directories_to_expand.append(function_path_or_dir)
         run = openai_retry_with_timeout(
             client.beta.threads.runs.submit_tool_outputs,
             thread_id=thread.id,
@@ -435,7 +405,7 @@ def modify_context(
     logger.info(
         f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
     )
-    if paths_to_keep:
+    if paths_to_keep or paths_to_add:
         repo_context_manager.remove_all_non_kept_paths(paths_to_keep + paths_to_add)
     if directories_to_expand:
         repo_context_manager.expand_all_directories(directories_to_expand)
@@ -459,17 +429,9 @@ if __name__ == "__main__":
 
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-    query = "replace the broken tutorial link in installation.md with https://docs.sweep.dev/usage/tutorial"
+    query = "create a new search query filtering agent that will be used in ticket_utils.py. The agent should filter unnecessary terms out of the search query to be sent into lexical search. Use a prompt to do this, using name_agent.py as a reference."
     ticket_progress = TicketProgress(
         tracking_id="test",
-        context=TicketContext(
-            title="",
-            description="",
-            repo_full_name="sweepai/sweep",
-            issue_number=0,
-            is_public=True,
-            start_time=time.time(),
-        ),
     )
     import linecache
     import sys
