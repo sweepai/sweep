@@ -148,7 +148,7 @@ def new_modify(
     ticket_progress: TicketProgress | None = None,
     assistant_conversation: AssistantConversation | None = None,
 ):
-    modify_iterations = 5
+    modify_iterations = 3
     try:
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             if assistant_conversation:
@@ -295,7 +295,7 @@ def new_modify(
             + str(chat_logger.data if chat_logger else "")
         )
         return None
-    return file_content
+    return None
 
 
 if __name__ == "__main__":
