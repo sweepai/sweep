@@ -14,6 +14,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+from sweepai.agents.filter_agent import FilterAgent
 
 
 @file_cache()
@@ -96,12 +97,18 @@ def fetch_relevant_files(
 ):
     logger.info("Fetching relevant files...")
     try:
+        filter_agent = FilterAgent()
         search_query = (title + summary + replies_text).strip("\n")
+        try:
+            filtered_query = filter_agent.filter_search_query(search_query)
+        except Exception as e:
+            logger.exception('Failed to filter query with FilterAgent: {}', e)
+            raise e
         replies_text = f"\n{replies_text}" if replies_text else ""
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
         )
-        repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
+        repo_context_manager = prep_snippets(cloned_repo, filtered_query, ticket_progress)
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.save()
 
