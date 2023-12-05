@@ -158,7 +158,7 @@ class ChatLogger(BaseModel):
     def is_paying_user(self):
         return self._get_user_field("is_paying_user")
 
-    def use_faster_model(self, g):
+    def use_faster_model(self, g=None):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return True
@@ -169,20 +169,21 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 20 and purchased_tickets == 0
 
         try:
-            loc_user = g.get_user(self.data["username"]).location
-            loc = Nominatim(user_agent="location_checker").geocode(
-                loc_user, exactly_one=True
-            )
-            g = False
-            for c in SUPPORT_COUNTRY:
-                if c.lower() in loc.raw.get("display_name").lower():
-                    g = True
-                    break
-            if not g:
-                return (
-                    self.get_ticket_count() >= 5
-                    or self.get_ticket_count(use_date=True) >= 1
+            if g != None:
+                loc_user = g.get_user(self.data["username"]).location
+                loc = Nominatim(user_agent="location_checker").geocode(
+                    loc_user, exactly_one=True
                 )
+                g = False
+                for c in SUPPORT_COUNTRY:
+                    if c.lower() in loc.raw.get("display_name").lower():
+                        g = True
+                        break
+                if not g:
+                    return (
+                        self.get_ticket_count() >= 5
+                        or self.get_ticket_count(use_date=True) >= 1
+                    )
         except SystemExit:
             raise SystemExit
         except:

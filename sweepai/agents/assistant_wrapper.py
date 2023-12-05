@@ -320,7 +320,7 @@ def openai_assistant_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    model = "gpt-3.5-turbo-1106" if (chat_logger and not chat_logger.is_paying_user()) else "gpt-4-1106-preview"
+    model = "gpt-3.5-turbo-1106" if (chat_logger and chat_logger.use_faster_model()) else "gpt-4-1106-preview"
     retries = range(3)
     for _ in retries:
         try:

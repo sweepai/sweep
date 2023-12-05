@@ -74,10 +74,7 @@ Then review the changes of the current edit by running:
 
 ```python
 # Double check the change
-print_diff(current_content, prev_content)
-
-# Check for valid python
-check_valid_python(current_content)
+print_diff(current_content, prev_content){python_comment}
 ```
 
 ### Revert (optional)
@@ -94,12 +91,18 @@ Move to Step 3 once all the edits are completed.
 Perform a final review once all edits from Step 2 are completed. Use the following code:
 
 ```python
-print(current_content)
-check_valid_python(current_content)
+print(current_content){python_code}
 print_diff(current_content, final_diff=True)
 ```
 
 Finally, print the final valid diff using the print_diff function."""
+
+python_comment = """
+# Check for valid python
+check_valid_python(current_content)"""
+
+python_code = """
+check_valid_python(current_content)"""
 
 allowed_exts = [
     "c",
@@ -177,9 +180,23 @@ def new_modify(
         ).id
         os.remove(tmp_helper_file_path)
         uploaded_file_ids = [target_file_id, helper_methods_file_id]
+        
+        if file_path.endswith(".py"):
+            formatted_instructions_message = instructions_message.format(
+                file_id=helper_methods_file_id,
+                python_comment=python_comment,
+                python_code=python_code
+            )
+        else:
+            formatted_instructions_message = instructions_message.format(
+                file_id=helper_methods_file_id,
+                python_comment="",
+                python_code=""
+            )
+
         response = openai_assistant_call(
             request=request,
-            instructions=instructions_message.format(file_id=helper_methods_file_id),
+            instructions=formatted_instructions_message,
             additional_messages=additional_messages,
             uploaded_file_ids=uploaded_file_ids,
             chat_logger=chat_logger,
@@ -237,9 +254,7 @@ def new_modify(
                     run = client.beta.threads.runs.create(
                         thread_id=response.thread_id,
                         assistant_id=response.assistant_id,
-                        instructions=instructions_message.format(
-                            file_id=helper_methods_file_id
-                        ),
+                        instructions=formatted_instructions_message
                     )
                     run_id = run.id
                     messages = run_until_complete(

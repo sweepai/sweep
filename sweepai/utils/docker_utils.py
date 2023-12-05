@@ -26,11 +26,11 @@ def get_latest_docker_version():
         response.raise_for_status()  # Raises HTTPError for bad responses (4xx and 5xx)
         data = response.json()
         truncated_time = data["results"][0]["last_updated"].split(".")[0]
+        last_updated = datetime.fromisoformat(f"{truncated_time}+00:00")
     except Exception:
         # subtract 6 hours
-        truncated_time = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
+        last_updated = datetime.now(timezone.utc) - timedelta(hours=6)
     # Truncate fractional seconds
-    last_updated = datetime.fromisoformat(f"{truncated_time}+00:00")
     duration_since_last_update = datetime.now(timezone.utc) - last_updated
     return humanize_time(duration_since_last_update)
 
@@ -43,5 +43,4 @@ def get_docker_badge():
         markdown_badge = f"<br/>![Docker Version Updated]({badge_url})"
         return markdown_badge
     except:
-        logger.exception("Failed to get docker badge.")
         return ""
