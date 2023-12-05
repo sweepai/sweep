@@ -226,7 +226,7 @@ class CodeGenBot(ChatGPT):
         file_change_requests: list[FileChangeRequest] = []
         try:
             python_issue_worked = True
-            if is_python_issue:
+            if False: # is_python_issue:
                 if any(
                     keyword in self.human_message.title.lower()
                     for keyword in ("refactor", "extract", "replace", "test")
