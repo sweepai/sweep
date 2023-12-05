@@ -30,39 +30,9 @@ def apply_patch(s, patch, revert=False):
     return t
 
 if __name__ == "__main__":
-    patch_output = """\
-    --- 
-    +++ 
-    @@ -14,6 +14,8 @@
-    from sweepai.utils.github_utils import ClonedRepo
-    from sweepai.utils.progress import TicketProgress
-    from sweepai.utils.str_utils import total_number_of_snippet_tokens
-    +from sweepai.agents.filter_agent import FilterAgent
-    +
-    
-    
-    @file_cache()
-    @@ -35,7 +37,16 @@
-        for snippet in snippets:
-            snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    
-    -    content_to_lexical_score = search_index(query, lexical_index)
-    +        # Instantiate FilterAgent and filter the search query
-    +    filter_agent = FilterAgent()
-    +    try:
-    +        filtered_query = filter_agent.filter_search_query(query)
-    +    except Exception as e:
-    +        # Handle any exception from the FilterAgent
-    +        logger.exception('Failed to filter query with FilterAgent: {}', e)
-    +        raise e
-    +
-    +    content_to_lexical_score = search_index(filtered_query, lexical_index)
-        snippet_to_key = (
-            lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
-        )
-    """
+    patch_output = """"""
 
-    original_file_path = "sweepai/utils/ticket_utils.py"
+    original_file_path = ""
 
     original_content = open(original_file_path).read()
     patched_content = apply_patch(original_content, patch_output)

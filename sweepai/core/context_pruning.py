@@ -18,7 +18,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
-sys_prompt = """You are a brilliant and meticulous engineer assigned to the following Github issue. You are currently gathering the minimum set of information that allows you to plan the solution to the issue. It is very important that you get this right.
+sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You are currently gathering the minimum set of information that allows you to plan the solution to the issue. It is very important that you get this right.
 
 Reply in the following format:
 
@@ -44,9 +44,7 @@ unformatted_user_prompt = """\
 # Instructions
 ## User Request
 {query}
-The above <repo_tree> <snippets_in_repo> and <paths_in_repo> have unnecessary information.
-The snippets and paths were fetched by a search engine, so they are noisy.
-The unnecessary information will hurt your performance on this task, so you must modify paths_in_repo, snippets_in_repo, and repo_tree to store only the absolutely necessary information.
+The above <repo_tree> <snippets_in_repo> and <paths_in_repo> have unnecessary information. Modify paths_in_repo, snippets_in_repo, and repo_tree to store only the absolutely necessary information.
 
 Reply in the following format:
 
@@ -210,7 +208,7 @@ def get_relevant_context(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
-    modify_iterations: int = 4
+    modify_iterations: int = 2
     model = "gpt-3.5-turbo-1106" if (chat_logger and chat_logger.use_faster_model()) else "gpt-4-1106-preview"
     try:
         user_prompt = repo_context_manager.format_context(
@@ -273,8 +271,8 @@ def modify_context(
     ticket_progress: TicketProgress,
 ) -> bool | None:
     max_iterations: int = int(
-        60 * 10 / 3
-    )  # 10 minutes divided by 3 seconds per iteration
+        30
+    )
     paths_to_keep = []  # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
@@ -288,7 +286,7 @@ def modify_context(
             thread_id=thread.id,
             run_id=run.id,
         )
-        if iter % 5 == 2:
+        if iter % 5 == 0:
             assistant_conversation = AssistantConversation.from_ids(
                 assistant_id=run.assistant_id,
                 run_id=run.id,
@@ -302,6 +300,7 @@ def modify_context(
             ticket_progress.search_progress.final_snippets = (
                 repo_context_manager.current_top_snippets
             )
+            logger.info("iteration: " + str(iter))
             ticket_progress.save()
         if run.status == "completed":
             break
@@ -393,6 +392,10 @@ def modify_context(
             thread_id=thread.id,
             run_id=run.id,
             tool_outputs=tool_outputs,
+        )
+    else:
+        logger.warning(
+            f"Context pruning iteration {iter} taking a long time. Breaking the loop. Status: {run.status}"
         )
     assistant_conversation = AssistantConversation.from_ids(
         assistant_id=run.assistant_id,
