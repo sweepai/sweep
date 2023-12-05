@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
-from sweepai.utils.chat_logger import global_mongo_client
+from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
 
 
 class AssistantAPIMessageRole(Enum):
@@ -226,16 +226,23 @@ class TicketProgress(BaseModel):
         return cls(**doc)
 
     def save(self):
-        if MONGODB_URI is None:
-            return None
-        if self.dict() == self.prev_dict:
-            return
-        self.prev_dict = self.dict()
-        db = global_mongo_client["progress"]
-        collection = db["ticket_progress"]
-        collection.update_one(
-            {"tracking_id": self.tracking_id}, {"$set": self.dict()}, upsert=True
-        )
+        try:
+            if MONGODB_URI is None:
+                return None
+            if self.dict() == self.prev_dict:
+                return
+            self.prev_dict = self.dict()
+            db = global_mongo_client["progress"]
+            collection = db["ticket_progress"]
+            collection.update_one(
+                {"tracking_id": self.tracking_id}, {"$set": self.dict()}, upsert=True
+            )
+        except Exception as e:
+            discord_log_error(
+                str(e)
+                + "\n\n"
+                + str(self.tracking_id)
+            )
 
 
 if __name__ == "__main__":

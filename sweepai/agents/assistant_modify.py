@@ -9,6 +9,7 @@ from loguru import logger
 from sweepai.agents.assistant_wrapper import (
     client,
     openai_assistant_call,
+    openai_retry_with_timeout,
     run_until_complete,
 )
 from sweepai.core.entities import AssistantRaisedException, Message
@@ -165,8 +166,10 @@ def new_modify(
         if not any(file_path.endswith(ext) for ext in allowed_exts):
             os.rename(file_path, file_path + ".txt")
             file_path += ".txt"
-        target_file_object = client.files.create(
-            file=Path(file_path), purpose="assistants"
+        target_file_object = openai_retry_with_timeout(
+            client.files.create,
+            file=Path(file_path),
+            purpose="assistants"
         )
         target_file_id = target_file_object.id
         formatted_helper_method_contents = helper_methods_contents.format(
@@ -175,8 +178,10 @@ def new_modify(
         tmp_helper_file_path = f"/tmp/helper_{uuid.uuid4()}.py"
         with open(tmp_helper_file_path, "w") as f:
             f.write(formatted_helper_method_contents)
-        helper_methods_file_id = client.files.create(
-            file=Path(tmp_helper_file_path), purpose="assistants"
+        helper_methods_file_id = openai_retry_with_timeout(
+            client.files.create,
+            file=Path(tmp_helper_file_path),
+            purpose="assistants"
         ).id
         os.remove(tmp_helper_file_path)
         uploaded_file_ids = [target_file_id, helper_methods_file_id]
