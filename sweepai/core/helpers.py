@@ -8,7 +8,7 @@ with open(file_path, 'r') as file:
 original_lines = file_content.splitlines()
 current_content = file_content
 
-def print_original_lines(i, j):
+def print_original_lines(i: int, j: int):
     \"\"\"
     Displays the original lines between line numbers i and j.
     \"\"\"
@@ -24,9 +24,9 @@ def print_original_lines(i, j):
         print(f"{{index}}: {{original_lines[index]}}")
     print("\\n")
 
-def print_original_lines_with_keywords(keywords):
+def print_original_lines_with_keywords(keywords: list[str]):
     \"\"\"
-    Displays the original lines between line numbers i and j when any of the keywords are found.
+    Displays the original lines when any of the keywords are found.
     Use single words.
     \"\"\"
     context = 10
@@ -77,6 +77,7 @@ def set_indentation(code, num_indents=4):
 
 
 # exec(helper_methods_contents.format(target_file_id='sweepai/utils/ticket_utils.py'))
+# import pdb; pdb.set_trace()
 # unified_diff = difflib.unified_diff(file_content.split("\n"), new_content.split("\n"))
 # new_content = file_content + "a"; print_diff(new_content, file_content)
 # to test just uncomment all this code
