@@ -1,4 +1,5 @@
 import traceback
+from sweepai.agents.filter_agent import FilterAgent
 from time import time
 
 from loguru import logger
@@ -23,6 +24,7 @@ def prep_snippets(
     ticket_progress: TicketProgress | None = None,
 ):
     sweep_config: SweepConfig = SweepConfig()
+    filter_agent = FilterAgent()
 
     file_list, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
@@ -35,7 +37,13 @@ def prep_snippets(
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
 
-    content_to_lexical_score = search_index(query, lexical_index)
+    try:
+        filtered_query = filter_agent.filter_search_query(query)
+    except Exception as e:
+        logger.exception('Failed to filter query with FilterAgent: {}', e)
+        raise e
+
+    content_to_lexical_score = search_index(filtered_query, lexical_index)
     snippet_to_key = (
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
