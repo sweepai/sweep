@@ -15,14 +15,19 @@ from loguru import logger
 from pydantic import BaseModel
 from sympy import content
 
-from sweepai.agents.assistant_planning import new_planning
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.modify_bot import ModifyBot
 from sweepai.agents.move_bot import MoveBot
 from sweepai.agents.refactor_bot import RefactorBot
 from sweepai.agents.test_bot import TestBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEBUG, DEFAULT_GPT35_MODEL, DEFAULT_GPT4_32K_MODEL, MINIS3_URL, SANDBOX_URL
+from sweepai.config.server import (
+    DEBUG,
+    DEFAULT_GPT4_32K_MODEL,
+    DEFAULT_GPT35_MODEL,
+    MINIS3_URL,
+    SANDBOX_URL,
+)
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     AssistantRaisedException,
@@ -54,7 +59,11 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.progress import AssistantConversation, TicketProgress
+from sweepai.utils.progress import (
+    AssistantAPIMessage,
+    AssistantConversation,
+    TicketProgress,
+)
 from sweepai.utils.utils import check_syntax, chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -240,8 +249,28 @@ class CodeGenBot(ChatGPT):
                     self.update_message_content_from_message_key(
                         "metadata", self.human_message.get_issue_metadata()
                     )
+                    self.ticket_progress: TicketProgress = self.ticket_progress
+                    self.ticket_progress.planning_progress.assistant_conversation.messages = (
+                        []
+                    )
+                    for message in self.messages:
+                        self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                            AssistantAPIMessage(
+                                content=message.content,
+                                role=message.role,
+                            )
+                        )
+                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                        AssistantAPIMessage(
+                            content=extract_files_to_change_prompt,
+                            role="user",
+                        )
+                    )
                     extract_response = self.chat(
                         extract_files_to_change_prompt, message_key="extract_prompt"
+                    )
+                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                        AssistantAPIMessage(content=extract_response, role="assistant")
                     )
                     extraction_request = ExtractionRequest.from_string(extract_response)
                     file_change_requests = []
@@ -287,9 +316,29 @@ class CodeGenBot(ChatGPT):
                     1, Message(role="user", content=pr_diffs, key="pr_diffs")
                 )
 
+            self.ticket_progress: TicketProgress = self.ticket_progress
+            self.ticket_progress.planning_progress.assistant_conversation.messages = []
+            for message in self.messages:
+                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                    AssistantAPIMessage(
+                        content=message.content,
+                        role=message.role,
+                    )
+                )
+            self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                AssistantAPIMessage(
+                    content=files_to_change_prompt,
+                    role="user",
+                )
+            )
+            self.ticket_progress.save()
             files_to_change_response = self.chat(
                 files_to_change_prompt, message_key="files_to_change"
             )
+            self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                AssistantAPIMessage(content=files_to_change_response, role="assistant")
+            )
+            self.ticket_progress.save()
             file_change_requests = []
             for re_match in re.finditer(
                 FileChangeRequest._regex, files_to_change_response, re.DOTALL
@@ -326,8 +375,9 @@ class CodeGenBot(ChatGPT):
                     too_long or count >= retries - 1
                 ):  # if on last try, use gpt4-32k (improved context window)
                     pr_text_response = self.chat(
-                        pull_request_prompt, message_key="pull_request",
-                        model = DEFAULT_GPT35_MODEL,
+                        pull_request_prompt,
+                        message_key="pull_request",
+                        model=DEFAULT_GPT35_MODEL,
                     )
                 else:
                     pr_text_response = self.chat(
@@ -610,7 +660,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(e)
                 self.init_asset_branch()
                 try:
-                    fetched_content = self.repo.get_contents(file_path, ASSET_BRANCH_NAME)
+                    fetched_content = self.repo.get_contents(
+                        file_path, ASSET_BRANCH_NAME
+                    )
                     self.repo.update_file(
                         file_path,
                         "Update " + file_path,
