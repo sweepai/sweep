@@ -73,7 +73,9 @@ def set_indentation(code, num_indents=4):
     \"\"\"
     lines = [line for line in code.split('\\n') if line.strip()]
     min_indent = min(len(line) - len(line.lstrip()) for line in lines)
-    return '\\n'.join(' ' * num_indents + line[min_indent:] for line in lines)"""
+    return '\\n'.join(' ' * num_indents + line[min_indent:] for line in lines)
+    
+print("Helper functions loaded into memory.")"""
 
 
 # exec(helper_methods_contents.format(target_file_id='sweepai/utils/ticket_utils.py'))

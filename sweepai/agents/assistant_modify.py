@@ -38,18 +38,19 @@ You're a brilliant engineer assigned to make an edit to solve a GitHub issue. Mo
 
 # Guide
 ## Step 1: Setup Helper Functions and Identify Relevant Lines
-First instantiate and run all of the following code. Then identify the relevant lines by calling `print_original_lines(i: int, j: int)` and `print_original_lines_with_keywords(keywords: list[str])`:
+First instantiate and run all of the following code. We MUST exec the helper methods. Do not define or use any other helper methods.
+Then identify the relevant lines by calling `print_original_lines(i: int, j: int)` and `print_original_lines_with_keywords(keywords: list[str])`:
 
-### HELPER FUNCTIONS TO RUN
 ```python
 # First read and load the helper functions into the current context. This will allow you to use the helper functions in the rest of the code.
 helper_methods_path = '/mnt/data/{file_id}'
 with open(helper_methods_path, 'r') as f:
     helper_methods = f.read()
+exec(helper_methods) # You MUST run this line.
 print(helper_methods)
-exec(helper_methods)
 ```
 
+If they were successfully loaded, you should see the following output: `Helper functions loaded into memory.`
 Use the helper functions to identify the minimum set of lines of code you must modify.
 
 ## Step 2: Iterative Code Modification
