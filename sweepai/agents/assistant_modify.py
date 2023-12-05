@@ -38,7 +38,7 @@ You're a brilliant engineer assigned to make an edit to solve a GitHub issue. Mo
 
 # Guide
 ## Step 1: Setup Helper Functions and Identify Relevant Lines
-First instantiate and run all of the following code. Then identify the relevant lines by running `print_original_lines` and `print_original_lines_with_keywords`:
+First instantiate and run all of the following code. Then identify the relevant lines by calling `print_original_lines(i: int, j: int)` and `print_original_lines_with_keywords(keywords: list[str])`:
 
 ### HELPER FUNCTIONS TO RUN
 ```python

@@ -371,7 +371,7 @@ def modify_context(
                 output = (
                     f"SUCCESS: New repo_tree\n{dir_string}"
                     if valid_path
-                    else "FAILURE: Invalid directory path."
+                    else "FAILURE: Invalid directory path. Please try a new path."
                 )
                 if valid_path:
                     directories_to_expand.append(function_path_or_dir)
