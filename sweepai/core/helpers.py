@@ -52,7 +52,7 @@ def check_valid_python(code):
         ast.parse(code)
         print("Python code is valid.")
     except SyntaxError as e:
-        print("SyntaxError:", e)
+        print("Python SyntaxError:", e)
 
 def print_diff(new_content, old_content=file_content, final_diff=False):
     if new_content == old_content:

@@ -29,7 +29,7 @@ os.makedirs(extract_to_path, exist_ok=True)
 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
     zip_ref.extractall(extract_to_path)
     zip_contents = zip_ref.namelist()
-    root_dirs = {name.split('/')[0] for name in zip_contents}
+    root_dirs = {{name.split('/')[0] for name in zip_contents}}
     print(f'Root directories: {{root_dirs}}')
 ```
 

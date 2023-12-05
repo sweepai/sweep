@@ -237,7 +237,7 @@ def get_relevant_context(
     chat_logger: ChatLogger = None,
 ):
     modify_iterations: int = 4
-    model = "gpt-3.5-turbo-1106" if (chat_logger and not chat_logger.is_paying_user()) else "gpt-4-1106-preview"
+    model = "gpt-3.5-turbo-1106" if (chat_logger and chat_logger.use_faster_model()) else "gpt-4-1106-preview"
     try:
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
@@ -407,7 +407,7 @@ def modify_context(
                     "output": output,
                 }
             )
-            justification = function_input["justification"]
+            justification = function_input["justification"] if "justification" in function_input else ""
             logger.info(
                 f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Tool Call: {valid_path}"
             )
