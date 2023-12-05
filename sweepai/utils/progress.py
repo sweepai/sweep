@@ -240,7 +240,14 @@ class TicketProgress(BaseModel):
 
 if __name__ == "__main__":
     ticket_progress = TicketProgress(tracking_id="test")
+    ticket_progress.error_message = (
+        "I'm sorry, but it looks like an error has occurred due to"
+        + " a planning failure. Please create a more detailed issue"
+        + " so I can better address it. Alternatively, reach out to Kevin or William for help at"
+        + " https://discord.gg/sweep."
+    )
+    ticket_progress.status = TicketProgressStatus.ERROR
     ticket_progress.save()
-    new_ticket_progress = TicketProgress.load("test")
-    print(new_ticket_progress)
-    assert new_ticket_progress == ticket_progress
+    # new_ticket_progress = TicketProgress.load("test")
+    # print(new_ticket_progress)
+    # assert new_ticket_progress == ticket_progress

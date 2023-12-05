@@ -1445,6 +1445,9 @@ def on_ticket(
             logger.info("Add successful ticket to counter")
         except MaxTokensExceeded as e:
             logger.info("Max tokens exceeded")
+            ticket_progress.status = TicketProgressStatus.ERROR
+            ticket_progress.error_message = "Max tokens exceeded. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
+            ticket_progress.save()
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1477,6 +1480,10 @@ def on_ticket(
             delete_branch = True
             raise e
         except NoFilesException as e:
+            ticket_progress.status = TicketProgressStatus.ERROR
+            ticket_progress.error_message = "Sweep could not find files to modify to address this issue. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
+            ticket_progress.save()
+
             logger.info("Sweep could not find files to modify")
             log_error(
                 is_paying_user,
@@ -1490,7 +1497,7 @@ def on_ticket(
             edit_sweep_comment(
                 (
                     "Sorry, Sweep could not find any appropriate files to edit to address"
-                    " this issue. If this is a mistake, please provide more context and I"
+                    " this issue. If this is a mistake, please provide more context and Sweep"
                     f" will retry!\n\n> @{username}, please edit the issue description to"
                     " include more details about this issue."
                 ),
@@ -1499,6 +1506,10 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.BadRequestError as e:
+            ticket_progress.status = TicketProgressStatus.ERROR
+            ticket_progress.error_message = "Sorry, it looks like there is an error with communicating with OpenAI. If this error persists, reach out to Kevin or William for help at https://discord.gg/sweep."
+            ticket_progress.save()
+
             logger.error(traceback.format_exc())
             logger.error(e)
             edit_sweep_comment(
@@ -1532,6 +1543,10 @@ def on_ticket(
             delete_branch = True
             raise e
         except AssistantRaisedException as e:
+            ticket_progress.status = TicketProgressStatus.ERROR
+            ticket_progress.error_message = f"Sweep raised an error with the following message: {e.message}. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
+            ticket_progress.save()
+
             logger.exception(e)
             edit_sweep_comment(
                 f"Sweep raised an error with the following message:\n{blockquote(e.message)}",
@@ -1548,6 +1563,10 @@ def on_ticket(
             )
             raise e
         except Exception as e:
+            ticket_progress.status = TicketProgressStatus.ERROR
+            ticket_progress.error_message = f"Internal server error: {str(e)}. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
+            ticket_progress.save()
+
             logger.error(traceback.format_exc())
             logger.error(e)
             # title and summary are defined elsewhere
@@ -1555,18 +1574,19 @@ def on_ticket(
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
-                        " a planning failure. Please create a more detailed issue"
-                        " so I can better address it. If this error persists report it at"
-                        " https://discord.gg/sweep."
+                        + " a planning failure. Feel free to add more details to the issue description"
+                        + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
+                        + " https://discord.gg/sweep."
                     ),
                     -1,
                 )
             else:
                 edit_sweep_comment(
                     (
-                        "I'm sorry, but it looks like an error has occurred. Try changing"
-                        " the issue description to re-trigger Sweep. If this error persists"
-                        " report it at https://discord.gg/sweep."
+                        "I'm sorry, but it looks like an error has occurred due to"
+                        + " a planning failure. Feel free to add more details to the issue description"
+                        + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
+                        + " https://discord.gg/sweep."
                     ),
                     -1,
                 )
