@@ -185,7 +185,7 @@ def get_deeplake_vs_from_repo(
     blocked_dirs = get_blocked_dirs(repo)
     sweep_config.exclude_dirs.extend(blocked_dirs)
     file_list, snippets, index = prepare_lexical_search_index(
-        cloned_repo, sweep_config, repo_full_name
+        cloned_repo, sweep_config, repo_full_name, TicketProgress(tracking_id="none")
     )
     # scoring for vector search
     files_to_scores = compute_vector_search_scores(
