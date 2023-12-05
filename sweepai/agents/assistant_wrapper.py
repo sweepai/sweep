@@ -153,7 +153,7 @@ def run_until_complete(
     model: str = "gpt-4-1106-preview",
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
-    max_iterations: int = 1200,
+    max_iterations: int = 200,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     message_strings = []
@@ -168,10 +168,10 @@ def run_until_complete(
             if run.status == "completed":
                 logger.info(f"Run completed with {run.status}")
                 break
-            if run.status == "failed":
+            elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(f"Run completed with {run.status}")
                 raise Exception("Run failed")
-            if run.status == "requires_action":
+            elif run.status == "requires_action":
                 tool_calls = [
                     tool_call
                     for tool_call in run.required_action.submit_tool_outputs.tool_calls
