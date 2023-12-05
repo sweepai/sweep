@@ -233,7 +233,7 @@ class RepoContextManager:
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
-    ticket_progress: TicketProgress,
+    ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
     modify_iterations: int = 4
@@ -440,7 +440,9 @@ def modify_context(
     logger.info(
         f"Context Management End:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
     )
-    paths_changed = set(initial_file_paths) != set(repo_context_manager.top_snippet_paths)
+    paths_changed = set(initial_file_paths) != set(
+        repo_context_manager.top_snippet_paths
+    )
     # if the paths have not changed or all tools were empty, we are done
     return not (
         paths_changed and (paths_to_keep or directories_to_expand or paths_to_add)
@@ -481,5 +483,10 @@ if __name__ == "__main__":
 
     sys.settrace(trace_lines)
     repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
-    rcm = get_relevant_context(query, repo_context_manager, ticket_progress, chat_logger=ChatLogger({"username": "wwzeng1"}))
+    rcm = get_relevant_context(
+        query,
+        repo_context_manager,
+        ticket_progress,
+        chat_logger=ChatLogger({"username": "wwzeng1"}),
+    )
     sys.settrace(None)

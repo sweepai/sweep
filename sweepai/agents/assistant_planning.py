@@ -6,7 +6,11 @@ from pathlib import Path
 
 from loguru import logger
 
-from sweepai.agents.assistant_wrapper import client, openai_assistant_call, run_until_complete
+from sweepai.agents.assistant_wrapper import (
+    client,
+    openai_assistant_call,
+    run_until_complete,
+)
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -103,6 +107,7 @@ def new_planning(
 ) -> list[FileChangeRequest]:
     planning_iterations = 3
     try:
+
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             assistant_conversation = AssistantConversation.from_ids(
                 assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
@@ -114,7 +119,9 @@ def new_planning(
             )
             ticket_progress.save()
 
+        logger.info("Uploading file...")
         zip_file_object = client.files.create(file=Path(zip_path), purpose="assistants")
+        logger.info("Done uploading file.")
         zip_file_id = zip_file_object.id
         response = openai_assistant_call(
             request=request,
@@ -140,7 +147,9 @@ def new_planning(
             messages = response.messages
             final_message = messages.data[0].content[0].text.value
             fcrs = []
-            fcr_matches = list(re.finditer(FileChangeRequest._regex, final_message, re.DOTALL))
+            fcr_matches = list(
+                re.finditer(FileChangeRequest._regex, final_message, re.DOTALL)
+            )
             if len(fcr_matches) > 0:
                 break
             else:
@@ -196,9 +205,18 @@ def new_planning(
             )
         return None
 
+
 if __name__ == "__main__":
     request = """## Title: replace the broken tutorial link in installation.md with https://docs.sweep.dev/usage/tutorial\n"""
-    additional_messages = [Message(role='user', content='<relevant_snippets_in_repo>\n<snippet source="docs/pages/usage/tutorial.mdx:45-60">\n...\n45: Now to be a Sweep power user, check out [Advanced: becoming a Sweep power user](https://docs.sweep.dev/usage/advanced).\n</snippet>\n<snippet source="docs/pages/usage/tutorial.mdx:30-45">\n...\n30: \n31: ![PR Comment](/tutorial/comment.png)\n32: \n33:     c. If you have GitHub Actions set up, it will automatically run the linters, build, and tests and will show any failed logs to Sweep to handle. This only works with GitHub Actions and not other CI providers, so unfortunately for Vercel we have to copy paste manually.\n34: \n35: ![GitHub Actions](/tutorial/github_actions.png)\n36: \n37: 6. Once you are happy with the PR, you can merge it and it will be deployed to production via Vercel.\n38: \n39: \n40: ![Final](/tutorial/final.png)\n41: \n42: \n43: You can see the final example at https://github.com/kevinlu1248/docusaurus-2/pull/4 with preview https://docusaurus-2-ql4cskc5o-sweepai.vercel.app/.\n44: \n45: Now to be a Sweep power user, check out [Advanced: becoming a Sweep power user](https://docs.sweep.dev/usage/advanced).\n...\n</snippet>\n<snippet source="docs/installation.md:45-60">\n...\n45: * Provide any additional context that might be helpful, e.g. see "src/App.test.tsx" for an example of a good unit test.\n46: * For more guidance, visit [Advanced](https://docs.sweep.dev/usage/advanced), or watch the following video.\n47: \n48: [![Video](http://img.youtube.com/vi/Qn9vB71R4UM/0.jpg)](http://www.youtube.com/watch?v=Qn9vB71R4UM "Advanced Sweep Tricks and Feedback Tips")\n49: \n50: For configuring Sweep for your repo, see [Config](https://docs.sweep.dev/usage/config), especially for setting up Sweep Rules and Sweep Sweep.\n51: \n52: ## Limitations of Sweep (for now) ⚠️\n53: \n54: * 🗃️ **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn\'t catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))\n55:     * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.\n56: \n57: * 🏗️ **Large-scale refactors**: >5 files or >300 lines of code changes (we\'re working on this!)\n58:     * We can\'t do this - "Refactor entire codebase from Tensorflow to PyTorch"\n59: \n60: * 🖼️ **Editing images** and other non-text assets\n...\n</snippet>\n<snippet source="docs/pages/usage/tutorial.mdx:0-15">\n0: # Tutorial for Getting Started with Sweep\n1: \n2: We recommend using an existing **real project** for Sweep, but if you must start from scratch, we recommend **using a template**. In particular, we recommend Vercel templates and Vercel auto-deploy, since Vercel\'s auto-generated previews make it **easy to review Sweep\'s PRs**\n3: \n4: We\'ll use [Docusaurus](https://vercel.com/templates/next.js/docusaurus-2) since it\'s is the easiest to set up (no backend). To see other templates see https://vercel.com/templates.\n5: \n6: 1. Go to https://vercel.com/templates/next.js/docusaurus-2 (or another template) and click "Deploy".\n7: \n8: ![Deploy](/tutorial/deployment.png)\n9: \n10: 2. Vercel will prompt you to select a GitHub account and click "Clone" after. This will trigger a build and deploy which will take a few minutes. Once the build is done, you will be greeted with a congratulations message.\n11: \n12: ![Congratulations](/tutorial/congratulations.png)\n13: \n14: 3. Go to the [Sweep Installation](https://github.com/apps/sweep-ai) page and click the grey "Configure" button or the green "Install" button. Ensure that that the Vercel template (i.e. Docusaurus) is configured to use Sweep.\n...\n</snippet>\n</relevant_snippets_in_repo>\ndocs/\n  installation.md\n  docs/pages/\n    docs/pages/usage/\n      _meta.json\n      advanced.mdx\n      config.mdx\n      extra-self-host.mdx\n      sandbox.mdx\n      tutorial.mdx', name=None, function_call=None, key=None)]
+    additional_messages = [
+        Message(
+            role="user",
+            content='<relevant_snippets_in_repo>\n<snippet source="docs/pages/usage/tutorial.mdx:45-60">\n...\n45: Now to be a Sweep power user, check out [Advanced: becoming a Sweep power user](https://docs.sweep.dev/usage/advanced).\n</snippet>\n<snippet source="docs/pages/usage/tutorial.mdx:30-45">\n...\n30: \n31: ![PR Comment](/tutorial/comment.png)\n32: \n33:     c. If you have GitHub Actions set up, it will automatically run the linters, build, and tests and will show any failed logs to Sweep to handle. This only works with GitHub Actions and not other CI providers, so unfortunately for Vercel we have to copy paste manually.\n34: \n35: ![GitHub Actions](/tutorial/github_actions.png)\n36: \n37: 6. Once you are happy with the PR, you can merge it and it will be deployed to production via Vercel.\n38: \n39: \n40: ![Final](/tutorial/final.png)\n41: \n42: \n43: You can see the final example at https://github.com/kevinlu1248/docusaurus-2/pull/4 with preview https://docusaurus-2-ql4cskc5o-sweepai.vercel.app/.\n44: \n45: Now to be a Sweep power user, check out [Advanced: becoming a Sweep power user](https://docs.sweep.dev/usage/advanced).\n...\n</snippet>\n<snippet source="docs/installation.md:45-60">\n...\n45: * Provide any additional context that might be helpful, e.g. see "src/App.test.tsx" for an example of a good unit test.\n46: * For more guidance, visit [Advanced](https://docs.sweep.dev/usage/advanced), or watch the following video.\n47: \n48: [![Video](http://img.youtube.com/vi/Qn9vB71R4UM/0.jpg)](http://www.youtube.com/watch?v=Qn9vB71R4UM "Advanced Sweep Tricks and Feedback Tips")\n49: \n50: For configuring Sweep for your repo, see [Config](https://docs.sweep.dev/usage/config), especially for setting up Sweep Rules and Sweep Sweep.\n51: \n52: ## Limitations of Sweep (for now) ⚠️\n53: \n54: * 🗃️ **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn\'t catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))\n55:     * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.\n56: \n57: * 🏗️ **Large-scale refactors**: >5 files or >300 lines of code changes (we\'re working on this!)\n58:     * We can\'t do this - "Refactor entire codebase from Tensorflow to PyTorch"\n59: \n60: * 🖼️ **Editing images** and other non-text assets\n...\n</snippet>\n<snippet source="docs/pages/usage/tutorial.mdx:0-15">\n0: # Tutorial for Getting Started with Sweep\n1: \n2: We recommend using an existing **real project** for Sweep, but if you must start from scratch, we recommend **using a template**. In particular, we recommend Vercel templates and Vercel auto-deploy, since Vercel\'s auto-generated previews make it **easy to review Sweep\'s PRs**\n3: \n4: We\'ll use [Docusaurus](https://vercel.com/templates/next.js/docusaurus-2) since it\'s is the easiest to set up (no backend). To see other templates see https://vercel.com/templates.\n5: \n6: 1. Go to https://vercel.com/templates/next.js/docusaurus-2 (or another template) and click "Deploy".\n7: \n8: ![Deploy](/tutorial/deployment.png)\n9: \n10: 2. Vercel will prompt you to select a GitHub account and click "Clone" after. This will trigger a build and deploy which will take a few minutes. Once the build is done, you will be greeted with a congratulations message.\n11: \n12: ![Congratulations](/tutorial/congratulations.png)\n13: \n14: 3. Go to the [Sweep Installation](https://github.com/apps/sweep-ai) page and click the grey "Configure" button or the green "Install" button. Ensure that that the Vercel template (i.e. Docusaurus) is configured to use Sweep.\n...\n</snippet>\n</relevant_snippets_in_repo>\ndocs/\n  installation.md\n  docs/pages/\n    docs/pages/usage/\n      _meta.json\n      advanced.mdx\n      config.mdx\n      extra-self-host.mdx\n      sandbox.mdx\n      tutorial.mdx',
+            name=None,
+            function_call=None,
+            key=None,
+        )
+    ]
     print(
         new_planning(
             request,
