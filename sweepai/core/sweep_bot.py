@@ -13,6 +13,7 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
+from sympy import content
 
 from sweepai.agents.assistant_planning import new_planning
 from sweepai.agents.complete_code import ExtractLeftoverComments
@@ -504,7 +505,7 @@ class GithubBot(BaseModel):
                 ):
                     file_change_request.change_type = "create"
 
-                if contents is not None:
+                if contents is not None and contents.decoded_content is not None:
                     file_change_request.old_content = contents.decoded_content.decode(
                         "utf-8"
                     )
