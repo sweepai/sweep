@@ -37,7 +37,7 @@ def make_valid_string(string: str):
 def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
-    payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
+    payload = {"iat": int(time.time()), "exp": int(time.time()) + 590, "iss": app_id}
     return encode(payload, signing_key, algorithm="RS256")
 
 
@@ -62,7 +62,6 @@ def get_token(installation_id: int):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(e)
             time.sleep(timeout)
     raise Exception(
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
