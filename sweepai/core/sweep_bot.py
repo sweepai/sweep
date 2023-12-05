@@ -208,20 +208,20 @@ class CodeGenBot(ChatGPT):
     def get_files_to_change(
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
-        first_user_message = Message(
-            content = self.human_message.render_snippets() + "\n" + self.human_message.tree,
-            role="user",
-        )
-        fcrs = new_planning(
-            "## Title: " + self.human_message.title + "\n" + self.human_message.summary,
-            self.cloned_repo.zip_path,
-            additional_messages=[first_user_message],
-            chat_logger=self.chat_logger,
-            ticket_progress=self.ticket_progress,
-        )
-        if fcrs:
-            plan_str = "\n".join([fcr.instructions_display for fcr in fcrs])
-            return fcrs, plan_str
+        # first_user_message = Message(
+        #     content = self.human_message.render_snippets() + "\n" + self.human_message.tree,
+        #     role="user",
+        # )
+        # fcrs = new_planning(
+        #     "## Title: " + self.human_message.title + "\n" + self.human_message.summary,
+        #     self.cloned_repo.zip_path,
+        #     additional_messages=[first_user_message],
+        #     chat_logger=self.chat_logger,
+        #     ticket_progress=self.ticket_progress,
+        # )
+        # if fcrs:
+        #     plan_str = "\n".join([fcr.instructions_display for fcr in fcrs])
+        #     return fcrs, plan_str
         file_change_requests: list[FileChangeRequest] = []
         try:
             python_issue_worked = True
