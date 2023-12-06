@@ -49,6 +49,9 @@
 [![Sweep Youtube Tutorial](docs/public/assets/youtube_thumbnail.png)](https://www.youtube.com/watch?v=nxIMWCaN5kM)
 
 ---
+    <a href="https://github.com/sweepai/sweep/actions/workflows/unittest.yml">
+        <img src="https://github.com/sweepai/sweep/actions/workflows/unittest.yml/badge.svg" alt="Python Unit Tests">
+    </a>
 ### What makes Sweep Different
 
 We've been addressing code modification using LLMs for a while. We found and are fixing a lot of issues.
