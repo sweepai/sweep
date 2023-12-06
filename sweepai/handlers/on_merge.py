@@ -13,7 +13,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 
 # change threshold for number of lines changed
-CHANGE_BOUNDS = (25, 1500)
+CHANGE_BOUNDS = (10, 1500)
 
 # dictionary to map from github repo to the last time a rule was activated
 merge_rule_debounce = {}
@@ -82,8 +82,8 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         return
     merge_rule_debounce[repo.full_name] = time.time()
     if not (
-        commits_diff.count("\n") > CHANGE_BOUNDS[0]
-        and commits_diff.count("\n") < CHANGE_BOUNDS[1]
+        commits_diff.count("\n") >= CHANGE_BOUNDS[0]
+        and commits_diff.count("\n") <= CHANGE_BOUNDS[1]
     ):
         return
 
