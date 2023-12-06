@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 # Do not save logs for main process
 import ctypes
 import hashlib
@@ -112,10 +113,15 @@ def terminate_thread(thread):
             # Call with exception set to 0 is needed to cleanup properly.
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.exception(f"Failed to terminate thread: {e}")
+    except SystemExit as se:
+        logger.warning(f"SystemExit exception occurred: {se}")
+        raise se
+    except ValueError as ve:
+        logger.warning(f"ValueError exception occurred: {ve}")
+        raise ve
+    except SystemError as sye:
+        logger.warning(f"SystemError exception occurred: {sye}")
+        raise sye
 
 
 def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
@@ -593,11 +599,11 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories_added,
                     )
-                except SystemExit:
-                    raise SystemExit
+                except SystemExit as se:
+                    logger.warning(f"SystemExit exception occurred: {se}")
+                    raise se
                 except Exception as e:
-                    # This should use exception
-                    logger.exception(f"Failed to add config to top repos: {e}")
+                    logger.warning(f"General exception occurred while adding config to top repos: {e}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
@@ -722,10 +728,11 @@ async def webhook(raw_request: Request):
                             )
                             if new_body is not None:
                                 pr.edit(body=new_body)
-                        except SystemExit:
-                            raise SystemExit
+                        except SystemExit as se:
+                            logger.warning(f"SystemExit exception occurred: {se}")
+                            raise se
                         except Exception as e:
-                            logger.exception(f"Failed to edit PR description: {e}")
+                            logger.warning(f"General exception occurred while editing PR description: {e}")
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
@@ -847,13 +854,13 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                 if pr.title == "Configure Sweep" and pr.merged:
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
                     create_gha_pr(g, repo)
-            except SystemExit:
-                raise SystemExit
+            except SystemExit as se:
+                logger.warning(f"SystemExit exception occurred: {se}")
+                raise se
             except Exception as e:
-                logger.warning(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
-                )
-    except SystemExit:
-        raise SystemExit
-    except:
-        logger.warning("Failed to update sweep PRs")
+                logger.warning(f"General exception occurred while merging changes from default branch into PR #{pr.number}: {e}")
+    except SystemExit as se:
+        logger.warning(f"SystemExit exception occurred: {se}")
+        raise se
+    except Exception as e:
+        logger.warning(f"General exception occurred while updating sweep PRs: {e}")
