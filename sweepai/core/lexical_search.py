@@ -219,8 +219,9 @@ def prepare_index_from_snippets(
         return None
     # Create the index based on the schema
     index = CustomIndex()
-    ticket_progress.search_progress.indexing_total = len(all_docs)
-    ticket_progress.save()
+    if ticket_progress:
+        ticket_progress.search_progress.indexing_total = len(all_docs)
+        ticket_progress.save()
     try:
         for i, doc in tqdm(enumerate(all_docs), total=len(all_docs)):
             if i % 200 == 0:
