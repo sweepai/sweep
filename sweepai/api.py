@@ -596,7 +596,7 @@ async def webhook(raw_request: Request):
                     raise SystemExit
                 except Exception as e:
                     # This should use exception
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logger.exception(f"Failed to add config to top repos: {e}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
@@ -628,7 +628,7 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logger.exception(f"Failed to add config to top repos: {e}")
 
                 # Index all repos
                 for repo in repos_added_request.repositories:
