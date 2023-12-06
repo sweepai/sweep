@@ -1,5 +1,6 @@
 import ast
 import os
+import re
 import sys
 from dataclasses import dataclass
 
@@ -71,7 +72,7 @@ def collect_function_definitions(
     function_definitions = list(function_definitions)
     filtered_definitions = []
     for name in function_definitions:
-        if not name.full_name.startswith(package_prefix):
+        if not name.full_name or not name.full_name.startswith(package_prefix):
             continue
         if "site-packages" in str(name.module_path):
             continue
@@ -109,11 +110,11 @@ def get_function_references(function_definition: Name, file_full_path: str):
 # the modifications affect eachother so make sure it's in a loop
 def get_all_defined_functions(script: jedi.Script, tree: ast.Module):
     function_definitions = collect_function_definitions(script=script, tree=tree)
-    # filter out function definitions that are not in the original file
+    # filter out function definitions that are not in the original file by doing an equality check
     function_definitions = [
         fn_def
         for fn_def in function_definitions
-        if fn_def.full_name.startswith(script.get_context().module_name)
+        if fn_def.module_name == script.get_context().module_name
     ]
     return function_definitions
 
@@ -159,6 +160,54 @@ def get_references_from_defined_function(
     )
     return fn_and_ref
 
+
+def get_parent_class_reference(name: Name, script: jedi.Script):
+    file_contents = open(name.module_path).read()
+    parent_class = re.search(
+        f"class {name.name}(\((?P<parent_class>.*?)\))?:", file_contents
+    ).group("parent_class")
+    if parent_class is None:
+        return None
+    parent_class_name = None
+    for parent_candidate in script.get_names():
+        if parent_candidate.description == f"class {parent_class}":
+            parent_class_name = parent_candidate
+            break
+    else:
+        return None
+    return parent_class_name
+
+
+class FunctionBodyToEllipsis(ast.NodeTransformer):
+    def visit_FunctionDef(self, node):
+        node.body = [ast.Ellipsis()]
+        return node
+
+    def visit_AsyncFunctionDef(self, node):
+        node.body = [ast.Ellipsis()]
+        return node
+
+
+def summarize_code(code):
+    tree = ast.parse(code)
+    transformer = FunctionBodyToEllipsis()
+    transformed_tree = transformer.visit(tree)
+    return ast.unparse(transformed_tree).replace("...", " ...")  # unparse is unsafe
+
+
+if __name__ == "__main__":
+    # Example usage
+    code = """\
+class Foo:
+    bar = "test"
+
+    def baz(a, b):
+        print("Hello world")
+        print(a)
+"""
+
+    transformed_code = summarize_code(code)
+    print(transformed_code)
 
 if __name__ == "__main__":
     script, tree = setup_jedi_for_file(

@@ -1,7 +1,10 @@
 import hashlib
+import inspect
 import os
 import pickle
+
 from loguru import logger
+
 from sweepai.config.server import GITHUB_BOT_USERNAME
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
@@ -38,6 +41,10 @@ def recursive_hash(value, depth=0, ignore_params=[]):
         return hashlib.md5("unknown".encode()).hexdigest()
 
 
+def hash_code(code):
+    return hashlib.md5(code.encode()).hexdigest()
+
+
 def file_cache(ignore_params=[]):
     """Decorator to cache function output based on its inputs, ignoring specified parameters."""
 
@@ -59,10 +66,12 @@ def file_cache(ignore_params=[]):
                 args_dict.pop(param, None)
                 kwargs_clone.pop(param, None)
 
-            # Create hash based on function name and input arguments
-            arg_hash = recursive_hash(
-                args_dict, ignore_params=ignore_params
-            ) + recursive_hash(kwargs_clone, ignore_params=ignore_params)
+            # Create hash based on function name, input arguments, and function source code
+            arg_hash = (
+                recursive_hash(args_dict, ignore_params=ignore_params)
+                + recursive_hash(kwargs_clone, ignore_params=ignore_params)
+                + hash_code(inspect.getsource(func))
+            )
             cache_file = os.path.join(
                 cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
             )
@@ -73,7 +82,7 @@ def file_cache(ignore_params=[]):
                     print("Used cache for function: " + func.__name__)
                     with open(cache_file, "rb") as f:
                         return pickle.load(f)
-            except Exception as e:
+            except Exception:
                 logger.info("Unpickling failed")
 
             # Otherwise, call the function and save its result to the cache
@@ -81,40 +90,10 @@ def file_cache(ignore_params=[]):
             try:
                 with open(cache_file, "wb") as f:
                     pickle.dump(result, f)
-            except Exception as e:
+            except Exception:
                 logger.info("Pickling failed")
             return result
 
         return wrapper
 
     return decorator
-
-
-if __name__ == "__main__":
-
-    class State:
-        def __init__(self, state):
-            self.state = state
-
-    obj = State(0)
-
-    @file_cache(ignore_params=["self", "State"])
-    def example_function(self, a, b):
-        return a + b + self.state
-
-    print(example_function(obj, 1, 3))
-    obj.state = 4
-    print(example_function(obj, 1, 4))
-    obj.state = 3
-    print(example_function(obj, 1, 4))
-
-    @file_cache()
-    def example_function(self, a, b):
-        return a + b + self.state
-
-    obj.state = 0
-    print(example_function(obj, 1, 3))
-    obj.state = 4
-    print(example_function(obj, 1, 4))
-    obj.state = 3
-    print(example_function(obj, 1, 4))

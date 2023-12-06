@@ -1,8 +1,10 @@
 import copy
+import os
 import re
 import uuid
 from dataclasses import dataclass
 
+from sweepai.agents.assistant_modify import new_modify
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
@@ -19,6 +21,7 @@ from sweepai.core.update_prompts import (
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code
 
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original sections from the code that should be modified.
@@ -144,6 +147,9 @@ Maximize information density and conciseness but be detailed.
 </snippets_and_plan_analysis>"""
 
 
+UPDATE_SNIPPETS_MAX_TOKENS = 1450
+
+
 def get_last_import_line(code: str, max_: int = 150) -> int:
     lines = code.split("\n")
     for i, line in enumerate(reversed(lines)):
@@ -192,6 +198,19 @@ def excel_col_to_int(s):
     return result - 1
 
 
+def convert_comment_to_deletion(original, updated):
+    # check both are single lines
+    if "\n" in original or "\n" in updated:
+        return updated
+    # check both are not empty
+    if original == "" or updated == "":
+        return updated
+    # if original not a comment and updated is a comment, then it's a deletion
+    if not original.startswith("#") and updated.startswith("#"):
+        return ""
+    return updated
+
+
 class ModifyBot:
     def __init__(
         self,
@@ -200,6 +219,7 @@ class ModifyBot:
         parent_bot: ChatGPT = None,
         old_file_contents: str = "",
         current_file_diff: str = "",
+        ticket_progress: TicketProgress | None = None,
         **kwargs,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
@@ -225,6 +245,7 @@ class ModifyBot:
         self.old_file_contents = old_file_contents
         self.current_file_diff = current_file_diff
         self.additional_diffs = ""
+        self.ticket_progress = ticket_progress
 
     def get_diffs_message(self, file_contents: str):
         if self.current_file_diff == "" and self.old_file_contents == file_contents:
@@ -250,7 +271,21 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         cloned_repo: ClonedRepo,
         chunking: bool = False,
+        assistant_conversation: AssistantConversation | None = None,
     ):
+        new_file = new_modify(
+            request=file_change_request.instructions,
+            file_path=os.path.join(cloned_repo.repo_dir, file_path),
+            file_contents=file_contents,
+            additional_messages=self.additional_messages,
+            chat_logger=self.chat_logger,
+            ticket_progress=self.ticket_progress,
+            assistant_conversation=assistant_conversation,
+        )
+        if new_file is not None:
+            return add_auto_imports(
+                file_path, cloned_repo.repo_dir, new_file, run_isort=False
+            )
         (
             snippet_queries,
             extraction_terms,
@@ -304,7 +339,7 @@ class ModifyBot:
                     chunking=chunking,
                     analysis_and_identification=analysis_and_identification,
                 )
-        new_file = add_auto_imports(cloned_repo.repo_dir, file_path, new_file)
+        new_file = add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
         return new_file
 
     def get_snippets_to_modify(
@@ -367,7 +402,15 @@ class ModifyBot:
             snippets_query_pattern, fetch_snippets_response, re.DOTALL
         ):
             section = match_.group("section").strip()
-            snippet = original_snippets[excel_col_to_int(section)]
+            # processing logic to sanitize input, sometimes adds "SECTION_ID: A"
+            if " " in section:
+                section_pieces = section.split(" ")
+                # get the smallest piece if there is a space
+                section = min(section_pieces, key=len)
+            snippet_index = excel_col_to_int(section)
+            if snippet_index < 0 or snippet_index >= len(original_snippets):
+                continue
+            snippet = original_snippets[snippet_index]
             reason = match_.group("reason").strip()
             snippet_queries.append(
                 SnippetToModify(reason=reason or "", snippet=snippet)
@@ -390,19 +433,32 @@ class ModifyBot:
         is_python_file = file_path.strip().endswith(".py")
 
         best_matches = []
-        for snippet_to_modify in snippet_queries:
-            expand_size = 20
-            best_matches.append(
-                MatchToModify(
-                    start=max(snippet_to_modify.snippet.start - expand_size, 0),
-                    end=min(
-                        snippet_to_modify.snippet.end + 1 + expand_size,
-                        len(file_contents.splitlines()),
-                    ),
-                    reason=snippet_to_modify.reason,
-                )
+        snippet_queries = sorted(snippet_queries, key=lambda x: x.snippet.start)
+        for idx, snippet_to_modify in enumerate(snippet_queries):
+            # only expand if there's not an adjacent snippet
+            left_expand_size = 20
+            right_expand_size = 20
+            if idx > 0:
+                if (
+                    snippet_queries[idx - 1].snippet.end
+                    == snippet_to_modify.snippet.start
+                ):
+                    left_expand_size = 0
+            if idx < len(snippet_queries) - 1:
+                if (
+                    snippet_queries[idx + 1].snippet.start
+                    == snippet_to_modify.snippet.end
+                ):
+                    right_expand_size = 0
+            match_to_modify = MatchToModify(
+                start=max(snippet_to_modify.snippet.start - left_expand_size, 0),
+                end=min(
+                    snippet_to_modify.snippet.end + 1 + right_expand_size,
+                    len(file_contents.splitlines()),
+                ),
+                reason=snippet_to_modify.reason,
             )
-
+            best_matches.append(match_to_modify)
         best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
         def fuse_matches(a: MatchToModify, b: MatchToModify) -> MatchToModify:
@@ -423,11 +479,13 @@ class ModifyBot:
 
         deduped_matches = best_matches
 
-        selected_snippets: list[tuple[str, str]] = []
+        selected_snippets: list[tuple[str, str, tuple[int, int]]] = []
         file_contents_lines = file_contents.split("\n")
         for match_ in deduped_matches:
             current_contents = "\n".join(file_contents_lines[match_.start : match_.end])
-            selected_snippets.append((match_.reason, current_contents))
+            selected_snippets.append(
+                (match_.reason, current_contents, (match_.start, match_.end))
+            )
 
         update_snippets_code = file_contents
         if file_change_request.entity:
@@ -440,7 +498,9 @@ class ModifyBot:
                 snippets="\n\n".join(
                     [
                         f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
-                        for i, (reason, snippet) in enumerate(selected_snippets)
+                        for i, (reason, snippet, (_start, _end)) in enumerate(
+                            selected_snippets
+                        )
                     ]
                 ),
                 file_path=file_path,
@@ -469,100 +529,156 @@ class ModifyBot:
             update_prompt = update_snippets_prompt_test
         else:
             update_prompt = update_snippets_prompt
-        update_snippets_response = self.update_snippets_bot.chat(
-            update_prompt.format(
-                code=update_snippets_code,
-                file_path=file_path,
-                snippets="\n\n".join(
-                    [
-                        f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
-                        for i, (reason, snippet) in enumerate(selected_snippets)
-                    ]
+
+        problematic_message = None
+        for _ in range(3):
+            if problematic_message != None:  # this means the last match failed
+                update_snippets_response = self.update_snippets_bot.chat(
+                    problematic_message
                 )
-                + "\n"
-                + analysis_and_identification,
-                request=file_change_request.instructions,
-                n=len(selected_snippets),
-                changes_made=self.get_diffs_message(file_contents),
-            )
-        )
-        updated_snippets: dict[int, str] = {}
-        updated_pattern = r"<<<<<<<\s+REPLACE\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
-        append_pattern = (
-            r"<<<<<<<\s+APPEND\s+\(index=(?P<index>\d+)\)(?P<updated_code>.*?)>>>>>>>"
-        )
-
-        if (
-            len(list(re.finditer(updated_pattern, update_snippets_response, re.DOTALL)))
-            == 0
-            and len(
-                list(re.finditer(append_pattern, update_snippets_response, re.DOTALL))
-            )
-            == 0
-        ):
-            raise UnneededEditError("No snippets edited")
-
-        for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
-            index = int(match_.group("index"))
-            original_code = match_.group("original_code").strip("\n")
-            updated_code = match_.group("updated_code").strip("\n")
-
-            _reason, current_contents = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
             else:
-                current_contents = updated_snippets[index]
-            updated_snippets[index] = "\n".join(
-                sliding_window_replacement(
+                update_snippets_response = self.update_snippets_bot.chat(
+                    update_prompt.format(
+                        code=update_snippets_code,
+                        file_path=file_path,
+                        snippets="\n\n".join(
+                            [
+                                f'<snippet index="{i}" reason="{reason}">\n{snippet}\n</snippet>'
+                                for i, (reason, snippet, _span) in enumerate(
+                                    selected_snippets
+                                )
+                            ]
+                        ),
+                        request=file_change_request.instructions,
+                        n=len(selected_snippets),
+                        changes_made=self.get_diffs_message(file_contents),
+                    ),
+                    max_tokens=UPDATE_SNIPPETS_MAX_TOKENS,
+                )
+            updated_snippets: dict[int, str] = {}
+            # try matching append first, and if any of these match remove them from the response
+            updated_pattern = r"<<<<<<<\s+(APPEND|REPLACE)\s+\(index=(?P<index>\d+)\)(.*?)\n(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>"
+            append_pattern = r"<<<<<<<\s+APPEND\s+\(index=(?P<index>\d+)\)(.*?)\n(?P<updated_code>.*?)>>>>>>>"
+
+            if (
+                len(
+                    list(
+                        re.finditer(
+                            updated_pattern, update_snippets_response, re.DOTALL
+                        )
+                    )
+                )
+                == 0
+                and len(
+                    list(
+                        re.finditer(append_pattern, update_snippets_response, re.DOTALL)
+                    )
+                )
+                == 0
+            ):
+                raise UnneededEditError("No snippets edited")
+
+            for match_ in re.finditer(
+                append_pattern, update_snippets_response, re.DOTALL
+            ):
+                index = int(match_.group("index"))
+                updated_code = match_.group("updated_code").strip("\n")
+
+                if "=======" in updated_code:
+                    continue
+
+                _reason, current_contents, _span = selected_snippets[index]
+                if index not in updated_snippets:
+                    updated_snippets[index] = current_contents
+                else:
+                    current_contents = updated_snippets[index]
+                updated_snippets[index] = (
+                    current_contents + updated_code
+                    if current_contents.endswith("\n")
+                    else current_contents + "\n" + updated_code
+                )
+                selected_snippets[index] = (
+                    selected_snippets[index][0],
+                    updated_snippets[index],
+                    selected_snippets[index][2],
+                )
+
+            # delete all of the append matches to avoid re-matching them with our updated_pattern
+            update_snippets_response = re.sub(
+                append_pattern, "", update_snippets_response, flags=re.DOTALL
+            )
+
+            problematic_matches = []
+            for match_ in re.finditer(
+                updated_pattern, update_snippets_response, re.DOTALL
+            ):
+                index = int(match_.group("index"))
+                original_code = match_.group("original_code").strip("\n")
+                updated_code = match_.group("updated_code").strip("\n")
+                updated_code = convert_comment_to_deletion(original_code, updated_code)
+
+                _reason, current_contents, _span = selected_snippets[index]
+                if index not in updated_snippets:
+                    updated_snippets[index] = current_contents
+                else:
+                    current_contents = updated_snippets[index]
+                joined_contents, _, error = sliding_window_replacement(
                     original=current_contents.splitlines(),
                     search=original_code.splitlines(),
                     replace=updated_code.splitlines(),
-                )[0]
-            )
-
-        for match_ in re.finditer(append_pattern, update_snippets_response, re.DOTALL):
-            index = int(match_.group("index"))
-            updated_code = match_.group("updated_code").strip("\n")
-
-            _reason, current_contents = selected_snippets[index]
-            if index not in updated_snippets:
-                updated_snippets[index] = current_contents
-            else:
-                current_contents = updated_snippets[index]
-            updated_snippets[index] = current_contents + "\n" + updated_code
-
-        result = file_contents
-        new_code = []
-        for idx, (_reason, search) in enumerate(selected_snippets):
-            if idx not in updated_snippets:
-                continue
-            replace = updated_snippets[idx]
-            result = "\n".join(
-                sliding_window_replacement(
-                    original=result.splitlines(),
-                    search=search.splitlines(),
-                    replace=replace.splitlines(),
-                )[0]
-            )
-            new_code.append(replace)
-
-        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
-        result = result.rstrip("\n") + "\n" * ending_newlines
-
-        new_code = "\n".join(new_code)
-        leftover_comments = (
-            (
-                self.extract_leftover_comments_bot.extract_leftover_comments(
-                    new_code,
-                    file_path,
-                    file_change_request.instructions,
                 )
-            )
-            if not DEBUG
-            else []
-        )
+                if error:
+                    # add message that the previous chat was bad
+                    truncated_original_code = (
+                        original_code.splitlines()[0]
+                        + "\n...\n"
+                        + original_code.splitlines()[-1]
+                    )
+                    truncated_updated_code = (
+                        updated_code.splitlines()[0]
+                        + "\n...\n"
+                        + updated_code.splitlines()[-1]
+                    )
+                    problematic_matches.append(
+                        (index, truncated_original_code, truncated_updated_code)
+                    )
+                else:
+                    updated_snippets[index] = "\n".join(joined_contents)
+                selected_snippets[index] = (
+                    selected_snippets[index][0],
+                    updated_snippets[index],
+                    selected_snippets[index][2],
+                )
 
-        return result, leftover_comments
+            result = file_contents
+            new_code = []
+            for idx, (_reason, _search, (start, end)) in reversed(
+                list(enumerate(selected_snippets))
+            ):  # reversed so that the indices aren't messed up
+                if idx not in updated_snippets:
+                    continue
+                replace = updated_snippets[idx]
+                lines = result.splitlines()
+                lines[start:end] = replace.splitlines()
+                result = "\n".join(lines)  # sliding window coalesce
+                new_code.append(replace)
+
+            ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+            result = result.rstrip("\n") + "\n" * ending_newlines
+
+            if problematic_matches:
+                problematic_message = (
+                    f"The following replacement diffs that you generated are invalid:\n"
+                )
+                for idx, original_code, updated_code in problematic_matches:
+                    problematic_message += f"<<<<<<< REPLACE (index = {idx})\n{original_code}\n=======\n{updated_code}\n>>>>>>>\n"
+                problematic_message += "The matching failed because the replacement diffs were not contained in snippets_to_update.\nGenerate new replacement diffs taking into account the request and snippets_to_update. DO NOT repeat the previous replacement diffs."
+            else:
+                break
+
+            update_snippets_code = result  # make sure prompt uses the updated code
+
+        return result, _
 
 
 if __name__ == "__main__":

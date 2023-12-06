@@ -37,7 +37,7 @@ def make_valid_string(string: str):
 def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
-    payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
+    payload = {"iat": int(time.time()), "exp": int(time.time()) + 590, "iss": app_id}
     return encode(payload, signing_key, algorithm="RS256")
 
 
@@ -62,7 +62,6 @@ def get_token(installation_id: int):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(e)
             time.sleep(timeout)
     raise Exception(
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
@@ -113,6 +112,13 @@ class ClonedRepo:
             "base",
             parse_collection_name(self.branch),
         )
+
+    @cached_property
+    def zip_path(self):
+        logger.info("Zipping repository...")
+        shutil.make_archive(self.repo_dir, "zip", self.repo_dir)
+        logger.info("Done zipping")
+        return f"{self.repo_dir}.zip"
 
     @cached_property
     def repo_dir(self):
@@ -171,7 +177,11 @@ class ClonedRepo:
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
     def delete(self):
-        shutil.rmtree(self.repo_dir)
+        try:
+            shutil.rmtree(self.repo_dir)
+            os.remove(self.zip_path)
+        except:
+            pass
 
     def list_directory_tree(
         self,
@@ -192,7 +202,7 @@ class ClonedRepo:
 
         # Default values if parameters are not provided
         if included_directories is None:
-            included_directories = []
+            included_directories = [] # gets all directories
         if excluded_directories is None:
             excluded_directories = [".git"]
         else:
@@ -219,13 +229,10 @@ class ClonedRepo:
                 complete_path = os.path.join(current_directory, name)
 
                 if os.path.isdir(complete_path):
-                    if relative_path in included_directories:
-                        directory_tree_string += f"{indentation}{relative_path}/\n"
-                        directory_tree_string += list_directory_contents(
-                            complete_path, indentation + "  ", ctags=ctags
-                        )
-                    else:
-                        directory_tree_string += f"{indentation}{name}/...\n"
+                    directory_tree_string += f"{indentation}{relative_path}/\n"
+                    directory_tree_string += list_directory_contents(
+                        complete_path, indentation + "  ", ctags=ctags
+                    )
                 else:
                     directory_tree_string += f"{indentation}{name}\n"
                     # if os.path.isfile(complete_path) and relative_path in included_files:
@@ -239,6 +246,8 @@ class ClonedRepo:
         dir_obj = DirectoryTree()
         directory_tree = list_directory_contents(root_directory, ctags=ctags)
         dir_obj.parse(directory_tree)
+        if included_directories:
+            dir_obj.remove_all_not_included(included_directories)
         return directory_tree, dir_obj
 
     def get_file_list(self) -> str:
@@ -268,7 +277,8 @@ class ClonedRepo:
         prefixes = []
         for snippet_path in snippet_paths:
             file_list = ""
-            for directory in snippet_path.split("/")[:-1]:
+            snippet_depth = len(snippet_path.split("/"))
+            for directory in snippet_path.split("/")[snippet_depth // 2:-1]: # heuristic
                 file_list += directory + "/"
                 prefixes.append(file_list.rstrip("/"))
             file_list += snippet_path.split("/")[-1]
@@ -298,7 +308,11 @@ class ClonedRepo:
         return tree, dir_obj
 
     def get_file_contents(self, file_path, ref=None):
-        local_path = f"{self.repo_dir}{file_path}" if file_path.startswith("/") else f"{self.repo_dir}/{file_path}"
+        local_path = (
+            f"{self.repo_dir}{file_path}"
+            if file_path.startswith("/")
+            else f"{self.repo_dir}/{file_path}"
+        )
         if os.path.exists(local_path):
             with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()
@@ -388,12 +402,14 @@ def get_hunks(a: str, b: str, context=10):
 
     return "\n".join(hunks)
 
+
 def parse_collection_name(name: str) -> str:
     # Replace any non-alphanumeric characters with hyphens
     name = re.sub(r"[^\w-]", "--", name)
     # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
+
 
 str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
 str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"

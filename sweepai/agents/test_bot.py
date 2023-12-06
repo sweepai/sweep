@@ -1,19 +1,34 @@
-import re
-from typing import Callable
+from __future__ import annotations
 
+import json
+import re
+from pathlib import Path
+from typing import Any, Callable
+
+import isort
+from pydantic import BaseModel
+
+from sdk.src.agent import SweepAgent
 from sweepai.agents.modify_bot import strip_backticks
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
+from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, SandboxResponse
+from sweepai.core.entities import FileChangeRequest, Message, SandboxResponse
 from sweepai.utils.autoimport import add_auto_imports
+from sweepai.utils.coverage_renderer import render_coverage_data
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.jedi_utils import (
     get_all_defined_functions,
+    get_function_references,
+    get_parent_class_reference,
     get_references_from_defined_function,
     setup_jedi_for_file,
+    summarize_code,
 )
-from sweepai.utils.regex_utils import xml_pattern
-from sweepai.utils.unittest_utils import fuse_scripts, split_script
+from sweepai.utils.unittest_utils import (
+    fuse_scripts,
+    remove_constants_from_imports,
+    split_script,
+)
 
 test_prompt = """\
 # Code
@@ -28,47 +43,44 @@ Write unit tests for the above function. Cover every possible edge case using th
 test_prompt_response_format = """\
 <planning_and_mocks_identification>
 # Entities to mock
-Identify all return objects from expensive operations entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
+Identify all return objects that originate from expensive operations. These are the entities we need to mock. Copy the code snippets from code_to_test that reflect where this mock is used and accessed.
 ```
 code snippet of each mocked object's usage
 ```
+Then, for each item to be mocked, identify the source of them. ie. first_expensive_operation is from current_module so the patch will be current_module.first_expensive_operation whereas second_expensive_operation is from imported_module so the patch will be imported_module.second_expensive_operation.
 
-# Access method
-Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`.
-
-Then, for each chain of accesses like return_obj.foo["key"].bar, list the access type at each step of the chain and how they should be mocked, like
-- return_obj.foo is an attribute method so return_obj should be mocked like MagicMock.foo
-- return_obj.foo["key"] is a dictionary access so return_obj.foo should be mocked like {{"key": MagicMock}}
-- return_obj.foo["key"].bar is an attribute method so return_obj.foo["key"] should be mocked like MagicMock.bar
-
-# Mock Code
-Write mocks that perfectly mock these access methods. E.g.
+# Access pattern
+Identify the access method of each entity we are trying to mock, for example, if we have `return_obj = expensive_operation()`, identify all occurrences of `return_obj.attribute` or `return_obj["key"]`. Then, write mocks that perfectly mock these access methods. E.g.
 ```
 from unittest.mock import MagicMock
 
-mock_response = MagicMock()
-mock_response.foo = {{}}
-mock_response.foo["key"] = MagicMock()
-mock_response.foo["key"].bar = "mock content"
+mock_expensive_operation = MagicMock()
+mock_expensive_operation.return_value.foo["key"].bar = "mock content"
 ```
 
 # Patch Code
-Write patch code that patches the access methods to return the mocks. E.g.
+Use the `patch` decorator to mock the methods. Do not use keyword arguments in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`. E.g.
 ```
 from unittest.mock import patch
 
-@patch("code_to_test.expensive_operation")
-def test_code_to_test(mock_expensive_operation):
-    mock_expensive_operation.return_value = mock_response
+@patch("current_module.CONSTANT", "new constant")
+@patch("current_module.first_expensive_operation")
+@patch("imported_module.second_expensive_operation")
+def test_code_to_test(self, mock_second_expensive_operation, mock_first_expensive_operation):
+    mock_first_expensive_operation.return_value = first_mock_response
+    mock_second_expensive_operation.return_value = second_mock_response
 ```
+Warning: when stacking @patch decorators in Python tests, the injected mocks enter the test method in reverse order. The first decorator's mock ends up as the last argument, and vice versa. Also, you don't need to add patched constants into the arguments.
 </planning_and_mocks_identification>
 
 <code>
-Unit test that uses the mocked response in the setUp method (and optionally the tearDown method).
+```
+Unit test that uses the mocked response in the setUp method (and optionally the tearDown method). Use the `patch` decorator to mock the methods. Do not use keyword arguments like `new` or `new_callable` in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object.
+```
 </code>"""
 
 test_system_prompt = f"""\
-You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format with XML tags:
 
 {test_prompt_response_format}"""
 
@@ -76,7 +88,7 @@ test_user_prompt = rf"""<code_to_test>
 {{code_to_test}}
 </code_to_test>
 
-Write a unit test using the unittest module for the {{method_name}} method. Respond in the following format:
+Write a unit test using the unittest module for the {{method_name}} method. Respond in the following format with XML tags:
 
 {test_prompt_response_format}"""
 
@@ -91,12 +103,11 @@ More cases to unit test.
 ...
 </additional_test_cases>"""
 
-test_extension_planning_system_prompt = f"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+test_extension_planning_system_prompt = f"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format with XML tags:
 
 {test_extension_planning_format}"""
 
-test_extension_planning_user_prompt = f"""
-<code_to_test>
+test_extension_planning_user_prompt = f"""{{summarized_parent_class}}<code_to_test>
 {{code_to_test}}
 </code_to_test>
 
@@ -106,39 +117,67 @@ test_extension_planning_user_prompt = f"""
 ```
 </current_unit_test>
 
-Extend the unit tests using the unittest module for the {{method_name}} method. Respond in the following format:
+Extend the unit tests using the unittest module for the {{method_name}} method. Respond in the following format with XML tags:
 
 {test_extension_planning_format}"""
 
 test_extension_format = """\
 <planning>
-List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions, and whether they should be patched like patch("module.CONSTANT", NEW_CONSTANT) or patch("module.function").
+List any constants and functions that NEED to be modified for the unit test to work as expected, apart from the existing setUp and tearDown functions. Then for each entity, use the `patch` decorator to mock the methods. Do not use keyword arguments in the `patch` decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`.
 </planning>
 
 <additional_unit_tests>
-```
-The additional unit test that uses the mocks defined in the original unit test. Format it like
+The additional unit test uses the mocks defined in the original unit test. Format it like
 
+```
+import unittest
+from unittest.mock import patch
+# any other imports
+
+class TestNameOfFullFunctionName(unittest.TestCase):
+    # copy the setUp code
+
+    # patches
+    def test_function_edge_case_name(self, mocks...):
+        # write the test here
+```
+
+Only use patch in one of these two ways.
+</additional_unit_tests>"""
+
+test_extension_format = """\
+<planning>
+List any constants and functions that NEED to be modified for the unit test to work as expected. Then for each entity, use the `patch` or `patch.object` decorator to mock the methods. Do not use keyword arguments in the decorator. Instead, set the return value of the mock inside the test function using the `.return_value` attribute of the mock object. Use the standard mocking behavior provided by `unittest.mock`.
+</planning>
+
+<additional_unit_tests>
+The additional unit test uses the mocks defined in the original unit test. Format it like
+
+```
 import unittest
 from unittest.mock import patch
 
-@patch("module.CONSTANT", NEW_CONSTANT)
 class TestNameOfFullFunctionName(unittest.TestCase):
-    ...
+    # copy the setUp code
 
+    @patch("module.CONSTANT", "new constant")
     @patch("module.function")
-    @patch("module.constant", NEW_CONSTANT)
-    def test_function(self, mocks...):
-        ... # the test here
+    def test_function_edge_case_name(self, mock_function):
+        mock_function.return_value = "forced value"
+        # write the test here
 ```
+
+Only use patch in one of these two ways.
 </additional_unit_tests>"""
 
-test_extension_system_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format:
+test_extension_system_prompt = rf"""You're an expert Python QA engineer and your job is to write a unit test for the following. Respond in the following format with XML tags:
 
 {test_extension_format}"""
 
 test_extension_user_prompt = rf"""<code_to_test>
+```
 {{code_to_test}}
+```
 </code_to_test>
 
 <current_unit_test>
@@ -150,29 +189,76 @@ test_extension_user_prompt = rf"""<code_to_test>
 Test cases:
 {{test_cases}}
 
-Extend the unit tests using the unittest module for the {{method_name}} method to cover the test cases. Respond in the following format:
+Extend the unit tests using the unittest module for the {{method_name}} method to cover the test cases. Respond in the following format with XML tags:
 
 {test_extension_format}"""
+
+
+fix_unit_test_prompt = """\
+{error_message}
+
+Think step by step in planning and write the new unit test in additional_unit_tests, all in the following format:
+
+<planning>
+What went wrong? What changes should be made to the unit test? Be specific and concise.
+</planning>
+
+<additional_unit_tests>
+```
+# imports
+
+class TestNameOfFullFunctionName(unittest.TestCase):
+    # copy the setUp code
+
+    # patches
+    def test_function_edge_case_name(self):
+        # write the test here
+```
+</additional_unit_tests>
+"""
+
+additional_unit_tests_xml_pattern = r"<additional_unit_tests>(.*?)```(python)?(?P<additional_unit_tests>.*?)(```\n)?</additional_unit_tests>"
+
+
+class TestCases(BaseModel):
+    test_cases: list[str]
+    _regex = r"<test_case>(?P<test_cases_string>.*?)</test_case>"
+
+    @classmethod
+    def from_string(cls, string: str) -> TestCases:
+        test_cases = [
+            match_.group("test_cases_string").strip()
+            for match_ in re.finditer(cls._regex, string, re.DOTALL)
+            if match_.group("test_cases_string").strip()
+        ]
+        return cls(test_cases=test_cases)
+
+
+class TestExtensionPlanner(SweepAgent[TestCases]):
+    regex_extract_model = TestCases
+    system_prompt = test_extension_planning_system_prompt
+    user_prompt = test_extension_planning_user_prompt
 
 
 def skip_last_test(
     test_code: str, message: str = "Skipping due to failing test"
 ) -> str:
     """Skip the last test in a test file, placing @unittest.skip before other decorators."""
-    code_before, last_test = test_code.rsplit("    def test_", 1)
+    decomposed_code = split_script(test_code)
+    *code_before, last_test = re.split(
+        "(?=\n\s+@patch|def )", decomposed_code.definitions
+    )
+    serialized_message = message.replace('"', '\\"')
+    skipped_test = f'    @unittest.skip("{serialized_message}")\n    ' + last_test
+    new_code = "\n\n".join([*code_before, skipped_test])
 
-    decorator_pattern = r"(\s+@[\w\.]+\([^\)]*\)\s+)*"
-    match = re.search(decorator_pattern + r"def test_" + last_test, test_code)
-
-    skipped_test = f'    @unittest.skip("{message}")\n'
-
-    if match:
-        decorators = match.group(1) if match.group(1) is not None else ""
-        skipped_test += decorators
-
-    skipped_test += f"    def test_" + last_test
-
-    return code_before + skipped_test
+    return "\n\n".join(
+        [
+            decomposed_code.imports,
+            new_code,
+            decomposed_code.main,
+        ]
+    )
 
 
 def pascal_case(s: str) -> str:
@@ -180,12 +266,19 @@ def pascal_case(s: str) -> str:
     return "".join(word.capitalize() for word in s.split("_"))
 
 
+def determine_pip_or_poetry(repo_base: str):
+    """Determine whether a repo uses pip or poetry."""
+    if (Path(repo_base) / "pyproject.toml").exists():
+        return "poetry"
+    return "pip"
+
+
 # This class should handle appending or creating new tests
 class TestBot(ChatGPT):
     def write_test(
         self,
+        file_change_request: FileChangeRequest,
         additional_messages: list[Message] = [],
-        snippets_str="",
         file_path: str = "",  # file path of the source file to test
         update_snippets_code: str = "",
         request="",
@@ -193,7 +286,7 @@ class TestBot(ChatGPT):
         cloned_repo: ClonedRepo = None,
         changed_files: list[tuple[str, str]] = [],
         check_sandbox: Callable[
-            [str, str, str], tuple[str, SandboxResponse]
+            [str, str, str, str], tuple[str, SandboxResponse]
         ] = lambda *args: SandboxResponse(
             success=True,
             error_messages=[],
@@ -204,11 +297,18 @@ class TestBot(ChatGPT):
         ),
         **kwargs,
     ):
+        test_file_path = file_path.replace(".py", "_test.py")
+        # check if this exists
+        existing_test_file = None
+        if cloned_repo and test_file_path in cloned_repo.get_file_list():
+            existing_test_file = cloned_repo.get_file_contents(test_file_path)
         self.model = (
             DEFAULT_GPT4_32K_MODEL
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else DEFAULT_GPT35_MODEL
         )
+        if DEBUG:
+            self.model = DEFAULT_GPT4_32K_MODEL
         self.messages = [
             Message(
                 role="system",
@@ -218,12 +318,13 @@ class TestBot(ChatGPT):
         ]
         self.messages.extend(additional_messages)
 
-        test_extension_planner = ChatGPT.from_system_message_string(
-            test_extension_planning_system_prompt, chat_logger=self.chat_logger
-        )
-        test_extension_planner.messages.extend(additional_messages)
+        # test_extension_planner: ChatGPT = ChatGPT.from_system_message_string(
+        #     test_extension_planning_system_prompt, chat_logger=self.chat_logger
+        # )
+        # test_extension_planner.messages.extend(additional_messages)
+        test_extension_planner = TestExtensionPlanner()
 
-        test_extension_creator = ChatGPT.from_system_message_string(
+        test_extension_creator: ChatGPT = ChatGPT.from_system_message_string(
             test_extension_system_prompt, chat_logger=self.chat_logger
         )
         test_extension_creator.messages.extend(additional_messages)
@@ -233,9 +334,22 @@ class TestBot(ChatGPT):
             file_full_path=f"{cloned_repo.repo_dir}/{file_path}",
         )
 
+        file_contents = cloned_repo.get_file_contents(file_path)
+        decomposed_script = split_script(file_contents)
+        remove_constants_from_imports(decomposed_script.imports)
+
         all_defined_functions = get_all_defined_functions(script=script, tree=tree)
-        generated_code_sections = []
+        if len(all_defined_functions) == 0:
+            return (
+                f"# Unable to create unit tests for {test_file_path} as corresponding file has no defined classes/functions."
+                if not existing_test_file
+                else existing_test_file
+            )
+        generated_code_sections = [] if not existing_test_file else [existing_test_file]
+        attempted_tests = 0
         for fn_def in all_defined_functions:
+            if attempted_tests > 3:
+                break
             if "__init__" in fn_def.name:
                 continue
             full_file_code = cloned_repo.get_file_contents(file_path)
@@ -250,22 +364,62 @@ class TestBot(ChatGPT):
                 f"{cloned_repo.repo_dir}/{file_path}",
                 full_file_code,
             )
-            if function_and_reference.function_code.count("\n") < 20:
+            parent_scope = fn_def.parent()  # this is the class of the method
+            summarized_parent_class = ""
+            if parent_scope.type == "class":
+                parent_class_reference = get_parent_class_reference(
+                    parent_scope, script
+                )
+                parent_class_definition = None
+                if parent_class_reference is not None:
+                    function_and_reference.function_code = (
+                        f"class {parent_scope.name}({parent_class_reference.name}):\n    ...\n\n"
+                        + function_and_reference.function_code
+                    )
+                    parent_class_definition = script.goto(
+                        parent_class_reference.line, parent_class_reference.column
+                    )[0]
+                if parent_class_definition is not None:
+                    try:
+                        parent_class_file_contents = open(
+                            parent_class_definition.module_path
+                        ).read()
+                    except:
+                        parent_class_file_contents = ""
+                    start, end, parent_class_code = get_function_references(
+                        parent_class_definition, ""
+                    )
+                    parent_imports = remove_constants_from_imports(
+                        split_script(parent_class_file_contents).imports
+                    )
+                    summarized_parent_class = f'<parent_class entity="{parent_class_definition.module_name}:{start}-{end}">\n{parent_imports}\n\n...\n\n{summarize_code(parent_class_code)}\n</parent_class>\n\n'
+                else:
+                    function_and_reference.function_code = (
+                        f"class {parent_scope.name}:\n    ...\n\n"
+                        + function_and_reference.function_code
+                    )
+            imports = remove_constants_from_imports(split_script(file_contents).imports)
+            function_and_reference.function_code = (
+                imports + "\n\n" + function_and_reference.function_code
+            )
+            if function_and_reference.function_code.count("\n") < 3:
                 continue
             recent_file_contents = cloned_repo.get_file_contents(file_path=file_path)
             code = f"<original_code>\n{recent_file_contents}</original_code>\n"
             code += function_and_reference.serialize(tag="function_to_test")
-            extract_response = self.chat(
-                test_user_prompt.format(
+            self.delete_messages_from_chat("test_user_prompt")
+            self.delete_messages_from_chat("fix_unit_test_prompt")
+            test_response = self.chat(
+                summarized_parent_class
+                + test_user_prompt.format(
                     code_to_test=function_and_reference.function_code,
                     method_name=function_and_reference.function_name,
-                )
+                ),
+                message_key="test_user_prompt",
             )
-            self.messages = self.messages[:-2]
-
             code_xml_pattern = r"<code>(.*?)```(python)?(?P<code>.*?)(```\n)?</code>"
 
-            generated_test = re.search(code_xml_pattern, extract_response, re.DOTALL)
+            generated_test = re.search(code_xml_pattern, test_response, re.DOTALL)
             generated_test = strip_backticks(str(generated_test.group("code")))
 
             generated_test = generated_test.replace(
@@ -275,44 +429,71 @@ class TestBot(ChatGPT):
             )
 
             current_unit_test = generated_test
-
-            # Check the unit test here and try to fix it
-            extension_plan_results = test_extension_planner.chat(
-                test_extension_planning_user_prompt.format(
-                    code_to_test=function_and_reference.function_code,
-                    current_unit_test=current_unit_test,
-                    method_name=function_and_reference.function_name,
-                )
-            )
-
-            additional_test_cases = [
-                match_.group("test_case")
-                for match_ in re.finditer(
-                    xml_pattern("test_case"), extension_plan_results, re.DOTALL
-                )
-            ]
-
             _, sandbox_response = check_sandbox(
-                file_path,
+                test_file_path,
                 current_unit_test,
                 changed_files,
             )
-            if sandbox_response.success == False:
-                skip_last_test(current_unit_test)
+
+            if (
+                sandbox_response
+                and sandbox_response.error_messages
+                and sandbox_response.success == False
+            ):
+                new_extension_tests = self.chat(
+                    fix_unit_test_prompt.format(
+                        error_message=sandbox_response.error_messages[-1]
+                    ),
+                    message_key="fix_unit_test_prompt",
+                )
+                new_extension_tests = re.search(
+                    additional_unit_tests_xml_pattern,  # xml_pattern("additional_unit_tests"),
+                    new_extension_tests,
+                    re.DOTALL,
+                )
+                current_unit_test = strip_backticks(
+                    str(new_extension_tests.group("additional_unit_tests"))
+                )
+                _, sandbox_response = check_sandbox(
+                    test_file_path,
+                    current_unit_test,
+                    changed_files,
+                )
+                if (
+                    sandbox_response.error_messages
+                    and sandbox_response.success == False
+                ):
+                    reason = sandbox_response.error_messages[-1].splitlines()[-1]
+                    current_unit_test = skip_last_test(current_unit_test, reason)
+
+            additional_test_cases = test_extension_planner.handle_task(
+                user_prompt_args={
+                    "summarized_parent_class": summarized_parent_class,
+                    "code_to_test": function_and_reference.function_code,
+                    "current_unit_test": current_unit_test,
+                    "method_name": function_and_reference.function_name,
+                }
+            ).test_cases
 
             for test_cases_batch in additional_test_cases[
                 : min(1, len(additional_test_cases))
             ]:
+                test_extension_creator.delete_messages_from_chat(
+                    "test_extension_user_prompt"
+                )
+                test_extension_creator.delete_messages_from_chat("fix_unit_test_prompt")
                 extension_test_results = test_extension_creator.chat(
-                    test_extension_user_prompt.format(
+                    summarized_parent_class
+                    + test_extension_user_prompt.format(
                         code_to_test=function_and_reference.function_code,
                         current_unit_test=generated_test,
                         method_name=function_and_reference.function_name,
                         test_cases=test_cases_batch.strip(),
-                    )
+                    ),
+                    message_key="test_extension_user_prompt",
                 )
                 extension_test_results = re.search(
-                    xml_pattern("additional_unit_tests"),
+                    additional_unit_tests_xml_pattern,
                     extension_test_results,
                     re.DOTALL,
                 )
@@ -320,29 +501,109 @@ class TestBot(ChatGPT):
                     str(extension_test_results.group("additional_unit_tests"))
                 )
 
-                definitions = split_script(extension_test_results).definitions
-                definitions = definitions.split("\n\n", maxsplit=1)[1:]
-
-                decomposed_script = split_script(current_unit_test)
-                current_unit_test = "\n\n".join(
-                    [
-                        decomposed_script.imports,
-                        decomposed_script.definitions,
-                        "\n\n".join(definitions),
-                        decomposed_script.main,
-                    ]
-                )
-
                 _, sandbox_response = check_sandbox(
-                    file_path,
-                    current_unit_test,
+                    test_file_path,
+                    extension_test_results,
                     changed_files,
                 )
-                if sandbox_response.success == False:
-                    skip_last_test(current_unit_test)
+
+                if (
+                    sandbox_response.error_messages
+                    and sandbox_response.success == False
+                ):
+                    new_extension_tests = test_extension_creator.chat(
+                        fix_unit_test_prompt.format(
+                            error_message=sandbox_response.error_messages[-1]
+                        ),
+                        message_key="fix_unit_test_prompt",
+                    )
+                    new_extension_tests = re.search(
+                        additional_unit_tests_xml_pattern,
+                        new_extension_tests,
+                        re.DOTALL,
+                    )
+                    new_extension_tests = strip_backticks(
+                        str(new_extension_tests.group("additional_unit_tests"))
+                    )
+                    _, sandbox_response = check_sandbox(
+                        test_file_path,
+                        new_extension_tests,
+                        changed_files,
+                    )
+                    if (
+                        sandbox_response.error_messages
+                        and sandbox_response.success == False
+                    ):
+                        reason = sandbox_response.error_messages[-1].splitlines()[-1]
+                        new_extension_tests = skip_last_test(
+                            new_extension_tests, reason
+                        )
+
+                decomposed_extension_script = split_script(extension_test_results)
+                _prefix, *tests = re.split(
+                    "(?=\n\s+@patch|def test)",
+                    decomposed_extension_script.definitions,
+                )
+                new_tests = "".join(tests)
+
+                decomposed_script = split_script(current_unit_test)
+                current_unit_test = isort.code(
+                    "\n\n".join(
+                        [
+                            decomposed_script.imports,
+                            decomposed_extension_script.imports,
+                            decomposed_script.definitions,
+                            new_tests,
+                            decomposed_script.main,
+                        ]
+                    )
+                )
 
             generated_code_sections.append(current_unit_test)
+            attempted_tests += 1
 
         final_code = fuse_scripts(generated_code_sections, do_remove_main=False)
         final_code = add_auto_imports(file_path, cloned_repo.repo_dir, final_code)
+
+        _, sandbox_response = check_sandbox(
+            test_file_path,
+            final_code,
+            changed_files,
+            [
+                "poetry add coverage",
+                f"PYTHONPATH=. poetry run coverage run {test_file_path}",
+                f"PYTHONPATH=. poetry run coverage json --include={file_path}",
+                "cat coverage.json",
+            ]
+            if determine_pip_or_poetry(cloned_repo.repo_dir) == "poetry"
+            else [
+                "pip install coverage",
+                f"PYTHONPATH=. coverage run {test_file_path}",
+                f"PYTHONPATH=. coverage json --include={file_path}",
+                "cat coverage.json",
+            ],
+        )
+        if sandbox_response.success == True:
+            coverage_results = json.loads(sandbox_response.outputs[-1])
+            table = render_coverage_data(coverage_results, cloned_repo.repo_dir)
+            file_change_request.instructions += "\n\n" + table
+        else:
+            file_change_request.instructions += f"\n\nTest coverage generation failed with error:\n\n```{sandbox_response.outputs[-1]}```"
         return final_code
+
+    def auto_fix_test(
+        self, bot: ChatGPT, sandbox_response: SandboxResponse, check_sandbox: Any
+    ):
+        new_tests = bot.chat(
+            fix_unit_test_prompt.format(
+                error_message=sandbox_response.error_messages[-1]
+            ),
+            message_key="fix_unit_test_prompt",
+        )
+        new_tests = re.search(
+            additional_unit_tests_xml_pattern,
+            new_tests,
+            re.DOTALL,
+        )
+        new_tests = strip_backticks(str(new_tests.group("additional_unit_tests")))
+        return new_tests

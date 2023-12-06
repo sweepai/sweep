@@ -9,6 +9,7 @@ from whoosh.analysis import Token, Tokenizer
 
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
+from sweepai.utils.progress import TicketProgress
 
 
 class CustomIndex:
@@ -210,17 +211,30 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     return docs
 
 
-def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
+def prepare_index_from_snippets(
+    snippets, len_repo_cache_dir=0, ticket_progress: TicketProgress | None = None
+):
     all_docs = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
     # Create the index based on the schema
     index = CustomIndex()
+    ticket_progress.search_progress.indexing_total = len(all_docs)
+    ticket_progress.save()
     try:
-        for doc in tqdm(all_docs, total=len(all_docs)):
+        for i, doc in tqdm(enumerate(all_docs), total=len(all_docs)):
+            if i % 200 == 0:
+                if ticket_progress is not None:
+                    ticket_progress.search_progress.indexing_progress = i
+                    ticket_progress.save()
             index.add_document(
                 title=f"{doc.title}:{doc.start}:{doc.end}", content=doc.content
             )
+        if ticket_progress is not None:
+            ticket_progress.search_progress.indexing_progress = (
+                ticket_progress.search_progress.indexing_total
+            )
+            ticket_progress.save()
     except FileNotFoundError as e:
         logger.error(e)
 

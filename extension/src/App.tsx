@@ -124,7 +124,7 @@ export default function App() {
       </Button>
       {open && (
         <PoorMansModal onClose={handleClose}>
-          {/* MUI kinda monkey library tbh */}
+          {/* */}
           <input
             placeholder='Write an api endpoint that does ... in the ... file ("Sweep:" prefix unneeded)'
             style={{

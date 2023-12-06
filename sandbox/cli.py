@@ -39,7 +39,7 @@ class Sandbox(BaseModel):
     install: list[str] = ["trunk init"]
     check: list[str] = [
         "trunk fmt {file_path} || return 0",
-        "trunk check --fix --print-failures {file_path}",
+        "trunk check --fix --filter=-ruff --print-failures {file_path}",
     ]
 
     @classmethod

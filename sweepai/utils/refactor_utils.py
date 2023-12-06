@@ -27,9 +27,12 @@ def hash_content(content):
 
 
 def get_sliding_windows(lines):
-    for window_size in tqdm(range(3, min(len(lines) + 1, 50))):
+    for window_size in tqdm(range(3, min(len(lines) + 1, 50))[::-1]):
         for i in range(len(lines) - window_size + 1):
             window = lines[i : i + window_size]
+            # check that the span contains >= 3 non-empty lines
+            if len([line for line in window if line.strip() != ""]) < 3:
+                continue
             window_code = "\n".join(window)
             stripped_code = "\n".join([line.strip() for line in window])
             hash_ = hash_content(stripped_code)
@@ -43,12 +46,16 @@ def get_refactor_snippets(code, hashes_dict):
         if window.hash_ in hashes_dict:
             old_length = hashes_dict[window.hash_][1]
             if old_length == len(window):
-                old_length += len(lines) # duplicates count more
+                old_length += len(lines)  # duplicates count more
             old_array = hashes_dict[window.hash_][2]
             old_array.append((window.start_line, window.end_line))
             hashes_dict[window.hash_] = (window, old_length + len(window), old_array)
         else:
-            hashes_dict[window.hash_] = (window, len(window), [(window.start_line, window.end_line)])
+            hashes_dict[window.hash_] = (
+                window,
+                len(window),
+                [(window.start_line, window.end_line)],
+            )
     sorted_windows = sorted(hashes_dict.values(), key=lambda x: x[1], reverse=True)
     sorted_windows = [
         window for window in sorted_windows if window[1] > MIN_WINDOW_THRESHOLD
@@ -108,14 +115,20 @@ def is_valid_window(
                 if line.strip() != ""
             ]
         )
-        tmp_window_code = "\n".join(
+        if shortest_common_indent == 0:
+            # this handles the case when an envvar is defined, otherwise rope moves it out of scope
+            return False
+        # if the first or last line ends in a comma, do not proceed
+        if split_code[0].strip().endswith(",") or split_code[-1].strip().endswith(","):
+            return False
+        window_code = "\n".join(
             [
                 line[shortest_common_indent:]
                 for line in window.code.split("\n")
                 if line.strip() != ""
             ]
         )
-        ast.parse(tmp_window_code)
+        window_nodes = ast.parse(window_code).body
     except SyntaxError:
         # if there's a syntax error, we cannot proceed
         return False
@@ -128,20 +141,34 @@ def is_valid_window(
             for start, end in start_and_end_indices
         )
 
-    def contains_invalid_entity(node, start_and_end_indices): # modify this later to remove cases when a function is defined inside
+    def node_inside_invalid_entity(
+        node, start_and_end_indices
+    ):  # modify this later to remove cases when a function is defined inside
         for child in ast.walk(node):
-            if isinstance(child, (ast.Return, ast.Try, ast.Import, ast.ImportFrom)) and node_within_start_and_end(
-                child, start_and_end_indices
-            ):
+            if isinstance(
+                child, (ast.Return, ast.Try, ast.Import, ast.ImportFrom)
+            ) and node_within_start_and_end(child, start_and_end_indices):
                 return True
+        return False
+
+    def invalid_entity_inside_node(window_nodes):
+        if any(
+            isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+            for node in window_nodes
+        ):
+            return True
+        return False
+
+    if invalid_entity_inside_node(window_nodes):
         return False
 
     # check if the window is within any node that we want to ignore
     for node in ast.walk(tree):
-        if contains_invalid_entity(node, start_and_end_indices):
+        if node_inside_invalid_entity(node, start_and_end_indices):
             return False
     # If we get here, the window is valid
     return True
+
 
 def get_active_variables_per_line(code):
     # Parse the Python code into an AST
@@ -151,25 +178,30 @@ def get_active_variables_per_line(code):
     def find_usage_spans(node, usage_dict=None, parent_function=None):
         if usage_dict is None:
             usage_dict = {}
-        
+
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.Name):
                 name = child.id
                 if name not in usage_dict:
-                    usage_dict[name] = {'first_used_line': child.lineno, 'last_used_line': child.lineno, 'parent_function': parent_function}
+                    usage_dict[name] = {
+                        "first_used_line": child.lineno,
+                        "last_used_line": child.lineno,
+                        "parent_function": parent_function,
+                    }
                 else:
-                    usage_dict[name]['last_used_line'] = child.lineno
-            
+                    usage_dict[name]["last_used_line"] = child.lineno
+
             elif isinstance(child, ast.FunctionDef):
                 parent_function = child.name
-            
+
             find_usage_spans(child, usage_dict, parent_function)
-        
+
         return usage_dict
 
     # Finding the usage spans
     usage_spans = find_usage_spans(parsed_code)
     return active_variables(usage_spans)
+
 
 def active_variables(usage_spans):
     # Initialize a dictionary to count active variables per line
@@ -179,17 +211,17 @@ def active_variables(usage_spans):
     for var, spans in usage_spans.items():
         # If the variable is within a function, we'll only count it within that function's scope
         # for line in (spans['first_used_line'], spans['last_used_line'] + 1):
-        for line in range(spans['first_used_line'], spans['last_used_line'] + 1):
-        # for line in (spans['last_used_line'] + 1,):
+        for line in range(spans["first_used_line"], spans["last_used_line"] + 1):
+            # for line in (spans['last_used_line'] + 1,):
             key = line
             if key in active_vars:
                 active_vars[key].add(var)
             else:
                 active_vars[key] = {var}
-    
+
     # Convert sets to counts
     active_vars_counts = {key: len(vars) for key, vars in active_vars.items()}
-    
+
     return active_vars_counts
 
 

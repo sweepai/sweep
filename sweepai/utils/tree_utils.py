@@ -107,19 +107,44 @@ class DirectoryTree:
         ]
         dir_parents = []
         for dir in dirs_to_expand:
+            # if it's not an extension and it doesn't end in /, add /
+            if not dir.endswith("/") and "." not in dir:
+                dir += "/"
             dir_parents.extend(parent_dirs(dir))
         dirs_to_expand = list(set(dirs_to_expand))
         expanded_lines = []
         for line in self.original_lines:
             if (
-                line.parent
-                and any(line.parent.full_path() == dir for dir in dirs_to_expand)
+                (line.parent
+                and any(line.parent.full_path().startswith(dir) for dir in dirs_to_expand))
                 or line.full_path() in dir_parents
             ):
                 expanded_lines.append(line)
             elif line in self.lines:
                 expanded_lines.append(line)
+            # makes this add files too
+            elif line.full_path() in dirs_to_expand:
+                if not line.parent or (
+                    line.parent and line.parent.full_path() in dirs_to_expand
+                ):
+                    expanded_lines.append(line)
         self.lines = expanded_lines
+
+    def add_file_paths(self, file_paths):
+        # might be similar to expand_directory
+        parent_dirs = lambda path: [
+            path[: i + 1] for i in range(len(path)) if path[i] == "/"
+        ]
+        dirs_to_expand = set()
+        for file_path in file_paths:
+            file_parent_dirs = parent_dirs(file_path)
+            for dir in file_parent_dirs[::-1]:
+                # skip any that already exist
+                if any(line.full_path().startswith(dir) for line in self.lines):
+                    break
+                dirs_to_expand.add(dir)
+            dirs_to_expand.add(file_path)
+        self.expand_directory(list(dirs_to_expand))
 
     def remove_multiple(self, targets):
         for target in targets:

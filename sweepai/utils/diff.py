@@ -114,61 +114,6 @@ def format_contents(file_contents, is_markdown=False):
     return "\n".join(lines)
 
 
-def generate_new_file(
-    modify_file_response: str, old_file_content: str, chunk_offset: int = 0
-) -> str:
-    old_file_lines = old_file_content.split("\n")
-
-    # Extract content between <new_file> tags
-    new_file = re.search(
-        r".*?<new_file>\n?(.*)\n<\/new_file>", modify_file_response, re.DOTALL
-    ).group(1)
-    if "<copy_lines" not in new_file:
-        return new_file
-
-    # v5
-    result = []
-    lines = new_file.split("\n")
-    for line_number, line in enumerate(lines):
-        # Todo: make it support 1 number only
-        matches = re.finditer(r"<copy_lines\s(\d+-\d+)/?>", line)
-        copied_lines = False
-        for match in matches:
-            copied_lines = True
-            start, end = match.group(1).split("-")
-            start, end = int(start) - 1, int(end) - 1
-            if chunk_offset != 0:  # Correct for the line numbers being much higher
-                start -= chunk_offset
-                end -= chunk_offset
-            start = max(0, start)
-            end = min(len(old_file_lines) - 1, end)
-
-            replacements = old_file_lines[start : end + 1]
-            replacements_str = "\n".join(replacements)
-            line = line.replace(match.group(0), replacements_str)
-
-        # check if line was incorrectly duplicated
-        append = True
-        if not copied_lines:  # if bot generated, and line before is not bot generated
-            if len(result) > 0:
-                # Get last line in results
-                last_group = result[-1]
-                # last_line = last_group
-                if "\n" in last_group:
-                    last_line = last_group[
-                        last_group.rindex("\n") + 1 :
-                    ]  # if its multiple lines
-                    # if last line is same is current line
-                    if last_line == line:
-                        append = False
-
-        if append:
-            result.append(line)
-    result = "\n".join(result)
-
-    return result
-
-
 NOT_FOUND = "NOT_FOUND"
 IDENTICAL_LINES = "NO MATCHES FOUND"
 MULTIPLE_HITS = "MULTIPLE_HITS"
@@ -244,10 +189,12 @@ def sliding_window_replacement(
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
-        raise Exception("No identical lines")
+        logger.print("No matches found")
+        return original, best_match, NOT_FOUND
 
     if max_similarity < 50:
         logger.print(f"Low similarity: {max_similarity}")
+        return original, best_match, NOT_FOUND
 
     snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
     if len(snippet) == 1 and len(replace) == 1:
@@ -382,15 +329,150 @@ def is_markdown(filename):
 
 
 if __name__ == "__main__":
-    old_file = """
-a
-b
-c
-"""
+    old_file = """\
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
 
-    search = "b"
-    replace = """a
-b"""
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+        mock_curses_initscr.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+
+
+if __name__ == "__main__":
+    unittest.main()"""
+
+    search = """\
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+        mock_curses_initscr.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()"""
+    replace = """\
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()"""
     print(
         "\n".join(
             sliding_window_replacement(
@@ -398,38 +480,3 @@ b"""
             )[0]
         )
     )
-    old_file = '''
-
-"""
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
-"""
-
-'''
-
-    search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
-    replace = '''
-"""
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
-"""'''
-    res = "\n".join(
-        sliding_window_replacement(
-            old_file.split("\n"), search.split("\n"), replace.split("\n")
-        )[0]
-    )
-    assert old_file == res
-
-    search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
-    replace = '''
-"""
-Add another test line
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-Add another test line'''
-    res = "\n".join(
-        sliding_window_replacement(
-            old_file.split("\n"), search.split("\n"), replace.split("\n")
-        )[0]
-    )
-    print(res)
-    assert "Add another test line" in res

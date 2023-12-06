@@ -6,6 +6,7 @@ from tqdm import tqdm
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
+from sweepai.logn.cache import file_cache
 from sweepai.utils.utils import chunk_code
 
 
@@ -56,10 +57,12 @@ def read_file(file_name):
 FILE_THRESHOLD = 100
 
 
+@file_cache()
 def repo_to_chunks(
     directory: str, sweep_config: SweepConfig
 ) -> tuple[list[Snippet], list[str]]:
     dir_file_count = {}
+
     def is_dir_too_big(file_name):
         dir_name = os.path.dirname(file_name)
         only_file_name = file_name[: len(directory)]

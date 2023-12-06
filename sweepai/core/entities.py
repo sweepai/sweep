@@ -5,7 +5,7 @@ import re
 import string
 import uuid
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Literal, Type, TypeVar
+from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
@@ -15,7 +15,7 @@ from sweepai.utils.str_utils import (
     blockquote,
     clean_logs,
     create_collapsible,
-    format_exit_code,
+    format_sandbox_success,
 )
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
@@ -125,13 +125,12 @@ def create_error_logs(
                 "\n\n".join(
                     [
                         create_collapsible(
-                            f"<code>{execution.command.format(file_path=file_path)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                            f"<pre>{clean_logs(execution.output)}</pre>",
-                            i == len(sandbox_response.executions) - 1,
+                            f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                            f"<pre>{clean_logs(output)}</pre>",
+                            i == len(sandbox_response.outputs) - 1,
                         )
-                        for i, execution in enumerate(sandbox_response.executions)
-                        if len(sandbox_response.executions) > 0
-                        # And error code check
+                        for i, output in enumerate(sandbox_response.outputs)
+                        if len(sandbox_response.outputs) > 0
                     ]
                 )
             ),
@@ -160,11 +159,14 @@ class FileChangeRequest(RegexMatchableBaseModel):
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
     ] | Literal["rewrite"] | Literal["check"] | Literal["refactor"] | Literal["test"]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)\s*<\/\1>"""
+    _regex = r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @]*?)\"( start_line=\"(?P<start_line>.*?)\")?( end_line=\"(?P<end_line>.*?)\")?( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?(.*?)>(?P<instructions>.*?)\s*<\/\1>"""
     entity: str | None = None
     source_file: str | None = None
+    old_content: str | None = None
     new_content: str | None = None
     raw_relevant_files: str | None = None
+    start_line: int | str | None = None
+    end_line: int | str | None = None
     start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
     failed_sandbox_test: bool | None = False
@@ -182,8 +184,16 @@ class FileChangeRequest(RegexMatchableBaseModel):
         result = super().from_string(string, **kwargs)
         result.filename = result.filename.strip("/")
         result.instructions = result.instructions.replace("\n*", "\n•")
+        if result.source_file:
+            result.source_file = result.source_file.strip()
+            if " " in result.source_file:
+                result.source_file = result.source_file.split(" ")[0]
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
+        if result.start_line:
+            result.start_line = int(result.start_line)
+        if result.end_line:
+            result.end_line = int(result.end_line)
         return result
 
     @property
@@ -221,6 +231,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def display_summary(self):
+        if self.change_type == "check":
+            return f"Running GitHub Actions for `{self.filename}`"
         return f"{self.change_type.capitalize()} `{self.filename}`"
 
     @property
@@ -228,6 +240,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
         prefix = {"failed": "✗", "succeeded": "✓", "queued": "▶", "running": "⋯"}[
             self.status
         ] + " "
+        if self.change_type == "check":
+            return prefix + f"Run GitHub Actions for `{self.filename}`"
         return prefix + f"{self.change_type.capitalize()}\n{self.filename}"
 
     @property
@@ -249,18 +263,12 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def instructions_ticket_display(self):
-        if self.change_type == "check" and self.sandbox_response is not None:
-            return create_error_logs(
-                self.commit_hash_url if self.commit_hash_url is not None else "",
-                self.sandbox_response,
-                file_path=self.filename,
-            )
         return self.instructions_display
 
     @property
     def instructions_display(self):
-        if self.change_type == "check":
-            return f"Run `{self.filename}` through the sandbox."
+        # if self.change_type == "check":
+        #     return f"Run GitHub Actions for `{self.filename}` with results:\n{self.instructions}"
         return f"{self.change_type.capitalize()} {self.filename} with contents:\n{self.instructions}"
 
 
@@ -314,30 +322,6 @@ class FileCreation(RegexMatchableBaseModel):
             result.code = result.code[: -len("```")]
             result.code = result.code.strip()
         result.code += "\n"
-        return result
-
-
-class SectionRewrite(RegexMatchableBaseModel):
-    section: str
-    _regex = r"""<section>(?P<section>.*)</section>"""
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        result = super().from_string(string, **kwargs)
-
-        if len(result.section) == 1:
-            result.section = result.section.replace("```", "")
-            return result.section + "\n"
-
-        if result.section.startswith("```"):
-            first_newline = result.section.find("\n")
-            result.section = result.section[first_newline + 1 :]
-
-        result.section = result.section.strip()
-        if result.section.endswith("```"):
-            result.section = result.section[: -len("```")]
-            result.section = result.section.strip()
-        result.section += "\n"
         return result
 
 
@@ -555,11 +539,9 @@ class SandboxExecution:
 
 class SandboxResponse(BaseModel):
     success: bool
-    error_messages: list[str]
     outputs: list[str]
-    executions: list[SandboxExecution]
     updated_content: str
-    sandbox: dict
+    error_messages: list[str]
 
 
 class MaxTokensExceeded(Exception):
@@ -582,49 +564,6 @@ class EmptyRepository(Exception):
         pass
 
 
-class CustomInstructions(BaseModel):
-    user_prompt: str | List[str]
-    system_prompt: str = None
-    # Todo: add delete_after
-    # delete_after: bool = False
-
-    def activate(self, chatbot, key: str, **kwargs):
-        # Create class for handling __enter__ and __exit__ methods
-        class CustomInstructionsContext:
-            def __init__(self, chatbot, custom_instructions: CustomInstructions):
-                self.chatbot = chatbot
-                self.custom_instructions = custom_instructions
-                self.old_system_prompt = chatbot.messages[0].content
-
-            def __enter__(self):
-                nonlocal key, kwargs
-                if self.custom_instructions.system_prompt:
-                    self.chatbot.messages[
-                        0
-                    ].content = self.custom_instructions.system_prompt.format(**kwargs)
-                if self.custom_instructions.user_prompt:
-                    if type(self.custom_instructions.user_prompt) == list:
-                        for user_prompt in self.custom_instructions.user_prompt:
-                            self.chatbot.messages.append(
-                                Message(
-                                    role="user",
-                                    content=user_prompt.format(**kwargs),
-                                    key=key,
-                                )
-                            )
-                    else:
-                        self.chatbot.messages.append(
-                            Message(
-                                role="user",
-                                content=self.custom_instructions.user_prompt.format(
-                                    **kwargs
-                                ),
-                                key=key,
-                            )
-                        )
-
-            def __exit__(self, exc_type, exc_value, traceback):
-                if self.old_system_prompt is not None:
-                    self.chatbot.messages[0].content = self.old_system_prompt
-
-        return CustomInstructionsContext(chatbot, self)
+@dataclass
+class AssistantRaisedException(Exception):
+    message: str

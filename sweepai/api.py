@@ -1,71 +1,46 @@
 # Do not save logs for main process
+import ctypes
 import hashlib
 import json
+import threading
 import time
 
-
-from sweepai import health
-from sweepai.handlers.on_button_click import handle_button_click
-from loguru import logger
-from sweepai.utils.buttons import (
-    Button,
-    ButtonList,
-    check_button_activated,
-    check_button_title_match,
-)
-from sweepai.utils.safe_pqueue import SafePriorityQueue
-
-import ctypes
-import threading
-
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse
+from loguru import logger
 from pydantic import ValidationError
 
-from sweepai.config.client import (
-    DEFAULT_RULES,
-    RESTART_SWEEP_BUTTON,
-    REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
-    RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
-    SweepConfig,
-    get_documentation_dict,
-    get_rules,
-)
-from sweepai.config.server import (
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    GITHUB_LABEL_NAME,
-)
+from sweepai import health
+from sweepai.config.client import (DEFAULT_RULES, RESTART_SWEEP_BUTTON,
+                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
+                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
+                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
+                                   get_documentation_dict, get_rules)
+from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL,
+                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_COLOR,
+                                   GITHUB_LABEL_DESCRIPTION, GITHUB_LABEL_NAME)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
-from sweepai.events import (
-    CheckRunCompleted,
-    CommentCreatedRequest,
-    InstallationCreatedRequest,
-    IssueCommentRequest,
-    IssueRequest,
-    PREdited,
-    PRRequest,
-    ReposAddedRequest,
-)
+from sweepai.events import (CheckRunCompleted, CommentCreatedRequest,
+                            InstallationCreatedRequest, IssueCommentRequest,
+                            IssueRequest, PREdited, PRRequest,
+                            ReposAddedRequest)
 from sweepai.handlers.create_pr import (  # type: ignore
-    add_config_to_top_repos,
-    create_gha_pr,
-)
+    add_config_to_top_repos, create_gha_pr)
+from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.buttons import (Button, ButtonList, check_button_activated,
+                                   check_button_title_match)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.progress import TicketProgress
+from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
@@ -77,7 +52,8 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
-get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+def get_hash():
+    return hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
 
 
 def run_on_ticket(*args, **kwargs):
@@ -228,6 +204,12 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
+@app.get("/ticket_progress/{tracking_id}")
+def progress(tracking_id: str = Path(...)):
+    ticket_progress = TicketProgress.load(tracking_id)
+    return ticket_progress.dict()
+
+
 @app.post("/")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
@@ -283,10 +265,14 @@ async def webhook(raw_request: Request):
                     if repo_rules != [""]:
                         for rule in repo_rules:
                             if rule:
-                                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                                rule_buttons.append(
+                                    Button(label=f"{RULES_LABEL} {rule}")
+                                )
                         if len(repo_rules) == 0:
                             for rule in DEFAULT_RULES:
-                                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                                rule_buttons.append(
+                                    Button(label=f"{RULES_LABEL} {rule}")
+                                )
                     if rule_buttons:
                         rules_buttons_list = ButtonList(
                             buttons=rule_buttons, title=RULES_TITLE
@@ -419,10 +405,9 @@ async def webhook(raw_request: Request):
                                 "installation_id": request.installation.id,
                                 "pr_number": request.issue.number,
                                 "comment_id": request.comment.id,
-                                "g": g,
-                                "repo": repo,
                             },
                         )
+                        call_on_comment(**pr_change_request.params)
             case "issues", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -535,7 +520,6 @@ async def webhook(raw_request: Request):
                         call_on_comment(**pr_change_request.params)
             case "pull_request_review_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
-                # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
@@ -561,12 +545,37 @@ async def webhook(raw_request: Request):
                         },
                     )
                     call_on_comment(**pr_change_request.params)
-                # Todo: update index on comments
+            case "pull_request_review_comment", "edited":
+                logger.info(f"Received event: {event}, {action}")
+                request = CommentCreatedRequest(**request_dict)
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                labels = pr.get_labels()
+                comment = request.comment.body
+                if (
+                    comment.lower().startswith("sweep:")
+                    or any(label.name.lower() == "sweep" for label in labels)
+                ) and request.comment.user.type == "User":
+                    pr_change_request = PRChangeRequest(
+                        params={
+                            "comment_type": "comment",
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": request.comment.body,
+                            "pr_path": request.comment.path,
+                            "pr_line_position": request.comment.original_line,
+                            "username": request.comment.user.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.pull_request.number,
+                            "comment_id": request.comment.id,
+                        },
+                    )
+                    call_on_comment(**pr_change_request.params)
             case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "check_run", "completed":
-                pass  # removed for now
+                pass
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {

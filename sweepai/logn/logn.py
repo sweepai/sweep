@@ -360,7 +360,7 @@ class _Logger:
 
 class _LogN(_Logger):
     # Logging for N tasks
-    def __init__(self, printfn=print):
+    def __init__(self, printfn=print):  # pylint: disable=all
         super().__init__(printfn=printfn)
 
     def __getitem__(self, printfn):

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from black import FileMode, format_str
+from loguru import logger
 
 
 @dataclass
@@ -32,11 +33,21 @@ def split_script(script: str):
     )
 
 
+def remove_constants_from_imports(imports: str) -> str:
+    last_index = 0
+    for index, line in enumerate(imports.splitlines()):
+        if line.startswith("from") or line.startswith("import"):
+            last_index = index
+    return "\n".join(imports.splitlines()[: last_index + 1])
+
+
 def remove_duplicates(seq: list) -> list:
     new_list = []
+    compare_set = set()
     for item in seq:
-        item = item.replace("'", '"')
-        if item not in new_list:
+        normalized_item = item.replace("'", '"')
+        if normalized_item not in compare_set:
+            compare_set.add(normalized_item)
             new_list.append(item)
     return new_list
 
@@ -61,10 +72,10 @@ def fuse_scripts(
     if do_format:
         try:
             result = format_str(result, mode=FileMode())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception(e)
 
-    return result
+    return result + "\n"
 
 
 script_content_1 = """

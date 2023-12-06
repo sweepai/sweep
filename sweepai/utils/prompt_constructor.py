@@ -105,9 +105,9 @@ class HumanMessagePrompt(BaseModel):
                     repo_description=self.repo_description,
                     tree=self.tree.strip("\n"),
                     title=self.title,
-                    description=self.summary
-                    if not self.summary.strip().endswith("_No response_")
-                    else "No description provided.",
+                    description=f"Issue Description: {self.summary}"
+                    if self.summary.strip()
+                    else "",
                     relevant_snippets=relevant_snippets,
                     relevant_directories=relevant_directories,
                     relevant_commit_history=relevant_commit_history,
@@ -120,14 +120,14 @@ class HumanMessagePrompt(BaseModel):
 
     def get_issue_metadata(self):
         self.summary = (
-            self.summary
-            if not self.summary.strip().endswith("_No response_")
-            else "No description provided."
+            self.summary if not self.summary.strip().endswith("_No response_") else ""
+        )
+        issue_description = (
+            f"\nIssue Description: {self.summary}" if self.summary else ""
         )
         return f"""# Repo & Issue Metadata
-Repo: {self.repo_name} - {self.repo_description}
-Issue Title: {self.title}
-Issue Description: {self.summary}"""
+Repo: {self.repo_name}: {self.repo_description}
+Issue Title: {self.title}{issue_description}"""
 
 
 def render_snippets(snippets):
@@ -216,9 +216,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     diff=self.format_diffs(),
                     title=self.title,
                     tree=self.tree,
-                    description=self.summary
-                    if self.summary
-                    else "No description provided.",
+                    description=self.summary if self.summary.strip() else "",
                     relevant_directories=self.get_relevant_directories(),
                     relevant_snippets=self.render_snippets(),
                     relevant_commit_history=self.get_commit_history(),
@@ -233,14 +231,14 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
 
     def get_issue_metadata(self):
         self.summary = (
-            self.summary
-            if not self.summary.strip().endswith("_No response_")
-            else "No description provided."
+            self.summary if not self.summary.strip().endswith("_No response_") else ""
+        )
+        issue_description = (
+            f"\nIssue Description: {self.summary}" if self.summary.strip() else ""
         )
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
-Issue Title: {self.title}
-Issue Description: {self.summary}
+Issue Title: {self.title}{issue_description}
 The above was the original plan. Please address the user comment: {self.comment}"""
 
 

@@ -1,7 +1,7 @@
 import random
 
-import openai
 from loguru import logger
+from openai import AzureOpenAI, OpenAI
 
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -39,7 +39,7 @@ class OpenAIProxy:
                 response = self.set_openai_default_api_parameters(
                     model, messages, max_tokens, temperature
                 )
-                return response["choices"][0].message.content
+                return response.choices[0].message.content
             # validity checks for MULTI_REGION_CONFIG
             if (
                 MULTI_REGION_CONFIG is None
@@ -50,14 +50,16 @@ class OpenAIProxy:
                 logger.info(
                     f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                 )
-                openai.api_type = OPENAI_API_TYPE
-                openai.api_base = OPENAI_API_BASE
-                openai.api_version = OPENAI_API_VERSION
-                openai.api_key = AZURE_API_KEY
                 response = self.create_openai_chat_completion(
-                    engine, model, messages, max_tokens, temperature
+                    engine,
+                    OPENAI_API_BASE,
+                    AZURE_API_KEY,
+                    model,
+                    messages,
+                    max_tokens,
+                    temperature,
                 )
-                return response["choices"][0].message.content
+                return response.choices[0].message.content
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
             # randomize the order of the list
@@ -69,16 +71,16 @@ class OpenAIProxy:
                     logger.info(
                         f"Calling {model} with engine {engine} on Azure url {region_url}."
                     )
-                    openai.api_key = api_key
-                    openai.api_base = region_url
-                    openai.api_version = OPENAI_API_VERSION
-                    openai.api_type = OPENAI_API_TYPE
                     response = self.create_openai_chat_completion(
-                        engine, model, messages, max_tokens, temperature
+                        engine,
+                        region_url,
+                        api_key,
+                        model,
+                        messages,
+                        max_tokens,
+                        temperature,
                     )
-                    return response["choices"][0].message.content
-                except SystemExit:
-                    raise SystemExit
+                    return response.choices[0].message.content
                 except Exception as e:
                     logger.exception(f"Error calling {region_url}: {e}")
             raise Exception("No Azure regions available")
@@ -90,7 +92,7 @@ class OpenAIProxy:
                     response = self.set_openai_default_api_parameters(
                         model, messages, max_tokens, temperature
                     )
-                    return response["choices"][0].message.content
+                    return response.choices[0].message.content
                 except SystemExit:
                     raise SystemExit
                 except Exception as _e:
@@ -124,10 +126,14 @@ class OpenAIProxy:
         return engine
 
     def create_openai_chat_completion(
-        self, engine, model, messages, max_tokens, temperature
+        self, engine, base_url, api_key, model, messages, max_tokens, temperature
     ):
-        response = openai.ChatCompletion.create(
-            engine=engine,
+        client = AzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=base_url,
+            api_version=OPENAI_API_VERSION,
+        )
+        response = client.chat.completions.create(
             model=model,
             messages=messages,
             max_tokens=max_tokens,
@@ -139,11 +145,8 @@ class OpenAIProxy:
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature
     ):
-        openai.api_key = OPENAI_API_KEY
-        openai.api_base = "https://api.openai.com/v1"
-        openai.api_version = None
-        openai.api_type = "open_ai"
-        response = openai.ChatCompletion.create(
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        response = client.chat.completions.create(
             model=model,
             messages=messages,
             max_tokens=max_tokens,
