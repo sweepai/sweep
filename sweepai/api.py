@@ -114,7 +114,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        loguru.exception(f"Failed to terminate thread: {e}")
+        logger.exception(f"Failed to terminate thread: {e}")
 
 
 def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
