@@ -36,7 +36,6 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.ticket_utils import prep_snippets
 
 num_of_snippets_to_query = 30
@@ -297,8 +296,15 @@ def on_comment(
             try:
                 search_query = (comment).strip("\n")
                 formatted_query = (f"{comment}").strip("\n")
-                repo_context_manager = prep_snippets(cloned_repo, search_query, TicketProgress(tracking_id="none"))
-                repo_context_manager = get_relevant_context(formatted_query, repo_context_manager, TicketProgress(tracking_id="none"), chat_logger=chat_logger)
+                repo_context_manager = prep_snippets(
+                    cloned_repo, search_query, TicketProgress(tracking_id="none")
+                )
+                repo_context_manager = get_relevant_context(
+                    formatted_query,
+                    repo_context_manager,
+                    TicketProgress(tracking_id="none"),
+                    chat_logger=chat_logger,
+                )
                 snippets = repo_context_manager.current_top_snippets
                 tree = str(repo_context_manager.dir_obj)
             except Exception as e:

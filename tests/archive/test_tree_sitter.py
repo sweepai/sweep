@@ -1,4 +1,3 @@
-from os import error
 from sweepai.utils.utils import check_syntax
 
 content = r"""\

@@ -238,11 +238,7 @@ class TicketProgress(BaseModel):
                 {"tracking_id": self.tracking_id}, {"$set": self.dict()}, upsert=True
             )
         except Exception as e:
-            discord_log_error(
-                str(e)
-                + "\n\n"
-                + str(self.tracking_id)
-            )
+            discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
 
 
 if __name__ == "__main__":

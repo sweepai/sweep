@@ -202,7 +202,7 @@ class ClonedRepo:
 
         # Default values if parameters are not provided
         if included_directories is None:
-            included_directories = [] # gets all directories
+            included_directories = []  # gets all directories
         if excluded_directories is None:
             excluded_directories = [".git"]
         else:
@@ -278,7 +278,9 @@ class ClonedRepo:
         for snippet_path in snippet_paths:
             file_list = ""
             snippet_depth = len(snippet_path.split("/"))
-            for directory in snippet_path.split("/")[snippet_depth // 2:-1]: # heuristic
+            for directory in snippet_path.split("/")[
+                snippet_depth // 2 : -1
+            ]:  # heuristic
                 file_list += directory + "/"
                 prefixes.append(file_list.rstrip("/"))
             file_list += snippet_path.split("/")[-1]

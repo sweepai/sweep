@@ -13,7 +13,6 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
-from sympy import content
 
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.modify_bot import ModifyBot
@@ -235,7 +234,7 @@ class CodeGenBot(ChatGPT):
         file_change_requests: list[FileChangeRequest] = []
         try:
             python_issue_worked = True
-            if False: # is_python_issue:
+            if False:  # is_python_issue:
                 if any(
                     keyword in self.human_message.title.lower()
                     for keyword in ("refactor", "extract", "replace", "test")

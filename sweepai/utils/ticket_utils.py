@@ -106,7 +106,10 @@ def fetch_relevant_files(
         ticket_progress.save()
 
         repo_context_manager = get_relevant_context(
-            formatted_query, repo_context_manager, ticket_progress, chat_logger=chat_logger
+            formatted_query,
+            repo_context_manager,
+            ticket_progress,
+            chat_logger=chat_logger,
         )
         snippets = repo_context_manager.current_top_snippets
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
