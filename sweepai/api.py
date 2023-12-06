@@ -594,9 +594,12 @@ async def webhook(raw_request: Request):
                     )
                 except SystemExit:
                     raise SystemExit
+                except ValueError as ve:
+                    logger.error(f"ValueError occurred while adding config to top repos: {ve}")
+                except TypeError as te:
+                    logger.error(f"TypeError occurred while adding config to top repos: {te}")
                 except Exception as e:
-                    # This should use exception
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logger.error(f"An unexpected error occurred while adding config to top repos: {e}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
@@ -627,8 +630,12 @@ async def webhook(raw_request: Request):
                     )
                 except SystemExit:
                     raise SystemExit
+                except ValueError as ve:
+                    logger.error(f"ValueError occurred while adding config to top repos: {ve}")
+                except TypeError as te:
+                    logger.error(f"TypeError occurred while adding config to top repos: {te}")
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logger.error(f"An unexpected error occurred while adding config to top repos: {e}")
 
                 # Index all repos
                 for repo in repos_added_request.repositories:
