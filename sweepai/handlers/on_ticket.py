@@ -411,11 +411,11 @@ def on_ticket(
         )
         purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
         payment_message = (
-            f'{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: `<code>{tracking_id}</code>`)'
+            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
             + (purchase_message if not is_paying_user else "")
         )
         payment_message_start = (
-            f'{user_type}: I\'m using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: `<code>{tracking_id}</code>`)'
+            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
             + (purchase_message if not is_paying_user else "")
         )
 
@@ -1183,9 +1183,10 @@ def on_ticket(
                         + " "
                         + file_change_request.status_display
                         + " "
-                        + (file_change_request.commit_hash_url or ""),
+                        + (file_change_request.commit_hash_url or "")
+                        + f" [Edit]({file_change_request.get_edit_url(repo.full_name, pull_request.branch_name)})",
                         file_change_request.instructions_ticket_display
-                        + f"\n\n\nEdit the file [here]({file_change_request.get_edit_url(repo.full_name, pull_request.branch_name)}).",
+                        + f"\n\n{file_change_request.diff_display}",
                         "X"
                         if file_change_request.status in ("succeeded", "failed")
                         else " ",

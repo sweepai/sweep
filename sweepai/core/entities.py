@@ -5,6 +5,7 @@ import re
 import string
 import uuid
 from dataclasses import dataclass
+from difflib import unified_diff
 from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
@@ -276,6 +277,17 @@ class FileChangeRequest(RegexMatchableBaseModel):
         # if self.change_type == "check":
         #     return f"Run GitHub Actions for `{self.filename}` with results:\n{self.instructions}"
         return f"{self.change_type.capitalize()} {self.filename} with contents:\n{self.instructions}"
+
+    @property
+    def diff_display(self):
+        if self.old_content and self.new_content:
+            diff = unified_diff(
+                self.old_content.splitlines(keepends=True),
+                self.new_content.splitlines(keepends=True),
+            )
+            diff_text = "".join(diff)
+            return diff_text
+        return ""
 
 
 class FileCreation(RegexMatchableBaseModel):
