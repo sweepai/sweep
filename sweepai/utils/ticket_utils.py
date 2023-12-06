@@ -14,6 +14,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
+from sweepai.agents.filter_agent import FilterAgent
 
 
 @file_cache()
@@ -96,7 +97,9 @@ def fetch_relevant_files(
 ):
     logger.info("Fetching relevant files...")
     try:
+        filter_agent = FilterAgent(chat_logger=chat_logger)
         search_query = (title + summary + replies_text).strip("\n")
+        search_query = filter_agent.filter_search_query(search_query)
         replies_text = f"\n{replies_text}" if replies_text else ""
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
