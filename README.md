@@ -26,6 +26,9 @@
     <a href="https://uptime.betterstack.com/?utm_source=status_badge">
         <img src="https://uptime.betterstack.com/status-badges/v1/monitor/v3bu.svg" alt="Better Stack Badge">
     </a>
+    <a href="https://github.com/sweepai/sweep/actions/workflows/unittest.yml">
+        <img src="https://github.com/sweepai/sweep/actions/workflows/unittest.yml/badge.svg" alt="Python Unit Tests">
+    </a>
 </p>
 
 *🎊 We recently updated our README to reflect our improvements to Python refactors and unit tests!*
