@@ -1,4 +1,3 @@
-from email import message
 import json
 import os
 import time
@@ -16,8 +15,8 @@ from sweepai.config.server import OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-client.timeout = 90
+client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     """
@@ -32,7 +31,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     num_retries (int): The number of times to retry the call.
     timeout (int): The timeout value to be applied to the call.
     **kwargs: Keyword arguments for the callable.
-    
+
     Returns:
     The result of the OpenAI client call.
     """
@@ -42,6 +41,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
         except Exception as e:
             print(f"Retry {attempt + 1} failed with error: {e}")
     raise Exception("Maximum retries reached. The call failed.")
+
 
 save_ticket_progress_type = Callable[[str, str, str], None]
 
@@ -93,18 +93,14 @@ def get_json_messages(
         assistant_id=assistant_id,
     )
     run_steps = openai_retry_with_timeout(
-        client.beta.threads.runs.steps.list,
-        run_id=run_id, 
-        thread_id=thread_id
+        client.beta.threads.runs.steps.list, run_id=run_id, thread_id=thread_id
     )
     system_message_json = {
         "role": "system",
         "content": assistant.instructions,
     }
     messages_json = [system_message_json]
-    for message_obj in list(
-        run_steps.data
-    )[:0:-1]:
+    for message_obj in list(run_steps.data)[:0:-1]:
         if message_obj.type == "message_creation":
             message_id = message_obj.step_details.message_creation.message_id
             thread_messages = openai_retry_with_timeout(
@@ -112,9 +108,7 @@ def get_json_messages(
                 message_id=message_id,
                 thread_id=thread_id,
             )
-            message_content = (
-                thread_messages.content[0].text.value
-            )
+            message_content = thread_messages.content[0].text.value
             messages_json.append(
                 {
                     "role": "assistant",
@@ -297,7 +291,7 @@ def openai_assistant_call_helper(
         save_ticket_progress=save_ticket_progress,
     )
     for file_id in file_ids:
-        client.files.delete(file_id=file_id) 
+        client.files.delete(file_id=file_id)
     return (
         assistant.id,
         run.id,
@@ -320,7 +314,11 @@ def openai_assistant_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    model = "gpt-3.5-turbo-1106" if (chat_logger and chat_logger.use_faster_model()) else "gpt-4-1106-preview"
+    model = (
+        "gpt-3.5-turbo-1106"
+        if (chat_logger and chat_logger.use_faster_model())
+        else "gpt-4-1106-preview"
+    )
     retries = range(3)
     for _ in retries:
         try:
