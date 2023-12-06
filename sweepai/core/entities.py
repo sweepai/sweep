@@ -181,7 +181,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     def get_edit_url(self, repo_full_name: str, branch_name: str):
         url = f"https://github.com/{repo_full_name}/edit/{branch_name}/{self.filename}"
-        if self.start_line is not None and self.end_line is not None:
+        if self.start_line and self.end_line:
             url += f"#L{self.start_line}-L{self.end_line}"
         return url
 
