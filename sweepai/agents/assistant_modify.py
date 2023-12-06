@@ -18,6 +18,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.patch_utils import apply_patch
 from sweepai.utils.progress import AssistantConversation, TicketProgress
+from sweepai.utils.str_utils import extract_lines
 
 short_file_helper_functions = r"""def print_original_lines(i, j):
     for index in range(0, len(original_lines)):
@@ -164,7 +165,14 @@ def new_modify(
             request += (
                 f"\n\nThe relevant lines are between {start_line} and {end_line}.\n\n"
             )
-        request = f"This is the file:\n{file_content}\n" + f"# Instructions:\n{request}"
+        if file_content.count("\n") > 600:
+            condensed_file_content = extract_lines(file_content, 0, 600) + "\n\n..."
+        else:
+            condensed_file_content = file_content
+        request = (
+            f"This is the file:\n{condensed_file_content}\n"
+            + f"# Instructions:\n{request}"
+        )
         if not any(file_path.endswith(ext) for ext in allowed_exts):
             os.rename(file_path, file_path + ".txt")
             file_path += ".txt"
@@ -207,11 +215,12 @@ def new_modify(
             else None,
             assistant_name="Code Modification Assistant",
         )
-        save_ticket_progress(
-            assistant_id=response.assistant_id,
-            thread_id=response.thread_id,
-            run_id=response.run_id,
-        )
+        if ticket_progress:
+            save_ticket_progress(
+                assistant_id=response.assistant_id,
+                thread_id=response.thread_id,
+                run_id=response.run_id,
+            )
         messages = response.messages
         final_diff = None
         final_diff_pattern = r"<final_diff>\n(.*?)</final_diff>"
