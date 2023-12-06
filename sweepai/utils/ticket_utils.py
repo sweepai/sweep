@@ -27,10 +27,11 @@ def prep_snippets(
     file_list, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
     )
-    ticket_progress.search_progress.indexing_progress = (
-        ticket_progress.search_progress.indexing_total
-    )
-    ticket_progress.save()
+    if ticket_progress:
+        ticket_progress.search_progress.indexing_progress = (
+            ticket_progress.search_progress.indexing_total
+        )
+        ticket_progress.save()
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
@@ -53,8 +54,9 @@ def prep_snippets(
         reverse=True,
     )
     ranked_snippets = ranked_snippets[:7]
-    ticket_progress.search_progress.retrieved_snippets = ranked_snippets
-    ticket_progress.save()
+    if ticket_progress:
+        ticket_progress.search_progress.retrieved_snippets = ranked_snippets
+        ticket_progress.save()
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
     prefixes = []
     for snippet_path in snippet_paths:

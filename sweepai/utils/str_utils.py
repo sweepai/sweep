@@ -86,4 +86,5 @@ def clean_logs(logs: str):
 
 
 def extract_lines(text: str, start: int, end: int):
-    return "\n".join(text.splitlines(keepends=True)[start:end])
+    lines = text.splitlines(keepends=True)
+    return "\n".join(lines[max(0, start) : min(len(lines), end)])

@@ -315,29 +315,35 @@ class CodeGenBot(ChatGPT):
                     1, Message(role="user", content=pr_diffs, key="pr_diffs")
                 )
 
-            self.ticket_progress: TicketProgress = self.ticket_progress
-            self.ticket_progress.planning_progress.assistant_conversation.messages = []
-            for message in self.messages:
+            if self.ticket_progress is not None:
+                self.ticket_progress: TicketProgress = self.ticket_progress
+                self.ticket_progress.planning_progress.assistant_conversation.messages = (
+                    []
+                )
+                for message in self.messages:
+                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                        AssistantAPIMessage(
+                            content=message.content,
+                            role=message.role,
+                        )
+                    )
                 self.ticket_progress.planning_progress.assistant_conversation.messages.append(
                     AssistantAPIMessage(
-                        content=message.content,
-                        role=message.role,
+                        content=files_to_change_prompt,
+                        role="user",
                     )
                 )
-            self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                AssistantAPIMessage(
-                    content=files_to_change_prompt,
-                    role="user",
-                )
-            )
-            self.ticket_progress.save()
+                self.ticket_progress.save()
             files_to_change_response = self.chat(
                 files_to_change_prompt, message_key="files_to_change"
             )
-            self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                AssistantAPIMessage(content=files_to_change_response, role="assistant")
-            )
-            self.ticket_progress.save()
+            if self.ticket_progress is not None:
+                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
+                    AssistantAPIMessage(
+                        content=files_to_change_response, role="assistant"
+                    )
+                )
+                self.ticket_progress.save()
             file_change_requests = []
             for re_match in re.finditer(
                 FileChangeRequest._regex, files_to_change_response, re.DOTALL
@@ -1166,10 +1172,11 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
 
-            self.ticket_progress.coding_progress.file_change_requests = (
-                file_change_requests
-            )
-            self.ticket_progress.save()
+            if self.ticket_progress:
+                self.ticket_progress.coding_progress.file_change_requests = (
+                    file_change_requests
+                )
+                self.ticket_progress.save()
 
             try:
                 commit = commit_messages.get(
@@ -1299,7 +1306,9 @@ class SweepBot(CodeGenBot, GithubBot):
                                 changed_files=changed_files,
                                 assistant_conversation=self.ticket_progress.coding_progress.assistant_conversations[
                                     i
-                                ],
+                                ]
+                                if self.ticket_progress
+                                else None,
                             )
                             file_change_requests[i].status = (
                                 "succeeded" if changed_file else "failed"
@@ -1569,10 +1578,11 @@ class SweepBot(CodeGenBot, GithubBot):
                 discord_log_error(traceback.format_exc() + "\n" + str(e))
                 file_change_request.status = "failed"
 
-            self.ticket_progress.coding_progress.file_change_requests = (
-                file_change_requests
-            )
-            self.ticket_progress.save()
+            if self.ticket_progress:
+                self.ticket_progress.coding_progress.file_change_requests = (
+                    file_change_requests
+                )
+                self.ticket_progress.save()
 
             if changed_file:
                 completed += 1
