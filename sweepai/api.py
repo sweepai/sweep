@@ -12,53 +12,30 @@ from loguru import logger
 from pydantic import ValidationError
 
 from sweepai import health
-from sweepai.config.client import (
-    DEFAULT_RULES,
-    RESTART_SWEEP_BUTTON,
-    REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
-    RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
-    SweepConfig,
-    get_documentation_dict,
-    get_rules,
-)
-from sweepai.config.server import (
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    GITHUB_LABEL_NAME,
-)
+from sweepai.config.client import (DEFAULT_RULES, RESTART_SWEEP_BUTTON,
+                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
+                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
+                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
+                                   get_documentation_dict, get_rules)
+from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL,
+                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_COLOR,
+                                   GITHUB_LABEL_DESCRIPTION, GITHUB_LABEL_NAME)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
-from sweepai.events import (
-    CheckRunCompleted,
-    CommentCreatedRequest,
-    InstallationCreatedRequest,
-    IssueCommentRequest,
-    IssueRequest,
-    PREdited,
-    PRRequest,
-    ReposAddedRequest,
-)
+from sweepai.events import (CheckRunCompleted, CommentCreatedRequest,
+                            InstallationCreatedRequest, IssueCommentRequest,
+                            IssueRequest, PREdited, PRRequest,
+                            ReposAddedRequest)
 from sweepai.handlers.create_pr import (  # type: ignore
-    add_config_to_top_repos,
-    create_gha_pr,
-)
+    add_config_to_top_repos, create_gha_pr)
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.utils.buttons import (
-    Button,
-    ButtonList,
-    check_button_activated,
-    check_button_title_match,
-)
+from sweepai.utils.buttons import (Button, ButtonList, check_button_activated,
+                                   check_button_title_match)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
@@ -75,7 +52,8 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
-get_hash = lambda: hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+def get_hash():
+    return hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
 
 
 def run_on_ticket(*args, **kwargs):
