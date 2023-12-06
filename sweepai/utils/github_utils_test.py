@@ -1,3 +1,5 @@
+from sweepai.utils.github_utils import shutil
+from os import os
 import unittest
 from unittest.mock import Mock, patch
 
@@ -64,3 +66,26 @@ class TestClonedRepo(unittest.TestCase):
         self.cloned_repo.git_repo = mock_repo
         commit_history = self.cloned_repo.get_commit_history()
         self.assertEqual(len(commit_history), 2)
+
+    @patch("shutil.copytree")
+    @patch("os.symlink")
+    @patch("os.path.isdir")
+    def test_copy_tree_with_symlink(self, mock_isdir, mock_symlink, mock_copytree):
+        symlink_source = "/tmp/original"
+        symlink_target = "/tmp/link"
+        repo_dir = "/tmp/fake_repo_dir"
+        symlink_path = os.path.join(repo_dir, symlink_target)
+        # Mock the isdir to return False when checking the symlink target (common symlink behavior)
+        # Mock the symlink to not actually create a symlink
+        # Mock the copytree to simulate the copy operation including symlinks
+        mock_isdir.side_effect = lambda path: False if path == symlink_path else True
+        mock_symlink.return_value = None
+        mock_copytree.side_effect = lambda src, dst, symlinks: symlink_target if symlinks else None
+        # Assume that the symlink exists in the source directory
+        mock_isdir.return_value = True
+        # Run the shutil.copy_tree function with symlinks=True
+        shutil.copytree(repo_dir, '/tmp/fake_dest_repo_dir', symlinks=True)
+        # Verify that the symbolic link was copied correctly
+        mock_symlink.assert_not_called()
+        mock_copytree.assert_called_once_with(repo_dir, ANY, symlinks=True)
+
