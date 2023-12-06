@@ -16,14 +16,14 @@ class TestDirectoryTree(unittest.TestCase):
         tree.parse("/tmp/test_dir")
 
         # Verify that the symbolic link is correctly identified and handled
-        self.assertIn("/tmp/test_dir/symlink", [line.full_path() for line in tree.lines])
+        self.assertIn(os.path.realpath("/tmp/test_dir/symlink"), [os.path.realpath(line.full_path()) for line in tree.lines])
 
         # Remove the symbolic link and verify that it is correctly removed
         tree.remove("/tmp/test_dir/symlink")
         self.assertNotIn("/tmp/test_dir/symlink", [line.full_path() for line in tree.lines])
 
         # Clean up the temporary directory and its contents
-        os.remove("/tmp/test_dir/symlink")
+        os.unlink("/tmp/test_dir/symlink")
         os.rmdir("/tmp/test_dir/target_dir")
         os.rmdir("/tmp/test_dir")
 
