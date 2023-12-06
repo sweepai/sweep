@@ -596,7 +596,6 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    # This should use exception
                     logger.exception(f"Failed to add config to top repos: {e}")
 
                 posthog.capture(
