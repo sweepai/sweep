@@ -1022,6 +1022,9 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
             logger.info("Making PR...")
 
+            ticket_progress.context.branch_name = pull_request.branch_name
+            ticket_progress.save()
+
             files_progress: list[tuple[str, str, str, str]] = [
                 (
                     file_change_request.entity_display,
@@ -1181,7 +1184,8 @@ def on_ticket(
                         + file_change_request.status_display
                         + " "
                         + (file_change_request.commit_hash_url or ""),
-                        file_change_request.instructions_ticket_display,
+                        file_change_request.instructions_ticket_display
+                        + f"\n\n\nEdit the file [here]({file_change_request.get_edit_url(repo.full_name, pull_request.branch_name)}).",
                         "X"
                         if file_change_request.status in ("succeeded", "failed")
                         else " ",

@@ -179,6 +179,12 @@ class FileChangeRequest(RegexMatchableBaseModel):
     commit_hash_url: str | None = None
     id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
+    def get_edit_url(self, repo_full_name: str, branch_name: str):
+        url = f"https://github.com/{repo_full_name}/edit/{branch_name}/{self.filename}"
+        if self.start_line is not None and self.end_line is not None:
+            url += f"#L{self.start_line}-L{self.end_line}"
+        return url
+
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
         result = super().from_string(string, **kwargs)

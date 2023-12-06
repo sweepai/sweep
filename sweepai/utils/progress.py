@@ -196,6 +196,7 @@ class TicketContext(BaseModel):
     description: str = ""
     repo_full_name: str = ""
     issue_number: int = 0
+    branch_name: str = ""
     is_public: bool = True
     pr_id: int = -1
     start_time: int = 0
