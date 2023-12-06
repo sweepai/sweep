@@ -163,7 +163,7 @@ class ClonedRepo:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Repo already cached, copying")
         logger.info("Copying repo...")
-        shutil.copytree(self.cached_dir, self.repo_dir)
+        shutil.copytree(self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy)
         logger.info("Done copying")
         repo = git.Repo(self.repo_dir)
         return repo
