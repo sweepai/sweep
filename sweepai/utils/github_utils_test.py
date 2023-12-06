@@ -1,5 +1,5 @@
 from sweepai.utils.github_utils import shutil
-from os import os
+import os
 import unittest
 from unittest.mock import Mock, patch
 
