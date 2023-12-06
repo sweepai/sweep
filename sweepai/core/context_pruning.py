@@ -294,18 +294,19 @@ def modify_context(
                 run_id=run.id,
                 thread_id=thread.id,
             )
-            if assistant_conversation:
-                ticket_progress.search_progress.pruning_conversation = (
-                    assistant_conversation
+            if ticket_progress:
+                if assistant_conversation:
+                    ticket_progress.search_progress.pruning_conversation = (
+                        assistant_conversation
+                    )
+                ticket_progress.search_progress.repo_tree = str(
+                    repo_context_manager.dir_obj
                 )
-            ticket_progress.search_progress.repo_tree = str(
-                repo_context_manager.dir_obj
-            )
-            ticket_progress.search_progress.final_snippets = (
-                repo_context_manager.current_top_snippets
-            )
-            logger.info("iteration: " + str(iter))
-            ticket_progress.save()
+                ticket_progress.search_progress.final_snippets = (
+                    repo_context_manager.current_top_snippets
+                )
+                logger.info("iteration: " + str(iter))
+                ticket_progress.save()
         if run.status == "completed":
             break
         if (
@@ -410,9 +411,12 @@ def modify_context(
         run_id=run.id,
         thread_id=thread.id,
     )
-    if assistant_conversation:
-        ticket_progress.search_progress.pruning_conversation = assistant_conversation
-    ticket_progress.save()
+    if ticket_progress:
+        if assistant_conversation:
+            ticket_progress.search_progress.pruning_conversation = (
+                assistant_conversation
+            )
+        ticket_progress.save()
     logger.info(
         f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
     )
