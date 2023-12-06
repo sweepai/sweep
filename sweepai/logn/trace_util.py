@@ -1,5 +1,7 @@
-import sys
 import linecache
+import sys
+
+
 def trace_lines(frame, event, arg):
     if event == "line":
         filename = frame.f_code.co_filename
@@ -8,5 +10,6 @@ def trace_lines(frame, event, arg):
             line = linecache.getline(filename, lineno)
             print(f"Executing {filename}:line {lineno}:{line.rstrip()}")
     return trace_lines
+
 
 sys.settrace(trace_lines)

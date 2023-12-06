@@ -2,7 +2,6 @@ import urllib
 from datetime import datetime, timedelta, timezone
 
 import requests
-from loguru import logger
 
 
 def get_latest_docker_version():

@@ -9,12 +9,7 @@ import openai
 from github.Commit import Commit
 from github.Repository import Repository
 
-from sweepai.config.client import (
-    DEFAULT_RULES,
-    DEFAULT_RULES_STRING,
-    SweepConfig,
-    get_blocked_dirs,
-)
+from sweepai.config.client import DEFAULT_RULES_STRING, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,

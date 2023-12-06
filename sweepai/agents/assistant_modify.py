@@ -151,6 +151,7 @@ def new_modify(
 ):
     modify_iterations = 3
     try:
+
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             if assistant_conversation:
                 assistant_conversation.update_from_ids(
@@ -168,9 +169,7 @@ def new_modify(
             os.rename(file_path, file_path + ".txt")
             file_path += ".txt"
         target_file_object = openai_retry_with_timeout(
-            client.files.create,
-            file=Path(file_path),
-            purpose="assistants"
+            client.files.create, file=Path(file_path), purpose="assistants"
         )
         target_file_id = target_file_object.id
         formatted_helper_method_contents = helper_methods_contents.format(
@@ -180,24 +179,20 @@ def new_modify(
         with open(tmp_helper_file_path, "w") as f:
             f.write(formatted_helper_method_contents)
         helper_methods_file_id = openai_retry_with_timeout(
-            client.files.create,
-            file=Path(tmp_helper_file_path),
-            purpose="assistants"
+            client.files.create, file=Path(tmp_helper_file_path), purpose="assistants"
         ).id
         os.remove(tmp_helper_file_path)
         uploaded_file_ids = [target_file_id, helper_methods_file_id]
-        
+
         if file_path.endswith(".py"):
             formatted_instructions_message = instructions_message.format(
                 file_id=helper_methods_file_id,
                 python_comment=python_comment,
-                python_code=python_code
+                python_code=python_code,
             )
         else:
             formatted_instructions_message = instructions_message.format(
-                file_id=helper_methods_file_id,
-                python_comment="",
-                python_code=""
+                file_id=helper_methods_file_id, python_comment="", python_code=""
             )
 
         response = openai_assistant_call(
@@ -260,7 +255,7 @@ def new_modify(
                     run = client.beta.threads.runs.create(
                         thread_id=response.thread_id,
                         assistant_id=response.assistant_id,
-                        instructions=formatted_instructions_message
+                        instructions=formatted_instructions_message,
                     )
                     run_id = run.id
                     messages = run_until_complete(
@@ -301,7 +296,15 @@ def new_modify(
 
 if __name__ == "__main__":
     instructions = """• Replace the broken installation link with the provided new link.\n• Change the text from "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial)." \n  to "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial).\""""
-    additional_messages = [Message(role='user', content='# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: replace the broken installation link in installation.md with https://docs.sweep.dev/usage/tutorial', name=None, function_call=None, key='issue_metadata')]
+    additional_messages = [
+        Message(
+            role="user",
+            content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: replace the broken installation link in installation.md with https://docs.sweep.dev/usage/tutorial",
+            name=None,
+            function_call=None,
+            key="issue_metadata",
+        )
+    ]
     file_contents = open("docs/installation.md", "r").read()
     response = new_modify(
         instructions,

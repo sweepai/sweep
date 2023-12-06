@@ -35,7 +35,15 @@ response = new_modify(
 
 ### Benchmark 2: Inplace modification
 instructions = """• Replace the broken installation link with the provided new link.\n• Change the text from "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial)." \n  to "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial).\""""
-additional_messages = [Message(role='user', content='# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: replace the broken installation link in installation.md with https://docs.sweep.dev/usage/tutorial', name=None, function_call=None, key='issue_metadata')]
+additional_messages = [
+    Message(
+        role="user",
+        content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: replace the broken installation link in installation.md with https://docs.sweep.dev/usage/tutorial",
+        name=None,
+        function_call=None,
+        key="issue_metadata",
+    )
+]
 file_contents = open("docs/installation.md", "r").read()
 response = new_modify(
     instructions,

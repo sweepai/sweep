@@ -27,7 +27,7 @@ Use the snippets, issue metadata and other information to determine the informat
 Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
 
-Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. 
+Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request.
 If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
 Store as few file paths as necessary to solve the user request."""
 
@@ -53,7 +53,7 @@ Use the snippets, issue metadata and other information to determine the informat
 Propose the most important paths as well as any new required paths, along with a justification.
 </contextual_request_analysis>
 
-Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request. 
+Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request.
 If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
 Store as few file paths as necessary to solve the user request."""
 
@@ -209,7 +209,11 @@ def get_relevant_context(
     chat_logger: ChatLogger = None,
 ):
     modify_iterations: int = 2
-    model = "gpt-3.5-turbo-1106" if (chat_logger and chat_logger.use_faster_model()) else "gpt-4-1106-preview"
+    model = (
+        "gpt-3.5-turbo-1106"
+        if (chat_logger and chat_logger.use_faster_model())
+        else "gpt-4-1106-preview"
+    )
     try:
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
@@ -250,7 +254,7 @@ def get_relevant_context(
                 role="user",
                 content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow you to solve the issue, store all of the existing file paths.",
             )
-            run = openai_retry_with_timeout( 
+            run = openai_retry_with_timeout(
                 client.beta.threads.runs.create,
                 thread_id=thread.id,
                 assistant_id=assistant.id,
@@ -294,7 +298,9 @@ def modify_context(
                 ticket_progress.search_progress.pruning_conversation = (
                     assistant_conversation
                 )
-            ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
+            ticket_progress.search_progress.repo_tree = str(
+                repo_context_manager.dir_obj
+            )
             ticket_progress.search_progress.final_snippets = (
                 repo_context_manager.current_top_snippets
             )
@@ -341,7 +347,7 @@ def modify_context(
                     )
                     output = f"SUCCESS. {function_path_or_dir} was stored."
                     paths_to_keep.append(function_path_or_dir)
-                else: # we should add the file path
+                else:  # we should add the file path
                     valid_path = repo_context_manager.is_path_valid(
                         function_path_or_dir, directory=False
                     )
@@ -381,7 +387,11 @@ def modify_context(
                     "output": output,
                 }
             )
-            justification = function_input["justification"] if "justification" in function_input else ""
+            justification = (
+                function_input["justification"]
+                if "justification" in function_input
+                else ""
+            )
             logger.info(
                 f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Tool Call: {valid_path}"
             )
@@ -425,7 +435,6 @@ def modify_context(
 if __name__ == "__main__":
     import os
 
-    from sweepai.utils.progress import TicketContext
     from sweepai.utils.ticket_utils import prep_snippets
 
     installation_id = os.environ["INSTALLATION_ID"]

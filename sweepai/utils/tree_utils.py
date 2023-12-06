@@ -115,10 +115,11 @@ class DirectoryTree:
         expanded_lines = []
         for line in self.original_lines:
             if (
-                (line.parent
-                and any(line.parent.full_path().startswith(dir) for dir in dirs_to_expand))
-                or line.full_path() in dir_parents
-            ):
+                line.parent
+                and any(
+                    line.parent.full_path().startswith(dir) for dir in dirs_to_expand
+                )
+            ) or line.full_path() in dir_parents:
                 expanded_lines.append(line)
             elif line in self.lines:
                 expanded_lines.append(line)
