@@ -20,7 +20,6 @@ from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import blockquote, checkbox_template
 from sweepai.utils.ticket_utils import prep_snippets
@@ -51,12 +50,9 @@ def make_pr(
     logger.info("Fetching relevant files...")
     search_query = (title + summary).strip("\n")
     formatted_query = (f"{title.strip()}\n{summary.strip()}").strip("\n")
-    repo_context_manager = prep_snippets(
-        cloned_repo, search_query, TicketProgress(tracking_id="none")
-    )
+    repo_context_manager = prep_snippets(cloned_repo, search_query)
     repo_context_manager = get_relevant_context(
         formatted_query,
-        TicketProgress(tracking_id="none"),
         repo_context_manager,
         chat_logger=chat_logger,
     )
