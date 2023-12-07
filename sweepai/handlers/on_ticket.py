@@ -963,6 +963,24 @@ def on_ticket(
                 AssistantConversation() for fcr in file_change_requests
             ]
             ticket_progress.status = TicketProgressStatus.CODING
+            ticket_progress.status = TicketProgressStatus.CODING
+
+            # New code to collect changed file names
+            changed_files = []
+            for fcr in file_change_requests:
+                try:
+                    if hasattr(fcr, 'file_name'):
+                        file_name = fcr.file_name
+                    else:
+                        file_name = fcr.get_file_path()  # Assuming get_file_path method exists
+                    changed_files.append(file_name)
+                except Exception as e:
+                    logger.error(f'An error occurred while accessing file name in file change request: {str(e)}')
+                    continue  # Handle any other unforeseen exceptions and continue processing
+
+            # Save the list of changed files in the ticket progress
+            ticket_progress.coding_progress.changed_files = changed_files
+            ticket_progress.save()
             ticket_progress.save()
 
             if not file_change_requests:
