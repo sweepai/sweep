@@ -1374,7 +1374,9 @@ def on_ticket(
             rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
             sandbox_passed = None
+            changed_files = set()  # Initialize as a set to avoid duplicates
             for file_change_request in file_change_requests:
+                changed_files.add(file_change_request.filename)  # Update changed_files set
                 if file_change_request.change_type == "check":
                     if (
                         file_change_request.sandbox_response
