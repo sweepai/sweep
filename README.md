@@ -31,7 +31,7 @@
     </a>
 </p>
 
-*🎊 We recently updated our README to reflect our improvements to Python refactors and unit tests!*
+*🎊 We recently updated our README to reflect our improvements to Python refactors andunit tests!*
 
 ---
 
