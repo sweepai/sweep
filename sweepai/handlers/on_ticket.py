@@ -20,51 +20,29 @@ from tqdm import tqdm
 from yamllint import linter
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
-from sweepai.config.client import (
-    DEFAULT_RULES,
-    RESET_FILE,
-    RESTART_SWEEP_BUTTON,
-    REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
-    RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
-    SweepConfig,
-    get_documentation_dict,
-    get_rules,
-)
-from sweepai.config.server import (
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-    ENV,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    IS_SELF_HOSTED,
-    LOGTAIL_SOURCE_KEY,
-    MONGODB_URI,
-    OPENAI_USE_3_5_MODEL_ONLY,
-    WHITELISTED_REPOS,
-)
+from sweepai.config.client import (DEFAULT_RULES, RESET_FILE,
+                                   RESTART_SWEEP_BUTTON,
+                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
+                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
+                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
+                                   get_documentation_dict, get_rules)
+from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL, ENV,
+                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME,
+                                   IS_SELF_HOSTED, LOGTAIL_SOURCE_KEY,
+                                   MONGODB_URI, OPENAI_USE_3_5_MODEL_ONLY,
+                                   WHITELISTED_REPOS)
 from sweepai.core.documentation_searcher import extract_relevant_docs
-from sweepai.core.entities import (
-    AssistantRaisedException,
-    EmptyRepository,
-    FileChangeRequest,
-    MaxTokensExceeded,
-    NoFilesException,
-    ProposedIssue,
-    PullRequest,
-    SandboxResponse,
-    SweepContext,
-)
-from sweepai.core.entities import create_error_logs as entities_create_error_logs
+from sweepai.core.entities import (AssistantRaisedException, EmptyRepository,
+                                   FileChangeRequest, MaxTokensExceeded,
+                                   NoFilesException, ProposedIssue,
+                                   PullRequest, SandboxResponse, SweepContext)
+from sweepai.core.entities import \
+    create_error_logs as entities_create_error_logs
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.create_pr import (
-    create_config_pr,
-    create_pr_changes,
-    safe_delete_sweep_branch,
-)
+from sweepai.handlers.create_pr import (create_config_pr, create_pr_changes,
+                                        safe_delete_sweep_branch)
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
@@ -74,30 +52,16 @@ from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.progress import (
-    AssistantConversation,
-    PaymentContext,
-    TicketContext,
-    TicketProgress,
-    TicketProgressStatus,
-)
+from sweepai.utils.progress import (AssistantConversation, PaymentContext,
+                                    TicketContext, TicketProgress,
+                                    TicketProgressStatus)
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.str_utils import (
-    UPDATES_MESSAGE,
-    blockquote,
-    bot_suffix,
-    checkbox_template,
-    clean_logs,
-    collapsible_template,
-    create_checkbox,
-    create_collapsible,
-    discord_suffix,
-    format_sandbox_success,
-    ordinal,
-    sep,
-    stars_suffix,
-    strip_sweep,
-)
+from sweepai.utils.str_utils import (UPDATES_MESSAGE, blockquote, bot_suffix,
+                                     checkbox_template, clean_logs,
+                                     collapsible_template, create_checkbox,
+                                     create_collapsible, discord_suffix,
+                                     format_sandbox_success, ordinal, sep,
+                                     stars_suffix, strip_sweep)
 from sweepai.utils.ticket_utils import center, fetch_relevant_files, log_error
 
 # from sandbox.sandbox_utils import Sandbox
@@ -1087,8 +1051,20 @@ def on_ticket(
                 issue_number,
                 chat_logger=chat_logger,
             )
+            for item in generator:
+                if isinstance(item, dict):
+                    response = item
+                    break
+                (
+                    file_change_request,
+                    changed_file,
+                    sandbox_response,
+                    commit,
+                    file_change_requests,
+                ) = item
+                changed_files.append(file_change_request.entity_display)
             edit_sweep_comment(checkboxes_contents, 2)
-            response = {"error": NoFilesException()}
+            response = response if response else {"error": NoFilesException()}
             changed_files = []
 
             def create_error_logs(
