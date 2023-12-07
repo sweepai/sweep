@@ -26,11 +26,11 @@ def print_original_lines(i: int, j: int):
 
 def print_original_lines_with_keywords(keywords: list):
     \"\"\"
-    Displays the original lines when any of the keywords are found.
+    Displays surrounding lines where any of the keywords are found.
     Use single words.
     \"\"\"
     context = 10
-
+    keywords = [keyword for keyword in keywords for keyword in keyword.split()]
     matches = [i for i, line in enumerate(original_lines) if any(keyword in line.lower() for keyword in keywords)]
     expanded_matches = set()
 
@@ -75,7 +75,21 @@ def set_indentation(code, num_indents=4):
     min_indent = min(len(line) - len(line.lstrip()) for line in lines)
     return '\\n'.join(' ' * num_indents + line[min_indent:] for line in lines)
 
-print("Helper functions loaded into memory.")"""
+function_descriptions = \"\"\"\
+def print_original_lines(i: int, j: int):
+    \\"\\"\\"
+    Displays the original lines between line numbers i and j.
+    \\"\\"\\"
+
+def print_original_lines_with_keywords(keywords: list):
+    \\"\\"\\"
+    Displays the original lines when any of the keywords are found.
+    Use single words.
+    \\"\\"\\"
+\"\"\"
+    
+print("Helper functions loaded into memory. Here are the signatures for print_original_lines and print_original_lines_with_keywords:\\n" + function_descriptions)
+"""
 
 
 # exec(helper_methods_contents.format(target_file_id='sweepai/utils/ticket_utils.py'))

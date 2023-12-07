@@ -39,6 +39,8 @@ class PRDescriptionBot(ChatGPT):
         )
         pr_desc_pattern = r"<pr_description>\n(.*?)\n</pr_description>"
         pr_desc_matches = re.search(pr_desc_pattern, pr_desc_response, re.DOTALL)
+        if pr_desc_matches is None:
+            return None
         pr_desc = pr_desc_matches.group(1)
         pr_desc = pr_desc.strip()
         return pr_desc
