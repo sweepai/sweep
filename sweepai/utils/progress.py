@@ -196,6 +196,7 @@ class TicketContext(BaseModel):
     description: str = ""
     repo_full_name: str = ""
     issue_number: int = 0
+    branch_name: str = ""
     is_public: bool = True
     pr_id: int = -1
     start_time: int = 0
@@ -231,11 +232,13 @@ class TicketProgress(BaseModel):
                 return None
             if self.dict() == self.prev_dict:
                 return
-            self.prev_dict = self.dict()
+            current_dict = self.dict()
+            del current_dict["prev_dict"]
+            self.prev_dict = current_dict
             db = global_mongo_client["progress"]
             collection = db["ticket_progress"]
             collection.update_one(
-                {"tracking_id": self.tracking_id}, {"$set": self.dict()}, upsert=True
+                {"tracking_id": self.tracking_id}, {"$set": current_dict}, upsert=True
             )
         except Exception as e:
             discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
