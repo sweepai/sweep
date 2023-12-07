@@ -115,7 +115,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.exception(f"Failed to terminate thread: {e}")
+        logger.error(f"Failed to terminate thread: {e}")
 
 
 def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
@@ -596,7 +596,7 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.exception(f"Failed to add config to top repos: {e}")
+                    logger.error(f"Failed to add config to top repos: {e}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
@@ -628,7 +628,7 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.exception(f"Failed to add config to top repos: {e}")
+                    logger.error(f"Failed to add config to top repos: {e}")
 
                 # Index all repos
                 for repo in repos_added_request.repositories:
