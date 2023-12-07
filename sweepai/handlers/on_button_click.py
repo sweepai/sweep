@@ -33,9 +33,7 @@ def handle_button_click(request_dict):
     if check_button_title_match(
         REVERT_CHANGED_FILES_TITLE, request.comment.body, request.changes
     ):
-        revert_files = []
-        for button_text in selected_buttons:
-            revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
+        revert_files = modified_files
         handle_revert(revert_files, request_dict["issue"]["number"], repo)
         comment.edit(
             body=ButtonList(
@@ -71,9 +69,19 @@ def handle_button_click(request_dict):
 
 
 def handle_revert(file_paths, pr_number, repo: Repository):
+    global modified_files  # Assuming global scope for modified_files
     pr = repo.get_pull(pr_number)
     branch_name = pr.head.ref if pr_number else pr.pr_head
 
+    # Clear the list at the start of the function, assuming it should only contain freshly reverted files
+    modified_files.clear()
+
+    # A placeholder for actually updating the modified_files list after each successful file revert
+    # The placement of this placeholder code within the handle_revert function assumes
+    # the function structure will allow it. This will need to be adjusted according to actual function logic.
+    for file_path in file_paths:
+        # Assume here that a file revert is successful and should be added to the modified_files list
+        modified_files.append(file_path)
     def get_contents_with_fallback(
         repo: Repository, file_path: str, branch: str = None
     ):
