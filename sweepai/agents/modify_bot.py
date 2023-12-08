@@ -272,6 +272,7 @@ class ModifyBot:
         cloned_repo: ClonedRepo,
         chunking: bool = False,
         assistant_conversation: AssistantConversation | None = None,
+        seed: str | None = None,
     ):
         new_file = new_modify(
             request=file_change_request.instructions,
@@ -281,6 +282,7 @@ class ModifyBot:
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,
             assistant_conversation=assistant_conversation,
+            seed=seed,
         )
         if new_file is not None:
             return add_auto_imports(
