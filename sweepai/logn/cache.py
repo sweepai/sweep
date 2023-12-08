@@ -50,6 +50,7 @@ def file_cache(ignore_params=[]):
 
     def decorator(func):
         if GITHUB_BOT_USERNAME != TEST_BOT_NAME:
+            print("File cache is disabled.")
             return func
 
         def wrapper(*args, **kwargs):
