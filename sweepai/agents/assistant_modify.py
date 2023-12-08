@@ -48,7 +48,6 @@ helper_methods_path = '/mnt/data/{file_id}'
 with open(helper_methods_path, 'r') as f:
     helper_methods = f.read()
 exec(helper_methods) # You MUST run this line.
-print(helper_methods)
 ```
 
 If they were successfully loaded, you should see the following output: `Helper functions loaded into memory.`
