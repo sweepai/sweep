@@ -5,5 +5,7 @@
     "python.analysis.inlayHints.functionReturnTypes": false,
     "python.analysis.inlayHints.variableTypes": false,
     "python.languageServer": "Pylance",
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "isort.check": true,
+    "isort.importStrategy": "fromEnvironment"
 }
