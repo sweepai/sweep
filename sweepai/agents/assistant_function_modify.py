@@ -73,8 +73,7 @@ def function_modify(
         code_sections_concatenated = "\n".join(code_sections)
         code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{code_sections_concatenated}\n</sections>"
 
-        # code_sections = break_into_sections(file_contents, file_path)
-        additional_messages = [
+        additional_messages += [
             Message(
                 role="user",
                 content=code_sections_string,
