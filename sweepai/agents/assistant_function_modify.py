@@ -1,7 +1,8 @@
 import traceback
 
-from assistant_wrapper import openai_assistant_call
+from sweepai.agents.assistant_wrapper import openai_assistant_call
 from loguru import logger
+from sweepai.logn.cache import file_cache
 
 from sweepai.agents.assistant_functions import search_and_replace_schema
 from sweepai.core.entities import AssistantRaisedException, Message
@@ -34,7 +35,7 @@ def excel_col_to_int(s):
     return result - 1
 
 
-# @file_cache(ignore_params=["file_path", "chat_logger"])
+@file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
     request: str,
     file_path: str,
@@ -46,6 +47,7 @@ def function_modify(
     end_line: int = -1,
     ticket_progress: TicketProgress | None = None,
     assistant_conversation: AssistantConversation | None = None,
+    seed: int = None,
 ):
     try:
 
