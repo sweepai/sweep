@@ -4,6 +4,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
+from sweepai.agents.assistant_function_modify import excel_col_to_int, int_to_excel_col
 from sweepai.agents.assistant_modify import new_modify
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
@@ -181,21 +182,6 @@ def strip_backticks(s: str) -> str:
     if s == '""':
         return ""
     return s
-
-
-def int_to_excel_col(n):
-    result = ""
-    while n > 0:
-        n, remainder = divmod(n - 1, 26)
-        result = chr(65 + remainder) + result
-    return result
-
-
-def excel_col_to_int(s):
-    result = 0
-    for char in s:
-        result = result * 26 + (ord(char) - 64)
-    return result - 1
 
 
 def convert_comment_to_deletion(original, updated):

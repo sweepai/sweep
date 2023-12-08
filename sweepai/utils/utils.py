@@ -178,7 +178,7 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
     return chunks
 
 
-def check_syntax(file_path: str, code: str) -> tuple(bool, str):
+def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     from tree_sitter_languages import get_parser
 
     ext = file_path.split(".")[-1]
