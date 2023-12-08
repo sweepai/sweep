@@ -1089,7 +1089,6 @@ def on_ticket(
             )
             edit_sweep_comment(checkboxes_contents, 2)
             response = {"error": NoFilesException()}
-            changed_files = []
 
             def create_error_logs(
                 commit_url_display: str,
@@ -1141,7 +1140,7 @@ def on_ticket(
                         )
                         return True
                 return False
-
+            changed_files = []
             for item in generator:
                 if isinstance(item, dict):
                     response = item
@@ -1153,6 +1152,7 @@ def on_ticket(
                     commit,
                     file_change_requests,
                 ) = item
+                changed_files.append(changed_file)
                 svg = create_digraph_svg(file_change_requests)
                 svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
                 sandbox_response: SandboxResponse | None = sandbox_response
