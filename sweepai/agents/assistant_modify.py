@@ -148,6 +148,7 @@ def new_modify(
     end_line: int = -1,
     ticket_progress: TicketProgress | None = None,
     assistant_conversation: AssistantConversation | None = None,
+    seed: str | None = None, # to invalidate cache
 ):
     modify_iterations = 3
     try:
