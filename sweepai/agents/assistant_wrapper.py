@@ -97,6 +97,10 @@ def get_json_messages(
         client.beta.assistants.retrieve,
         assistant_id=assistant_id,
     )
+    messages = openai_retry_with_timeout(
+        client.beta.threads.messages.list,
+        thread_id=thread_id,
+    )
     run_steps = openai_retry_with_timeout(
         client.beta.threads.runs.steps.list, run_id=run_id, thread_id=thread_id
     )
@@ -105,6 +109,14 @@ def get_json_messages(
         "content": assistant.instructions,
     }
     messages_json = [system_message_json]
+    for message in messages:
+        if message.role == "user":
+            messages_json.append(
+                {
+                    "role": "user",
+                    "content": message.content[0].text.value,
+                }
+            )
     for message_obj in list(run_steps.data)[:0:-1]:
         if message_obj.type == "message_creation":
             message_id = message_obj.step_details.message_creation.message_id
@@ -153,6 +165,16 @@ def get_json_messages(
                             "content": input_content,
                         }
                     )
+                    if function.output:
+                        output_content = (
+                            f"Function output:\n```\n{function.output}\n```"
+                        )
+                        messages_json.append(
+                            {
+                                "role": "user",
+                                "content": output_content,
+                            }
+                        )
     return messages_json
 
 

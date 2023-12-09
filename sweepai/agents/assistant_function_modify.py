@@ -1,15 +1,15 @@
 import traceback
 
-from sweepai.agents.assistant_wrapper import openai_assistant_call
 from loguru import logger
-from sweepai.logn.cache import file_cache
 
 from sweepai.agents.assistant_functions import search_and_replace_schema
+from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.utils import check_syntax, chunk_code
+from sweepai.utils.utils import check_code, chunk_code
 
 instructions = """You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, and is complete. Take into account the current repository's language, code style, and dependencies. Your job is to make edits to the file to complete the user "# Request".
 
@@ -33,6 +33,9 @@ def excel_col_to_int(s):
     for char in s:
         result = result * 26 + (ord(char) - 64)
     return result - 1
+
+
+MAX_CHARS = 32000
 
 
 @file_cache(ignore_params=["file_path", "chat_logger"])
@@ -67,18 +70,27 @@ def function_modify(
             for snippet in original_snippets
         ]
         code_sections = []
+        current_code_section = ""
         for i, chunk in enumerate(chunks):
             idx = int_to_excel_col(i + 1)
-            code_sections.append(
-                f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-            )
-        code_sections_concatenated = "\n".join(code_sections)
-        code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{code_sections_concatenated}\n</sections>"
-
+            section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
+            if len(current_code_section) + len(section_display) > MAX_CHARS:
+                code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
+                code_sections.append(code_sections_string)
+                current_code_section = section_display
+            else:
+                current_code_section += section_display
+        code_sections.append(current_code_section)
+        code_sections_string = "\n".join(code_sections)
         additional_messages += [
-            Message(
-                role="user",
-                content=code_sections_string,
+            *reversed(
+                [
+                    Message(
+                        role="user",
+                        content=code_section,
+                    )
+                    for code_section in code_sections
+                ]
             ),
             Message(
                 role="user",
@@ -89,7 +101,6 @@ def function_modify(
             request=request,
             instructions=instructions,
             additional_messages=additional_messages,
-            # uploaded_file_ids=uploaded_file_ids,
             chat_logger=chat_logger,
             assistant_id=assistant_id,
             save_ticket_progress=save_ticket_progress
@@ -122,11 +133,13 @@ def function_modify(
                             break
                         chunk = chunks[section_id]
                         if old_code not in chunk:
-                            error_message = f"Could not find {old_code} in section {section_id}, which has code:\n\n{chunk}\n\n"
+                            error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
                             break
                         new_code_section = chunk.replace(old_code, new_code)
                         new_contents = current_contents.replace(chunk, new_code_section)
-                        is_valid, message = check_syntax(file_path, new_contents)
+
+                    if not error_message:
+                        is_valid, message = check_code(file_path, new_contents)
                         if is_valid:
                             success_message = generate_diff(
                                 current_contents, new_contents
@@ -145,30 +158,45 @@ def function_modify(
                                 for snippet in original_snippets
                             ]
                             code_sections = []
+                            current_code_section = ""
                             for i, chunk in enumerate(chunks):
                                 idx = int_to_excel_col(i + 1)
-                                code_sections.append(
-                                    f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-                                )
-                            code_sections_concatenated = "\n".join(code_sections)
-                            code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{code_sections_concatenated}\n</sections>"
-                            success_message += f"\n\n{code_sections_concatenated}"
+                                section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
+                                if (
+                                    len(current_code_section) + len(section_display)
+                                    > MAX_CHARS
+                                ):
+                                    code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
+                                    code_sections.append(code_sections_string)
+                                    current_code_section = section_display
+                                else:
+                                    current_code_section += section_display
+                            code_sections.append(current_code_section)
+                            success_message += f"\n\n{code_sections[0]}"
                         else:
-                            error_message = message
-                    print(success_message)
+                            diff = generate_diff(current_contents, new_contents)
+                            error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\nRemake the changes with additional changes ."
+
                     if error_message:
+                        logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n{error_message}"
+                            f"ERROR\nNo changes we're made due to the following error:\n\n{error_message}"
                         )
                     else:
+                        logger.info(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n\n{success_message}"
+                            f"SUCCESS\nHere are the new code sections:\n\n{success_message}"
                         )
                 else:
                     raise Exception("Unexpected tool name")
         except StopIteration:
             pass
-        print(generate_diff(file_contents, current_contents))
+        diff = generate_diff(file_contents, current_contents)
+        if diff:
+            logger.info("Changes made:")
+            logger.info(diff[: min(1000, len(diff))])
+        else:
+            logger.warning("No changes were made.")
         if ticket_progress:
             save_ticket_progress(
                 assistant_id=response.assistant_id,
@@ -178,6 +206,7 @@ def function_modify(
         if current_contents != file_contents:
             return current_contents
     except AssistantRaisedException as e:
+        logger.exception(e)
         discord_log_error(
             str(e)
             + "\n\n"
@@ -200,21 +229,22 @@ def function_modify(
 
 
 if __name__ == "__main__":
-    instructions = """• Replace the broken installation link with the provided new link.\n• Change the text from "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial)." \n  to "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).\""""
-    additional_messages = [
-        Message(
-            role="user",
-            content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: replace the broken installation link in installation.md with https://docs.sweep.dev/tutorial",
-            name=None,
-            function_call=None,
-            key="issue_metadata",
-        )
-    ]
-    file_contents = open("docs/installation.md", "r").read()
+    request = """• Replace the broken installation link with the provided new link.\n• Change the text from "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial)." \n  to "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).\""""
+    request = "convert any unnecessary logger.exceptions to logger.errors in api.py"
+    # additional_messages = [
+    #     Message(
+    #         role="user",
+    #         content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: replace the broken installation link in installation.md with https://docs.sweep.dev/tutorial",
+    #         name=None,
+    #         function_call=None,
+    #         key="issue_metadata",
+    #     )
+    # ]
+    file_contents = open("sweepai/handlers/on_ticket.py", "r").read()
     response = function_modify(
-        instructions,
-        "docs/installation.md",
+        request=request,
+        file_path="sweepai/handlers/on_ticket.py",
         file_contents=file_contents,
         chat_logger=ChatLogger({"username": "wwzeng1"}),
-        additional_messages=additional_messages,
+        # additional_messages=additional_messages,
     )

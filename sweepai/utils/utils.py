@@ -201,22 +201,6 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
 
-        # Then check for linting errors
-        new_file = "/tmp/" + file_path.split("/")[-1]
-        with open(new_file, "w") as f:
-            f.write(code)
-        pylint_output = StringIO()
-        reporter = TextReporter(pylint_output)
-        Run(
-            [new_file, "--errors-only", "--disable=import-error"],
-            reporter=reporter,
-            do_exit=False,
-        )
-        error_message = pylint_output.getvalue()
-        os.remove(new_file)
-        if error_message:
-            return False, error_message
-
     def find_deepest_error(node: Node):
         deepest_error = None
         if node.has_error:
@@ -234,6 +218,29 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         error_span = "\n".join(code.split("\n")[error_start:line_number])
         error_message = f"Invalid syntax found within or before the lines {error_start}-{line_number}, displayed below:\n{error_span}"
         return (False, error_message)
+    return True, ""
+
+
+def check_code(file_path: str, code: str) -> tuple[bool, str]:
+    is_valid, error_message = check_syntax(file_path, code)
+    if not is_valid:
+        return is_valid, error_message
+    ext = file_path.split(".")[-1]
+    if ext == "py":
+        new_file = "/tmp/" + file_path.split("/")[-1]
+        with open(new_file, "w") as f:
+            f.write(code)
+        pylint_output = StringIO()
+        reporter = TextReporter(pylint_output)
+        Run(
+            [new_file, "--errors-only", "--disable=import-error"],
+            reporter=reporter,
+            do_exit=False,
+        )
+        error_message = pylint_output.getvalue()
+        os.remove(new_file)
+        if error_message:
+            return False, error_message
     return True, ""
 
 
