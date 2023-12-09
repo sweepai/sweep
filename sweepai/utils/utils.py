@@ -238,7 +238,10 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
             do_exit=False,
         )
         error_message = pylint_output.getvalue()
-        os.remove(new_file)
+        try:
+            os.remove(new_file)
+        except FileNotFoundError:
+            pass
         if error_message:
             return False, error_message
     return True, ""
