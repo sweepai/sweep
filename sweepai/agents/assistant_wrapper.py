@@ -288,6 +288,12 @@ def run_until_complete(
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
         logger.warning(f"Run cancelled: {run_id}")
         raise SystemExit
+    if save_ticket_progress is not None:
+        save_ticket_progress(
+            assistant_id=assistant_id,
+            thread_id=thread_id,
+            run_id=run_id,
+        )
     for json_message in json_messages:
         logger.info(json_message["content"])
     return client.beta.threads.messages.list(

@@ -225,12 +225,6 @@ def function_modify(
             logger.info(diff[: min(1000, len(diff))])
         else:
             logger.warning("No changes were made.")
-        # if ticket_progress:
-        #     save_ticket_progress(
-        #         assistant_id=response.assistant_id,
-        #         thread_id=response.thread_id,
-        #         run_id=response.run_id,
-        #     )
         if current_contents != file_contents:
             return current_contents
     except AssistantRaisedException as e:
