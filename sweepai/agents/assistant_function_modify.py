@@ -133,7 +133,7 @@ def function_modify(
                         # if error_message:
                         #     break
                         section_letter = replace_to_make["section_id"]
-                        section_id = excel_col_to_int(section_letter)
+                        section_id = excel_col_to_int(section_letter) - 1
                         old_code = replace_to_make["old_code"].strip("\n")
                         new_code = replace_to_make["new_code"].strip("\n")
 
@@ -155,14 +155,18 @@ def function_modify(
                                 )
                                 error_message += "\n".join(
                                     [
-                                        f'\n<section id="{int_to_excel_col(index)}">\n{chunks[index]}\n</section>\n```'
+                                        f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
                                         for index in chunks_with_old_code
                                     ]
                                 )
+                            else:
+                                error_message += f"\n\nDouble-check your indentation and spelling, and make sure there's no missing whitespace or comments."
                             break
                         new_chunk = chunk.replace(old_code, new_code, 1)
+                        assert new_chunk != chunk
                         new_chunks[section_id] = new_chunk
-                        new_contents = current_contents.replace(chunk, new_chunk, 1)
+                        new_contents = new_contents.replace(chunk, new_chunk, 1)
+                        assert new_contents != current_contents
 
                     if not error_message and new_contents == current_contents:
                         error_message = "No changes were made, make sure old_code and new_code are not the same."
@@ -211,7 +215,7 @@ def function_modify(
                             f"ERROR\nNo changes we're made due to the following error:\n\n{error_message}"
                         )
                     else:
-                        logger.info(error_message)
+                        logger.info(success_message)
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\nHere are the new code sections:\n\n{success_message}"
                         )
