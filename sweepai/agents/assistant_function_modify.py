@@ -53,6 +53,7 @@ def function_modify(
     seed: int = None,
 ):
     try:
+        request = f"# Request\n{request}"
 
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             if assistant_conversation:
@@ -137,15 +138,18 @@ def function_modify(
                         if old_code not in chunk:
                             error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
                             break
-                        new_code_section = chunk.replace(old_code, new_code)
-                        new_contents = current_contents.replace(chunk, new_code_section)
+                        new_code_section = chunk.replace(old_code, new_code, 1)
+                        new_contents = current_contents.replace(
+                            chunk, new_code_section, 1
+                        )
+
+                    if current_contents == prev_contents:
+                        error_message = "No changes were made, make sure old_code and new_code are not the same."
 
                     if not error_message:
                         is_valid, message = check_code(file_path, new_contents)
                         if is_valid:
-                            success_message = generate_diff(
-                                current_contents, new_contents
-                            )
+                            diff = generate_diff(current_contents, new_contents)
                             current_contents = new_contents
 
                             # Re-initialize
@@ -174,7 +178,8 @@ def function_modify(
                                 else:
                                     current_code_section += section_display
                             code_sections.append(current_code_section)
-                            success_message += f"\n\n{code_sections[0]}"
+                            new_current_code = f"\n\n{code_sections[0]}"
+                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}."
                         else:
                             diff = generate_diff(current_contents, new_contents)
                             error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\nRemake the changes with additional changes ."
