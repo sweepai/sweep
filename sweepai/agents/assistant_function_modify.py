@@ -114,6 +114,7 @@ def function_modify(
                 {"type": "function", "function": search_and_replace_schema},
             ],
         )
+
         try:
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(50):
@@ -122,16 +123,9 @@ def function_modify(
                     error_message = ""
                     success_message = ""
                     new_contents = current_contents
-                    new_chunks = chunks
+                    new_chunks = [chunk for chunk in chunks]  # deepcopy
 
                     for replace_to_make in tool_call["replaces_to_make"]:
-                        # No longer needed since forced required
-                        # for key in ("section_id", "old_code", "new_code"):
-                        #     if key not in replace_to_make:
-                        #         error_message = f"Missing {key} in replace_to_make"
-                        #         break
-                        # if error_message:
-                        #     break
                         section_letter = replace_to_make["section_id"]
                         section_id = excel_col_to_int(section_letter)
                         old_code = replace_to_make["old_code"].strip("\n")
@@ -163,10 +157,12 @@ def function_modify(
                                 error_message += f"\n\nDouble-check your indentation and spelling, and make sure there's no missing whitespace or comments."
                             break
                         new_chunk = chunk.replace(old_code, new_code, 1)
-                        assert new_chunk != chunk
+                        if new_chunk == chunk:
+                            logger.warning("No changes were made to the code.")
                         new_chunks[section_id] = new_chunk
                         new_contents = new_contents.replace(chunk, new_chunk, 1)
-                        assert new_contents != current_contents
+                        if new_contents == current_contents:
+                            logger.warning("No changes were made to the code.")
 
                     if not error_message and new_contents == current_contents:
                         error_message = "No changes were made, make sure old_code and new_code are not the same."
