@@ -81,7 +81,7 @@ def function_modify(
                 code_sections.append(code_sections_string)
                 current_code_section = section_display
             else:
-                current_code_section += section_display
+                current_code_section += "\n" + section_display
         code_sections.append(current_code_section)
         code_sections_string = "\n".join(code_sections)
         additional_messages += [
@@ -133,7 +133,7 @@ def function_modify(
                         # if error_message:
                         #     break
                         section_letter = replace_to_make["section_id"]
-                        section_id = excel_col_to_int(section_letter) + 1
+                        section_id = excel_col_to_int(section_letter)
                         old_code = replace_to_make["old_code"].strip("\n")
                         new_code = replace_to_make["new_code"].strip("\n")
 
@@ -201,7 +201,7 @@ def function_modify(
                                     code_sections.append(code_sections_string)
                                     current_code_section = section_display
                                 else:
-                                    current_code_section += section_display
+                                    current_code_section += "\n" + section_display
                             code_sections.append(current_code_section)
                             new_current_code = f"\n\n{code_sections[0]}"
                             success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}. You can continue to make changes to the code sections and call the `search_and_replace` function again."
