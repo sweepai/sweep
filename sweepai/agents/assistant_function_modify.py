@@ -178,10 +178,10 @@ def function_modify(
                         else:
                             diff = generate_diff(current_contents, new_contents)
                             error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\nRemake the changes with additional changes ."
-                            current_contents = prev_contents
 
                     if error_message:
                         logger.error(error_message)
+                        current_contents = prev_contents
                         tool_name, tool_call = assistant_generator.send(
                             f"ERROR\nNo changes we're made due to the following error:\n\n{error_message}"
                         )
@@ -232,8 +232,9 @@ def function_modify(
 
 
 if __name__ == "__main__":
-    request = """• Replace the broken installation link with the provided new link.\n• Change the text from "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial)." \n  to "check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).\""""
-    request = "convert any unnecessary logger.exceptions to logger.errors in api.py"
+    request = """  • Instantiate `FilterAgent` and invoke `filter_search_query` with the query before the lexical search is performed.
+  • Capture the filtered query and replace the initial query with this new filtered version.
+  • Add error handling for the integration with `FilterAgent`."""
     # additional_messages = [
     #     Message(
     #         role="user",
@@ -243,10 +244,10 @@ if __name__ == "__main__":
     #         key="issue_metadata",
     #     )
     # ]
-    file_contents = open("sweepai/handlers/on_ticket.py", "r").read()
+    file_contents = open("sweepai/utils/ticket_utils.py", "r").read()
     response = function_modify(
         request=request,
-        file_path="sweepai/handlers/on_ticket.py",
+        file_path="sweepai/utils/ticket_utils.py",
         file_contents=file_contents,
         chat_logger=ChatLogger({"username": "wwzeng1"}),
         # additional_messages=additional_messages,
