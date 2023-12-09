@@ -277,7 +277,6 @@ class ModifyBot:
             return add_auto_imports(
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
-        return file_contents
         (
             snippet_queries,
             extraction_terms,
