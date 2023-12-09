@@ -207,7 +207,11 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
             f.write(code)
         pylint_output = StringIO()
         reporter = TextReporter(pylint_output)
-        Run([new_file, "--errors-only"], reporter=reporter, do_exit=False)
+        Run(
+            [new_file, "--errors-only", "--disable=import-error"],
+            reporter=reporter,
+            do_exit=False,
+        )
         error_message = pylint_output.getvalue()
         os.remove(new_file)
         if error_message:
