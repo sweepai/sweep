@@ -14,6 +14,7 @@ from pylint.reporters.text import TextReporter
 from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
+from sandbox.src.sandbox_local import discord_log_error
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
 
@@ -230,22 +231,25 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
     if ext == "py":
         file_hash = hashlib.md5(file_path.encode()).hexdigest()
         new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
-        with open(new_file, "w") as f:
-            f.write(code)
-        pylint_output = StringIO()
-        reporter = TextReporter(pylint_output)
-        Run(
-            [new_file, "--errors-only", "--disable=import-error"],
-            reporter=reporter,
-            do_exit=False,
-        )
-        error_message = pylint_output.getvalue()
         try:
-            os.remove(new_file)
-        except FileNotFoundError:
-            pass
-        if error_message:
-            return False, error_message
+            with open(new_file, "w") as f:
+                f.write(code)
+            pylint_output = StringIO()
+            reporter = TextReporter(pylint_output)
+            Run(
+                [new_file, "--errors-only", "--disable=import-error"],
+                reporter=reporter,
+                do_exit=False,
+            )
+            error_message = pylint_output.getvalue()
+            try:
+                os.remove(new_file)
+            except FileNotFoundError:
+                pass
+            if error_message:
+                return False, error_message
+        except Exception as e:
+            discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
     return True, ""
 
 
