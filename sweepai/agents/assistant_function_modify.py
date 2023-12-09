@@ -133,7 +133,7 @@ def function_modify(
                         # if error_message:
                         #     break
                         section_letter = replace_to_make["section_id"]
-                        section_id = excel_col_to_int(section_letter) - 1
+                        section_id = excel_col_to_int(section_letter) + 1
                         old_code = replace_to_make["old_code"].strip("\n")
                         new_code = replace_to_make["new_code"].strip("\n")
 
