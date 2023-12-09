@@ -179,10 +179,10 @@ def function_modify(
                                     current_code_section += section_display
                             code_sections.append(current_code_section)
                             new_current_code = f"\n\n{code_sections[0]}"
-                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}."
+                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}. You can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
-                            error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\nRemake the changes with additional changes ."
+                            error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\n. Please retry with different valid changes."
 
                     if error_message:
                         logger.error(error_message)
