@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import ast
+import os
 import re
 import traceback
 from dataclasses import dataclass
+from io import StringIO
 
 import tiktoken
+from pylint.lint import Run
+from pylint.reporters.text import TextReporter
 from tree_sitter import Node
+from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
@@ -179,8 +185,6 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
 
 def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
-    from tree_sitter_languages import get_parser
-
     ext = file_path.split(".")[-1]
     if ext in extension_to_language:
         language = extension_to_language[ext]
@@ -188,6 +192,26 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         return True, "Unsupported file extension, skipping syntax check."
     parser = get_parser(language)
     tree = parser.parse(code.encode("utf-8"))
+
+    if language == "python":
+        # First check for syntax errors
+        try:
+            ast.parse(code)
+        except SyntaxError as e:
+            error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
+            return False, error_message
+
+        # Then check for linting errors
+        new_file = "/tmp/" + file_path.split("/")[-1]
+        with open(new_file, "w") as f:
+            f.write(code)
+        pylint_output = StringIO()
+        reporter = TextReporter(pylint_output)
+        Run([new_file, "--errors-only"], reporter=reporter, do_exit=False)
+        error_message = pylint_output.getvalue()
+        os.remove(new_file)
+        if error_message:
+            return False, error_message
 
     def find_deepest_error(node: Node):
         deepest_error = None
