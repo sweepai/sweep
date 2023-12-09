@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import os
 import re
 import traceback
@@ -227,7 +228,8 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
         return is_valid, error_message
     ext = file_path.split(".")[-1]
     if ext == "py":
-        new_file = "/tmp/" + file_path.split("/")[-1]
+        file_hash = hashlib.md5(file_path.encode()).hexdigest()
+        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
         with open(new_file, "w") as f:
             f.write(code)
         pylint_output = StringIO()
