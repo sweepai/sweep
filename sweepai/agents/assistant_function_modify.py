@@ -123,9 +123,10 @@ def function_modify(
                     new_contents = current_contents
 
                     for replace_to_make in tool_call["replaces_to_make"]:
-                        if "section_id" not in replace_to_make:
-                            error_message = "Missing section_id in replace_to_make"
-                            break
+                        for key in ("section_id", "old_code", "new_code"):
+                            if key not in replace_to_make:
+                                error_message = f"Missing {key} in replace_to_make"
+                                break
                         section_letter = replace_to_make["section_id"]
                         section_id = excel_col_to_int(section_letter)
                         old_code = replace_to_make["old_code"]
