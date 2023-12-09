@@ -143,12 +143,11 @@ def function_modify(
                             chunk, new_code_section, 1
                         )
 
-                    if new_contents == current_contents:
-                        error_message = "No changes were made, make sure old_code and new_code are not the same."
-
                     if not error_message:
+                        if new_contents == current_contents:
+                            error_message = "No changes were made, make sure old_code and new_code are not the same."
                         is_valid, message = check_code(file_path, new_contents)
-                        if is_valid:
+                        if is_valid and not error_message:
                             diff = generate_diff(current_contents, new_contents)
                             current_contents = new_contents
 
