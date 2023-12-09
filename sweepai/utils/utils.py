@@ -237,7 +237,12 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
             pylint_output = StringIO()
             reporter = TextReporter(pylint_output)
             Run(
-                [new_file, "--errors-only", "--disable=import-error"],
+                [
+                    new_file,
+                    "--errors-only",
+                    "--disable=import-error",
+                    "--disable=relative-beyond-top-level",
+                ],
                 reporter=reporter,
                 do_exit=False,
             )
