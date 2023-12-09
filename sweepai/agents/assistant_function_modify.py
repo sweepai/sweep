@@ -119,6 +119,8 @@ def function_modify(
                 if tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
+                    prev_contents = current_contents
+
                     for replace_to_make in tool_call["replaces_to_make"]:
                         if "section_id" not in replace_to_make:
                             error_message = "Missing section_id in replace_to_make"
@@ -176,6 +178,7 @@ def function_modify(
                         else:
                             diff = generate_diff(current_contents, new_contents)
                             error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\nRemake the changes with additional changes ."
+                            current_contents = prev_contents
 
                     if error_message:
                         logger.error(error_message)
