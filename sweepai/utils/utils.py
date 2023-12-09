@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import ast
-import hashlib
 import os
 import re
 import traceback
+import uuid
 from dataclasses import dataclass
 from io import StringIO
 
@@ -14,9 +14,9 @@ from pylint.reporters.text import TextReporter
 from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
-from sandbox.src.sandbox_local import discord_log_error
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
+from sweepai.utils.chat_logger import discord_log_error
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -229,7 +229,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
         return is_valid, error_message
     ext = file_path.split(".")[-1]
     if ext == "py":
-        file_hash = hashlib.md5(file_path.encode()).hexdigest()
+        file_hash = uuid.uuid4().hex
         new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
         try:
             with open(new_file, "w") as f:
