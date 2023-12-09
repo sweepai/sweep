@@ -20,7 +20,7 @@ search_and_replace_schema = {
         "properties": {
             "analysis_and_identification": {
                 "type": "string",
-                "description": "Identify that need to be made to the file. Be sure to consider all imports that are required to complete the task. Then, in a list, identify all code sections that should receive these changes and all locations code should be added.",
+                "description": "Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made. Be sure to consider all imports that are required to complete the task.",
             },
             "replaces_to_make": {
                 "type": "array",
