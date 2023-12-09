@@ -18,6 +18,10 @@ search_and_replace_schema = {
     "parameters": {
         "type": "object",
         "properties": {
+            "analysis_and_identification": {
+                "type": "string",
+                "description": "Identify that need to be made to the file. Be sure to consider all imports that are required to complete the task. Then, in a list, identify all code sections that should receive these changes and all locations code should be added.",
+            },
             "replaces_to_make": {
                 "type": "array",
                 "description": "Array of sections to modify",
@@ -30,17 +34,18 @@ search_and_replace_schema = {
                         },
                         "old_code": {
                             "type": "string",
-                            "description": "The old lines of code that belongs to section with ID section_id.",
+                            "description": "The old lines of code that belongs to section with ID section_id. Be sure to add lines before and after to disambiguate the change.",
                         },
                         "new_code": {
                             "type": "string",
                             "description": "The new code to replace the old code.",
                         },
                     },
+                    "required": ["section_id", "old_code", "new_code"],
                 },
-            }
+            },
         },
-        "required": ["replaces_to_make"],
+        "required": ["analysis_and_identification", "replaces_to_make"],
     },
     "description": "Make edits to the code file.",
 }

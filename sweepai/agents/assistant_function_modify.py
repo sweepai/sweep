@@ -1,3 +1,4 @@
+import json
 import traceback
 
 from loguru import logger
@@ -116,17 +117,20 @@ def function_modify(
         try:
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(50):
-                print(tool_name, tool_call)
+                print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
                     new_contents = current_contents
+                    new_chunks = chunks
 
                     for replace_to_make in tool_call["replaces_to_make"]:
                         for key in ("section_id", "old_code", "new_code"):
                             if key not in replace_to_make:
                                 error_message = f"Missing {key} in replace_to_make"
                                 break
+                        if error_message:
+                            break
                         section_letter = replace_to_make["section_id"]
                         section_id = excel_col_to_int(section_letter)
                         old_code = replace_to_make["old_code"]
@@ -135,14 +139,13 @@ def function_modify(
                         if section_id >= len(chunks):
                             error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
                             break
-                        chunk = chunks[section_id]
+                        chunk = new_chunks[section_id]
                         if old_code not in chunk:
                             error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
                             break
-                        new_code_section = chunk.replace(old_code, new_code, 1)
-                        new_contents = current_contents.replace(
-                            chunk, new_code_section, 1
-                        )
+                        new_chunk = chunk.replace(old_code, new_code, 1)
+                        new_chunks[section_id] = new_chunk
+                        new_contents = current_contents.replace(chunk, new_chunk, 1)
 
                     if not error_message:
                         if new_contents == current_contents:
@@ -239,20 +242,22 @@ if __name__ == "__main__":
     request = """  • Instantiate `FilterAgent` and invoke `filter_search_query` with the query before the lexical search is performed.
   • Capture the filtered query and replace the initial query with this new filtered version.
   • Add error handling for the integration with `FilterAgent`."""
-    # additional_messages = [
-    #     Message(
-    #         role="user",
-    #         content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: replace the broken installation link in installation.md with https://docs.sweep.dev/tutorial",
-    #         name=None,
-    #         function_call=None,
-    #         key="issue_metadata",
-    #     )
-    # ]
+    additional_messages = [
+        Message(
+            role="user",
+            content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: integrate FilterAgent into on_ticket.py",
+            name=None,
+            function_call=None,
+            key="issue_metadata",
+        )
+    ]
     file_contents = open("sweepai/utils/ticket_utils.py", "r").read()
     response = function_modify(
         request=request,
         file_path="sweepai/utils/ticket_utils.py",
         file_contents=file_contents,
-        chat_logger=ChatLogger({"username": "wwzeng1"}),
+        chat_logger=ChatLogger(
+            {"username": "wwzeng1", "title": "Integrate FilterAgent"}
+        ),
         # additional_messages=additional_messages,
     )
