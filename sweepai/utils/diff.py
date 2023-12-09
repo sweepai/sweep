@@ -39,11 +39,12 @@ def diff_contains_dups_or_removals(diff, new_code):
 def generate_diff(old_code, new_code):
     if old_code == new_code:
         return ""
-    old_code = old_code.strip()
-    new_code = new_code.strip()
+    stripped_old_code = old_code.strip()
+    stripped_new_code = new_code.strip()
 
     diff = difflib.unified_diff(
-        old_code.splitlines(keepends=True), new_code.splitlines(keepends=True)
+        stripped_old_code.splitlines(keepends=True),
+        stripped_new_code.splitlines(keepends=True),
     )
 
     diff_text = "".join(diff)
