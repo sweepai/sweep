@@ -120,7 +120,7 @@ def function_modify(
                 if tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
-                    prev_contents = current_contents
+                    new_contents = current_contents
 
                     for replace_to_make in tool_call["replaces_to_make"]:
                         if "section_id" not in replace_to_make:
@@ -143,7 +143,7 @@ def function_modify(
                             chunk, new_code_section, 1
                         )
 
-                    if current_contents == prev_contents:
+                    if new_contents == current_contents:
                         error_message = "No changes were made, make sure old_code and new_code are not the same."
 
                     if not error_message:
@@ -186,7 +186,6 @@ def function_modify(
 
                     if error_message:
                         logger.error(error_message)
-                        current_contents = prev_contents
                         tool_name, tool_call = assistant_generator.send(
                             f"ERROR\nNo changes we're made due to the following error:\n\n{error_message}"
                         )
