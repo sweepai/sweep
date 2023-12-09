@@ -4,8 +4,11 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from sweepai.agents.assistant_function_modify import excel_col_to_int, int_to_excel_col
-from sweepai.agents.assistant_modify import new_modify
+from sweepai.agents.assistant_function_modify import (
+    excel_col_to_int,
+    function_modify,
+    int_to_excel_col,
+)
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
@@ -260,7 +263,7 @@ class ModifyBot:
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
     ):
-        new_file = new_modify(
+        new_file = function_modify(
             request=file_change_request.instructions,
             file_path=os.path.join(cloned_repo.repo_dir, file_path),
             file_contents=file_contents,
@@ -274,6 +277,7 @@ class ModifyBot:
             return add_auto_imports(
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
+        return file_contents
         (
             snippet_queries,
             extraction_terms,
@@ -327,7 +331,7 @@ class ModifyBot:
                     chunking=chunking,
                     analysis_and_identification=analysis_and_identification,
                 )
-        new_file = add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
+        # new_file = add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
         return new_file
 
     def get_snippets_to_modify(
