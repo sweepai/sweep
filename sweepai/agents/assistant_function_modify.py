@@ -125,33 +125,51 @@ def function_modify(
                     new_chunks = chunks
 
                     for replace_to_make in tool_call["replaces_to_make"]:
-                        for key in ("section_id", "old_code", "new_code"):
-                            if key not in replace_to_make:
-                                error_message = f"Missing {key} in replace_to_make"
-                                break
-                        if error_message:
-                            break
+                        # No longer needed since forced required
+                        # for key in ("section_id", "old_code", "new_code"):
+                        #     if key not in replace_to_make:
+                        #         error_message = f"Missing {key} in replace_to_make"
+                        #         break
+                        # if error_message:
+                        #     break
                         section_letter = replace_to_make["section_id"]
                         section_id = excel_col_to_int(section_letter)
-                        old_code = replace_to_make["old_code"]
-                        new_code = replace_to_make["new_code"]
+                        old_code = replace_to_make["old_code"].strip("\n")
+                        new_code = replace_to_make["new_code"].strip("\n")
 
                         if section_id >= len(chunks):
                             error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
                             break
                         chunk = new_chunks[section_id]
                         if old_code not in chunk:
+                            chunks_with_old_code = [
+                                index
+                                for index, chunk in enumerate(chunks)
+                                if old_code in chunk
+                            ]
+                            chunks_with_old_code = chunks_with_old_code[:5]
                             error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
+                            if chunks_with_old_code:
+                                error_message += (
+                                    f"\n\nDid you mean one of the following sections?"
+                                )
+                                error_message += "\n".join(
+                                    [
+                                        f'\n<section id="{int_to_excel_col(index)}">\n{chunks[index]}\n</section>\n```'
+                                        for index in chunks_with_old_code
+                                    ]
+                                )
                             break
                         new_chunk = chunk.replace(old_code, new_code, 1)
                         new_chunks[section_id] = new_chunk
                         new_contents = current_contents.replace(chunk, new_chunk, 1)
 
+                    if not error_message and new_contents == current_contents:
+                        error_message = "No changes were made, make sure old_code and new_code are not the same."
+
                     if not error_message:
-                        if new_contents == current_contents:
-                            error_message = "No changes were made, make sure old_code and new_code are not the same."
                         is_valid, message = check_code(file_path, new_contents)
-                        if is_valid and not error_message:
+                        if is_valid:
                             diff = generate_diff(current_contents, new_contents)
                             current_contents = new_contents
 
