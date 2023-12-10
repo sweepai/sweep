@@ -49,6 +49,7 @@ python-Levenshtein = "0.21.1"
 logtail-python = "^0.2.6"
 
 # Backend dependencies
+nmslib = "^2.1.1"
 fastapi = "^0.94.1"
 uvicorn = "^0.21.0"
 pymongo = "^4.4.0"
@@ -63,7 +64,7 @@ replicate = "0.15.4"
 psutil = "^5.9.5"
 yamllint = "^1.32.0"
 graphviz = "^0.20.1"
-torch = {version = "^2.1.0+cpu", source = "torch"}
+torch = { version = "^2.1.0+cpu", source = "torch" }
 rope = "^1.10.0"
 jedi = "^0.19.1"
 pytest = "^7.4.3"
@@ -110,6 +111,4 @@ sweepai = "sweepai.app.cli:app"
 
 [tool.pylint.'MESSAGES CONTROL']
 
-disable=[
-  'no-name-in-module'
-]
+disable = ['no-name-in-module']
