@@ -17,7 +17,7 @@ def get_latest_docker_version():
         elif minutes > 0:
             return f"{int(minutes)} minutes ago"
         else:
-            return "just now"
+            return "0 seconds ago"
 
     url = "https://hub.docker.com/v2/namespaces/sweepai/repositories/sweep/tags"
     try:
