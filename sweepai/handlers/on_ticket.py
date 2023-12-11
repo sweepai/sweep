@@ -492,7 +492,7 @@ def on_ticket(
             return (
                 f"{center(sweeping_gif)}"
                 + center(
-                    f'\n\n<h3>✨ Track Sweep\'s progress on the new <a href="https://progress.sweep.dev/issues/{tracking_id}">dashboard</a>.</h3>'
+                    f'\n\n<h2>✨ Track Sweep\'s progress on the new <a href="https://progress.sweep.dev/issues/{tracking_id}">dashboard</a>.</h2>'
                 )
                 + f"<br/>{center(pbar)}"
                 + ("\n" + stars_suffix if index != -1 else "")
@@ -1429,7 +1429,7 @@ def on_ticket(
                 review_message + "\n\nSuccess! 🚀",
                 4,
                 pr_message=(
-                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}). See Sweep's process at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">dashboard</a>. \n{center(payment_message_start)}"
+                    f"## [Here's the PR! {pr.number}]({pr.html_url}).\n ### See Sweep's process at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">dashboard</a>. \n{center(payment_message_start)}"
                 ),
                 done=True,
             )
