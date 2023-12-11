@@ -217,6 +217,17 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 def prepare_index_from_snippets(
     snippets, len_repo_cache_dir=0, ticket_progress: TicketProgress | None = None
 ):
+    """
+    Prepares an index from the provided snippets and updates the progress of ticket indexing if a TicketProgress object is provided.
+
+    Parameters:
+    snippets: The snippets to prepare the index from.
+    len_repo_cache_dir: The length of the repository cache directory.
+    ticket_progress (optional): A TicketProgress object to update the progress of ticket indexing.
+
+    Returns:
+    A CustomIndex object prepared from the snippets or None if there are no documents to index.
+    """
     all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
@@ -241,6 +252,13 @@ def prepare_index_from_snippets(
 
 @dataclass
 class Documentation:
+    """
+    Represents a documentation with a URL and its content.
+
+    Attributes:
+    url: The URL of the documentation.
+    content: The content of the documentation.
+    """
     url: str
     content: str
 
