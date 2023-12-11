@@ -8,7 +8,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import search_index
-from sweepai.core.vector_db import prepare_lexical_search_index
+from sweepai.core.vector_db import compute_vector_search_scores, prepare_lexical_search_index
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
@@ -42,12 +42,14 @@ def prep_snippets(
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
 
+    files_to_scores = compute_vector_search_scores(file_list, cloned_repo)
     for snippet in snippets:
+        codebase_score = files_to_scores.get(snippet.file_path, 0.08)
         snippet_score = 0.1
         if snippet_to_key(snippet) in content_to_lexical_score:
-            snippet_score = content_to_lexical_score[snippet_to_key(snippet)]
+            snippet_score = content_to_lexical_score[snippet_to_key(snippet)] * codebase_score
         else:
-            content_to_lexical_score[snippet_to_key(snippet)] = snippet_score
+            content_to_lexical_score[snippet_to_key(snippet)] = snippet_score * codebase_score
 
     ranked_snippets = sorted(
         snippets,

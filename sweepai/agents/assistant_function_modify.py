@@ -208,7 +208,7 @@ def function_modify(
                     if error_message:
                         logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\nNo changes we're made due to the following error:\n\n{error_message}"
+                            f"ERROR\nNo changes were made due to the following error:\n\n{error_message}"
                         )
                     else:
                         logger.info(success_message)

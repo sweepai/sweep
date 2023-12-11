@@ -189,7 +189,7 @@ def get_deeplake_vs_from_repo(
     )
     # scoring for vector search
     files_to_scores = compute_vector_search_scores(
-        file_list, cloned_repo, repo_full_name
+        file_list, cloned_repo
     )
 
     collection_name, documents, ids, metadatas = prepare_documents_metadata_ids(
@@ -226,7 +226,7 @@ def prepare_documents_metadata_ids(
     return collection_name, documents, ids, metadatas
 
 
-def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
+def compute_vector_search_scores(file_list, cloned_repo):
     files_to_scores = {}
     score_factors = []
     for file_path in tqdm(file_list):
@@ -254,9 +254,8 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     # compute all scores
     all_scores = get_scores(score_factors)
     files_to_scores = {
-        file_path: score for file_path, score in zip(file_list, all_scores)
+        file_path[len(cloned_repo.cached_dir) + 1 :]: score for file_path, score in zip(file_list, all_scores)
     }
-    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
     return files_to_scores
 
 

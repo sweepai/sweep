@@ -253,7 +253,7 @@ def prepare_index_from_docs(docs):
     index = CustomIndex()
     try:
         for doc in tqdm(all_docs, total=len(all_docs)):
-            index.add_document(title=f"{doc.url}", content=doc.content)
+            index.add_document(title=f"{doc.url}", tokens=compute_document_tokens(doc.content))
     except FileNotFoundError as e:
         logger.error(e)
     return index
