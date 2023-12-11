@@ -10,7 +10,6 @@ from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -55,7 +54,37 @@ Propose the most important paths as well as any new required paths, along with a
 
 Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request.
 If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
+Store as few file paths as necessary to solve the user request.
+
+If the request is too vague, ask me for more details."""
+
+vague_sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You are currently gathering the minimum set of information that allows you to plan the solution to the issue. It is very important that you get this right.
+
+# Request
+
+First, use the snippets, issue metadata and other information to determine whether my request was too vague. If so, indicate so by saying <vague_request>true</vague_request> followed by asking me for further details about my request. Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo to provide the perfect context to either ask me for further details about the problem OR perfectly solve the user request.
+
+# Details
+
+If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
 Store as few file paths as necessary to solve the user request."""
+
+vague_unformatted_user_prompt = """\
+<snippets_in_repo>
+{snippets_in_repo}
+</snippets_in_repo>
+<paths_in_repo>
+{paths_in_repo}
+</paths_in_repo>
+<repo_tree>
+{repo_tree}
+</repo_tree>
+# Instructions
+## User Request
+{query}"""
+
+sys_prompt = vague_sys_prompt
+unformatted_user_prompt = vague_unformatted_user_prompt
 
 functions = [
     {
@@ -201,7 +230,7 @@ class RepoContextManager:
                     self.current_top_snippets.append(snippet)
 
 
-@file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -274,7 +303,8 @@ def modify_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
 ) -> bool | None:
-    max_iterations = 30
+    # max_iterations = 30a
+    max_iterations = 99999999
     paths_to_keep = []  # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
