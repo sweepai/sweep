@@ -45,6 +45,9 @@ class AssistantConversation(BaseModel):
     messages: list[AssistantAPIMessage] = []
     is_active: bool = True
     status: AssistantStatus = "in_progress"
+    assistant_id: str = ""
+    run_id: str = ""
+    thread_id: str = ""
 
     class Config:
         use_enum_values = True
@@ -133,6 +136,9 @@ class AssistantConversation(BaseModel):
             messages=messages,
             status=run.status,
             is_active=run.status not in ("succeeded", "failed"),
+            assistant_id=assistant_id,
+            run_id=run_id,
+            thread_id=thread_id,
         )
 
     def update_from_ids(
