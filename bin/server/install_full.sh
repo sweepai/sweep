@@ -7,12 +7,22 @@ run_until_success() {
 }
 
 run_until_success "sudo apt update"
-run_until_success "sudo apt install -y gcc g++ curl"
-run_until_success "sudo apt-get update"
-run_until_success "sudo apt-get install -y redis build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git"
+run_until_success "sudo apt install -y gcc g++ curl redis build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git"
+
 run_until_success "sudo systemctl stop redis"
 run_until_success "snap install ngrok"
-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && sudo apt update -y && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo systemctl start docker && sudo usermod -aG docker ${USER}
+install_docker() {
+    sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    sudo add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    sudo apt update
+    sudo apt install docker-ce
+    sudo systemctl enable docker
+    sudo systemctl start docker
+    sudo usermod -aG docker ${USER}
+}
+
+install_docker
 
 curl https://pyenv.run | bash
 {
@@ -34,9 +44,11 @@ pyenv install 3.11.5
 cd ~/sweep
 pyenv local 3.11.5
 
-# Install poetry
+# Install poetry using the official installer.
 curl -sSL https://install.python-poetry.org | python3 -
+# Set the poetry environment to use the installed Python version.
 poetry env use /root/.pyenv/versions/3.11.5/bin/python
+# Start the poetry shell.
 poetry shell
 
 # Install with this command, pressing only enter when prompted:
