@@ -69,7 +69,16 @@ class CustomIndex:
 
         return results_with_metadata
 
+"""
+A regular expression pattern that matches any word in a given text. 
+A word is defined as one or more alphanumeric characters surrounded by word boundaries.
+"""
 word_pattern = re.compile(r"\b\w+\b")
+"""
+A regular expression pattern that matches any variable in a given text. 
+A variable is defined as one or more lowercase letters, followed by one or more uppercase letters, 
+followed by one or more lowercase letters or uppercase letters at the end of the word or at the end of the string.
+"""
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
 def tokenize_call(code):
