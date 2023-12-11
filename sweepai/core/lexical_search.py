@@ -1,3 +1,6 @@
+"""
+This module contains utilities for lexical analysis of text.
+"""
 import re
 import traceback
 from collections import Counter, defaultdict
@@ -70,7 +73,14 @@ class CustomIndex:
         return results_with_metadata
 
 word_pattern = re.compile(r"\b\w+\b")
+"""
+A compiled regular expression that matches any word bounded by word boundaries.
+A word is defined as a sequence of alphanumeric characters or underscores.
+"""
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
+"""
+A compiled regular expression that matches camel case or snake case variable names.
+"""
 
 def tokenize_call(code):
     def check_valid_token(token):
