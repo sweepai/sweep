@@ -1,3 +1,11 @@
+"""
+This module provides functionality for indexing docs and searching through the
+created index with different strategies such as BM25.
+
+It includes tokenizing text using regular expressions and specialized tokenizers,
+constructing n-grams, indexing documents, calculating the BM25 score for relevancy
+ranking, and searching the index for a given query.
+"""
 import re
 import traceback
 from collections import Counter, defaultdict
@@ -62,6 +70,8 @@ class CustomIndex:
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
         # Attach metadata to the results
+        # Attach metadata to the results
+        # results_with_metadata: Contains tuples of document id, score, and associated metadata for each matching document.
         results_with_metadata = [
             (doc_id, score, self.metadata.get(doc_id, {}))
             for doc_id, score in sorted_scores
@@ -69,10 +79,19 @@ class CustomIndex:
 
         return results_with_metadata
 
+# word_pattern: A regular expression pattern to identify word tokens.
 word_pattern = re.compile(r"\b\w+\b")
+# variable_pattern: A regular expression pattern to split camelCase or PascalCase into separate words.
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
 def tokenize_call(code):
+    """
+    Tokenizes the given code into word tokens while considering different
+    naming conventions such as snake_case and CamelCase.
+
+    :param code: A string containing the code to be tokenized.
+    :return: A list of Token objects representing the tokens of the code.
+    """
     def check_valid_token(token):
         return token and len(token) > 1
 
@@ -130,6 +149,12 @@ def tokenize_call(code):
 
 
 def construct_bigrams(tokens):
+    """
+    Constructs bigrams from the given list of tokens.
+
+    :param tokens: A list of single Token objects to be joined into bigrams.
+    :return: A list of Token objects representing the bigrams.
+    """
     res = []
     prev_token = None
     for token in tokens:
@@ -147,6 +172,12 @@ def construct_bigrams(tokens):
 
 
 def construct_trigrams(tokens):
+    """
+    Constructs trigrams from the given list of tokens.
+
+    :param tokens: A list of single Token objects to be joined into trigrams.
+    :return: A list of Token objects representing the trigrams.
+    """
     res = []
     prev_prev_token = None
     prev_token = None
@@ -196,6 +227,14 @@ class Document:
 
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
+    """
+    Converts a list of code snippets to Document objects for indexing.
+
+    :param snippets: A list of Snippet objects to be converted.
+    :param len_repo_cache_dir: The length of the repository cache directory path,
+                              used to trim file paths in the Document objects.
+    :return: A list of Document objects.
+    """
     from tqdm import tqdm
 
     docs = []
@@ -249,6 +288,14 @@ class Documentation:
 
 
 def prepare_index_from_docs(docs):
+    """
+    Creates a search index from a list of extracted documentation.
+
+    :param docs: A list of tuples where each tuple contains a URL and its related content.
+    :return: A CustomIndex object containing the search index or None if
+             there are no documents to index.
+    :raises FileNotFoundError: Raised if a file needed for indexing is not found.
+    """
     all_docs = [Documentation(url, content) for url, content in docs]
     if len(all_docs) == 0:
         return None
