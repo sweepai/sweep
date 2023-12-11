@@ -54,8 +54,6 @@ def function_modify(
     seed: int = None,
 ):
     try:
-        request = f"# Request\n{request}"
-
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             if assistant_conversation:
                 assistant_conversation.update_from_ids(
