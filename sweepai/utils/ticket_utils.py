@@ -1,3 +1,4 @@
+from threading import Thread
 import traceback
 from time import time
 
@@ -89,7 +90,6 @@ def fetch_relevant_files(
     metadata,
     on_ticket_start_time,
     tracking_id,
-    edit_sweep_comment,
     is_paying_user,
     is_consumer_tier,
     issue_url,
@@ -135,14 +135,6 @@ def fetch_relevant_files(
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
-        edit_sweep_comment(
-            (
-                "It looks like an issue has occurred around fetching the files."
-                " Perhaps the repo has not been initialized. If this error persists"
-                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
-            ),
-            -1,
-        )
         log_error(
             is_paying_user,
             is_consumer_tier,
@@ -244,3 +236,20 @@ def log_error(
 
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
+
+def fire_and_forget_wrapper(call):
+    """
+    This decorator is used to run a function in a separate thread.
+    It does not return anything and does not wait for the function to finish.
+    It fails silently.
+    """
+    def wrapper(*args, **kwargs):
+        def run_in_thread(call, *a, **kw):
+            try:
+                call(*a, **kw)
+            except:
+                pass
+        thread = Thread(target=run_in_thread, args=(call,) + args, kwargs=kwargs)
+        thread.start()
+
+    return wrapper

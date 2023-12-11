@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta
+from threading import Thread
 from typing import Any
 
 import requests
@@ -64,8 +65,8 @@ class ChatLogger(BaseModel):
             except Exception as e:
                 logger.warning("Chat history could not connect to MongoDB")
                 logger.warning(e)
-
-    def add_chat(self, additional_data):
+    
+    def _add_chat(self, additional_data):
         if self.chat_collection is None:
             logger.error("Chat collection is not initialized")
             return
@@ -78,7 +79,11 @@ class ChatLogger(BaseModel):
         self.index += 1
         self.chat_collection.insert_one(document)
 
-    def add_successful_ticket(self, gpt3=False):
+    def add_chat(self, additional_data):
+        thread = Thread(target=self._add_chat, args=(additional_data,))
+        thread.start()
+
+    def _add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return
@@ -105,6 +110,10 @@ class ChatLogger(BaseModel):
             )
 
         logger.info(f"Added Successful Ticket for {username}")
+
+    def add_successful_ticket(self, gpt3=False):
+        thread = Thread(target=self._add_successful_ticket, args=(gpt3,))
+        thread.start()
 
     def _cache_key(self, username, field, metadata=""):
         return f"{username}_{field}_{metadata}"

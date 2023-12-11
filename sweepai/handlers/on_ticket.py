@@ -4,6 +4,7 @@ It is only called by the webhook handler in sweepai/api.py.
 """
 
 import math
+import os
 import re
 import traceback
 from time import time
@@ -98,7 +99,7 @@ from sweepai.utils.str_utils import (
     stars_suffix,
     strip_sweep,
 )
-from sweepai.utils.ticket_utils import center, fetch_relevant_files, log_error
+from sweepai.utils.ticket_utils import center, fetch_relevant_files, fire_and_forget_wrapper, log_error
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -134,6 +135,7 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
+    on_ticket_start_time = time()
     (
         title,
         slow_mode,
@@ -144,23 +146,24 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    context = LogtailContext()
-    context.context(
-        task={
-            "issue_url": issue_url,
-            "issue_number": issue_number,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "username": username,
-            "comment_id": comment_id,
-            "edited": edited,
-            "issue_title": title,
-        }
-    )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
+    def initialize_logtail_context():
+        context = LogtailContext()
+        context.context(
+            task={
+                "issue_url": issue_url,
+                "issue_number": issue_number,
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "username": username,
+                "comment_id": comment_id,
+                "edited": edited,
+                "issue_title": title,
+            }
+        )
+        handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
+        logger.add(handler)
+    fire_and_forget_wrapper(initialize_logtail_context)()
 
-    on_ticket_start_time = time()
     summary = summary or ""
     summary = re.sub(
         "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
@@ -197,10 +200,7 @@ def on_ticket(
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
         branch_name = branch_match.group(1)
-        SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
-    else:
-        logger.info(f"Overrides not detected for branch {summary}")
+        fire_and_forget_wrapper(SweepConfig.get_branch)(repo, branch_name)
 
     chat_logger = (
         ChatLogger(
@@ -238,9 +238,7 @@ def on_ticket(
         use_faster_model = True
 
     if not comment_id and not edited and chat_logger and not sandbox_mode:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
+        fire_and_forget_wrapper(chat_logger.add_successful_ticket)(gpt3=use_faster_model)
 
     sweep_context = SweepContext.create(
         username=username,
@@ -250,7 +248,6 @@ def on_ticket(
         repo=repo,
         token=user_token,
     )
-
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -276,12 +273,9 @@ def on_ticket(
         "tracking_id": tracking_id,
     }
 
-    posthog.capture(username, "started", properties=metadata)
-    markdown_badge = get_docker_badge()
+    fire_and_forget_wrapper(posthog.capture)(username, "started", properties=metadata)
 
     try:
-        logger.info(f"Getting repo {repo_full_name}")
-
         if current_issue.state == "closed":
             logger.warning(
                 f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
@@ -297,57 +291,52 @@ def on_ticket(
             return {"success": False, "reason": "Issue is closed"}
 
         # Add :eyes: emoji to ticket
-        item_to_react_to = (
-            current_issue.get_comment(comment_id) if comment_id else current_issue
-        )
-        eyes_reaction = item_to_react_to.create_reaction("eyes")
+        def add_emoji(reaction_content="eyes"):
+            item_to_react_to = (
+                current_issue.get_comment(comment_id) if comment_id else current_issue
+                )
+            item_to_react_to.create_reaction("eyes")
+        fire_and_forget_wrapper(add_emoji)()        
         # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-        reactions = item_to_react_to.get_reactions()
-        for reaction in reactions:
-            if (
-                reaction.content == "rocket"
-                and reaction.user.login == GITHUB_BOT_USERNAME
-            ):
-                item_to_react_to.delete_reaction(reaction.id)
-
-        current_issue.edit(body=summary)
+        def remove_emoji(content_to_delete = "eyes"):
+            item_to_react_to = (
+                current_issue.get_comment(comment_id) if comment_id else current_issue
+            )
+            reactions = item_to_react_to.get_reactions()
+            for reaction in reactions:
+                if (
+                    reaction.content == content_to_delete
+                    and reaction.user.login == GITHUB_BOT_USERNAME
+                ):
+                    item_to_react_to.delete_reaction(reaction.id)
+        fire_and_forget_wrapper(remove_emoji)(content_to_delete="rocket")
+        fire_and_forget_wrapper(current_issue.edit)(body=summary)
 
         replies_text = ""
-        comments = list(current_issue.get_comments())
-        if comment_id:
-            logger.info(f"Replying to comment {comment_id}...")
-            replies_text = "\nComments:\n" + "\n".join(
-                [
-                    issue_comment_prompt.format(
-                        username=comment.user.login,
-                        reply=comment.body,
-                    )
-                    for comment in comments
-                    if comment.user.type == "User"
-                ]
-            )
         summary = summary if summary else ""
 
-        logger.info("Deleting old PRs...")
-        prs = repo.get_pulls(
-            state="open",
-            sort="created",
-            direction="desc",
-            base=SweepConfig.get_branch(repo),
-        )
-        checked_pr_count = 0
-        for pr in tqdm(prs):
-            # # Check if this issue is mentioned in the PR, and pr is owned by bot
-            # # This is done in create_pr, (pr_description = ...)
-            if checked_pr_count >= 20:
-                break
-            if (
-                pr.user.login == GITHUB_BOT_USERNAME
-                and f"Fixes #{issue_number}.\n" in pr.body
-            ):
-                success = safe_delete_sweep_branch(pr, repo)
-                break
-            checked_pr_count += 1
+        def delete_old_prs():
+            logger.info("Deleting old PRs...")
+            prs = repo.get_pulls(
+                state="open",
+                sort="created",
+                direction="desc",
+                base=SweepConfig.get_branch(repo),
+            )
+            checked_pr_count = 0
+            for pr in tqdm(prs):
+                # # Check if this issue is mentioned in the PR, and pr is owned by bot
+                # # This is done in create_pr, (pr_description = ...)
+                if checked_pr_count >= 40:
+                    break
+                if (
+                    pr.user.login == GITHUB_BOT_USERNAME
+                    and f"Fixes #{issue_number}.\n" in pr.body
+                ):
+                    success = safe_delete_sweep_branch(pr, repo)
+                    break
+                checked_pr_count += 1
+        fire_and_forget_wrapper(delete_old_prs)()
 
         # Removed 1, 3
         if not sandbox_mode:
@@ -508,20 +497,15 @@ def on_ticket(
                 + ("\n" + stars_suffix if index != -1 else "")
                 + "\n"
                 + center(payment_message_start)
-                + center(f"\n\n{markdown_badge}")
                 + config_pr_message
                 + f"\n\n---\n{actions_message}"
                 + sandbox_execution_message
             )
-
-        # Find Sweep's previous comment
-        for comment in comments:
-            if comment.user.login == GITHUB_BOT_USERNAME:
-                issue_comment = comment
-
-        try:
-            config = SweepConfig.get_config(repo)
-        except EmptyRepository as e:
+        cloned_repo = ClonedRepo(
+            repo_full_name, installation_id=installation_id, token=user_token, repo=repo
+        )
+        # check that repo's directory is non-empty
+        if os.listdir(cloned_repo.cached_dir) == []:
             logger.info("Empty repo")
             first_comment = (
                 "Sweep is currently not supported on empty repositories. Please add some"
@@ -533,19 +517,29 @@ def on_ticket(
             else:
                 issue_comment.edit(first_comment)
             return {"success": False}
-
-        cloned_repo = ClonedRepo(
-            repo_full_name, installation_id=installation_id, token=user_token
-        )
-        logger.info("Fetching num of files")
-        num_of_files = cloned_repo.get_num_files_from_repo()
-        logger.info("Done fetching num of files")
-        time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
-
+        fetching_files_failed = False
+        try:
+            snippets, tree, _ = fetch_relevant_files(
+                cloned_repo,
+                title,
+                summary,
+                replies_text,
+                username,
+                metadata,
+                on_ticket_start_time,
+                tracking_id,
+                is_paying_user,
+                is_consumer_tier,
+                issue_url,
+                chat_logger,
+                ticket_progress,
+            )
+        except:
+            fetching_files_failed = True # this is handled later to make this code faster
+        logger.warning(f"Search: Duration since start: {time() - on_ticket_start_time}")
         indexing_message = (
             "I'm searching for relevant snippets in your repository. If this is your first"
-            " time using Sweep, I'm indexing your repository. This may take up to"
-            f" {time_estimate} minutes. I'll let you know when I'm done."
+            " time using Sweep, I'm indexing your repository. You can monitor the progress using the dashboard"
         )
         first_comment = (
             f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I"
@@ -553,12 +547,17 @@ def on_ticket(
             f" searching through your code, looking for relevant snippets.\n{sep}##"
             f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
         )
-
+        # Find Sweep's previous comment
+        comments = []
+        for comment in current_issue.get_comments():
+            comments.append(comment)
+            if comment.user.login == GITHUB_BOT_USERNAME:
+                issue_comment = comment
+                break
         if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
         else:
-            issue_comment.edit(first_comment)
-
+            fire_and_forget_wrapper(issue_comment.edit)(first_comment)
         past_messages = {}
         current_index = 0
         table = None
@@ -635,6 +634,16 @@ def on_ticket(
                     ][0]
                     issue_comment.edit(msg)
 
+        if fetching_files_failed:
+            edit_sweep_comment(
+                (
+                    "It looks like an issue has occurred around fetching the files."
+                    " Perhaps the repo has not been initialized. If this error persists"
+                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
+                ),
+                -1,
+            )
+            raise Exception("Failed to fetch files")
         if sandbox_mode:
             logger.info("Running in sandbox mode")
             sweep_bot = SweepBot(
@@ -747,25 +756,6 @@ def on_ticket(
                     },
                 )
                 return {"success": False}
-
-        ticket_progress.search_progress.indexing_total = num_of_files
-        ticket_progress.save()
-        snippets, tree, _ = fetch_relevant_files(
-            cloned_repo,
-            title,
-            summary,
-            replies_text,
-            username,
-            metadata,
-            on_ticket_start_time,
-            tracking_id,
-            edit_sweep_comment,
-            is_paying_user,
-            is_consumer_tier,
-            issue_url,
-            chat_logger,
-            ticket_progress,
-        )
         ticket_progress.search_progress.indexing_progress = (
             ticket_progress.search_progress.indexing_total
         )
@@ -1304,7 +1294,7 @@ def on_ticket(
 
             lint_output = None
             try:
-                current_issue.delete_reaction(eyes_reaction.id)
+                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
             except SystemExit:
                 raise SystemExit
             except:
@@ -1609,8 +1599,8 @@ def on_ticket(
             raise e
         else:
             try:
-                item_to_react_to.delete_reaction(eyes_reaction.id)
-                item_to_react_to.create_reaction("rocket")
+                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
+                fire_and_forget_wrapper(add_emoji)("rocket")
             except SystemExit:
                 raise SystemExit
             except Exception as e:

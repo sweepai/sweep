@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from threading import Thread
 
 from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
@@ -226,7 +227,7 @@ class TicketProgress(BaseModel):
         doc = collection.find_one({"tracking_id": tracking_id})
         return cls(**doc)
 
-    def save(self):
+    def _save(self):
         try:
             if MONGODB_URI is None:
                 return None
@@ -243,6 +244,9 @@ class TicketProgress(BaseModel):
         except Exception as e:
             discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
 
+    def save(self):
+        thread = Thread(target=self._save)
+        thread.start()
 
 def create_index():
     # killer code to make everything way faster
