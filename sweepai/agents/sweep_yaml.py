@@ -42,6 +42,10 @@ sweep_yaml_user_prompt = """\
 
 class SweepYamlBot(ChatGPT):
     def get_sweep_yaml_rules(self, commit_history: str):
+        """
+        This method takes a commit history as input and returns a set of rules based on the commit history.
+        The commit history should be a string. The method returns the rules as a string.
+        """
         if len(commit_history) == 0:
             return ""
         self.messages = [
@@ -78,6 +82,10 @@ class SweepYamlBot(ChatGPT):
     """
 
     def format_sweep_yaml_rules(self, response: str):
+        """
+        This method takes a response string as input and formats it into a set of rules.
+        The response should be a string. The method returns the formatted rules as a string.
+        """
         pattern = r"<rule>\s*(.*?)\s*</rule>"
         rules = re.findall(pattern, response, re.DOTALL)
         logger.info(f"Successfully added {len(rules)} additional rules.")
