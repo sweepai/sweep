@@ -214,6 +214,17 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     return docs
 
 
+"""
+Prepares an index from the provided snippets and updates the progress of ticket indexing if a TicketProgress object is provided.
+
+Parameters:
+snippets: The snippets to prepare the index from.
+len_repo_cache_dir: The length of the repository cache directory.
+ticket_progress (optional): A TicketProgress object to update the progress of ticket indexing.
+
+Returns:
+A CustomIndex object prepared from the snippets or None if there are no documents to index.
+"""
 def prepare_index_from_snippets(
     snippets, len_repo_cache_dir=0, ticket_progress: TicketProgress | None = None
 ):
@@ -241,6 +252,13 @@ def prepare_index_from_snippets(
 
 @dataclass
 class Documentation:
+    url: str
+    content: str
+
+
+def prepare_index_from_docs(docs):
+    content: The content of the documentation.
+    """
     url: str
     content: str
 
@@ -278,8 +296,6 @@ def search_docs(query, index: CustomIndex):
         min_score = min(res.values()) if min(res.values()) < max_score else 0
     res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
     return res
-
-
 def search_index(query, index: CustomIndex):
     """Title, score, content"""
     if index == None:
