@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile
       target: base
     image: sweepai/sweep
+    container_name: webhook
     # network_mode: "host"
     volumes:
       - .:/app
@@ -20,12 +21,15 @@ services:
     tty: true
     environment:
       - PORT=${PORT:-8080}
+    restart: unless-stopped
   sandbox:
     build:
       context: sweepai/sandbox
       dockerfile: Dockerfile.sandbox
     image: sweepai/sandbox
+    container_name: sandbox
     scale: 0
+    restart: unless-stopped
   sandbox-web:
     env_file:
       - .env
@@ -33,14 +37,18 @@ services:
       context: sweepai/sandbox
       dockerfile: Dockerfile.web
     image: sweepai/sandbox-web
+    container_name: sandbox-web
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 8081:8080
+    restart: unless-stopped
   minis3:
     build: minis3
     image: sweepai/minis3
+    container_name: minis3
     ports:
       - "8082:8080"
     volumes:
       - ./public:/app/public
+    restart: unless-stopped
