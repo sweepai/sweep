@@ -30,6 +30,7 @@ from sweepai.events import (CheckRunCompleted, CommentCreatedRequest,
                             ReposAddedRequest)
 from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos, create_gha_pr)
+from sweepai.handlers.fix_main_branch import fix_main_branch
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
@@ -177,6 +178,9 @@ def call_on_comment(
         thread = threading.Thread(target=worker, name=key)
         thread.start()
 
+def call_fix_main_branch(*args, **kwargs):
+    thread = threading.Thread(target=fix_main_branch, args=args, kwargs=kwargs)
+    thread.start()
 
 def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
@@ -220,12 +224,15 @@ async def webhook(raw_request: Request):
         assert event is not None
 
         action = request_dict.get("action", None)
-
         match event, action:
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
+                # check if it's main and then if it's failing create a pr
+                if request.check_run.check_suite.head_branch == request.repository.default_branch:
+                    # fix_main_branch(request)
+                    pass
                 pull_requests = request.check_run.pull_requests
                 if pull_requests:
                     logger.info(pull_requests[0].number)

@@ -184,10 +184,18 @@ class CheckRunCompleted(BaseModel):
         class PullRequest(BaseModel):
             number: int
 
+        class CheckSuite(BaseModel):
+            head_branch: str
+            status: str
+            conclusion: str
+            updated_at: str
+
         conclusion: str
         html_url: str
         pull_requests: list[PullRequest]
         completed_at: str
+        check_suite: CheckSuite
+        name: str
 
         @property
         def run_id(self):
@@ -197,6 +205,7 @@ class CheckRunCompleted(BaseModel):
     class Repository(BaseModel):
         full_name: str
         description: str | None
+        default_branch: str | None
 
     class Sender(BaseModel):
         login: str

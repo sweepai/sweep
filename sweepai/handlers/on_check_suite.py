@@ -13,12 +13,6 @@ from sweepai.core.entities import PRChangeRequest
 from sweepai.events import CheckRunCompleted
 from sweepai.utils.github_utils import get_github_client, get_token
 
-log_message = """GitHub actions yielded the following error.
-
-{error_logs}
-
-Fix the code changed by the PR, don't modify the existing tests."""
-
 
 def get_dirs(zipfile: zipfile.ZipFile):
     return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
