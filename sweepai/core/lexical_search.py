@@ -1,3 +1,4 @@
+import multiprocessing
 import re
 import traceback
 from collections import Counter, defaultdict
@@ -11,6 +12,10 @@ from sweepai.core.entities import Snippet
 from sweepai.logn import logger
 from sweepai.utils.progress import TicketProgress
 
+def compute_document_tokens(content): # method that offloads the computation to a separate process
+    tokenizer = CodeTokenizer()
+    tokens = [token.text for token in tokenizer(content)]
+    return tokens
 
 class CustomIndex:
     def __init__(self):
@@ -22,13 +27,12 @@ class CustomIndex:
         self.metadata = {}  # Store custom metadata here
         self.tokenizer = CodeTokenizer()
 
-    def add_document(self, title, content, metadata={}):
+    def add_document(self, title, tokens, metadata={}):
         doc_id = title  # You can use title as doc_id or make it more unique
         self.metadata[doc_id] = metadata
-        self.index_document(doc_id, title + content)
+        self.index_document(doc_id, tokens)
 
-    def index_document(self, doc_id, content):
-        tokens = [token.text for token in self.tokenizer(content)]
+    def index_document(self, doc_id, tokens):
         doc_length = len(tokens)
         self.doc_lengths[doc_id] = doc_length
         self.avg_doc_length = sum(self.doc_lengths.values()) / len(self.doc_lengths)
@@ -196,10 +200,9 @@ class Document:
 
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
-    from tqdm import tqdm
 
     docs = []
-    for snippet in tqdm(snippets):
+    for snippet in snippets:
         docs.append(
             Document(
                 title=snippet.file_path[len_repo_cache_dir:],
@@ -214,33 +217,27 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 def prepare_index_from_snippets(
     snippets, len_repo_cache_dir=0, ticket_progress: TicketProgress | None = None
 ):
-    all_docs = snippets_to_docs(snippets, len_repo_cache_dir)
+    all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
-    # Create the index based on the schema
     index = CustomIndex()
     if ticket_progress:
         ticket_progress.search_progress.indexing_total = len(all_docs)
         ticket_progress.save()
+    all_tokens = []
     try:
-        for i, doc in tqdm(enumerate(all_docs), total=len(all_docs)):
-            if i % 200 == 0:
-                if ticket_progress is not None:
+        with multiprocessing.Pool(processes=8) as p:
+            for i, document_tokens in enumerate(p.imap(compute_document_tokens, [doc.content for doc in all_docs])):
+                all_tokens.append(document_tokens)
+                if ticket_progress and i % 200 == 0:
                     ticket_progress.search_progress.indexing_progress = i
                     ticket_progress.save()
-            index.add_document(
-                title=f"{doc.title}:{doc.start}:{doc.end}", content=doc.content
-            )
-        if ticket_progress is not None:
-            ticket_progress.search_progress.indexing_progress = (
-                ticket_progress.search_progress.indexing_total
-            )
-            ticket_progress.save()
+        for doc, document_tokens in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
+            index.add_document(title=f"{doc.title}:{doc.start}:{doc.end}", tokens=document_tokens)
     except FileNotFoundError as e:
         logger.error(e)
 
     return index
-
 
 @dataclass
 class Documentation:

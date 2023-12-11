@@ -274,7 +274,6 @@ def prepare_lexical_search_index(
         len_repo_cache_dir=len(cloned_repo.cached_dir) + 1,
         ticket_progress=ticket_progress,
     )
-    logger.print("Prepared index from snippets")
     return file_list, snippets, index
 
 

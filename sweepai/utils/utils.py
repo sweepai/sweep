@@ -17,6 +17,7 @@ from tree_sitter_languages import get_parser
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
+from tree_sitter_languages import get_parser
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -261,8 +262,6 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
 def chunk_code(
     code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100
 ) -> list[Snippet]:
-    from tree_sitter_languages import get_parser
-
     ext = path.split(".")[-1]
     if ext in extension_to_language:
         language = extension_to_language[ext]

@@ -9,10 +9,12 @@ import time
 import traceback
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Any
 
 import git
 import requests
 from github import Github
+from github.Repository import Repository
 from jwt import encode
 from redis import Redis
 from redis.backoff import ExponentialBackoff
@@ -101,10 +103,11 @@ class ClonedRepo:
     installation_id: str
     branch: str | None = None
     token: str | None = None
+    repo: Any | None = None
 
     @cached_property
     def cached_dir(self):
-        self.repo = Github(self.token).get_repo(self.repo_full_name)
+        self.repo = Github(self.token).get_repo(self.repo_full_name) if not self.repo else self.repo
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
         return os.path.join(
             REPO_CACHE_BASE_DIR,
@@ -122,7 +125,7 @@ class ClonedRepo:
 
     @cached_property
     def repo_dir(self):
-        self.repo = Github(self.token).get_repo(self.repo_full_name)
+        self.repo = Github(self.token).get_repo(self.repo_full_name) if not self.repo else self.repo
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
         curr_time_str = str(time.time()).encode("utf-8")
         hash_obj = hashlib.sha256(curr_time_str)
@@ -170,7 +173,7 @@ class ClonedRepo:
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
-        self.repo = Github(self.token).get_repo(self.repo_full_name)
+        self.repo = Github(self.token).get_repo(self.repo_full_name) if not self.repo else self.repo
         self.commit_hash = self.repo.get_commits()[0].sha
         self.token = self.token or get_token(self.installation_id)
         self.git_repo = self.clone()
