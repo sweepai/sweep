@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Callable
@@ -96,6 +97,10 @@ def get_json_messages(
         client.beta.assistants.retrieve,
         assistant_id=assistant_id,
     )
+    messages = openai_retry_with_timeout(
+        client.beta.threads.messages.list,
+        thread_id=thread_id,
+    )
     run_steps = openai_retry_with_timeout(
         client.beta.threads.runs.steps.list, run_id=run_id, thread_id=thread_id
     )
@@ -104,6 +109,14 @@ def get_json_messages(
         "content": assistant.instructions,
     }
     messages_json = [system_message_json]
+    for message in messages:
+        if message.role == "user":
+            messages_json.append(
+                {
+                    "role": "user",
+                    "content": message.content[0].text.value,
+                }
+            )
     for message_obj in list(run_steps.data)[:0:-1]:
         if message_obj.type == "message_creation":
             message_id = message_obj.step_details.message_creation.message_id
@@ -121,26 +134,47 @@ def get_json_messages(
             )
             # TODO: handle annotations
         elif message_obj.type == "tool_calls":
-            code_interpreter = message_obj.step_details.tool_calls[0].code_interpreter
-            input_ = code_interpreter.input
-            if not input_:
-                continue
-            input_content = f"Code interpreter input:\n```\n{input_}\n```"
-            messages_json.append(
-                {
-                    "role": "assistant",
-                    "content": input_content,
-                }
-            )
-            outputs = code_interpreter.outputs
-            output = outputs[0].logs if outputs else "__No output__"
-            output_content = f"Code interpreter output:\n```\n{output}\n```"
-            messages_json.append(
-                {
-                    "role": "user",
-                    "content": output_content,
-                }
-            )
+            for tool_call in message_obj.step_details.tool_calls:
+                if tool_call.type == "code_interpreter":
+                    code_interpreter = tool_call.code_interpreter
+                    input_ = code_interpreter.input
+                    if not input_:
+                        continue
+                    input_content = f"Code interpreter input:\n```\n{input_}\n```"
+                    messages_json.append(
+                        {
+                            "role": "assistant",
+                            "content": input_content,
+                        }
+                    )
+                    outputs = code_interpreter.outputs
+                    output = outputs[0].logs if outputs else "__No output__"
+                    output_content = f"Code interpreter output:\n```\n{output}\n```"
+                    messages_json.append(
+                        {
+                            "role": "user",
+                            "content": output_content,
+                        }
+                    )
+                else:
+                    function = tool_call.function
+                    input_content = f"Function call of {function.name}:\n```\n{function.arguments}\n```"
+                    messages_json.append(
+                        {
+                            "role": "assistant",
+                            "content": input_content,
+                        }
+                    )
+                    if function.output:
+                        output_content = (
+                            f"Function output:\n```\n{function.output}\n```"
+                        )
+                        messages_json.append(
+                            {
+                                "role": "user",
+                                "content": output_content,
+                            }
+                        )
     return messages_json
 
 
@@ -173,11 +207,45 @@ def run_until_complete(
                 tool_calls = [
                     tool_call
                     for tool_call in run.required_action.submit_tool_outputs.tool_calls
-                    if tool_call.function.name == raise_error_schema["name"]
                 ]
-                if tool_calls:
+                if any(
+                    [
+                        tool_call.function.name == raise_error_schema["name"]
+                        for tool_call in tool_calls
+                    ]
+                ):
                     arguments_parsed = json.loads(tool_calls[0].function.arguments)
                     raise AssistantRaisedException(arguments_parsed["message"])
+                tool_outputs = []
+                for tool_call in tool_calls:
+                    try:
+                        tool_call_arguments = re.sub(
+                            r"\\+'", "", tool_call.function.arguments
+                        )
+                        function_input: dict = json.loads(tool_call_arguments)
+                    except:
+                        logger.warning(
+                            f"Could not parse function arguments: {tool_call_arguments}"
+                        )
+                        tool_outputs.append(
+                            {
+                                "tool_call_id": tool_call.id,
+                                "output": "FAILURE: Could not parse function arguments.",
+                            }
+                        )
+                        continue
+                    tool_output = yield tool_call.function.name, function_input
+                    tool_output_formatted = {
+                        "tool_call_id": tool_call.id,
+                        "output": tool_output,
+                    }
+                    tool_outputs.append(tool_output_formatted)
+                run = openai_retry_with_timeout(
+                    client.beta.threads.runs.submit_tool_outputs,
+                    thread_id=thread_id,
+                    run_id=run.id,
+                    tool_outputs=tool_outputs,
+                )
             if save_ticket_progress is not None:
                 save_ticket_progress(
                     assistant_id=assistant_id,
@@ -220,6 +288,12 @@ def run_until_complete(
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
         logger.warning(f"Run cancelled: {run_id}")
         raise SystemExit
+    if save_ticket_progress is not None:
+        save_ticket_progress(
+            assistant_id=assistant_id,
+            thread_id=thread_id,
+            run_id=run_id,
+        )
     for json_message in json_messages:
         logger.info(json_message["content"])
     return client.beta.threads.messages.list(
@@ -285,15 +359,16 @@ def openai_assistant_call_helper(
         instructions=instructions,
         model=model,
     )
-    run_until_complete(
-        thread_id=thread.id,
-        run_id=run.id,
-        model=model,
-        chat_logger=chat_logger,
-        assistant_id=assistant.id,
-        sleep_time=sleep_time,
-        save_ticket_progress=save_ticket_progress,
-    )
+    if len(tools) > 1:
+        return run_until_complete(
+            thread_id=thread.id,
+            run_id=run.id,
+            model=model,
+            chat_logger=chat_logger,
+            assistant_id=assistant.id,
+            sleep_time=sleep_time,
+            save_ticket_progress=save_ticket_progress,
+        )
     for file_id in file_ids:
         client.files.delete(file_id=file_id)
     return (
@@ -326,7 +401,7 @@ def openai_assistant_call(
     retries = range(3)
     for _ in retries:
         try:
-            (assistant_id, run_id, thread_id) = openai_assistant_call_helper(
+            response = openai_assistant_call_helper(
                 request=request,
                 instructions=instructions,
                 additional_messages=additional_messages,
@@ -340,6 +415,9 @@ def openai_assistant_call(
                 assistant_name=assistant_name,
                 save_ticket_progress=save_ticket_progress,
             )
+            if len(tools) > 1:
+                return response
+            (assistant_id, run_id, thread_id) = response
             messages = client.beta.threads.messages.list(
                 thread_id=thread_id,
             )

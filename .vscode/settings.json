@@ -3,5 +3,9 @@
     "python.analysis.autoImportCompletions": true,
     "python.analysis.autoImportUserSymbols": true,
     "python.analysis.inlayHints.functionReturnTypes": false,
-    "python.analysis.inlayHints.variableTypes": false
+    "python.analysis.inlayHints.variableTypes": false,
+    "python.languageServer": "Pylance",
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "isort.check": true,
+    "isort.importStrategy": "fromEnvironment"
 }

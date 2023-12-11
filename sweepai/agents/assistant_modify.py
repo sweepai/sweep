@@ -48,7 +48,6 @@ helper_methods_path = '/mnt/data/{file_id}'
 with open(helper_methods_path, 'r') as f:
     helper_methods = f.read()
 exec(helper_methods) # You MUST run this line.
-print(helper_methods)
 ```
 
 If they were successfully loaded, you should see the following output: `Helper functions loaded into memory.`
@@ -149,6 +148,7 @@ def new_modify(
     end_line: int = -1,
     ticket_progress: TicketProgress | None = None,
     assistant_conversation: AssistantConversation | None = None,
+    seed: str | None = None,  # to invalidate cache
 ):
     modify_iterations = 3
     try:
@@ -322,6 +322,6 @@ if __name__ == "__main__":
         chat_logger=ChatLogger({"username": "wwzeng1"}),
         additional_messages=additional_messages,
     )
-    import pdb
+    # import pdb
 
-    pdb.set_trace()
+    # pdb.set_trace()

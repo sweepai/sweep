@@ -244,6 +244,13 @@ class TicketProgress(BaseModel):
             discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
 
 
+def create_index():
+    # killer code to make everything way faster
+    db = global_mongo_client["progress"]
+    collection = db["ticket_progress"]
+    collection.create_index("tracking_id", unique=True)
+
+
 if __name__ == "__main__":
     ticket_progress = TicketProgress(tracking_id="test")
     ticket_progress.error_message = (

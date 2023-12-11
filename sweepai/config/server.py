@@ -127,14 +127,6 @@ blocked_dirs: []
 # docs:
 #   - PyGitHub: ["https://pygithub.readthedocs.io/en/latest/", "We use pygithub to interact with the GitHub API"]
 docs: []
-
-# Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
-sandbox:
-  install:
-    - trunk init
-  check:
-    - trunk fmt {{file_path}} || return 0
-    - trunk check --fix --print-failures {{file_path}}
 """,
 )
 

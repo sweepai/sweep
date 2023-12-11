@@ -286,7 +286,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
                 self.new_content.splitlines(keepends=True),
             )
             diff_text = "".join(diff)
-            return diff_text
+            return f"<pre>{diff_text}</pre>"
         return ""
 
 
