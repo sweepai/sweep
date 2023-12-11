@@ -136,6 +136,7 @@ def on_ticket(
     tracking_id: str | None = None,
 ):
     on_ticket_start_time = time()
+    logger.info(f"Starting on_ticket with title {title} and summary {summary}")
     (
         title,
         slow_mode,
@@ -517,26 +518,6 @@ def on_ticket(
             else:
                 issue_comment.edit(first_comment)
             return {"success": False}
-        fetching_files_failed = False
-        try:
-            snippets, tree, _ = fetch_relevant_files(
-                cloned_repo,
-                title,
-                summary,
-                replies_text,
-                username,
-                metadata,
-                on_ticket_start_time,
-                tracking_id,
-                is_paying_user,
-                is_consumer_tier,
-                issue_url,
-                chat_logger,
-                ticket_progress,
-            )
-        except:
-            fetching_files_failed = True # this is handled later to make this code faster
-        logger.warning(f"Search: Duration since start: {time() - on_ticket_start_time}")
         indexing_message = (
             "I'm searching for relevant snippets in your repository. If this is your first"
             " time using Sweep, I'm indexing your repository. You can monitor the progress using the dashboard"
@@ -563,7 +544,6 @@ def on_ticket(
         table = None
         initial_sandbox_response = -1
         initial_sandbox_response_file = None
-
         def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
             nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
             # -1 = error, -2 = retry
@@ -633,8 +613,23 @@ def on_ticket(
                         if comment.user == GITHUB_BOT_USERNAME
                     ][0]
                     issue_comment.edit(msg)
-
-        if fetching_files_failed:
+        try:
+            snippets, tree, _ = fetch_relevant_files(
+                cloned_repo,
+                title,
+                summary,
+                replies_text,
+                username,
+                metadata,
+                on_ticket_start_time,
+                tracking_id,
+                is_paying_user,
+                is_consumer_tier,
+                issue_url,
+                chat_logger,
+                ticket_progress,
+            )
+        except:
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -643,7 +638,7 @@ def on_ticket(
                 ),
                 -1,
             )
-            raise Exception("Failed to fetch files")
+            raise Exception("Failed to fetch files")            
         if sandbox_mode:
             logger.info("Running in sandbox mode")
             sweep_bot = SweepBot(
