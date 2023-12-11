@@ -64,6 +64,7 @@ def function_modify(
             ticket_progress.save()
 
         current_contents = file_contents
+        initial_code_valid, _ = check_code(file_path, current_contents)
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         file_contents_lines = current_contents.split("\n")
@@ -168,7 +169,8 @@ def function_modify(
                         error_message = "No changes were made, make sure old_code and new_code are not the same."
 
                     if not error_message:
-                        is_valid, message = check_code(file_path, new_contents)
+                        # If the initial code failed, we don't need to/can't check the new code
+                        is_valid, message = (True, "") if not initial_code_valid else check_code(file_path, new_contents)
                         if is_valid:
                             diff = generate_diff(current_contents, new_contents)
                             current_contents = new_contents
