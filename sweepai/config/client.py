@@ -225,7 +225,10 @@ def get_sandbox_config(repo: Repository):
 @lru_cache(maxsize=None)
 def get_branch_name_config(repo: Repository):
     try:
-        contents = repo.get_contents("sweep.yaml")
+        try:
+            contents = repo.get_contents(".github/sweep.yaml")
+        except Exception:
+            contents = repo.get_contents("sweep.yaml")
         description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "branch_use_underscores", False
         )
@@ -239,9 +242,10 @@ def get_branch_name_config(repo: Repository):
 @lru_cache(maxsize=None)
 def get_documentation_dict(repo: Repository):
     try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
+        try:
+            sweep_yaml_content = repo.get_contents(".github/sweep.yaml").decoded_content.decode("utf-8")
+        except Exception:
+            sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         docs = sweep_yaml.get("docs", {})
         return docs
@@ -254,9 +258,10 @@ def get_documentation_dict(repo: Repository):
 @lru_cache(maxsize=None)
 def get_blocked_dirs(repo: Repository):
     try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
+        try:
+            sweep_yaml_content = repo.get_contents(".github/sweep.yaml").decoded_content.decode("utf-8")
+        except Exception:
+            sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         dirs = sweep_yaml.get("blocked_dirs", [])
         return dirs
@@ -269,9 +274,10 @@ def get_blocked_dirs(repo: Repository):
 @lru_cache(maxsize=None)
 def get_rules(repo: Repository):
     try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
+        try:
+            sweep_yaml_content = repo.get_contents(".github/sweep.yaml").decoded_content.decode("utf-8")
+        except Exception:
+            sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         rules = sweep_yaml.get("rules", [])
         return rules
