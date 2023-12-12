@@ -5,7 +5,7 @@ UPDATES_MESSAGE = """\
 
 * We just released a [dashboard](https://progress.sweep.dev) to track Sweep's progress on your issue in real-time, showing every stage of the process – from search to planning and coding.
 * Sweep uses OpenAI's latest Assistant API to **plan code changes** and **modify code**! This is 3x faster and *significantly* more reliable as it allows Sweep to edit code and validate the changes in tight iterations, the same way as a human would.
-"""
+* Try using the GitHub issues extension to create Sweep issues directly from your editor! [GitHub Issues and Pull Requests](https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-pull-request-github)."""
 
 sep = "\n---\n"
 bot_suffix_starring = ""
