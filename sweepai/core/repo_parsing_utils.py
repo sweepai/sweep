@@ -1,6 +1,7 @@
 import glob
 import multiprocessing
 import os
+import logging
 
 from tqdm import tqdm
 
@@ -28,8 +29,12 @@ def filter_file(directory, file, sweep_config: SweepConfig):
     for dir_name in sweep_config.exclude_dirs:
         if file[len(directory) + 1 :].startswith(dir_name):
             return False
-    if os.stat(file).st_size > 240000:
+    try:
+        if os.stat(file).st_size > 240000:
             return False
+    except FileNotFoundError as e:
+        logging.error(f"File not found: {file}. Error: {e}")
+        return False
     if not os.path.isfile(file):
         return False
     with open(file, "rb") as f:
@@ -52,7 +57,6 @@ def read_file(file_name):
         raise SystemExit
     except:
         return ""
-
 
 FILE_THRESHOLD = 100
 
