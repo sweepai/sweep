@@ -478,9 +478,9 @@ def on_ticket(
             if index == 4:
                 return (
                     pr_message
+                    + config_pr_message
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
-                    + config_pr_message
                 )
 
             total = len(progress_headers)
@@ -1012,9 +1012,19 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe",
             )
-            # CREATE PR METADATA
+
+            def to_branch_name(s, max_length=40):
+                branch_name = s.strip().lower().replace(" ", "_")
+                branch_name = re.sub(r"[^a-z0-9_]", "", branch_name)
+                return branch_name[:max_length]
+
             logger.info("Generating PR...")
-            pull_request = sweep_bot.generate_pull_request()
+
+            pull_request = PullRequest(
+                title="Sweep: " + title,
+                branch_name="sweep/" + to_branch_name(title),
+                content="",
+            )
             logger.info("Making PR...")
 
             ticket_progress.context.branch_name = pull_request.branch_name
@@ -1270,6 +1280,7 @@ def on_ticket(
                 diff_text,
                 pull_request.title,
             )
+            # TODO: update the title as well
             if new_description:
                 pr_changes.body = (
                     f"{new_description}\n\nFixes"
