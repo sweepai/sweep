@@ -246,7 +246,7 @@ class RepoContextManager:
 
     def add_snippets(self, snippets: list[Snippet]):
         # Need fusing
-        self.dir_obj.add_snippets([snippet.file_path for snippet in snippets])
+        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets])
         self.snippets.extend(snippets)
         self.current_top_snippets.extend(snippets)
 
@@ -433,10 +433,10 @@ def modify_context(
                             else "FAILURE: This file path does not exist. Please try a new path."
                         )
             elif tool_call.function.name == "store_snippet":
+                valid_path = (
+                    function_path_or_dir in repo_context_manager.top_snippet_paths
+                )
                 if function_path_or_dir in repo_context_manager.top_snippet_paths:
-                    valid_path = (
-                        function_path_or_dir in repo_context_manager.top_snippet_paths
-                    )
                     output = f"SUCCESS. {function_path_or_dir} was stored."
                     paths_to_keep.append(function_path_or_dir)
                 else:  # we should add the file path
@@ -456,12 +456,17 @@ def modify_context(
                             "FAILURE: Please provide a snippet of 20 lines or less."
                         )
 
-                    if error_message:
-                        output = error_message
-                    else:
+                    try:
                         file_contents = cloned_repo.get_file_contents(
                             function_path_or_dir
                         )
+                        valid_path = True
+                    except:
+                        error_message = "FAILURE: This file path does not exist. Please try a new path."
+                        valid_path = False
+                    if error_message:
+                        output = error_message
+                    else:
                         new_file_contents = "\n".join(
                             file_contents.splitlines()[start_line:end_line]
                         )
@@ -477,7 +482,7 @@ def modify_context(
                         )
                         paths_to_add.append(function_path_or_dir)
                         output = (
-                            f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
+                            f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{new_file_contents}\n```"
                             if valid_path
                             else "FAILURE: This file path does not exist. Please try a new path."
                         )
@@ -589,4 +594,5 @@ if __name__ == "__main__":
         ticket_progress,
         chat_logger=ChatLogger({"username": "wwzeng1"}),
     )
+    print(rcm.current_top_snippets)
     # sys.settrace(None)
