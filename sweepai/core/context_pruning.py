@@ -248,16 +248,7 @@ class RepoContextManager:
         # Need fusing
         self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets])
         self.snippets.extend(snippets)
-        for snippet in snippets:
-            if can_add_snippet(snippet, self.current_top_snippets):
-                self.current_top_snippets.append(snippet)
-                continue
-            # otherwise try adding it by removing others
-            prev_top_snippets = deepcopy(self.current_top_snippets)
-            self.current_top_snippets = [snippet]
-            for snippet in prev_top_snippets:
-                if can_add_snippet(snippet, self.current_top_snippets):
-                    self.current_top_snippets.append(snippet)
+        self.current_top_snippets.extend(snippets)
 
 
 # @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
@@ -314,9 +305,8 @@ def modify_context(
     cloned_repo: ClonedRepo,
 ) -> bool | None:
     max_iterations = 60
-    paths_to_keep = []  # consider persisting these across runs
-    paths_to_add = []
     directories_to_expand = []
+    repo_context_manager.current_top_snippets = []
     logger.info(
         f"Context Management Start:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
     )
@@ -387,7 +377,9 @@ def modify_context(
                         function_path_or_dir in repo_context_manager.top_snippet_paths
                     )
                     output = f"SUCCESS. {function_path_or_dir} was stored."
-                    paths_to_keep.append(function_path_or_dir)
+                    repo_context_manager.current_top_snippets.append(
+                        function_path_or_dir
+                    )
                 else:  # we should add the file path
                     error_message = ""
                     for key in ["start_line", "end_line"]:
@@ -410,9 +402,16 @@ def modify_context(
                         file_contents = cloned_repo.get_file_contents(
                             function_path_or_dir
                         )
-                        file_contents = "\n".join(
-                            file_contents.splitlines()[start_line:end_line]
-                        )
+                        file_contents = ""
+                        lines = file_contents.splitlines()
+                        for i, line in enumerate(lines[start_line - 10 : start_line]):
+                            file_contents += f"{i + start_line - 10} | {line}\n"
+                        file_contents += "\n===START OF SNIPPET===\n"
+                        for i, line in enumerate(lines[start_line:end_line]):
+                            file_contents += f"{i + start_line} | {line}\n"
+                        file_contents += "\n===END OF SNIPPET===\n"
+                        for i, line in enumerate(lines[end_line : end_line + 10]):
+                            file_contents += f"{i + end_line} | {line}\n"
                         output = (
                             f"SUCCESS: Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{file_contents}\n```\nRemember to call this again with save=true to store the file path."
                             if valid_path
@@ -424,7 +423,7 @@ def modify_context(
                 )
                 if function_path_or_dir in repo_context_manager.top_snippet_paths:
                     output = f"SUCCESS. {function_path_or_dir} was stored."
-                    paths_to_keep.append(function_path_or_dir)
+                    paths_to_add.append(function_path_or_dir)
                 else:  # we should add the file path
                     error_message = ""
                     for key in ["start_line", "end_line"]:
@@ -498,9 +497,6 @@ def modify_context(
             logger.info("Current top snippets:")
             for snippet in repo_context_manager.current_top_snippets:
                 logger.info(snippet.denotation)
-            logger.info("Paths to keep:")
-            for snippet in paths_to_keep:
-                logger.info(snippet)
             logger.info("Paths to add:")
             for snippet in paths_to_add:
                 logger.info(snippet)
@@ -540,10 +536,10 @@ def modify_context(
             )
         ticket_progress.save()
     logger.info(
-        f"Context Management End:\npaths_to_keep: {paths_to_keep}\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
+        f"Context Management End:\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
     )
-    if paths_to_keep or paths_to_add:
-        repo_context_manager.remove_all_non_kept_paths(paths_to_keep + paths_to_add)
+    if paths_to_add:
+        repo_context_manager.remove_all_non_kept_paths(paths_to_add)
     if directories_to_expand:
         repo_context_manager.expand_all_directories(directories_to_expand)
     logger.info(
@@ -554,7 +550,7 @@ def modify_context(
     )
     # if the paths have not changed or all tools were empty, we are done
     return not (
-        paths_changed and (paths_to_keep or directories_to_expand or paths_to_add)
+        paths_changed and (paths_to_add or directories_to_expand or paths_to_add)
     )
 
 
