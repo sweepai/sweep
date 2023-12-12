@@ -73,7 +73,6 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import (
     AssistantConversation,
@@ -492,7 +491,7 @@ def on_ticket(
             return (
                 f"{center(sweeping_gif)}"
                 + center(
-                    f'\n\n<h2>✨ Track Sweep\'s progress on the new <a href="https://progress.sweep.dev/issues/{tracking_id}">dashboard</a>.</h2>'
+                    f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="https://progress.sweep.dev/issues/{tracking_id}">progress dashboard</a>.</h2>'
                 )
                 + f"<br/>{center(pbar)}"
                 + ("\n" + stars_suffix if index != -1 else "")
@@ -520,7 +519,7 @@ def on_ticket(
             return {"success": False}
         indexing_message = (
             "I'm searching for relevant snippets in your repository. If this is your first"
-            " time using Sweep, I'm indexing your repository. You can monitor the progress using the dashboard"
+            " time using Sweep, I'm indexing your repository. You can monitor the progress using the progress dashboard"
         )
         first_comment = (
             f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I"
@@ -1042,8 +1041,6 @@ def on_ticket(
             )
 
             file_change_requests[0].status = "running"
-            svg = create_digraph_svg(file_change_requests)
-            svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
 
             condensed_checkboxes_contents = (
                 "\n".join(
@@ -1052,7 +1049,6 @@ def on_ticket(
                         for filename, instructions, check in checkboxes_progress
                     ]
                 )
-                + f"\n\n![{issue_number}_flowchart.svg]({svg_url})"
             )
             condensed_checkboxes_collapsible = create_collapsible(
                 "Checklist", condensed_checkboxes_contents, opened=True
@@ -1138,8 +1134,6 @@ def on_ticket(
                     file_change_requests,
                 ) = item
                 changed_files.append(changed_file)
-                svg = create_digraph_svg(file_change_requests)
-                svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
                 sandbox_response: SandboxResponse | None = sandbox_response
                 logger.info(sandbox_response)
                 commit_hash: str = (
@@ -1205,7 +1199,6 @@ def on_ticket(
                             if not instructions.lower().startswith("run")
                         ]
                     )
-                    + f"\n\n![Flowchart]({svg_url})"
                 )
                 condensed_checkboxes_collapsible = collapsible_template.format(
                     summary="Checklist",
@@ -1246,7 +1239,6 @@ def on_ticket(
                         if not instructions.lower().startswith("run")
                     ]
                 )
-                + f"\n\n![Flowchart]({svg_url})"
             )
             condensed_checkboxes_collapsible = collapsible_template.format(
                 summary="Checklist",
@@ -1429,7 +1421,7 @@ def on_ticket(
                 review_message + "\n\nSuccess! 🚀",
                 4,
                 pr_message=(
-                    f"## [Here's the PR! {pr.number}]({pr.html_url}).\n ### See Sweep's process at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">dashboard</a>. \n{center(payment_message_start)}"
+                    f"## [Here's the PR: PR #{pr.number}]({pr.html_url}).\n ### See Sweep's progress at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">the progress dashboard</a>. \n{center(payment_message_start)}"
                 ),
                 done=True,
             )
