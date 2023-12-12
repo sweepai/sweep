@@ -30,9 +30,12 @@ List the most important and new required paths with justifications to modify the
 ...
 </contextual_request_analysis>
 
-First use the preview_file tool to preview any files that seems relevant.
-Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request, picking file paths and line numbers that are extremely precise.
-Pick line numbers that are max 20 lines long. If the snippet is longer than 20 lines, store multiple small snippets, and select precise snippets. Store as few file paths as necessary and select the smallest spans to solve the user request."""
+1. First use the preview_file tool to preview any files that seems relevant. Then, use the use the view_file_path (save=false) tool to view specific line numbers of a file.
+2. Finally, use the view_file_path (with save=true) and expand_directory tools to optimize the snippets_in_repo and repo_tree until they provide the perfect context to solve the user request. Pick line number spans at most 20 lines long. If the snippet is longer than 20 lines, store separate small and precise snippets. If you don't know the correct line numbers, complete step one to find the exact line numbers.
+
+Store the minimal number of total lines of code to solve the user request.
+
+Repeat this process until you have the perfect context to solve the user request."""
 
 unformatted_user_prompt = """\
 <snippets_in_repo>
@@ -50,7 +53,7 @@ unformatted_user_prompt = """\
 
 functions = [
     {
-        "name": "store_file_path",
+        "name": "view_file_path",
         "parameters": {
             "type": "object",
             "properties": {
@@ -70,10 +73,15 @@ functions = [
                     "type": "string",
                     "description": "Justification for store the file_path.",
                 },
+                "save": {
+                    "type": "boolean",
+                    "description": "Save the file_path to the repo.",
+                    "default": "false",
+                },
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to either store an existing file_path or add a new path to paths_in_repo. Only store paths you are certain are relevant to solving the user request and be precise with the line numbers. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
+        "description": "Use this to view a section of a file_path (save=false) or store a file_path (save=true). Only store paths you are certain are relevant to solving the user request and be precise with the line numbers. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
         # "description": "Use this to either store an existing file_path or add a new path to paths_in_repo. Only store paths you are certain are relevant to solving the user request. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
     },
     {
@@ -362,7 +370,7 @@ def modify_context(
             )
             valid_path = False
             output = ""
-            if tool_call.function.name == "store_file_path":
+            if tool_call.function.name == "view_file_path":
                 if function_path_or_dir in repo_context_manager.top_snippet_paths:
                     valid_path = (
                         function_path_or_dir in repo_context_manager.top_snippet_paths
@@ -381,37 +389,48 @@ def modify_context(
                             )
                     start_line = int(function_input["start_line"])
                     end_line = int(function_input["end_line"])
+                    save = function_input.get("save", False)
                     if end_line - start_line > 50:
                         error_message = (
                             "FAILURE: Please provide a snippet of 20 lines or less."
                         )
 
                     if error_message:
-                        output = {
-                            "tool_call_id": tool_call.id,
-                            "output": error_message,
-                        }
+                        output = error_message
                     else:
                         valid_path = repo_context_manager.is_path_valid(
                             function_path_or_dir, directory=False
                         )
-                        highest_scoring_snippet = (
-                            repo_context_manager.get_highest_scoring_snippet(
+                        if save:
+                            highest_scoring_snippet = (
+                                repo_context_manager.get_highest_scoring_snippet(
+                                    function_path_or_dir
+                                )
+                            )
+                            new_file_contents = (
+                                highest_scoring_snippet.xml
+                                if highest_scoring_snippet is not None
+                                else ""
+                            )
+                            repo_context_manager.add_file_paths([function_path_or_dir])
+                            paths_to_add.append(function_path_or_dir)
+                            output = (
+                                f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
+                                if valid_path
+                                else "FAILURE: This file path does not exist. Please try a new path."
+                            )
+                        else:
+                            file_contents = cloned_repo.get_file_contents(
                                 function_path_or_dir
                             )
-                        )
-                        new_file_contents = (
-                            highest_scoring_snippet.xml
-                            if highest_scoring_snippet is not None
-                            else ""
-                        )
-                        repo_context_manager.add_file_paths([function_path_or_dir])
-                        paths_to_add.append(function_path_or_dir)
-                        output = (
-                            f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
-                            if valid_path
-                            else "FAILURE: This file path does not exist. Please try a new path."
-                        )
+                            file_contents = "\n".join(
+                                file_contents.splitlines()[start_line:end_line]
+                            )
+                            output = (
+                                f"SUCCESS: Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{file_contents}\n```\nRemember to call this again with save=true to store the file path."
+                                if valid_path
+                                else "FAILURE: This file path does not exist. Please try a new path."
+                            )
             elif tool_call.function.name == "expand_directory":
                 valid_path = repo_context_manager.is_path_valid(
                     function_path_or_dir, directory=True

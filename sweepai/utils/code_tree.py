@@ -67,7 +67,7 @@ class CodeTree(BaseModel):
         else:
             return (min_line, max_line)
 
-    def get_preview(self, min_line: int = 3, max_line: int = 1200):
+    def get_preview(self, min_line: int = 5, max_line: int = 1200):
         last_end_line = -1
         lines = self.code.splitlines()
 
@@ -96,16 +96,24 @@ class CodeTree(BaseModel):
                     )
                     children.append(text)
                 else:
-                    first_line = text[: text.find("\n")]
+                    node_lines = text.split("\n")
+                    first_line = node_lines[0]
                     first_line = f"{start_line} | {first_line}"
+                    second_line = node_lines[1]
+                    second_line = f"{start_line + 1} | {second_line}"
                     middle_lines = (
-                        indentation + f"     ... (lines {start_line}-{end_line}) ..."
+                        indentation
+                        + f"     ... (lines {start_line + 1}-{end_line - 1}) ..."
                     )
                     middle_lines = " " * (len(str(start_line)) + 2) + middle_lines
-                    last_line = text[text.rfind("\n") + 1 :]
+                    second_last_line = node_lines[-2]
+                    second_last_line = f"{end_line - 1} | {second_last_line}"
+                    last_line = node_lines[-1]
                     last_line = f"{end_line} | {last_line}"
                     children.append(first_line)
+                    children.append(second_line)
                     children.append(middle_lines)
+                    children.append(second_last_line)
                     children.append(last_line)
                 last_end_line = end_line
             return children
