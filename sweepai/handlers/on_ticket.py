@@ -491,7 +491,7 @@ def on_ticket(
             return (
                 f"{center(sweeping_gif)}"
                 + center(
-                    f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="https://progress.sweep.dev/issues/{tracking_id}">progress dashboard</a>.</h2>'
+                    f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="https://progress.sweep.dev/issues/{tracking_id}">progress dashboard</a>!</h2>'
                 )
                 + f"<br/>{center(pbar)}"
                 + ("\n" + stars_suffix if index != -1 else "")
@@ -1417,11 +1417,13 @@ def on_ticket(
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
+            heres_pr_message = f"## [Here's the PR! PR #{pr.number}]({pr.html_url})"
+            progress_message = f"### See Sweep's progress at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">the progress dashboard</a>!"
             edit_sweep_comment(
                 review_message + "\n\nSuccess! 🚀",
                 4,
                 pr_message=(
-                    f"## [Here's the PR: PR #{pr.number}]({pr.html_url}).\n ### See Sweep's progress at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">the progress dashboard</a>. \n{center(payment_message_start)}"
+                    f"{center(heres_pr_message)}\n{center(progress_message)}\n{center(payment_message_start)}"
                 ),
                 done=True,
             )

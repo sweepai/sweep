@@ -442,7 +442,7 @@ if __name__ == "__main__":
     from sweepai.utils.ticket_utils import prep_snippets
 
     installation_id = os.environ["INSTALLATION_ID"]
-    cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+    cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main", repo="None")
     query = "create a new search query filtering agent that will be used in ticket_utils.py. The agent should filter unnecessary terms out of the search query to be sent into lexical search. Use a prompt to do this, using name_agent.py as a reference."
     ticket_progress = TicketProgress(
         tracking_id="test",
