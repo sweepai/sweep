@@ -451,7 +451,7 @@ def modify_context(
                             )
                     start_line = int(function_input["start_line"])
                     end_line = int(function_input["end_line"])
-                    if end_line - start_line > 50:
+                    if end_line - start_line > 1000:
                         error_message = (
                             "FAILURE: Please provide a snippet of 20 lines or less."
                         )

@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
   sandbox:
     build:
-      context: sweepai/sandbox
+      context: sandbox
       dockerfile: Dockerfile.sandbox
     image: sweepai/sandbox
     container_name: sandbox
@@ -34,7 +34,7 @@ services:
     env_file:
       - .env
     build:
-      context: sweepai/sandbox
+      context: sandbox
       dockerfile: Dockerfile.web
     image: sweepai/sandbox-web
     container_name: sandbox-web

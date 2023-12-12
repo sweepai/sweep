@@ -238,7 +238,7 @@ def on_comment(
         branch_name = (
             pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
         )
-        cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name)
+        cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name, repo=repo, token=_token)
 
         # Generate diffs for this PR
         pr_diff_string = None
