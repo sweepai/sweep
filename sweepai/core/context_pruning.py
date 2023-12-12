@@ -10,8 +10,8 @@ from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -24,12 +24,15 @@ Reply in the following format:
 
 <contextual_request_analysis>
 Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths as well as any new required paths, along with a justification.
+List the most important and new required paths with justifications to modify them, like this:
+* file_name.py:line_number:line_number - justification
+* file_name.py:line_number:line_number - justification
+...
 </contextual_request_analysis>
 
-Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request.
-If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
-Store as few file paths as necessary to solve the user request."""
+First use the preview_file tool to preview any files that seems relevant.
+Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request, picking file paths and line numbers that are extremely precise.
+Pick line numbers that are max 20 lines long. If the snippet is longer than 20 lines, store multiple small snippets, and select precise snippets. Store as few file paths as necessary and select the smallest spans to solve the user request."""
 
 unformatted_user_prompt = """\
 <snippets_in_repo>
@@ -43,19 +46,7 @@ unformatted_user_prompt = """\
 </repo_tree>
 # Instructions
 ## User Request
-{query}
-The above <repo_tree> <snippets_in_repo> and <paths_in_repo> have unnecessary information. Modify paths_in_repo, snippets_in_repo, and repo_tree to store only the absolutely necessary information.
-
-Reply in the following format:
-
-<contextual_request_analysis>
-Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-Propose the most important paths as well as any new required paths, along with a justification.
-</contextual_request_analysis>
-
-Then use the store_file_path and expand_directory tools to optimize the snippets_in_repo, repo_tree, and paths_in_repo until they allow you to perfectly solve the user request.
-If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.
-Store as few file paths as necessary to solve the user request."""
+{query}"""
 
 functions = [
     {
@@ -67,14 +58,23 @@ functions = [
                     "type": "string",
                     "description": "File or directory to store.",
                 },
+                "start_line": {
+                    "type": "integer",
+                    "description": "Start line of the snippet.",
+                },
+                "end_line": {
+                    "type": "integer",
+                    "description": "End line of the snippet. Max 20 lines. If the snippet is longer than 20 lines, store multiple small snippets, and select precise snippets.",
+                },
                 "justification": {
                     "type": "string",
                     "description": "Justification for store the file_path.",
                 },
             },
-            "required": ["file_path", "justification"],
+            "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to either store an existing file_path or add a new path to paths_in_repo. Only store paths you are certain are relevant to solving the user request. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
+        "description": "Use this to either store an existing file_path or add a new path to paths_in_repo. Only store paths you are certain are relevant to solving the user request and be precise with the line numbers. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
+        # "description": "Use this to either store an existing file_path or add a new path to paths_in_repo. Only store paths you are certain are relevant to solving the user request. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
     },
     {
         "name": "expand_directory",
@@ -92,14 +92,29 @@ functions = [
             },
             "required": ["directory_path", "justification"],
         },
-        "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets.",
+        "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets. If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.",
+    },
+    {
+        "name": "preview_file",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "File path to preview.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for previewing the file.",
+                },
+            },
+            "required": ["snippet_path", "justification"],
+        },
+        "description": "Read the summary of the file. This is used for exploration only and does not affect the snippets.",
     },
 ]
 
-tools = [
-    {"type": "function", "function": functions[0]},
-    {"type": "function", "function": functions[1]},
-]
+tools = [{"type": "function", "function": function} for function in functions]
 
 
 @staticmethod
@@ -116,6 +131,7 @@ class RepoContextManager:
     current_top_tree: str
     snippets: list[Snippet]
     snippet_scores: dict[str, float]
+    cloned_repo: ClonedRepo
     current_top_snippets: list[Snippet] = []
 
     @property
@@ -201,7 +217,7 @@ class RepoContextManager:
                     self.current_top_snippets.append(snippet)
 
 
-@file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -238,7 +254,9 @@ def get_relevant_context(
             thread_id=thread.id,
             assistant_id=assistant.id,
         )
-        done = modify_context(thread, run, repo_context_manager, ticket_progress)
+        done = modify_context(
+            thread, run, repo_context_manager, ticket_progress, cloned_repo=cloned_repo
+        )
         ticket_progress.search_progress.pruning_conversation_counter = 1
         if done:
             return repo_context_manager
@@ -259,7 +277,9 @@ def get_relevant_context(
                 thread_id=thread.id,
                 assistant_id=assistant.id,
             )
-            done = modify_context(thread, run, repo_context_manager, ticket_progress)
+            done = modify_context(
+                thread, run, repo_context_manager, ticket_progress, cloned_repo
+            )
             if done:
                 break
         return repo_context_manager
@@ -273,6 +293,7 @@ def modify_context(
     run: Run,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
+    cloned_repo: ClonedRepo,
 ) -> bool | None:
     max_iterations = 30
     paths_to_keep = []  # consider persisting these across runs
@@ -349,26 +370,48 @@ def modify_context(
                     output = f"SUCCESS. {function_path_or_dir} was stored."
                     paths_to_keep.append(function_path_or_dir)
                 else:  # we should add the file path
-                    valid_path = repo_context_manager.is_path_valid(
-                        function_path_or_dir, directory=False
-                    )
-                    highest_scoring_snippet = (
-                        repo_context_manager.get_highest_scoring_snippet(
-                            function_path_or_dir
+                    error_message = ""
+                    for key in ["start_line", "end_line"]:
+                        if key not in function_input:
+                            logger.warning(
+                                f"Key {key} not in function input {function_input}"
+                            )
+                            error_message = (
+                                "FAILURE: Please provide a start and end line."
+                            )
+                    start_line = function_input["start_line"]
+                    end_line = function_input["end_line"]
+                    if end_line - start_line > 50:
+                        error_message = (
+                            "FAILURE: Please provide a snippet of 20 lines or less."
                         )
-                    )
-                    new_file_contents = (
-                        highest_scoring_snippet.xml
-                        if highest_scoring_snippet is not None
-                        else ""
-                    )
-                    repo_context_manager.add_file_paths([function_path_or_dir])
-                    paths_to_add.append(function_path_or_dir)
-                    output = (
-                        f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
-                        if valid_path
-                        else "FAILURE: This file path does not exist. Please try a new path."
-                    )
+
+                    if error_message:
+                        output = {
+                            "tool_call_id": tool_call.id,
+                            "output": error_message,
+                        }
+                    else:
+                        valid_path = repo_context_manager.is_path_valid(
+                            function_path_or_dir, directory=False
+                        )
+                        highest_scoring_snippet = (
+                            repo_context_manager.get_highest_scoring_snippet(
+                                function_path_or_dir
+                            )
+                        )
+                        new_file_contents = (
+                            highest_scoring_snippet.xml
+                            if highest_scoring_snippet is not None
+                            else ""
+                        )
+                        repo_context_manager.add_file_paths([function_path_or_dir])
+                        paths_to_add.append(function_path_or_dir)
+                        output = (
+                            f"SUCCESS: {function_path_or_dir} was added with contents {new_file_contents}."
+                            if valid_path
+                            else "FAILURE: This file path does not exist. Please try a new path."
+                        )
             elif tool_call.function.name == "expand_directory":
                 valid_path = repo_context_manager.is_path_valid(
                     function_path_or_dir, directory=True
@@ -382,6 +425,17 @@ def modify_context(
                 )
                 if valid_path:
                     directories_to_expand.append(function_path_or_dir)
+            elif tool_call.function.name == "preview_file":
+                valid_path = repo_context_manager.is_path_valid(
+                    function_path_or_dir, directory=False
+                )
+                code = cloned_repo.get_file_contents(function_path_or_dir)
+                file_preview = CodeTree.from_code(code).get_preview()
+                output = (
+                    f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
+                    if valid_path
+                    else "FAILURE: Invalid file path. Please try a new path."
+                )
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -443,12 +497,11 @@ if __name__ == "__main__":
 
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-    query = "create a new search query filtering agent that will be used in ticket_utils.py. The agent should filter unnecessary terms out of the search query to be sent into lexical search. Use a prompt to do this, using name_agent.py as a reference."
+    query = "Sweep: add type hints in client.py"
     ticket_progress = TicketProgress(
         tracking_id="test",
     )
     import linecache
-    import sys
 
     def trace_lines(frame, event, arg):
         if event == "line":
@@ -459,7 +512,7 @@ if __name__ == "__main__":
                 print(f"Executing {filename}:line {lineno}:{line.rstrip()}")
         return trace_lines
 
-    sys.settrace(trace_lines)
+    # sys.settrace(trace_lines)
     repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
     rcm = get_relevant_context(
         query,
@@ -467,4 +520,4 @@ if __name__ == "__main__":
         ticket_progress,
         chat_logger=ChatLogger({"username": "wwzeng1"}),
     )
-    sys.settrace(None)
+    # sys.settrace(None)

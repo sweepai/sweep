@@ -201,14 +201,15 @@ You MUST follow the following format with XML tags:
 # Plan:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Instructions for creating the new file needed to solve the issue
-* Include references to all files, imports and entity names
+* Natural language instructions for creating the new file needed to solve the issue.
+* Reference necessary files, imports and entity names.
 ...
 </create>
 ...
 
-<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Instructions for the modifications needed to solve the issue. Be concise and mention references to all files, imports and entity names.
+<modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Natural language instructions for the modifications needed to solve the issue.
+* Be concise and reference necessary files, imports and entity names.
 ...
 </modify>
 ...

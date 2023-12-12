@@ -7,17 +7,18 @@ from tree_sitter import Node, Parser, Tree
 
 class CodeTree(BaseModel):
     code: str
+    language: str
     tree: Tree
 
     class Config:
         arbitrary_types_allowed = True
 
     @classmethod
-    def from_code(cls, code: str):
+    def from_code(cls, code: str, language: str = "python"):
         parser = Parser()
-        parser.set_language(tree_sitter_languages.get_language("python"))
+        parser.set_language(tree_sitter_languages.get_language(language))
         tree = parser.parse(bytes(code, "utf8"))
-        return cls(code=code, tree=tree)
+        return cls(code=code, language=language, tree=tree)
 
     def get_path_to_line(self, min_line: int, max_line: int = -1) -> list[Node]:
         if max_line == -1:
@@ -66,6 +67,51 @@ class CodeTree(BaseModel):
         else:
             return (min_line, max_line)
 
+    def get_preview(self, min_line: int = 3, max_line: int = 1200):
+        last_end_line = -1
+        lines = self.code.splitlines()
+
+        def get_children(node: Node = self.tree.root_node):
+            nonlocal last_end_line
+            children = []
+            for child in node.children:
+                start_line, _ = child.start_point
+                end_line, _ = child.end_point
+                if start_line <= last_end_line:
+                    continue
+                text = "\n".join(lines[start_line : end_line + 1])
+                indentation = " " * (len(text) - len(text.lstrip()))
+                for i in range(last_end_line + 1, start_line):
+                    line = lines[i]
+                    children.append(f"{i} | {line}")
+                    last_end_line = i
+                if end_line - start_line > max_line:
+                    children.extend(get_children(child))
+                elif end_line - start_line < min_line:
+                    text = "\n".join(
+                        [
+                            f"{start_line + i} | {line}"
+                            for i, line in enumerate(text.split("\n"))
+                        ]
+                    )
+                    children.append(text)
+                else:
+                    first_line = text[: text.find("\n")]
+                    first_line = f"{start_line} | {first_line}"
+                    middle_lines = (
+                        indentation + f"     ... (lines {start_line}-{end_line}) ..."
+                    )
+                    middle_lines = " " * (len(str(start_line)) + 2) + middle_lines
+                    last_line = text[text.rfind("\n") + 1 :]
+                    last_line = f"{end_line} | {last_line}"
+                    children.append(first_line)
+                    children.append(middle_lines)
+                    children.append(last_line)
+                last_end_line = end_line
+            return children
+
+        return "\n".join(get_children())
+
 
 def get_global_function_names_and_spans(node):
     return [
@@ -87,11 +133,33 @@ import unittest
 from unittest.mock import patch
 from sweepai.utils.comment_utils import check_comments_presence
 
+def helper():
+    x = 1
+    y = 2
+    z = 3
+    return x + y + z
+
 class TestCheckCommentsPresence(unittest.TestCase):
 
     @patch('os.path.splitext')
     def test_check_comments_presence_with_comment(self, mock_splitext):
         mock_splitext.return_value = ('file', '.py')
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
+        x = 1
         self.assertEqual(check_comments_presence('file.py', '# This is a comment'), True)
 
     @patch('os.path.splitext')
@@ -112,9 +180,13 @@ class TestCheckCommentsPresence(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 """
-    split_code = full_code.split("\n")
-    match_start = 16
-    match_end = 20
-    code_tree = CodeTree.from_code(full_code)
-    print(code_tree.get_lines_surrounding(match_start)[0])
-    print(code_tree.get_lines_surrounding(match_end)[1])
+    # split_code = full_code.split("\n")
+    file_contents = open("sweepai/handlers/on_ticket.py").read()
+    # file_contents = full_code
+    # match_start = 16
+    # match_end = 20
+    code_tree = CodeTree.from_code(file_contents)
+    print(code_tree.get_preview())
+    print(len(code_tree.get_preview().split("\n")))
+    # print(code_tree.get_lines_surrounding(match_start)[0])
+    # print(code_tree.get_lines_surrounding(match_end)[1])
