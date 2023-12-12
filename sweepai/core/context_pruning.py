@@ -248,7 +248,16 @@ class RepoContextManager:
         # Need fusing
         self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets])
         self.snippets.extend(snippets)
-        self.current_top_snippets.extend(snippets)
+        for snippet in snippets:
+            if can_add_snippet(snippet, self.current_top_snippets):
+                self.current_top_snippets.append(snippet)
+                continue
+            # otherwise try adding it by removing others
+            prev_top_snippets = deepcopy(self.current_top_snippets)
+            self.current_top_snippets = [snippet]
+            for snippet in prev_top_snippets:
+                if can_add_snippet(snippet, self.current_top_snippets):
+                    self.current_top_snippets.append(snippet)
 
 
 # @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
@@ -291,31 +300,6 @@ def get_relevant_context(
         done = modify_context(
             thread, run, repo_context_manager, ticket_progress, cloned_repo=cloned_repo
         )
-        ticket_progress.search_progress.pruning_conversation_counter = 1
-        # if done:
-        #     return repo_context_manager
-        # for i in range(modify_iterations):
-        #     ticket_progress.search_progress.pruning_conversation_counter = i + 1
-        #     thread = openai_retry_with_timeout(client.beta.threads.create)
-        #     user_prompt = repo_context_manager.format_context(
-        #         unformatted_user_prompt=unformatted_user_prompt, query=query
-        #     )
-        #     _ = openai_retry_with_timeout(
-        #         client.beta.threads.messages.create,
-        #         thread.id,
-        #         role="user",
-        #         content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow you to solve the issue, store all of the existing file paths.",
-        #     )
-        #     run = openai_retry_with_timeout(
-        #         client.beta.threads.runs.create,
-        #         thread_id=thread.id,
-        #         assistant_id=assistant.id,
-        #     )
-        #     done = modify_context(
-        #         thread, run, repo_context_manager, ticket_progress, cloned_repo
-        #     )
-        #     if done:
-        #         break
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -389,6 +373,7 @@ def modify_context(
                     }
                 )
                 continue
+            logger.info(f"Tool Call: {tool_call.function.name} {function_input}")
             function_path_or_dir = (
                 function_input["file_path"]
                 if "file_path" in function_input
@@ -472,19 +457,16 @@ def modify_context(
                         new_file_contents = "\n".join(
                             file_contents.splitlines()[start_line:end_line]
                         )
-                        repo_context_manager.add_snippets(
-                            [
-                                Snippet(
-                                    file_path=function_path_or_dir,
-                                    start=start_line,
-                                    end=end_line,
-                                    content=file_contents,
-                                )
-                            ]
+                        snippet = Snippet(
+                            file_path=function_path_or_dir,
+                            start=start_line,
+                            end=end_line,
+                            content=file_contents,
                         )
+                        repo_context_manager.add_snippets([snippet])
                         paths_to_add.append(function_path_or_dir)
                         output = (
-                            f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{new_file_contents}\n```"
+                            f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{snippet.xml}\n```"
                             if valid_path
                             else "FAILURE: This file path does not exist. Please try a new path."
                         )
@@ -512,6 +494,16 @@ def modify_context(
                     if valid_path
                     else "FAILURE: Invalid file path. Please try a new path."
                 )
+            logger.info(output)
+            logger.info("Current top snippets:")
+            for snippet in repo_context_manager.current_top_snippets:
+                logger.info(snippet.denotation)
+            logger.info("Paths to keep:")
+            for snippet in paths_to_keep:
+                logger.info(snippet)
+            logger.info("Paths to add:")
+            for snippet in paths_to_add:
+                logger.info(snippet)
             tool_outputs.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -573,7 +565,9 @@ if __name__ == "__main__":
 
     installation_id = os.environ["INSTALLATION_ID"]
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-    query = "Sweep: add type hints in client.py"
+    query = (
+        "allow sweep.yaml to be read from the user/organization's .github repository"
+    )
     ticket_progress = TicketProgress(
         tracking_id="test",
     )
@@ -597,5 +591,5 @@ if __name__ == "__main__":
         chat_logger=ChatLogger({"username": "wwzeng1"}),
     )
     for snippet in rcm.current_top_snippets:
-        print(snippet.start, snippet.end, snippet.file_path)
+        print(snippet.denotation)
     # sys.settrace(None)
