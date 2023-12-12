@@ -47,7 +47,7 @@ def remove_non_alphanumeric(url):
     return cleaned
 
 
-def write_documentation(doc_url):
+def write_documentation(doc_url: str) -> bool:
     try:
         url_allowed = is_url_allowed(doc_url, user_agent="*")
         if not url_allowed:
@@ -89,7 +89,7 @@ def write_documentation(doc_url):
         return False
 
 
-def daily_update():
+def daily_update() -> None:
     for doc_url, _ in DOCS_ENDPOINTS.values():
         write_documentation(doc_url)
 
