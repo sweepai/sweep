@@ -246,6 +246,10 @@ class Documentation:
 
 
 def prepare_index_from_docs(docs):
+    """Prepare an index from a list of documents.
+
+    This function takes a list of documents as input and returns an index.
+    """
     all_docs = [Documentation(url, content) for url, content in docs]
     if len(all_docs) == 0:
         return None
@@ -260,6 +264,11 @@ def prepare_index_from_docs(docs):
 
 
 def search_docs(query, index: CustomIndex):
+    """Search the documents based on a query and an index.
+
+    This function takes a query and an index as input and returns a dictionary of document IDs
+    and their corresponding scores.
+    """
     """Title, score, content"""
     if index == None:
         return {}
@@ -281,6 +290,11 @@ def search_docs(query, index: CustomIndex):
 
 
 def search_index(query, index: CustomIndex):
+    """Search the index based on a query.
+
+    This function takes a query and an index as input and returns a dictionary of document IDs
+    and their corresponding scores.
+    """
     """Title, score, content"""
     if index == None:
         return {}
