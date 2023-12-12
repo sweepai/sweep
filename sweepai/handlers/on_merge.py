@@ -88,6 +88,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         return
 
     rules = get_rules(repo)
+    rules = [rule for rule in rules if len(rule) > 0]
     if not rules:
         return
     for rule in rules:
