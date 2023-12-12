@@ -31,7 +31,7 @@ List the most important and new required paths with justifications to modify the
 </contextual_request_analysis>
 
 1. First use the preview_file tool to preview any files that seems relevant. Then, use the use the view_snippet tool to view specific line numbers of a file to find the exact line numbers to store to solve the user request.
-2. Finally, use the store_file_path and expand_directory tools to optimize the context (snippets_in_repo and repo_tree) until they provide the perfect context to solve the user request. Avoid line number spans exceeding 30 lines long. If the snippet is longer than 20 lines, store separate small and precise snippets. If you don't know the correct line numbers, complete step one to find the exact line numbers.
+2. Finally, use the store_file_path and expand_directory tools to optimize the context (snippets_in_repo and repo_tree) until they provide the perfect context to solve the user request. Avoid long line spans. Prefer storing separate small and precise snippets. If you don't know the correct line numbers, complete step one to find the exact line numbers.
 
 Store the minimal number of total lines of code to solve the user request.
 
@@ -111,7 +111,7 @@ functions = [
                 },
                 "end_line": {
                     "type": "integer",
-                    "description": "End line of the snippet. Try to limit to 30 lines. If the snippet is longer than 30 lines, store multiple small snippets, and select precise snippets.",
+                    "description": "End line of the snippet. Pick the minimal required lines and prefer store multiple small and precise snippets over one large snippets.",
                 },
                 "justification": {
                     "type": "string",
@@ -292,30 +292,30 @@ def get_relevant_context(
             thread, run, repo_context_manager, ticket_progress, cloned_repo=cloned_repo
         )
         ticket_progress.search_progress.pruning_conversation_counter = 1
-        if done:
-            return repo_context_manager
-        for i in range(modify_iterations):
-            ticket_progress.search_progress.pruning_conversation_counter = i + 1
-            thread = openai_retry_with_timeout(client.beta.threads.create)
-            user_prompt = repo_context_manager.format_context(
-                unformatted_user_prompt=unformatted_user_prompt, query=query
-            )
-            _ = openai_retry_with_timeout(
-                client.beta.threads.messages.create,
-                thread.id,
-                role="user",
-                content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow you to solve the issue, store all of the existing file paths.",
-            )
-            run = openai_retry_with_timeout(
-                client.beta.threads.runs.create,
-                thread_id=thread.id,
-                assistant_id=assistant.id,
-            )
-            done = modify_context(
-                thread, run, repo_context_manager, ticket_progress, cloned_repo
-            )
-            if done:
-                break
+        # if done:
+        #     return repo_context_manager
+        # for i in range(modify_iterations):
+        #     ticket_progress.search_progress.pruning_conversation_counter = i + 1
+        #     thread = openai_retry_with_timeout(client.beta.threads.create)
+        #     user_prompt = repo_context_manager.format_context(
+        #         unformatted_user_prompt=unformatted_user_prompt, query=query
+        #     )
+        #     _ = openai_retry_with_timeout(
+        #         client.beta.threads.messages.create,
+        #         thread.id,
+        #         role="user",
+        #         content=f"{user_prompt}\nIf the current snippets_in_repo, repo_tree, and paths_in_repo allow you to solve the issue, store all of the existing file paths.",
+        #     )
+        #     run = openai_retry_with_timeout(
+        #         client.beta.threads.runs.create,
+        #         thread_id=thread.id,
+        #         assistant_id=assistant.id,
+        #     )
+        #     done = modify_context(
+        #         thread, run, repo_context_manager, ticket_progress, cloned_repo
+        #     )
+        #     if done:
+        #         break
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -329,7 +329,7 @@ def modify_context(
     ticket_progress: TicketProgress,
     cloned_repo: ClonedRepo,
 ) -> bool | None:
-    max_iterations = 30
+    max_iterations = 60
     paths_to_keep = []  # consider persisting these across runs
     paths_to_add = []
     directories_to_expand = []
@@ -415,6 +415,7 @@ def modify_context(
                             )
                     start_line = int(function_input["start_line"])
                     end_line = int(function_input["end_line"])
+                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
                     if error_message:
                         output = error_message
                     else:
@@ -451,6 +452,7 @@ def modify_context(
                             )
                     start_line = int(function_input["start_line"])
                     end_line = int(function_input["end_line"])
+                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
                     if end_line - start_line > 1000:
                         error_message = (
                             "FAILURE: Please provide a snippet of 20 lines or less."
@@ -594,5 +596,6 @@ if __name__ == "__main__":
         ticket_progress,
         chat_logger=ChatLogger({"username": "wwzeng1"}),
     )
-    print(rcm.current_top_snippets)
+    for snippet in rcm.current_top_snippets:
+        print(snippet.start, snippet.end, snippet.file_path)
     # sys.settrace(None)
