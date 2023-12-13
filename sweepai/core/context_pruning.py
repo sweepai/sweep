@@ -9,7 +9,7 @@ from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.core.entities import Snippet
-from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -269,6 +269,9 @@ def get_relevant_context(
         done = modify_context(
             thread, run, repo_context_manager, ticket_progress, cloned_repo=cloned_repo
         )
+        if len(repo_context_manager.current_top_snippets) == 0:
+            repo_context_manager.current_top_snippets = repo_context_manager.snippets
+            discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
