@@ -1,7 +1,6 @@
 import json
 import re
 import time
-from copy import deepcopy
 
 from attr import dataclass
 from loguru import logger
@@ -187,7 +186,10 @@ class RepoContextManager:
             if can_add_snippet(snippet, new_top_snippets):
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
-        top_snippets_str = [f"<snippet file_path={snippet.file_path}>{snippet.get_snippet()}</snippet>" for snippet in self.current_top_snippets]
+        top_snippets_str = [
+            f"<snippet file_path={snippet.file_path}>{snippet.get_snippet()}</snippet>"
+            for snippet in self.current_top_snippets
+        ]
         paths_in_repo = [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
         paths_in_repo_str = "\n".join(paths_in_repo)
@@ -271,6 +273,7 @@ def get_relevant_context(
         logger.exception(e)
         return repo_context_manager
 
+
 def update_assistant_conversation(run: Run, thread: Thread):
     assistant_conversation = AssistantConversation.from_ids(
         assistant_id=run.assistant_id,
@@ -282,13 +285,12 @@ def update_assistant_conversation(run: Run, thread: Thread):
             ticket_progress.search_progress.pruning_conversation = (
                 assistant_conversation
             )
-        ticket_progress.search_progress.repo_tree = str(
-            repo_context_manager.dir_obj
-        )
+        ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.search_progress.final_snippets = (
             repo_context_manager.current_top_snippets
         )
         ticket_progress.save()
+
 
 def modify_context(
     thread: Thread,
@@ -338,6 +340,12 @@ def modify_context(
                     }
                 )
                 continue
+            current_top_snippets_string = "\n".join(
+                [
+                    "- " + snippet.xml
+                    for snippet in repo_context_manager.current_top_snippets
+                ]
+            )
             logger.info(f"Tool Call: {tool_call.function.name} {function_input}")
             function_path_or_dir = (
                 function_input["file_path"]
@@ -353,9 +361,7 @@ def modify_context(
                         logger.warning(
                             f"Key {key} not in function input {function_input}"
                         )
-                        error_message = (
-                            "FAILURE: Please provide a start and end line."
-                        )
+                        error_message = "FAILURE: Please provide a start and end line."
                 start_line = int(function_input["start_line"])
                 end_line = int(function_input["end_line"])
                 logger.info(f"start_line: {start_line}, end_line: {end_line}")
@@ -365,19 +371,23 @@ def modify_context(
                     valid_path = repo_context_manager.is_path_valid(
                         function_path_or_dir, directory=False
                     )
-                    file_contents = cloned_repo.get_file_contents(
-                        function_path_or_dir
-                    )
+                    file_contents = cloned_repo.get_file_contents(function_path_or_dir)
                     selected_file_contents = ""
                     lines = file_contents.splitlines()
                     expansion_width = 50
-                    for i, line in enumerate(lines[start_line - expansion_width : start_line]):
-                        selected_file_contents += f"{i + start_line - expansion_width} | {line}\n"
+                    for i, line in enumerate(
+                        lines[start_line - expansion_width : start_line]
+                    ):
+                        selected_file_contents += (
+                            f"{i + start_line - expansion_width} | {line}\n"
+                        )
                     selected_file_contents += "\n===START OF SNIPPET===\n"
                     for i, line in enumerate(lines[start_line:end_line]):
                         selected_file_contents += f"{i + start_line} | {line}\n"
                     selected_file_contents += "\n===END OF SNIPPET===\n"
-                    for i, line in enumerate(lines[end_line : end_line + expansion_width]):
+                    for i, line in enumerate(
+                        lines[end_line : end_line + expansion_width]
+                    ):
                         selected_file_contents += f"{i + end_line} | {line}\n"
                     output = (
                         f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\If the above snippet contains all of the necessary contents to solve the user request BETWEEN the START and END tags, call store_file_snippet to store this snippet. Otherwise, call view_file_snippet again with a larger span."
@@ -388,54 +398,45 @@ def modify_context(
                 valid_path = (
                     function_path_or_dir in repo_context_manager.top_snippet_paths
                 )
-                if function_path_or_dir in repo_context_manager.top_snippet_paths:
-                    output = f"SUCCESS. {function_path_or_dir} was stored."
-                    paths_to_add.append(function_path_or_dir)
-                else:  # we should add the file path
-                    error_message = ""
-                    for key in ["start_line", "end_line"]:
-                        if key not in function_input:
-                            logger.warning(
-                                f"Key {key} not in function input {function_input}"
-                            )
-                            error_message = (
-                                "FAILURE: Please provide a start and end line."
-                            )
-                    start_line = int(function_input["start_line"])
-                    end_line = int(function_input["end_line"])
-                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                    if end_line - start_line > 1000:
-                        error_message = (
-                            "FAILURE: Please provide a snippet of 20 lines or less."
+                error_message = ""
+                for key in ["start_line", "end_line"]:
+                    if key not in function_input:
+                        logger.warning(
+                            f"Key {key} not in function input {function_input}"
                         )
+                        error_message = "FAILURE: Please provide a start and end line."
+                start_line = int(function_input["start_line"])
+                end_line = int(function_input["end_line"])
+                logger.info(f"start_line: {start_line}, end_line: {end_line}")
+                if end_line - start_line > 1000:
+                    error_message = (
+                        "FAILURE: Please provide a snippet of 1000 lines or less."
+                    )
 
-                    try:
-                        file_contents = cloned_repo.get_file_contents(
-                            function_path_or_dir
-                        )
-                        valid_path = True
-                    except:
-                        error_message = "FAILURE: This file path does not exist. Please try a new path."
-                        valid_path = False
-                    if error_message:
-                        output = error_message
-                    else:
-                        new_file_contents = "\n".join(
-                            file_contents.splitlines()[start_line:end_line]
-                        )
-                        snippet = Snippet(
-                            file_path=function_path_or_dir,
-                            start=start_line,
-                            end=end_line,
-                            content=file_contents,
-                        )
-                        repo_context_manager.add_snippets([snippet])
-                        paths_to_add.append(function_path_or_dir)
-                        output = (
-                            f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{snippet.xml}\n```"
-                            if valid_path
-                            else "FAILURE: This file path does not exist. Please try a new path."
-                        )
+                try:
+                    file_contents = cloned_repo.get_file_contents(function_path_or_dir)
+                    valid_path = True
+                except:
+                    error_message = (
+                        "FAILURE: This file path does not exist. Please try a new path."
+                    )
+                    valid_path = False
+                if error_message:
+                    output = error_message
+                else:
+                    snippet = Snippet(
+                        file_path=function_path_or_dir,
+                        start=start_line,
+                        end=end_line,
+                        content=file_contents,
+                    )
+                    repo_context_manager.add_snippets([snippet])
+                    paths_to_add.append(function_path_or_dir)
+                    output = (
+                        f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{snippet.xml}\n```. Here are the current selected snippets:\n{current_top_snippets_string}"
+                        if valid_path
+                        else "FAILURE: This file path does not exist. Please try a new path."
+                    )
             elif tool_call.function.name == "expand_directory":
                 valid_path = repo_context_manager.is_path_valid(
                     function_path_or_dir, directory=True
@@ -514,9 +515,7 @@ def modify_context(
         repo_context_manager.top_snippet_paths
     )
     # if the paths have not changed or all tools were empty, we are done
-    return not (
-        paths_changed and (paths_to_add or directories_to_expand)
-    )
+    return not (paths_changed and (paths_to_add or directories_to_expand))
 
 
 if __name__ == "__main__":
@@ -531,7 +530,7 @@ if __name__ == "__main__":
     )
     # golden response is
     # sweepai/handlers/create_pr.py:401-428
-    # sweepai/config/client.py:178-285
+    # sweepai/config/client.py:178-282
     ticket_progress = TicketProgress(
         tracking_id="test",
     )
