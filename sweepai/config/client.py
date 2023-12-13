@@ -225,7 +225,10 @@ def get_sandbox_config(repo: Repository):
 @lru_cache(maxsize=None)
 def get_branch_name_config(repo: Repository):
     try:
-        contents = repo.get_contents("sweep.yaml")
+        try:
+            contents = repo.get_contents(".github/sweep.yaml")
+        except Exception:
+            contents = repo.get_contents("sweep.yaml")
         description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "branch_use_underscores", False
         )
