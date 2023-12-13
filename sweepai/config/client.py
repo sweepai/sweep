@@ -166,7 +166,10 @@ class SweepConfig(BaseModel):
     @staticmethod
     def get_draft(repo: Repository):
         try:
-            contents = repo.get_contents("sweep.yaml")
+            try:
+                contents = repo.get_contents(".github/sweep.yaml")
+            except Exception:
+                contents = repo.get_contents("sweep.yaml")
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return config.get("draft", False)
         except SystemExit:
