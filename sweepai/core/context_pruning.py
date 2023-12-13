@@ -18,22 +18,15 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
-sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You are currently gathering the minimum set of information that allows you to plan the solution to the issue. It is very important that you get this right.
+sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather the information from the codebase that allows you to completely solve the issue. It is very important that you get this right.
 
 Reply in the following format:
 
-<contextual_request_analysis>
-Use the snippets, issue metadata and other information to determine the information that is critical to solve the issue. For each snippet, identify whether it was a true positive or a false positive.
-List the most important and new required paths with justifications to modify them, like this:
-* file_name.py:line_number:line_number - justification
-* file_name.py:line_number:line_number - justification
-...
-</contextual_request_analysis>
+## Solution Planning
+Use the snippets, user request, and repo_tree to determine the snippets that are critical to solve the issue.
 
-1. First use the preview_file tool to preview any files that seems relevant. Then, use the use the view_snippet tool to view specific line numbers of a file to find the exact line numbers to store to solve the user request.
-2. Finally, use the store_file_path and expand_directory tools to optimize the context (snippets_in_repo and repo_tree) until they provide the perfect context to solve the user request. Avoid long line spans. Prefer storing separate small and precise snippets. If you don't know the correct line numbers, complete step one to find the exact line numbers.
-
-Store the minimal number of total lines of code to solve the user request.
+1. First use the preview_file tool to preview any files that seem relevant. Then, use the view_file_snippet tool to view specific line numbers of a file. We want to find the exact line numbers to store to solve the user request. You may use this tool multiple times to view multiple snippets, either from the same file or different files.
+2. Finally, use the store_file_snippet and expand_directory tools to optimize the context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
 
 Repeat this process until you have the perfect context to solve the user request."""
 
@@ -47,7 +40,6 @@ unformatted_user_prompt = """\
 <repo_tree>
 {repo_tree}
 </repo_tree>
-# Instructions
 ## User Request
 {query}"""
 
@@ -68,10 +60,10 @@ functions = [
             },
             "required": ["snippet_path", "justification"],
         },
-        "description": "Read the summary of the file. This is used for exploration only and does not affect the snippets.",
+        "description": "Use this to read the summary of the file. Use this tool before viewing a snippet. This is used for exploration only and does not affect the snippets. After using this tool, use the view_file_snippet tool to view specific line numbers of a file to find the exact line numbers to store to solve the user request.",
     },
     {
-        "name": "view_snippet",
+        "name": "view_file_snippet",
         "parameters": {
             "type": "object",
             "properties": {
@@ -89,15 +81,15 @@ functions = [
                 },
                 "justification": {
                     "type": "string",
-                    "description": "Justification for store the file_path.",
+                    "description": "Justification for viewing the file_path.",
                 },
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to view a section of a snippet.",
+        "description": "Use this to view a section of a snippet. You may use this tool multiple times to view multiple snippets. After you are finished using this tool, you may use the store_file_snippet tool to store the snippet to solve the user request.",
     },
     {
-        "name": "store_snippet",
+        "name": "store_file_snippet",
         "parameters": {
             "type": "object",
             "properties": {
@@ -115,12 +107,12 @@ functions = [
                 },
                 "justification": {
                     "type": "string",
-                    "description": "Justification for store the file_path.",
+                    "description": "Justification for storing the file_path.",
                 },
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to store a snippet. Only store paths you are certain are relevant to solving the user request and be precise with the line numbers. All of the files not listed will be removed from the paths_in_repo. Make sure to store ALL of the files that are referenced in the issue title or description.",
+        "description": "Use this to store a snippet. Only store paths you are certain are relevant to solving the user request and be precise with the line numbers. Make sure to store ALL of the files that are referenced in the issue title or description.",
     },
     {
         "name": "expand_directory",
@@ -195,7 +187,7 @@ class RepoContextManager:
             if can_add_snippet(snippet, new_top_snippets):
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
-        top_snippets_str = [snippet.xml for snippet in self.current_top_snippets]
+        top_snippets_str = [f"<snippet file_path={snippet.file_path}>{snippet.get_snippet()}</snippet>" for snippet in self.current_top_snippets]
         paths_in_repo = [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
         paths_in_repo_str = "\n".join(paths_in_repo)
@@ -228,27 +220,10 @@ class RepoContextManager:
         )
         return highest_scoring_snippet
 
-    def add_file_paths(self, paths_to_add: list[str]):
-        self.dir_obj.add_file_paths(paths_to_add)
-        for file_path in paths_to_add:
-            highest_scoring_snippet = self.get_highest_scoring_snippet(file_path)
-            if highest_scoring_snippet is None:
-                continue
-            if can_add_snippet(highest_scoring_snippet, self.current_top_snippets):
-                self.current_top_snippets.append(highest_scoring_snippet)
-                continue
-            # otherwise try adding it by removing others
-            prev_top_snippets = deepcopy(self.current_top_snippets)
-            self.current_top_snippets = [highest_scoring_snippet]
-            for snippet in prev_top_snippets:
-                if can_add_snippet(snippet, self.current_top_snippets):
-                    self.current_top_snippets.append(snippet)
-
-    def add_snippets(self, snippets: list[Snippet]):
-        # Need fusing
-        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets])
-        self.snippets.extend(snippets)
-        self.current_top_snippets.extend(snippets)
+    def add_snippets(self, snippets_to_add: list[Snippet]):
+        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
+        for snippet in snippets_to_add:
+            self.current_top_snippets.append(snippet)
 
 
 # @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
@@ -296,6 +271,24 @@ def get_relevant_context(
         logger.exception(e)
         return repo_context_manager
 
+def update_assistant_conversation(run: Run, thread: Thread):
+    assistant_conversation = AssistantConversation.from_ids(
+        assistant_id=run.assistant_id,
+        run_id=run.id,
+        thread_id=thread.id,
+    )
+    if ticket_progress:
+        if assistant_conversation:
+            ticket_progress.search_progress.pruning_conversation = (
+                assistant_conversation
+            )
+        ticket_progress.search_progress.repo_tree = str(
+            repo_context_manager.dir_obj
+        )
+        ticket_progress.search_progress.final_snippets = (
+            repo_context_manager.current_top_snippets
+        )
+        ticket_progress.save()
 
 def modify_context(
     thread: Thread,
@@ -307,10 +300,8 @@ def modify_context(
     max_iterations = 60
     directories_to_expand = []
     repo_context_manager.current_top_snippets = []
-    logger.info(
-        f"Context Management Start:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
-    )
     initial_file_paths = repo_context_manager.top_snippet_paths
+    paths_to_add = []
     for iter in range(max_iterations):
         run = openai_retry_with_timeout(
             client.beta.threads.runs.retrieve,
@@ -318,24 +309,8 @@ def modify_context(
             run_id=run.id,
         )
         if iter % 5 == 0:
-            assistant_conversation = AssistantConversation.from_ids(
-                assistant_id=run.assistant_id,
-                run_id=run.id,
-                thread_id=thread.id,
-            )
-            if ticket_progress:
-                if assistant_conversation:
-                    ticket_progress.search_progress.pruning_conversation = (
-                        assistant_conversation
-                    )
-                ticket_progress.search_progress.repo_tree = str(
-                    repo_context_manager.dir_obj
-                )
-                ticket_progress.search_progress.final_snippets = (
-                    repo_context_manager.current_top_snippets
-                )
-                logger.info("iteration: " + str(iter))
-                ticket_progress.save()
+            update_assistant_conversation(run, thread)
+            logger.info("iteration: " + str(iter))
         if run.status == "completed" or run.status == "failed":
             break
         if (
@@ -371,53 +346,45 @@ def modify_context(
             )
             valid_path = False
             output = ""
-            if tool_call.function.name == "view_snippet":
-                if function_path_or_dir in repo_context_manager.top_snippet_paths:
-                    valid_path = (
-                        function_path_or_dir in repo_context_manager.top_snippet_paths
+            if tool_call.function.name == "view_file_snippet":
+                error_message = ""
+                for key in ["start_line", "end_line"]:
+                    if key not in function_input:
+                        logger.warning(
+                            f"Key {key} not in function input {function_input}"
+                        )
+                        error_message = (
+                            "FAILURE: Please provide a start and end line."
+                        )
+                start_line = int(function_input["start_line"])
+                end_line = int(function_input["end_line"])
+                logger.info(f"start_line: {start_line}, end_line: {end_line}")
+                if error_message:
+                    output = error_message
+                else:
+                    valid_path = repo_context_manager.is_path_valid(
+                        function_path_or_dir, directory=False
                     )
-                    output = f"SUCCESS. {function_path_or_dir} was stored."
-                    repo_context_manager.current_top_snippets.append(
+                    file_contents = cloned_repo.get_file_contents(
                         function_path_or_dir
                     )
-                else:  # we should add the file path
-                    error_message = ""
-                    for key in ["start_line", "end_line"]:
-                        if key not in function_input:
-                            logger.warning(
-                                f"Key {key} not in function input {function_input}"
-                            )
-                            error_message = (
-                                "FAILURE: Please provide a start and end line."
-                            )
-                    start_line = int(function_input["start_line"])
-                    end_line = int(function_input["end_line"])
-                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                    if error_message:
-                        output = error_message
-                    else:
-                        valid_path = repo_context_manager.is_path_valid(
-                            function_path_or_dir, directory=False
-                        )
-                        file_contents = cloned_repo.get_file_contents(
-                            function_path_or_dir
-                        )
-                        file_contents = ""
-                        lines = file_contents.splitlines()
-                        for i, line in enumerate(lines[start_line - 10 : start_line]):
-                            file_contents += f"{i + start_line - 10} | {line}\n"
-                        file_contents += "\n===START OF SNIPPET===\n"
-                        for i, line in enumerate(lines[start_line:end_line]):
-                            file_contents += f"{i + start_line} | {line}\n"
-                        file_contents += "\n===END OF SNIPPET===\n"
-                        for i, line in enumerate(lines[end_line : end_line + 10]):
-                            file_contents += f"{i + end_line} | {line}\n"
-                        output = (
-                            f"SUCCESS: Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{file_contents}\n```\nRemember to call this again with save=true to store the file path."
-                            if valid_path
-                            else "FAILURE: This file path does not exist. Please try a new path."
-                        )
-            elif tool_call.function.name == "store_snippet":
+                    selected_file_contents = ""
+                    lines = file_contents.splitlines()
+                    expansion_width = 50
+                    for i, line in enumerate(lines[start_line - expansion_width : start_line]):
+                        selected_file_contents += f"{i + start_line - expansion_width} | {line}\n"
+                    selected_file_contents += "\n===START OF SNIPPET===\n"
+                    for i, line in enumerate(lines[start_line:end_line]):
+                        selected_file_contents += f"{i + start_line} | {line}\n"
+                    selected_file_contents += "\n===END OF SNIPPET===\n"
+                    for i, line in enumerate(lines[end_line : end_line + expansion_width]):
+                        selected_file_contents += f"{i + end_line} | {line}\n"
+                    output = (
+                        f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\If the above snippet contains all of the necessary contents to solve the user request BETWEEN the START and END tags, call store_file_snippet to store this snippet. Otherwise, call view_file_snippet again with a larger span."
+                        if valid_path
+                        else "FAILURE: This file path does not exist. Please try a new path."
+                    )
+            elif tool_call.function.name == "store_file_snippet":
                 valid_path = (
                     function_path_or_dir in repo_context_manager.top_snippet_paths
                 )
@@ -538,8 +505,6 @@ def modify_context(
     logger.info(
         f"Context Management End:\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
     )
-    if paths_to_add:
-        repo_context_manager.remove_all_non_kept_paths(paths_to_add)
     if directories_to_expand:
         repo_context_manager.expand_all_directories(directories_to_expand)
     logger.info(
@@ -550,7 +515,7 @@ def modify_context(
     )
     # if the paths have not changed or all tools were empty, we are done
     return not (
-        paths_changed and (paths_to_add or directories_to_expand or paths_to_add)
+        paths_changed and (paths_to_add or directories_to_expand)
     )
 
 
@@ -564,21 +529,12 @@ if __name__ == "__main__":
     query = (
         "allow sweep.yaml to be read from the user/organization's .github repository"
     )
+    # golden response is
+    # sweepai/handlers/create_pr.py:401-428
+    # sweepai/config/client.py:178-285
     ticket_progress = TicketProgress(
         tracking_id="test",
     )
-    import linecache
-
-    def trace_lines(frame, event, arg):
-        if event == "line":
-            filename = frame.f_code.co_filename
-            if "context_pruning" in filename:
-                lineno = frame.f_lineno
-                line = linecache.getline(filename, lineno)
-                print(f"Executing {filename}:line {lineno}:{line.rstrip()}")
-        return trace_lines
-
-    # sys.settrace(trace_lines)
     repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
     rcm = get_relevant_context(
         query,
@@ -588,4 +544,3 @@ if __name__ == "__main__":
     )
     for snippet in rcm.current_top_snippets:
         print(snippet.denotation)
-    # sys.settrace(None)

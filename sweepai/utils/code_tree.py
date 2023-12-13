@@ -1,4 +1,5 @@
 import ast
+import re
 
 import tree_sitter_languages
 from pydantic import BaseModel
@@ -70,7 +71,6 @@ class CodeTree(BaseModel):
     def get_preview(self, min_line: int = 5, max_line: int = 1200):
         last_end_line = -1
         lines = self.code.splitlines()
-
         def get_children(node: Node = self.tree.root_node):
             nonlocal last_end_line
             children = []
@@ -101,11 +101,17 @@ class CodeTree(BaseModel):
                     first_line = f"{start_line} | {first_line}"
                     second_line = node_lines[1]
                     second_line = f"{start_line + 1} | {second_line}"
-                    middle_lines = (
-                        indentation
-                        + f"     ... (lines {start_line + 1}-{end_line - 1}) ..."
+                    hidden_lines_content = "\n".join(lines[start_line + 2 : end_line - 1])
+                    number_of_terms = 5
+                    first_n_terms = ", ".join(extract_words(hidden_lines_content)[:number_of_terms])
+                    spacing = " " * (len(str(start_line)) + 2)
+                    middle_lines = spacing.join(
+                        [
+                        spacing + indentation + f"     ...\n",
+                        indentation + f"     (lines {start_line + 1}-{end_line - 1} contains terms: {first_n_terms}\n",
+                        indentation + f"     ...\n",
+                        ]
                     )
-                    middle_lines = " " * (len(str(start_line)) + 2) + middle_lines
                     second_last_line = node_lines[-2]
                     second_last_line = f"{end_line - 1} | {second_last_line}"
                     last_line = node_lines[-1]
@@ -117,9 +123,13 @@ class CodeTree(BaseModel):
                     children.append(last_line)
                 last_end_line = end_line
             return children
-
         return "\n".join(get_children())
 
+
+def extract_words(string):
+    # extract the most common words from a code snippet
+    words = re.findall(r"\w+", string)
+    return list(dict.fromkeys(words))
 
 def get_global_function_names_and_spans(node):
     return [
