@@ -232,7 +232,6 @@ class RepoContextManager:
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
-    cloned_repo: ClonedRepo,
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
@@ -266,9 +265,7 @@ def get_relevant_context(
             thread_id=thread.id,
             assistant_id=assistant.id,
         )
-        done = modify_context(
-            thread, run, repo_context_manager, ticket_progress, cloned_repo=cloned_repo
-        )
+        modify_context(thread, run, repo_context_manager, ticket_progress)
         if len(repo_context_manager.current_top_snippets) == 0:
             repo_context_manager.current_top_snippets = repo_context_manager.snippets
             discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
@@ -278,7 +275,12 @@ def get_relevant_context(
         return repo_context_manager
 
 
-def update_assistant_conversation(run: Run, thread: Thread):
+def update_assistant_conversation(
+    run: Run,
+    thread: Thread,
+    ticket_progress: TicketProgress,
+    repo_context_manager: RepoContextManager,
+):
     assistant_conversation = AssistantConversation.from_ids(
         assistant_id=run.assistant_id,
         run_id=run.id,
@@ -301,7 +303,6 @@ def modify_context(
     run: Run,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
-    cloned_repo: ClonedRepo,
 ) -> bool | None:
     max_iterations = 60
     directories_to_expand = []
@@ -315,7 +316,9 @@ def modify_context(
             run_id=run.id,
         )
         if iter % 5 == 0:
-            update_assistant_conversation(run, thread)
+            update_assistant_conversation(
+                run, thread, ticket_progress, repo_context_manager
+            )
             logger.info("iteration: " + str(iter))
         if run.status == "completed" or run.status == "failed":
             break
@@ -375,7 +378,9 @@ def modify_context(
                     valid_path = repo_context_manager.is_path_valid(
                         function_path_or_dir, directory=False
                     )
-                    file_contents = cloned_repo.get_file_contents(function_path_or_dir)
+                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                        function_path_or_dir
+                    )
                     selected_file_contents = ""
                     lines = file_contents.splitlines()
                     expansion_width = 50
@@ -418,7 +423,9 @@ def modify_context(
                     )
 
                 try:
-                    file_contents = cloned_repo.get_file_contents(function_path_or_dir)
+                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                        function_path_or_dir
+                    )
                     valid_path = True
                 except:
                     error_message = (
@@ -458,7 +465,9 @@ def modify_context(
                 valid_path = repo_context_manager.is_path_valid(
                     function_path_or_dir, directory=False
                 )
-                code = cloned_repo.get_file_contents(function_path_or_dir)
+                code = repo_context_manager.cloned_repo.get_file_contents(
+                    function_path_or_dir
+                )
                 file_preview = CodeTree.from_code(code).get_preview()
                 output = (
                     f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
