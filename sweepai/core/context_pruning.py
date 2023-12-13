@@ -1,3 +1,4 @@
+from sweepai.api import chat_logger
 import json
 import re
 import time
@@ -431,9 +432,18 @@ def modify_context(
         repo_context_manager.top_snippet_paths
     )
     # if the paths have not changed or all tools were empty, we are done
-    return not (
-        paths_changed and (paths_to_keep or directories_to_expand or paths_to_add)
-    )
+
+    finished = not (paths_changed and (paths_to_keep or directories_to_expand or paths_to_add))
+    if chat_logger is not None:
+        chat_logger.add_chat(
+            {
+                "query": query,
+                "repo_context_manager": repo_context_manager,
+                "ticket_progress": ticket_progress,
+                # add any other relevant data here
+            }
+        )
+    return finished
 
 
 if __name__ == "__main__":
