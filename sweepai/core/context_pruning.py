@@ -384,12 +384,9 @@ def modify_context(
                     selected_file_contents = ""
                     lines = file_contents.splitlines()
                     expansion_width = 50
-                    for i, line in enumerate(
-                        lines[start_line - expansion_width : start_line]
-                    ):
-                        selected_file_contents += (
-                            f"{i + start_line - expansion_width} | {line}\n"
-                        )
+                    start_index = max(0, start_line - expansion_width)
+                    for i, line in enumerate(lines[start_index:start_line]):
+                        selected_file_contents += f"{i + start_index} | {line}\n"
                     selected_file_contents += "\n===START OF SNIPPET===\n"
                     for i, line in enumerate(lines[start_line:end_line]):
                         selected_file_contents += f"{i + start_line} | {line}\n"
@@ -399,7 +396,7 @@ def modify_context(
                     ):
                         selected_file_contents += f"{i + end_line} | {line}\n"
                     output = (
-                        f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\If the above snippet contains all of the necessary contents to solve the user request BETWEEN the START and END tags, call store_file_snippet to store this snippet. Otherwise, call view_file_snippet again with a larger span."
+                        f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nIf the above snippet contains all of the necessary contents to solve the user request BETWEEN the START and END tags, call store_file_snippet to store this snippet. Otherwise, call view_file_snippet again with a larger span."
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
