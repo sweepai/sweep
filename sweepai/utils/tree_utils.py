@@ -35,11 +35,11 @@ class Line:
 
 class DirectoryTree:
     def __init__(self):
-        self.original_lines = []
-        self.lines = []
+        self.original_lines: list[Line] = []
+        self.lines: list[Line] = []
 
-    def parse(self, input_str):
-        stack = []  # To keep track of parent directories
+    def parse(self, input_str: str):
+        stack: list[Line] = []  # To keep track of parent directories
         for line in input_str.strip().split("\n"):
             indent_count = (len(line) - len(line.lstrip())) // 2
             line = line.strip()
@@ -152,6 +152,8 @@ class DirectoryTree:
             self.remove(target)
 
     def __str__(self):
-        return "\n".join(
-            ("  " * line.indent_count) + line.full_path() for line in self.lines
-        )
+        results = []
+        for line in self.lines:
+            line_text = line.text.split("/")[-2] + "/" if line.is_dir else line.text
+            results.append(("  " * line.indent_count) + line_text)
+        return "\n".join(results)
