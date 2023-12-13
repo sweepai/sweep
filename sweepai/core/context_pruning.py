@@ -8,6 +8,7 @@ from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
+from sandbox.src.sandbox_local import field
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
@@ -116,7 +117,7 @@ class RepoContextManager:
     current_top_tree: str
     snippets: list[Snippet]
     snippet_scores: dict[str, float]
-    current_top_snippets: list[Snippet] = []
+    current_top_snippets: list[Snippet] = field(default_factory=list, compare=False)
 
     @property
     def top_snippet_paths(self):
