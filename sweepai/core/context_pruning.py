@@ -232,6 +232,7 @@ class RepoContextManager:
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
+    cloned_repo: ClonedRepo,
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
