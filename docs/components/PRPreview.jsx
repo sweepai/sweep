@@ -163,7 +163,7 @@ export function PRPreview({ repoName, prId }) {
                                 }}
                             >
                                 {parsedDiff.map(({chunks, from, oldStart}) => (
-                                    from !== "/dev/null" && from !== "sweep.yaml" &&
+                                    from !== "/dev/null" && (from !== "sweep.yaml" || from !== "sweep.yml") &&
                                     <>
                                         <p style={{
                                             marginTop: 0,

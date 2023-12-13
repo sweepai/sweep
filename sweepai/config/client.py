@@ -90,6 +90,7 @@ class SweepConfig(BaseModel):
         ".pem",
         ".ttf",
         "sweep.yaml",
+        "sweep.yml"
     ]
     # Image formats
     max_file_limit: int = 60_000
@@ -122,6 +123,9 @@ class SweepConfig(BaseModel):
             sweep_yaml_dict = {}
             try:
                 contents = repo.get_contents("sweep.yaml")
+                if contents is None:
+                    contents = repo.get_contents("sweep.yml")
+
                 sweep_yaml_dict = yaml.safe_load(
                     contents.decoded_content.decode("utf-8")
                 )
@@ -153,6 +157,9 @@ class SweepConfig(BaseModel):
     def get_config(repo: Repository):
         try:
             contents = repo.get_contents("sweep.yaml")
+            if contents is None:
+                contents = repo.get_contents("sweep.yml")
+
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return SweepConfig(**config)
         except SystemExit:
@@ -167,6 +174,9 @@ class SweepConfig(BaseModel):
     def get_draft(repo: Repository):
         try:
             contents = repo.get_contents("sweep.yaml")
+            if contents is None:
+                contents = repo.get_contents("sweep.yml")
+
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return config.get("draft", False)
         except SystemExit:
@@ -180,6 +190,9 @@ class SweepConfig(BaseModel):
 def get_gha_enabled(repo: Repository) -> bool:
     try:
         contents = repo.get_contents("sweep.yaml")
+        if contents is None:
+            contents = repo.get_contents("sweep.yml")
+
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "gha_enabled", True
         )
@@ -197,6 +210,9 @@ def get_gha_enabled(repo: Repository) -> bool:
 def get_description(repo: Repository) -> dict:
     try:
         contents = repo.get_contents("sweep.yaml")
+        if contents is None:
+            contents = repo.get_contents("sweep.yml")
+
         sweep_yaml = yaml.safe_load(contents.decoded_content.decode("utf-8"))
         description = sweep_yaml.get("description", "")
         rules = sweep_yaml.get("rules", [])
@@ -212,6 +228,9 @@ def get_description(repo: Repository) -> dict:
 def get_sandbox_config(repo: Repository):
     try:
         contents = repo.get_contents("sweep.yaml")
+        if contents is None:
+            contents = repo.get_contents("sweep.yml")
+
         description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "sandbox", {}
         )
@@ -226,6 +245,9 @@ def get_sandbox_config(repo: Repository):
 def get_branch_name_config(repo: Repository):
     try:
         contents = repo.get_contents("sweep.yaml")
+        if contents is None:
+            contents = repo.get_contents("sweep.yml")
+
         description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "branch_use_underscores", False
         )
@@ -239,7 +261,11 @@ def get_branch_name_config(repo: Repository):
 @lru_cache(maxsize=None)
 def get_documentation_dict(repo: Repository):
     try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+        contents = repo.get_contents("sweep.yaml")
+        if contents is None:
+            contents = repo.get_contents("sweep.yml")
+
+        sweep_yaml_content = contents.decoded_content.decode(
             "utf-8"
         )
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
@@ -254,7 +280,11 @@ def get_documentation_dict(repo: Repository):
 @lru_cache(maxsize=None)
 def get_blocked_dirs(repo: Repository):
     try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+        contents = repo.get_contents("sweep.yaml")
+        if contents is None:
+            contents = repo.get_contents("sweep.yml")
+
+        sweep_yaml_content = contents.decoded_content.decode(
             "utf-8"
         )
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
@@ -269,7 +299,11 @@ def get_blocked_dirs(repo: Repository):
 @lru_cache(maxsize=None)
 def get_rules(repo: Repository):
     try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+        contents = repo.get_contents("sweep.yaml")
+        if contents is None:
+            contents = repo.get_contents("sweep.yml")
+
+        sweep_yaml_content = contents.decoded_content.decode(
             "utf-8"
         )
         sweep_yaml = yaml.safe_load(sweep_yaml_content)

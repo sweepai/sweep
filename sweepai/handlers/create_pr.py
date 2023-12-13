@@ -141,7 +141,7 @@ def create_pr_changes(
         else:
             pr_description = f"{pull_request.content}"
         pr_title = pull_request.title
-        if "sweep.yaml" in pr_title:
+        if "sweep.yaml" in pr_title or "sweep.yml" in pr_title:
             pr_title = "[config] " + pr_title
     except MaxTokensExceeded as e:
         logger.error(e)
@@ -237,7 +237,12 @@ def create_config_pr(
         except SystemExit:
             raise SystemExit
         except Exception:
-            pass
+            try:
+                repo.get_contents("sweep.yml")
+            except SystemExit:
+                raise SystemExit
+            except Exception:
+                pass
 
     title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH

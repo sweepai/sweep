@@ -769,7 +769,9 @@ async def webhook(raw_request: Request):
                     ):
                         if request_dict["head_commit"] and (
                             "sweep.yaml" in request_dict["head_commit"]["added"]
+                            or "sweep.yml" in request_dict["head_commit"]["added"]
                             or "sweep.yaml" in request_dict["head_commit"]["modified"]
+                            or "sweep.yml" in request_dict["head_commit"]["modified"]
                         ):
                             _, g = get_github_client(request_dict["installation"]["id"])
                             repo = g.get_repo(request_dict["repository"]["full_name"])
