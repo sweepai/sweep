@@ -1,4 +1,5 @@
 import copy
+import os
 
 from sweepai.logn import logger
 
@@ -41,6 +42,7 @@ class DirectoryTree:
     def parse(self, input_str: str):
         stack: list[Line] = []  # To keep track of parent directories
         for line in input_str.strip().split("\n"):
+            line = os.path.realpath(line) if os.path.islink(line) else line
             indent_count = (len(line) - len(line.lstrip())) // 2
             line = line.strip()
 
@@ -62,7 +64,7 @@ class DirectoryTree:
         new_lines = []
         skip_until_indent = None
         for line in self.lines:
-            if line.full_path() == target:
+            if os.path.realpath(line.full_path()) == os.path.realpath(target) if os.path.islink(target) else target:
                 skip_until_indent = line.indent_count
                 continue
 
@@ -114,6 +116,8 @@ class DirectoryTree:
         dirs_to_expand = list(set(dirs_to_expand))
         expanded_lines = []
         for line in self.original_lines:
+            real_line_path = os.path.realpath(line.full_path()) if os.path.islink(line.full_path()) else line.full_path()
+            real_parent_path = os.path.realpath(line.parent.full_path()) if line.parent and os.path.islink(line.parent.full_path()) else line.parent.full_path() if line.parent else None
             if (
                 line.parent
                 and any(
@@ -141,7 +145,7 @@ class DirectoryTree:
             file_parent_dirs = parent_dirs(file_path)
             for dir in file_parent_dirs[::-1]:
                 # skip any that already exist
-                if any(line.full_path().startswith(dir) for line in self.lines):
+                if any(os.path.realpath(line.full_path()).startswith(os.path.realpath(dir)) if os.path.islink(dir) else dir for line in self.lines):
                     break
                 dirs_to_expand.add(dir)
             dirs_to_expand.add(file_path)
