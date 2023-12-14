@@ -24,13 +24,13 @@ You initially start with no snippets and will use the store_file_snippet and exp
 
 You are provided snippets_from_lexical_search and paths_from_lexical_search, which are snippets that are potentially relevant to the user request. These snippets are retrieved by a lexical search over the codebase, but are NOT in the context initially.
 
-You will do this by using the following process:
+You will do this by using the following process for every relevant file:
 
-1. First use the preview_file tool to preview any files that seem relevant. If the file is irrelevant, move onto the next file.
+1. First use the preview_file tool to preview all files that seem relevant, for example, if it is in the repo tree or mentioned by the user. If the file is irrelevant, move onto the next file.
 2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find the exact line numbers to store to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
 3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
 
-Repeat this process until you have the perfect context to solve the user request."""
+Repeat this process until you have the perfect context to solve the user request. Ensure you have checked ALL files referenced in the user request."""
 
 unformatted_user_prompt = """\
 <snippets_from_lexical_search>
