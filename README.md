@@ -2,7 +2,7 @@
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
 </p>
 <p align="center">
-    <i>Github Issues ⟶&nbsp; Refactored and Tested Python Code! </i>
+    <i>Github Issues ⟶&nbsp; Refactored and Tested Code! </i>
 </p>
 <p align="center">
     <a href="https://github.com/apps/sweep-ai">
@@ -31,11 +31,9 @@
     </a>
 </p>
 
-*🎊 We recently updated our README to reflect our improvements to Python refactors and unit tests!*
-
 ---
 
-<b>Sweep</b> is an AI junior developer that refactors and writes unit tests for Python. :snake: :robot:
+<b>Sweep</b> is an AI junior developer that turns bugs and feature requests into code changes. :robot:
 
 [Install Sweep](https://github.com/apps/sweep-ai) and open a Github Issue like: `Sweep: Refactor the run function in main.py` and Sweep will:
 1. Identify the best places to refactor your code
@@ -51,28 +49,26 @@
 
 [![Sweep Youtube Tutorial](docs/public/assets/youtube_thumbnail.png)](https://www.youtube.com/watch?v=nxIMWCaN5kM)
 
----
-### What makes Sweep Different
 
-We've been addressing code modification using LLMs for a while. We found and are fixing a lot of issues.
+> [!NOTE]
+> ### What makes Sweep Different
+> We've been addressing code modification using LLMs for a while. We found and are fixing a lot of issues.
+> - **Refactoring Code** LLMs are bad at refactoring code. It's really challenging for them to extract all of the necessary parameters.  Check out https://docs.sweep.dev/blogs/refactor-python!
+>    * Sweep solves this by using Rope and our custom DSL to perform perfect refactors every time!
+> - **Unit Test** Most AI unit test copilots don't even validate the code. They leave it to the user to make sure the generated code works, which is half of the battle. Check out https://docs.sweep.dev/blogs/ai-unit-tests!
+>    * Sweep runs your code for you, which catches bugs and makes sure each line of old and new code has been properly validated!
+> - **Formatting** LLMs are also bad at properly formatting code, such as by adding typehints and making sure we use tabs instead of spaces. Check out https://docs.sweep.dev/blogs/super-linter!
+>    * Sweep uses it's sandbox to format your code, and uses [Rules](https://docs.sweep.dev/usage/config#tips-for-writing-rules) to perform other changes like adding typehints, or any other small chores!
 
--  **Refactoring Code** LLMs are bad at refactoring code. It's really challenging for them to extract all of the necessary parameters.  Check out https://docs.sweep.dev/blogs/refactor-python!
-   * Sweep solves this by using Rope and our custom DSL to perform perfect refactors every time!
--  **Unit Test** Most AI unit test copilots don't even validate the code. They leave it to the user to make sure the generated code works, which is half of the battle. Check out https://docs.sweep.dev/blogs/ai-unit-tests!
-   * Sweep runs your code for you, which catches bugs and makes sure each line of old and new code has been properly validated!
-- **Formatting** LLMs are also bad at properly formatting code, such as by adding typehints and making sure we use tabs instead of spaces. Check out https://docs.sweep.dev/blogs/super-linter!
-   * Sweep uses it's sandbox to format your code, and uses [Rules](https://docs.sweep.dev/usage/config#tips-for-writing-rules) to perform other changes like adding typehints, or any other small chores!
-
----
 
 ## Getting Started
 
 ### GitHub App
 Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep-ai) to your desired repositories.
 
-* For more details, visit our [Installation page](docs/installation.md).
+* For more details, visit our [installation page](https://docs.sweep.dev/getting-started).
 
-* Note: Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an issue after it has been created, you can add the "Sweep" label to the issue.
+* Note: Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an existing issue, you can add the "Sweep" label to the issue.
 
 * We focus on Python but support all languages GPT-4 can write. This includes JS/TS, Rust, Go, Java, C# and C++.
 
@@ -115,16 +111,14 @@ You can [self-host](https://docs.sweep.dev/deployment) Sweep's docker image on a
 
 ---
 
-## Limitations of Sweep
-
-* **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
+> [!WARNING]
+> ### Limitations of Sweep
+> * **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
     * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
-
-* **Large-scale refactors**: >3 files or >150 lines of code changes
+> * **Large-scale refactors**: >3 files or >150 lines of code changes
     * e.g. Refactor the entire codebase from TensorFlow to PyTorch
     * Sweep works best when pointed to a file, and we're continously improving Sweep's automation!
-
-* **Editing images** and other non-text assets
+> * **Editing images** and other non-text assets
     * e.g. Use the logo to create favicons for our landing page
 ---
 
