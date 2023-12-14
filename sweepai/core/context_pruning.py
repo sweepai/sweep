@@ -380,10 +380,17 @@ def modify_context(
                     valid_path = True
                 except:
                     file_contents = ""
-                    error_message = (
-                        "FAILURE: This file path does not exist. Please try a new path."
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
                     )
-                    valid_path = False
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+                if start_line >= end_line:
+                    error_message = "FAILURE: Start line must be less than end line."
                 if error_message:
                     output = error_message
                 else:
@@ -422,6 +429,8 @@ def modify_context(
                     error_message = (
                         "FAILURE: Please provide a snippet of 1000 lines or less."
                     )
+                if start_line >= end_line:
+                    error_message = "FAILURE: Start line must be less than end line."
 
                 try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
@@ -430,10 +439,15 @@ def modify_context(
                     valid_path = True
                 except:
                     file_contents = ""
-                    error_message = (
-                        "FAILURE: This file path does not exist. Please try a new path."
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
                     )
-                    valid_path = False
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
                 if error_message:
                     output = error_message
                 else:
@@ -474,14 +488,21 @@ def modify_context(
                     valid_path = True
                 except:
                     code = ""
-                    error_message = "FAILURE: Invalid file path. Please try a new path."
-                    valid_path = False
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
+                    )
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
                 if error_message:
                     output = error_message
                 else:
                     file_preview = CodeTree.from_code(code).get_preview()
                     output = f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
-            # logger.info(output)
+            logger.info(output)
             logger.info("Current top snippets:")
             for snippet in repo_context_manager.current_top_snippets:
                 logger.info(snippet.denotation)

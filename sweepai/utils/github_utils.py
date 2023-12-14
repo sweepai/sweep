@@ -12,9 +12,9 @@ from functools import cached_property
 from typing import Any
 
 import git
+import rapidfuzz
 import requests
 from github import Github
-from github.Repository import Repository
 from jwt import encode
 from redis import Redis
 from redis.backoff import ExponentialBackoff
@@ -107,7 +107,11 @@ class ClonedRepo:
 
     @cached_property
     def cached_dir(self):
-        self.repo = Github(self.token).get_repo(self.repo_full_name) if not self.repo else self.repo
+        self.repo = (
+            Github(self.token).get_repo(self.repo_full_name)
+            if not self.repo
+            else self.repo
+        )
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
         return os.path.join(
             REPO_CACHE_BASE_DIR,
@@ -125,7 +129,11 @@ class ClonedRepo:
 
     @cached_property
     def repo_dir(self):
-        self.repo = Github(self.token).get_repo(self.repo_full_name) if not self.repo else self.repo
+        self.repo = (
+            Github(self.token).get_repo(self.repo_full_name)
+            if not self.repo
+            else self.repo
+        )
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
         curr_time_str = str(time.time()).encode("utf-8")
         hash_obj = hashlib.sha256(curr_time_str)
@@ -166,14 +174,20 @@ class ClonedRepo:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Repo already cached, copying")
         logger.info("Copying repo...")
-        shutil.copytree(self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy)
+        shutil.copytree(
+            self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy
+        )
         logger.info("Done copying")
         repo = git.Repo(self.repo_dir)
         return repo
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
-        self.repo = Github(self.token).get_repo(self.repo_full_name) if not self.repo else self.repo
+        self.repo = (
+            Github(self.token).get_repo(self.repo_full_name)
+            if not self.repo
+            else self.repo
+        )
         self.commit_hash = self.repo.get_commits()[0].sha
         self.token = self.token or get_token(self.installation_id)
         self.git_repo = self.clone()
@@ -368,6 +382,30 @@ class ClonedRepo:
         except:
             logger.error(f"An error occurred: {traceback.print_exc()}")
         return commit_history
+
+    def get_similar_file_paths(self, file_path: str, limit: int = 10):
+        # Fuzzy search over file names
+        file_name = os.path.basename(file_path)
+        all_file_paths = self.get_file_list()
+        files_with_matching_name = []
+        files_without_matching_name = []
+        for file_path in all_file_paths:
+            if file_name in file_path:
+                files_with_matching_name.append(file_path)
+            else:
+                files_without_matching_name.append(file_path)
+        files_with_matching_name = sorted(
+            files_with_matching_name,
+            key=lambda file_path: rapidfuzz.fuzz.ratio(file_name, file_path),
+            reverse=True,
+        )
+        files_without_matching_name = sorted(
+            files_without_matching_name,
+            key=lambda file_path: rapidfuzz.fuzz.ratio(file_name, file_path),
+            reverse=True,
+        )
+        all_files = files_with_matching_name + files_without_matching_name
+        return all_files[:limit]
 
 
 def get_file_names_from_query(query: str) -> list[str]:
