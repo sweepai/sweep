@@ -17,25 +17,28 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
-sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather the information from the codebase that allows you to completely solve the issue. It is very important that you get this right.
+sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather ALL RELEVANT information from the codebase that allows you to completely solve the issue. It is very important that you get this right and do not miss any relevant lines of code.
 
-Reply in the following format:
+## Instructions
+You initially start with no snippets and will use the store_file_snippet and expand_directory to add snippets to the context. You will iteratively use the preview_file and view_file_snippet tools to help you find the relevant snippets to store.
 
-## Solution Planning
-Use the snippets, user request, and repo_tree to determine the snippets that are critical to solve the issue.
+You are provided snippets_from_lexical_search and paths_from_lexical_search, which are snippets that are potentially relevant to the user request. These snippets are retrieved by a lexical search over the codebase, but are NOT in the context initially.
 
-1. First use the preview_file tool to preview any files that seem relevant. Then, use the view_file_snippet tool to view specific line numbers of a file. We want to find the exact line numbers to store to solve the user request. You may use this tool multiple times to view multiple snippets, either from the same file or different files.
-2. Finally, use the store_file_snippet and expand_directory tools to optimize the context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
+You will do this by using the following process:
+
+1. First use the preview_file tool to preview any files that seem relevant. If the file is irrelevant, move onto the next file.
+2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find the exact line numbers to store to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
+3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
 
 Repeat this process until you have the perfect context to solve the user request."""
 
 unformatted_user_prompt = """\
-<snippets_in_repo>
+<snippets_from_lexical_search>
 {snippets_in_repo}
-</snippets_in_repo>
-<paths_in_repo>
+</snippets_from_lexical_search>
+<paths_from_lexical_search>
 {paths_in_repo}
-</paths_in_repo>
+</paths_from_lexical_search>
 <repo_tree>
 {repo_tree}
 </repo_tree>
@@ -85,7 +88,7 @@ functions = [
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to view a section of a snippet. You may use this tool multiple times to view multiple snippets. After you are finished using this tool, you may use the store_file_snippet tool to store the snippet to solve the user request.",
+        "description": "Use this to view a section of a snippet. You may use this tool multiple times to view multiple snippets. After you are finished using this tool, you may use the view_file_snippet to view the surrounding lines or the store_file_snippet tool to store the snippet to solve the user request.",
     },
     {
         "name": "store_file_snippet",
@@ -102,16 +105,16 @@ functions = [
                 },
                 "end_line": {
                     "type": "integer",
-                    "description": "End line of the snippet. Pick the minimal required lines and prefer store multiple small and precise snippets over one large snippets.",
+                    "description": "End line of the snippet.",
                 },
                 "justification": {
                     "type": "string",
-                    "description": "Justification for storing the file_path.",
+                    "description": "Justification for why file_path is relevant and why the surrounding lines are irrelevant.",
                 },
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to store a snippet. Only store paths you are certain are relevant to solving the user request and be precise with the line numbers. Make sure to store ALL of the files that are referenced in the issue title or description.",
+        "description": "Use this to store a snippet. Only store paths you are CERTAIN are relevant and sufficient to solving the user request and be precise with the line numbers. Make sure to store ALL of the files that are referenced in the issue title or description. You may store multiple snippets with the same file path.",
     },
     {
         "name": "expand_directory",
@@ -187,8 +190,7 @@ class RepoContextManager:
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
         top_snippets_str = [
-            f"<snippet file_path={snippet.file_path}>{snippet.get_snippet()}</snippet>"
-            for snippet in self.current_top_snippets
+            f"- {snippet.denotation}" for snippet in self.current_top_snippets
         ]
         paths_in_repo = [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
@@ -371,19 +373,25 @@ def modify_context(
                         error_message = "FAILURE: Please provide a start and end line."
                 start_line = int(function_input["start_line"])
                 end_line = int(function_input["end_line"])
-                logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                if error_message:
-                    output = error_message
-                else:
-                    valid_path = repo_context_manager.is_path_valid(
-                        function_path_or_dir, directory=False
-                    )
+                try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
                         function_path_or_dir
                     )
+                    valid_path = True
+                except:
+                    file_contents = ""
+                    error_message = (
+                        "FAILURE: This file path does not exist. Please try a new path."
+                    )
+                    valid_path = False
+                if error_message:
+                    output = error_message
+                else:
+                    end_line = min(end_line, len(file_contents.splitlines()))
+                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
                     selected_file_contents = ""
                     lines = file_contents.splitlines()
-                    expansion_width = 50
+                    expansion_width = 25
                     start_index = max(0, start_line - expansion_width)
                     for i, line in enumerate(lines[start_index:start_line]):
                         selected_file_contents += f"{i + start_index} | {line}\n"
@@ -396,14 +404,11 @@ def modify_context(
                     ):
                         selected_file_contents += f"{i + end_line} | {line}\n"
                     output = (
-                        f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nIf the above snippet contains all of the necessary contents to solve the user request BETWEEN the START and END tags, call store_file_snippet to store this snippet. Otherwise, call view_file_snippet again with a larger span."
+                        f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nCheck if there is additional relevant context surrounding the snippet BETWEEN the START and END tags necessary to solve the user request. If so, call view_file_snippet again with a larger span. If you are CERTAIN this snippet is COMPLETELY SUFFICIENT and RELEVANT, and no surrounding lines provide ANY additional relevant context, call store_file_snippet with the same span."
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
             elif tool_call.function.name == "store_file_snippet":
-                valid_path = (
-                    function_path_or_dir in repo_context_manager.top_snippet_paths
-                )
                 error_message = ""
                 for key in ["start_line", "end_line"]:
                     if key not in function_input:
@@ -413,7 +418,6 @@ def modify_context(
                         error_message = "FAILURE: Please provide a start and end line."
                 start_line = int(function_input["start_line"])
                 end_line = int(function_input["end_line"])
-                logger.info(f"start_line: {start_line}, end_line: {end_line}")
                 if end_line - start_line > 1000:
                     error_message = (
                         "FAILURE: Please provide a snippet of 1000 lines or less."
@@ -425,6 +429,7 @@ def modify_context(
                     )
                     valid_path = True
                 except:
+                    file_contents = ""
                     error_message = (
                         "FAILURE: This file path does not exist. Please try a new path."
                     )
@@ -432,6 +437,8 @@ def modify_context(
                 if error_message:
                     output = error_message
                 else:
+                    end_line = min(end_line, len(file_contents.splitlines()))
+                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
                     snippet = Snippet(
                         file_path=function_path_or_dir,
                         start=start_line,
@@ -459,19 +466,22 @@ def modify_context(
                 if valid_path:
                     directories_to_expand.append(function_path_or_dir)
             elif tool_call.function.name == "preview_file":
-                valid_path = repo_context_manager.is_path_valid(
-                    function_path_or_dir, directory=False
-                )
-                code = repo_context_manager.cloned_repo.get_file_contents(
-                    function_path_or_dir
-                )
-                file_preview = CodeTree.from_code(code).get_preview()
-                output = (
-                    f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
-                    if valid_path
-                    else "FAILURE: Invalid file path. Please try a new path."
-                )
-            logger.info(output)
+                error_message = ""
+                try:
+                    code = repo_context_manager.cloned_repo.get_file_contents(
+                        function_path_or_dir
+                    )
+                    valid_path = True
+                except:
+                    code = ""
+                    error_message = "FAILURE: Invalid file path. Please try a new path."
+                    valid_path = False
+                if error_message:
+                    output = error_message
+                else:
+                    file_preview = CodeTree.from_code(code).get_preview()
+                    output = f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
+            # logger.info(output)
             logger.info("Current top snippets:")
             for snippet in repo_context_manager.current_top_snippets:
                 logger.info(snippet.denotation)
