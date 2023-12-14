@@ -20,14 +20,14 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather ALL RELEVANT information from the codebase that allows you to completely solve the issue. It is very important that you get this right and do not miss any relevant lines of code.
 
 ## Instructions
-You initially start with no snippets and will use the store_file_snippet and expand_directory to add snippets to the context. You will iteratively use the preview_file and view_file_snippet tools to help you find the relevant snippets to store.
+You initially start with no snippets and will use the store_file_snippet and expand_directory to add snippets to the context. You will iteratively use the file_search, preview_file and view_file_snippet tools to help you find the relevant snippets to store.
 
 You are provided snippets_from_lexical_search and paths_from_lexical_search, which are snippets that are potentially relevant to the user request. These snippets are retrieved by a lexical search over the codebase, but are NOT in the context initially.
 
 You will do this by using the following process for every relevant file:
 
-1. First use the preview_file tool to preview all files that seem relevant, for example, if it is in the repo tree or mentioned by the user. If the file is irrelevant, move onto the next file.
-2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find the exact line numbers to store to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
+1. First use the file_search and preview_file tool to preview all files that seem relevant. If the file is irrelevant, move onto the next file.
+2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find all line numbers relevant to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
 3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
 
 Repeat this process until you have the perfect context to solve the user request. Ensure you have checked ALL files referenced in the user request."""
@@ -46,6 +46,24 @@ unformatted_user_prompt = """\
 {query}"""
 
 functions = [
+    {
+        "name": "file_search",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "The search query. You can search like main.py to find src/main.py.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for searching for the file.",
+                },
+            },
+            "required": ["snippet_path", "justification"],
+        },
+        "description": "Use this to find the most similar file paths to the search query.",
+    },
     {
         "name": "preview_file",
         "parameters": {
@@ -267,9 +285,12 @@ def get_relevant_context(
             thread_id=thread.id,
             assistant_id=assistant.id,
         )
+        old_top_snippets = [
+            snippet for snippet in repo_context_manager.current_top_snippets
+        ]
         modify_context(thread, run, repo_context_manager, ticket_progress)
         if len(repo_context_manager.current_top_snippets) == 0:
-            repo_context_manager.current_top_snippets = repo_context_manager.snippets
+            repo_context_manager.current_top_snippets = old_top_snippets
             discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
         return repo_context_manager
     except Exception as e:
@@ -363,7 +384,30 @@ def modify_context(
             )
             valid_path = False
             output = ""
-            if tool_call.function.name == "view_file_snippet":
+            if tool_call.function.name == "file_search":
+                error_message = ""
+                try:
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
+                    )
+                    valid_path = True
+                except:
+                    similar_file_paths = ""
+                    error_message = "FAILURE: This file path does not exist."
+                if error_message:
+                    output = error_message
+                else:
+                    output = (
+                        f"SUCCESS: Here are the most similar file paths to {function_path_or_dir}:\n{similar_file_paths}"
+                        if valid_path
+                        else "FAILURE: This file path does not exist. Please try a new path."
+                    )
+            elif tool_call.function.name == "view_file_snippet":
                 error_message = ""
                 for key in ["start_line", "end_line"]:
                     if key not in function_input:
@@ -411,7 +455,7 @@ def modify_context(
                     ):
                         selected_file_contents += f"{i + end_line} | {line}\n"
                     output = (
-                        f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nCheck if there is additional relevant context surrounding the snippet BETWEEN the START and END tags necessary to solve the user request. If so, call view_file_snippet again with a larger span. If you are CERTAIN this snippet is COMPLETELY SUFFICIENT and RELEVANT, and no surrounding lines provide ANY additional relevant context, call store_file_snippet with the same span."
+                        f'Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nCheck if there is additional relevant context surrounding the snippet BETWEEN the START and END tags necessary to solve the user request. If so, call view_file_snippet again with a larger span. If you are CERTAIN this snippet is COMPLETELY SUFFICIENT and RELEVANT, and no surrounding lines provide ANY additional relevant context, call store_file_snippet with the same parameters ({{"file_path": "{function_path_or_dir}", "start_line": "{start_line}", "end_line": "{end_line}"}}).'
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
