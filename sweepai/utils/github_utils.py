@@ -408,6 +408,26 @@ class ClonedRepo:
         return all_files[:limit]
 
 
+@dataclass
+class MockClonedRepo(ClonedRepo):
+    _repo_dir: str = ""
+
+    @classmethod
+    def from_dir(cls, repo_dir: str, **kwargs):
+        return cls(_repo_dir=repo_dir, **kwargs)
+
+    @property
+    def repo_dir(self):
+        return self._repo_dir
+
+    @property
+    def git_repo(self):
+        return git.Repo(self.repo_dir)
+
+    def __post_init__(self):
+        return self
+
+
 def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r"\b[\w\-\.\/]*\w+\.\w{1,6}\b", query)
     return [
