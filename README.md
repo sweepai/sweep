@@ -35,13 +35,12 @@
 
 <b>Sweep</b> is an AI junior developer that turns bugs and feature requests into code changes. :robot:
 
-[Install Sweep](https://github.com/apps/sweep-ai) and open a Github Issue like: `Sweep: Refactor the run function in main.py` and Sweep will:
-1. Identify the best places to refactor your code
-2. Refactor and add unit tests through Github
-3. **Run and debug your code to open a Pull Request** ⚡
+[Install Sweep](https://github.com/apps/sweep-ai) and open a Github Issue like: `Sweep: add a keyword filter agent for our lexical search queries to filter out stop words` and Sweep will:
+1. Create a unit-tested agent that keyword filters lexical search queries.
+2. Integrate the agent into the lexical search query creation workflow.
+3. **Run and debug your code and a Pull Request** ⚡
 
 ### Features
-
 * Turns issues directly into pull requests (without an IDE)
 * Addresses developer replies & comments on its PRs
 * Understands your codebase using the dependency graph, text, and vector search.
