@@ -22,26 +22,25 @@ sys_prompt = """You are a brilliant engineer assigned to the following Github is
 ## Instructions
 You initially start with no snippets and will use the store_file_snippet and expand_directory to add snippets to the context. You will iteratively use the file_search, preview_file and view_file_snippet tools to help you find the relevant snippets to store.
 
-You are provided snippets_from_lexical_search and paths_from_lexical_search, which are snippets that are potentially relevant to the user request. These snippets are retrieved by a lexical search over the codebase, but are NOT in the context initially.
+You are provided "Relevant Snippets", which are snippets relevant to the user request. These snippets are retrieved by a lexical search over the codebase, but are NOT in the context initially.
 
 You will do this by using the following process for every relevant file:
 
-1. First use the file_search and preview_file tool to preview all files that seem relevant. If the file is irrelevant, move onto the next file.
+1. First use the file_search and preview_file tool to preview all files that are relevant, starting with those in "Relevant Snippets", then those mentioned in "User Request". If the file is irrelevant, move onto the next file.
 2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find all line numbers relevant to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
 3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
 
 Repeat this process until you have the perfect context to solve the user request. Ensure you have checked ALL files referenced in the user request."""
 
 unformatted_user_prompt = """\
-<snippets_from_lexical_search>
-{snippets_in_repo}
-</snippets_from_lexical_search>
-<paths_from_lexical_search>
-{paths_in_repo}
-</paths_from_lexical_search>
 <repo_tree>
 {repo_tree}
 </repo_tree>
+
+## Relevant Snippets
+Here are potentially relevant snippets in the repo in decreasing relevance that you should preview:
+{snippets_in_repo}
+
 ## User Request
 {query}"""
 
@@ -127,7 +126,7 @@ functions = [
                 },
                 "justification": {
                     "type": "string",
-                    "description": "Justification for why file_path is relevant and why the surrounding lines are irrelevant.",
+                    "description": "Justification for why file_path is relevant, why the surrounding lines are irrelevant and whether there are other relevant snippets in the file.",
                 },
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
@@ -210,14 +209,12 @@ class RepoContextManager:
         top_snippets_str = [
             f"- {snippet.denotation}" for snippet in self.current_top_snippets
         ]
-        paths_in_repo = [snippet.file_path for snippet in self.current_top_snippets]
+        [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
-        paths_in_repo_str = "\n".join(paths_in_repo)
         repo_tree = str(self.dir_obj)
         user_prompt = unformatted_user_prompt.format(
             query=query,
             snippets_in_repo=snippets_in_repo_str,
-            paths_in_repo=paths_in_repo_str,
             repo_tree=repo_tree,
         )
         return user_prompt
@@ -327,7 +324,7 @@ def modify_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
 ) -> bool | None:
-    max_iterations = 60
+    max_iterations = 90
     directories_to_expand = []
     repo_context_manager.current_top_snippets = []
     initial_file_paths = repo_context_manager.top_snippet_paths
