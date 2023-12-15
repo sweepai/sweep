@@ -26,7 +26,7 @@ You are provided "Relevant Snippets", which are snippets relevant to the user re
 
 You will do this by using the following process for every relevant file:
 
-1. First use the file_search and preview_file tool to preview all files that are relevant, starting with those in "Relevant Snippets", then those mentioned in "User Request". If the file is irrelevant, move onto the next file.
+1. First use the preview_file tool to preview all files that are relevant, starting with those in "Relevant Snippets", then those mentioned in "User Request". If the file is irrelevant, move onto the next file. If you don't know the full file path, use file_search with the file name.
 2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find all line numbers relevant to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
 3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
 
@@ -126,12 +126,12 @@ functions = [
                 },
                 "justification": {
                     "type": "string",
-                    "description": "Justification for why file_path is relevant, why the surrounding lines are irrelevant and whether there are other relevant snippets in the file.",
+                    "description": "Justification for why file_path is relevant and why the surrounding lines are irrelevant by indicating what functions are in the surrounding lines and what they do. Also justify why there are no other relevant snippets in the file.",
                 },
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to store a snippet. Only store paths you are CERTAIN are relevant and sufficient to solving the user request and be precise with the line numbers. Make sure to store ALL of the files that are referenced in the issue title or description. You may store multiple snippets with the same file path.",
+        "description": "Use this to store a snippet. Only store paths you are CERTAIN are relevant and sufficient to solving the user request and be precise with the line numbers, and provides an entire coherent section of code. Make sure to store ALL of the files that are referenced in the issue title or description. You may store multiple snippets with the same file path.",
     },
     {
         "name": "expand_directory",
