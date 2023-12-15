@@ -37,8 +37,8 @@
 
 [Install Sweep](https://github.com/apps/sweep-ai) and open a Github Issue like: `Sweep: Add typehints to src/utils/github_utils.py` and Sweep will:
 1. Search through your codebase to find the dependencies of github_utils.py
-2. 
-2. **Run and debug your code and a Pull Request** ⚡
+2. Modify the code to add typehints
+3. **Run and debug your code to write a Pull Request** ⚡
 
 ### Features
 * Turns issues directly into pull requests (without an IDE)
