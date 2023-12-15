@@ -417,6 +417,10 @@ class MockClonedRepo(ClonedRepo):
         return cls(_repo_dir=repo_dir, **kwargs)
 
     @property
+    def cached_dir(self):
+        return self._repo_dir
+
+    @property
     def repo_dir(self):
         return self._repo_dir
 

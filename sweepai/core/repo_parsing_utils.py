@@ -6,7 +6,6 @@ import os
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
-from sweepai.logn.cache import file_cache
 from sweepai.utils.utils import chunk_code
 
 
@@ -66,7 +65,7 @@ def file_path_to_chunks(file_path: str):
     return chunks
 
 
-@file_cache()
+# @file_cache()
 def repo_to_chunks(
     directory: str, sweep_config: SweepConfig
 ) -> tuple[list[Snippet], list[str]]:
