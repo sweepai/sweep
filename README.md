@@ -2,7 +2,7 @@
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
 </p>
 <p align="center">
-    <i>Github Issues ⟶&nbsp; Refactored and Tested Code! </i>
+    <i>Github Issues ⟶&nbsp; Pull Requests! </i>
 </p>
 <p align="center">
     <a href="https://github.com/apps/sweep-ai">
@@ -45,6 +45,7 @@
 * Addresses developer replies & comments on its PRs
 * Understands your codebase using the dependency graph, text, and vector search.
 * Runs your unit tests and autoformatters to validate generated code.
+* Stack small fixes into your PR by applying [Sweep Rules](https://docs.sweep.dev/usage/config#tips-for-writing-rules)
 
 [![Sweep Youtube Tutorial](docs/public/assets/youtube_thumbnail.png)](https://www.youtube.com/watch?v=GVEkDZmWw8E)
 
