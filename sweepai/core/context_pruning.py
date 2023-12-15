@@ -375,11 +375,9 @@ def modify_context(
                 ]
             )
             logger.info(f"Tool Call: {tool_call.function.name} {function_input}")
-            function_path_or_dir = (
-                function_input["file_path"]
-                if "file_path" in function_input
-                else function_input["directory_path"]
-            )
+            function_path_or_dir = function_input.get(
+                "file_path"
+            ) or function_input.get("directory_path")
             valid_path = False
             output = ""
             if tool_call.function.name == "file_search":
@@ -544,6 +542,8 @@ def modify_context(
                 else:
                     file_preview = CodeTree.from_code(code).get_preview()
                     output = f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
+            else:
+                output = f"FAILURE: Invalid tool name {tool_call.function.name}"
             logger.info(output)
             logger.info("Current top snippets:")
             for snippet in repo_context_manager.current_top_snippets:
