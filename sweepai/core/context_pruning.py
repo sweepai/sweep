@@ -38,7 +38,7 @@ unformatted_user_prompt = """\
 </repo_tree>
 
 ## Relevant Snippets
-Here are potentially relevant snippets in the repo in decreasing relevance that you should preview:
+Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
 {snippets_in_repo}
 
 ## User Request
@@ -211,6 +211,7 @@ class RepoContextManager:
         ]
         [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
+        logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
         repo_tree = str(self.dir_obj)
         user_prompt = unformatted_user_prompt.format(
             query=query,

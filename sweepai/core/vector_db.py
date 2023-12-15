@@ -188,9 +188,7 @@ def get_deeplake_vs_from_repo(
         cloned_repo, sweep_config, repo_full_name, TicketProgress(tracking_id="none")
     )
     # scoring for vector search
-    files_to_scores = compute_vector_search_scores(
-        file_list, cloned_repo
-    )
+    files_to_scores = compute_vector_search_scores(file_list, cloned_repo)
 
     collection_name, documents, ids, metadatas = prepare_documents_metadata_ids(
         snippets, cloned_repo, files_to_scores, start, repo_full_name
@@ -254,7 +252,8 @@ def compute_vector_search_scores(file_list, cloned_repo):
     # compute all scores
     all_scores = get_scores(score_factors)
     files_to_scores = {
-        file_path[len(cloned_repo.cached_dir) + 1 :]: score for file_path, score in zip(file_list, all_scores)
+        file_path[len(cloned_repo.cached_dir) + 1 :]: score
+        for file_path, score in zip(file_list, all_scores)
     }
     return files_to_scores
 
