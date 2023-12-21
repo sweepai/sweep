@@ -195,15 +195,60 @@ def call_write_documentation(*args, **kwargs):
     thread.start()
 
 
+@app.api_route("/webhook", methods=["POST", "GET"])
+async def webhook_redirect(raw_request: Request):
+    # Function to redirect to the respective webhook handler
+    gitlab_event_header = raw_request.headers.get("X-GitLab-Event")
+    if gitlab_event_header:
+        # Redirect to GitLab Webhook handling
+        return await handle_gitlab_webhook(raw_request)
+    else:
+        # Redirect to GitHub Webhook handling
+        return await handle_github_webhook(raw_request)
+
 @app.get("/health")
 def redirect_to_health():
     return health.health_check()
 
 
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
+
+
+@app.post("/webhook/gitlab/issue")
+async def handle_gitlab_webhook(raw_request: Request):
+    # This function will process GitLab issue webhook payload
+    request_dict = await raw_request.json()
+    request_headers = raw_request.headers
+    event = request_headers.get("X-Gitlab-Event")
+    # Check if event is specific to GitLab Issue Hook
+    if event == "Issue Hook":
+        # Extract necessary information and perform actions
+        user_info = request_dict['user']
+        project_info = request_dict['project']
+        object_attributes = request_dict['object_attributes']
+        labels_info = request_dict['labels']
+        changes_info = request_dict.get('changes', {})
+
+        # Extract relevant information
+        action = object_attributes['action']
+        issue_title = object_attributes['title']
+        issue_iid = object_attributes['iid']
+        issue_url = object_attributes['url']
+        author_username = user_info['username']
+        repo_full_name = project_info['path_with_namespace']
+        issue_state = object_attributes['state']
+
+        # Depending on the action, perform the necessary updates/responses
+        if action == 'open':
+            # Action for opening an issue (could be creating labels, comments, etc.)
+            pass  # Placeholder for additional actions
+        elif action == 'update':
+            # Action for updating an issue (could be handling edited issues, comments, etc.)
+            pass  # Placeholder for additional actions
+
+        return {"status": "GitLab issue webhook processed successfully"}
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported GitLab event")
 
 @app.get("/ticket_progress/{tracking_id}")
 def progress(tracking_id: str = Path(...)):
@@ -211,8 +256,13 @@ def progress(tracking_id: str = Path(...)):
     return ticket_progress.dict()
 
 
-@app.post("/")
-async def webhook(raw_request: Request):
+@app.post("/webhook/github")
+async def handle_github_webhook(raw_request: Request):
+    # Check if the request is from GitLab and redirect accordingly
+    gitlab_event_header = raw_request.headers.get("X-GitLab-Event")
+    if gitlab_event_header:
+        # Redirect to the GitLab webhook handler
+        return await handle_gitlab_webhook(raw_request)
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
