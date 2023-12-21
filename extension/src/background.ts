@@ -1,18 +1,18 @@
 // I'm going back to webpack if parcel continues to not want to cooperate
 
-const DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code";
-const USER_LOGIN_ENDPOINT = "https://github.com/login/device";
-const DEVICE_SUCCESS_URL = "https://github.com/login/device/success";
+const DEVICE_CODE_ENDPOINT = "https://gitlab.com/oauth/device/code";
+const USER_LOGIN_ENDPOINT = "https://gitlab.com/oauth/device";
+const DEVICE_SUCCESS_URL = "https://gitlab.com/oauth/device/success";
 const OAUTH_ACCESS_TOKEN_ENDPOINT =
-  "https://github.com/login/oauth/access_token";
-const GITHUB_APP_CLIENT_ID = "Iv1.91fd31586a926a9f";
+  "https://gitlab.com/oauth/token";
+const GITLAB_APP_CLIENT_ID = "Insert_GitLab_Application_Client_ID_here";
 const MODAL_APP_ENDPOINT = "https://sweepai--prod-ext.modal.run/auth";
 
 const sleep = (ms: number, jitter: number = 300) =>
   new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
 
-var github_pat = null;
-var github_username = null;
+var gitlab_pat = null;
+var gitlab_username = null;
 
 chrome.runtime.onInstalled.addListener((details) => {
   console.log("Updated due to ", details.reason);
@@ -83,34 +83,32 @@ chrome.runtime.onInstalled.addListener((details) => {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
           },
-          body: JSON.stringify({
-            client_id: GITHUB_APP_CLIENT_ID,
+          body: new URLSearchParams({
+            client_id: GITLAB_APP_CLIENT_ID,
             device_code: parsedDeviceCodeResponse.get("device_code"),
-            grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-          }),
+            grant_type: "https://oauth.net/grant_type/device/urn:ietf:params:oauth:grant-type:device_code",
+          }).toString(),
         },
       );
-      const oauth_access_token_raw_response =
-        await oauth_access_token_response.text();
-      console.log("Raw response: ", oauth_access_token_raw_response);
+      const gitlab_pat = oauth_access_token_json_response.access_token;
+      console.log("GitLab PAT: ", gitlab_pat);
       const parsedOauthAccessTokenResponse = new URLSearchParams(
         decodeURIComponent(oauth_access_token_raw_response),
       );
       const access_token = parsedOauthAccessTokenResponse.get("access_token");
       console.log("Access token: ", access_token);
-      const username_response = await fetch("https://api.github.com/user", {
+      const username_response = await fetch("https://gitlab.example.com/api/v4/user", {
         headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${access_token}`,
+          "Authorization": `Bearer ${gitlab_pat}`
         },
       });
-      const github_username = (await username_response.json()).login;
-      console.log("Username: ", github_username);
+      const gitlab_username = (await username_response.json()).username;
+      console.log("Username: ", gitlab_username);
       github_pat = access_token;
       await chrome.storage.local.set({
-        config: { github_pat, github_username },
+        config: { gitlab_pat, gitlab_username },
       });
       console.log("Saved GitHub access token and username to storage");
       fetch(MODAL_APP_ENDPOINT, {
@@ -119,8 +117,8 @@ chrome.runtime.onInstalled.addListener((details) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: github_username,
-          pat: github_pat
+          username: gitlab_username,
+          pat: gitlab_pat
         })
       })
     }
