@@ -23,7 +23,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       console.log("Found github_pat and username in storage");
       chrome.tabs.create({ url: "https://github.com/sweepai/sweep/blob/main/docs/extension-post-install.md" });
     } else {
-      console.log("No github_pat found... Generating...");
+      console.log("No gitlab_pat found... Generating...");
       const device_code_response = await fetch(DEVICE_CODE_ENDPOINT, {
         method: "POST",
         headers: {
@@ -99,7 +99,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       );
       const access_token = parsedOauthAccessTokenResponse.get("access_token");
       console.log("Access token: ", access_token);
-      const username_response = await fetch("https://gitlab.example.com/api/v4/user", {
+      const username_response = await fetch("https://gitlab.com/api/v4/user", {
         headers: {
           "Authorization": `Bearer ${gitlab_pat}`
         },
