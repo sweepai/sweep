@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sweepai.config.server import ENV
 from sweepai.utils.event_logger import posthog
 
-GITHUB_OAUTH_URL = "https://github.com/login/oauth/access_token"
+GITLAB_OAUTH_URL = "https://gitlab.com/oauth/token"
 
 stub = modal.Stub(ENV + "-ext")
 image = modal.Image.debian_slim().pip_install(
@@ -36,32 +36,30 @@ def _asgi_app():
         pat: str
 
     def validate_config(config: Config):
-        try:
-            g = Github(config.pat)
-        except Exception as e:
-            logger.error(e)
-            logger.error("Likely wrong correct.")
-            raise e
-        username = g.get_user().login
+        headers = {'Authorization': f'Bearer {config.pat}'}
+        response = requests.get('https://gitlab.example.com/api/v4/user', headers=headers)
+        if response.status_code != 200:
+            raise ValueError('Invalid PAT or unable to fetch user.')
+        username = response.json().get('username')
         assert username == config.username
         return True
 
     @asgi_app.get("/oauth")
     def oauth(code: str):
-        # pass
         params = {
-            "client_id": os.environ.get("GITHUB_CLIENT_ID"),
-            "client_secret": os.environ.get("GITHUB_CLIENT_SECRET"),
+            "client_id": os.environ.get("GITLAB_CLIENT_ID"),
+            "client_secret": os.environ.get("GITLAB_CLIENT_SECRET"),
             "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": os.environ.get("GITLAB_REDIRECT_URI")
         }
-        response = requests.post(GITHUB_OAUTH_URL, params=params)
-        if response.status > 400:
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        response = requests.post(GITLAB_OAUTH_URL, data=params, headers=headers)
+        if response.status_code > 400:
             return response.text
         else:
-            # parse response
-            parsed = parse_qs(response.text)
-            parsed.get("access_token")[0]
-            return "Successfully authorized."
+            access_token = response.json()['access_token']
+            return {'access_token': access_token}
 
     @asgi_app.post("/auth")
     def auth(config: Config):
