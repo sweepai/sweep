@@ -36,43 +36,39 @@ def make_valid_string(string: str):
     return re.sub(pattern, "_", string)
 
 
-def get_jwt():
-    signing_key = GITHUB_APP_PEM
-    app_id = GITHUB_APP_ID
-    payload = {"iat": int(time.time()), "exp": int(time.time()) + 590, "iss": app_id}
-    return encode(payload, signing_key, algorithm="RS256")
+# GitLab does not use JWT for OAuth 2.0, so this function is not needed.
+# Instead, we will use the client_id and client_secret to get the access token.
+# Therefore, we can remove this function.
 
 
 def get_token(installation_id: int):
-    for timeout in [5.5, 5.5, 10.5]:
-        try:
-            jwt = get_jwt()
-            headers = {
-                "Accept": "application/vnd.github+json",
-                "Authorization": "Bearer " + jwt,
-                "X-GitHub-Api-Version": "2022-11-28",
-            }
-            response = requests.post(
-                f"https://api.github.com/app/installations/{int(installation_id)}/access_tokens",
-                headers=headers,
-            )
-            obj = response.json()
-            if "token" not in obj:
-                logger.error(obj)
-                raise Exception("Could not get token")
-            return obj["token"]
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
+    data = {
+        'grant_type': 'client_credentials',
+        'client_id': client_id,
+        'client_secret': client_secret
+    }
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    response = requests.post('https://gitlab.com/oauth/token', data=data, headers=headers)
+    if response.status_code != 200:
+        raise Exception('Failed to get access token')
+    return response.json()['access_token']
             time.sleep(timeout)
     raise Exception(
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
     )
 
 
-def get_github_client(installation_id: int):
-    token: str = get_token(installation_id)
-    return token, Github(token)
+# GitLab has a Python package named 'python-gitlab' for interacting with the GitLab API.
+# We will use this package to create a GitLab client.
+# First, install the package using pip: pip install python-gitlab
+
+import gitlab
+
+def get_gitlab_client(token: str):
+    gl = gitlab.Gitlab('https://gitlab.com', private_token=token)
+    return gl
 
 
 def get_installation_id(username: str) -> str:
