@@ -272,35 +272,7 @@ def progress(tracking_id: str = Path(...)):
     return ticket_progress.dict()
 
 
-@app.post("/webhook/github")
-async def handle_github_webhook(raw_request: Request):
-    # Check if the request is from GitLab and redirect accordingly
-    gitlab_event_header = raw_request.headers.get("X-GitLab-Event")
-    if gitlab_event_header:
-        # Redirect to the GitLab webhook handler
-        return await handle_gitlab_webhook(raw_request)
-    """Handle a webhook request from GitHub."""
-    try:
-        request_dict = await raw_request.json()
-        event = raw_request.headers.get("X-GitHub-Event")
-        assert event is not None
-
-        action = request_dict.get("action", None)
-
-        match event, action:
-            case "check_run", "completed":
-                request = CheckRunCompleted(**request_dict)
-                _, g = get_gitlab_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pull_requests = request.check_run.pull_requests
-                if pull_requests:
-                    logger.info(pull_requests[0].number)
-                    pr = repo.get_pull(pull_requests[0].number)
-                    if (
-                        time.time() - pr.created_at.timestamp()
-                    ) > 60 * 60 and pr.title.startswith("[Sweep Rules]"):
-                        after_sha = pr.head.sha
-                        commit = repo.get_commit(after_sha)
+# The handle_github_webhook function has been removed as it is no longer needed
                         check_suites = commit.get_check_suites()
                         for check_suite in check_suites:
                             if check_suite.conclusion == "failure":
