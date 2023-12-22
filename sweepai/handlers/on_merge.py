@@ -59,19 +59,18 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     ref = request_dict["ref"]
     if not ref.startswith("refs/heads/"):
         return
-    user_token, g = get_github_client(request_dict["installation"]["id"])
-    repo = g.get_repo(
-        request_dict["repository"]["full_name"]
-    )  # do this after checking ref
-    if ref[len("refs/heads/") :] != SweepConfig.get_branch(repo):
+    access_token = get_gitlab_token(client_id, client_secret)
+    gl = get_gitlab_client(access_token)
+    project = gl.projects.get(request_dict["repository"]["full_name"])
+    if ref[len("refs/heads/") :] != SweepConfig.get_branch(project):
         return
-    commit = repo.get_commit(after_sha)
-    check_suites = commit.get_check_suites()
-    for check_suite in check_suites:
-        if check_suite.conclusion == "failure":
-            return  # if any check suite failed, return
-    blocked_dirs = get_blocked_dirs(repo)
-    comparison = repo.compare(before_sha, after_sha)
+    commit = project.commits.get(after_sha)
+    pipelines = project.pipelines.list(ref=commit.id)
+    for pipeline in pipelines:
+        if pipeline.status == "failed":
+            return  # if any pipeline failed, return
+    blocked_dirs = get_blocked_dirs(project)
+    comparison = project.repository_compare(from=before_sha, to=after_sha)
     commits_diff = comparison_to_diff(comparison, blocked_dirs)
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
@@ -97,14 +96,13 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
         if changes_required:
-            make_pr(
+            make_mr(
                 title="[Sweep Rules] " + issue_title,
-                repo_description=repo.description,
+                project_description=project.description,
                 summary=issue_description,
-                repo_full_name=request_dict["repository"]["full_name"],
-                installation_id=request_dict["installation"]["id"],
-                user_token=user_token,
-                use_faster_model=chat_logger.use_faster_model(g),
+                project_full_name=request_dict["repository"]["full_name"],
+                access_token=access_token,
+                use_faster_model=chat_logger.use_faster_model(gl),
                 username=commit_author,
                 chat_logger=chat_logger,
                 rule=rule,
