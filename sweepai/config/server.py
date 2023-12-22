@@ -80,10 +80,10 @@ if not GITHUB_BOT_USERNAME:
 elif not GITHUB_BOT_USERNAME.endswith("[bot]"):
     GITHUB_BOT_USERNAME = GITHUB_BOT_USERNAME + "[bot]"
 
-GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")
-GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
-GITHUB_LABEL_DESCRIPTION = os.environ.get(
-    "GITHUB_LABEL_DESCRIPTION", "Sweep your software chores"
+GITLAB_LABEL_NAME = os.environ.get("GITLAB_LABEL_NAME", "sweep")
+GITLAB_LABEL_COLOR = os.environ.get("GITLAB_LABEL_COLOR", "9400D3")
+GITLAB_LABEL_DESCRIPTION = os.environ.get(
+    "GITLAB_LABEL_DESCRIPTION", "Sweep your software chores"
 )
 GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM")
 GITHUB_APP_PEM = GITHUB_APP_PEM or os.environ.get("PRIVATE_KEY")
@@ -91,8 +91,8 @@ if GITHUB_APP_PEM is not None:
     GITHUB_APP_PEM = GITHUB_APP_PEM.strip(' \n"')  # Remove whitespace and quotes
     GITHUB_APP_PEM = GITHUB_APP_PEM.replace("\\n", "\n")
 
-GITHUB_CONFIG_BRANCH = os.environ.get("GITHUB_CONFIG_BRANCH", "sweep/add-sweep-config")
-GITHUB_DEFAULT_CONFIG = os.environ.get(
+GITLAB_CONFIG_BRANCH = os.environ.get("GITLAB_CONFIG_BRANCH", "sweep/add-sweep-config")
+GITLAB_DEFAULT_CONFIG = os.environ.get(
     "GITHUB_DEFAULT_CONFIG",
     """# Sweep AI turns bugs & feature requests into code changes (https://sweep.dev)
 # For details on our config file, check out our docs at https://docs.sweep.dev/usage/config
@@ -111,7 +111,7 @@ gha_enabled: True
 #
 # Example:
 #
-# description: sweepai/sweep is a python project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8.
+# description: This is a GitLab project.
 description: ''
 
 # This sets whether to create pull requests as drafts. If this is set to True, then all pull requests will be created as drafts and GitHub Actions will not be triggered.

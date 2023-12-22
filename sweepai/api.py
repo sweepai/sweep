@@ -19,8 +19,8 @@ from sweepai.config.client import (DEFAULT_RULES, RESTART_SWEEP_BUTTON,
                                    SWEEP_GOOD_FEEDBACK, SweepConfig,
                                    get_documentation_dict, get_rules)
 from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL,
-                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_COLOR,
-                                   GITHUB_LABEL_DESCRIPTION, GITHUB_LABEL_NAME)
+                                   GITLAB_BOT_USERNAME, GITLAB_LABEL_COLOR,
+                                   GITLAB_LABEL_DESCRIPTION, GITLAB_LABEL_NAME)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
@@ -39,7 +39,7 @@ from sweepai.utils.buttons import (Button, ButtonList, check_button_activated,
                                    check_button_title_match)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.gitlab_utils import get_gitlab_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
@@ -90,7 +90,7 @@ def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
     if pr_change_request:
-        call_on_comment(**pr_change_request.params, comment_type="github_action")
+        call_on_comment(**pr_change_request.params, comment_type="gitlab_action")
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
@@ -274,7 +274,7 @@ async def handle_github_webhook(raw_request: Request):
         match event, action:
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                _, g = get_github_client(request.installation.id)
+                _, g = get_gitlab_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
                 if pull_requests:
@@ -292,19 +292,19 @@ async def handle_github_webhook(raw_request: Request):
                                 return None
                     if (time.time() - pr.created_at.timestamp()) > 60 * 15:
                         return None
-                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
+                    if GITLAB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
                         call_on_check_suite(request=request)
-            case "pull_request", "opened":
+            case "merge_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
 
                 def worker():
-                    _, g = get_github_client(request_dict["installation"]["id"])
+                    _, g = get_gitlab_client(request_dict["installation"]["id"])
                     repo = g.get_repo(request_dict["repository"]["full_name"])
                     pr = repo.get_pull(request_dict["pull_request"]["number"])
                     # if the pr already has a comment from sweep bot do nothing
                     time.sleep(60)
                     if any(
-                        comment.user.login == GITHUB_BOT_USERNAME
+                        comment.user.login == GITLAB_BOT_USERNAME
                         for comment in pr.get_issue_comments()
                     ):
                         return {
@@ -340,24 +340,24 @@ async def handle_github_webhook(raw_request: Request):
                     issue_title_lower.startswith("sweep")
                     or "sweep:" in issue_title_lower
                 ):
-                    _, g = get_github_client(request.installation.id)
+                    _, g = get_gitlab_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
 
                     labels = repo.get_labels()
                     label_names = [label.name for label in labels]
 
-                    if GITHUB_LABEL_NAME not in label_names:
+                    if GITLAB_LABEL_NAME not in label_names:
                         repo.create_label(
-                            name=GITHUB_LABEL_NAME,
-                            color=GITHUB_LABEL_COLOR,
-                            description=GITHUB_LABEL_DESCRIPTION,
+                            name=GITLAB_LABEL_NAME,
+                            color=GITLAB_LABEL_COLOR,
+                            description=GITLAB_LABEL_DESCRIPTION,
                         )
                     current_issue = repo.get_issue(number=request.issue.number)
-                    current_issue.add_to_labels(GITHUB_LABEL_NAME)
+                    current_issue.add_to_labels(GITLAB_LABEL_NAME)
             case "issue_comment", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
-                sweep_labeled_issue = GITHUB_LABEL_NAME in [
+                sweep_labeled_issue = GITLAB_LABEL_NAME in [
                     label.name.lower() for label in request.issue.labels
                 ]
                 button_title_match = check_button_title_match(
@@ -371,7 +371,7 @@ async def handle_github_webhook(raw_request: Request):
                 )
                 if (
                     request.comment.user.type == "Bot"
-                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and GITLAB_BOT_USERNAME in request.comment.user.login
                     and request.changes.body_from is not None
                     and button_title_match
                     and request.sender.type == "User"
@@ -381,7 +381,7 @@ async def handle_github_webhook(raw_request: Request):
                 restart_sweep = False
                 if (
                     request.comment.user.type == "Bot"
-                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and GITLAB_BOT_USERNAME in request.comment.user.login
                     and request.changes.body_from is not None
                     and check_button_activated(
                         RESTART_SWEEP_BUTTON, request.comment.body, request.changes
@@ -411,7 +411,7 @@ async def handle_github_webhook(raw_request: Request):
                     if (
                         not request.comment.body.strip()
                         .lower()
-                        .startswith(GITHUB_LABEL_NAME)
+                        .startswith(GITLAB_LABEL_NAME)
                         and not restart_sweep
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
@@ -436,7 +436,7 @@ async def handle_github_webhook(raw_request: Request):
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    _, g = get_github_client(request.installation.id)
+                    _, g = get_gitlab_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
                     labels = pr.get_labels()
@@ -463,7 +463,7 @@ async def handle_github_webhook(raw_request: Request):
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
                 if (
-                    GITHUB_LABEL_NAME
+                    GITLAB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.sender.type == "User"
                     and not request.sender.login.startswith("sweep")
@@ -486,7 +486,7 @@ async def handle_github_webhook(raw_request: Request):
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
                 if any(
-                    label.name.lower() == GITHUB_LABEL_NAME
+                    label.name.lower() == GITLAB_LABEL_NAME
                     for label in request.issue.labels
                 ):
                     request.issue.body = request.issue.body or ""
@@ -509,7 +509,7 @@ async def handle_github_webhook(raw_request: Request):
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
-                    and GITHUB_LABEL_NAME
+                    and GITLAB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.comment.user.type == "User"
                     and not (
@@ -524,7 +524,7 @@ async def handle_github_webhook(raw_request: Request):
                     if (
                         not request.comment.body.strip()
                         .lower()
-                        .startswith(GITHUB_LABEL_NAME)
+                        .startswith(GITLAB_LABEL_NAME)
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
                         return {
@@ -546,7 +546,7 @@ async def handle_github_webhook(raw_request: Request):
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
-                    _, g = get_github_client(request.installation.id)
+                    _, g = get_gitlab_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
                     labels = pr.get_labels()
@@ -572,7 +572,7 @@ async def handle_github_webhook(raw_request: Request):
             case "pull_request_review_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
                 request = CommentCreatedRequest(**request_dict)
-                _, g = get_github_client(request.installation.id)
+                _, g = get_gitlab_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
                 labels = pr.get_labels()
@@ -599,7 +599,7 @@ async def handle_github_webhook(raw_request: Request):
             case "pull_request_review_comment", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = CommentCreatedRequest(**request_dict)
-                _, g = get_github_client(request.installation.id)
+                _, g = get_gitlab_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
                 labels = pr.get_labels()
@@ -686,11 +686,11 @@ async def handle_github_webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case "pull_request", "edited":
+            case "merge_request", "updated":
                 request = PREdited(**request_dict)
 
                 if (
-                    request.pull_request.user.login == GITHUB_BOT_USERNAME
+                    request.pull_request.user.login == GITLAB_BOT_USERNAME
                     and not request.sender.login.endswith("[bot]")
                     and DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 ):
@@ -763,7 +763,7 @@ async def handle_github_webhook(raw_request: Request):
 
                         # Update PR description to remove buttons
                         try:
-                            _, g = get_github_client(request.installation.id)
+                            _, g = get_gitlab_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
                             pr = repo.get_pull(request.pull_request.number)
                             new_body = remove_buttons_from_description(
@@ -775,7 +775,7 @@ async def handle_github_webhook(raw_request: Request):
                             raise SystemExit
                         except Exception as e:
                             logger.exception(f"Failed to edit PR description: {e}")
-            case "pull_request", "closed":
+            case "merge_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
@@ -784,7 +784,7 @@ async def handle_github_webhook(raw_request: Request):
                     if pr_request.pull_request.merged_by
                     else None
                 )
-                if GITHUB_BOT_USERNAME == commit_author and merged_by is not None:
+                if GITLAB_BOT_USERNAME == commit_author and merged_by is not None:
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
@@ -821,14 +821,14 @@ async def handle_github_webhook(raw_request: Request):
                             "sweep.yaml" in request_dict["head_commit"]["added"]
                             or "sweep.yaml" in request_dict["head_commit"]["modified"]
                         ):
-                            _, g = get_github_client(request_dict["installation"]["id"])
+                            _, g = get_gitlab_client(request_dict["installation"]["id"])
                             repo = g.get_repo(request_dict["repository"]["full_name"])
                             docs = get_documentation_dict(repo)
                             # Call the write_documentation function for each of the existing fields in the "docs" mapping
                             for doc_url, _ in docs.values():
                                 logger.info(f"Writing documentation for {doc_url}")
                                 call_write_documentation(doc_url=doc_url)
-                        _, g = get_github_client(request_dict["installation"]["id"])
+                        _, g = get_gitlab_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
                             update_sweep_prs_v2(
@@ -849,7 +849,7 @@ async def handle_github_webhook(raw_request: Request):
 @app.get("/update_sweep_prs_v2")
 def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
     # Get a Github client
-    _, g = get_github_client(installation_id)
+    _, g = get_gitlab_client(installation_id)
 
     # Get the repository
     repo = g.get_repo(repo_full_name)
