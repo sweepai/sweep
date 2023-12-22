@@ -197,14 +197,8 @@ def call_write_documentation(*args, **kwargs):
 
 @app.api_route("/webhook", methods=["POST", "GET"])
 async def webhook_redirect(raw_request: Request):
-    # Function to redirect to the respective webhook handler
-    gitlab_event_header = raw_request.headers.get("X-GitLab-Event")
-    if gitlab_event_header:
-        # Redirect to GitLab Webhook handling
-        return await handle_gitlab_webhook(raw_request)
-    else:
-        # Redirect to GitHub Webhook handling
-        return await handle_github_webhook(raw_request)
+    # Function to redirect to the GitLab webhook handler
+    return await handle_gitlab_webhook(raw_request)
 
 @app.get("/health")
 def redirect_to_health():
