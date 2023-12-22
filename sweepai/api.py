@@ -234,11 +234,33 @@ async def handle_gitlab_webhook(raw_request: Request):
 
         # Depending on the action, perform the necessary updates/responses
         if action == 'open':
-            # Action for opening an issue (could be creating labels, comments, etc.)
-            pass  # Placeholder for additional actions
+            # Action for opening an issue
+            call_on_ticket(
+                title=issue_title,
+                summary=object_attributes['description'],
+                issue_number=issue_iid,
+                issue_url=issue_url,
+                username=author_username,
+                repo_full_name=repo_full_name,
+                repo_description=project_info['description'],
+                installation_id=None,
+                comment_id=None,
+            )
         elif action == 'update':
-            # Action for updating an issue (could be handling edited issues, comments, etc.)
-            pass  # Placeholder for additional actions
+            # Action for updating an issue
+            if 'title' in changes_info or 'description' in changes_info:
+                call_on_ticket(
+                    title=issue_title,
+                    summary=object_attributes['description'],
+                    issue_number=issue_iid,
+                    issue_url=issue_url,
+                    username=author_username,
+                    repo_full_name=repo_full_name,
+                    repo_description=project_info['description'],
+                    installation_id=None,
+                    comment_id=None,
+                    edited=True
+                )
 
         return {"status": "GitLab issue webhook processed successfully"}
     else:
