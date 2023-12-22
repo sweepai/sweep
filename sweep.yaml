@@ -1,6 +1,6 @@
 gha_enabled: True
 branch: main
-blocked_dirs: ["tests"]
+blocked_dirs: []
 draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write unit tests in the same directory as their corresponding code, i.e. sweepai/api_test.py tests sweepai/api.py. We use pytest for tests. Never use wildcard imports. Use list and tuple for typing instead of typing.List and typing.Tuple."
 # These are the docs that we index for Sweep.
