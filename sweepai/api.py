@@ -244,7 +244,7 @@ async def webhook(raw_request: Request):
                         return None
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
                         call_on_check_suite(request=request)
-            case "pull_request", "opened":
+            case "merge_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
 
                 def worker():
@@ -636,7 +636,7 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case "pull_request", "edited":
+            case "merge_request", "updated":
                 request = PREdited(**request_dict)
 
                 if (
@@ -725,7 +725,7 @@ async def webhook(raw_request: Request):
                             raise SystemExit
                         except Exception as e:
                             logger.exception(f"Failed to edit PR description: {e}")
-            case "pull_request", "closed":
+            case "merge_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
