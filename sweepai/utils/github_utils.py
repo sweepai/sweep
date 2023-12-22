@@ -41,7 +41,7 @@ def make_valid_string(string: str):
 # Therefore, we can remove this function.
 
 
-def get_token(installation_id: int):
+def get_gitlab_token(client_id: str, client_secret: str):
     data = {
         'grant_type': 'client_credentials',
         'client_id': client_id,
@@ -66,8 +66,8 @@ def get_token(installation_id: int):
 
 import gitlab
 
-def get_gitlab_client(token: str):
-    gl = gitlab.Gitlab('https://gitlab.com', private_token=token)
+def get_gitlab_client(access_token: str) -> gitlab.Gitlab:
+    gl = gitlab.Gitlab('https://gitlab.com', private_token=access_token)
     return gl
 
 
