@@ -68,11 +68,11 @@ DOCS_ENDPOINTS = {
     ),
     "Jest": ("https://jestjs.io/", "Jest is a JavaScript testing framework."),
     "Nucypher TS": (
-        "https://github.com/nucypher/nucypher-ts",
+        "https://gitlab.com/nucypher/nucypher-ts",
         "NuCypher is a TypeScript library for building privacy-preserving applications.",
     ),
     "NuCypher": (
-        "https://github.com/nucypher/nucypher",
+        "https://gitlab.com/nucypher/nucypher",
         "NuCypher is a Python library for building privacy-preserving applications.",
     ),
     "Stripe": (
