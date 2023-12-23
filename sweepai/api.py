@@ -195,10 +195,14 @@ def call_write_documentation(*args, **kwargs):
     thread.start()
 
 
-@app.api_route("/webhook", methods=["POST", "GET"])
+@app.api_route("/webhook/gitlab", methods=["POST", "GET"])
 async def webhook_redirect(raw_request: Request):
-    # Function to redirect to the GitLab webhook handler
-    return await handle_gitlab_webhook(raw_request)
+    # Function to redirect to the appropriate GitLab webhook handler
+    event = raw_request.headers.get("X-Gitlab-Event")
+    if event == "Issue Hook":
+        return await handle_gitlab_webhook(raw_request)
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported GitLab event")
 
 @app.get("/health")
 def redirect_to_health():
@@ -209,18 +213,20 @@ def redirect_to_health():
 
 
 @app.post("/webhook/gitlab/issue")
-async def handle_gitlab_webhook(raw_request: Request):
+async def handle_gitlab_issue_webhook(raw_request: Request):
     # This function will process GitLab issue webhook payload
     request_dict = await raw_request.json()
     request_headers = raw_request.headers
     event = request_headers.get("X-Gitlab-Event")
     # Check if event is specific to GitLab Issue Hook
-    if event == "Issue Hook":
+    if event != "Issue Hook":
+        raise HTTPException(status_code=400, detail="Unsupported GitLab event")
+    # Process the GitLab Issue Hook event
         # Extract necessary information and perform actions
         user_info = request_dict['user']
-        project_info = request_dict['project']
-        object_attributes = request_dict['object_attributes']
-        labels_info = request_dict['labels']
+        project_info = request_dict.get('project', {})
+        object_attributes = request_dict.get('object_attributes', {})
+        labels_info = request_dict.get('labels', [])
         changes_info = request_dict.get('changes', {})
 
         # Extract relevant information
@@ -233,8 +239,8 @@ async def handle_gitlab_webhook(raw_request: Request):
         issue_state = object_attributes['state']
 
         # Depending on the action, perform the necessary updates/responses
-        if action == 'open':
-            # Action for opening an issue
+        if action == 'open' or action == 'reopen':
+            # Action for opening or reopening an issue
             call_on_ticket(
                 title=issue_title,
                 summary=object_attributes['description'],
@@ -246,8 +252,9 @@ async def handle_gitlab_webhook(raw_request: Request):
                 installation_id=None,
                 comment_id=None,
             )
-        elif action == 'update':
-            # Action for updating an issue
+        elif action == 'update' and 'title' in changes_info or 'description' in changes_info:
+            # Action for updating an issue's title or description
+            edited = True
             if 'title' in changes_info or 'description' in changes_info:
                 call_on_ticket(
                     title=issue_title,
@@ -259,10 +266,10 @@ async def handle_gitlab_webhook(raw_request: Request):
                     repo_description=project_info['description'],
                     installation_id=None,
                     comment_id=None,
-                    edited=True
+                    edited=edited
                 )
 
-        return {"status": "GitLab issue webhook processed successfully"}
+    return {"status": "GitLab issue webhook processed successfully"}
     else:
         raise HTTPException(status_code=400, detail="Unsupported GitLab event")
 

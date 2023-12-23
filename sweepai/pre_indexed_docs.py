@@ -43,8 +43,8 @@ DOCS_ENDPOINTS = {
         "OpenAI is a client for the OpenAI API.",
     ),
     "PyGitHub": (
-        "https://pygithub.readthedocs.io/en/stable/",
-        "PyGitHub is a client for the GitHub API.",
+        "https://pygitlab.readthedocs.io/en/stable/",
+        "PyGitLab is a client for the GitLab API.",
     ),
     "Laravel": (
         "https://laravel.com/docs",
@@ -68,7 +68,7 @@ DOCS_ENDPOINTS = {
     ),
     "Jest": ("https://jestjs.io/", "Jest is a JavaScript testing framework."),
     "Nucypher TS": (
-        "https://github.com/nucypher/nucypher-ts",
+        "https://gitlab.com/nucypher/nucypher-ts",
         "NuCypher is a TypeScript library for building privacy-preserving applications.",
     ),
     "NuCypher": (
