@@ -58,15 +58,15 @@ SWEEP_HEALTH_URL = os.environ.get("SWEEP_HEALTH_URL")
 DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
 
 # goes under Modal 'github' secret name
-GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
+GITLAB_APP_ID = os.environ.get("GITLAB_APP_ID", os.environ.get("APP_ID"))
 # deprecated: old logic transfer so upstream can use this
-if GITHUB_APP_ID is None:
+if GITLAB_APP_ID is None:
     if ENV == "prod":
-        GITHUB_APP_ID = "307814"
+        GITLAB_APP_ID = "<your GitLab app ID for prod>"
     elif ENV == "dev":
-        GITHUB_APP_ID = "324098"
+        GITLAB_APP_ID = "<your GitLab app ID for dev>"
     elif ENV == "staging":
-        GITHUB_APP_ID = "327588"
+        GITLAB_APP_ID = "<your GitLab app ID for staging>"
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
 # deprecated: left to support old logic
@@ -93,9 +93,9 @@ if GITHUB_APP_PEM is not None:
 
 GITLAB_CONFIG_BRANCH = os.environ.get("GITLAB_CONFIG_BRANCH", "sweep/add-sweep-config")
 GITLAB_DEFAULT_CONFIG = os.environ.get(
-    "GITHUB_DEFAULT_CONFIG",
-    """# Sweep AI turns bugs & feature requests into code changes (https://sweep.dev)
-# For details on our config file, check out our docs at https://docs.sweep.dev/usage/config
+    "GITLAB_DEFAULT_CONFIG", # Use GitLab focused default configurations
+    """# Sweep AI turns bugs & feature requests into code changes (https://sweep.gitlab.io)
+# For details on our config file, check out our docs at https://docs.sweep.gitlab.io/usage/config
 
 # This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 rules:
@@ -104,8 +104,8 @@ rules:
 # This is the branch that Sweep will develop from and make pull requests to. Most people use 'main' or 'master' but some users also use 'dev' or 'staging'.
 branch: 'main'
 
-# By default Sweep will read the logs and outputs from your existing Github Actions. To disable this, set this to false.
-gha_enabled: True
+# By default Sweep will read the logs and outputs from your existing GitLab CI/CD pipelines. To disable this, set this to false.
+gitlab_ci_enabled: True
 
 # This is the description of your project. It will be used by sweep when creating PRs. You can tell Sweep what's unique about your project, what frameworks you use, or anything else you want.
 #
