@@ -46,6 +46,22 @@ DOCS_ENDPOINTS = {
         "https://pygitlab.readthedocs.io/en/stable/",
         "PyGitLab is a client for the GitLab API.",
     ),
+    "GitLab Pipelines API": (
+        "https://docs.gitlab.com/ee/api/pipelines.html",
+        "GitLab Pipelines API provides operations for managing CI/CD pipelines in GitLab projects.",
+    ),
+    "GitLab MRs API": (
+        "https://docs.gitlab.com/ee/api/merge_requests.html",
+        "GitLab MRs API allows for management and interaction with merge requests in GitLab.",
+    ),
+    "GitLab Webhooks API": (
+        "https://docs.gitlab.com/ee/api/webhooks.html",
+        "GitLab Webhooks API is used to configure webhooks in GitLab for system events.",
+    ),
+    "GitLab Issues API": (
+        "https://docs.gitlab.com/ee/api/issues.html",
+        "GitLab Issues API is used for managing issues in GitLab projects.",
+    ),
     "Laravel": (
     "Django": (
         "https://django.readthedocs.io/en/stable/",
