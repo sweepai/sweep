@@ -26,7 +26,7 @@ You are provided "Relevant Snippets", which are snippets relevant to the user re
 
 You will do this by using the following process for every relevant file:
 
-1. First use the preview_file tool to preview all files that are relevant, starting with file names and entities mentioned in "User Request", then those in "Relevant Snippets". For example, if class foo.bar.Bar was mentioned, check foo/bar.py. If the file is irrelevant, move onto the next file. If you don't know the full file path, use file_search with the file name.
+1. First use the preview_file tool to preview all files that are relevant, starting with file paths and entities mentioned in "User Request", then those in "Relevant Snippets". For example, if the class foo.bar.Bar was mentioned, be sure to preview foo/bar.py. If the file is irrelevant, move onto the next file. If you don't know the full file path, use file_search with the file name.
 2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find all line numbers relevant to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
 3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
 
