@@ -47,6 +47,82 @@ DOCS_ENDPOINTS = {
         "PyGitLab is a client for the GitLab API.",
     ),
     "Laravel": (
+    "Django": (
+        "https://django.readthedocs.io/en/stable/",
+        "Django is a Python framework for building web apps.",
+    ),
+    "Django Rest Framework": (
+        "https://www.django-rest-framework.org",
+        "Django Rest Framework is a Python framework for building REST APIs.",
+    ),
+    "Celery": (
+        "https://docs.celeryq.dev/en/stable/",
+        "Celery is a Python framework for building distributed task queues.",
+    ),
+    "NumPy": (
+        "https://numpy.org/doc/stable/",
+        "NumPy is a Python library for scientific computing.",
+    ),
+    "Jest": ("https://jestjs.io/", "Jest is a JavaScript testing framework."),
+    "Nucypher TS": (
+        "https://gitlab.com/nucypher/nucypher-ts",
+        "NuCypher is a TypeScript library for building privacy-preserving applications.",
+    ),
+    "NuCypher": (
+        "https://github.com/nucypher/nucypher",
+        "NuCypher is a Python library for building privacy-preserving applications.",
+    ),
+    "Stripe": (
+        "https://docs.stripe.com/",
+        "Stripe is a platform used to help companies accept payments, send payouts, automate financial processes, and grow revenue.",
+    ),
+    "React JS": (
+        "https://react.dev/",
+        "React is a JavaScript library for building user interfaces.",
+    ),
+    "Docusaurus": (
+        "https://docusaurus.io/docs",
+        "Docusaurus is a modern static website generator.",
+    ),
+}
+    "Django": (
+        "https://django.readthedocs.io/en/stable/",
+        "Django is a Python framework for building web apps.",
+    ),
+    "Django Rest Framework": (
+        "https://www.django-rest-framework.org",
+        "Django Rest Framework is a Python framework for building REST APIs.",
+    ),
+    "Celery": (
+        "https://docs.celeryq.dev/en/stable/",
+        "Celery is a Python framework for building distributed task queues.",
+    ),
+    "NumPy": (
+        "https://numpy.org/doc/stable/",
+        "NumPy is a Python library for scientific computing.",
+    ),
+    "Jest": ("https://jestjs.io/", "Jest is a JavaScript testing framework."),
+    "Nucypher TS": (
+        "https://gitlab.com/nucypher/nucypher-ts",
+        "NuCypher is a TypeScript library for building privacy-preserving applications.",
+    ),
+    "NuCypher": (
+        "https://github.com/nucypher/nucypher",
+        "NuCypher is a Python library for building privacy-preserving applications.",
+    ),
+    "Stripe": (
+        "https://docs.stripe.com/",
+        "Stripe is a platform used to help companies accept payments, send payouts, automate financial processes, and grow revenue.",
+    ),
+    "React JS": (
+        "https://react.dev/",
+        "React is a JavaScript library for building user interfaces.",
+    ),
+    "Docusaurus": (
+        "https://docusaurus.io/docs",
+        "Docusaurus is a modern static website generator.",
+    ),
+}
         "https://laravel.com/docs",
         "Laravel is a PHP framework for building web apps.",
     ),
