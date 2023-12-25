@@ -200,8 +200,7 @@ def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
         # Removed unnecessary SystemExit exception handling
                 except Exception:
                     print("Could not get metadata for telemetry", style="bold red")
-        except SystemExit:
-            raise SystemExit
+        # Removed unnecessary SystemExit exception handling
         except Exception as e:
             print(f"Error: {e}", style="bold red")
             raise e
