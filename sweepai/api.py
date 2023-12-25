@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 # Do not save logs for main process
 import ctypes
 import hashlib
@@ -115,7 +116,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.exception(f"Failed to terminate thread: {e}")
+        logger.error(f"Failed to terminate thread: {e}")
 
 
 def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
@@ -596,7 +597,7 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.exception(f"Failed to add config to top repos: {e}")
+                    logger.error(f"Failed to add config to top repos: {e}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
@@ -724,7 +725,7 @@ async def webhook(raw_request: Request):
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
-                            logger.exception(f"Failed to edit PR description: {e}")
+                            logger.error(f"Failed to edit PR description: {e}")
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
@@ -854,5 +855,5 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                 )
     except SystemExit:
         raise SystemExit
-    except:
-        logger.warning("Failed to update sweep PRs")
+    except Exception as e:
+        logger.error("Failed to update sweep PRs")
