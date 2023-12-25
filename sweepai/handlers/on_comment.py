@@ -458,11 +458,11 @@ def on_comment(
         except Exception:
             pass
 
-    try:
-        if response_for_user is not None:
+    if response_for_user is not None:
+        try:
             edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
-    except Exception:
-        pass
+        except Exception:
+            pass
 
     elapsed_time = time.time() - start_time
     posthog.capture(
