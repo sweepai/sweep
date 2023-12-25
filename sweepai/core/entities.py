@@ -516,38 +516,6 @@ class MockPR(BaseModel):
         pass
 
 
-class SweepContext(BaseModel):  # type: ignore
-    class Config:
-        arbitrary_types_allowed = True
-
-    # username: str
-    issue_url: str
-    use_faster_model: bool
-    # is_paying_user: bool
-    # repo: Repository
-    token: Any = None
-
-    _static_instance: Any = None
-
-    @classmethod
-    def create(cls, **kwargs):
-        sweep_context = cls(**kwargs)
-        if SweepContext._static_instance is None:
-            SweepContext._static_instance = sweep_context
-        return sweep_context
-
-    @staticmethod
-    def log_error(exception, traceback):
-        pass
-
-    @staticmethod
-    def log(message):
-        pass
-
-    def __str__(self):
-        return f"{self.issue_url}, {self.use_faster_model}"
-
-
 @dataclass
 class SandboxExecution:
     command: str

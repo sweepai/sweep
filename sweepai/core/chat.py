@@ -13,7 +13,7 @@ from sweepai.config.server import (
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
     OPENAI_USE_3_5_MODEL_ONLY,
 )
-from sweepai.core.entities import Message, SweepContext
+from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
@@ -70,7 +70,6 @@ class ChatGPT(BaseModel):
     chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
-    sweep_context: SweepContext | None = None
     cloned_repo: ClonedRepo | None = None
     temperature: float = default_temperature
 
@@ -80,7 +79,6 @@ class ChatGPT(BaseModel):
         human_message: HumanMessagePrompt,
         is_reply: bool = False,
         chat_logger=None,
-        sweep_context=None,
         cloned_repo: ClonedRepo | None = None,
         **kwargs,
     ):
@@ -102,7 +100,6 @@ class ChatGPT(BaseModel):
             messages=messages,
             human_message=human_message,
             chat_logger=chat_logger,
-            sweep_context=sweep_context,
             cloned_repo=cloned_repo,
             **kwargs,
         )
@@ -181,7 +178,7 @@ class ChatGPT(BaseModel):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
-    # @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
+    # @file_cache(ignore_params=["chat_logger", "cloned_repo"])
     def call_openai(
         self,
         model: ChatModel | None = None,

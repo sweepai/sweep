@@ -53,7 +53,6 @@ from sweepai.core.entities import (
     ProposedIssue,
     PullRequest,
     SandboxResponse,
-    SweepContext,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.core.external_searcher import ExternalSearcher
@@ -244,14 +243,6 @@ def on_ticket(
             gpt3=use_faster_model
         )
 
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=issue_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=user_token,
-    )
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -651,9 +642,7 @@ def on_ticket(
             raise Exception("Failed to fetch files")
         if sandbox_mode:
             logger.info("Running in sandbox mode")
-            sweep_bot = SweepBot(
-                repo=repo, sweep_context=sweep_context, ticket_progress=ticket_progress
-            )
+            sweep_bot = SweepBot(repo=repo, ticket_progress=ticket_progress)
             logger.info("Getting file contents")
             file_name = title.split(":")[1].strip()
             file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
@@ -805,7 +794,6 @@ def on_ticket(
             repo=repo,
             is_reply=bool(comments),
             chat_logger=chat_logger,
-            sweep_context=sweep_context,
             cloned_repo=cloned_repo,
             ticket_progress=ticket_progress,
         )
