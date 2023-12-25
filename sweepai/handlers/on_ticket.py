@@ -337,7 +337,6 @@ def on_ticket(
 
         fire_and_forget_wrapper(delete_old_prs)()
 
-        # Removed 1, 3
         if not sandbox_mode:
             progress_headers = [
                 None,
@@ -352,60 +351,7 @@ def on_ticket(
                 "🛠️ Executing Sandbox",
             ]
 
-        config_pr_url = None
-
-        # Find the first comment made by the bot
-        issue_comment = None
-        tickets_allocated = 5
-        if is_consumer_tier:
-            tickets_allocated = 15
-        if is_paying_user:
-            tickets_allocated = 500
-        purchased_ticket_count = (
-            chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
-        )
-        ticket_count = (
-            max(tickets_allocated - chat_logger.get_ticket_count(), 0)
-            + purchased_ticket_count
-            if chat_logger
-            else 999
-        )
-        daily_ticket_count = (
-            (
-                3 - chat_logger.get_ticket_count(use_date=True)
-                if not use_faster_model
-                else 0
-            )
-            if chat_logger
-            else 999
-        )
-
-        model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-        payment_link = "https://sweep.dev/pricing"
-        single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
-        pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
-        daily_message = (
-            f" and {daily_ticket_count} for the day"
-            if not is_paying_user and not is_consumer_tier
-            else ""
-        )
-        user_type = (
-            "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
-        )
-        gpt_tickets_left_message = (
-            f"{ticket_count} GPT-4 tickets left for the month"
-            if not is_paying_user
-            else "unlimited GPT-4 tickets"
-        )
-        purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
+        payment_message, payment_message_start = get_payment_messages(chat_logger)
 
         ticket_progress.context.payment_context = PaymentContext(
             use_faster_model=use_faster_model,
@@ -1721,3 +1667,67 @@ def get_branch_diff_text(repo, branch):
                 f"File status {file.status} not recognized"
             )  # TODO(sweep): We don't handle renamed files
     return "\n".join([f"{filename}\n{diff}" for filename, diff in pr_diffs])
+
+
+def get_payment_messages(chat_logger: ChatLogger):
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+
+    tracking_id = chat_logger.data["tracking_id"] if chat_logger else None
+
+    config_pr_url = None
+
+    # Find the first comment made by the bot
+    issue_comment = None
+    tickets_allocated = 5
+    if is_consumer_tier:
+        tickets_allocated = 15
+    if is_paying_user:
+        tickets_allocated = 500
+    purchased_ticket_count = (
+        chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
+    )
+    ticket_count = (
+        max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+        + purchased_ticket_count
+        if chat_logger
+        else 999
+    )
+    daily_ticket_count = (
+        (3 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
+        if chat_logger
+        else 999
+    )
+
+    model_name = "GPT-3.5" if use_faster_model else "GPT-4"
+    payment_link = "https://sweep.dev/pricing"
+    single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
+    pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
+    daily_message = (
+        f" and {daily_ticket_count} for the day"
+        if not is_paying_user and not is_consumer_tier
+        else ""
+    )
+    user_type = "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
+    gpt_tickets_left_message = (
+        f"{ticket_count} GPT-4 tickets left for the month"
+        if not is_paying_user
+        else "unlimited GPT-4 tickets"
+    )
+    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+    payment_message_start = (
+        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+
+    return payment_message, payment_message_start
