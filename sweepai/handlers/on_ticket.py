@@ -560,97 +560,10 @@ def on_ticket(
                     ][0]
                     issue_comment.edit(msg)
 
-        try:
-            snippets, tree, _ = fetch_relevant_files(
-                cloned_repo,
-                title,
-                summary,
-                replies_text,
-                username,
-                metadata,
-                on_ticket_start_time,
-                tracking_id,
-                is_paying_user,
-                is_consumer_tier,
-                issue_url,
-                chat_logger,
-                ticket_progress,
-            )
-        except:
-            edit_sweep_comment(
-                (
-                    "It looks like an issue has occurred around fetching the files."
-                    " Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            raise Exception("Failed to fetch files")
         if sandbox_mode:
-            logger.info("Running in sandbox mode")
-            sweep_bot = SweepBot(repo=repo, ticket_progress=ticket_progress)
-            logger.info("Getting file contents")
-            file_name = title.split(":")[1].strip()
-            file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
-                "utf-8"
+            handle_sandbox_mode(
+                title, repo_full_name, repo, ticket_progress, edit_sweep_comment
             )
-            try:
-                ext = file_name.split(".")[-1]
-            except:
-                ext = ""
-            displayed_contents = file_contents.replace("```", "\`\`\`")
-            sha = repo.get_branch(repo.default_branch).commit.sha
-            permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
-            logger.info("Running sandbox")
-            edit_sweep_comment(
-                f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
-                1,
-            )
-            updated_contents, sandbox_response = sweep_bot.check_sandbox(
-                file_name, file_contents, []
-            )
-            logger.info("Sandbox finished")
-            logs = (
-                (
-                    "<br/>"
-                    + create_collapsible(
-                        f"Sandbox logs",
-                        blockquote(
-                            "\n\n".join(
-                                [
-                                    create_collapsible(
-                                        f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
-                                        f"<pre>{clean_logs(output)}</pre>",
-                                        i == len(sandbox_response.outputs) - 1,
-                                    )
-                                    for i, output in enumerate(sandbox_response.outputs)
-                                    if len(sandbox_response.outputs) > 0
-                                ]
-                            )
-                        ),
-                        opened=True,
-                    )
-                )
-                if sandbox_response
-                else ""
-            )
-
-            updated_contents = updated_contents.replace("```", "\`\`\`")
-            diff = generate_diff(file_contents, updated_contents).replace(
-                "```", "\`\`\`"
-            )
-            diff_display = (
-                f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
-                if diff
-                else f"Sandbox made no changes to {file_name} (formatters were not configured or Sweep didn't make changes)."
-            )
-
-            edit_sweep_comment(
-                f"{logs}\n{diff_display}",
-                2,
-            )
-            edit_sweep_comment("N/A", 3)
-            logger.info("Sandbox comments updated")
             return {"success": True}
 
         if len(title + summary) < 20:
@@ -696,6 +609,34 @@ def on_ticket(
                     },
                 )
                 return {"success": False}
+
+        try:
+            snippets, tree, _ = fetch_relevant_files(
+                cloned_repo,
+                title,
+                summary,
+                replies_text,
+                username,
+                metadata,
+                on_ticket_start_time,
+                tracking_id,
+                is_paying_user,
+                is_consumer_tier,
+                issue_url,
+                chat_logger,
+                ticket_progress,
+            )
+        except:
+            edit_sweep_comment(
+                (
+                    "It looks like an issue has occurred around fetching the files."
+                    " Perhaps the repo has not been initialized. If this error persists"
+                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
+                ),
+                -1,
+            )
+            raise Exception("Failed to fetch files")
+
         ticket_progress.search_progress.indexing_progress = (
             ticket_progress.search_progress.indexing_total
         )
@@ -1581,6 +1522,71 @@ def on_ticket(
     )
     logger.info("on_ticket success in " + str(round(time() - on_ticket_start_time)))
     return {"success": True}
+
+
+def handle_sandbox_mode(
+    title, repo_full_name, repo, ticket_progress, edit_sweep_comment
+):
+    logger.info("Running in sandbox mode")
+    sweep_bot = SweepBot(repo=repo, ticket_progress=ticket_progress)
+    logger.info("Getting file contents")
+    file_name = title.split(":")[1].strip()
+    file_contents = sweep_bot.get_contents(file_name).decoded_content.decode("utf-8")
+    try:
+        ext = file_name.split(".")[-1]
+    except:
+        ext = ""
+    displayed_contents = file_contents.replace("```", "\`\`\`")
+    sha = repo.get_branch(repo.default_branch).commit.sha
+    permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
+    logger.info("Running sandbox")
+    edit_sweep_comment(
+        f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
+        1,
+    )
+    updated_contents, sandbox_response = sweep_bot.check_sandbox(
+        file_name, file_contents, []
+    )
+    logger.info("Sandbox finished")
+    logs = (
+        (
+            "<br/>"
+            + create_collapsible(
+                f"Sandbox logs",
+                blockquote(
+                    "\n\n".join(
+                        [
+                            create_collapsible(
+                                f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                                f"<pre>{clean_logs(output)}</pre>",
+                                i == len(sandbox_response.outputs) - 1,
+                            )
+                            for i, output in enumerate(sandbox_response.outputs)
+                            if len(sandbox_response.outputs) > 0
+                        ]
+                    )
+                ),
+                opened=True,
+            )
+        )
+        if sandbox_response
+        else ""
+    )
+
+    updated_contents = updated_contents.replace("```", "\`\`\`")
+    diff = generate_diff(file_contents, updated_contents).replace("```", "\`\`\`")
+    diff_display = (
+        f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
+        if diff
+        else f"Sandbox made no changes to {file_name} (formatters were not configured or Sweep didn't make changes)."
+    )
+
+    edit_sweep_comment(
+        f"{logs}\n{diff_display}",
+        2,
+    )
+    edit_sweep_comment("N/A", 3)
+    logger.info("Sandbox comments updated")
 
 
 def review_code(
