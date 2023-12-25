@@ -663,7 +663,6 @@ def on_ticket(
             )
             if docs_results:
                 message_summary += "\n\n" + docs_results
-        # Removed unnecessary exception handling for SystemExit
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
         human_message = HumanMessagePrompt(
