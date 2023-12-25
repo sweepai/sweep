@@ -202,8 +202,6 @@ def on_comment(
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
                 reaction = item_to_react_to.create_reaction("eyes")
-            except SystemExit:
-                raise SystemExit
             except Exception:
                 try:
                     item_to_react_to = pr.get_review_comment(comment_id)
@@ -269,8 +267,6 @@ def on_comment(
                     bot_comment = pr.create_review_comment_reply(
                         comment_id, "Working on it..."
                     )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     print(e)
         else:
@@ -411,8 +407,6 @@ def on_comment(
                     response_for_user = "Done."
                 else:
                     response_for_user = 'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR (at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.gg/sweep)'
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             logger.error(f"Failed to reply to comment: {e}")
 
@@ -459,22 +453,16 @@ def on_comment(
     try:
         item_to_react_to = pr.get_issue_comment(comment_id)
         reaction = item_to_react_to.create_reaction("rocket")
-    except SystemExit:
-        raise SystemExit
     except Exception:
         try:
             item_to_react_to = pr.get_review_comment(comment_id)
             reaction = item_to_react_to.create_reaction("rocket")
-        except SystemExit:
-            raise SystemExit
         except Exception:
             pass
 
     try:
         if response_for_user is not None:
             edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
-    except SystemExit:
-        raise SystemExit
     except Exception:
         pass
 
