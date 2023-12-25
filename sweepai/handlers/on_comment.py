@@ -206,8 +206,6 @@ def on_comment(
                 try:
                     item_to_react_to = pr.get_review_comment(comment_id)
                     reaction = item_to_react_to.create_reaction("eyes")
-                except SystemExit:
-                    raise SystemExit
                 except Exception:
                     pass
 
