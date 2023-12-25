@@ -143,7 +143,7 @@ def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
             }
             posthog.capture(username, "sandbox-cli-started", properties=metadata)
         except SystemExit:
-            raise SystemExit
+            pass
         except Exception:
             print("Could not get metadata for telemetry", style="bold red")
 
@@ -198,11 +198,11 @@ def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
                         username, "sandbox-cli-success", properties=metadata
                     )
                 except SystemExit:
-                    raise SystemExit
+                    pass
                 except Exception:
                     print("Could not get metadata for telemetry", style="bold red")
         except SystemExit:
-            raise SystemExit
+            pass
         except Exception as e:
             print(f"Error: {e}", style="bold red")
             raise e
