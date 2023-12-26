@@ -32,7 +32,7 @@ def stack_pr(
         f"{sweeping_gif}\n\n"
         + f'Track the progress of this issue <a href="https://progress.sweep.dev/issue/{tracking_id}">here</a>.'
     )
-    header = f"{sweeping_gif}\n\n{status_message}\n\nI'm currently updating this PR to address the following:\n\n{blockquote(request)}"
+    header = f"{status_message}\n---\n\nI'm currently updating this PR to address the following:\n\n{blockquote(request)}"
     comment = pr.create_issue_comment(body=header)
 
     def edit_comment(body):
