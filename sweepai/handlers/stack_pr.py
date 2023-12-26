@@ -30,9 +30,9 @@ def stack_pr(
 
     status_message = center(
         f"{sweeping_gif}\n\n"
-        + f'Track the progress of this issue <a href="https://progress.sweep.dev/issue/{tracking_id}">here</a>.'
+        + f'Fixing PR: track the progress <a href="https://progress.sweep.dev/issues/{tracking_id}">here</a>.'
     )
-    header = f"{status_message}\n---\n\nI'm currently updating this PR to address the following:\n\n{blockquote(request)}"
+    header = f"{status_message}\n---\n\nI'm currently fixing this PR to address the following:\n\n{blockquote(request)}"
     comment = pr.create_issue_comment(body=header)
 
     def edit_comment(body):
@@ -134,6 +134,9 @@ def stack_pr(
     )
 
     for item in generator:
+        if isinstance(item, dict):
+            response = item
+            break
         (
             file_change_request,
             changed_file,
@@ -158,9 +161,7 @@ def stack_pr(
         base=pr.head.ref,
     )
 
-    edit_comment(
-        f"Done creating pull request! **Pull Request:** {github_pull_request.html_url}"
-    )
+    edit_comment(f"✨ **Created Pull Request:** {github_pull_request.html_url}")
 
     return {"success": True}
 
