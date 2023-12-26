@@ -352,6 +352,7 @@ def on_ticket(
                 "🛠️ Executing Sandbox",
             ]
 
+        issue_comment = None
         payment_message, payment_message_start = get_payment_messages(chat_logger)
 
         ticket_progress.context.payment_context = PaymentContext(
@@ -1686,7 +1687,6 @@ def get_payment_messages(chat_logger: ChatLogger):
     tracking_id = chat_logger.data["tracking_id"] if chat_logger else None
 
     # Find the first comment made by the bot
-    issue_comment = None
     tickets_allocated = 5
     if is_consumer_tier:
         tickets_allocated = 15
