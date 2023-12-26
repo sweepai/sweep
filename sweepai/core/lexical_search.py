@@ -14,8 +14,8 @@ from sweepai.utils.progress import TicketProgress
 
 
 def compute_document_tokens(
-    content,
-):  # method that offloads the computation to a separate process
+    content: str,
+) -> list[str]:  # method that offloads the computation to a separate process
     tokenizer = CodeTokenizer()
     tokens = [token.text for token in tokenizer(content)]
     return tokens
@@ -31,12 +31,12 @@ class CustomIndex:
         self.metadata = {}  # Store custom metadata here
         self.tokenizer = CodeTokenizer()
 
-    def add_document(self, title, tokens, metadata={}):
+    def add_document(self, title: str, tokens: list[str], metadata: dict = {}) -> None:
         doc_id = title  # You can use title as doc_id or make it more unique
         self.metadata[doc_id] = metadata
         self.index_document(doc_id, tokens)
 
-    def index_document(self, doc_id, tokens):
+    def index_document(self, doc_id: str, tokens: list[str]) -> None:
         doc_length = len(tokens)
         self.doc_lengths[doc_id] = doc_length
         self.avg_doc_length = sum(self.doc_lengths.values()) / len(self.doc_lengths)
@@ -45,7 +45,7 @@ class CustomIndex:
         for token, freq in token_freq.items():
             self.inverted_index[token].append((doc_id, freq))
 
-    def bm25(self, doc_id, term, term_freq):
+    def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
         num_docs = len(self.doc_lengths)
         idf = log(
             ((num_docs - len(self.inverted_index[term])) + 0.5)
@@ -59,7 +59,7 @@ class CustomIndex:
         )
         return idf * tf
 
-    def search_index(self, query):
+    def search_index(self, query: str) -> list[tuple[str, float, dict]]:
         query_tokens = [token.text for token in self.tokenizer(query)]
         scores = defaultdict(float)
 
@@ -82,7 +82,7 @@ word_pattern = re.compile(r"\b\w+\b")
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
 
-def tokenize_call(code):
+def tokenize_call(code: str) -> list[Token]:
     def check_valid_token(token):
         return token and len(token) > 1
 
@@ -139,7 +139,7 @@ def tokenize_call(code):
     return valid_tokens
 
 
-def construct_bigrams(tokens):
+def construct_bigrams(tokens: list[Token]) -> list[Token]:
     res = []
     prev_token = None
     for token in tokens:
@@ -156,7 +156,7 @@ def construct_bigrams(tokens):
     return res
 
 
-def construct_trigrams(tokens):
+def construct_trigrams(tokens: list[Token]) -> list[Token]:
     res = []
     prev_prev_token = None
     prev_token = None
@@ -220,8 +220,8 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 
 
 def prepare_index_from_snippets(
-    snippets, len_repo_cache_dir=0, ticket_progress: TicketProgress | None = None
-):
+    snippets: list[Snippet], len_repo_cache_dir: int = 0, ticket_progress: TicketProgress | None = None
+) -> CustomIndex | None:
     all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
@@ -255,7 +255,7 @@ class Documentation:
     content: str
 
 
-def prepare_index_from_docs(docs):
+def prepare_index_from_docs(docs: list[tuple[str, str]]) -> CustomIndex | None:
     """Prepare an index from a list of documents.
 
     This function takes a list of documents as input and returns an index.
@@ -275,7 +275,7 @@ def prepare_index_from_docs(docs):
     return index
 
 
-def search_docs(query, index: CustomIndex):
+def search_docs(query: str, index: CustomIndex) -> dict[str, float]:
     """Search the documents based on a query and an index.
 
     This function takes a query and an index as input and returns a dictionary of document IDs
