@@ -223,9 +223,11 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
 
-    # TODO: integrate this and ensure it works
-    # if ext in ("tsx", "ts"):
-    #     is_valid, error_message = check_valid_typescript(code)
+
+    if ext in ("tsx", "ts"):
+        is_valid, error_message = check_valid_typescript(code)
+        if not is_valid:
+            return is_valid, error_message
     #     if not is_valid:
     #         return is_valid, error_message
 
