@@ -137,7 +137,6 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
                 username=request_dict["sender"]["login"],
                 chat_logger=chat_logger,
                 branch_name=pr.head.ref,
-                rule=rule,
             )
             pr.create_issue_comment(
                 f"✨ **Created PR: {new_pr.html_url}** to fix `{rule}`.\n This PR was made against the `{pr.head.ref}` branch, not your main branch, so it's safe to merge if it looks good!"
