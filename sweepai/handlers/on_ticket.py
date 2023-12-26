@@ -229,7 +229,7 @@ def on_ticket(
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
     else:
         is_paying_user = True
         is_consumer_tier = False
@@ -718,6 +718,7 @@ def on_ticket(
                 break
 
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+        config_pr_url = None
         if not sweep_yml_exists:
             try:
                 logger.info("Creating sweep.yaml file...")
@@ -1686,8 +1687,6 @@ def get_payment_messages(chat_logger: ChatLogger):
         use_faster_model = False
 
     tracking_id = chat_logger.data["tracking_id"] if chat_logger else None
-
-    config_pr_url = None
 
     # Find the first comment made by the bot
     issue_comment = None
