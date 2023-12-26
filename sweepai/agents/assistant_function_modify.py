@@ -134,7 +134,7 @@ def function_modify(
                                     error_message = f"Missing {key} in replace_to_make."
                                     break
 
-                            section_letter = replace_to_make.get["section_id"]
+                            section_letter = replace_to_make["section_id"]
                             section_id = excel_col_to_int(section_letter)
                             old_code = replace_to_make["old_code"].strip("\n")
                             new_code = replace_to_make["new_code"].strip("\n")

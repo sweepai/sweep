@@ -92,6 +92,7 @@ from sweepai.utils.str_utils import (
     sep,
     stars_suffix,
     strip_sweep,
+    to_branch_name,
 )
 from sweepai.utils.ticket_utils import (
     center,
@@ -229,7 +230,7 @@ def on_ticket(
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
     else:
         is_paying_user = True
         is_consumer_tier = False
@@ -351,6 +352,7 @@ def on_ticket(
                 "🛠️ Executing Sandbox",
             ]
 
+        issue_comment = None
         payment_message, payment_message_start = get_payment_messages(chat_logger)
 
         ticket_progress.context.payment_context = PaymentContext(
@@ -362,6 +364,8 @@ def on_ticket(
             monthly_tickets_used=chat_logger.get_ticket_count() if chat_logger else 0,
         )
         ticket_progress.save()
+
+        config_pr_url = None
 
         def get_comment_header(
             index,
@@ -887,11 +891,6 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe",
             )
-
-            def to_branch_name(s, max_length=40):
-                branch_name = s.strip().lower().replace(" ", "_")
-                branch_name = re.sub(r"[^a-z0-9_]", "", branch_name)
-                return branch_name[:max_length]
 
             logger.info("Generating PR...")
 
@@ -1687,10 +1686,7 @@ def get_payment_messages(chat_logger: ChatLogger):
 
     tracking_id = chat_logger.data["tracking_id"] if chat_logger else None
 
-    config_pr_url = None
-
     # Find the first comment made by the bot
-    issue_comment = None
     tickets_allocated = 5
     if is_consumer_tier:
         tickets_allocated = 15
