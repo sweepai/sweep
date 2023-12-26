@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+from sweepai.api import *
+
 # Do not save logs for main process
 import ctypes
 import hashlib
@@ -277,11 +280,7 @@ async def webhook(raw_request: Request):
                             in [label.name.lower() for label in pr.labels]
                             and request.check_run.conclusion == "failure"
                         ):
-                            # logs = download_logs(
-                            #     request.repository.full_name,
-                            #     request.check_run.run_id,
-                            #     request.installation.id,
-                            # )
+                            logs = "" # Placeholder value before potential assignment
                             logs, user_message = clean_logs(logs)
                             commit_author = request.sender.login
                             chat_logger = ChatLogger(
@@ -296,7 +295,7 @@ async def webhook(raw_request: Request):
                                 username=commit_author,
                                 repo_full_name=repo.full_name,
                                 installation_id=request.installation.id,
-                                chat_logger=chat_logger,
+                                tracking_id="fixed-value",
                             )
                 if request.check_run.check_suite.head_branch == repo.default_branch:
                     if request.check_run.conclusion == "failure":
@@ -322,7 +321,7 @@ async def webhook(raw_request: Request):
                             user_token=None,
                             use_faster_model=chat_logger.use_faster_model(),
                             username=commit_author,
-                            chat_logger=chat_logger,
+                            tracking_id="fixed-value",
                         )
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
