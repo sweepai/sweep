@@ -60,6 +60,7 @@ from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.pr_utils import make_pr
+from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import (
     Button,
     ButtonList,
@@ -271,10 +272,27 @@ async def webhook(raw_request: Request):
                                 pr.edit(state="closed")
                                 break
                     if not (time.time() - pr.created_at.timestamp()) > 60 * 15:
-                        if GITHUB_LABEL_NAME in [
-                            label.name.lower() for label in pr.labels
-                        ]:
-                            call_on_check_suite(request=request)
+                        if (
+                            GITHUB_LABEL_NAME
+                            in [label.name.lower() for label in pr.labels]
+                            and request.check_run.conclusion == "failure"
+                        ):
+                            logs = download_logs(
+                                request.repository.full_name,
+                                request.check_run.run_id,
+                                request.installation.id,
+                            )
+                            logs, user_message = clean_logs(logs)
+                            commit_author = request.sender.login
+                            tracking_id = get_hash()
+                            stack_pr(
+                                request=f"The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
+                                pr_number=pr.number,
+                                username=commit_author,
+                                repo_full_name=repo.full_name,
+                                installation_id=request.installation.id,
+                                tracking_id=tracking_id,
+                            )
                 if request.check_run.check_suite.head_branch == repo.default_branch:
                     if request.check_run.conclusion == "failure":
                         logs = download_logs(
