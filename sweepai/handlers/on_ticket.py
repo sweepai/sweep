@@ -1654,8 +1654,9 @@ def review_code(
     return changes_required, review_message
 
 
-def get_branch_diff_text(repo, branch):
-    comparison = repo.compare(SweepConfig.get_branch(repo), branch)
+def get_branch_diff_text(repo, branch, base_branch=None):
+    base_branch = base_branch or SweepConfig.get_branch(repo)
+    comparison = repo.compare(base_branch, branch)
     file_diffs = comparison.files
 
     pr_diffs = []
