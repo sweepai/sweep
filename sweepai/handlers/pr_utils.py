@@ -151,7 +151,9 @@ def make_pr(
         else ""
     )
     rule_description = (
-        f'### I created this PR to address this rule: \n"{rule}"\n' if rule else ""
+        f'### I created this PR to address this rule: \n"{rule}"\n'
+        if rule
+        else "I created this PR to fix the failing GitHub Actions."
     )
     pr = repo.create_pull(
         title=pr_changes.title,
