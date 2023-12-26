@@ -4,7 +4,7 @@ List of common prompts used across the codebase.
 
 # Following two should be fused
 system_message_prompt = """\
-You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully implemented. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully implemented, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies."""
+You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, is syntactically perfect and is fully implemented. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully implemented, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies."""
 
 repo_description_prefix_prompt = "\nThis is a description of the repository:"
 
@@ -62,7 +62,7 @@ human_message_review_prompt = [
 
 snippet_replacement_system_message = f"""{system_message_prompt}
 
-You are selecting relevant snippets for this issue. You must only select files that would help you understand the context of this issue.
+You are selecting relevant snippets for the request. You must only select files that would help you understand the context of this issue.
 
 ## Snippet Step
 
@@ -83,7 +83,7 @@ folder_2/file_2.py:42-75
 </relevant_snippets>
 """
 
-snippet_replacement = """Based on this issue, determine what context is relevant for the file changes. In the relevant_snippets, do not write the entire file lines. Choose only the most important lines.
+snippet_replacement = """Based on the request, determine what context is relevant for the file changes. In the relevant_snippets, do not write the entire file lines. Choose only the most important lines.
 
 Complete the Snippet Step."""
 
@@ -109,7 +109,7 @@ Check for the following:
 * Other errors not listed above
 * Incorrect/broken tests
 
-Indicate all breaking changes. Do not point out stylistic issues. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
+Indicate all breaking changes. Ensure all functions have appropriate type hints. Do not point out stylistic issues. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
 
 Respond in the following format:c
 <diff_analysis>
@@ -119,7 +119,7 @@ Check each file_diff function by function and confirm whether it was both implem
 
 final_review_prompt = """\
 Given the diff_analysis write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nitpick on formatting.
-If there is additional work to be done before this PR is ready, mention it. If there are no changes required, simply say "No changes required."
+If there are type hints missing or any additional work to be done before this PR is ready, mention it. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
 <changes_required>
@@ -168,7 +168,7 @@ Pull Request Description: {description}{relevant_docs}""",
     },
     {
         "role": "user",
-        "content": """Please handle the user review comment using the snippets, pull request title, pull request description, and the file changes.
+        "content": """Please handle the request by reviewing the relevant snippets, pull request title, pull request description, and file changes, ensuring type hints are correctly used.
 User pull request review: \"{comment}\"""",
     },
 ]
@@ -187,7 +187,7 @@ Provide a plan to solve the issue, following these rules:
 * You may only create new files and modify existing files.
 * Include the full path (e.g. src/main.py and not just main.py), using the repo_tree for reference.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
-* Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
+* Be concrete with instructions and be specific about adding or ensuring type hints are present where needed. Simply write "add x" or "change y to z".
 
 You MUST follow the following format with XML tags:
 
@@ -221,7 +221,7 @@ extract_files_to_change_prompt = """\
 Create a plan that resolves the user's query and ONLY the user's query under "Issue Title" and "Issue Description", providing your response in the below format:
 <contextual_request_analysis>
 Review each function of each relevant_snippet and analyze the user request to determine if this change should use the refactor or unit test tools.
-The refactor tool performs code transformations in a single file without making other logical changes. Determine the function(s) that are too long and should have it's individual parts extracted.
+The tool updates function definitions to use 'list', 'tuple', and 'dict' instead of 'typing.List', 'typing.Tuple', and 'typing.Dict'. Determine the function(s) that are too long and should have it's individual parts extracted.
 The unit test tool creates or edits unit tests for a given file. Determine all functions that should be unit tested.
 </contextual_request_analysis>
 
@@ -246,7 +246,7 @@ Reference and analyze the snippets, repo, and issue to break down the requested 
 Provide a plan to solve the issue, following these rules:
 * You may only create new files, extract snippets into functions, relocate functions, or modify existing files.
 * Include the full path (e.g. src/main.py and not just main.py), using the repo_tree for reference.
-* Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
+* Be concrete with instructions and include checking and updating type hints as needed. Simply write "add x" or "change y to z".
 
 You MUST follow the following format:
 
@@ -297,7 +297,7 @@ Provide a list of ALL of the files we should modify, abiding by the following:
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree for reference.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* If the tests fail you should typically fix the tests and not the source code.
+* If the tests fail, make sure it is not due to missing or incorrect type hints. Fix the tests and update type hints where necessary.
 
 You MUST follow the following format with the final output in XML tags:
 
@@ -334,7 +334,7 @@ Identify the root cause of this issue and a minimum plan to address this issue c
 
 
 Step-by-step thoughts with explanations:
-* Concise imperative thoughts
+* Concise imperative thoughts, including verifying and updating type hints
 * No conjunctions
 ...
 
