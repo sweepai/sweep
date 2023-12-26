@@ -133,7 +133,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
                 repo_full_name=request_dict["repository"]["full_name"],
                 installation_id=request_dict["installation"]["id"],
                 user_token=user_token,
-                use_faster_model=chat_logger.use_faster_model(gh_client),
+                use_faster_model=chat_logger.use_faster_model(),
                 username=request_dict["sender"]["login"],
                 chat_logger=chat_logger,
                 branch_name=pr.head.ref,

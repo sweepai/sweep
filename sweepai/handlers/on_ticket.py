@@ -352,6 +352,7 @@ def on_ticket(
                 "🛠️ Executing Sandbox",
             ]
 
+        issue_comment = None
         payment_message, payment_message_start = get_payment_messages(chat_logger)
 
         ticket_progress.context.payment_context = PaymentContext(
@@ -363,6 +364,8 @@ def on_ticket(
             monthly_tickets_used=chat_logger.get_ticket_count() if chat_logger else 0,
         )
         ticket_progress.save()
+
+        config_pr_url = None
 
         def get_comment_header(
             index,
@@ -719,7 +722,6 @@ def on_ticket(
                 break
 
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-        config_pr_url = None
         if not sweep_yml_exists:
             try:
                 logger.info("Creating sweep.yaml file...")
@@ -1685,7 +1687,6 @@ def get_payment_messages(chat_logger: ChatLogger):
     tracking_id = chat_logger.data["tracking_id"] if chat_logger else None
 
     # Find the first comment made by the bot
-    issue_comment = None
     tickets_allocated = 5
     if is_consumer_tier:
         tickets_allocated = 15
