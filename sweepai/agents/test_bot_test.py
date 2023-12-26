@@ -4,7 +4,7 @@ from github import Github
 
 from sweepai.agents.test_bot import TestBot
 from sweepai.config.server import DEBUG, DEFAULT_GPT35_MODEL
-from sweepai.core.entities import FileChangeRequest, Message, SweepContext
+from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, get_token
@@ -48,11 +48,6 @@ if __name__ == "__main__":
         repo=repo,
         chat_logger=None,
         model=DEFAULT_GPT35_MODEL,
-        sweep_context=SweepContext(
-            issue_url="",
-            installation_id=installation_id,
-            use_faster_model=False,
-        ),
         cloned_repo=cloned_repo,
     )
 

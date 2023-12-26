@@ -93,3 +93,9 @@ def extract_lines(text: str, start: int, end: int):
 def add_line_numbers(text: str, start: int = 0):
     lines = text.splitlines(keepends=True)
     return "".join(f"{start + i} | {line}" for i, line in enumerate(lines))
+
+
+def to_branch_name(s, max_length=40):
+    branch_name = s.strip().lower().replace(" ", "_")
+    branch_name = re.sub(r"[^a-z0-9_]", "", branch_name)
+    return branch_name[:max_length]
