@@ -14,6 +14,7 @@ import tiktoken
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
 from tree_sitter import Node
+from typing import Optional
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
@@ -188,7 +189,7 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
     return chunks
 
 
-def check_valid_typescript(code: str):
+def check_valid_typescript(code: str) -> tuple[bool, str]:
     with tempfile.TemporaryDirectory() as temp_dir:
         file_hash = uuid.uuid4().hex[:10]
         tmp_file = os.path.join(temp_dir, file_hash + "_" + "temp.ts")
@@ -230,7 +231,7 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     #     if not is_valid:
     #         return is_valid, error_message
 
-    def find_deepest_error(node: Node):
+    def find_deepest_error(node: Node) -> Optional[Node]:
         deepest_error = None
         if node.has_error:
             deepest_error = node
@@ -349,7 +350,7 @@ class Tiktoken:
             for model in Tiktoken.openai_models
         }
 
-    def count(self, text: str, model: str = "gpt-4"):
+    def count(self, text: str, model: str = "gpt-4") -> int:
         return len(self.openai_models[model].encode(text, disallowed_special=()))
 
 
