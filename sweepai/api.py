@@ -600,8 +600,6 @@ async def webhook(raw_request: Request):
                         },
                     )
                     call_on_comment(**pr_change_request.params)
-            case "pull_request_review", "submitted":
-                pass
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -618,8 +616,6 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories_added,
                     )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.exception(f"Failed to add config to top repos: {e}")
 
@@ -650,8 +646,6 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories,
                     )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.exception(f"Failed to add config to top repos: {e}")
 
@@ -871,13 +865,9 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                 if pr.title == "Configure Sweep" and pr.merged:
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
                     create_gha_pr(g, repo)
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.warning(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
-    except SystemExit:
-        raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")
