@@ -90,7 +90,7 @@ def repo_to_chunks(
         and not is_dir_too_big(file_name)
     ]
     all_chunks = []
-    with multiprocessing.Pool(processes=2) as pool:
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
         for chunks in pool.imap(file_path_to_chunks, file_list):
             all_chunks.extend(chunks)
     return all_chunks, file_list
