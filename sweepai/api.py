@@ -261,9 +261,10 @@ async def webhook(raw_request: Request):
                 if pull_requests:
                     logger.info(pull_requests[0].number)
                     pr = repo.get_pull(pull_requests[0].number)
-                    if (
-                        time.time() - pr.created_at.timestamp()
-                    ) > 60 * 60 and pr.title.startswith("[Sweep Rules]"):
+                    if (time.time() - pr.created_at.timestamp()) > 60 * 60 and (
+                        pr.title.startswith("[Sweep Rules]")
+                        or pr.title.startswith("[Sweep GHA Fix]")
+                    ):
                         after_sha = pr.head.sha
                         commit = repo.get_commit(after_sha)
                         check_suites = commit.get_check_suites()
@@ -286,7 +287,7 @@ async def webhook(raw_request: Request):
                             commit_author = request.sender.login
                             tracking_id = get_hash()
                             stack_pr(
-                                request=f"The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
+                                request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
                                 pr_number=pr.number,
                                 username=commit_author,
                                 repo_full_name=repo.full_name,
@@ -305,11 +306,11 @@ async def webhook(raw_request: Request):
                         chat_logger = ChatLogger(
                             data={
                                 "username": commit_author,
-                                "title": "Sweep: Fix GitHub Actions run",
+                                "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
                             }
                         )
                         make_pr(
-                            title="Sweep: Fix GitHub Actions run",
+                            title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                             repo_description=repo.description,
                             summary=f"The GitHub Actions run failed with the following error logs:\n\n```{logs}```",
                             repo_full_name=request_dict["repository"]["full_name"],
