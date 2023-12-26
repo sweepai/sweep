@@ -9,7 +9,7 @@ from sweepai.logn import logger
 from sweepai.utils.utils import chunk_code
 
 
-def filter_file(directory, file, sweep_config: SweepConfig):
+def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     """
     Check if a file should be filtered based on its size and other criteria.
 
@@ -46,7 +46,7 @@ def filter_file(directory, file, sweep_config: SweepConfig):
     return True
 
 
-def read_file(file_name):
+def read_file(file_name: str) -> str:
     try:
         with open(file_name, "r") as f:
             return f.read()
@@ -59,16 +59,14 @@ def read_file(file_name):
 FILE_THRESHOLD = 100
 
 
-def file_path_to_chunks(file_path: str):
+def file_path_to_chunks(file_path: str) -> list[str]:
     file_contents = read_file(file_path)
     chunks = chunk_code(file_contents, path=file_path)
     return chunks
 
 
 # @file_cache()
-def repo_to_chunks(
-    directory: str, sweep_config: SweepConfig
-) -> tuple[list[Snippet], list[str]]:
+def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> tuple[list[Snippet], list[str]]:
     dir_file_count = {}
 
     def is_dir_too_big(file_name):
