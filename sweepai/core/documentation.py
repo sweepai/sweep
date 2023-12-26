@@ -21,7 +21,7 @@ def embedding_function(texts: list[str]):
     return embed_texts(tuple(texts))
 
 
-def chunk_string(s):
+def chunk_string(s: str) -> list[str]:
     # Chunker's terrible, can be improved later
 
     # Split the string into sentences
@@ -41,13 +41,13 @@ def chunk_string(s):
     return chunks
 
 
-def remove_non_alphanumeric(url):
+def remove_non_alphanumeric(url: str) -> str:
     # Keep only alphanumeric characters, and remove all others
     cleaned = re.sub(r"[^a-zA-Z0-9]", "", url)
     return cleaned
 
 
-def write_documentation(doc_url):
+def write_documentation(doc_url: str) -> bool:
     try:
         url_allowed = is_url_allowed(doc_url, user_agent="*")
         if not url_allowed:
@@ -89,12 +89,12 @@ def write_documentation(doc_url):
         return False
 
 
-def daily_update():
+def daily_update() -> None:
     for doc_url, _ in DOCS_ENDPOINTS.values():
         write_documentation(doc_url)
 
 
-def search_vector_store(doc_url, query, k=100):
+def search_vector_store(doc_url: str, query: str, k: int = 100) -> list[tuple[str, str]]:
     logger.info(f'Searching for "{query}" in {doc_url}')
     idx_name = remove_non_alphanumeric(doc_url)
     if not ACTIVELOOP_TOKEN:
