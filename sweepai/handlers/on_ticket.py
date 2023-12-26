@@ -364,6 +364,8 @@ def on_ticket(
         )
         ticket_progress.save()
 
+        config_pr_url = None
+
         def get_comment_header(
             index,
             errored=False,
@@ -719,7 +721,6 @@ def on_ticket(
                 break
 
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-        config_pr_url = None
         if not sweep_yml_exists:
             try:
                 logger.info("Creating sweep.yaml file...")
