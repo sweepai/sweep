@@ -188,7 +188,7 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
     return chunks
 
 
-def check_valid_typescript(code):
+def check_valid_typescript(code: str):
     with tempfile.TemporaryDirectory() as temp_dir:
         file_hash = uuid.uuid4().hex[:10]
         tmp_file = os.path.join(temp_dir, file_hash + "_" + "temp.ts")
