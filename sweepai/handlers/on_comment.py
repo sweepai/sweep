@@ -148,7 +148,7 @@ def on_comment(
 
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
-        use_faster_model = chat_logger.use_faster_model(g)
+        use_faster_model = chat_logger.use_faster_model()
     else:
         # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
         is_paying_user = True
