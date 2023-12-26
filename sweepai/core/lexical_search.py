@@ -244,7 +244,7 @@ def prepare_index_from_snippets(
                 title=f"{doc.title}:{doc.start}:{doc.end}", tokens=document_tokens
             )
     except FileNotFoundError as e:
-        logger.error(e)
+        logger.exception(e)
 
     return index
 
@@ -271,7 +271,7 @@ def prepare_index_from_docs(docs: list[tuple[str, str]]) -> CustomIndex | None:
                 title=f"{doc.url}", tokens=compute_document_tokens(doc.content)
             )
     except FileNotFoundError as e:
-        logger.error(e)
+        logger.exception(e)
     return index
 
 
@@ -330,6 +330,5 @@ def search_index(query, index: CustomIndex):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.print(e)
-        traceback.print_exc()
+        logger.exception(e)
         return {}
