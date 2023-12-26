@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 import os
 import re
+import subprocess
+import tempfile
 import traceback
 import uuid
 from dataclasses import dataclass
@@ -17,7 +19,6 @@ from tree_sitter_languages import get_parser
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
-from tree_sitter_languages import get_parser
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -187,6 +188,23 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
     return chunks
 
 
+def check_valid_typescript(code):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_hash = uuid.uuid4().hex[:10]
+        tmp_file = os.path.join(temp_dir, file_hash + "_" + "temp.ts")
+
+        with open(tmp_file, "w") as file:
+            file.write(code)
+
+        result = subprocess.run(
+            ["npx", "prettier", "--parser", "babel-ts", tmp_file],
+            capture_output=True,
+        )
+
+        os.remove(tmp_file)
+        return result.returncode == 0, (result.stdout + result.stderr).decode("utf-8")
+
+
 def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     ext = file_path.split(".")[-1]
     if ext in extension_to_language:
@@ -203,6 +221,12 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         except SyntaxError as e:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
+
+    # TODO: integrate this and ensure it works
+    # if ext in ("tsx", "ts"):
+    #     is_valid, error_message = check_valid_typescript(code)
+    #     if not is_valid:
+    #         return is_valid, error_message
 
     def find_deepest_error(node: Node):
         deepest_error = None
@@ -325,3 +349,29 @@ class Tiktoken:
 
     def count(self, text: str, model: str = "gpt-4"):
         return len(self.openai_models[model].encode(text, disallowed_special=()))
+
+
+test_code = """
+import React from 'react';
+import { render } from '@testing-library/react';
+import CallToAction from '../components/CallToAction';
+describe('CallToAction component', () => {
+  it('renders the correct YouTube video link', () => {
+    const { getByTitle } = render(<CallToAction />);
+    const iframeElement = getByTitle('YouTube video player');
+    expect(iframeElement.getAttribute('src')).toBe('https://www.youtube.com/embed/GVEkDZmWw8E?autoplay=1&mute=1&loop=1&vq=hd1080&modestbranding=1&controls=0');
+    it('has a button with the correct color properties', () => {
+    const { getByRole } = render(<CallToAction />);
+    const buttonElement = getByRole('button', { name: /install sweep/i });
+    expect(buttonElement).toHaveStyle({
+      colorScheme: 'green',
+      bg: 'green.400',
+      _hover: { bg: 'green.600' }
+    });
+  });
+});
+"""
+
+
+if __name__ == "__main__":
+    print(check_syntax("CallToAction.test.tsx", test_code))
