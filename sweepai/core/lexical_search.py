@@ -1,4 +1,5 @@
 import multiprocessing
+import multiprocessing
 import re
 import traceback
 from collections import Counter, defaultdict
@@ -231,7 +232,7 @@ def prepare_index_from_snippets(
         ticket_progress.save()
     all_tokens = []
     try:
-        with multiprocessing.Pool(processes=2) as p:
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as p:
             for i, document_tokens in enumerate(
                 p.imap(compute_document_tokens, [doc.content for doc in all_docs])
             ):
