@@ -48,7 +48,7 @@ def stack_pr(
     metadata = {}
     start_time = time.time()
 
-    title = "Sweep: " + request
+    title = request
     if len(title) > 50:
         title = title[:50] + "..."
     ticket_progress = TicketProgress(
