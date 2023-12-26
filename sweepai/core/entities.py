@@ -198,9 +198,15 @@ class FileChangeRequest(RegexMatchableBaseModel):
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
         if result.start_line:
-            result.start_line = int(result.start_line)
+            try:
+                result.start_line = int(result.start_line)
+            except ValueError:
+                result.start_line = None
         if result.end_line:
-            result.end_line = int(result.end_line)
+            try:
+                result.end_line = int(result.end_line)
+            except ValueError:
+                result.start_line = None
         return result
 
     @property
