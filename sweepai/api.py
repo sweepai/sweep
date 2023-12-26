@@ -269,12 +269,13 @@ async def webhook(raw_request: Request):
                         for check_suite in check_suites:
                             if check_suite.conclusion == "failure":
                                 pr.edit(state="closed")
-                                return None
-                    if (time.time() - pr.created_at.timestamp()) > 60 * 15:
-                        return None
-                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
-                        call_on_check_suite(request=request)
-                elif request.check_run.check_suite.head_branch == repo.default_branch:
+                                break
+                    if not (time.time() - pr.created_at.timestamp()) > 60 * 15:
+                        if GITHUB_LABEL_NAME in [
+                            label.name.lower() for label in pr.labels
+                        ]:
+                            call_on_check_suite(request=request)
+                if request.check_run.check_suite.head_branch == repo.default_branch:
                     if request.check_run.conclusion == "failure":
                         logs = download_logs(
                             request.repository.full_name,
@@ -282,6 +283,13 @@ async def webhook(raw_request: Request):
                             request.installation.id,
                         )
                         logs, user_message = clean_logs(logs)
+                        commit_author = request.sender.login
+                        chat_logger = ChatLogger(
+                            data={
+                                "username": commit_author,
+                                "title": "Sweep: Fix GitHub Actions run",
+                            }
+                        )
                         make_pr(
                             title="Sweep: Fix GitHub Actions run",
                             repo_description=repo.description,
@@ -289,7 +297,7 @@ async def webhook(raw_request: Request):
                             repo_full_name=request_dict["repository"]["full_name"],
                             installation_id=request_dict["installation"]["id"],
                             user_token=None,
-                            use_faster_model=chat_logger.use_faster_model(g),
+                            use_faster_model=chat_logger.use_faster_model(),
                             username=commit_author,
                             chat_logger=chat_logger,
                         )
