@@ -63,7 +63,7 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
     issue_description: str
 
     @classmethod
-    def from_string(cls: type[Self], string: str, **kwargs) -> Self:
+    def from_string(cls: type[Self], string: str, **kwargs: dict) -> Self:
         changes_required_pattern = (
             r"""<changes_required>(\n)?(?P<changes_required>.*)</changes_required>"""
         )
@@ -103,7 +103,7 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
 
 
 class PostMerge(ChatGPT):
-    def check_for_issues(self, rule, diff) -> tuple[str, str]:
+    def check_for_issues(self, rule: str, diff: str) -> tuple[bool, str, str]:
         try:
             self.messages = [
                 Message(
