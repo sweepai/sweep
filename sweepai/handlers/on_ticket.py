@@ -92,6 +92,7 @@ from sweepai.utils.str_utils import (
     sep,
     stars_suffix,
     strip_sweep,
+    to_branch_name,
 )
 from sweepai.utils.ticket_utils import (
     center,
@@ -888,11 +889,6 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe",
             )
-
-            def to_branch_name(s, max_length=40):
-                branch_name = s.strip().lower().replace(" ", "_")
-                branch_name = re.sub(r"[^a-z0-9_]", "", branch_name)
-                return branch_name[:max_length]
 
             logger.info("Generating PR...")
 
