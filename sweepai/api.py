@@ -284,19 +284,14 @@ async def webhook(raw_request: Request):
                             )
                             logs, user_message = clean_logs(logs)
                             commit_author = request.sender.login
-                            chat_logger = ChatLogger(
-                                data={
-                                    "username": commit_author,
-                                    "title": "Sweep: Fix GitHub Actions run",
-                                }
-                            )
+                            tracking_id = get_hash()
                             stack_pr(
-                                request=f"The GitHub Actions run failed with the following error logs:\n\n```{logs}```",
+                                request=f"The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
                                 pr_number=pr.number,
                                 username=commit_author,
                                 repo_full_name=repo.full_name,
                                 installation_id=request.installation.id,
-                                chat_logger=chat_logger,
+                                tracking_id=tracking_id,
                             )
                 if request.check_run.check_suite.head_branch == repo.default_branch:
                     if request.check_run.conclusion == "failure":
