@@ -277,11 +277,11 @@ async def webhook(raw_request: Request):
                             in [label.name.lower() for label in pr.labels]
                             and request.check_run.conclusion == "failure"
                         ):
-                            logs = download_logs(
-                                request.repository.full_name,
-                                request.check_run.run_id,
-                                request.installation.id,
-                            )
+                            # logs = download_logs(
+                            #     request.repository.full_name,
+                            #     request.check_run.run_id,
+                            #     request.installation.id,
+                            # )
                             logs, user_message = clean_logs(logs)
                             commit_author = request.sender.login
                             chat_logger = ChatLogger(
