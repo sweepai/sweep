@@ -329,8 +329,8 @@ class _Logger:
                             task.logtail_logger.info(
                                 log, extra=task.get_logtail_metadata()
                             )
-                        case 2:
-                            task.logtail_logger.error(
+                        case 4:
+                            task.logtail_logger.exception(
                                 log, extra=task.get_logtail_metadata()
                             )
                         case 3:
@@ -377,6 +377,9 @@ class _LogN(_Logger):
 
     def warning(self, *args, **kwargs):
         self[loguru_logger.warning](*args, **kwargs)
+
+    def exception(self, *args, **kwargs):
+        self[loguru_logger.exception](*args, **kwargs)
 
     def debug(self, *args, **kwargs):
         # Todo: add debug level
