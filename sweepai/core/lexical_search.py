@@ -12,10 +12,14 @@ from sweepai.core.entities import Snippet
 from sweepai.logn import logger
 from sweepai.utils.progress import TicketProgress
 
-def compute_document_tokens(content): # method that offloads the computation to a separate process
+
+def compute_document_tokens(
+    content,
+):  # method that offloads the computation to a separate process
     tokenizer = CodeTokenizer()
     tokens = [token.text for token in tokenizer(content)]
     return tokens
+
 
 class CustomIndex:
     def __init__(self):
@@ -73,8 +77,10 @@ class CustomIndex:
 
         return results_with_metadata
 
+
 word_pattern = re.compile(r"\b\w+\b")
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
+
 
 def tokenize_call(code):
     def check_valid_token(token):
@@ -103,7 +109,7 @@ def tokenize_call(code):
                     pos += 1
                 offset += len(part) + 1
         elif parts := variable_pattern.findall(text):  # pascal and camelcase
-             # first one "MyVariable" second one "myVariable" third one "MYVariable"
+            # first one "MyVariable" second one "myVariable" third one "MYVariable"
             offset = 0
             for part in parts:
                 if check_valid_token(part):
@@ -200,7 +206,6 @@ class Document:
 
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
-
     docs = []
     for snippet in snippets:
         docs.append(
@@ -226,18 +231,23 @@ def prepare_index_from_snippets(
         ticket_progress.save()
     all_tokens = []
     try:
-        with multiprocessing.Pool(processes=8) as p:
-            for i, document_tokens in enumerate(p.imap(compute_document_tokens, [doc.content for doc in all_docs])):
+        with multiprocessing.Pool(processes=2) as p:
+            for i, document_tokens in enumerate(
+                p.imap(compute_document_tokens, [doc.content for doc in all_docs])
+            ):
                 all_tokens.append(document_tokens)
                 if ticket_progress and i % 200 == 0:
                     ticket_progress.search_progress.indexing_progress = i
                     ticket_progress.save()
         for doc, document_tokens in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
-            index.add_document(title=f"{doc.title}:{doc.start}:{doc.end}", tokens=document_tokens)
+            index.add_document(
+                title=f"{doc.title}:{doc.start}:{doc.end}", tokens=document_tokens
+            )
     except FileNotFoundError as e:
         logger.error(e)
 
     return index
+
 
 @dataclass
 class Documentation:
@@ -257,7 +267,9 @@ def prepare_index_from_docs(docs):
     index = CustomIndex()
     try:
         for doc in tqdm(all_docs, total=len(all_docs)):
-            index.add_document(title=f"{doc.url}", tokens=compute_document_tokens(doc.content))
+            index.add_document(
+                title=f"{doc.url}", tokens=compute_document_tokens(doc.content)
+            )
     except FileNotFoundError as e:
         logger.error(e)
     return index
