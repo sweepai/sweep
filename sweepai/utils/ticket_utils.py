@@ -17,6 +17,7 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
+from sweepai.agents.query_filter_agent import QueryFilterBot
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
 
 
@@ -26,6 +27,8 @@ def prep_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
 ):
+    filter_bot = QueryFilterBot()
+    query = filter_bot.filter_query(query)
     sweep_config: SweepConfig = SweepConfig()
 
     file_list, snippets, lexical_index = prepare_lexical_search_index(
