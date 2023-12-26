@@ -348,7 +348,7 @@ class Tiktoken:
             for model in Tiktoken.openai_models
         }
 
-    def count(self, text: str, model: str = "gpt-4"):
+    def count(self, text: str, model: str = "gpt-4") -> int:
         return len(self.openai_models[model].encode(text, disallowed_special=()))
 
 
