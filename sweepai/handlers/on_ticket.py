@@ -3,7 +3,6 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
-import math
 import os
 import re
 import traceback
@@ -48,18 +47,15 @@ from sweepai.config.server import (
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     AssistantRaisedException,
-    EmptyRepository,
     FileChangeRequest,
     MaxTokensExceeded,
     NoFilesException,
     ProposedIssue,
     PullRequest,
     SandboxResponse,
-    SweepContext,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.core.external_searcher import ExternalSearcher
-from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import (
     create_config_pr,
@@ -71,9 +67,7 @@ from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
-from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import (
     AssistantConversation,
@@ -98,8 +92,14 @@ from sweepai.utils.str_utils import (
     sep,
     stars_suffix,
     strip_sweep,
+    to_branch_name,
 )
-from sweepai.utils.ticket_utils import center, fetch_relevant_files, fire_and_forget_wrapper, log_error
+from sweepai.utils.ticket_utils import (
+    center,
+    fetch_relevant_files,
+    fire_and_forget_wrapper,
+    log_error,
+)
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -136,6 +136,7 @@ def on_ticket(
     tracking_id: str | None = None,
 ):
     on_ticket_start_time = time()
+    logger.info(f"Starting on_ticket with title {title} and summary {summary}")
     (
         title,
         slow_mode,
@@ -162,6 +163,7 @@ def on_ticket(
         )
         handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
         logger.add(handler)
+
     fire_and_forget_wrapper(initialize_logtail_context)()
 
     summary = summary or ""
@@ -228,7 +230,7 @@ def on_ticket(
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
     else:
         is_paying_user = True
         is_consumer_tier = False
@@ -238,16 +240,10 @@ def on_ticket(
         use_faster_model = True
 
     if not comment_id and not edited and chat_logger and not sandbox_mode:
-        fire_and_forget_wrapper(chat_logger.add_successful_ticket)(gpt3=use_faster_model)
+        fire_and_forget_wrapper(chat_logger.add_successful_ticket)(
+            gpt3=use_faster_model
+        )
 
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=issue_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=user_token,
-    )
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -294,11 +290,13 @@ def on_ticket(
         def add_emoji(reaction_content="eyes"):
             item_to_react_to = (
                 current_issue.get_comment(comment_id) if comment_id else current_issue
-                )
+            )
             item_to_react_to.create_reaction("eyes")
-        fire_and_forget_wrapper(add_emoji)()        
+
+        fire_and_forget_wrapper(add_emoji)()
+
         # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-        def remove_emoji(content_to_delete = "eyes"):
+        def remove_emoji(content_to_delete="eyes"):
             item_to_react_to = (
                 current_issue.get_comment(comment_id) if comment_id else current_issue
             )
@@ -309,6 +307,7 @@ def on_ticket(
                     and reaction.user.login == GITHUB_BOT_USERNAME
                 ):
                     item_to_react_to.delete_reaction(reaction.id)
+
         fire_and_forget_wrapper(remove_emoji)(content_to_delete="rocket")
         fire_and_forget_wrapper(current_issue.edit)(body=summary)
 
@@ -336,9 +335,9 @@ def on_ticket(
                     success = safe_delete_sweep_branch(pr, repo)
                     break
                 checked_pr_count += 1
+
         fire_and_forget_wrapper(delete_old_prs)()
 
-        # Removed 1, 3
         if not sandbox_mode:
             progress_headers = [
                 None,
@@ -353,60 +352,8 @@ def on_ticket(
                 "🛠️ Executing Sandbox",
             ]
 
-        config_pr_url = None
-
-        # Find the first comment made by the bot
         issue_comment = None
-        tickets_allocated = 5
-        if is_consumer_tier:
-            tickets_allocated = 15
-        if is_paying_user:
-            tickets_allocated = 500
-        purchased_ticket_count = (
-            chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
-        )
-        ticket_count = (
-            max(tickets_allocated - chat_logger.get_ticket_count(), 0)
-            + purchased_ticket_count
-            if chat_logger
-            else 999
-        )
-        daily_ticket_count = (
-            (
-                3 - chat_logger.get_ticket_count(use_date=True)
-                if not use_faster_model
-                else 0
-            )
-            if chat_logger
-            else 999
-        )
-
-        model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-        payment_link = "https://sweep.dev/pricing"
-        single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
-        pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
-        daily_message = (
-            f" and {daily_ticket_count} for the day"
-            if not is_paying_user and not is_consumer_tier
-            else ""
-        )
-        user_type = (
-            "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
-        )
-        gpt_tickets_left_message = (
-            f"{ticket_count} GPT-4 tickets left for the month"
-            if not is_paying_user
-            else "unlimited GPT-4 tickets"
-        )
-        purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
-        payment_message = (
-            f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
-        payment_message_start = (
-            f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
-            + (purchase_message if not is_paying_user else "")
-        )
+        payment_message, payment_message_start = get_payment_messages(chat_logger)
 
         ticket_progress.context.payment_context = PaymentContext(
             use_faster_model=use_faster_model,
@@ -417,6 +364,8 @@ def on_ticket(
             monthly_tickets_used=chat_logger.get_ticket_count() if chat_logger else 0,
         )
         ticket_progress.save()
+
+        config_pr_url = None
 
         def get_comment_header(
             index,
@@ -470,9 +419,9 @@ def on_ticket(
             if index == 4:
                 return (
                     pr_message
+                    + config_pr_message
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
-                    + config_pr_message
                 )
 
             total = len(progress_headers)
@@ -491,7 +440,7 @@ def on_ticket(
             return (
                 f"{center(sweeping_gif)}"
                 + center(
-                    f'\n\n<h3>✨ Track Sweep\'s progress on the new <a href="https://progress.sweep.dev/issues/{tracking_id}">dashboard</a>.</h3>'
+                    f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="https://progress.sweep.dev/issues/{tracking_id}">progress dashboard</a>!</h2>'
                 )
                 + f"<br/>{center(pbar)}"
                 + ("\n" + stars_suffix if index != -1 else "")
@@ -501,6 +450,7 @@ def on_ticket(
                 + f"\n\n---\n{actions_message}"
                 + sandbox_execution_message
             )
+
         cloned_repo = ClonedRepo(
             repo_full_name, installation_id=installation_id, token=user_token, repo=repo
         )
@@ -517,29 +467,9 @@ def on_ticket(
             else:
                 issue_comment.edit(first_comment)
             return {"success": False}
-        fetching_files_failed = False
-        try:
-            snippets, tree, _ = fetch_relevant_files(
-                cloned_repo,
-                title,
-                summary,
-                replies_text,
-                username,
-                metadata,
-                on_ticket_start_time,
-                tracking_id,
-                is_paying_user,
-                is_consumer_tier,
-                issue_url,
-                chat_logger,
-                ticket_progress,
-            )
-        except:
-            fetching_files_failed = True # this is handled later to make this code faster
-        logger.warning(f"Search: Duration since start: {time() - on_ticket_start_time}")
         indexing_message = (
             "I'm searching for relevant snippets in your repository. If this is your first"
-            " time using Sweep, I'm indexing your repository. You can monitor the progress using the dashboard"
+            " time using Sweep, I'm indexing your repository. You can monitor the progress using the progress dashboard"
         )
         first_comment = (
             f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I"
@@ -634,83 +564,10 @@ def on_ticket(
                     ][0]
                     issue_comment.edit(msg)
 
-        if fetching_files_failed:
-            edit_sweep_comment(
-                (
-                    "It looks like an issue has occurred around fetching the files."
-                    " Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
-                ),
-                -1,
-            )
-            raise Exception("Failed to fetch files")
         if sandbox_mode:
-            logger.info("Running in sandbox mode")
-            sweep_bot = SweepBot(
-                repo=repo, sweep_context=sweep_context, ticket_progress=ticket_progress
+            handle_sandbox_mode(
+                title, repo_full_name, repo, ticket_progress, edit_sweep_comment
             )
-            logger.info("Getting file contents")
-            file_name = title.split(":")[1].strip()
-            file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
-                "utf-8"
-            )
-            try:
-                ext = file_name.split(".")[-1]
-            except:
-                ext = ""
-            displayed_contents = file_contents.replace("```", "\`\`\`")
-            sha = repo.get_branch(repo.default_branch).commit.sha
-            permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
-            logger.info("Running sandbox")
-            edit_sweep_comment(
-                f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
-                1,
-            )
-            updated_contents, sandbox_response = sweep_bot.check_sandbox(
-                file_name, file_contents, []
-            )
-            logger.info("Sandbox finished")
-            logs = (
-                (
-                    "<br/>"
-                    + create_collapsible(
-                        f"Sandbox logs",
-                        blockquote(
-                            "\n\n".join(
-                                [
-                                    create_collapsible(
-                                        f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
-                                        f"<pre>{clean_logs(output)}</pre>",
-                                        i == len(sandbox_response.outputs) - 1,
-                                    )
-                                    for i, output in enumerate(sandbox_response.outputs)
-                                    if len(sandbox_response.outputs) > 0
-                                ]
-                            )
-                        ),
-                        opened=True,
-                    )
-                )
-                if sandbox_response
-                else ""
-            )
-
-            updated_contents = updated_contents.replace("```", "\`\`\`")
-            diff = generate_diff(file_contents, updated_contents).replace(
-                "```", "\`\`\`"
-            )
-            diff_display = (
-                f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
-                if diff
-                else f"Sandbox made no changes to {file_name} (formatters were not configured or Sweep didn't make changes)."
-            )
-
-            edit_sweep_comment(
-                f"{logs}\n{diff_display}",
-                2,
-            )
-            edit_sweep_comment("N/A", 3)
-            logger.info("Sandbox comments updated")
             return {"success": True}
 
         if len(title + summary) < 20:
@@ -756,6 +613,34 @@ def on_ticket(
                     },
                 )
                 return {"success": False}
+
+        try:
+            snippets, tree, _ = fetch_relevant_files(
+                cloned_repo,
+                title,
+                summary,
+                replies_text,
+                username,
+                metadata,
+                on_ticket_start_time,
+                tracking_id,
+                is_paying_user,
+                is_consumer_tier,
+                issue_url,
+                chat_logger,
+                ticket_progress,
+            )
+        except:
+            edit_sweep_comment(
+                (
+                    "It looks like an issue has occurred around fetching the files."
+                    " Perhaps the repo has not been initialized. If this error persists"
+                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
+                ),
+                -1,
+            )
+            raise Exception("Failed to fetch files")
+
         ticket_progress.search_progress.indexing_progress = (
             ticket_progress.search_progress.indexing_total
         )
@@ -800,7 +685,6 @@ def on_ticket(
             repo=repo,
             is_reply=bool(comments),
             chat_logger=chat_logger,
-            sweep_context=sweep_context,
             cloned_repo=cloned_repo,
             ticket_progress=ticket_progress,
         )
@@ -1007,9 +891,14 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe",
             )
-            # CREATE PR METADATA
+
             logger.info("Generating PR...")
-            pull_request = sweep_bot.generate_pull_request()
+
+            pull_request = PullRequest(
+                title="Sweep: " + title,
+                branch_name="sweep/" + to_branch_name(title),
+                content="",
+            )
             logger.info("Making PR...")
 
             ticket_progress.context.branch_name = pull_request.branch_name
@@ -1047,17 +936,12 @@ def on_ticket(
             )
 
             file_change_requests[0].status = "running"
-            svg = create_digraph_svg(file_change_requests)
-            svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
 
-            condensed_checkboxes_contents = (
-                "\n".join(
-                    [
-                        create_checkbox(f"`{filename}`", "", check == "X").strip()
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
-                + f"\n\n![{issue_number}_flowchart.svg]({svg_url})"
+            condensed_checkboxes_contents = "\n".join(
+                [
+                    create_checkbox(f"`{filename}`", "", check == "X").strip()
+                    for filename, instructions, check in checkboxes_progress
+                ]
             )
             condensed_checkboxes_collapsible = create_collapsible(
                 "Checklist", condensed_checkboxes_contents, opened=True
@@ -1130,6 +1014,7 @@ def on_ticket(
                         )
                         return True
                 return False
+
             changed_files = []
             for item in generator:
                 if isinstance(item, dict):
@@ -1143,8 +1028,6 @@ def on_ticket(
                     file_change_requests,
                 ) = item
                 changed_files.append(changed_file)
-                svg = create_digraph_svg(file_change_requests)
-                svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
                 sandbox_response: SandboxResponse | None = sandbox_response
                 logger.info(sandbox_response)
                 commit_hash: str = (
@@ -1198,19 +1081,16 @@ def on_ticket(
                     body=checkboxes_contents,
                     opened="open",
                 )
-                condensed_checkboxes_contents = (
-                    "\n".join(
-                        [
-                            checkbox_template.format(
-                                check=check,
-                                filename=filename,
-                                instructions="",
-                            ).strip()
-                            for filename, instructions, check in checkboxes_progress
-                            if not instructions.lower().startswith("run")
-                        ]
-                    )
-                    + f"\n\n![Flowchart]({svg_url})"
+                condensed_checkboxes_contents = "\n".join(
+                    [
+                        checkbox_template.format(
+                            check=check,
+                            filename=filename,
+                            instructions="",
+                        ).strip()
+                        for filename, instructions, check in checkboxes_progress
+                        if not instructions.lower().startswith("run")
+                    ]
                 )
                 condensed_checkboxes_collapsible = collapsible_template.format(
                     summary="Checklist",
@@ -1239,19 +1119,16 @@ def on_ticket(
                     for filename, instructions, check in checkboxes_progress
                 ]
             )
-            condensed_checkboxes_contents = (
-                "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions="",
-                        ).strip()
-                        for filename, instructions, check in checkboxes_progress
-                        if not instructions.lower().startswith("run")
-                    ]
-                )
-                + f"\n\n![Flowchart]({svg_url})"
+            condensed_checkboxes_contents = "\n".join(
+                [
+                    checkbox_template.format(
+                        check=check,
+                        filename=filename,
+                        instructions="",
+                    ).strip()
+                    for filename, instructions, check in checkboxes_progress
+                    if not instructions.lower().startswith("run")
+                ]
             )
             condensed_checkboxes_collapsible = collapsible_template.format(
                 summary="Checklist",
@@ -1277,6 +1154,7 @@ def on_ticket(
                 diff_text,
                 pull_request.title,
             )
+            # TODO: update the title as well
             if new_description:
                 pr_changes.body = (
                     f"{new_description}\n\nFixes"
@@ -1430,11 +1308,13 @@ def on_ticket(
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
+            heres_pr_message = f'<h1 align="center">🚀 Here\'s the PR! <a href="{pr.html_url}">#{pr.number}</a></h1>'
+            progress_message = f'<div align="center"><b>See Sweep\'s progress at <a href="https://progress.sweep.dev/issues/{tracking_id}">the progress dashboard</a>!</b></div>'
             edit_sweep_comment(
                 review_message + "\n\nSuccess! 🚀",
                 4,
                 pr_message=(
-                    f"## Here's the PR! [{pr.html_url}]({pr.html_url}). See Sweep's process at <a href=\"https://progress.sweep.dev/issues/{tracking_id}\">dashboard</a>. \n{center(payment_message_start)}"
+                    f"{center(heres_pr_message)}\n{center(progress_message)}\n{center(payment_message_start)}"
                 ),
                 done=True,
             )
@@ -1643,6 +1523,71 @@ def on_ticket(
     return {"success": True}
 
 
+def handle_sandbox_mode(
+    title, repo_full_name, repo, ticket_progress, edit_sweep_comment
+):
+    logger.info("Running in sandbox mode")
+    sweep_bot = SweepBot(repo=repo, ticket_progress=ticket_progress)
+    logger.info("Getting file contents")
+    file_name = title.split(":")[1].strip()
+    file_contents = sweep_bot.get_contents(file_name).decoded_content.decode("utf-8")
+    try:
+        ext = file_name.split(".")[-1]
+    except:
+        ext = ""
+    displayed_contents = file_contents.replace("```", "\`\`\`")
+    sha = repo.get_branch(repo.default_branch).commit.sha
+    permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
+    logger.info("Running sandbox")
+    edit_sweep_comment(
+        f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
+        1,
+    )
+    updated_contents, sandbox_response = sweep_bot.check_sandbox(
+        file_name, file_contents, []
+    )
+    logger.info("Sandbox finished")
+    logs = (
+        (
+            "<br/>"
+            + create_collapsible(
+                f"Sandbox logs",
+                blockquote(
+                    "\n\n".join(
+                        [
+                            create_collapsible(
+                                f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                                f"<pre>{clean_logs(output)}</pre>",
+                                i == len(sandbox_response.outputs) - 1,
+                            )
+                            for i, output in enumerate(sandbox_response.outputs)
+                            if len(sandbox_response.outputs) > 0
+                        ]
+                    )
+                ),
+                opened=True,
+            )
+        )
+        if sandbox_response
+        else ""
+    )
+
+    updated_contents = updated_contents.replace("```", "\`\`\`")
+    diff = generate_diff(file_contents, updated_contents).replace("```", "\`\`\`")
+    diff_display = (
+        f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
+        if diff
+        else f"Sandbox made no changes to {file_name} (formatters were not configured or Sweep didn't make changes)."
+    )
+
+    edit_sweep_comment(
+        f"{logs}\n{diff_display}",
+        2,
+    )
+    edit_sweep_comment("N/A", 3)
+    logger.info("Sandbox comments updated")
+
+
 def review_code(
     repo,
     pr_changes,
@@ -1727,3 +1672,64 @@ def get_branch_diff_text(repo, branch):
                 f"File status {file.status} not recognized"
             )  # TODO(sweep): We don't handle renamed files
     return "\n".join([f"{filename}\n{diff}" for filename, diff in pr_diffs])
+
+
+def get_payment_messages(chat_logger: ChatLogger):
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
+    else:
+        is_paying_user = True
+        is_consumer_tier = False
+        use_faster_model = False
+
+    tracking_id = chat_logger.data["tracking_id"] if chat_logger else None
+
+    # Find the first comment made by the bot
+    tickets_allocated = 5
+    if is_consumer_tier:
+        tickets_allocated = 15
+    if is_paying_user:
+        tickets_allocated = 500
+    purchased_ticket_count = (
+        chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
+    )
+    ticket_count = (
+        max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+        + purchased_ticket_count
+        if chat_logger
+        else 999
+    )
+    daily_ticket_count = (
+        (3 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
+        if chat_logger
+        else 999
+    )
+
+    model_name = "GPT-3.5" if use_faster_model else "GPT-4"
+    payment_link = "https://sweep.dev/pricing"
+    single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
+    pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
+    daily_message = (
+        f" and {daily_ticket_count} for the day"
+        if not is_paying_user and not is_consumer_tier
+        else ""
+    )
+    user_type = "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
+    gpt_tickets_left_message = (
+        f"{ticket_count} GPT-4 tickets left for the month"
+        if not is_paying_user
+        else "unlimited GPT-4 tickets"
+    )
+    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    payment_message = (
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+    payment_message_start = (
+        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        + (purchase_message if not is_paying_user else "")
+    )
+
+    return payment_message, payment_message_start

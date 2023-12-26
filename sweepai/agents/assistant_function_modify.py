@@ -54,7 +54,6 @@ def function_modify(
     seed: int = None,
 ):
     try:
-        request = f"# Request\n{request}"
 
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             if assistant_conversation:
@@ -64,6 +63,7 @@ def function_modify(
             ticket_progress.save()
 
         current_contents = file_contents
+        initial_code_valid, _ = check_code(file_path, current_contents)
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         file_contents_lines = current_contents.split("\n")
@@ -125,50 +125,61 @@ def function_modify(
                     new_contents = current_contents
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
 
-                    for replace_to_make in tool_call["replaces_to_make"]:
-                        section_letter = replace_to_make["section_id"]
-                        section_id = excel_col_to_int(section_letter)
-                        old_code = replace_to_make["old_code"].strip("\n")
-                        new_code = replace_to_make["new_code"].strip("\n")
+                    if "replaces_to_make" not in tool_call:
+                        error_message = "No replaces_to_make found in tool call."
+                    else:
+                        for replace_to_make in tool_call["replaces_to_make"]:
+                            for key in ["section_id", "old_code", "new_code"]:
+                                if key not in replace_to_make:
+                                    error_message = f"Missing {key} in replace_to_make."
+                                    break
 
-                        if section_id >= len(chunks):
-                            error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
-                            break
-                        chunk = new_chunks[section_id]
-                        if old_code not in chunk:
-                            chunks_with_old_code = [
-                                index
-                                for index, chunk in enumerate(chunks)
-                                if old_code in chunk
-                            ]
-                            chunks_with_old_code = chunks_with_old_code[:5]
-                            error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
-                            if chunks_with_old_code:
-                                error_message += (
-                                    f"\n\nDid you mean one of the following sections?"
-                                )
-                                error_message += "\n".join(
-                                    [
-                                        f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
-                                        for index in chunks_with_old_code
-                                    ]
-                                )
-                            else:
-                                error_message += f"\n\nDouble-check your indentation and spelling, and make sure there's no missing whitespace or comments."
-                            break
-                        new_chunk = chunk.replace(old_code, new_code, 1)
-                        if new_chunk == chunk:
-                            logger.warning("No changes were made to the code.")
-                        new_chunks[section_id] = new_chunk
-                        new_contents = new_contents.replace(chunk, new_chunk, 1)
-                        if new_contents == current_contents:
-                            logger.warning("No changes were made to the code.")
+                            section_letter = replace_to_make["section_id"]
+                            section_id = excel_col_to_int(section_letter)
+                            old_code = replace_to_make["old_code"].strip("\n")
+                            new_code = replace_to_make["new_code"].strip("\n")
+
+                            if section_id >= len(chunks):
+                                error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                                break
+                            chunk = new_chunks[section_id]
+                            if old_code not in chunk:
+                                chunks_with_old_code = [
+                                    index
+                                    for index, chunk in enumerate(chunks)
+                                    if old_code in chunk
+                                ]
+                                chunks_with_old_code = chunks_with_old_code[:5]
+                                error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
+                                if chunks_with_old_code:
+                                    error_message += f"\n\nDid you mean one of the following sections?"
+                                    error_message += "\n".join(
+                                        [
+                                            f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
+                                            for index in chunks_with_old_code
+                                        ]
+                                    )
+                                else:
+                                    error_message += f"\n\nDouble-check your indentation and spelling, and make sure there's no missing whitespace or comments."
+                                break
+                            new_chunk = chunk.replace(old_code, new_code, 1)
+                            if new_chunk == chunk:
+                                logger.warning("No changes were made to the code.")
+                            new_chunks[section_id] = new_chunk
+                            new_contents = new_contents.replace(chunk, new_chunk, 1)
+                            if new_contents == current_contents:
+                                logger.warning("No changes were made to the code.")
 
                     if not error_message and new_contents == current_contents:
                         error_message = "No changes were made, make sure old_code and new_code are not the same."
 
                     if not error_message:
-                        is_valid, message = check_code(file_path, new_contents)
+                        # If the initial code failed, we don't need to/can't check the new code
+                        is_valid, message = (
+                            (True, "")
+                            if not initial_code_valid
+                            else check_code(file_path, new_contents)
+                        )
                         if is_valid:
                             diff = generate_diff(current_contents, new_contents)
                             current_contents = new_contents

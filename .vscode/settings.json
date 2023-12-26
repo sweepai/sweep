@@ -7,5 +7,11 @@
     "python.languageServer": "Pylance",
     "editor.defaultFormatter": "ms-python.black-formatter",
     "isort.check": true,
-    "isort.importStrategy": "fromEnvironment"
+    "isort.importStrategy": "fromEnvironment",
+    {
+        "vscode_custom_css.imports": [
+          "/home/kevin/.vscode/extensions/thecodemonkey.synthwave-x-fluoromachine-epic-animations-1.4.13/synthwave-x-fluoromachine.css",
+          "/home/kevin/.vscode/extensions/thecodemonkey.synthwave-x-fluoromachine-epic-animations-1.4.13/epic-80s-transitions.css"
+        ]
+    }
 }

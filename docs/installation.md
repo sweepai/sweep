@@ -1,7 +1,8 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
 
-⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial).*
+## ⚠️ Be sure to follow these instructions in your own repository.
+Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial).*
 
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)

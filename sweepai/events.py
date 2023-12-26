@@ -184,10 +184,14 @@ class CheckRunCompleted(BaseModel):
         class PullRequest(BaseModel):
             number: int
 
+        class CheckSuite(BaseModel):
+            head_branch: str
+
         conclusion: str
         html_url: str
         pull_requests: list[PullRequest]
         completed_at: str
+        check_suite: CheckSuite
 
         @property
         def run_id(self):

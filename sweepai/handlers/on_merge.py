@@ -88,6 +88,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         return
 
     rules = get_rules(repo)
+    rules = [rule for rule in rules if len(rule) > 0]
     if not rules:
         return
     for rule in rules:
@@ -103,7 +104,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
                 repo_full_name=request_dict["repository"]["full_name"],
                 installation_id=request_dict["installation"]["id"],
                 user_token=user_token,
-                use_faster_model=chat_logger.use_faster_model(g),
+                use_faster_model=chat_logger.use_faster_model(),
                 username=commit_author,
                 chat_logger=chat_logger,
                 rule=rule,

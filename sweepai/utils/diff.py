@@ -1,7 +1,6 @@
 import difflib
 import re
 
-from sweepai.core.entities import SweepContext
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.search_and_replace import Match, find_best_match
@@ -243,7 +242,6 @@ def generate_new_file_from_patch(
     modify_file_response: str,
     old_file_content: str,
     chunk_offset: int = 0,
-    sweep_context: SweepContext = None,
 ):
     old_file_lines = old_file_content.split("\n")
 
@@ -291,17 +289,10 @@ def generate_new_file_from_patch(
 
     if len(errors) > 0:
         log = "\n\n".join(errors)
-        if sweep_context:
-            discord_log_error(
-                f"{sweep_context.issue_url}\nModify Parsing Errors {'gpt3.5' if sweep_context.use_faster_model else 'gpt4'}: \n"
-                + log,
-                priority=2 if sweep_context.use_faster_model else 0,
-            )
-        else:
-            discord_log_error(
-                f"Modify Parsing Errors gpt3.5: \n" + log,
-                priority=2,
-            )
+        discord_log_error(
+            f"Modify Parsing Errors gpt3.5: \n" + log,
+            priority=2,
+        )
 
     result = "\n".join(old_file_lines)
     return result, errors
