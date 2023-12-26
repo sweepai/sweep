@@ -373,5 +373,4 @@ describe('CallToAction component', () => {
 """
 
 
-if __name__ == "__main__":
-    print(check_syntax("CallToAction.test.tsx", test_code))
+
