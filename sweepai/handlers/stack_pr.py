@@ -1,6 +1,7 @@
 import time
 
 from github.PullRequest import PullRequest
+from loguru import logger
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.core import entities
@@ -9,7 +10,7 @@ from sweepai.handlers.create_pr import create_pr_changes
 from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.progress import TicketContext, TicketProgress
+from sweepai.utils.progress import TicketContext, TicketProgress, TicketProgressStatus
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import blockquote, to_branch_name
 from sweepai.utils.ticket_utils import center, fetch_relevant_files
@@ -30,9 +31,9 @@ def stack_pr(
 
     status_message = center(
         f"{sweeping_gif}\n\n"
-        + f'Track the progress of this issue <a href="https://progress.sweep.dev/issue/{tracking_id}">here</a>.'
+        + f'Fixing PR: track the progress <a href="https://progress.sweep.dev/issues/{tracking_id}">here</a>.'
     )
-    header = f"{status_message}\n---\n\nI'm currently updating this PR to address the following:\n\n{blockquote(request)}"
+    header = f"{status_message}\n---\n\nI'm currently fixing this PR to address the following:\n\n{blockquote(request)}"
     comment = pr.create_issue_comment(body=header)
 
     def edit_comment(body):
@@ -47,12 +48,16 @@ def stack_pr(
     metadata = {}
     start_time = time.time()
 
+    title = request
+    if len(title) > 50:
+        title = title[:50] + "..."
     ticket_progress = TicketProgress(
         tracking_id=tracking_id,
         context=TicketContext(
-            title=request,
+            title=title,
             description="",
             repo_full_name=repo_full_name,
+            branch_name="sweep/" + to_branch_name(request),
             issue_number=pr_number,
             is_public=repo.private is False,
             start_time=time.time(),
@@ -93,6 +98,8 @@ def stack_pr(
         )
         raise Exception("Failed to fetch files")
 
+    ticket_progress.status = TicketProgressStatus.PLANNING
+    ticket_progress.save()
     edit_comment("Generating plan by analyzing files... (step 1/3)")
 
     human_message = HumanMessagePrompt(
@@ -115,10 +122,11 @@ def stack_pr(
     )
     file_change_requests, plan = sweep_bot.get_files_to_change(snippets, cloned_repo)
 
+    ticket_progress.status = TicketProgressStatus.CODING
+    ticket_progress.save()
     edit_comment("Making changes according to plan... (step 2/3)")
-
     pull_request = entities.PullRequest(
-        title="Sweep: " + request,
+        title=title,
         branch_name="sweep/" + to_branch_name(request),
         content="",
     )
@@ -134,6 +142,9 @@ def stack_pr(
     )
 
     for item in generator:
+        if isinstance(item, dict):
+            response = item
+            break
         (
             file_change_request,
             changed_file,
@@ -141,8 +152,10 @@ def stack_pr(
             commit,
             file_change_requests,
         ) = item
-        print(file_change_request, changed_file, sandbox_response, commit)
+        logger.info("Status", file_change_request.succeeded)
 
+    ticket_progress.status = TicketProgressStatus.COMPLETE
+    ticket_progress.save()
     edit_comment("Done creating pull request.")
 
     diff_text = get_branch_diff_text(repo, pull_request.branch_name)
@@ -158,9 +171,10 @@ def stack_pr(
         base=pr.head.ref,
     )
 
-    edit_comment(
-        f"Done creating pull request! **Pull Request:** {github_pull_request.html_url}"
-    )
+    ticket_progress.context.pr_id = github_pull_request.number
+    ticket_progress.context.done_time = time.time()
+    ticket_progress.save()
+    edit_comment(f"✨ **Created Pull Request:** {github_pull_request.html_url}")
 
     return {"success": True}
 

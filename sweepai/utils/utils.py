@@ -9,12 +9,12 @@ import traceback
 import uuid
 from dataclasses import dataclass
 from io import StringIO
+from typing import Optional
 
 import tiktoken
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
 from tree_sitter import Node
-from typing import Optional
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
@@ -223,11 +223,10 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
 
-    # TODO: integrate this and ensure it works
-    # if ext in ("tsx", "ts"):
-    #     is_valid, error_message = check_valid_typescript(code)
-    #     if not is_valid:
-    #         return is_valid, error_message
+    if ext in ("tsx", "ts"):
+        is_valid, error_message = check_valid_typescript(code)
+        if not is_valid:
+            return is_valid, error_message
 
     def find_deepest_error(node: Node) -> Optional[Node]:
         deepest_error = None
