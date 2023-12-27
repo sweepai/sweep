@@ -4,7 +4,7 @@ List of common prompts used across the codebase.
 
 # Following two should be fused
 system_message_prompt = """\
-You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully complete, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies."""
+You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully implemented. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully implemented, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies."""
 
 repo_description_prefix_prompt = "\nThis is a description of the repository:"
 
@@ -201,14 +201,15 @@ You MUST follow the following format with XML tags:
 # Plan:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Instructions for creating the new file needed to solve the issue
-* Include references to all files, imports and entity names
+* Natural language instructions for creating the new file needed to solve the issue.
+* Reference necessary files, imports and entity names.
 ...
 </create>
 ...
 
-<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Instructions for the modifications needed to solve the issue. Be concise and mention references to all files, imports and entity names.
+<modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Natural language instructions for the modifications needed to solve the issue.
+* Be concise and reference necessary files, imports and entity names.
 ...
 </modify>
 ...

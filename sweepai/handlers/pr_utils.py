@@ -9,7 +9,7 @@ from sweepai.config.client import (
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.documentation_searcher import extract_relevant_docs
-from sweepai.core.entities import NoFilesException, SandboxResponse, SweepContext
+from sweepai.core.entities import NoFilesException, SandboxResponse
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.sweep_bot import SweepBot
 
@@ -92,9 +92,6 @@ def make_pr(
         is_reply=False,
         chat_logger=chat_logger,
         cloned_repo=cloned_repo,
-        sweep_context=SweepContext(
-            issue_url="", use_faster_model=use_faster_model, token=user_token
-        ),
     )
 
     non_python_count = sum(
@@ -153,7 +150,11 @@ def make_pr(
         if DISCORD_FEEDBACK_WEBHOOK_URL is not None
         else ""
     )
-    rule_description = f'### I created this PR to address this rule: \n"{rule}"\n'
+    rule_description = (
+        f'### I created this PR to address this rule: \n"{rule}"\n'
+        if rule
+        else "I created this PR to fix the failing GitHub Actions."
+    )
     pr = repo.create_pull(
         title=pr_changes.title,
         body=pr_actions_message + rule_description + pr_changes.body,

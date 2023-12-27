@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from threading import Thread
 
 from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
@@ -45,6 +46,9 @@ class AssistantConversation(BaseModel):
     messages: list[AssistantAPIMessage] = []
     is_active: bool = True
     status: AssistantStatus = "in_progress"
+    assistant_id: str = ""
+    run_id: str = ""
+    thread_id: str = ""
 
     class Config:
         use_enum_values = True
@@ -133,6 +137,9 @@ class AssistantConversation(BaseModel):
             messages=messages,
             status=run.status,
             is_active=run.status not in ("succeeded", "failed"),
+            assistant_id=assistant_id,
+            run_id=run_id,
+            thread_id=thread_id,
         )
 
     def update_from_ids(
@@ -226,7 +233,7 @@ class TicketProgress(BaseModel):
         doc = collection.find_one({"tracking_id": tracking_id})
         return cls(**doc)
 
-    def save(self):
+    def _save(self):
         try:
             if MONGODB_URI is None:
                 return None
@@ -242,6 +249,16 @@ class TicketProgress(BaseModel):
             )
         except Exception as e:
             discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
+
+    def save(self):
+        thread = Thread(target=self._save)
+        thread.start()
+
+def create_index():
+    # killer code to make everything way faster
+    db = global_mongo_client["progress"]
+    collection = db["ticket_progress"]
+    collection.create_index("tracking_id", unique=True)
 
 
 if __name__ == "__main__":

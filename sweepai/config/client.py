@@ -303,6 +303,6 @@ DEFAULT_RULES = [
 ]
 
 DEFAULT_RULES_STRING = """\
-- "All new business logic should have corresponding unit tests."
-- "Refactor large functions to be more modular."
-- "Add docstrings to all functions and file headers.\""""
+  - "All new business logic should have corresponding unit tests."
+  - "Refactor large functions to be more modular."
+  - "Add docstrings to all functions and file headers.\""""

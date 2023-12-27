@@ -198,9 +198,15 @@ class FileChangeRequest(RegexMatchableBaseModel):
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
         if result.start_line:
-            result.start_line = int(result.start_line)
+            try:
+                result.start_line = int(result.start_line)
+            except ValueError:
+                result.start_line = None
         if result.end_line:
-            result.end_line = int(result.end_line)
+            try:
+                result.end_line = int(result.end_line)
+            except ValueError:
+                result.start_line = None
         return result
 
     @property
@@ -286,7 +292,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
                 self.new_content.splitlines(keepends=True),
             )
             diff_text = "".join(diff)
-            return diff_text
+            return f"<pre>{diff_text}</pre>"
         return ""
 
 
@@ -514,38 +520,6 @@ class MockPR(BaseModel):
 
     def create_issue_comment(self, *args, **kwargs):
         pass
-
-
-class SweepContext(BaseModel):  # type: ignore
-    class Config:
-        arbitrary_types_allowed = True
-
-    # username: str
-    issue_url: str
-    use_faster_model: bool
-    # is_paying_user: bool
-    # repo: Repository
-    token: Any = None
-
-    _static_instance: Any = None
-
-    @classmethod
-    def create(cls, **kwargs):
-        sweep_context = cls(**kwargs)
-        if SweepContext._static_instance is None:
-            SweepContext._static_instance = sweep_context
-        return sweep_context
-
-    @staticmethod
-    def log_error(exception, traceback):
-        pass
-
-    @staticmethod
-    def log(message):
-        pass
-
-    def __str__(self):
-        return f"{self.issue_url}, {self.use_faster_model}"
 
 
 @dataclass

@@ -1,7 +1,6 @@
 import base64
 import os
 
-import requests
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -127,14 +126,6 @@ blocked_dirs: []
 # docs:
 #   - PyGitHub: ["https://pygithub.readthedocs.io/en/latest/", "We use pygithub to interact with the GitHub API"]
 docs: []
-
-# Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
-sandbox:
-  install:
-    - trunk init
-  check:
-    - trunk fmt {{file_path}} || return 0
-    - trunk check --fix --print-failures {{file_path}}
 """,
 )
 
@@ -178,22 +169,8 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
 SANDBOX_URL = os.environ.get("SANDBOX_URL")
 if SANDBOX_URL is None:
-    try:
-        requests.get("http://0.0.0.0:8081/health").text.strip()
-        SANDBOX_URL = "http://0.0.0.0:8081"
-    except:
-        pass
-    try:
-        requests.get("http://sandbox-web:8080/health").text.strip()
-        SANDBOX_URL = "http://sandbox-web:8080"
-    except:
-        pass
+    SANDBOX_URL = "http://0.0.0.0:8081"
 
-
-if SANDBOX_URL is not None:
-    logger.print(f"Using Sandbox URL: {SANDBOX_URL}")
-else:
-    logger.print("No Sandbox URL found.")
 
 MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
 

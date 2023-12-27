@@ -188,9 +188,7 @@ def get_deeplake_vs_from_repo(
         cloned_repo, sweep_config, repo_full_name, TicketProgress(tracking_id="none")
     )
     # scoring for vector search
-    files_to_scores = compute_vector_search_scores(
-        file_list, cloned_repo, repo_full_name
-    )
+    files_to_scores = compute_vector_search_scores(file_list, cloned_repo)
 
     collection_name, documents, ids, metadatas = prepare_documents_metadata_ids(
         snippets, cloned_repo, files_to_scores, start, repo_full_name
@@ -226,7 +224,7 @@ def prepare_documents_metadata_ids(
     return collection_name, documents, ids, metadatas
 
 
-def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
+def compute_vector_search_scores(file_list, cloned_repo):
     files_to_scores = {}
     score_factors = []
     for file_path in tqdm(file_list):
@@ -254,9 +252,9 @@ def compute_vector_search_scores(file_list, cloned_repo, repo_full_name):
     # compute all scores
     all_scores = get_scores(score_factors)
     files_to_scores = {
-        file_path: score for file_path, score in zip(file_list, all_scores)
+        file_path[len(cloned_repo.cached_dir) + 1 :]: score
+        for file_path, score in zip(file_list, all_scores)
     }
-    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
     return files_to_scores
 
 
@@ -274,7 +272,6 @@ def prepare_lexical_search_index(
         len_repo_cache_dir=len(cloned_repo.cached_dir) + 1,
         ticket_progress=ticket_progress,
     )
-    logger.print("Prepared index from snippets")
     return file_list, snippets, index
 
 

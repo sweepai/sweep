@@ -4,7 +4,11 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from sweepai.agents.assistant_modify import new_modify
+from sweepai.agents.assistant_function_modify import (
+    excel_col_to_int,
+    function_modify,
+    int_to_excel_col,
+)
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
@@ -183,21 +187,6 @@ def strip_backticks(s: str) -> str:
     return s
 
 
-def int_to_excel_col(n):
-    result = ""
-    while n > 0:
-        n, remainder = divmod(n - 1, 26)
-        result = chr(65 + remainder) + result
-    return result
-
-
-def excel_col_to_int(s):
-    result = 0
-    for char in s:
-        result = result * 26 + (ord(char) - 64)
-    return result - 1
-
-
 def convert_comment_to_deletion(original, updated):
     # check both are single lines
     if "\n" in original or "\n" in updated:
@@ -272,8 +261,9 @@ class ModifyBot:
         cloned_repo: ClonedRepo,
         chunking: bool = False,
         assistant_conversation: AssistantConversation | None = None,
+        seed: str | None = None,
     ):
-        new_file = new_modify(
+        new_file = function_modify(
             request=file_change_request.instructions,
             file_path=os.path.join(cloned_repo.repo_dir, file_path),
             file_contents=file_contents,
@@ -281,6 +271,7 @@ class ModifyBot:
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,
             assistant_conversation=assistant_conversation,
+            seed=seed,
         )
         if new_file is not None:
             return add_auto_imports(
@@ -339,7 +330,7 @@ class ModifyBot:
                     chunking=chunking,
                     analysis_and_identification=analysis_and_identification,
                 )
-        new_file = add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
+        # new_file = add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
         return new_file
 
     def get_snippets_to_modify(

@@ -1,3 +1,4 @@
+import multiprocessing
 import re
 import traceback
 from collections import Counter, defaultdict
@@ -12,6 +13,14 @@ from sweepai.logn import logger
 from sweepai.utils.progress import TicketProgress
 
 
+def compute_document_tokens(
+    content: str,
+) -> list[str]:  # method that offloads the computation to a separate process
+    tokenizer = CodeTokenizer()
+    tokens = [token.text for token in tokenizer(content)]
+    return tokens
+
+
 class CustomIndex:
     def __init__(self):
         self.inverted_index = defaultdict(list)
@@ -22,13 +31,12 @@ class CustomIndex:
         self.metadata = {}  # Store custom metadata here
         self.tokenizer = CodeTokenizer()
 
-    def add_document(self, title, content, metadata={}):
+    def add_document(self, title: str, tokens: list[str], metadata: dict = {}) -> None:
         doc_id = title  # You can use title as doc_id or make it more unique
         self.metadata[doc_id] = metadata
-        self.index_document(doc_id, title + content)
+        self.index_document(doc_id, tokens)
 
-    def index_document(self, doc_id, content):
-        tokens = [token.text for token in self.tokenizer(content)]
+    def index_document(self, doc_id: str, tokens: list[str]) -> None:
         doc_length = len(tokens)
         self.doc_lengths[doc_id] = doc_length
         self.avg_doc_length = sum(self.doc_lengths.values()) / len(self.doc_lengths)
@@ -37,7 +45,7 @@ class CustomIndex:
         for token, freq in token_freq.items():
             self.inverted_index[token].append((doc_id, freq))
 
-    def bm25(self, doc_id, term, term_freq):
+    def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
         num_docs = len(self.doc_lengths)
         idf = log(
             ((num_docs - len(self.inverted_index[term])) + 0.5)
@@ -51,7 +59,7 @@ class CustomIndex:
         )
         return idf * tf
 
-    def search_index(self, query):
+    def search_index(self, query: str) -> list[tuple[str, float, dict]]:
         query_tokens = [token.text for token in self.tokenizer(query)]
         scores = defaultdict(float)
 
@@ -70,7 +78,11 @@ class CustomIndex:
         return results_with_metadata
 
 
-def tokenize_call(code):
+word_pattern = re.compile(r"\b\w+\b")
+variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
+
+
+def tokenize_call(code: str) -> list[Token]:
     def check_valid_token(token):
         return token and len(token) > 1
 
@@ -96,10 +108,8 @@ def tokenize_call(code):
                     )
                     pos += 1
                 offset += len(part) + 1
-        elif re.search(r"[A-Z][a-z]|[a-z][A-Z]", text):  # pascal and camelcase
-            parts = re.findall(
-                r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))", text
-            )  # first one "MyVariable" second one "myVariable" third one "MYVariable"
+        elif parts := variable_pattern.findall(text):  # pascal and camelcase
+            # first one "MyVariable" second one "myVariable" third one "MYVariable"
             offset = 0
             for part in parts:
                 if check_valid_token(part):
@@ -129,7 +139,7 @@ def tokenize_call(code):
     return valid_tokens
 
 
-def construct_bigrams(tokens):
+def construct_bigrams(tokens: list[Token]) -> list[Token]:
     res = []
     prev_token = None
     for token in tokens:
@@ -146,7 +156,7 @@ def construct_bigrams(tokens):
     return res
 
 
-def construct_trigrams(tokens):
+def construct_trigrams(tokens: list[Token]) -> list[Token]:
     res = []
     prev_prev_token = None
     prev_token = None
@@ -196,10 +206,8 @@ class Document:
 
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
-    from tqdm import tqdm
-
     docs = []
-    for snippet in tqdm(snippets):
+    for snippet in snippets:
         docs.append(
             Document(
                 title=snippet.file_path[len_repo_cache_dir:],
@@ -212,32 +220,31 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 
 
 def prepare_index_from_snippets(
-    snippets, len_repo_cache_dir=0, ticket_progress: TicketProgress | None = None
-):
-    all_docs = snippets_to_docs(snippets, len_repo_cache_dir)
+    snippets: list[Snippet], len_repo_cache_dir: int = 0, ticket_progress: TicketProgress | None = None
+) -> CustomIndex | None:
+    all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
-    # Create the index based on the schema
     index = CustomIndex()
     if ticket_progress:
         ticket_progress.search_progress.indexing_total = len(all_docs)
         ticket_progress.save()
+    all_tokens = []
     try:
-        for i, doc in tqdm(enumerate(all_docs), total=len(all_docs)):
-            if i % 200 == 0:
-                if ticket_progress is not None:
+        with multiprocessing.Pool(processes=2) as p:
+            for i, document_tokens in enumerate(
+                p.imap(compute_document_tokens, [doc.content for doc in all_docs])
+            ):
+                all_tokens.append(document_tokens)
+                if ticket_progress and i % 200 == 0:
                     ticket_progress.search_progress.indexing_progress = i
                     ticket_progress.save()
+        for doc, document_tokens in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
             index.add_document(
-                title=f"{doc.title}:{doc.start}:{doc.end}", content=doc.content
+                title=f"{doc.title}:{doc.start}:{doc.end}", tokens=document_tokens
             )
-        if ticket_progress is not None:
-            ticket_progress.search_progress.indexing_progress = (
-                ticket_progress.search_progress.indexing_total
-            )
-            ticket_progress.save()
     except FileNotFoundError as e:
-        logger.error(e)
+        logger.exception(e)
 
     return index
 
@@ -248,7 +255,11 @@ class Documentation:
     content: str
 
 
-def prepare_index_from_docs(docs):
+def prepare_index_from_docs(docs: list[tuple[str, str]]) -> CustomIndex | None:
+    """Prepare an index from a list of documents.
+
+    This function takes a list of documents as input and returns an index.
+    """
     all_docs = [Documentation(url, content) for url, content in docs]
     if len(all_docs) == 0:
         return None
@@ -256,13 +267,20 @@ def prepare_index_from_docs(docs):
     index = CustomIndex()
     try:
         for doc in tqdm(all_docs, total=len(all_docs)):
-            index.add_document(title=f"{doc.url}", content=doc.content)
+            index.add_document(
+                title=f"{doc.url}", tokens=compute_document_tokens(doc.content)
+            )
     except FileNotFoundError as e:
-        logger.error(e)
+        logger.exception(e)
     return index
 
 
-def search_docs(query, index: CustomIndex):
+def search_docs(query: str, index: CustomIndex) -> dict[str, float]:
+    """Search the documents based on a query and an index.
+
+    This function takes a query and an index as input and returns a dictionary of document IDs
+    and their corresponding scores.
+    """
     """Title, score, content"""
     if index == None:
         return {}
@@ -284,6 +302,11 @@ def search_docs(query, index: CustomIndex):
 
 
 def search_index(query, index: CustomIndex):
+    """Search the index based on a query.
+
+    This function takes a query and an index as input and returns a dictionary of document IDs
+    and their corresponding scores.
+    """
     """Title, score, content"""
     if index == None:
         return {}
@@ -307,6 +330,5 @@ def search_index(query, index: CustomIndex):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.print(e)
-        traceback.print_exc()
+        logger.exception(e)
         return {}

@@ -5,7 +5,7 @@ UPDATES_MESSAGE = """\
 
 * We just released a [dashboard](https://progress.sweep.dev) to track Sweep's progress on your issue in real-time, showing every stage of the process – from search to planning and coding.
 * Sweep uses OpenAI's latest Assistant API to **plan code changes** and **modify code**! This is 3x faster and *significantly* more reliable as it allows Sweep to edit code and validate the changes in tight iterations, the same way as a human would.
-"""
+* Try using the GitHub issues extension to create Sweep issues directly from your editor! [GitHub Issues and Pull Requests](https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-pull-request-github)."""
 
 sep = "\n---\n"
 bot_suffix_starring = ""
@@ -88,3 +88,14 @@ def clean_logs(logs: str):
 def extract_lines(text: str, start: int, end: int):
     lines = text.splitlines(keepends=True)
     return "\n".join(lines[max(0, start) : min(len(lines), end)])
+
+
+def add_line_numbers(text: str, start: int = 0):
+    lines = text.splitlines(keepends=True)
+    return "".join(f"{start + i} | {line}" for i, line in enumerate(lines))
+
+
+def to_branch_name(s, max_length=40):
+    branch_name = s.strip().lower().replace(" ", "_")
+    branch_name = re.sub(r"[^a-z0-9_]", "", branch_name)
+    return branch_name[:max_length]

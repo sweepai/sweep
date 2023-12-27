@@ -1,9 +1,9 @@
 import json
 from datetime import datetime, timedelta
+from threading import Thread
 from typing import Any
 
 import requests
-from geopy import Nominatim
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
@@ -13,7 +13,6 @@ from sweepai.config.server import (
     DISCORD_WEBHOOK_URL,
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
-    SUPPORT_COUNTRY,
 )
 from sweepai.logn import logger
 
@@ -65,7 +64,7 @@ class ChatLogger(BaseModel):
                 logger.warning("Chat history could not connect to MongoDB")
                 logger.warning(e)
 
-    def add_chat(self, additional_data):
+    def _add_chat(self, additional_data):
         if self.chat_collection is None:
             logger.error("Chat collection is not initialized")
             return
@@ -78,7 +77,11 @@ class ChatLogger(BaseModel):
         self.index += 1
         self.chat_collection.insert_one(document)
 
-    def add_successful_ticket(self, gpt3=False):
+    def add_chat(self, additional_data):
+        thread = Thread(target=self._add_chat, args=(additional_data,))
+        thread.start()
+
+    def _add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return
@@ -105,6 +108,10 @@ class ChatLogger(BaseModel):
             )
 
         logger.info(f"Added Successful Ticket for {username}")
+
+    def add_successful_ticket(self, gpt3=False):
+        thread = Thread(target=self._add_successful_ticket, args=(gpt3,))
+        thread.start()
 
     def _cache_key(self, username, field, metadata=""):
         return f"{username}_{field}_{metadata}"
@@ -158,7 +165,7 @@ class ChatLogger(BaseModel):
     def is_paying_user(self):
         return self._get_user_field("is_paying_user")
 
-    def use_faster_model(self, g=None):
+    def use_faster_model(self):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return True
@@ -167,29 +174,6 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 500 and purchased_tickets == 0
         if self.is_consumer_tier():
             return self.get_ticket_count() >= 20 and purchased_tickets == 0
-
-        try:
-            if g != None:
-                loc_user = g.get_user(self.data["username"]).location
-                loc = Nominatim(user_agent="location_checker").geocode(
-                    loc_user, exactly_one=True
-                )
-                g = False
-                for c in SUPPORT_COUNTRY:
-                    if c.lower() in loc.raw.get("display_name").lower():
-                        g = True
-                        break
-                if not g:
-                    return (
-                        self.get_ticket_count() >= 5
-                        or self.get_ticket_count(use_date=True) >= 1
-                    )
-        except SystemExit:
-            raise SystemExit
-        except:
-            pass
-
-        # Non-trial users can only create 2 GPT-4 tickets per day
         return (
             self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
         ) and purchased_tickets == 0

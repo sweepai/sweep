@@ -1,3 +1,6 @@
+import hashlib
+import time
+
 from github.Repository import Repository
 from loguru import logger
 
@@ -12,7 +15,7 @@ from sweepai.config.server import MONGODB_URI
 from sweepai.core.post_merge import PostMerge
 from sweepai.events import IssueCommentRequest
 from sweepai.handlers.on_merge import comparison_to_diff
-from sweepai.handlers.pr_utils import make_pr
+from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import ButtonList, check_button_title_match
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -125,21 +128,16 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
         changes_required, issue_title, issue_description = PostMerge(
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
+        tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
         if changes_required:
-            new_pr = make_pr(
-                title="[Sweep Rules] " + issue_title,
-                repo_description=repo.description,
-                summary=f"Apply this change: {rule}\n{issue_description}",
+            new_pr = stack_pr(
+                request=issue_description
+                + "\n\nThis issue was created to address the following rule:\n"
+                + rule,
+                pr_number=request_dict["issue"]["number"],
+                username=request_dict["sender"]["login"],
                 repo_full_name=request_dict["repository"]["full_name"],
                 installation_id=request_dict["installation"]["id"],
-                user_token=user_token,
-                use_faster_model=chat_logger.use_faster_model(gh_client),
-                username=request_dict["sender"]["login"],
-                chat_logger=chat_logger,
-                branch_name=pr.head.ref,
-                rule=rule,
-            )
-            pr.create_issue_comment(
-                f"✨ **Created PR: {new_pr.html_url}** to fix `{rule}`.\n This PR was made against the `{pr.head.ref}` branch, not your main branch, so it's safe to merge if it looks good!"
+                tracking_id=tracking_id,
             )
             posthog.capture(request_dict["sender"]["login"], "rule_pr_created")
