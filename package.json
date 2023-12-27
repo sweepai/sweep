@@ -1,6 +1,0 @@
-{
-	"dependencies": {
-		"@emotion/styled": "^11.11.0",
-		"prettier": "^3.0.1"
-	}
-}

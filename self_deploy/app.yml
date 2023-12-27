@@ -144,4 +144,4 @@ description: Self-hosted Sweep, an AI-powered junior developer
 # Default: true
 public: true
 
-# redirect_url: https://github.com/sweepai/sweep/blob/main/docs/installation.md
+# redirect_url: https://docs.sweep.dev/#-how-to-use-sweep

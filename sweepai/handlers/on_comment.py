@@ -22,13 +22,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.documentation_searcher import extract_relevant_docs
-from sweepai.core.entities import (
-    FileChangeRequest,
-    MockPR,
-    NoFilesException,
-    Snippet,
-    SweepContext,
-)
+from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -154,22 +148,13 @@ def on_comment(
 
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
-        use_faster_model = chat_logger.use_faster_model(g)
+        use_faster_model = chat_logger.use_faster_model()
     else:
         # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
         is_paying_user = True
         use_faster_model = False
 
     assignee = pr.assignee.login if pr.assignee else None
-
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=pr.html_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=_token,
-    )
 
     metadata = {
         "repo_full_name": repo_full_name,
@@ -238,7 +223,9 @@ def on_comment(
         branch_name = (
             pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
         )
-        cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name, repo=repo, token=_token)
+        cloned_repo = ClonedRepo(
+            repo_full_name, installation_id, branch=branch_name, repo=repo, token=_token
+        )
 
         # Generate diffs for this PR
         pr_diff_string = None
@@ -342,7 +329,6 @@ def on_comment(
             repo=repo,
             chat_logger=chat_logger,
             model=DEFAULT_GPT35_MODEL if use_faster_model else DEFAULT_GPT4_32K_MODEL,
-            sweep_context=sweep_context,
             cloned_repo=cloned_repo,
         )
     except Exception as e:
