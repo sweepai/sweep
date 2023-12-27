@@ -693,7 +693,7 @@ def on_ticket(
         sweep_yml_exists = False
         sweep_yml_failed = False
         for content_file in repo.get_contents(""):
-            if content_file.name == "sweep.yaml":
+            if content_file.name == "sweep.yaml" or content_file.name == "sweep.yml":
                 sweep_yml_exists = True
 
                 # Check if YAML is valid

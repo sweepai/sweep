@@ -670,10 +670,10 @@ def on_ticket(
         sweep_context=sweep_context,
     )
 
-    # Check repository for sweep.yml file.
+    # Check repository for sweep.yaml/sweep.yml file.
     sweep_yml_exists = False
     for content_file in repo.get_contents(""):
-        if content_file.name == "sweep.yaml":
+        if content_file.name == "sweep.yaml" or content_file.name == "sweep.yml":
             sweep_yml_exists = True
             break
 

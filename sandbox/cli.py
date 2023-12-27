@@ -51,6 +51,8 @@ class Sandbox(BaseModel):
     def from_config(cls, path: str = "sweep.yaml"):
         if os.path.exists(path):
             return cls.from_yaml(open(path).read())
+        elif os.path.exists(path.replace(".yaml", ".yml")):
+            return cls.from_yaml(open(path.replace(".yaml", ".yml")).read())
         else:
             return cls()
 
@@ -100,6 +102,9 @@ def copy_to(container):
 def get_sandbox_from_config():
     if os.path.exists("sweep.yaml"):
         config = yaml.load(open("sweep.yaml", "r"), Loader=yaml.FullLoader)
+        return Sandbox(**config.get("sandbox", {}))
+    elif os.path.exists("sweep.yml"):
+        config = yaml.load(open("sweep.yml", "r"), Loader=yaml.FullLoader)
         return Sandbox(**config.get("sandbox", {}))
     else:
         return Sandbox()

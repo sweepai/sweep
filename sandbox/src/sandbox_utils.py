@@ -90,13 +90,19 @@ class Sandbox(BaseModel):
     def from_config(cls, path: str = "sweep.yaml"):
         if os.path.exists(path):
             return cls.from_yaml(open(path).read())
+        elif os.path.exists(path.replace(".yaml", ".yml")):
+            return cls.from_yaml(open(path.replace(".yaml", ".yml")).read())
         else:
             return cls()
 
     @classmethod
     def from_directory(cls, path: str):
-        if os.path.exists(os.path.join(path, "sweep.yaml")):
-            sandbox = cls.from_yaml(open(os.path.join(path, "sweep.yaml")).read())
+        if os.path.exists(os.path.join(path, "sweep.yaml")) or os.path.exists(os.path.join(path, "sweep.yml")):
+            if os.path.exists(os.path.join(path, "sweep.yaml")):
+                sandbox = cls.from_yaml(open(os.path.join(path, "sweep.yaml")).read())
+            else:
+                sandbox = cls.from_yaml(open(os.path.join(path, "sweep.yml")).read())
+
             is_default_sandbox = True
             if sandbox.install != ["trunk init"]:
                 is_default_sandbox = False
