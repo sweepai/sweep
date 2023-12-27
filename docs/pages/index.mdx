@@ -26,11 +26,11 @@ You can use Sweep to create pull requests - a set of code changes that can be in
 ### Creating Pull Requests from an Issue
 First, you can assign Sweep a task like squashing an old bug in your backlog. To do this, create or use an existing GitHub issue. This issue should be detailed enough for a junior engineer (Sweep) to find the correct files and make the appropriate code changes.
 
-### Assigning Sweep to an Existing Issue
+#### Assigning Sweep to an Existing Issue
 To have Sweep create a PR for an existing issue, label the issue with the purple "Sweep" label (added to your repository when Sweep is installed).
 <div align="center"><Bleed><img src="/assets/tutorial/label_issue.gif" alt="How to label a GitHub issue with Sweep" /></Bleed></div>
 
-### Assigning Sweep to a New Issue
+#### Assigning Sweep to a New Issue
 To have Sweep create a PR for a new issue, create a new issue with the title `"Sweep: [title of issue]"`.
 <div align="center"><Bleed><img src="/assets/tutorial/create_issue.gif" alt="How to create a new GitHub issue with Sweep" /></Bleed></div>
 
@@ -45,6 +45,24 @@ For simpler problems, providing a single line and a reference file should suffic
 - Title: `“Sweep: Add docstrings to main/api.py”`
 
 - Description: `“Use the file main/github_utils.py as a reference”`
+
+### Improving Sweep's PRs
+Sweep won’t always get it right, as language models aren’t as reliable for as we’d like them to be. <br/>
+Sweep has a couple of ways to deal with this though:
+
+#### Running your GitHub Actions
+Sweep defines and runs GitHub actions for you. After the PR is created, Sweep will work asynchronously until it fixes your CI. At this point, you can either try to fix it yourself or wait until Sweep completes it.
+
+### Having Sweep edit an existing PR
+If you want Sweep to make an edit to it's previous change, you can leave a comment on it's PR. Sweep supports two types of comments - slow and fast.
+
+#### Fast Comments
+You can create a fast comment by making a review comment. This comment will only modify the file that’s been commented on.
+<div align="center"><Bleed><img src="/assets/tutorial/pr_comment.gif" alt="Creating a review comment on GitHub for Sweep to handle" /></Bleed></div>
+
+#### Slow Comments
+You can create a slow comment by making an issue comment. This comment can perform codebase wide changes, and will spin up a new dashboard.
+<div align="center"><Bleed><img src="/assets/tutorial/issue_comment.gif" alt="Creating a review comment on GitHub for Sweep to handle" /></Bleed></div>
 
 ## 🤝 Contributing
 
