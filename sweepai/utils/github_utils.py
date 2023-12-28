@@ -103,7 +103,7 @@ def get_installation_id(username: str) -> str:
             obj = response.json()
             return obj["id"]
         except Exception as e:
-            logger.error(e)
+            logger.exception(f'Exception occurred: {e}')
         raise Exception("Could not get installation id, probably not installed")
 
 
@@ -186,7 +186,7 @@ class ClonedRepo:
                 repo = git.Repo(self.cached_dir)
                 repo.remotes.origin.pull()
             except Exception:
-                logger.error("Could not pull repo")
+                logger.exception("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Repo already cached, copying")
