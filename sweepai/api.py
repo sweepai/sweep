@@ -56,6 +56,7 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
+from sweepai.handlers.on_merge_conflict import on_merge_conflict
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.pr_utils import make_pr
 from sweepai.handlers.stack_pr import stack_pr
@@ -346,6 +347,15 @@ async def webhook(raw_request: Request):
                             buttons=rule_buttons, title=RULES_TITLE
                         )
                         pr.create_issue_comment(rules_buttons_list.serialize())
+
+                    if pr.mergeable == False:
+                        on_merge_conflict(
+                            pr_number=pr.number,
+                            username=pr.user.login,
+                            repo_full_name=request_dict["repository"]["full_name"],
+                            installation_id=request_dict["installation"]["id"],
+                            tracking_id=get_hash(),
+                        )
 
                 thread = threading.Thread(target=worker)
                 thread.start()
