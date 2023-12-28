@@ -213,6 +213,7 @@ class TicketContext(BaseModel):
 
 class TicketProgress(BaseModel):
     tracking_id: str
+    username: str = ""
     context: TicketContext = TicketContext()
     status: TicketProgressStatus = TicketProgressStatus.SEARCHING
     search_progress: SearchProgress = SearchProgress()
