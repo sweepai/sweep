@@ -254,6 +254,7 @@ class TicketProgress(BaseModel):
         thread = Thread(target=self._save)
         thread.start()
 
+
 def create_index():
     # killer code to make everything way faster
     db = global_mongo_client["progress"]
