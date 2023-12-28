@@ -315,7 +315,7 @@ async def webhook(raw_request: Request):
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
 
-                def worker():
+                def worker() -> dict:
                     _, g = get_github_client(request_dict["installation"]["id"])
                     repo = g.get_repo(request_dict["repository"]["full_name"])
                     pr = repo.get_pull(request_dict["pull_request"]["number"])
