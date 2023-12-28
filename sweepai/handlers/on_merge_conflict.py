@@ -50,7 +50,7 @@ def on_merge_conflict(
     metadata = {}
     start_time = time.time()
 
-    request = f"Sweep: Resolve merge conflicts for {pr.title}"
+    request = f"Sweep: Resolve merge conflicts for PR #{pr_number}: {pr.title}"
     title = request
     if len(title) > 50:
         title = title[:50] + "..."
@@ -76,7 +76,7 @@ def on_merge_conflict(
     is_consumer_tier = chat_logger.is_consumer_tier()
     issue_url = pr.html_url
 
-    edit_comment("Configuring branch... (step 1/3)")
+    edit_comment("Configuring branch...")
 
     new_pull_request = entities.PullRequest(
         title=title,
@@ -128,7 +128,6 @@ def on_merge_conflict(
 
     ticket_progress.status = TicketProgressStatus.PLANNING
     ticket_progress.save()
-    edit_comment("Generating plan by analyzing files... (step 2/3)")
 
     human_message = HumanMessagePrompt(
         repo_name=repo_full_name,
@@ -153,7 +152,7 @@ def on_merge_conflict(
     file_change_requests = [
         FileChangeRequest(
             filename=conflict_file,
-            instructions="Resolve the merge conflicts by either choosing one of the versions or combining essential features from both branches into the final code.",
+            instructions="Resolve the merge conflicts by combining features from both branches into the final code or selecting one of the versions.",
             change_type="modify",
         )
         for conflict_file in conflict_files
@@ -161,7 +160,7 @@ def on_merge_conflict(
 
     ticket_progress.status = TicketProgressStatus.CODING
     ticket_progress.save()
-    edit_comment("Editing code... (step 3/3)")
+    edit_comment("Resolving merge conflicts...")
     generator = create_pr_changes(
         file_change_requests,
         new_pull_request,
@@ -217,7 +216,7 @@ def on_merge_conflict(
 
 if __name__ == "__main__":
     on_merge_conflict(
-        pr_number=2809,
+        pr_number=2819,
         username="kevinlu1248",
         repo_full_name="sweepai/sweep",
         installation_id=36855882,
