@@ -265,11 +265,7 @@ async def webhook(raw_request: Request):
                                 pr.edit(state="closed")
                                 break
                     if not (time.time() - pr.created_at.timestamp()) > 60 * 15:
-                        if (
-                            GITHUB_LABEL_NAME
-                            in [label.name.lower() for label in pr.labels]
-                            and request.check_run.conclusion == "failure"
-                        ):
+                        if request.check_run.conclusion == "failure":
                             logs = download_logs(
                                 request.repository.full_name,
                                 request.check_run.run_id,
