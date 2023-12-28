@@ -26,7 +26,7 @@ def on_merge_conflict(
     tracking_id: str,
 ):
     # copied from stack_pr
-    token, g = get_github_client(installation_id=installation_id)
+    token, g = get_github_client(installation_id=installation_id) or (None, None)
     repo = g.get_repo(repo_full_name)
     pr: PullRequest = repo.get_pull(pr_number)
     branch = pr.head.ref
