@@ -38,7 +38,7 @@ def on_merge_conflict(
     header = f"{status_message}\n---\n\nI'm currently resolving the merge conflicts in this PR. I will stack a new PR once I'm done."
     comment = pr.create_issue_comment(body=header)
 
-    def edit_comment(body):
+    def edit_comment(body: str) -> None:
         nonlocal comment
         comment.edit(header + "\n\n" + body)
 
