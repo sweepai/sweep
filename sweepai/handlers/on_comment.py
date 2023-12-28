@@ -272,7 +272,7 @@ def on_comment(
                     print(e)
         else:
             formatted_pr_chunk = None  # pr_file
-            bot_comment = pr.create_issue_comment("Working on it...")
+            bot_comment = pr.create_issue_comment(body="Working on it...")
         if file_comment:
             snippets = []
             tree = ""
