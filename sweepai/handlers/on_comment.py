@@ -177,7 +177,7 @@ def on_comment(
         "tracking_id": tracking_id,
     }
 
-    logger.bind(**metadata)
+    logger.bind(f"{metadata}")
 
     elapsed_time = time.time() - start_time
     posthog.capture(
