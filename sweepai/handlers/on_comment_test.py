@@ -21,7 +21,14 @@ class OnCommentTest(unittest.TestCase):
             pr_line_position=None,
             username='testuser',
             installation_id=123,
-            pr_body=None
+            pr_number=None,
+            comment_id=None,
+            chat_logger=None,
+            pr=None,
+            repo=None,
+            comment_type="comment",
+            type="comment",
+            tracking_id=None
         )
         self.assertIsNone(result['issue_number'])
 
@@ -34,6 +41,13 @@ class OnCommentTest(unittest.TestCase):
             pr_line_position=None,
             username='testuser',
             installation_id=123,
-            pr_body='Fixes #1234.'
+            pr_number=None,
+            comment_id=None,
+            chat_logger=None,
+            pr=None,
+            repo=None,
+            comment_type="comment",
+            type="comment",
+            tracking_id=None
         )
         self.assertEqual(result['issue_number'], '1234')
