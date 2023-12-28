@@ -468,6 +468,7 @@ def on_comment(
             pass
 
     elapsed_time = time.time() - start_time
+    # make async
     fire_and_forget_wrapper(posthog.capture)(
         username,
         "success",
