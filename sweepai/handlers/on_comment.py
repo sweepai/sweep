@@ -179,15 +179,10 @@ def on_comment(
     logger.bind(**metadata)
 
     elapsed_time = time.time() - start_time
-<<<<<<< HEAD
     fire_and_forget_wrapper(posthog.capture)(
-        username, "started", properties={**metadata, "duration": elapsed_time}
-=======
-    posthog.capture(
         username,
         "started",
         properties={**metadata, "duration": elapsed_time, "tracking_id": tracking_id},
->>>>>>> origin/main
     )
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
