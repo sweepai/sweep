@@ -64,6 +64,9 @@ def function_modify(
 
         current_contents = file_contents
         initial_code_valid, _ = check_code(file_path, current_contents)
+        initial_code_valid = initial_code_valid or (
+            "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
+        )  # If there's a merge conflict, we still check that the final code is valid
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         file_contents_lines = current_contents.split("\n")
