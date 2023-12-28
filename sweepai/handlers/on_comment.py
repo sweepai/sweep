@@ -474,5 +474,4 @@ def on_comment(
         "success",
         properties={**metadata, "tracking_id": tracking_id},
     )
-    logger.info("on_comment success")
     return {"success": True}
