@@ -80,6 +80,7 @@ def on_comment(
     chat_logger: Any = None,
     pr: MockPR = None,  # For on_comment calls before PR is created
     repo: Any = None,
+    posthog_capture: Any = posthog.capture,
     comment_type: str = "comment",
     type: str = "comment",
     tracking_id: str = None,
@@ -180,7 +181,7 @@ def on_comment(
     logger.bind(**metadata)
 
     elapsed_time = time.time() - start_time
-    posthog.capture(
+    posthog_capture(
         username,
         "started",
         properties={**metadata, "duration": elapsed_time, "tracking_id": tracking_id},
@@ -331,7 +332,7 @@ def on_comment(
     except Exception as e:
         logger.error(traceback.format_exc())
         elapsed_time = time.time() - start_time
-        posthog.capture(
+        posthog_capture(
             username,
             "failed",
             properties={
@@ -420,7 +421,7 @@ def on_comment(
         logger.info("Done!")
     except NoFilesException:
         elapsed_time = time.time() - start_time
-        posthog.capture(
+        posthog_capture(
             username,
             "failed",
             properties={
@@ -435,7 +436,7 @@ def on_comment(
     except Exception as e:
         logger.error(traceback.format_exc())
         elapsed_time = time.time() - start_time
-        posthog.capture(
+        posthog_capture(
             username,
             "failed",
             properties={
@@ -469,7 +470,7 @@ def on_comment(
             pass
 
     elapsed_time = time.time() - start_time
-    posthog.capture(
+    posthog_capture(
         username,
         "success",
         properties={**metadata, "duration": elapsed_time},
