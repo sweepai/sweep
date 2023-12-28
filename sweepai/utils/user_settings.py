@@ -1,10 +1,13 @@
+import resend
 from chat_logger import global_mongo_client
 from github import Github
 from github.AppAuthentication import AppAuthentication
 from pydantic import BaseModel
 
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, RESEND_API_KEY
 from sweepai.utils.github_utils import get_installation_id
+
+resend.api_key = RESEND_API_KEY
 
 
 class UserSettings(BaseModel):
@@ -13,7 +16,7 @@ class UserSettings(BaseModel):
     do_email: bool = True
 
     @classmethod
-    def from_username(cls, username: str, installation_id: int = None):
+    def from_username(cls, username: str):
         db = global_mongo_client["users"]
         collection = db["users"]
 
@@ -33,6 +36,16 @@ class UserSettings(BaseModel):
 
         return cls(**doc)
 
+    def send_email(self):
+        return resend.Emails.send(
+            {
+                "from": "onboarding@resend.dev",
+                "to": self.email,
+                "subject": "Hello World",
+                "html": "<p>Congrats on sending your <strong>first email</strong>!</p>",
+            }
+        )
+
 
 if __name__ == "__main__":
-    print(UserSettings.from_username("wwzeng1"))
+    print(UserSettings.from_username("kevinlu1248").send_email())

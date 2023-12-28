@@ -206,4 +206,6 @@ if WHITELISTED_USERS:
 DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-1106-preview")
 DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
 
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
+
 DEBUG: bool = True
