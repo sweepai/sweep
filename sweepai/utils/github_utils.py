@@ -23,7 +23,7 @@ from redis.retry import Retry
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.tree_utils import DirectoryTree
