@@ -155,7 +155,7 @@ def on_merge_conflict(
 
     ticket_progress.status = TicketProgressStatus.CODING
     ticket_progress.save()
-    edit_comment("Making changes according to plan... (step 3/3)")
+    edit_comment("Editing code... (step 3/3)")
     generator = create_pr_changes(
         file_change_requests,
         new_pull_request,
