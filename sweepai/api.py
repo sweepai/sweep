@@ -145,7 +145,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.exception(f"Failed to terminate thread: {e}")
+        logger.exception("Could not get metadata for telemetry")
 
 
 def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
