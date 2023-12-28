@@ -35,4 +35,4 @@ class UserSettings(BaseModel):
 
 
 if __name__ == "__main__":
-    print(UserSettings.from_username("wwzeng1"))
+    pass  # Removed print statement for production environment
