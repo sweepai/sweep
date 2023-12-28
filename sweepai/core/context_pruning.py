@@ -17,32 +17,52 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
-sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather the information from the codebase that allows you to completely solve the issue. It is very important that you get this right.
+sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather ALL RELEVANT information from the codebase that allows you to completely solve the issue. It is very important that you get this right and do not miss any relevant lines of code.
 
-Reply in the following format:
+## Instructions
+You initially start with no snippets and will use the store_file_snippet and expand_directory to add snippets to the context. You will iteratively use the file_search, preview_file and view_file_snippet tools to help you find the relevant snippets to store.
 
-## Solution Planning
-Use the snippets, user request, and repo_tree to determine the snippets that are critical to solve the issue.
+You are provided "Relevant Snippets", which are snippets relevant to the user request. These snippets are retrieved by a lexical search over the codebase, but are NOT in the context initially.
 
-1. First use the preview_file tool to preview any files that seem relevant. Then, use the view_file_snippet tool to view specific line numbers of a file. We want to find the exact line numbers to store to solve the user request. You may use this tool multiple times to view multiple snippets, either from the same file or different files.
-2. Finally, use the store_file_snippet and expand_directory tools to optimize the context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
+You will do this by using the following process for every relevant file:
 
-Repeat this process until you have the perfect context to solve the user request."""
+1. First use the preview_file tool to preview all files that are relevant, starting with file paths and entities mentioned in "User Request", then those in "Relevant Snippets". For example, if the class foo.bar.Bar was mentioned, be sure to preview foo/bar.py. If the file is irrelevant, move onto the next file. If you don't know the full file path, use file_search with the file name.
+2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find all line numbers relevant to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
+3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
+
+Repeat this process until you have the perfect context to solve the user request. Ensure you have checked ALL files referenced in the user request."""
 
 unformatted_user_prompt = """\
-<snippets_in_repo>
-{snippets_in_repo}
-</snippets_in_repo>
-<paths_in_repo>
-{paths_in_repo}
-</paths_in_repo>
 <repo_tree>
 {repo_tree}
 </repo_tree>
+
+## Relevant Snippets
+Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
+{snippets_in_repo}
+
 ## User Request
 {query}"""
 
 functions = [
+    {
+        "name": "file_search",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "The search query. You can search like main.py to find src/main.py.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for searching for the file.",
+                },
+            },
+            "required": ["snippet_path", "justification"],
+        },
+        "description": "Use this to find the most similar file paths to the search query.",
+    },
     {
         "name": "preview_file",
         "parameters": {
@@ -85,7 +105,7 @@ functions = [
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to view a section of a snippet. You may use this tool multiple times to view multiple snippets. After you are finished using this tool, you may use the store_file_snippet tool to store the snippet to solve the user request.",
+        "description": "Use this to view a section of a snippet. You may use this tool multiple times to view multiple snippets. After you are finished using this tool, you may use the view_file_snippet to view the surrounding lines or the store_file_snippet tool to store the snippet to solve the user request.",
     },
     {
         "name": "store_file_snippet",
@@ -102,16 +122,16 @@ functions = [
                 },
                 "end_line": {
                     "type": "integer",
-                    "description": "End line of the snippet. Pick the minimal required lines and prefer store multiple small and precise snippets over one large snippets.",
+                    "description": "End line of the snippet.",
                 },
                 "justification": {
                     "type": "string",
-                    "description": "Justification for storing the file_path.",
+                    "description": "Justification for why file_path is relevant and why the surrounding lines are irrelevant by indicating what functions are in the surrounding lines and what they do.",
                 },
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to store a snippet. Only store paths you are certain are relevant to solving the user request and be precise with the line numbers. Make sure to store ALL of the files that are referenced in the issue title or description.",
+        "description": "Use this to store a snippet. Only store paths you are CERTAIN are relevant and sufficient to solving the user request and be precise with the line numbers, and provides an entire coherent section of code. Make sure to store ALL of the files that are referenced in the issue title or description. You may store multiple snippets with the same file path.",
     },
     {
         "name": "expand_directory",
@@ -187,17 +207,15 @@ class RepoContextManager:
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
         top_snippets_str = [
-            f"<snippet file_path={snippet.file_path}>{snippet.get_snippet()}</snippet>"
-            for snippet in self.current_top_snippets
+            f"- {snippet.denotation}" for snippet in self.current_top_snippets
         ]
-        paths_in_repo = [snippet.file_path for snippet in self.current_top_snippets]
+        [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
-        paths_in_repo_str = "\n".join(paths_in_repo)
+        logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
         repo_tree = str(self.dir_obj)
         user_prompt = unformatted_user_prompt.format(
             query=query,
             snippets_in_repo=snippets_in_repo_str,
-            paths_in_repo=paths_in_repo_str,
             repo_tree=repo_tree,
         )
         return user_prompt
@@ -265,9 +283,12 @@ def get_relevant_context(
             thread_id=thread.id,
             assistant_id=assistant.id,
         )
+        old_top_snippets = [
+            snippet for snippet in repo_context_manager.current_top_snippets
+        ]
         modify_context(thread, run, repo_context_manager, ticket_progress)
         if len(repo_context_manager.current_top_snippets) == 0:
-            repo_context_manager.current_top_snippets = repo_context_manager.snippets
+            repo_context_manager.current_top_snippets = old_top_snippets
             discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
         return repo_context_manager
     except Exception as e:
@@ -304,7 +325,7 @@ def modify_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
 ) -> bool | None:
-    max_iterations = 60
+    max_iterations = 90
     directories_to_expand = []
     repo_context_manager.current_top_snippets = []
     initial_file_paths = repo_context_manager.top_snippet_paths
@@ -354,14 +375,35 @@ def modify_context(
                 ]
             )
             logger.info(f"Tool Call: {tool_call.function.name} {function_input}")
-            function_path_or_dir = (
-                function_input["file_path"]
-                if "file_path" in function_input
-                else function_input["directory_path"]
-            )
+            function_path_or_dir = function_input.get(
+                "file_path"
+            ) or function_input.get("directory_path")
             valid_path = False
             output = ""
-            if tool_call.function.name == "view_file_snippet":
+            if tool_call.function.name == "file_search":
+                error_message = ""
+                try:
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
+                    )
+                    valid_path = True
+                except:
+                    similar_file_paths = ""
+                    error_message = "FAILURE: This file path does not exist."
+                if error_message:
+                    output = error_message
+                else:
+                    output = (
+                        f"SUCCESS: Here are the most similar file paths to {function_path_or_dir}:\n{similar_file_paths}"
+                        if valid_path
+                        else "FAILURE: This file path does not exist. Please try a new path."
+                    )
+            elif tool_call.function.name == "view_file_snippet":
                 error_message = ""
                 for key in ["start_line", "end_line"]:
                     if key not in function_input:
@@ -371,25 +413,35 @@ def modify_context(
                         error_message = "FAILURE: Please provide a start and end line."
                 start_line = int(function_input["start_line"])
                 end_line = int(function_input["end_line"])
-                logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                if error_message:
-                    output = error_message
-                else:
-                    valid_path = repo_context_manager.is_path_valid(
-                        function_path_or_dir, directory=False
-                    )
+                try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
                         function_path_or_dir
                     )
+                    valid_path = True
+                except:
+                    file_contents = ""
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
+                    )
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+                if start_line >= end_line:
+                    error_message = "FAILURE: Start line must be less than end line."
+                if error_message:
+                    output = error_message
+                else:
+                    end_line = min(end_line, len(file_contents.splitlines()))
+                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
                     selected_file_contents = ""
                     lines = file_contents.splitlines()
-                    expansion_width = 50
-                    for i, line in enumerate(
-                        lines[start_line - expansion_width : start_line]
-                    ):
-                        selected_file_contents += (
-                            f"{i + start_line - expansion_width} | {line}\n"
-                        )
+                    expansion_width = 25
+                    start_index = max(0, start_line - expansion_width)
+                    for i, line in enumerate(lines[start_index:start_line]):
+                        selected_file_contents += f"{i + start_index} | {line}\n"
                     selected_file_contents += "\n===START OF SNIPPET===\n"
                     for i, line in enumerate(lines[start_line:end_line]):
                         selected_file_contents += f"{i + start_line} | {line}\n"
@@ -399,14 +451,11 @@ def modify_context(
                     ):
                         selected_file_contents += f"{i + end_line} | {line}\n"
                     output = (
-                        f"Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\If the above snippet contains all of the necessary contents to solve the user request BETWEEN the START and END tags, call store_file_snippet to store this snippet. Otherwise, call view_file_snippet again with a larger span."
+                        f'Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nCheck if there is additional relevant context surrounding the snippet BETWEEN the START and END tags necessary to solve the user request. If so, call view_file_snippet again with a larger span. If you are CERTAIN this snippet is COMPLETELY SUFFICIENT and RELEVANT, and no surrounding lines provide ANY additional relevant context, call store_file_snippet with the same parameters ({{"file_path": "{function_path_or_dir}", "start_line": "{start_line}", "end_line": "{end_line}"}}).'
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
             elif tool_call.function.name == "store_file_snippet":
-                valid_path = (
-                    function_path_or_dir in repo_context_manager.top_snippet_paths
-                )
                 error_message = ""
                 for key in ["start_line", "end_line"]:
                     if key not in function_input:
@@ -416,11 +465,12 @@ def modify_context(
                         error_message = "FAILURE: Please provide a start and end line."
                 start_line = int(function_input["start_line"])
                 end_line = int(function_input["end_line"])
-                logger.info(f"start_line: {start_line}, end_line: {end_line}")
                 if end_line - start_line > 1000:
                     error_message = (
                         "FAILURE: Please provide a snippet of 1000 lines or less."
                     )
+                if start_line >= end_line:
+                    error_message = "FAILURE: Start line must be less than end line."
 
                 try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
@@ -428,13 +478,21 @@ def modify_context(
                     )
                     valid_path = True
                 except:
-                    error_message = (
-                        "FAILURE: This file path does not exist. Please try a new path."
+                    file_contents = ""
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
                     )
-                    valid_path = False
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
                 if error_message:
                     output = error_message
                 else:
+                    end_line = min(end_line, len(file_contents.splitlines()))
+                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
                     snippet = Snippet(
                         file_path=function_path_or_dir,
                         start=start_line,
@@ -462,18 +520,30 @@ def modify_context(
                 if valid_path:
                     directories_to_expand.append(function_path_or_dir)
             elif tool_call.function.name == "preview_file":
-                valid_path = repo_context_manager.is_path_valid(
-                    function_path_or_dir, directory=False
-                )
-                code = repo_context_manager.cloned_repo.get_file_contents(
-                    function_path_or_dir
-                )
-                file_preview = CodeTree.from_code(code).get_preview()
-                output = (
-                    f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
-                    if valid_path
-                    else "FAILURE: Invalid file path. Please try a new path."
-                )
+                error_message = ""
+                try:
+                    code = repo_context_manager.cloned_repo.get_file_contents(
+                        function_path_or_dir
+                    )
+                    valid_path = True
+                except:
+                    code = ""
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
+                    )
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+                if error_message:
+                    output = error_message
+                else:
+                    file_preview = CodeTree.from_code(code).get_preview()
+                    output = f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
+            else:
+                output = f"FAILURE: Invalid tool name {tool_call.function.name}"
             logger.info(output)
             logger.info("Current top snippets:")
             for snippet in repo_context_manager.current_top_snippets:

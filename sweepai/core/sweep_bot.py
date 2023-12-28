@@ -876,11 +876,6 @@ class SweepBot(CodeGenBot, GithubBot):
             implemented = self.check_completion(  # use async
                 file_change_request.filename, file_change.code
             )
-            if not implemented:
-                discord_log_error(
-                    f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-                    priority=2 if self.sweep_context.use_faster_model else 0,
-                )
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -1295,6 +1290,16 @@ class SweepBot(CodeGenBot, GithubBot):
                                     snippet_msg.content,
                                     flags=re.DOTALL,
                                 )
+                            if self.ticket_progress is not None:
+                                for _ in range(
+                                    len(
+                                        self.ticket_progress.coding_progress.assistant_conversations
+                                    ),
+                                    i + 1,
+                                ):
+                                    self.ticket_progress.coding_progress.assistant_conversations.append(
+                                        AssistantConversation()
+                                    )
                             (
                                 changed_file,
                                 sandbox_response,

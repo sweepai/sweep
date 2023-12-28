@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 # Do not save logs for main process
 import ctypes
 import hashlib
@@ -13,30 +14,57 @@ from loguru import logger
 from pydantic import ValidationError
 
 from sweepai import health
-from sweepai.config.client import (DEFAULT_RULES, RESTART_SWEEP_BUTTON,
-                                   REVERT_CHANGED_FILES_TITLE, RULES_LABEL,
-                                   RULES_TITLE, SWEEP_BAD_FEEDBACK,
-                                   SWEEP_GOOD_FEEDBACK, SweepConfig,
-                                   get_documentation_dict, get_rules)
-from sweepai.config.server import (DISCORD_FEEDBACK_WEBHOOK_URL,
-                                   GITHUB_BOT_USERNAME, GITHUB_LABEL_COLOR,
-                                   GITHUB_LABEL_DESCRIPTION, GITHUB_LABEL_NAME)
+from sweepai.config.client import (
+    DEFAULT_RULES,
+    RESTART_SWEEP_BUTTON,
+    REVERT_CHANGED_FILES_TITLE,
+    RULES_LABEL,
+    RULES_TITLE,
+    SWEEP_BAD_FEEDBACK,
+    SWEEP_GOOD_FEEDBACK,
+    SweepConfig,
+    get_rules,
+)
+from sweepai.config.server import (
+    DISCORD_FEEDBACK_WEBHOOK_URL,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_COLOR,
+    GITHUB_LABEL_DESCRIPTION,
+    GITHUB_LABEL_NAME,
+)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
-from sweepai.core.vector_db import get_deeplake_vs_from_repo
-from sweepai.events import (CheckRunCompleted, CommentCreatedRequest,
-                            InstallationCreatedRequest, IssueCommentRequest,
-                            IssueRequest, PREdited, PRRequest,
-                            ReposAddedRequest)
+from sweepai.events import (
+    CheckRunCompleted,
+    CommentCreatedRequest,
+    InstallationCreatedRequest,
+    IssueCommentRequest,
+    IssueRequest,
+    PREdited,
+    PRRequest,
+    ReposAddedRequest,
+)
 from sweepai.handlers.create_pr import (  # type: ignore
-    add_config_to_top_repos, create_gha_pr)
+    add_config_to_top_repos,
+    create_gha_pr,
+)
 from sweepai.handlers.on_button_click import handle_button_click
-from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
+from sweepai.handlers.on_check_suite import (  # type: ignore
+    clean_logs,
+    download_logs,
+    on_check_suite,
+)
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.utils.buttons import (Button, ButtonList, check_button_activated,
-                                   check_button_title_match)
+from sweepai.handlers.pr_utils import make_pr
+from sweepai.handlers.stack_pr import stack_pr
+from sweepai.utils.buttons import (
+    Button,
+    ButtonList,
+    check_button_activated,
+    check_button_title_match,
+)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
@@ -52,6 +80,7 @@ tracemalloc.start()
 
 events = {}
 on_ticket_events = {}
+
 
 def get_hash():
     return hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
@@ -183,13 +212,6 @@ def call_on_merge(*args, **kwargs):
     thread.start()
 
 
-def call_get_deeplake_vs_from_repo(*args, **kwargs):
-    thread = threading.Thread(
-        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
-    )
-    thread.start()
-
-
 def call_write_documentation(*args, **kwargs):
     thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
@@ -230,20 +252,65 @@ async def webhook(raw_request: Request):
                 if pull_requests:
                     logger.info(pull_requests[0].number)
                     pr = repo.get_pull(pull_requests[0].number)
-                    if (
-                        time.time() - pr.created_at.timestamp()
-                    ) > 60 * 60 and pr.title.startswith("[Sweep Rules]"):
+                    if (time.time() - pr.created_at.timestamp()) > 60 * 60 and (
+                        pr.title.startswith("[Sweep Rules]")
+                        or pr.title.startswith("[Sweep GHA Fix]")
+                    ):
                         after_sha = pr.head.sha
                         commit = repo.get_commit(after_sha)
                         check_suites = commit.get_check_suites()
                         for check_suite in check_suites:
                             if check_suite.conclusion == "failure":
                                 pr.edit(state="closed")
-                                return None
-                    if (time.time() - pr.created_at.timestamp()) > 60 * 15:
-                        return None
-                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
-                        call_on_check_suite(request=request)
+                                break
+                    if not (time.time() - pr.created_at.timestamp()) > 60 * 15:
+                        if (
+                            GITHUB_LABEL_NAME
+                            in [label.name.lower() for label in pr.labels]
+                            and request.check_run.conclusion == "failure"
+                        ):
+                            logs = download_logs(
+                                request.repository.full_name,
+                                request.check_run.run_id,
+                                request.installation.id,
+                            )
+                            logs, user_message = clean_logs(logs)
+                            commit_author = request.sender.login
+                            tracking_id = get_hash()
+                            stack_pr(
+                                request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
+                                pr_number=pr.number,
+                                username=commit_author,
+                                repo_full_name=repo.full_name,
+                                installation_id=request.installation.id,
+                                tracking_id=tracking_id,
+                            )
+                if request.check_run.check_suite.head_branch == repo.default_branch:
+                    if request.check_run.conclusion == "failure":
+                        logs = download_logs(
+                            request.repository.full_name,
+                            request.check_run.run_id,
+                            request.installation.id,
+                        )
+                        logs, user_message = clean_logs(logs)
+                        commit_author = request.sender.login
+                        chat_logger = ChatLogger(
+                            data={
+                                "username": commit_author,
+                                "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
+                            }
+                        )
+                        make_pr(
+                            title="[Sweep GHA Fix] Fix the failing GitHub Actions",
+                            repo_description=repo.description,
+                            summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
+                            repo_full_name=request_dict["repository"]["full_name"],
+                            installation_id=request_dict["installation"]["id"],
+                            user_token=None,
+                            use_faster_model=chat_logger.use_faster_model(),
+                            username=commit_author,
+                            chat_logger=chat_logger,
+                        )
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
 
@@ -573,10 +640,6 @@ async def webhook(raw_request: Request):
                         },
                     )
                     call_on_comment(**pr_change_request.params)
-            case "pull_request_review", "submitted":
-                pass
-            case "check_run", "completed":
-                pass
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -593,8 +656,6 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories_added,
                     )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.exception(f"Failed to add config to top repos: {e}")
 
@@ -625,8 +686,6 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories,
                     )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.exception(f"Failed to add config to top repos: {e}")
 
@@ -767,17 +826,6 @@ async def webhook(raw_request: Request):
                     if ref.startswith("refs/heads") and not ref.startswith(
                         "ref/heads/sweep"
                     ):
-                        if request_dict["head_commit"] and (
-                            "sweep.yaml" in request_dict["head_commit"]["added"]
-                            or "sweep.yaml" in request_dict["head_commit"]["modified"]
-                        ):
-                            _, g = get_github_client(request_dict["installation"]["id"])
-                            repo = g.get_repo(request_dict["repository"]["full_name"])
-                            docs = get_documentation_dict(repo)
-                            # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                            for doc_url, _ in docs.values():
-                                logger.info(f"Writing documentation for {doc_url}")
-                                call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
@@ -846,13 +894,9 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                 if pr.title == "Configure Sweep" and pr.merged:
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
                     create_gha_pr(g, repo)
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.warning(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
-    except SystemExit:
-        raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")

@@ -2,6 +2,7 @@ import datetime
 import inspect
 import logging
 import os
+import datetime
 import threading
 import traceback
 
@@ -266,14 +267,18 @@ class _Task:
 
     @staticmethod
     def create_child_task(name: str, function_name: str = None):
-        # Todo: make child task metadata
+
         parent_task = _Task.get_task(create_if_not_exist=False)
         if parent_task is None:
             task_key = get_task_key()
             child_task = _Task(
                 logn_task_key=None,
                 logn_parent_task=parent_task,
-                metadata={"name": name},
+                metadata={
+                "name": name,
+                "created_at": datetime.datetime.now().isoformat(),
+                "status": "created"
+            },
                 function_name=function_name,
             )
         else:
@@ -284,6 +289,8 @@ class _Task:
                 metadata={
                     **parent_task.metadata,
                     "name": parent_task.metadata.get("name", "NO_NAME") + "_" + name,
+                    "created_at": datetime.datetime.now().isoformat(),
+                    "status": "created"
                 },
                 function_name=function_name,
             )
@@ -329,8 +336,8 @@ class _Logger:
                             task.logtail_logger.info(
                                 log, extra=task.get_logtail_metadata()
                             )
-                        case 2:
-                            task.logtail_logger.error(
+                        case 4:
+                            task.logtail_logger.exception(
                                 log, extra=task.get_logtail_metadata()
                             )
                         case 3:
@@ -377,6 +384,9 @@ class _LogN(_Logger):
 
     def warning(self, *args, **kwargs):
         self[loguru_logger.warning](*args, **kwargs)
+
+    def exception(self, *args, **kwargs):
+        self[loguru_logger.exception](*args, **kwargs)
 
     def debug(self, *args, **kwargs):
         # Todo: add debug level

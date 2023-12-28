@@ -1,18 +1,15 @@
 import glob
+import logging
 import multiprocessing
 import os
-import logging
-
-from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
-from sweepai.logn.cache import file_cache
 from sweepai.utils.utils import chunk_code
 
 
-def filter_file(directory, file, sweep_config: SweepConfig):
+def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     """
     Check if a file should be filtered based on its size and other criteria.
 
@@ -49,7 +46,7 @@ def filter_file(directory, file, sweep_config: SweepConfig):
     return True
 
 
-def read_file(file_name):
+def read_file(file_name: str) -> str:
     try:
         with open(file_name, "r") as f:
             return f.read()
@@ -58,25 +55,24 @@ def read_file(file_name):
     except:
         return ""
 
+
 FILE_THRESHOLD = 100
 
-def file_path_to_chunks(file_path: str):
+
+def file_path_to_chunks(file_path: str) -> list[str]:
     file_contents = read_file(file_path)
     chunks = chunk_code(file_contents, path=file_path)
     return chunks
 
-@file_cache()
-def repo_to_chunks(
-    directory: str, sweep_config: SweepConfig
-) -> tuple[list[Snippet], list[str]]:
+
+# @file_cache()
+def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> tuple[list[Snippet], list[str]]:
     dir_file_count = {}
 
     def is_dir_too_big(file_name):
         dir_name = os.path.dirname(file_name)
         only_file_name = os.path.basename(dir_name)
-        if (
-            only_file_name in ("node_modules", "venv", "patch")
-        ):
+        if only_file_name in ("node_modules", "venv", "patch"):
             return True
         if dir_name not in dir_file_count:
             dir_file_count[dir_name] = len(os.listdir(dir_name))
@@ -84,7 +80,7 @@ def repo_to_chunks(
 
     logger.info(f"Reading files from {directory}")
     file_list = glob.iglob(f"{directory}/**", recursive=True)
-    
+
     file_list = [
         file_name
         for file_name in file_list
@@ -92,7 +88,7 @@ def repo_to_chunks(
         and not is_dir_too_big(file_name)
     ]
     all_chunks = []
-    with multiprocessing.Pool(processes=8) as pool:
+    with multiprocessing.Pool(processes=2) as pool:
         for chunks in pool.imap(file_path_to_chunks, file_list):
             all_chunks.extend(chunks)
     return all_chunks, file_list

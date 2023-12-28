@@ -3,31 +3,6 @@ branch: main
 blocked_dirs: ["tests"]
 draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write unit tests in the same directory as their corresponding code, i.e. sweepai/api_test.py tests sweepai/api.py. We use pytest for tests. Never use wildcard imports. Use list and tuple for typing instead of typing.List and typing.Tuple."
-# These are the docs that we index for Sweep.
-# We scrape these docs once a day and store them in our database.
-# You can use it by adding the key to your GitHub issue.
-# Example: Use PyGitHub to get the number of files in a repo.
-
-# The title should be restrictive so it only shows up when the user wants it.
-# "React JS" is good, "React" is not.
-# The url should be the root of the docs, not a specific page. We will scrape all pages under this root.
-# "https://react.dev/" is good, "https://react.dev/docs/getting-started" is not.
-# Write a natural language description of what the package is and how it's used to help Sweep.
-docs:
-  github: ["https://pygithub.readthedocs.io/en/stable", "We use github to perform actions with Sweep."]
-  deeplake: ["https://docs.deeplake.ai/en/latest", "We use deeplake as our vector database."]
-
-sandbox:
-  install:
-    - pre-commit install
-    - pre-commit run --file sweepai/api.py || exit 0
-    - pip install poetry
-    - poetry install
-    - poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
-  check:
-    - git add . && pre-commit run --files {file_path} || exit 0
-    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run pylint --errors-only {file_path}; else exit 0; fi'
-    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi'
 
 rules:
   - "We should use loguru for error logging. If the log is inside an exception, use logger.exception to add tracebacks, where logger is imported from loguru. Use f-strings for string formatting in logger calls."

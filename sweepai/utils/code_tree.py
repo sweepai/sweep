@@ -68,9 +68,13 @@ class CodeTree(BaseModel):
         else:
             return (min_line, max_line)
 
-    def get_preview(self, min_line: int = 5, max_line: int = 1200):
+    def get_preview(self, min_line: int = 5, max_line: int = -1):
         last_end_line = -1
         lines = self.code.splitlines()
+        if max_line == -1:
+            # Equation seems to work
+            max_line = max(len(lines) // 2 - 200, 50)
+
         def get_children(node: Node = self.tree.root_node):
             nonlocal last_end_line
             children = []
@@ -101,15 +105,20 @@ class CodeTree(BaseModel):
                     first_line = f"{start_line} | {first_line}"
                     second_line = node_lines[1]
                     second_line = f"{start_line + 1} | {second_line}"
-                    hidden_lines_content = "\n".join(lines[start_line + 2 : end_line - 1])
+                    hidden_lines_content = "\n".join(
+                        lines[start_line + 2 : end_line - 1]
+                    )
                     number_of_terms = 5
-                    first_n_terms = ", ".join(extract_words(hidden_lines_content)[:number_of_terms])
+                    first_n_terms = ", ".join(
+                        extract_words(hidden_lines_content)[:number_of_terms]
+                    )
                     spacing = " " * (len(str(start_line)) + 2)
                     middle_lines = spacing.join(
                         [
-                        spacing + indentation + f"     ...\n",
-                        indentation + f"     (lines {start_line + 1}-{end_line - 1} contains terms: {first_n_terms}\n",
-                        indentation + f"     ...\n",
+                            spacing + indentation + f"     ...\n",
+                            indentation
+                            + f"     (lines {start_line + 1}-{end_line - 1} contains terms: {first_n_terms}\n",
+                            indentation + f"     ...\n",
                         ]
                     )
                     second_last_line = node_lines[-2]
@@ -123,6 +132,7 @@ class CodeTree(BaseModel):
                     children.append(last_line)
                 last_end_line = end_line
             return children
+
         return "\n".join(get_children())
 
 
@@ -130,6 +140,7 @@ def extract_words(string):
     # extract the most common words from a code snippet
     words = re.findall(r"\w+", string)
     return list(dict.fromkeys(words))
+
 
 def get_global_function_names_and_spans(node):
     return [
@@ -199,7 +210,8 @@ if __name__ == '__main__':
     unittest.main()
 """
     # split_code = full_code.split("\n")
-    file_contents = open("sweepai/handlers/on_ticket.py").read()
+    file_contents = open("sweepai/utils/ticket_utils.py").read()
+    # file_contents = open("sweepai/handlers/on_ticket.py").read()
     # file_contents = full_code
     # match_start = 16
     # match_end = 20

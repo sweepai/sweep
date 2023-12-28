@@ -22,13 +22,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.documentation_searcher import extract_relevant_docs
-from sweepai.core.entities import (
-    FileChangeRequest,
-    MockPR,
-    NoFilesException,
-    Snippet,
-    SweepContext,
-)
+from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -154,22 +148,13 @@ def on_comment(
 
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
-        use_faster_model = chat_logger.use_faster_model(g)
+        use_faster_model = chat_logger.use_faster_model()
     else:
         # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
         is_paying_user = True
         use_faster_model = False
 
     assignee = pr.assignee.login if pr.assignee else None
-
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=pr.html_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=_token,
-    )
 
     metadata = {
         "repo_full_name": repo_full_name,
@@ -217,14 +202,10 @@ def on_comment(
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
                 reaction = item_to_react_to.create_reaction("eyes")
-            except SystemExit:
-                raise SystemExit
             except Exception:
                 try:
                     item_to_react_to = pr.get_review_comment(comment_id)
                     reaction = item_to_react_to.create_reaction("eyes")
-                except SystemExit:
-                    raise SystemExit
                 except Exception:
                     pass
 
@@ -238,7 +219,9 @@ def on_comment(
         branch_name = (
             pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
         )
-        cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name, repo=repo, token=_token)
+        cloned_repo = ClonedRepo(
+            repo_full_name, installation_id, branch=branch_name, repo=repo, token=_token
+        )
 
         # Generate diffs for this PR
         pr_diff_string = None
@@ -282,8 +265,6 @@ def on_comment(
                     bot_comment = pr.create_review_comment_reply(
                         comment_id, "Working on it..."
                     )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     print(e)
         else:
@@ -342,7 +323,6 @@ def on_comment(
             repo=repo,
             chat_logger=chat_logger,
             model=DEFAULT_GPT35_MODEL if use_faster_model else DEFAULT_GPT4_32K_MODEL,
-            sweep_context=sweep_context,
             cloned_repo=cloned_repo,
         )
     except Exception as e:
@@ -425,8 +405,6 @@ def on_comment(
                     response_for_user = "Done."
                 else:
                     response_for_user = 'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR (at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.gg/sweep)'
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             logger.error(f"Failed to reply to comment: {e}")
 
@@ -473,24 +451,18 @@ def on_comment(
     try:
         item_to_react_to = pr.get_issue_comment(comment_id)
         reaction = item_to_react_to.create_reaction("rocket")
-    except SystemExit:
-        raise SystemExit
     except Exception:
         try:
             item_to_react_to = pr.get_review_comment(comment_id)
             reaction = item_to_react_to.create_reaction("rocket")
-        except SystemExit:
-            raise SystemExit
         except Exception:
             pass
 
-    try:
-        if response_for_user is not None:
+    if response_for_user is not None:
+        try:
             edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        pass
+        except Exception:
+            pass
 
     elapsed_time = time.time() - start_time
     posthog.capture(
