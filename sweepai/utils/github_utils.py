@@ -397,7 +397,7 @@ class ClonedRepo:
                 )
                 line_count += lines
         except:
-            logger.exception(f"An error occurred: {traceback.format_exc()}")
+            logger.exception('An error occurred')
         return commit_history
 
     def get_similar_file_paths(self, file_path: str, limit: int = 10):
