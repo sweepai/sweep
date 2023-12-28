@@ -145,7 +145,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.exception("Could not get metadata for telemetry")
+        logger.exception(f"Failed to terminate thread: {e}")
 
 
 def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
@@ -667,7 +667,7 @@ async def webhook(raw_request: Request):
                         repos_added_request.repositories_added,
                     )
                 except Exception as e:
-                    logger.exception(f"Error: {e}")
+                    logger.exception(f"Failed to add config to top repos: {e}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
