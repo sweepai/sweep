@@ -886,6 +886,8 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                     "sweep/"
                 ) and not feature_branch.startswith("sweep_"):
                     continue
+                if "Resolve merge conflicts" in pr.title:
+                    continue
                 if (
                     pr.mergeable_state != "clean"
                     and (time.time() - pr.created_at.timestamp()) > 60 * 60 * 24
