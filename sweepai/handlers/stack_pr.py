@@ -53,6 +53,7 @@ def stack_pr(
         title = title[:50] + "..."
     ticket_progress = TicketProgress(
         tracking_id=tracking_id,
+        username=username,
         context=TicketContext(
             title=title,
             description="",

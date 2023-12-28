@@ -56,6 +56,7 @@ def on_merge_conflict(
         title = title[:50] + "..."
     ticket_progress = TicketProgress(
         tracking_id=tracking_id,
+        username=username,
         context=TicketContext(
             title=title,
             description="",
@@ -106,7 +107,12 @@ def on_merge_conflict(
     git_repo.git.push("--set-upstream", origin, new_pull_request.branch_name)
 
     last_commit = git_repo.head.commit
-    conflict_files = [item.a_path for item in last_commit.diff("HEAD~1")]
+    all_files = [item.a_path for item in last_commit.diff("HEAD~1")]
+    conflict_files = []
+    for file in all_files:
+        contents = open(cloned_repo.repo_dir + "/" + file).read()
+        if "\n<<<<<<<" in contents and "\n>>>>>>>" in contents:
+            conflict_files.append(file)
 
     snippets = []
     for conflict_file in conflict_files:
