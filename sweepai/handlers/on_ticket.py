@@ -44,7 +44,6 @@ from sweepai.config.server import (
     OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
 )
-from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -657,16 +656,6 @@ def on_ticket(
             message_summary += "\n\n" + external_results
         user_dict = get_documentation_dict(repo)
         docs_results = ""
-        try:
-            docs_results = extract_relevant_docs(
-                title + "\n" + message_summary, user_dict, chat_logger
-            )
-            if docs_results:
-                message_summary += "\n\n" + docs_results
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
             issue_url=issue_url,

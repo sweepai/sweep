@@ -104,6 +104,10 @@ class ClonedRepo:
     branch: str | None = None
     token: str | None = None
     repo: Any | None = None
+    git_repo: git.Repo | None = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @cached_property
     def cached_dir(self):

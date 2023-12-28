@@ -23,7 +23,6 @@ from sweepai.config.client import (
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
-    get_documentation_dict,
     get_rules,
 )
 from sweepai.config.server import (
@@ -35,7 +34,6 @@ from sweepai.config.server import (
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
-from sweepai.core.vector_db import get_deeplake_vs_from_repo
 from sweepai.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
@@ -58,6 +56,7 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
+from sweepai.handlers.on_merge_conflict import on_merge_conflict
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.pr_utils import make_pr
 from sweepai.handlers.stack_pr import stack_pr
@@ -214,13 +213,6 @@ def call_on_merge(*args, **kwargs):
     thread.start()
 
 
-def call_get_deeplake_vs_from_repo(*args, **kwargs):
-    thread = threading.Thread(
-        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
-    )
-    thread.start()
-
-
 def call_write_documentation(*args, **kwargs):
     thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
@@ -312,7 +304,7 @@ async def webhook(raw_request: Request):
                         make_pr(
                             title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                             repo_description=repo.description,
-                            summary=f"The GitHub Actions run failed with the following error logs:\n\n```{logs}```",
+                            summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
                             repo_full_name=request_dict["repository"]["full_name"],
                             installation_id=request_dict["installation"]["id"],
                             user_token=None,
@@ -328,7 +320,7 @@ async def webhook(raw_request: Request):
                     repo = g.get_repo(request_dict["repository"]["full_name"])
                     pr = repo.get_pull(request_dict["pull_request"]["number"])
                     # if the pr already has a comment from sweep bot do nothing
-                    time.sleep(60)
+                    time.sleep(10)
                     if any(
                         comment.user.login == GITHUB_BOT_USERNAME
                         for comment in pr.get_issue_comments()
@@ -355,6 +347,15 @@ async def webhook(raw_request: Request):
                             buttons=rule_buttons, title=RULES_TITLE
                         )
                         pr.create_issue_comment(rules_buttons_list.serialize())
+
+                    if pr.mergeable == False:
+                        on_merge_conflict(
+                            pr_number=pr.number,
+                            username=pr.user.login,
+                            repo_full_name=request_dict["repository"]["full_name"],
+                            installation_id=request_dict["installation"]["id"],
+                            tracking_id=get_hash(),
+                        )
 
                 thread = threading.Thread(target=worker)
                 thread.start()
@@ -835,17 +836,6 @@ async def webhook(raw_request: Request):
                     if ref.startswith("refs/heads") and not ref.startswith(
                         "ref/heads/sweep"
                     ):
-                        if request_dict["head_commit"] and (
-                            "sweep.yaml" in request_dict["head_commit"]["added"]
-                            or "sweep.yaml" in request_dict["head_commit"]["modified"]
-                        ):
-                            _, g = get_github_client(request_dict["installation"]["id"])
-                            repo = g.get_repo(request_dict["repository"]["full_name"])
-                            docs = get_documentation_dict(repo)
-                            # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                            for doc_url, _ in docs.values():
-                                logger.info(f"Writing documentation for {doc_url}")
-                                call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
