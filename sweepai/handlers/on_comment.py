@@ -468,15 +468,10 @@ def on_comment(
             pass
 
     elapsed_time = time.time() - start_time
-<<<<<<< HEAD
     fire_and_forget_wrapper(posthog.capture)(
-        username, "success", properties={**metadata, "duration": elapsed_time}
-=======
-    posthog.capture(
         username,
         "success",
-        properties={**metadata, "duration": elapsed_time, "tracking_id": tracking_id},
->>>>>>> origin/main
+        properties={**metadata, "duration": elapsed_time, "tracking_id": tracking_id}
     )
     logger.info("on_comment success")
     return {"success": True}
