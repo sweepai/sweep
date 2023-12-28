@@ -36,16 +36,21 @@ class UserSettings(BaseModel):
 
         return cls(**doc)
 
-    def send_email(self):
-        return resend.Emails.send(
-            {
-                "from": "onboarding@resend.dev",
-                "to": self.email,
-                "subject": "Hello World",
-                "html": "<p>Congrats on sending your <strong>first email</strong>!</p>",
-            }
-        )
+    def send_email(
+        self,
+        subject: str,
+        html: str,
+    ):
+        if self.do_email and RESEND_API_KEY is not None:
+            return resend.Emails.send(
+                {
+                    "from": "notifications@sweep.dev",
+                    "to": self.email,
+                    "subject": subject,
+                    "html": html,
+                }
+            )
 
 
 if __name__ == "__main__":
-    print(UserSettings.from_username("kevinlu1248").send_email())
+    print(UserSettings.from_username("kevinlu1248").send_email("test", "test"))
