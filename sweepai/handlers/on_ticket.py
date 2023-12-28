@@ -188,6 +188,7 @@ def on_ticket(
 
     ticket_progress = TicketProgress(
         tracking_id=tracking_id,
+        username=username,
         context=TicketContext(
             title=title,
             description=summary,
