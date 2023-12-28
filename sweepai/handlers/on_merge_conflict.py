@@ -50,7 +50,7 @@ def on_merge_conflict(
     metadata = {}
     start_time = time.time()
 
-    request = f"Sweep: Resolve merge conflicts for {pr.title}"
+    request = f"Sweep: Resolve merge conflicts for PR #{pr_number}: {pr.title}"
     title = request
     if len(title) > 50:
         title = title[:50] + "..."
