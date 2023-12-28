@@ -30,7 +30,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.ticket_utils import prep_snippets
+from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -179,7 +179,7 @@ def on_comment(
     logger.bind(**metadata)
 
     elapsed_time = time.time() - start_time
-    posthog.capture(
+    fire_and_forget_wrapper(posthog.capture)(
         username, "started", properties={**metadata, "duration": elapsed_time}
     )
     logger.info(f"Getting repo {repo_full_name}")
