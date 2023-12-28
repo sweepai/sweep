@@ -337,6 +337,7 @@ def on_comment(
                 "error": str(e),
                 "reason": "Failed to get files",
                 "duration": elapsed_time,
+                "tracking_id": tracking_id,
                 **metadata,
             },
         )
