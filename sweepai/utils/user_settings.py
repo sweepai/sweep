@@ -13,7 +13,7 @@ class UserSettings(BaseModel):
     do_email: bool = True
 
     @classmethod
-    def from_username(cls, username: str, installation_id: int = None):
+    def from_username(cls, username: str, installation_id: int = None) -> 'UserSettings':
         db = global_mongo_client["users"]
         collection = db["users"]
 
