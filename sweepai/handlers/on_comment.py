@@ -474,5 +474,5 @@ def on_comment(
         "success",
         properties={**metadata, "duration": elapsed_time},
     )
-    logger.info("on_comment success")
+    logger.info(f"on_comment success")
     return {"success": True}
