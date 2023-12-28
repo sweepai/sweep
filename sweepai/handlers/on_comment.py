@@ -193,7 +193,7 @@ def on_comment(
 
     bot_comment = None
 
-    def edit_comment(new_comment):
+    def edit_comment(new_comment: str) -> None:
         if bot_comment is not None:
             bot_comment.edit(new_comment)
 
