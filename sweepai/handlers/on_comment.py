@@ -82,6 +82,7 @@ def on_comment(
     repo: Any = None,
     comment_type: str = "comment",
     type: str = "comment",
+    pr_body: str = None,
     tracking_id: str = None,
 ):
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
@@ -98,11 +99,10 @@ def on_comment(
     if pr is None:
         pr = repo.get_pull(pr_number)
     pr_title = pr.title
-    pr_body = (
-        pr.body.split("🎉 Latest improvements to Sweep:")[0]
-        if pr.body and "🎉 Latest improvements to Sweep:" in pr.body
-        else pr.body
-    )
+    if pr_body is None:
+        if pr and pr.body:
+            pr_body_split = pr.body.split("🎉 Latest improvements to Sweep:")
+            pr_body = pr_body_split[0] if pr_body_split else pr.body
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
     pr_chunk = None
@@ -293,7 +293,7 @@ def on_comment(
                 raise e
         user_dict = get_documentation_dict(repo)
         docs_results = extract_relevant_docs(
-            pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}",
+            pr_title + "\n" + (pr_body if pr_body is not None else '') + "\n" + f" User Comment: {comment}",
             user_dict,
             chat_logger,
         )
@@ -313,6 +313,8 @@ def on_comment(
             pr_file_path=pr_file_path,  # may be None
             pr_chunk=formatted_pr_chunk,  # may be None
             original_line=original_line if pr_chunk else None,
+            pr_body=pr_body,
+            pr_body=pr_body,
             relevant_docs=docs_results,
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
