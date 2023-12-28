@@ -23,7 +23,6 @@ from sweepai.config.client import (
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
-    get_documentation_dict,
     get_rules,
 )
 from sweepai.config.server import (
@@ -35,7 +34,6 @@ from sweepai.config.server import (
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
-from sweepai.core.vector_db import get_deeplake_vs_from_repo
 from sweepai.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
@@ -211,13 +209,6 @@ def call_on_comment(
 
 def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
-    thread.start()
-
-
-def call_get_deeplake_vs_from_repo(*args, **kwargs):
-    thread = threading.Thread(
-        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
-    )
     thread.start()
 
 
@@ -835,17 +826,6 @@ async def webhook(raw_request: Request):
                     if ref.startswith("refs/heads") and not ref.startswith(
                         "ref/heads/sweep"
                     ):
-                        if request_dict["head_commit"] and (
-                            "sweep.yaml" in request_dict["head_commit"]["added"]
-                            or "sweep.yaml" in request_dict["head_commit"]["modified"]
-                        ):
-                            _, g = get_github_client(request_dict["installation"]["id"])
-                            repo = g.get_repo(request_dict["repository"]["full_name"])
-                            docs = get_documentation_dict(repo)
-                            # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                            for doc_url, _ in docs.values():
-                                logger.info(f"Writing documentation for {doc_url}")
-                                call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
