@@ -56,6 +56,7 @@ def on_merge_conflict(
         title = title[:50] + "..."
     ticket_progress = TicketProgress(
         tracking_id=tracking_id,
+        username=username,
         context=TicketContext(
             title=title,
             description="",
@@ -75,7 +76,7 @@ def on_merge_conflict(
     is_consumer_tier = chat_logger.is_consumer_tier()
     issue_url = pr.html_url
 
-    edit_comment("Currently fetching files... (step 1/3)")
+    edit_comment("Configuring branch... (step 1/3)")
 
     new_pull_request = entities.PullRequest(
         title=title,
@@ -106,7 +107,12 @@ def on_merge_conflict(
     git_repo.git.push("--set-upstream", origin, new_pull_request.branch_name)
 
     last_commit = git_repo.head.commit
-    conflict_files = [item.a_path for item in last_commit.diff("HEAD~1")]
+    all_files = [item.a_path for item in last_commit.diff("HEAD~1")]
+    conflict_files = []
+    for file in all_files:
+        contents = open(cloned_repo.repo_dir + "/" + file).read()
+        if "\n<<<<<<<" in contents and "\n>>>>>>>" in contents:
+            conflict_files.append(file)
 
     snippets = []
     for conflict_file in conflict_files:
@@ -147,7 +153,7 @@ def on_merge_conflict(
     file_change_requests = [
         FileChangeRequest(
             filename=conflict_file,
-            instructions="Resolve the merge conflicts.",
+            instructions="Resolve the merge conflicts by either choosing one of the versions or combining essential features from both branches into the final code.",
             change_type="modify",
         )
         for conflict_file in conflict_files
@@ -190,6 +196,7 @@ def on_merge_conflict(
         diff_text,
         new_pull_request.title,
     )
+    new_description += f"\n\nResolves merge conflicts in #{pr_number}."
 
     # Create pull request
     new_pull_request.content = new_description
@@ -210,9 +217,9 @@ def on_merge_conflict(
 
 if __name__ == "__main__":
     on_merge_conflict(
-        pr_number=558,
+        pr_number=2809,
         username="kevinlu1248",
-        repo_full_name="sweepai/landing-page",
+        repo_full_name="sweepai/sweep",
         installation_id=36855882,
         tracking_id="test_merge_conflict",
     )
