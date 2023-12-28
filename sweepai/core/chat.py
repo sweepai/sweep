@@ -73,6 +73,9 @@ class ChatGPT(BaseModel):
     cloned_repo: ClonedRepo | None = None
     temperature: float = default_temperature
 
+    class Config:
+        arbitrary_types_allowed = True
+
     @classmethod
     def from_system_message_content(
         cls,
