@@ -312,7 +312,7 @@ async def webhook(raw_request: Request):
                         make_pr(
                             title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                             repo_description=repo.description,
-                            summary=f"The GitHub Actions run failed with the following error logs:\n\n```{logs}```",
+                            summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
                             repo_full_name=request_dict["repository"]["full_name"],
                             installation_id=request_dict["installation"]["id"],
                             user_token=None,
