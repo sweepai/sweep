@@ -109,7 +109,7 @@ def on_comment(
     formatted_pr_chunk = None
 
     assignee = pr.assignee.login if pr.assignee else None
-    issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
+    issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body or "")
     original_issue = None
     if issue_number_match or assignee:
         if not assignee:
