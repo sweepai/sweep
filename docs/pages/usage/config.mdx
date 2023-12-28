@@ -34,22 +34,6 @@ draft: False
 
 # This is a list of directories that Sweep will not be able to edit. In our example, Sweep is unable to modify the .github folder as we do not want Sweep to modify our GitHub Actions.
 blocked_dirs: [".github/"]
-
-# This is a list of documentation links that Sweep will use to help it understand your code. You can add links to documentation for any packages you use here.
-#
-# Example:
-# docs:
-#   - Modal: https://modal.com/docs/reference
-#   - PyGitHub: https://pygithub.readthedocs.io/en/latest/
-docs: []
-
-# Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
-sandbox:
-  install:
-    - trunk init
-  check:
-    - trunk fmt {file_path}
-    - trunk check --fix {file_path}
 ```
 
 </details>
@@ -58,13 +42,11 @@ sandbox:
 | Key | Type | Description |
 | --- | --- | --- |
 | `rules` | `list` | A list of specific guidelines that Sweep follows when making changes to your repository. These should be specific to your repository and mention any technologies you use. |
-| `sandbox` | `dict` | Sandbox settings for validating code changes |
 | `gha_enabled` | `bool` | Whether or not to enable GitHub Actions |
 | `branch` | `str` | The branch to run on |
 | `blocked_dirs` | `list` | A list of directories to ignore |
 | `draft` | `bool` | Whether or not to create PRs as drafts |
 | `description` | `str` | The description of the repository |
-| `docs` | `dict` | A dictionary of documentation links |
 
 ---
 
@@ -98,21 +80,6 @@ Instead, say `"Update the README.md file whenever a new feature is added. Make s
 ##### 3. Tell Sweep where the new code should go:
 
 `"We use unit tests for our code. If we have "class.py", we should have "class_test.py" in the same directory."`
-
-### `sandbox`
-```yml
-sandbox:
-  install:
-    - pre-commit install
-    - pip install poetry
-    - poetry install
-  check:
-    - pre-commit run --files {file_path}
-    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else exit 0; fi'
-    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi'
-```
-
-Sandbox executes commands in a sandboxed environment to validate code changes after every edit. For example, our sandbox can run tests! For more details, see the [Sandbox](./sandbox) page.
 
 ### `gha_enabled`
 ```yaml
@@ -148,16 +115,6 @@ description: "project description and standards to follow"
 ```
 This setting is the description of the repository that will be passed to Sweep. Please include details that Sweep may need to understand the repository. You may also include details about standards to follow here.
 
-### `docs`
-```yaml
-docs:
-  - Modal: ["https://modal.com/docs/reference", "Modal is used for serverless deployment"]
-  - PyGitHub: ["https://pygithub.readthedocs.io/en/latest/", "PyGitHub is used for interacting with GitHub"]
-```
-This setting contains documentation links that Sweep is able to search through. This is helpful for packages with syntax that has changed or newer packages.
-
-**Important**: Please contact us if you would like to add a documentation link so we can add it to our database.
-
 ---
 
 ## Our Configuration File
@@ -169,19 +126,6 @@ branch: main
 blocked_dirs: [".github/"]
 draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
-docs:
-  - Modal: https://modal.com/docs/reference
-  - PyGitHub: https://pygithub.readthedocs.io/en/latest/
-
-sandbox:
-  install:
-    - pre-commit install
-    - pip install poetry
-    - poetry install
-  check:
-    - pre-commit run --files {file_path}
-    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else exit 0; fi'
-    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else exit 0; fi'
 
 rules:
 - "Leftover TODOs in the code should be handled."

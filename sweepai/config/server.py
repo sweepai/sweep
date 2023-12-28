@@ -118,14 +118,6 @@ draft: False
 
 # This is a list of directories that Sweep will not be able to edit.
 blocked_dirs: []
-
-# This is a list of documentation links that Sweep will use to help it understand your code. You can add links to documentation for any packages you use here.
-#
-# Example:
-#
-# docs:
-#   - PyGitHub: ["https://pygithub.readthedocs.io/en/latest/", "We use pygithub to interact with the GitHub API"]
-docs: []
 """,
 )
 
