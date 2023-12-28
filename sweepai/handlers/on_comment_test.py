@@ -21,8 +21,7 @@ class OnCommentTest(unittest.TestCase):
             pr_line_position=None,
             username='testuser',
             installation_id=123,
-            pr_body=None
-        )
+
         self.assertIsNone(result['issue_number'])
 
         # Test when pr_body contains "Fixes #1234."
