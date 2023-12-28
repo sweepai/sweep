@@ -320,7 +320,7 @@ async def webhook(raw_request: Request):
                     repo = g.get_repo(request_dict["repository"]["full_name"])
                     pr = repo.get_pull(request_dict["pull_request"]["number"])
                     # if the pr already has a comment from sweep bot do nothing
-                    time.sleep(60)
+                    time.sleep(10)
                     if any(
                         comment.user.login == GITHUB_BOT_USERNAME
                         for comment in pr.get_issue_comments()
