@@ -185,7 +185,7 @@ class CheckRunCompleted(BaseModel):
             number: int
 
         class CheckSuite(BaseModel):
-            head_branch: str
+            head_branch: str | None
 
         conclusion: str
         html_url: str
