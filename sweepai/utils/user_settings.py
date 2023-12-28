@@ -1,4 +1,4 @@
-from chat_logger import global_mongo_client
+from .chat_logger import global_mongo_client
 from github import Github
 from github.AppAuthentication import AppAuthentication
 from pydantic import BaseModel
