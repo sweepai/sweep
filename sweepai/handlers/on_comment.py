@@ -180,7 +180,9 @@ def on_comment(
 
     elapsed_time = time.time() - start_time
     posthog.capture(
-        username, "started", properties={**metadata, "duration": elapsed_time}
+        username,
+        "started",
+        properties={**metadata, "duration": elapsed_time, "tracking_id": tracking_id},
     )
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
