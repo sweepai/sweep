@@ -469,7 +469,9 @@ def on_comment(
 
     elapsed_time = time.time() - start_time
     posthog.capture(
-        username, "success", properties={**metadata, "duration": elapsed_time}
+        username,
+        "success",
+        properties={**metadata, "duration": elapsed_time, "tracking_id": tracking_id},
     )
     logger.info("on_comment success")
     return {"success": True}
