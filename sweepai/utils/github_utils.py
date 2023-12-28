@@ -72,7 +72,8 @@ def get_token(installation_id: int):
 
 def get_github_client(installation_id: int):
     token: str = get_token(installation_id)
-    return token, Github(token)
+    g = Github(token)
+    return token, g
 
 
 def get_installation_id(username: str) -> str:
