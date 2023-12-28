@@ -58,7 +58,7 @@ def get_token(installation_id: int):
             )
             obj = response.json()
             if "token" not in obj:
-                logger.error(obj)
+                logger.exception(f'Exception occurred: {obj}')
                 raise Exception("Could not get token")
             return obj["token"]
         except SystemExit:
@@ -397,7 +397,7 @@ class ClonedRepo:
                 )
                 line_count += lines
         except:
-            logger.error(f"An error occurred: {traceback.print_exc()}")
+            logger.exception(f"An error occurred: {traceback.format_exc()}")
         return commit_history
 
     def get_similar_file_paths(self, file_path: str, limit: int = 10):
