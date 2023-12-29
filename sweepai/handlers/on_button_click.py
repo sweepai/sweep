@@ -137,7 +137,6 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
                 pr_number=request_dict["issue"]["number"],
                 username=request_dict["sender"]["login"],
                 repo_full_name=request_dict["repository"]["full_name"],
-                installation_id=request_dict["installation"]["id"],
                 tracking_id=tracking_id,
             )
             posthog.capture(request_dict["sender"]["login"], "rule_pr_created")
