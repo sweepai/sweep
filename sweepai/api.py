@@ -273,6 +273,12 @@ async def webhook(raw_request: Request):
                             )
                             logs, user_message = clean_logs(logs)
                             commit_author = request.sender.login
+                            chat_logger = ChatLogger(
+                                data={
+                                    "username": commit_author,
+                                    "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
+                                }
+                            )
                             tracking_id = get_hash()
                             stack_pr(
                                 request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
@@ -291,12 +297,7 @@ async def webhook(raw_request: Request):
                         )
                         logs, user_message = clean_logs(logs)
                         commit_author = request.sender.login
-                        chat_logger = ChatLogger(
-                            data={
-                                "username": commit_author,
-                                "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
-                            }
-                        )
+
                         make_pr(
                             title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                             repo_description=repo.description,
