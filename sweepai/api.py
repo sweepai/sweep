@@ -247,6 +247,9 @@ async def webhook(raw_request: Request):
         match event, action:
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
+                commit_author = request.sender.login
+                commit_author = request.sender.login
+                chat_logger = ChatLogger(data={"username": commit_author, "title": "[Sweep GHA Fix] Fix the failing GitHub Actions"})
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
@@ -272,15 +275,16 @@ async def webhook(raw_request: Request):
                                 request.installation.id,
                             )
                             logs, user_message = clean_logs(logs)
-                            commit_author = request.sender.login
+                            # commit_author used with the definition moved to line 267
                             tracking_id = get_hash()
                             stack_pr(
                                 request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
                                 pr_number=pr.number,
-                                username=commit_author,
+                                username=commit_author, # commit_author definition moved up
                                 repo_full_name=repo.full_name,
                                 installation_id=request.installation.id,
                                 tracking_id=tracking_id,
+                                # commit_author updated to the new definition location
                             )
                 if request.check_run.check_suite.head_branch == repo.default_branch:
                     if request.check_run.conclusion == "failure":
@@ -290,13 +294,7 @@ async def webhook(raw_request: Request):
                             request.installation.id,
                         )
                         logs, user_message = clean_logs(logs)
-                        commit_author = request.sender.login
-                        chat_logger = ChatLogger(
-                            data={
-                                "username": commit_author,
-                                "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
-                            }
-                        )
+                        # commit_author and chat_logger definitions have been moved earlier
                         make_pr(
                             title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                             repo_description=repo.description,
@@ -305,7 +303,7 @@ async def webhook(raw_request: Request):
                             installation_id=request_dict["installation"]["id"],
                             user_token=None,
                             use_faster_model=chat_logger.use_faster_model(),
-                            username=commit_author,
+                            username=commit_author, # commit_author definition moved up
                             chat_logger=chat_logger,
                         )
             case "pull_request", "opened":
