@@ -8,6 +8,7 @@ import re
 import traceback
 from time import time
 
+import markdown
 import openai
 import yaml
 import yamllint.config as yamllint_config
@@ -99,6 +100,7 @@ from sweepai.utils.ticket_utils import (
     fire_and_forget_wrapper,
     log_error,
 )
+from sweepai.utils.user_settings import UserSettings
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -125,7 +127,7 @@ email_template = """Hey {name},
 🚀 I just finished creating a pull request for your issue ({repo_full_name}#{issue_number}) at <a href="{pr_url}">{repo_full_name}#{pr_number}</a>!
 
 <br/><br/>
-You can view the process and results of how I created this pull request <a href="{progress_url}">here</a>.
+You can view how I created this pull request <a href="{progress_url}">here</a>.
 
 <h2>Summary</h2>
 <blockquote>
@@ -1563,10 +1565,8 @@ def on_ticket(
             repo_full_name=repo_full_name,
             pr_number=pr.number,
             progress_url=f"https://progress.sweep.dev/issues/{tracking_id}",
-            summary=pr_changes.body,
-            files_changed="\n".join(
-                [f"<li>{item}</li>" for item in files_changed]
-            ),  # TODO
+            summary=markdown.markdown(pr_changes.body),
+            files_changed="\n".join([f"<li>{item}</li>" for item in files_changed]),
             sweeping_gif=sweeping_gif,
         ),
     )
