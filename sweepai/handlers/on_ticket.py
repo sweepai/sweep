@@ -120,6 +120,30 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Comment on a file, Sweep will only modify the commented file
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
+email_template = """Hey {name},
+<br/><br/>
+🚀 I just finished creating a pull request for your issue ({repo_full_name}#{issue_number}) at <a href="{pr_url}">{repo_full_name}#{pr_number}</a>!
+
+<br/><br/>
+You can view the process and results of how I created this pull request <a href="{progress_url}">here</a>.
+
+<h2>Summary</h2>
+<blockquote>
+{summary}
+</blockquote>
+
+<h2>Files Changed</h2>
+<ul>
+{files_changed}
+</ul>
+
+{sweeping_gif}
+<br/>
+Cheers,
+<br/>
+Sweep
+<br/>"""
+
 
 def on_ticket(
     title: str,
@@ -1504,6 +1528,49 @@ def on_ticket(
             },
         )
         raise e
+
+    user_settings = UserSettings.from_username(username=username)
+    user = g.get_user(username)
+    full_name = user.name or user.login
+    name = full_name.split(" ")[0]
+    files_changed = []
+    for fcr in file_change_requests:
+        if fcr.change_type in ("create", "modify"):
+            diff = list(
+                difflib.unified_diff(
+                    fcr.old_content.splitlines() or [],
+                    fcr.new_content.splitlines() or [],
+                    lineterm="",
+                )
+            )
+            added = sum(
+                1
+                for line in diff
+                if line.startswith("+") and not line.startswith("+++")
+            )
+            removed = sum(
+                1
+                for line in diff
+                if line.startswith("-") and not line.startswith("---")
+            )
+            files_changed.append(f"<code>{fcr.filename}</code> (+{added}/-{removed})")
+    user_settings.send_email(
+        subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
+        html=email_template.format(
+            name=name,
+            pr_url=pr.html_url,
+            issue_number=issue_number,
+            repo_full_name=repo_full_name,
+            pr_number=pr.number,
+            progress_url=f"https://progress.sweep.dev/issues/{tracking_id}",
+            summary=pr_changes.body,
+            files_changed="\n".join(
+                [f"<li>{item}</li>" for item in files_changed]
+            ),  # TODO
+            sweeping_gif=sweeping_gif,
+        ),
+    )
+
     posthog.capture(
         username,
         "success",

@@ -1,10 +1,10 @@
 import resend
-from chat_logger import global_mongo_client
 from github import Github
 from github.AppAuthentication import AppAuthentication
 from pydantic import BaseModel
 
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, RESEND_API_KEY
+from sweepai.utils.chat_logger import global_mongo_client
 from sweepai.utils.github_utils import get_installation_id
 
 resend.api_key = RESEND_API_KEY
@@ -12,7 +12,7 @@ resend.api_key = RESEND_API_KEY
 
 class UserSettings(BaseModel):
     username: str
-    email: str
+    email: str = ""
     do_email: bool = True
 
     @classmethod
@@ -41,10 +41,10 @@ class UserSettings(BaseModel):
         subject: str,
         html: str,
     ):
-        if self.do_email and RESEND_API_KEY is not None:
+        if self.email and self.do_email and RESEND_API_KEY is not None:
             return resend.Emails.send(
                 {
-                    "from": "notifications@sweep.dev",
+                    "from": "Sweep Alerts <notifications@sweep.dev>",
                     "to": self.email,
                     "subject": subject,
                     "html": html,
