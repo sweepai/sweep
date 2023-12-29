@@ -49,6 +49,7 @@ from sweepai.handlers.create_pr import (  # type: ignore
     create_gha_pr,
 )
 from sweepai.handlers.on_button_click import handle_button_click
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.handlers.on_check_suite import (  # type: ignore
     clean_logs,
     download_logs,
@@ -66,7 +67,7 @@ from sweepai.utils.buttons import (
     check_button_activated,
     check_button_title_match,
 )
-from sweepai.utils.chat_logger import ChatLogger
+
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
@@ -271,10 +272,16 @@ async def webhook(raw_request: Request):
                                 request.check_run.run_id,
                                 request.installation.id,
                             )
-                            logs, user_message = clean_logs(logs)
                             commit_author = request.sender.login
+                            logs, user_message = clean_logs(logs)
                             tracking_id = get_hash()
-                            stack_pr(
+                        chat_logger = ChatLogger(
+                            data={
+                                "username": commit_author,
+                                "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
+                            }
+                        )
+                        stack_pr(
                                 request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
                                 pr_number=pr.number,
                                 username=commit_author,
