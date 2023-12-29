@@ -272,6 +272,7 @@ async def webhook(raw_request: Request):
                                 request.installation.id,
                             )
                             logs, user_message = clean_logs(logs)
+                            
                             commit_author = request.sender.login
                             tracking_id = get_hash()
                             stack_pr(
@@ -290,13 +291,9 @@ async def webhook(raw_request: Request):
                             request.installation.id,
                         )
                         logs, user_message = clean_logs(logs)
+                        
                         commit_author = request.sender.login
-                        chat_logger = ChatLogger(
-                            data={
-                                "username": commit_author,
-                                "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
-                            }
-                        )
+                        chat_logger = ChatLogger(data={"username": commit_author, "title": "[Sweep GHA Fix] Fix the failing GitHub Actions"})
                         make_pr(
                             title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                             repo_description=repo.description,
