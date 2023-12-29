@@ -1,3 +1,4 @@
+from sweepai.utils.github_utils import get_installation_id
 import hashlib
 import time
 
@@ -130,7 +131,9 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
         ).check_for_issues(rule=rule, diff=commits_diff)
         tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
         if changes_required:
+            installation_id = get_installation_id(gh_client)
             new_pr = stack_pr(
+                installation_id=installation_id,
                 request=issue_description
                 + "\n\nThis issue was created to address the following rule:\n"
                 + rule,
