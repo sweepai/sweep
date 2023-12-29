@@ -450,7 +450,7 @@ def on_ticket(
                 return (
                     pr_message
                     + config_pr_message
-                    + f"\n\n---\n{user_settings_message}"
+                    + f"\n\n---\n{user_settings.get_message(completed=True)}"
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
                 )
