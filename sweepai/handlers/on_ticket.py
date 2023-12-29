@@ -3,6 +3,7 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
+import difflib
 import os
 import re
 import traceback
