@@ -473,10 +473,6 @@ def on_comment(
     fire_and_forget_wrapper(posthog.capture)(
         username,
         "success",
-<<<<<<< HEAD
-        properties={**metadata, "tracking_id": tracking_id},
-=======
-        properties={**metadata, "duration": elapsed_time},
->>>>>>> origin/main
+properties={**metadata, "tracking_id": tracking_id, "duration": elapsed_time},
     )
     return {"success": True}
