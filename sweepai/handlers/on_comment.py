@@ -174,6 +174,7 @@ def on_comment(
         "comment_id": comment_id,
         "comment": comment,
         "issue_number": issue_number if issue_number_match else "",
+        "tracking_id": tracking_id,
     }
 
     logger.bind(**metadata)
@@ -472,6 +473,10 @@ def on_comment(
     fire_and_forget_wrapper(posthog.capture)(
         username,
         "success",
+<<<<<<< HEAD
         properties={**metadata, "tracking_id": tracking_id},
+=======
+        properties={**metadata, "duration": elapsed_time},
+>>>>>>> origin/main
     )
     return {"success": True}
