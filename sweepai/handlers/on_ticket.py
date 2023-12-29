@@ -276,7 +276,7 @@ def on_ticket(
             logger.warning(
                 f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
             )
-            posthog.capture(
+            fire_and_forget_wrapper(posthog.capture)(
                 username,
                 "issue_closed",
                 properties={
