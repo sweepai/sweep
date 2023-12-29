@@ -36,6 +36,13 @@ class UserSettings(BaseModel):
 
         return cls(**doc)
 
+    def get_messsage(self):
+        # This is a message displayed to the user in the ticket
+        if self.email and self.do_email:
+            return f"> [!TIP]\n> I'll email you at {self.email} when I complete this pull request!"
+        elif not self.email:
+            return f"> [!TIP]\n> I can email you when I complete this pull request if you give me your email [here](https://progress.sweep.dev/profile)!"
+
     def send_email(
         self,
         subject: str,

@@ -394,6 +394,9 @@ def on_ticket(
 
         config_pr_url = None
 
+        user_settings = UserSettings.from_username(username=username)
+        user_settings_message = user_settings.get_message()
+
         def get_comment_header(
             index,
             errored=False,
@@ -447,6 +450,7 @@ def on_ticket(
                 return (
                     pr_message
                     + config_pr_message
+                    + f"\n\{user_settings_message}"
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
                 )
