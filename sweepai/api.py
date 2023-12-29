@@ -271,9 +271,9 @@ async def webhook(raw_request: Request):
                                 request.check_run.run_id,
                                 request.installation.id,
                             )
-                            logs, user_message = clean_logs(logs)
-                            commit_author = request.sender.login
                             tracking_id = get_hash()
+                            commit_author = request.sender.login if request.sender else 'unknown'
+                            chat_logger = None  # Default value in case not set later
                             stack_pr(
                                 request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
                                 pr_number=pr.number,
@@ -290,7 +290,6 @@ async def webhook(raw_request: Request):
                             request.installation.id,
                         )
                         logs, user_message = clean_logs(logs)
-                        commit_author = request.sender.login
                         chat_logger = ChatLogger(
                             data={
                                 "username": commit_author,
@@ -305,8 +304,8 @@ async def webhook(raw_request: Request):
                             installation_id=request_dict["installation"]["id"],
                             user_token=None,
                             use_faster_model=chat_logger.use_faster_model(),
-                            username=commit_author,
-                            chat_logger=chat_logger,
+                            username=commit_author if chat_logger else 'unknown',
+                            chat_logger=chat_logger if chat_logger else ChatLogger(),
                         )
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
