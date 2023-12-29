@@ -36,7 +36,7 @@ class UserSettings(BaseModel):
 
         return cls(**doc)
 
-    def get_messsage(self):
+    def get_message(self):
         # This is a message displayed to the user in the ticket
         if self.email and self.do_email:
             return f"> [!TIP]\n> I'll email you at {self.email} when I complete this pull request!"
