@@ -252,6 +252,8 @@ def function_modify(
             + traceback.format_exc()
             + "\n\n"
             + str(chat_logger.data if chat_logger else "")
+            + "\n\n"
+            + str(ticket_progress.tracking_id if ticket_progress else "")
         )
     except Exception as e:
         logger.exception(e)
@@ -262,6 +264,8 @@ def function_modify(
             + traceback.format_exc()
             + "\n\n"
             + str(chat_logger.data if chat_logger else "")
+            + "\n\n"
+            + str(ticket_progress.tracking_id if ticket_progress else "")
         )
         return None
     return None
