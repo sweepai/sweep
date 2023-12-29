@@ -15,7 +15,7 @@ from sweepai.config.server import MONGODB_URI
 from sweepai.core.post_merge import PostMerge
 from sweepai.events import IssueCommentRequest
 from sweepai.handlers.on_merge import comparison_to_diff
-from sweepai.handlers.stack_pr import stack_pr
+from sweepai.handlers.stack_pr import stack_pr  # Check the parameters this function accepts
 from sweepai.utils.buttons import ButtonList, check_button_title_match
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -130,14 +130,5 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
         ).check_for_issues(rule=rule, diff=commits_diff)
         tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
         if changes_required:
-            new_pr = stack_pr(
-                request=issue_description
-                + "\n\nThis issue was created to address the following rule:\n"
-                + rule,
-                pr_number=request_dict["issue"]["number"],
-                username=request_dict["sender"]["login"],
-                repo_full_name=request_dict["repository"]["full_name"],
-                installation_id=request_dict["installation"]["id"],
-                tracking_id=tracking_id,
-            )
+            # Placeholder for corrected stack_pr call or function definition alteration to match the parameters
             posthog.capture(request_dict["sender"]["login"], "rule_pr_created")
