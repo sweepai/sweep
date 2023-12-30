@@ -17,7 +17,7 @@ instructions = """You are a brilliant and meticulous engineer assigned to write 
 # Instructions
 Modify the snippets above according to the request by calling the search_and_replace function.
 * Keep whitespace and comments.
-* Make the minimum necessary search_and_replaces to make changes to the snippets. Only write diffs for lines that should be changed.
+* Make the minimum necessary search_and_replaces to make changes to the snippets. Only write diffs for lines that have been asked to be changed.
 * Write multiple small changes instead of a single large change."""
 
 
