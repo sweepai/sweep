@@ -1,8 +1,11 @@
+import traceback
+
 import resend
 from github import Github
 from github.AppAuthentication import AppAuthentication
 from pydantic import BaseModel
 
+from sandbox.src.sandbox_local import discord_log_error
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, RESEND_API_KEY
 from sweepai.utils.chat_logger import global_mongo_client
 from sweepai.utils.github_utils import get_installation_id
@@ -24,14 +27,23 @@ class UserSettings(BaseModel):
 
         if doc is None:
             # Try get email from github
-            installation_id = get_installation_id(username)
-            auth = AppAuthentication(
-                installation_id=installation_id,
-                app_id=GITHUB_APP_ID,
-                private_key=GITHUB_APP_PEM,
-            )
-            g = Github(app_auth=auth)
-            email = g.get_user(username).email or ""  # Some user's have private emails
+
+            try:
+                installation_id = get_installation_id(username)
+                auth = AppAuthentication(
+                    installation_id=installation_id,
+                    app_id=GITHUB_APP_ID,
+                    private_key=GITHUB_APP_PEM,
+                )
+                g = Github(app_auth=auth)
+                email = (
+                    g.get_user(username).email or ""
+                )  # Some user's have private emails
+            except Exception as e:
+                discord_log_error(
+                    e + "\n\n" + traceback.format_exc() + f"\n\nUsername: {username}"
+                )
+                email = ""
             return UserSettings(username=username, email=email)
 
         return cls(**doc)
