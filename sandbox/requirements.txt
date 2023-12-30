@@ -75,7 +75,7 @@ geopy==2.4.0
 gitdb==4.0.10
 GitPython==3.1.37
 googleapis-common-protos==1.60.0
-gradio==3.44.4
+gradio==4.11.0
 gradio_client==0.5.1
 greenlet==2.0.1
 grpcio==1.58.0
