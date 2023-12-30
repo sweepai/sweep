@@ -156,7 +156,7 @@ def function_modify(
                                     if old_code in chunk
                                 ]
                                 chunks_with_old_code = chunks_with_old_code[:5]
-                                error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
+                                error_message = f"The old_code does not appear to be present in  section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_id} has code:\n```\n{chunk}\n```"
                                 if chunks_with_old_code:
                                     error_message += f"\n\nDid you mean one of the following sections?"
                                     error_message += "\n".join(
@@ -166,7 +166,7 @@ def function_modify(
                                         ]
                                     )
                                 else:
-                                    error_message += f"\n\nDouble-check your indentation and spelling, and make sure there's no missing whitespace or comments."
+                                    error_message += f"\n\nMake another replacement. In the analysis_and_identification, first identify the indentation or spelling error. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct old_code, and make another replacement with the corrected old_code."
                                 break
                             new_chunk = chunk.replace(old_code, new_code, 1)
                             if new_chunk == chunk:
@@ -220,7 +220,7 @@ def function_modify(
                             success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}. You can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
-                            error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\n. Please retry with different valid changes."
+                            error_message = f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
 
                     if error_message:
                         logger.error(error_message)
