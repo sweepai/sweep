@@ -44,7 +44,7 @@ comm==0.1.4
 commit5==0.1.1
 config-path==1.0.3
 contourpy==1.1.1
-cryptography==41.0.4
+cryptography==41.0.6
 cycler==0.11.0
 dataclasses-json==0.6.0
 debugpy==1.8.0
