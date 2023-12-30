@@ -40,7 +40,10 @@ class UserSettings(BaseModel):
                 )  # Some user's have private emails
             except Exception as e:
                 discord_log_error(
-                    e + "\n\n" + traceback.format_exc() + f"\n\nUsername: {username}"
+                    str(e)
+                    + "\n\n"
+                    + traceback.format_exc()
+                    + f"\n\nUsername: {username}"
                 )
                 email = ""
             return UserSettings(username=username, email=email)
