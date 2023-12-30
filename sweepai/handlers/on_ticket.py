@@ -1543,8 +1543,8 @@ def on_ticket(
         if fcr.change_type in ("create", "modify"):
             diff = list(
                 difflib.unified_diff(
-                    fcr.old_content.splitlines() or [],
-                    fcr.new_content.splitlines() or [],
+                    (fcr.old_content or "").splitlines() or [],
+                    (fcr.new_content or "").splitlines() or [],
                     lineterm="",
                 )
             )
