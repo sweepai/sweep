@@ -5,9 +5,8 @@ from github import Github
 from github.AppAuthentication import AppAuthentication
 from pydantic import BaseModel
 
-from sandbox.src.sandbox_local import discord_log_error
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, RESEND_API_KEY
-from sweepai.utils.chat_logger import global_mongo_client
+from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
 from sweepai.utils.github_utils import get_installation_id
 
 resend.api_key = RESEND_API_KEY
