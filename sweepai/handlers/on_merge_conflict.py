@@ -4,18 +4,36 @@ from git import GitCommandError
 from github.PullRequest import PullRequest
 from loguru import logger
 
-from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.core import entities
 from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import create_pr_changes
 from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketContext, TicketProgress, TicketProgressStatus
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import to_branch_name
 from sweepai.utils.ticket_utils import center
+
+instructions_format = """Resolve the merge conflicts in the PR by incorporating changes from both branches into the final code.
+
+Title of PR: {title}
+
+Here were the original changes to this file in the head branch:
+Commit message: {head_commit_message}
+```diff
+{head_diff}
+```
+
+Here were the original changes to this file in the base branch:
+Commit message: {base_commit_message}
+```diff
+{base_diff}
+```
+
+In the analysis_and_identification, first determine what each change does. Then determine what the final code should be. Finally, make the code changes by writing the old_code and the new_code."""
 
 
 def on_merge_conflict(
@@ -84,6 +102,14 @@ def on_merge_conflict(
         content="",
     )
 
+    # Making sure name is unique
+    for i in range(30):
+        try:
+            repo.get_branch(new_pull_request.branch_name + "_" + str(i))
+        except Exception:
+            new_pull_request.branch_name += "_" + str(i)
+            break
+
     # Merge into base branch from cloned_repo.repo_dir to pr.base.ref
     git_repo = cloned_repo.git_repo
     old_head_branch = git_repo.branches[branch]
@@ -149,14 +175,49 @@ def on_merge_conflict(
         branch=new_pull_request.branch_name,
     )
     # can select more precise snippets
-    file_change_requests = [
-        FileChangeRequest(
-            filename=conflict_file,
-            instructions="Resolve the merge conflicts by combining features from both branches into the final code or selecting one of the versions.",
-            change_type="modify",
+    file_change_requests = []
+
+    base_commits = pr.base.repo.get_commits().get_page(0)
+    head_commits = list(pr.get_commits())
+    for conflict_file in conflict_files:
+        old_code = repo.get_contents(
+            conflict_file, ref=head_commits[0].parents[0].sha
+        ).decoded_content.decode()
+        base_code = repo.get_contents(
+            conflict_file, ref=pr.base.ref
+        ).decoded_content.decode()
+        head_code = repo.get_contents(
+            conflict_file, ref=pr.head.ref
+        ).decoded_content.decode()
+        base_diff = generate_diff(old_code=old_code, new_code=base_code)
+        head_diff = generate_diff(old_code=old_code, new_code=head_code)
+        base_commit_message = ""
+        for commit in base_commits[::-1]:
+            if any(
+                commit_file.filename == conflict_file for commit_file in commit.files
+            ):
+                base_commit_message = commit.raw_data["commit"]["message"]
+                break
+        head_commit_message = ""
+        for commit in head_commits[::-1]:
+            if any(
+                commit_file.filename == conflict_file for commit_file in commit.files
+            ):
+                head_commit_message = commit.raw_data["commit"]["message"]
+                break
+        file_change_requests.append(
+            FileChangeRequest(
+                filename=conflict_file,
+                instructions=instructions_format.format(
+                    title=pr.title,
+                    base_commit_message=base_commit_message,
+                    base_diff=base_diff,
+                    head_commit_message=head_commit_message,
+                    head_diff=head_diff,
+                ),
+                change_type="modify",
+            )
         )
-        for conflict_file in conflict_files
-    ]
 
     ticket_progress.status = TicketProgressStatus.CODING
     ticket_progress.save()
@@ -190,12 +251,14 @@ def on_merge_conflict(
     edit_comment("Done creating pull request.")
 
     diff_text = get_branch_diff_text(repo, new_pull_request.branch_name)
+
     # Can skip this step too
-    new_description = PRDescriptionBot().describe_diffs(
-        diff_text,
-        new_pull_request.title,
-    )
-    new_description += f"\n\nResolves merge conflicts in #{pr_number}."
+    # new_description = PRDescriptionBot().describe_diffs(
+    #     diff_text,
+    #     new_pull_request.title,
+    # )
+    # new_description += f"\n\nResolves merge conflicts in #{pr_number}."
+    new_description = f"This PR resolves the merge conflicts in #{pr_number}. This branch can be directly merged into {pr.base.ref}."
 
     # Create pull request
     new_pull_request.content = new_description
@@ -203,7 +266,7 @@ def on_merge_conflict(
         title=request,
         body=new_description,
         head=new_pull_request.branch_name,
-        base=branch,
+        base=pr.base.ref,
     )
 
     ticket_progress.context.pr_id = github_pull_request.number
@@ -216,7 +279,7 @@ def on_merge_conflict(
 
 if __name__ == "__main__":
     on_merge_conflict(
-        pr_number=2819,
+        pr_number=2844,
         username="kevinlu1248",
         repo_full_name="sweepai/sweep",
         installation_id=36855882,

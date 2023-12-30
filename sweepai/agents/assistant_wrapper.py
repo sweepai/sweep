@@ -202,7 +202,9 @@ def run_until_complete(
                 break
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(f"Run completed with {run.status}")
-                raise Exception("Run failed")
+                raise Exception(
+                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id}"
+                )
             elif run.status == "requires_action":
                 tool_calls = [
                     tool_call
