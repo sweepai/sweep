@@ -5,7 +5,7 @@ draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write unit tests in the same directory as their corresponding code, i.e. sweepai/api_test.py tests sweepai/api.py. We use pytest for tests. Never use wildcard imports. Use list and tuple for typing instead of typing.List and typing.Tuple."
 
 rules:
-  - "We should use loguru for error logging. If the log is inside an exception, use logger.exception to add tracebacks, where logger is imported from loguru. Use f-strings for string formatting in logger calls."
+  - "We should use loguru for error logging. If the log is inside an exception, use logger.exception to add tracebacks, where logger is imported from loguru. Use f-strings for string formatting in logger calls (e.g. logger.info(f'Hello {name}') instead of logger.info('Hello {name}', name=name))."
   - "There should be no debug log or print statements in production code."
   - "All functions should have parameters and output annotated with type hints. Use list, tuple and dict instead of typing.List, typing.Tuple and typing.dict."
   - "Leftover TODOs in the code should be handled."
