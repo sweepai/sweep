@@ -300,10 +300,7 @@ def on_ticket(
 
     try:
         if current_issue.state == "closed":
-            logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
-            )
-            posthog.capture(
+            fire_and_forget_wrapper(posthog.capture)(
                 username,
                 "issue_closed",
                 properties={
@@ -1546,8 +1543,8 @@ def on_ticket(
         if fcr.change_type in ("create", "modify"):
             diff = list(
                 difflib.unified_diff(
-                    fcr.old_content.splitlines() or [],
-                    fcr.new_content.splitlines() or [],
+                    (fcr.old_content or "").splitlines() or [],
+                    (fcr.new_content or "").splitlines() or [],
                     lineterm="",
                 )
             )
