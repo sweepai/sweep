@@ -19,6 +19,8 @@ class UserSettings(BaseModel):
 
     @classmethod
     def from_username(cls, username: str):
+        if global_mongo_client is None:
+            return cls(username=username, email="", do_email=False)
         db = global_mongo_client["users"]
         collection = db["users"]
 
