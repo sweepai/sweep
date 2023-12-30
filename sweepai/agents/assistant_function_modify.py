@@ -297,7 +297,9 @@ def function_modify(
                             f"SUCCESS\nHere are the lines containing the keywords:\n\n{success_message}"
                         )
                 else:
-                    raise Exception("Unexpected tool name")
+                    assistant_generator.send(
+                        f"ERROR\nUnexpected tool name: {tool_name}"
+                    )
         except StopIteration:
             pass
         diff = generate_diff(file_contents, current_contents)
