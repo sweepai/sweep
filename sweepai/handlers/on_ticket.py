@@ -1338,7 +1338,49 @@ def on_ticket(
                 done=True,
             )
 
-            logger.info("Add successful ticket to counter")
+            user_settings = UserSettings.from_username(username=username)
+            user = g.get_user(username)
+            full_name = user.name or user.login
+            name = full_name.split(" ")[0]
+            files_changed = []
+            for fcr in file_change_requests:
+                if fcr.change_type in ("create", "modify"):
+                    diff = list(
+                        difflib.unified_diff(
+                            (fcr.old_content or "").splitlines() or [],
+                            (fcr.new_content or "").splitlines() or [],
+                            lineterm="",
+                        )
+                    )
+                    added = sum(
+                        1
+                        for line in diff
+                        if line.startswith("+") and not line.startswith("+++")
+                    )
+                    removed = sum(
+                        1
+                        for line in diff
+                        if line.startswith("-") and not line.startswith("---")
+                    )
+                    files_changed.append(
+                        f"<code>{fcr.filename}</code> (+{added}/-{removed})"
+                    )
+            user_settings.send_email(
+                subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
+                html=email_template.format(
+                    name=name,
+                    pr_url=pr.html_url,
+                    issue_number=issue_number,
+                    repo_full_name=repo_full_name,
+                    pr_number=pr.number,
+                    progress_url=f"https://progress.sweep.dev/issues/{tracking_id}",
+                    summary=markdown.markdown(pr_changes.body),
+                    files_changed="\n".join(
+                        [f"<li>{item}</li>" for item in files_changed]
+                    ),
+                    sweeping_gif=sweeping_gif,
+                ),
+            )
         except MaxTokensExceeded as e:
             logger.info("Max tokens exceeded")
             ticket_progress.status = TicketProgressStatus.ERROR
@@ -1533,47 +1575,6 @@ def on_ticket(
             },
         )
         raise e
-
-    user_settings = UserSettings.from_username(username=username)
-    user = g.get_user(username)
-    full_name = user.name or user.login
-    name = full_name.split(" ")[0]
-    files_changed = []
-    for fcr in file_change_requests:
-        if fcr.change_type in ("create", "modify"):
-            diff = list(
-                difflib.unified_diff(
-                    (fcr.old_content or "").splitlines() or [],
-                    (fcr.new_content or "").splitlines() or [],
-                    lineterm="",
-                )
-            )
-            added = sum(
-                1
-                for line in diff
-                if line.startswith("+") and not line.startswith("+++")
-            )
-            removed = sum(
-                1
-                for line in diff
-                if line.startswith("-") and not line.startswith("---")
-            )
-            files_changed.append(f"<code>{fcr.filename}</code> (+{added}/-{removed})")
-    user_settings.send_email(
-        subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
-        html=email_template.format(
-            name=name,
-            pr_url=pr.html_url,
-            issue_number=issue_number,
-            repo_full_name=repo_full_name,
-            pr_number=pr.number,
-            progress_url=f"https://progress.sweep.dev/issues/{tracking_id}",
-            summary=markdown.markdown(pr_changes.body),
-            files_changed="\n".join([f"<li>{item}</li>" for item in files_changed]),
-            sweeping_gif=sweeping_gif,
-        ),
-    )
-
     posthog.capture(
         username,
         "success",
