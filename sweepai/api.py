@@ -822,49 +822,61 @@ async def webhook(raw_request: Request):
                 chat_logger = ChatLogger({"username": merged_by})
             case "push", None:
                 logger.info(f"Received event: {event}, {action}")
-                if event != "pull_request" or request_dict["base"]["merged"] == True:
-                    chat_logger = ChatLogger(
-                        {"username": request_dict["pusher"]["name"]}
-                    )
-                    # on merge
-                    call_on_merge(request_dict, chat_logger)
-                    ref = request_dict["ref"] if "ref" in request_dict else ""
-                    if ref.startswith("refs/heads") and not ref.startswith(
-                        "ref/heads/sweep"
-                    ):
-                        _, g = get_github_client(request_dict["installation"]["id"])
-                        repo = g.get_repo(request_dict["repository"]["full_name"])
-                        if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
-                            update_sweep_prs_v2(
-                                request_dict["repository"]["full_name"],
-                                installation_id=request_dict["installation"]["id"],
-                            )
-                    if ref.startswith("refs/heads"):
-                        branch_name = ref[len("refs/heads/") :]
-                        # Check if the branch has an associated PR
 
-                        org_name, repo_name = request_dict["repository"][
-                            "full_name"
-                        ].split("/")
-                        pulls = repo.get_pulls(
-                            state="open",
-                            sort="created",
-                            head=org_name + ":" + branch_name,
+                def worker():
+                    if (
+                        event != "pull_request"
+                        or request_dict["base"]["merged"] == True
+                    ):
+                        chat_logger = ChatLogger(
+                            {"username": request_dict["pusher"]["name"]}
                         )
-                        for pr in pulls:
-                            logger.info(
-                                f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
-                            )
-                            if pr.mergeable == False:
-                                on_merge_conflict(
-                                    pr_number=pr.number,
-                                    username=pr.user.login,
-                                    repo_full_name=request_dict["repository"][
-                                        "full_name"
-                                    ],
+                        # on merge
+                        call_on_merge(request_dict, chat_logger)
+                        ref = request_dict["ref"] if "ref" in request_dict else ""
+                        if ref.startswith("refs/heads") and not ref.startswith(
+                            "ref/heads/sweep"
+                        ):
+                            _, g = get_github_client(request_dict["installation"]["id"])
+                            repo = g.get_repo(request_dict["repository"]["full_name"])
+                            if ref[len("refs/heads/") :] == SweepConfig.get_branch(
+                                repo
+                            ):
+                                update_sweep_prs_v2(
+                                    request_dict["repository"]["full_name"],
                                     installation_id=request_dict["installation"]["id"],
-                                    tracking_id=get_hash(),
                                 )
+                        if ref.startswith("refs/heads"):
+                            branch_name = ref[len("refs/heads/") :]
+                            # Check if the branch has an associated PR
+
+                            org_name, repo_name = request_dict["repository"][
+                                "full_name"
+                            ].split("/")
+                            pulls = repo.get_pulls(
+                                state="open",
+                                sort="created",
+                                head=org_name + ":" + branch_name,
+                            )
+                            for pr in pulls:
+                                logger.info(
+                                    f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
+                                )
+                                if pr.mergeable == False:
+                                    on_merge_conflict(
+                                        pr_number=pr.number,
+                                        username=pr.user.login,
+                                        repo_full_name=request_dict["repository"][
+                                            "full_name"
+                                        ],
+                                        installation_id=request_dict["installation"][
+                                            "id"
+                                        ],
+                                        tracking_id=get_hash(),
+                                    )
+
+                thread = threading.Thread(target=worker)
+                thread.start()
             case "ping", None:
                 return {"message": "pong"}
             case _:
