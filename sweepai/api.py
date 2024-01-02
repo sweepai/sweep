@@ -8,8 +8,9 @@ import threading
 import time
 
 import requests
-from fastapi import FastAPI, HTTPException, Path, Request
+from fastapi import Depends, FastAPI, HTTPException, Path, Request, Security, status
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import ValidationError
@@ -83,7 +84,30 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
-Instrumentator().instrument(app).expose(app)
+security = HTTPBearer()
+
+
+def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security)):
+    if credentials.scheme != "Bearer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid authentication scheme.",
+        )
+    if credentials.credentials != "example_token":  # grafana requires authentication
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
+        )
+    return True
+
+
+Instrumentator().instrument(app).expose(
+    app,
+    should_gzip=False,
+    endpoint="/metrics",
+    include_in_schema=True,
+    tags=["metrics"],
+    dependencies=[Depends(auth_metrics)],
+)
 
 
 def get_hash():
