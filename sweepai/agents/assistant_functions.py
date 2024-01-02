@@ -49,3 +49,22 @@ search_and_replace_schema = {
     },
     "description": "Make edits to the code file.",
 }
+
+keyword_search_schema = {
+    "name": "keyword_search",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "justification": {
+                "type": "string",
+                "description": "Justification for searching the keyword.",
+            },
+            "keyword": {
+                "type": "string",
+                "description": "The keyword to search for.",
+            },
+        },
+        "required": ["justification", "keyword"],
+    },
+    "description": "Searches for all lines in the file containing the keyword.",
+}

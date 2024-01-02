@@ -839,8 +839,36 @@ async def webhook(raw_request: Request):
                                 request_dict["repository"]["full_name"],
                                 installation_id=request_dict["installation"]["id"],
                             )
+                    if ref.startswith("refs/heads"):
+                        branch_name = ref[len("refs/heads/") :]
+                        # Check if the branch has an associated PR
+
+                        org_name, repo_name = request_dict["repository"][
+                            "full_name"
+                        ].split("/")
+                        pulls = repo.get_pulls(
+                            state="open",
+                            sort="created",
+                            head=org_name + ":" + branch_name,
+                        )
+                        for pr in pulls:
+                            logger.info(
+                                f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
+                            )
+                            if pr.mergeable == False:
+                                on_merge_conflict(
+                                    pr_number=pr.number,
+                                    username=pr.user.login,
+                                    repo_full_name=request_dict["repository"][
+                                        "full_name"
+                                    ],
+                                    installation_id=request_dict["installation"]["id"],
+                                    tracking_id=get_hash(),
+                                )
             case "ping", None:
                 return {"message": "pong"}
+            case _:
+                return {"error": "Unsupported type"}
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
