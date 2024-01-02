@@ -5,7 +5,12 @@ from github import Github
 from github.AppAuthentication import AppAuthentication
 from pydantic import BaseModel
 
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, RESEND_API_KEY
+from sweepai.config.server import (
+    GITHUB_APP_ID,
+    GITHUB_APP_PEM,
+    IS_SELF_HOSTED,
+    RESEND_API_KEY,
+)
 from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
 from sweepai.utils.github_utils import get_installation_id
 
@@ -19,7 +24,7 @@ class UserSettings(BaseModel):
 
     @classmethod
     def from_username(cls, username: str):
-        if global_mongo_client is None:
+        if IS_SELF_HOSTED:
             return cls(username=username, email="", do_email=False)
         db = global_mongo_client["users"]
         collection = db["users"]
