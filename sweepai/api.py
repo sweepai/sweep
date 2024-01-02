@@ -889,9 +889,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
-    except SystemExit:
-        raise SystemExit
-    except:
+    except Exception:
         branch_ttl = 7
     branch_ttl = max(branch_ttl, 1)
 
