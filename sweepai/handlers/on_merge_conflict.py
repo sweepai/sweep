@@ -34,7 +34,7 @@ Commit message: {base_commit_message}
 {base_diff}
 ```
 
-In the analysis_and_identification, first determine what each change does. Then determine what the final code should be. Finally, make the code changes by writing the old_code and the new_code."""
+In the analysis_and_identification, first determine what each change does. Then determine what the final code should be. Then, use the keyword_search to find the merge conflict markers <<<<<<< and >>>>>>>. Finally, make the code changes by writing the old_code and the new_code."""
 
 
 def on_merge_conflict(
