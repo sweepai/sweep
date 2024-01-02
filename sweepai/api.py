@@ -867,6 +867,8 @@ async def webhook(raw_request: Request):
                                 )
             case "ping", None:
                 return {"message": "pong"}
+            case _:
+                return {"error": "Unsupported type"}
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
