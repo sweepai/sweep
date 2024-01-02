@@ -23,19 +23,37 @@ class UserSettings(BaseModel):
     do_email: bool = True
 
     @classmethod
-<<<<<<< HEAD
     def from_username(cls, username: str, installation_id: int = None) -> 'UserSettings':
-=======
-    def from_username(cls, username: str):
         if IS_SELF_HOSTED:
             return cls(username=username, email="", do_email=False)
->>>>>>> origin/main
         db = global_mongo_client["users"]
         collection = db["users"]
 
         doc = collection.find_one({"username": username})
 
         if doc is None:
+            # Try get email from github
+            try:
+                if installation_id is None:
+                    installation_id = get_installation_id(username)
+                auth = AppAuthentication(
+                    installation_id=installation_id,
+                    app_id=GITHUB_APP_ID,
+                    private_key=GITHUB_APP_PEM,
+                )
+                g = Github(app_auth=auth)
+                email = (
+                    g.get_user(username).email or ""
+                )  # Some user's have private emails
+            except Exception as e:
+                discord_log_error(
+                    str(e)
+                    + "\n\n"
+                    + traceback.format_exc()
+                    + f"\n\nUsername: {username}"
+                )
+                email = ""
+            return UserSettings(username=username, email=email)
             # Try get email from github
 
             try:
