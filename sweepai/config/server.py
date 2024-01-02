@@ -159,12 +159,6 @@ WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-SANDBOX_URL = os.environ.get("SANDBOX_URL")
-if SANDBOX_URL is None:
-    SANDBOX_URL = "http://0.0.0.0:8081"
-
-
-MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
 
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
