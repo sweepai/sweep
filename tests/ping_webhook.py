@@ -1,17 +1,14 @@
 import json
 import time
 
-from fastapi.testclient import TestClient
-
-from sweepai.api import app
+import requests
 
 if __name__ == "__main__":
-    client = TestClient(app)
     start_time = time.time()
-    response = client.post(
-        "/",
+    response = requests.post(
+        "http://127.0.0.1:8080",
         json=json.load(open("tests/jsons/opened_pull.json", "r")),
-        headers={"X-GitHub-Event": "pull_request"},
+        headers={"X-GitHub-Event": "test"},
     )
     print(f"Completed in {time.time() - start_time}s")
     print(response)

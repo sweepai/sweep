@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 
 import aiohttp
 from tqdm import tqdm
@@ -11,10 +12,11 @@ async def post_request(session, url, data, headers, progress_bar):
         progress_bar.update(1)
 
 
-num_runs = 20
+num_runs = 30
 
 
 async def main():
+    start_time = time.time()
     progress_bar = tqdm(total=num_runs)
     async with aiohttp.ClientSession() as session:
         tasks = []
@@ -32,6 +34,7 @@ async def main():
             tasks.append(task)
         await asyncio.gather(*tasks)
     progress_bar.close()
+    print(f"Finished in {time.time() - start_time}")
 
 
 if __name__ == "__main__":
