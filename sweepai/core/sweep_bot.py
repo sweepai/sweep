@@ -1619,7 +1619,8 @@ class SweepBot(CodeGenBot, GithubBot):
 
         changed_files.append((file_change_request.filename, ("", file_change.code)))
 
-        file_change_request.new_content = file_change.code, changed_files
+        # file_change_request.new_content = file_change.code, changed_files
+        file_change_request.new_content = file_change.code
 
         return True, sandbox_response, result["commit"], changed_files
 

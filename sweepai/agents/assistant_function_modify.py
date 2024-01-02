@@ -3,10 +3,12 @@ import traceback
 
 from loguru import logger
 
-from sweepai.agents.assistant_functions import search_and_replace_schema
+from sweepai.agents.assistant_functions import (
+    keyword_search_schema,
+    search_and_replace_schema,
+)
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, Message
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -17,7 +19,7 @@ instructions = """You are a brilliant and meticulous engineer assigned to write 
 # Instructions
 Modify the snippets above according to the request by calling the search_and_replace function.
 * Keep whitespace and comments.
-* Make the minimum necessary search_and_replaces to make changes to the snippets. Only write diffs for lines that should be changed.
+* Make the minimum necessary search_and_replaces to make changes to the snippets. Only write diffs for lines that have been asked to be changed.
 * Write multiple small changes instead of a single large change."""
 
 
@@ -39,7 +41,7 @@ def excel_col_to_int(s):
 MAX_CHARS = 32000
 
 
-@file_cache(ignore_params=["file_path", "chat_logger"])
+# @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
     request: str,
     file_path: str,
@@ -115,6 +117,7 @@ def function_modify(
             tools=[
                 {"type": "code_interpreter"},
                 {"type": "function", "function": search_and_replace_schema},
+                {"type": "function", "function": keyword_search_schema},
             ],
         )
 
@@ -137,6 +140,9 @@ def function_modify(
                                     error_message = f"Missing {key} in replace_to_make."
                                     break
 
+                            if error_message:
+                                break
+
                             section_letter = replace_to_make["section_id"]
                             section_id = excel_col_to_int(section_letter)
                             old_code = replace_to_make["old_code"].strip("\n")
@@ -153,7 +159,7 @@ def function_modify(
                                     if old_code in chunk
                                 ]
                                 chunks_with_old_code = chunks_with_old_code[:5]
-                                error_message = f"Could not find the old_code:\n```\n{old_code}\n```\nIn section {section_id}, which has code:\n```\n{chunk}\n```"
+                                error_message = f"The old_code does not appear to be present in  section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_id} has code:\n```\n{chunk}\n```"
                                 if chunks_with_old_code:
                                     error_message += f"\n\nDid you mean one of the following sections?"
                                     error_message += "\n".join(
@@ -163,7 +169,7 @@ def function_modify(
                                         ]
                                     )
                                 else:
-                                    error_message += f"\n\nDouble-check your indentation and spelling, and make sure there's no missing whitespace or comments."
+                                    error_message += f"\n\nMake another replacement. In the analysis_and_identification, first identify the indentation or spelling error. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct old_code, and make another replacement with the corrected old_code."
                                 break
                             new_chunk = chunk.replace(old_code, new_code, 1)
                             if new_chunk == chunk:
@@ -214,10 +220,10 @@ def function_modify(
                                     current_code_section += "\n" + section_display
                             code_sections.append(current_code_section)
                             new_current_code = f"\n\n{code_sections[0]}"
-                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}. You can continue to make changes to the code sections and call the `search_and_replace` function again."
+                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}\n\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
-                            error_message = f"When the following changes are applied:\n```diff\n{diff}\n```\nIt yields invalid code with the following message:\n```{message}```\n. Please retry with different valid changes."
+                            error_message = f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
 
                     if error_message:
                         logger.error(error_message)
@@ -229,8 +235,71 @@ def function_modify(
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\nHere are the new code sections:\n\n{success_message}"
                         )
+                elif tool_name == "keyword_search":
+                    error_message = ""
+                    success_message = ""
+
+                    for key in ["justification", "keyword"]:
+                        if key not in tool_call:
+                            error_message = f"Missing {key} in keyword_search."
+                            break
+
+                    if not error_message:
+                        keyword = tool_call["keyword"]
+                        matches = []
+                        for i, chunk in enumerate(chunks):
+                            if keyword in chunk:
+                                matches.append(i)
+                        if not matches:
+                            error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
+                        else:
+                            success_message = (
+                                "The keyword was found in the following sections:\n\n"
+                            )
+                        for match_index in matches:
+                            match = chunks[match_index]
+                            match_lines = match.split("\n")
+                            lines_containing_keyword = [
+                                i
+                                for i, line in enumerate(match_lines)
+                                if keyword in line
+                            ]
+                            cols_of_keyword = [
+                                match_lines[line_containing_keyword].index(keyword)
+                                for line_containing_keyword in lines_containing_keyword
+                            ]
+                            match_display = ""
+                            for i, line in enumerate(match_lines):
+                                if i in lines_containing_keyword:
+                                    match_display += (
+                                        f"{line}\n"
+                                        + " "
+                                        * (
+                                            cols_of_keyword[
+                                                lines_containing_keyword.index(i)
+                                            ]
+                                        )
+                                        + "^\n"
+                                    )
+                                else:
+                                    match_display += f"{line}\n"
+                            match_display = match_display.strip("\n")
+                            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
+
+                    if error_message:
+                        logger.error(error_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\nThe search failed due to the following error:\n\n{error_message}"
+                        )
+                    else:
+                        logger.info(success_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\nHere are the lines containing the keywords:\n\n{success_message}"
+                        )
                 else:
-                    raise Exception("Unexpected tool name")
+                    assistant_generator.send(
+                        f"ERROR\nUnexpected tool name: {tool_name}"
+                    )
         except StopIteration:
             pass
         diff = generate_diff(file_contents, current_contents)
@@ -249,6 +318,8 @@ def function_modify(
             + traceback.format_exc()
             + "\n\n"
             + str(chat_logger.data if chat_logger else "")
+            + "\n\n"
+            + str(ticket_progress.tracking_id if ticket_progress else "")
         )
     except Exception as e:
         logger.exception(e)
@@ -259,31 +330,34 @@ def function_modify(
             + traceback.format_exc()
             + "\n\n"
             + str(chat_logger.data if chat_logger else "")
+            + "\n\n"
+            + str(ticket_progress.tracking_id if ticket_progress else "")
         )
         return None
     return None
 
 
 if __name__ == "__main__":
-    request = """  • Instantiate `FilterAgent` and invoke `filter_search_query` with the query before the lexical search is performed.
-  • Capture the filtered query and replace the initial query with this new filtered version.
-  • Add error handling for the integration with `FilterAgent`."""
+    request = "Convert any all logger.errors to logger.exceptions in api.py"
     additional_messages = [
         Message(
             role="user",
-            content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: integrate FilterAgent into on_ticket.py",
+            content="# Repo & Issue Metadata\nRepo: sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.\nIssue Title: Convert any all logger.errors to logger.exceptions in on_ticket.py",
             name=None,
             function_call=None,
             key="issue_metadata",
         )
     ]
-    file_contents = open("sweepai/utils/ticket_utils.py", "r").read()
+    file_contents = open("sweepai/handlers/on_ticket.py", "r").read()
     response = function_modify(
         request=request,
-        file_path="sweepai/utils/ticket_utils.py",
+        file_path="sweepai/handlers/on_ticket.py",
         file_contents=file_contents,
         chat_logger=ChatLogger(
-            {"username": "wwzeng1", "title": "Integrate FilterAgent"}
+            {
+                "username": "kevinlu1248",
+                "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
+            }
         ),
         # additional_messages=additional_messages,
     )
