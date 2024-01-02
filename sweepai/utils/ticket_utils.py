@@ -130,18 +130,6 @@ def fetch_relevant_files(
 
         tree = str(repo_context_manager.dir_obj)
         dir_obj = repo_context_manager.dir_obj
-    except SystemExit:
-        logger.warning("System exit")
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                **metadata,
-                "error": "System exit",
-                "duration": time() - on_ticket_start_time,
-            },
-        )
-        raise SystemExit
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
