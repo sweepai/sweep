@@ -186,3 +186,4 @@ sweepai/sandbox/sandbox.venv
 .vscode/**
 benchmark
 data
+metals.*
