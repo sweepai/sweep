@@ -134,7 +134,9 @@ def function_modify(
                     if "replaces_to_make" not in tool_call:
                         error_message = "No replaces_to_make found in tool call."
                     else:
-                        for replace_to_make in tool_call["replaces_to_make"]:
+                        for index, replace_to_make in enumerate(
+                            tool_call["replaces_to_make"]
+                        ):
                             for key in ["section_id", "old_code", "new_code"]:
                                 if key not in replace_to_make:
                                     error_message = f"Missing {key} in replace_to_make."
@@ -159,7 +161,7 @@ def function_modify(
                                     if old_code in chunk
                                 ]
                                 chunks_with_old_code = chunks_with_old_code[:5]
-                                error_message = f"The old_code does not appear to be present in  section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_id} has code:\n```\n{chunk}\n```"
+                                error_message = f"The old_code in the {index}th replace_to_make does not appear to be present in section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_letter} has code:\n```\n{chunk}\n```"
                                 if chunks_with_old_code:
                                     error_message += f"\n\nDid you mean one of the following sections?"
                                     error_message += "\n".join(
