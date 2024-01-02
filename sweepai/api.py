@@ -11,6 +11,7 @@ import requests
 from fastapi import FastAPI, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import ValidationError
 
 from sweepai import health
@@ -81,6 +82,8 @@ tracemalloc.start()
 
 events = {}
 on_ticket_events = {}
+
+Instrumentator().instrument(app).expose(app)
 
 
 def get_hash():
