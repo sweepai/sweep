@@ -289,11 +289,6 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
     return True, ""
 
 
-file_contents = open("benchmark/data/on_ticket.py", "r").read()
-print(check_code("on_ticket.py", file_contents)[1])
-quit()
-
-
 def chunk_code(
     code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100
 ) -> list[Snippet]:
