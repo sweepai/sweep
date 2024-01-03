@@ -261,16 +261,22 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                 f.write(code)
             pylint_output = StringIO()
             reporter = TextReporter(pylint_output)
-            Run(
-                [
-                    new_file,
-                    "--errors-only",
-                    "--disable=import-error",
-                    "--disable=relative-beyond-top-level",
-                ],
-                reporter=reporter,
-                do_exit=False,
-            )
+            original_dir = os.getcwd()
+            os.chdir("/tmp")
+            try:
+                Run(
+                    [
+                        new_file,
+                        "--errors-only",
+                        "--disable=import-error",
+                        "--disable=no-member",
+                        "--disable=relative-beyond-top-level",
+                    ],
+                    reporter=reporter,
+                    do_exit=False,
+                )
+            finally:
+                os.chdir(original_dir)
             error_message = pylint_output.getvalue()
             try:
                 os.remove(new_file)
@@ -281,6 +287,11 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
         except Exception as e:
             discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
     return True, ""
+
+
+file_contents = open("benchmark/data/on_ticket.py", "r").read()
+print(check_code("on_ticket.py", file_contents)[1])
+quit()
 
 
 def chunk_code(
