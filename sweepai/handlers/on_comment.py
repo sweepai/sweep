@@ -138,7 +138,8 @@ def on_comment(
                     "installation_id": installation_id,
                     "pr_number": pr_number,
                     "type": "comment",
-                }
+                },
+                active=True,
             )
             if MONGODB_URI
             else None
@@ -473,6 +474,6 @@ def on_comment(
     fire_and_forget_wrapper(posthog.capture)(
         username,
         "success",
-properties={**metadata, "tracking_id": tracking_id, "duration": elapsed_time},
+        properties={**metadata, "tracking_id": tracking_id, "duration": elapsed_time},
     )
     return {"success": True}
