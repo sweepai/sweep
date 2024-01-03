@@ -261,22 +261,17 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                 f.write(code)
             pylint_output = StringIO()
             reporter = TextReporter(pylint_output)
-            original_dir = os.getcwd()
-            os.chdir("/tmp")
-            try:
-                Run(
-                    [
-                        new_file,
-                        "--errors-only",
-                        "--disable=import-error",
-                        "--disable=no-member",
-                        "--disable=relative-beyond-top-level",
-                    ],
-                    reporter=reporter,
-                    do_exit=False,
-                )
-            finally:
-                os.chdir(original_dir)
+            Run(
+                [
+                    new_file,
+                    "--errors-only",
+                    "--disable=import-error",
+                    "--disable=no-member",
+                    "--disable=relative-beyond-top-level",
+                ],
+                reporter=reporter,
+                do_exit=False,
+            )
             error_message = pylint_output.getvalue()
             try:
                 os.remove(new_file)
