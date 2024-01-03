@@ -144,7 +144,7 @@ class ChatLogger(BaseModel):
 
     def _get_user_field(self, field: str):
         if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+            logger.error(f"Ticket Collection Does Not Exist")
             return None
 
         username = self.data["username"]
