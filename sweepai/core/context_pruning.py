@@ -11,6 +11,7 @@ from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -256,8 +257,16 @@ def get_relevant_context(
     modify_iterations: int = 2
     model = (
         "gpt-3.5-turbo-1106"
-        if (chat_logger and chat_logger.use_faster_model())
+        if (chat_logger is None or chat_logger.use_faster_model())
         else "gpt-4-1106-preview"
+    )
+    posthog.capture(
+        chat_logger.data.get("username") if chat_logger is not None else None,
+        "call_assistant_api",
+        {
+            "query": query,
+            "model": model,
+        },
     )
     try:
         user_prompt = repo_context_manager.format_context(

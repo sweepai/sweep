@@ -248,7 +248,8 @@ def on_ticket(
                 "comment_id": comment_id,
                 "edited": edited,
                 "tracking_id": tracking_id,
-            }
+            },
+            active=True,
         )
         if MONGODB_URI
         else None
