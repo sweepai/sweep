@@ -67,7 +67,7 @@ class ChatLogger(BaseModel):
 
     def _add_chat(self, additional_data):
         if self.chat_collection is None:
-            logger.error("Chat collection is not initialized")
+            logger.error(f"Chat collection is not initialized")
             return
         document = {
             **self.data,
