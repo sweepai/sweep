@@ -41,7 +41,7 @@ class ChatLogger(BaseModel):
         super().__init__(data=data, **kwargs)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
-            logger.warning("Chat history logger has no key")
+            logger.warning(f"Chat history logger has no key")
             return
         if not mock:
             try:
@@ -62,8 +62,8 @@ class ChatLogger(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning("Chat history could not connect to MongoDB")
-                logger.warning(e)
+                logger.warning(f"Chat history could not connect to MongoDB")
+                logger.warning(f"{e}")
 
     def _add_chat(self, additional_data):
         if self.chat_collection is None:
