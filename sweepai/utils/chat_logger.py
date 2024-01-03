@@ -84,7 +84,7 @@ class ChatLogger(BaseModel):
 
     def _add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+            logger.error(f"Ticket Collection Does Not Exist")
             return
 
         username = self.data.get("assignee", self.data["username"])
