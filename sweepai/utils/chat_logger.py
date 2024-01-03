@@ -168,7 +168,7 @@ class ChatLogger(BaseModel):
 
     def use_faster_model(self):
         if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+            logger.error(f"Ticket Collection Does Not Exist")
             return True
         purchased_tickets = self.get_ticket_count(purchased=True)
         if self.is_paying_user():
