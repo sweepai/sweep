@@ -59,15 +59,14 @@ def create_pr_changes(
     # 4. Get file changes
     # 5. Create PR
     chat_logger = (
-        chat_logger
-        if chat_logger is not None
+        chat_logger if chat_logger is not None
         else ChatLogger(
             {
                 "username": username,
                 "installation_id": installation_id,
                 "repo_full_name": sweep_bot.repo.full_name,
                 "title": pull_request.title,
-                "summary": "",
+                "summary": "Event from create_pr",
                 "issue_url": "",
             }
         )
