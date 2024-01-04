@@ -464,8 +464,6 @@ class GithubBot(BaseModel):
                 branch = branch.replace(
                     "/", "_"
                 )  # Replace sweep/ with sweep_ (temp fix)
-            except SystemExit:
-                raise SystemExit
             except Exception:
                 pass
 
@@ -477,7 +475,7 @@ class GithubBot(BaseModel):
                 f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
             )
             if retry:
-                for i in range(1, 31):
+                for i in range(1, 51):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
@@ -490,6 +488,9 @@ class GithubBot(BaseModel):
                 new_branch = self.repo.get_branch(branch)
                 if new_branch:
                     return new_branch.name
+            discord_log_error(
+                f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
+            )
             raise e
 
     def populate_snippets(self, snippets: list[Snippet]):

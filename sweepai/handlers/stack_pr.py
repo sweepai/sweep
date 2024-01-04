@@ -30,6 +30,8 @@ def stack_pr(
     pr: PullRequest = repo.get_pull(pr_number)
     branch = pr.head.ref
 
+    # check if github actions already present
+
     status_message = center(
         f"{sweeping_gif}\n\n"
         + f'Fixing PR: track the progress <a href="https://progress.sweep.dev/issues/{tracking_id}">here</a>.'
