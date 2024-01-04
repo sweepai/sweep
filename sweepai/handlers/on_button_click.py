@@ -55,7 +55,7 @@ def handle_button_click(request_dict):
         rules = []
         for button_text in selected_buttons:
             rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
-        handle_rules(request_dict, rules, user_token, repo, gh_client)
+        handle_rules(request_dict, rules, user_token, repo)
         comment.edit(
             body=ButtonList(
                 buttons=[
@@ -112,7 +112,7 @@ def handle_revert(file_paths, pr_number, repo: Repository):
             pass  # file may not exist and this is expected
 
 
-def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
+def handle_rules(request_dict, rules, user_token, repo: Repository):
     pr = repo.get_pull(request_dict["issue"]["number"])
     chat_logger = (
         ChatLogger(
