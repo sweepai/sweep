@@ -12,7 +12,7 @@ async def post_request(session, url, data, headers, progress_bar):
         progress_bar.update(1)
 
 
-num_runs = 100
+num_runs = 3
 
 
 async def main():
