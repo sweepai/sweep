@@ -1550,8 +1550,8 @@ class SweepBot(CodeGenBot, GithubBot):
             except AssistantRaisedException as e:
                 raise e
             except Exception as e:
-                logger.error(f"Error in change_files_in_github {e}")
-                logger.error(traceback.format_exc())
+                logger.exception(f"Error in change_files_in_github {e}")
+                logger.exception(traceback.format_exc())
                 logger.exception(traceback.format_exc() + "\n" + str(e))
                 file_change_request.status = "failed"
 
@@ -1826,5 +1826,5 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
+            logger.exception(f"Error in handle_modify_file: {tb}")
             return False, sandbox_execution, None, changed_files
