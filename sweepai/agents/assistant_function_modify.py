@@ -83,12 +83,12 @@ def function_modify(
             "\n".join(file_contents_lines[snippet.start : snippet.end])
             for snippet in original_snippets
         ]
-        code_sections = []
+        code_sections = []  # TODO: do this for the new sections after modifications
         current_code_section = ""
         for i, chunk in enumerate(chunks):
             idx = int_to_excel_col(i + 1)
             section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-            if len(current_code_section) + len(section_display) > MAX_CHARS:
+            if len(current_code_section) + len(section_display) > MAX_CHARS - 1000:
                 code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
                 code_sections.append(code_sections_string)
                 current_code_section = section_display
@@ -296,12 +296,12 @@ def function_modify(
                             success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
 
                     if error_message:
-                        logger.error(error_message)
+                        logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
                             f"ERROR\nThe search failed due to the following error:\n\n{error_message}"
                         )
                     else:
-                        logger.info(success_message)
+                        logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\nHere are the lines containing the keywords:\n\n{success_message}"
                         )
