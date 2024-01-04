@@ -273,6 +273,8 @@ async def webhook(raw_request: Request):
 
             def worker():
                 with logger.contextualize(tracking_id="main", env=ENV):
+                    chat_logger = None
+                    commit_author = ""
                     match event, action:
                         case "check_run", "completed":
                             request = CheckRunCompleted(**request_dict)
