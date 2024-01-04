@@ -1,5 +1,6 @@
 import unittest
 import unittest.mock
+import unittest.mock
 
 from sweepai.handlers import stack_pr
 
@@ -27,6 +28,18 @@ class TestStackPR(unittest.TestCase):
             installation_id=36855882,
             tracking_id="test_stack_pr",
         )
+
+    def test_stack_pr_open(self):
+        mock_pr = unittest.mock.create_autospec(stack_pr.stack_pr, return_value={"success": True, "state": "open"})
+        mock_pr.return_value.state = "open"
+        result = mock_pr()
+        self.assertEqual(result, {"success": True})
+
+    def test_stack_pr_not_open(self):
+        mock_pr = unittest.mock.create_autospec(stack_pr.stack_pr, return_value={"success": False, "error_message": "This PR is not open, so I won't attempt to fix it.", "state": "closed"})
+        mock_pr.return_value.state = "closed"
+        result = mock_pr()
+        self.assertEqual(result, {"success": False, "error_message": "This PR is not open, so I won't attempt to fix it."})
 
     # Add more test methods as needed for each function in stack_pr.py
 
