@@ -52,12 +52,6 @@ def create_pr_changes(
     chat_logger: ChatLogger = None,
     base_branch: str = None,
 ) -> Generator[tuple[FileChangeRequest, int, Commit], None, dict]:
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
     chat_logger = (
         chat_logger if chat_logger is not None
         else ChatLogger(
@@ -66,8 +60,13 @@ def create_pr_changes(
                 "installation_id": installation_id,
                 "repo_full_name": sweep_bot.repo.full_name,
                 "title": pull_request.title,
+<<<<<<< HEAD
                 "summary": "Event from create_pr",
                 "issue_url": "",
+=======
+                "summary": "",
+                "issue_url": "NA",
+>>>>>>> origin/cleanup/delete-comment
             }
         )
         if MONGODB_URI
