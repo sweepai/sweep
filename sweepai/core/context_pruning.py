@@ -606,6 +606,11 @@ def modify_context(
     paths_changed = set(initial_file_paths) != set(
         repo_context_manager.top_snippet_paths
     )
+    repo_context_manager.current_top_snippets = [
+        snippet
+        for snippet in repo_context_manager.current_top_snippets
+        if snippet.file_path != "sweep.yaml"
+    ]
     # if the paths have not changed or all tools were empty, we are done
     return not (paths_changed and (paths_to_add or directories_to_expand))
 
