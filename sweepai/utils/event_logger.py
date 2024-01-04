@@ -25,7 +25,7 @@ def send_log_to_loki(log_data):
         headers={"Content-Type": "application/json"},
     )
     if response.status_code not in (200, 204):
-        print("Error sending log to Loki:", response.text())
+        print("Error sending log to Loki:", response.text)
 
 
 def loki_sink(message):
