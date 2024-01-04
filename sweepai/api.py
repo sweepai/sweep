@@ -268,6 +268,8 @@ async def webhook(raw_request: Request):
             request_dict = await raw_request.json()
             event = raw_request.headers.get("X-GitHub-Event")
             assert event is not None
+            commit_author = None
+            chat_logger = None
 
             action = request_dict.get("action", None)
             logger.info(f"Received event: {event}, {action}")
@@ -317,7 +319,7 @@ async def webhook(raw_request: Request):
                                                 request.installation.id,
                                             )
                                             logs, user_message = clean_logs(logs)
-                                            commit_author = request.sender.login
+                                            commit_author = commit_author or request.sender.login
                                             tracking_id = get_hash()
                                             stack_pr(
                                                 request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
@@ -338,8 +340,8 @@ async def webhook(raw_request: Request):
                                         request.installation.id,
                                     )
                                     logs, user_message = clean_logs(logs)
-                                    commit_author = request.sender.login
-                                    chat_logger = ChatLogger(
+                                    commit_author = commit_author or request.sender.login
+                                    chat_logger = chat_logger or ChatLogger(
                                         data={
                                             "username": commit_author,
                                             "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
@@ -878,7 +880,7 @@ async def webhook(raw_request: Request):
                                 organization,
                                 repo_name,
                             ) = pr_request.repository.full_name.split("/")
-                            commit_author = pr_request.pull_request.user.login
+                            commit_author = commit_author or pr_request.pull_request.user.login
                             merged_by = (
                                 pr_request.pull_request.merged_by.login
                                 if pr_request.pull_request.merged_by
