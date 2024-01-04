@@ -34,6 +34,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
+    IS_SELF_HOSTED,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
@@ -103,14 +104,15 @@ def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security))
     return True
 
 
-Instrumentator().instrument(app).expose(
-    app,
-    should_gzip=False,
-    endpoint="/metrics",
-    include_in_schema=True,
-    tags=["metrics"],
-    dependencies=[Depends(auth_metrics)],
-)
+if not IS_SELF_HOSTED:
+    Instrumentator().instrument(app).expose(
+        app,
+        should_gzip=False,
+        endpoint="/metrics",
+        include_in_schema=True,
+        tags=["metrics"],
+        dependencies=[Depends(auth_metrics)],
+    )
 
 
 def get_hash():
