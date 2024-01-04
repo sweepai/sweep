@@ -30,25 +30,30 @@ def send_log_to_loki(log_data):
 
 def loki_sink(message):
     try:
-        log_entry = message.record
+        record = message.record
 
         log_data = {
             "streams": [
                 {
                     "stream": {
-                        "level": log_entry["level"].name,
+                        "level": record["level"].name,
+                        "time": record["time"].strftime("%Y-%m-%d %H:%M:%S"),
+                        "file": record["file"].path,
+                        "line": record["line"],
+                        "message": record["message"],
+                        "extra": record["extra"],
                     },
                     "values": [
                         [
-                            str(int(log_entry["time"].timestamp() * 1e9)),
-                            log_entry["message"],
+                            str(int(record["time"].timestamp() * 1e9)),
+                            record["message"],
                         ]
                     ],
                 }
             ]
         }
 
-        for key, value in log_entry["extra"].items():
+        for key, value in record["extra"].items():
             log_data["streams"][0]["stream"][key] = str(value)
 
         threading.Thread(target=send_log_to_loki, args=(log_data,)).start()
