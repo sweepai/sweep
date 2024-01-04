@@ -30,6 +30,12 @@ def stack_pr(
     pr: PullRequest = repo.get_pull(pr_number)
     branch = pr.head.ref
 
+    if pr.state != "open":
+        return {
+            "success": False,
+            "error_message": "This PR is not open, so I won't attempt to fix it.",
+        }
+
     if (
         sum(
             [
@@ -37,7 +43,7 @@ def stack_pr(
                 for comment in pr.get_issue_comments()
             ]
         )
-        > 2
+        > 3
     ):
         return {
             "success": False,
@@ -222,37 +228,6 @@ Run pnpm run build
 yielded the following error:
 ##[error]Process completed with exit code 1.
 
-Here are the logs:
-> ui@0.1.0 build /home/runner/work/ui/ui
-> next build
-
-⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
-Attention: Next.js now collects completely anonymous telemetry regarding usage.
-This information is used to shape Next.js' roadmap and prioritize features.
-You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-https://nextjs.org/telemetry
-
-▲ Next.js 14.0.3
-
-Creating an optimized production build ...
-✓ Compiled successfully
-Linting and checking validity of types ...
-
-./components/shared/FileChangeRequestDisplay.tsx
-40:23  Warning: 'key' is defined but never used.  no-unused-vars
-47:24  Warning: 'key' is defined but never used.  no-unused-vars
-
-./components/steps/TicketProgressDisplay.tsx
-20:19  Warning: 'key' is defined but never used.  no-unused-vars
-
-./components/user/UserDisplay.tsx
-158:8  Warning: React Hook useEffect has a missing dependency: 'session.user?.username'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
-170:8  Warning: React Hook useEffect has a missing dependency: 'session.user?.username'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
-
-./lib/db.ts
-71:7  Warning: 'getUserPaymentSettings' is assigned a value but never used.  no-unused-vars
-
-info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
 MongoParseError: Invalid scheme, expected connection string to start with "mongodb://" or "mongodb+srv://"
 at new ConnectionString (/home/runner/work/ui/ui/node_modules/.pnpm/mongodb-connection-string-url@3.0.0/node_modules/mongodb-connection-string-url/lib/index.js:86:19)
 at parseOptions (/home/runner/work/ui/ui/node_modules/.pnpm/mongodb@6.3.0/node_modules/mongodb/lib/connection_string.js:186:17)
@@ -274,8 +249,7 @@ type: 'Error'
 ELIFECYCLE  Command failed with exit code 1."""
     stack_pr(
         request=request,
-        # request="Add type hints to create_payment_messages in on_ticket.py.",
-        pr_number=34,
+        pr_number=32,
         username="kevinlu1248",
         repo_full_name="sweepai/ui",
         installation_id=36855882,
