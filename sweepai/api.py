@@ -28,6 +28,7 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
+    ENV,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
@@ -261,7 +262,7 @@ def progress(tracking_id: str = Path(...)):
 @app.post("/")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
-    with logger.contextualize(tracking_id="main", environment="dev"):
+    with logger.contextualize(tracking_id="main", env=ENV):
         try:
             request_dict = await raw_request.json()
             event = raw_request.headers.get("X-GitHub-Event")
@@ -271,7 +272,7 @@ async def webhook(raw_request: Request):
             logger.info(f"Received event: {event}, {action}")
 
             def worker():
-                with logger.contextualize(tracking_id="main", environment="dev"):
+                with logger.contextualize(tracking_id="main", env=ENV):
                     match event, action:
                         case "check_run", "completed":
                             request = CheckRunCompleted(**request_dict)

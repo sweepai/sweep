@@ -34,6 +34,7 @@ BATCH_SIZE = int(
     os.environ.get("BATCH_SIZE", 32)
 )  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
+TEST_BOT_NAME = "sweep-nightly[bot]"
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
@@ -204,3 +205,4 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
 LOKI_URL = os.environ.get("LOKI_URL", None)
 
 DEBUG: bool = True
+ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
