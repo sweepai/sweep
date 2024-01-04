@@ -30,7 +30,19 @@ def stack_pr(
     pr: PullRequest = repo.get_pull(pr_number)
     branch = pr.head.ref
 
-    # check if github actions already present
+    if (
+        sum(
+            [
+                comment.user.login.startswith("sweep-")
+                for comment in pr.get_issue_comments()
+            ]
+        )
+        > 2
+    ):
+        return {
+            "success": False,
+            "error_message": "It looks like there are already Sweep comments on this PR, so I won't attempt to fix it.",
+        }
 
     status_message = center(
         f"{sweeping_gif}\n\n"
