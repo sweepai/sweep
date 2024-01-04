@@ -248,7 +248,8 @@ def on_ticket(
                 "comment_id": comment_id,
                 "edited": edited,
                 "tracking_id": tracking_id,
-            }
+            },
+            active=True,
         )
         if MONGODB_URI
         else None
@@ -414,7 +415,7 @@ def on_ticket(
                 ]
             )
 
-            sandbox_execution_message = "\n\n## Sandbox execution failed\n\nThe sandbox appears to be unavailable or down.\n\n"
+            sandbox_execution_message = "\n\n## GitHub Actions failed\n\nThe sandbox appears to be unavailable or down.\n\n"
 
             if initial_sandbox_response == -1:
                 sandbox_execution_message = ""
@@ -427,9 +428,9 @@ def on_ticket(
                 )
                 status = "✓" if success else "X"
                 sandbox_execution_message = (
-                    "\n\n## Sandbox Execution "
+                    "\n\n## GitHub Actions"
                     + status
-                    + "\n\nHere are the sandbox execution logs prior to making any changes:\n\n"
+                    + "\n\nHere are the GitHub Actions logs prior to making any changes:\n\n"
                 )
                 sandbox_execution_message += entities_create_error_logs(
                     f'<a href="https://github.com/{repo_full_name}/commit/{commit_hash}"><code>{commit_hash[:7]}</code></a>',
@@ -1046,7 +1047,7 @@ def on_ticket(
                     commit,
                     file_change_requests,
                 ) = item
-                changed_files.append(changed_file)
+                changed_files.append(file_change_request.filename)
                 sandbox_response: SandboxResponse | None = sandbox_response
                 logger.info(sandbox_response)
                 commit_hash: str = (
@@ -1297,27 +1298,6 @@ def on_ticket(
             ticket_progress.context.done_time = time()
             ticket_progress.context.pr_id = pr.number
             ticket_progress.save()
-
-            sandbox_execution_comment_contents = (
-                "## Sandbox Executions\n\n"
-                + "\n".join(
-                    [
-                        checkbox_template.format(
-                            check="X",
-                            filename=file_change_request.display_summary
-                            + " "
-                            + file_change_request.status_display,
-                            instructions=blockquote(
-                                file_change_request.instructions_ticket_display
-                            ),
-                        )
-                        for file_change_request in file_change_requests
-                        if file_change_request.change_type == "check"
-                    ]
-                )
-            )
-
-            pr.create_issue_comment(sandbox_execution_comment_contents)
 
             if revert_buttons:
                 pr.create_issue_comment(revert_buttons_list.serialize())

@@ -14,7 +14,14 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import check_code, chunk_code
 
-instructions = """You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, and is complete. Take into account the current repository's language, code style, and dependencies. Your job is to make edits to the file to complete the user "# Request".
+# Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
+# Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
+instructions = """You are an expert software developer assigned to write code to complete the user's request.
+You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
+You NEVER leave comments describing code without implementing it!
+Always use best practices when coding.
+Respect and use existing conventions, libraries, etc that are already present in the code base.
+Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
 Modify the snippets above according to the request by calling the search_and_replace function.
@@ -76,12 +83,12 @@ def function_modify(
             "\n".join(file_contents_lines[snippet.start : snippet.end])
             for snippet in original_snippets
         ]
-        code_sections = []
+        code_sections = []  # TODO: do this for the new sections after modifications
         current_code_section = ""
         for i, chunk in enumerate(chunks):
             idx = int_to_excel_col(i + 1)
             section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-            if len(current_code_section) + len(section_display) > MAX_CHARS:
+            if len(current_code_section) + len(section_display) > MAX_CHARS - 1000:
                 code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
                 code_sections.append(code_sections_string)
                 current_code_section = section_display
@@ -134,7 +141,9 @@ def function_modify(
                     if "replaces_to_make" not in tool_call:
                         error_message = "No replaces_to_make found in tool call."
                     else:
-                        for replace_to_make in tool_call["replaces_to_make"]:
+                        for index, replace_to_make in enumerate(
+                            tool_call["replaces_to_make"]
+                        ):
                             for key in ["section_id", "old_code", "new_code"]:
                                 if key not in replace_to_make:
                                     error_message = f"Missing {key} in replace_to_make."
@@ -159,7 +168,7 @@ def function_modify(
                                     if old_code in chunk
                                 ]
                                 chunks_with_old_code = chunks_with_old_code[:5]
-                                error_message = f"The old_code does not appear to be present in  section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_id} has code:\n```\n{chunk}\n```"
+                                error_message = f"The old_code in the {index}th replace_to_make does not appear to be present in section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_letter} has code:\n```\n{chunk}\n```"
                                 if chunks_with_old_code:
                                     error_message += f"\n\nDid you mean one of the following sections?"
                                     error_message += "\n".join(
@@ -287,12 +296,12 @@ def function_modify(
                             success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
 
                     if error_message:
-                        logger.error(error_message)
+                        logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
                             f"ERROR\nThe search failed due to the following error:\n\n{error_message}"
                         )
                     else:
-                        logger.info(success_message)
+                        logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\nHere are the lines containing the keywords:\n\n{success_message}"
                         )

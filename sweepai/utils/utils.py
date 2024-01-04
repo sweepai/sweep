@@ -267,6 +267,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                     new_file,
                     "--errors-only",
                     "--disable=import-error",
+                    "--disable=no-member",
                     "--disable=relative-beyond-top-level",
                 ],
                 reporter=reporter,

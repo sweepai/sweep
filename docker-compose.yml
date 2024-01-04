@@ -1,4 +1,3 @@
-version: '2'
 services:
   webhook:
     env_file:
@@ -22,33 +21,10 @@ services:
     environment:
       - PORT=${PORT:-8080}
     restart: unless-stopped
-  sandbox:
-    build:
-      context: sandbox
-      dockerfile: Dockerfile.sandbox
-    image: sweepai/sandbox
-    container_name: sandbox
-    scale: 0
-    restart: unless-stopped
-  sandbox-web:
-    env_file:
-      - .env
-    build:
-      context: sandbox
-      dockerfile: Dockerfile.web
-    image: sweepai/sandbox-web
-    container_name: sandbox-web
+  prometheus:
+    image: prom/prometheus
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    network_mode: host
     ports:
-      - 8081:8080
-    restart: unless-stopped
-  minis3:
-    build: minis3
-    image: sweepai/minis3
-    container_name: minis3
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./public:/app/public
-    restart: unless-stopped
+      - "9090:9090"

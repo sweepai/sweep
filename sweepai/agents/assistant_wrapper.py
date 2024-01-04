@@ -15,6 +15,7 @@ from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.event_logger import posthog
 
 client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
 
@@ -397,8 +398,16 @@ def openai_assistant_call(
 ):
     model = (
         "gpt-3.5-turbo-1106"
-        if (chat_logger and chat_logger.use_faster_model())
+        if (chat_logger is None or chat_logger.use_faster_model())
         else "gpt-4-1106-preview"
+    )
+    posthog.capture(
+        chat_logger.data.get("username") if chat_logger is not None else None,
+        "call_assistant_api",
+        {
+            "query": request,
+            "model": model,
+        },
     )
     retries = range(3)
     for _ in retries:
