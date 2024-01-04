@@ -51,8 +51,6 @@ def loki_sink(message):
         for key, value in log_entry["extra"].items():
             log_data["streams"][0]["stream"][key] = str(value)
 
-        print(log_data)
-
         threading.Thread(target=send_log_to_loki, args=(log_data,)).start()
     except Exception as e:
         print("Error sending log to Loki:", e)
