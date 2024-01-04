@@ -41,7 +41,6 @@ def loki_sink(message):
                         "file": record["file"].path,
                         "line": record["line"],
                         "message": record["message"],
-                        "extra": record["extra"],
                     },
                     "values": [
                         [
