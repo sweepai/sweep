@@ -132,7 +132,7 @@ OPENAI_USE_3_5_MODEL_ONLY = (
 
 
 # goes under Modal 'mongodb' secret name
-MONGODB_URI = os.environ.get("MONGODB_URI")
+MONGODB_URI = os.environ.get("MONGODB_URI", None)
 
 IS_SELF_HOSTED = MONGODB_URI is None
 
