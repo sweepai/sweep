@@ -47,7 +47,7 @@ from sweepai.core.prompts import (
     subissues_prompt,
 )
 from sweepai.utils.autoimport import add_auto_imports
-from sweepai.utils.chat_logger import discord_log_error
+# from sweepai.utils.chat_logger import discord_log_error # Commented out as it is no longer in use
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -488,9 +488,7 @@ class GithubBot(BaseModel):
                 new_branch = self.repo.get_branch(branch)
                 if new_branch:
                     return new_branch.name
-            discord_log_error(
-                f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
-            )
+            logger.exception(f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}")
             raise e
 
     def populate_snippets(self, snippets: list[Snippet]):
@@ -1554,7 +1552,7 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
                 logger.error(traceback.format_exc())
-                discord_log_error(traceback.format_exc() + "\n" + str(e))
+                logger.exception(traceback.format_exc() + "\n" + str(e))
                 file_change_request.status = "failed"
 
             if self.ticket_progress:
