@@ -12,7 +12,7 @@ from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
 from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import OPENAI_API_KEY
+from sweepai.config.server import IS_SELF_HOSTED, OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -399,10 +399,11 @@ def openai_assistant_call(
     model = (
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
+        and not IS_SELF_HOSTED
         else "gpt-4-1106-preview"
     )
     posthog.capture(
-        chat_logger.data.get("username") if chat_logger is not None else None,
+        chat_logger.data.get("username") if chat_logger is not None else "anonymous",
         "call_assistant_api",
         {
             "query": request,

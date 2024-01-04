@@ -8,6 +8,7 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
+from sweepai.config.server import IS_SELF_HOSTED
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
@@ -258,10 +259,11 @@ def get_relevant_context(
     model = (
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
+        and not IS_SELF_HOSTED
         else "gpt-4-1106-preview"
     )
     posthog.capture(
-        chat_logger.data.get("username") if chat_logger is not None else None,
+        chat_logger.data.get("username") if chat_logger is not None else "anonymous",
         "call_assistant_api",
         {
             "query": query,
