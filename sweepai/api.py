@@ -11,6 +11,7 @@ import requests
 from fastapi import Depends, FastAPI, HTTPException, Path, Request, Security, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from github.Commit import Commit
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import ValidationError
 
@@ -300,23 +301,33 @@ async def webhook(raw_request: Request):
                                     > 60 * 15
                                 ):
                                     if request.check_run.conclusion == "failure":
-                                        logs = download_logs(
-                                            request.repository.full_name,
-                                            request.check_run.run_id,
-                                            request.installation.id,
-                                        )
-                                        logs, user_message = clean_logs(logs)
-                                        commit_author = request.sender.login
-                                        tracking_id = get_hash()
-                                        stack_pr(
-                                            request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
-                                            pr_number=pr.number,
-                                            username=commit_author,
-                                            repo_full_name=repo.full_name,
-                                            installation_id=request.installation.id,
-                                            tracking_id=tracking_id,
-                                        )
-                            if (
+                                        # check if the base branch is passing
+                                        commits = repo.get_commits(sha=pr.base.ref)
+                                        latest_commit: Commit = commits[0]
+                                        if all(
+                                            status != "failure"
+                                            for status in [
+                                                status.state
+                                                for status in latest_commit.get_statuses()
+                                            ]
+                                        ):  # base branch is passing
+                                            logs = download_logs(
+                                                request.repository.full_name,
+                                                request.check_run.run_id,
+                                                request.installation.id,
+                                            )
+                                            logs, user_message = clean_logs(logs)
+                                            commit_author = request.sender.login
+                                            tracking_id = get_hash()
+                                            stack_pr(
+                                                request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
+                                                pr_number=pr.number,
+                                                username=commit_author,
+                                                repo_full_name=repo.full_name,
+                                                installation_id=request.installation.id,
+                                                tracking_id=tracking_id,
+                                            )
+                            elif (
                                 request.check_run.check_suite.head_branch
                                 == repo.default_branch
                             ):
