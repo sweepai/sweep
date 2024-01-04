@@ -31,8 +31,7 @@ def stack_pr(
     branch = pr.head.ref
 
     status_message = center(
-        f"{sweeping_gif}\n\n"
-        + f'Fixing PR: track the progress <a href="https://progress.sweep.dev/issues/{tracking_id}">here</a>.'
+        f"{sweeping_gif}\n\nFixing PR: track the progress <a href='https://progress.sweep.dev/issues/{tracking_id}'>here</a>."
     )
     header = f"{status_message}\n---\n\nI'm currently fixing this PR to address the following:\n\n{blockquote(request)}"
     comment = pr.create_issue_comment(body=header)
@@ -51,9 +50,7 @@ def stack_pr(
         metadata = {}
         start_time = time.time()
 
-        title = request
-        if len(title) > 50:
-            title = title[:50] + "..."
+        title = request[:50] + '...' if len(request) > 50 else request
         ticket_progress = TicketProgress(
             tracking_id=tracking_id,
             username=username,
@@ -61,7 +58,7 @@ def stack_pr(
                 title=title,
                 description="",
                 repo_full_name=repo_full_name,
-                branch_name="sweep/" + to_branch_name(request),
+                branch_name=f"sweep/{to_branch_name(request)}",
                 issue_number=pr_number,
                 is_public=repo.private is False,
                 start_time=time.time(),
@@ -137,7 +134,7 @@ def stack_pr(
         edit_comment("Making changes according to plan... (step 3/3)")
         pull_request = entities.PullRequest(
             title=title,
-            branch_name="sweep/" + to_branch_name(request),
+            branch_name=f"sweep/{to_branch_name(request)}",
             content="",
         )
         generator = create_pr_changes(
@@ -187,16 +184,8 @@ def stack_pr(
         edit_comment(f"✨ **Created Pull Request:** {github_pull_request.html_url}")
         return {"success": True}
     except Exception as e:
-        edit_comment(
-            f"> [!CAUTION]\n> \nAn error has occurred: {str(e)} (tracking ID: {tracking_id})"
-        )
-        discord_log_error(
-            traceback.format_exc()
-            + "\n\n"
-            + str(e)
-            + "\n\n"
-            + f"tracking ID: {tracking_id}"
-        )
+        edit_comment(f"> [!CAUTION]\n> \nAn error has occurred: {e} (tracking ID: {tracking_id})")
+        logger.exception(f"{traceback.format_exc()}\n\n{str(e)}\n\ntracking ID: {tracking_id}")
         return {"success": False}
 
 
