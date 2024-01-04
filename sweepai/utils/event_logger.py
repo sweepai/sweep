@@ -5,7 +5,7 @@ import requests
 from loguru import logger
 from posthog import Posthog
 
-from sweepai.config.server import LOKI_URL, POSTHOG_API_KEY
+from sweepai.config.server import ENV, LOKI_URL, POSTHOG_API_KEY
 
 if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
     posthog = Posthog(
@@ -60,3 +60,4 @@ def loki_sink(message):
 
 if LOKI_URL:
     sink_id = logger.add(loki_sink)
+    logger.bind(env=ENV)
