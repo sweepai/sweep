@@ -62,7 +62,7 @@ def create_pr_changes(
                 "repo_full_name": sweep_bot.repo.full_name,
                 "title": pull_request.title,
                 "summary": "",
-                "issue_url": "",
+                "issue_url": "NA",
             }
         )
         if MONGODB_URI
