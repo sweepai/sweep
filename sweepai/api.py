@@ -311,13 +311,13 @@ async def webhook(raw_request: Request):
                                                 for status in latest_commit.get_statuses()
                                             ]
                                         ):  # base branch is passing
+                                            commit_author = request.sender.login
                                             logs = download_logs(
                                                 request.repository.full_name,
                                                 request.check_run.run_id,
                                                 request.installation.id,
                                             )
                                             logs, user_message = clean_logs(logs)
-                                            commit_author = request.sender.login
                                             tracking_id = get_hash()
                                             stack_pr(
                                                 request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
@@ -338,6 +338,7 @@ async def webhook(raw_request: Request):
                                         request.installation.id,
                                     )
                                     logs, user_message = clean_logs(logs)
+                                    commit_author = request.sender.login
                                     commit_author = request.sender.login
                                     chat_logger = ChatLogger(
                                         data={
