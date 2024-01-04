@@ -52,7 +52,7 @@ def loki_sink(message):
             ]
         }
 
-        for key, value in record["extra"].items():
+        for key, value in list(record["extra"].items())[:10]:
             log_data["streams"][0]["stream"][key] = str(value)
 
         threading.Thread(target=send_log_to_loki, args=(log_data,)).start()
