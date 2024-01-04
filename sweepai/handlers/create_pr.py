@@ -31,6 +31,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.str_utils import UPDATES_MESSAGE
 
+
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
