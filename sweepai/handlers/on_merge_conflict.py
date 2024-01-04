@@ -287,7 +287,9 @@ def on_merge_conflict(
 
         return {"success": True}
     except Exception as e:
-        edit_comment(f"An error has occurred: {str(e)} (tracking ID: {tracking_id})")
+        edit_comment(
+            f"> [!CAUTION]\n> \nAn error has occurred: {str(e)} (tracking ID: {tracking_id})"
+        )
         discord_log_error(
             traceback.format_exc()
             + "\n\n"
