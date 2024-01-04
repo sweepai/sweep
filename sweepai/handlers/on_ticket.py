@@ -1047,7 +1047,7 @@ def on_ticket(
                     commit,
                     file_change_requests,
                 ) = item
-                changed_files.append(changed_file)
+                changed_files.append(file_change_request.filename)
                 sandbox_response: SandboxResponse | None = sandbox_response
                 logger.info(sandbox_response)
                 commit_hash: str = (
