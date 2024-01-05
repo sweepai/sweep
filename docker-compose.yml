@@ -21,10 +21,3 @@ services:
     environment:
       - PORT=${PORT:-8080}
     restart: unless-stopped
-  prometheus:
-    image: prom/prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    network_mode: host
-    ports:
-      - "9090:9090"
