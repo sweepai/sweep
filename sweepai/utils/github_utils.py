@@ -23,7 +23,7 @@ from redis.retry import Retry
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.tree_utils import DirectoryTree
@@ -58,7 +58,7 @@ def get_token(installation_id: int):
             )
             obj = response.json()
             if "token" not in obj:
-                logger.error(obj)
+                logger.exception(f'Exception occurred: {obj}')
                 raise Exception("Could not get token")
             return obj["token"]
         except SystemExit:
@@ -103,7 +103,7 @@ def get_installation_id(username: str) -> str:
             obj = response.json()
             return obj["id"]
         except Exception as e:
-            logger.error(e)
+            logger.exception(f'Exception occurred: {e}')
         raise Exception("Could not get installation id, probably not installed")
 
 
@@ -186,7 +186,7 @@ class ClonedRepo:
                 repo = git.Repo(self.cached_dir)
                 repo.remotes.origin.pull()
             except Exception:
-                logger.error("Could not pull repo")
+                logger.exception("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Repo already cached, copying")
@@ -397,7 +397,7 @@ class ClonedRepo:
                 )
                 line_count += lines
         except:
-            logger.error(f"An error occurred: {traceback.print_exc()}")
+            logger.exception('An error occurred')
         return commit_history
 
     def get_similar_file_paths(self, file_path: str, limit: int = 10):
