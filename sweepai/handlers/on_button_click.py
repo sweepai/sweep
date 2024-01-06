@@ -11,6 +11,7 @@ from sweepai.config.client import (
     RULES_TITLE,
     get_blocked_dirs,
 )
+from sweepai.utils.github_utils import get_github_client
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.post_merge import PostMerge
 from sweepai.events import IssueCommentRequest
@@ -19,17 +20,19 @@ from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import ButtonList, check_button_title_match
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client
-
-
 def handle_button_click(request_dict):
     request = IssueCommentRequest(**request_dict)
     user_token, gh_client = get_github_client(request_dict["installation"]["id"])
     button_list = ButtonList.deserialize(request_dict["comment"]["body"])
     selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
-    repo = gh_client.get_repo(
-        request_dict["repository"]["full_name"]
-    )  # do this after checking ref
+    # Check if the reference exists in the request dictionary
+    if "ref" in request_dict:
+        repo = gh_client.get_repo(
+            request_dict["repository"]["full_name"]
+        )
+    else:
+        logger.error("Reference not found in the request dictionary.")
+        return
     comment_id = request.comment.id
     pr = repo.get_pull(request_dict["issue"]["number"])
     comment = pr.get_issue_comment(comment_id)
