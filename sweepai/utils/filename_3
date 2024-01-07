@@ -1,0 +1,22 @@
+# filename_3.py
+
+# Necessary import statements
+import os
+import sys
+
+# Define a new class
+class NewClass:
+    def __init__(self):
+        # Initialize an instance variable
+        self.data = []
+        self.data = []
+
+    def new_method(self, value):
+        # Append the given value to the data list
+        self.data.append(value)
+
+# Define a new function
+def new_function():
+    # Return a greeting message
+    return "Hello, World!"
+    return "Hello, World!"
