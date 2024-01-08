@@ -28,7 +28,6 @@ def non_whitespace_len(s: str) -> int:  # new len function
 
 def get_line_number(index: int, source_code: str) -> int:
     total_chars = 0
-    line_number = 0
     for line_number, line in enumerate(source_code.splitlines(keepends=True), start=1):
         total_chars += len(line)
         if total_chars > index:
