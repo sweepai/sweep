@@ -103,7 +103,8 @@ def chunk_tree(
     if len(chunks) == 0:
         return []
     if len(chunks) < 2:
-        return [Span(0, len(chunks[0]))]
+        end = get_line_number(chunks[0].end, source_code)
+        return [Span(0, end)]
     for i in range(len(chunks) - 1):
         chunks[i].end = chunks[i + 1].start
     chunks[-1].end = tree.root_node.end_byte
