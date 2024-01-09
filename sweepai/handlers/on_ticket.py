@@ -38,7 +38,6 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
-    GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     LOGTAIL_SOURCE_KEY,
@@ -79,6 +78,7 @@ from sweepai.utils.progress import (
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
+    BOT_SUFFIX,
     UPDATES_MESSAGE,
     blockquote,
     bot_suffix,
@@ -329,7 +329,7 @@ def on_ticket(
             for reaction in reactions:
                 if (
                     reaction.content == content_to_delete
-                    and reaction.user.login == GITHUB_BOT_USERNAME
+                    and reaction.user.login == g.get_user().login
                 ):
                     item_to_react_to.delete_reaction(reaction.id)
 
@@ -354,7 +354,7 @@ def on_ticket(
                 if checked_pr_count >= 40:
                     break
                 if (
-                    pr.user.login == GITHUB_BOT_USERNAME
+                    pr.user.login == g.get_user().login
                     and f"Fixes #{issue_number}.\n" in pr.body
                 ):
                     success = safe_delete_sweep_branch(pr, repo)
@@ -493,9 +493,9 @@ def on_ticket(
                 f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
             )
             if issue_comment is None:
-                issue_comment = current_issue.create_comment(first_comment)
+                issue_comment = current_issue.create_comment(first_comment + BOT_SUFFIX)
             else:
-                issue_comment.edit(first_comment)
+                issue_comment.edit(first_comment + BOT_SUFFIX)
             return {"success": False}
         indexing_message = (
             "I'm searching for relevant snippets in your repository. If this is your first"
@@ -511,13 +511,15 @@ def on_ticket(
         comments = []
         for comment in current_issue.get_comments():
             comments.append(comment)
-            if comment.user.login == GITHUB_BOT_USERNAME:
+            if comment.user.login == g.get_user().login:
                 issue_comment = comment
                 break
         if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
         else:
             fire_and_forget_wrapper(issue_comment.edit)(first_comment)
+        old_edit = issue_comment.edit
+        issue_comment.edit = lambda msg: old_edit(msg + BOT_SUFFIX)
         past_messages = {}
         current_index = 0
         table = None
@@ -581,7 +583,7 @@ def on_ticket(
                 repo = g.get_repo(repo_full_name)
 
                 for comment in comments:
-                    if comment.user.login == GITHUB_BOT_USERNAME:
+                    if comment.user.login == g.get_user().login:
                         issue_comment = comment
                 current_issue = repo.get_issue(number=issue_number)
                 if issue_comment is None:
@@ -590,7 +592,7 @@ def on_ticket(
                     issue_comment = [
                         comment
                         for comment in current_issue.get_comments()
-                        if comment.user == GITHUB_BOT_USERNAME
+                        if comment.user.login == g.get_user().login
                     ][0]
                     issue_comment.edit(msg)
 
@@ -1300,9 +1302,9 @@ def on_ticket(
             ticket_progress.save()
 
             if revert_buttons:
-                pr.create_issue_comment(revert_buttons_list.serialize())
+                pr.create_issue_comment(revert_buttons_list.serialize() + BOT_SUFFIX)
             if rule_buttons:
-                pr.create_issue_comment(rules_buttons_list.serialize())
+                pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
 
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
