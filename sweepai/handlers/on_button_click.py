@@ -20,6 +20,7 @@ from sweepai.utils.buttons import ButtonList, check_button_title_match
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.str_utils import BOT_SUFFIX
 
 
 def handle_button_click(request_dict):
@@ -65,6 +66,7 @@ def handle_button_click(request_dict):
                 ],
                 title=RULES_TITLE,
             ).serialize()
+            + BOT_SUFFIX
         )
         if not rules:
             try:

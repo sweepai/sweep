@@ -12,7 +12,6 @@ from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=
 )
 from loguru import logger
 from redis import Redis
-from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
@@ -43,14 +42,6 @@ CACHE_VERSION = "v1.0.14"
 MAX_FILES = 500
 
 redis_client = Redis.from_url(REDIS_URL)
-
-
-def download_models():
-    from sentence_transformers import (  # pylint: disable=import-error
-        SentenceTransformer,
-    )
-
-    model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
 
 def init_deeplake_vs(repo_name):
@@ -112,14 +103,6 @@ def embed_texts(texts: tuple[str]):
         f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
     )
     match VECTOR_EMBEDDING_SOURCE:
-        case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            vector = sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
-            return vector
         case "openai":
             from openai import OpenAI
 
