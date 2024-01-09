@@ -23,13 +23,10 @@ class UserSettings(BaseModel):
     do_email: bool = True
 
     @classmethod
-<<<<<<< HEAD
     def from_username(cls, username: str, installation_id: int = None) -> 'UserSettings':
-=======
-    def from_username(cls, username: str):
         if IS_SELF_HOSTED:
             return cls(username=username, email="", do_email=False)
->>>>>>> origin/main
+
         db = global_mongo_client["users"]
         collection = db["users"]
 
