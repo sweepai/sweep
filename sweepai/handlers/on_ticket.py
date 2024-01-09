@@ -38,6 +38,7 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
+    GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     LOGTAIL_SOURCE_KEY,
@@ -213,6 +214,11 @@ def on_ticket(
     if assignee is None:
         assignee = current_issue.user.login
 
+    try:
+        CURRENT_USERNAME = g.get_user().login
+    except:
+        CURRENT_USERNAME = GITHUB_BOT_USERNAME
+
     ticket_progress = TicketProgress(
         tracking_id=tracking_id,
         username=username,
@@ -329,7 +335,7 @@ def on_ticket(
             for reaction in reactions:
                 if (
                     reaction.content == content_to_delete
-                    and reaction.user.login == g.get_user().login
+                    and reaction.user.login == CURRENT_USERNAME
                 ):
                     item_to_react_to.delete_reaction(reaction.id)
 
@@ -354,7 +360,7 @@ def on_ticket(
                 if checked_pr_count >= 40:
                     break
                 if (
-                    pr.user.login == g.get_user().login
+                    pr.user.login == CURRENT_USERNAME
                     and f"Fixes #{issue_number}.\n" in pr.body
                 ):
                     success = safe_delete_sweep_branch(pr, repo)
@@ -511,7 +517,7 @@ def on_ticket(
         comments = []
         for comment in current_issue.get_comments():
             comments.append(comment)
-            if comment.user.login == g.get_user().login:
+            if comment.user.login == CURRENT_USERNAME:
                 issue_comment = comment
                 break
         if issue_comment is None:
@@ -583,7 +589,7 @@ def on_ticket(
                 repo = g.get_repo(repo_full_name)
 
                 for comment in comments:
-                    if comment.user.login == g.get_user().login:
+                    if comment.user.login == CURRENT_USERNAME:
                         issue_comment = comment
                 current_issue = repo.get_issue(number=issue_number)
                 if issue_comment is None:
@@ -592,7 +598,7 @@ def on_ticket(
                     issue_comment = [
                         comment
                         for comment in current_issue.get_comments()
-                        if comment.user.login == g.get_user().login
+                        if comment.user.login == CURRENT_USERNAME
                     ][0]
                     issue_comment.edit(msg)
 
