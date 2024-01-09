@@ -548,9 +548,12 @@ async def handle_request(request_dict, event=None):
                             logger.info("Issue edited, but not a sweep issue")
                     case "issues", "labeled":
                         request = IssueRequest(**request_dict)
-                        if any(
-                            label.name.lower() == GITHUB_LABEL_NAME
-                            for label in request.issue.labels
+                        if (
+                            any(
+                                label.name.lower() == GITHUB_LABEL_NAME
+                                for label in request.issue.labels
+                            )
+                            and not request.issue.pull_request
                         ):
                             request.issue.body = request.issue.body or ""
                             request.repository.description = (
