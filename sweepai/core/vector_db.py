@@ -98,7 +98,7 @@ def embed_replicate(texts: List[str], timeout=180) -> List[np.ndarray]:
 
 
 @lru_cache(maxsize=64)
-def embed_texts(texts: tuple[str]):
+def embed_texts(texts: tuple[str]) -> list:
     logger.info(
         f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
     )
