@@ -2,6 +2,7 @@ import unittest
 import unittest.mock
 
 from sweepai import api
+from sweepai.api import handle_request
 
 
 class TestAPI(unittest.TestCase):
@@ -24,3 +25,10 @@ class TestAPI(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    def test_handle_request(self):
+        mock_request_dict = {"action": "test_action"}
+        mock_event = "test_event"
+        self.mock_api.handle_request.return_value = {"success": True}
+        result = handle_request(mock_request_dict, mock_event)
+        self.assertEqual(result, {"success": True})
+        self.mock_api.handle_request.assert_called_once_with(mock_request_dict, mock_event)
