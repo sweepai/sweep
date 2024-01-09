@@ -189,19 +189,28 @@ class ChatGPT(BaseModel):
         requested_max_tokens: int | None = None,
     ):
         if self.chat_logger is not None:
-            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-            tickets_count = self.chat_logger.get_ticket_count()
-            purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
-            if tickets_count < tickets_allocated:
-                model = model or self.model
-                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
-            elif purchased_tickets > 0:
-                model = model or self.model
-                logger.info(
-                    f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
-                )
-            else:
+            if (
+                self.chat_logger.active is False
+                and not self.chat_logger.is_paying_user()
+                and not self.chat_logger.is_consumer_tier()
+            ):
                 model = DEFAULT_GPT35_MODEL
+            else:
+                tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+                tickets_count = self.chat_logger.get_ticket_count()
+                purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
+                if tickets_count < tickets_allocated:
+                    model = model or self.model
+                    logger.info(
+                        f"{tickets_count} tickets found in MongoDB, using {model}"
+                    )
+                elif purchased_tickets > 0:
+                    model = model or self.model
+                    logger.info(
+                        f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
+                    )
+                else:
+                    model = DEFAULT_GPT35_MODEL
 
         count_tokens = Tiktoken().count
         messages_length = sum(

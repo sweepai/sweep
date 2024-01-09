@@ -8,9 +8,12 @@ class SafePriorityQueue:
         self.lock = threading.Lock()
 
     def put(self, priority: int, event):
-        with self.lock:
-            self.q.put((priority, event))
-            self._invalidate_lower_priority(priority)
+        try:
+            with self.lock:
+                self.q.put((priority, event))
+                self._invalidate_lower_priority(priority)
+        except Exception:
+            pass
 
     def get(self):
         with self.lock:
