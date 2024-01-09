@@ -985,7 +985,7 @@ async def webhook(raw_request: Request):
 
         action = request_dict.get("action", None)
         logger.info(f"Received event: {event}, {action}")
-        return handle_request(raw_request, event=event)
+        return await handle_request(request_dict, event=event)
 
 
 # Set up cronjob for this
