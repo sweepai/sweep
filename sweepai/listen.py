@@ -4,12 +4,21 @@ import os
 import time
 
 from github import Github
+from github.Event import Event
 from github.Repository import Repository
 
 from sweepai.api import handle_request
 
 
-def stream_events(repo: Repository, timeout: int = 3, offset: int = 60 * 60):
+def pascal_to_snake(name):
+    return "".join(["_" + i.lower() if i.isupper() else i for i in name]).lstrip("_")
+
+
+def get_event_type(event: Event):
+    return pascal_to_snake(event.type)[: -len("_event")]
+
+
+def stream_events(repo: Repository, timeout: int = 3, offset: int = 5 * 60):
     processed_event_ids = set()
     events = repo.get_events()
 
@@ -34,5 +43,14 @@ g = Github(os.environ["GITHUB_PAT"])
 repo = g.get_repo(os.environ["REPO"])
 print("Starting server, listening to events...")
 for event in stream_events(repo):
-    print(event)
-    asyncio.run(handle_request(event.payload))
+    payload = {**event.raw_data, **event.payload}
+    payload["sender"] = payload.get("sender", payload["actor"])
+    payload["sender"]["type"] = "User"
+    payload["pusher"] = payload.get("pusher", payload["actor"])
+    payload["pusher"]["name"] = payload["pusher"]["login"]
+    payload["pusher"]["type"] = "User"
+    payload["after"] = payload.get("after", payload.get("head"))
+    payload["repository"] = event.repo.raw_data
+    payload["installation"] = {"id": -1}
+    print(event.created_at)
+    asyncio.run(handle_request(payload, get_event_type(event)))
