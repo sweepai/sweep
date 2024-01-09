@@ -23,21 +23,19 @@ def get_event_type(event: Event | IssueEvent):
         return pascal_to_snake(event.type)[: -len("_event")]
 
 
-def stream_events(repos: list[Repository], timeout: int = 2, offset: int = 2 * 60):
+def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
     processed_event_ids = set()
     all_events = []
-    for repo in repos:
-        all_events += list(repo.get_events())
-        all_events += list(repo.get_issues_events())
+    all_events += list(repo.get_events())
+    all_events += list(repo.get_issues_events())
 
     current_time = time.time() - offset
     local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
     while True:
         all_events = []
-        for repo in repos:
-            all_events += list(repo.get_events())
-            all_events += list(repo.get_issues_events())
+        all_events += list(repo.get_events())
+        all_events += list(repo.get_issues_events())
         for event in all_events[::-1]:
             if event.id not in processed_event_ids:
                 local_time = event.created_at.replace(
@@ -51,10 +49,9 @@ def stream_events(repos: list[Repository], timeout: int = 2, offset: int = 2 * 6
 
 
 g = Github(os.environ["GITHUB_PAT"])
-repos = g.get_repo(os.environ["REPOS"]).split(",")
-assert repos
+repo = g.get_repo(os.environ["REPO"])
 print("Starting server, listening to events...")
-for event in stream_events(repos):
+for event in stream_events(repo):
     if isinstance(event, IssueEvent):
         payload = event.raw_data
         payload["action"] = payload["event"]
