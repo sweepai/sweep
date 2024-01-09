@@ -75,6 +75,7 @@ from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
+from sweepai.utils.str_utils import BOT_SUFFIX
 
 app = FastAPI()
 
@@ -357,7 +358,7 @@ async def handle_request(request_dict, event=None):
                         if any(
                             comment.user.login == GITHUB_BOT_USERNAME
                             for comment in pr.get_issue_comments()
-                        ):
+                        ) or pr.title.startswith("Sweep:"):
                             return {
                                 "success": True,
                                 "reason": "PR already has a comment from sweep bot",
@@ -506,9 +507,12 @@ async def handle_request(request_dict, event=None):
                             pr = repo.get_pull(request.issue.number)
                             labels = pr.get_labels()
                             comment = request.comment.body
-                            if comment.lower().startswith("sweep:") or any(
-                                label.name.lower() == "sweep" for label in labels
-                            ):
+                            if (
+                                comment.lower().startswith("sweep:")
+                                or any(
+                                    label.name.lower() == "sweep" for label in labels
+                                )
+                            ) and not BOT_SUFFIX in comment:
                                 pr_change_request = PRChangeRequest(
                                     params={
                                         "comment_type": "comment",
@@ -581,6 +585,7 @@ async def handle_request(request_dict, event=None):
                                 request.issue.pull_request
                                 and request.issue.pull_request.url
                             )
+                            and not (BOT_SUFFIX in request.comment.body)
                         ):
                             request.issue.body = request.issue.body or ""
                             request.repository.description = (
@@ -614,14 +619,19 @@ async def handle_request(request_dict, event=None):
                         elif (
                             request.issue.pull_request
                             and request.comment.user.type == "User"
+                            and not (BOT_SUFFIX in request.comment.body)
                         ):  # TODO(sweep): set a limit
                             _, g = get_github_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
                             pr = repo.get_pull(request.issue.number)
                             labels = pr.get_labels()
                             comment = request.comment.body
-                            if comment.lower().startswith("sweep:") or any(
-                                label.name.lower() == "sweep" for label in labels
+                            if (
+                                comment.lower().startswith("sweep:")
+                                or any(
+                                    label.name.lower() == "sweep" for label in labels
+                                )
+                                and not BOT_SUFFIX in comment
                             ):
                                 pr_change_request = PRChangeRequest(
                                     params={
@@ -646,9 +656,15 @@ async def handle_request(request_dict, event=None):
                         labels = pr.get_labels()
                         comment = request.comment.body
                         if (
-                            comment.lower().startswith("sweep:")
-                            or any(label.name.lower() == "sweep" for label in labels)
-                        ) and request.comment.user.type == "User":
+                            (
+                                comment.lower().startswith("sweep:")
+                                or any(
+                                    label.name.lower() == "sweep" for label in labels
+                                )
+                            )
+                            and request.comment.user.type == "User"
+                            and not BOT_SUFFIX in comment
+                        ):
                             pr_change_request = PRChangeRequest(
                                 params={
                                     "comment_type": "comment",
@@ -672,9 +688,15 @@ async def handle_request(request_dict, event=None):
                         labels = pr.get_labels()
                         comment = request.comment.body
                         if (
-                            comment.lower().startswith("sweep:")
-                            or any(label.name.lower() == "sweep" for label in labels)
-                        ) and request.comment.user.type == "User":
+                            (
+                                comment.lower().startswith("sweep:")
+                                or any(
+                                    label.name.lower() == "sweep" for label in labels
+                                )
+                            )
+                            and request.comment.user.type == "User"
+                            and not BOT_SUFFIX in comment
+                        ):
                             pr_change_request = PRChangeRequest(
                                 params={
                                     "comment_type": "comment",

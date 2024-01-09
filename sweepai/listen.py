@@ -9,6 +9,7 @@ from github.IssueEvent import IssueEvent
 from github.Repository import Repository
 
 from sweepai.api import handle_request
+from sweepai.utils.event_logger import logger
 
 
 def pascal_to_snake(name):
@@ -22,7 +23,7 @@ def get_event_type(event: Event | IssueEvent):
         return pascal_to_snake(event.type)[: -len("_event")]
 
 
-def stream_events(repo: Repository, timeout: int = 2, offset: int = 10 * 60):
+def stream_events(repo: Repository, timeout: int = 2, offset: int = 0 * 60):
     processed_event_ids = set()
     events = repo.get_events()
 
@@ -61,5 +62,5 @@ for event in stream_events(repo):
     payload["after"] = payload.get("after", payload.get("head"))
     payload["repository"] = repo.raw_data
     payload["installation"] = {"id": -1}
-    print(event, event.created_at)
+    logger.info(event, event.created_at)
     asyncio.run(handle_request(payload, get_event_type(event)))
