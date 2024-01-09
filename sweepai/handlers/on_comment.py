@@ -30,7 +30,8 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.ticket_utils import prep_snippets
+from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -138,7 +139,8 @@ def on_comment(
                     "installation_id": installation_id,
                     "pr_number": pr_number,
                     "type": "comment",
-                }
+                },
+                active=True,
             )
             if MONGODB_URI
             else None
@@ -193,9 +195,9 @@ def on_comment(
 
     bot_comment = None
 
-    def edit_comment(new_comment):
+    def edit_comment(new_comment: str) -> None:
         if bot_comment is not None:
-            bot_comment.edit(new_comment)
+            bot_comment.edit(new_comment + BOT_SUFFIX)
 
     try:
         # Check if the PR is closed
@@ -266,13 +268,13 @@ def on_comment(
             if comment_id:
                 try:
                     bot_comment = pr.create_review_comment_reply(
-                        comment_id, "Working on it..."
+                        comment_id, "Working on it..." + BOT_SUFFIX
                     )
                 except Exception as e:
                     print(e)
         else:
             formatted_pr_chunk = None  # pr_file
-            bot_comment = pr.create_issue_comment("Working on it...")
+            bot_comment = pr.create_issue_comment("Working on it..." + BOT_SUFFIX)
         if file_comment:
             snippets = []
             tree = ""
@@ -469,10 +471,10 @@ def on_comment(
             pass
 
     elapsed_time = time.time() - start_time
-    posthog.capture(
+    # make async
+    fire_and_forget_wrapper(posthog.capture)(
         username,
         "success",
-        properties={**metadata, "duration": elapsed_time},
+        properties={**metadata, "tracking_id": tracking_id, "duration": elapsed_time},
     )
-    logger.info("on_comment success")
     return {"success": True}

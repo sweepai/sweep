@@ -8,9 +8,11 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
+from sweepai.config.server import IS_SELF_HOSTED
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -256,8 +258,17 @@ def get_relevant_context(
     modify_iterations: int = 2
     model = (
         "gpt-3.5-turbo-1106"
-        if (chat_logger and chat_logger.use_faster_model())
+        if (chat_logger is None or chat_logger.use_faster_model())
+        and not IS_SELF_HOSTED
         else "gpt-4-1106-preview"
+    )
+    posthog.capture(
+        chat_logger.data.get("username") if chat_logger is not None else "anonymous",
+        "call_assistant_api",
+        {
+            "query": query,
+            "model": model,
+        },
     )
     try:
         user_prompt = repo_context_manager.format_context(
@@ -597,6 +608,11 @@ def modify_context(
     paths_changed = set(initial_file_paths) != set(
         repo_context_manager.top_snippet_paths
     )
+    repo_context_manager.current_top_snippets = [
+        snippet
+        for snippet in repo_context_manager.current_top_snippets
+        if snippet.file_path != "sweep.yaml"
+    ]
     # if the paths have not changed or all tools were empty, we are done
     return not (paths_changed and (paths_to_add or directories_to_expand))
 

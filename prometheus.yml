@@ -1,0 +1,5 @@
+scrape_configs:
+  - job_name: 'fastapi'
+    scrape_interval: 1s  # Adjust the interval as needed
+    static_configs:
+      - targets: ['localhost:8080']  # Replace with your FastAPI app's address

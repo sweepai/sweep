@@ -3,11 +3,13 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
+import difflib
 import os
 import re
 import traceback
 from time import time
 
+import markdown
 import openai
 import yaml
 import yamllint.config as yamllint_config
@@ -36,7 +38,6 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
-    GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     LOGTAIL_SOURCE_KEY,
@@ -77,6 +78,7 @@ from sweepai.utils.progress import (
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
+    BOT_SUFFIX,
     UPDATES_MESSAGE,
     blockquote,
     bot_suffix,
@@ -99,6 +101,7 @@ from sweepai.utils.ticket_utils import (
     fire_and_forget_wrapper,
     log_error,
 )
+from sweepai.utils.user_settings import UserSettings
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -119,6 +122,30 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Comment below, and Sweep can edit the entire PR
 * Comment on a file, Sweep will only modify the commented file
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
+
+email_template = """Hey {name},
+<br/><br/>
+🚀 I just finished creating a pull request for your issue ({repo_full_name}#{issue_number}) at <a href="{pr_url}">{repo_full_name}#{pr_number}</a>!
+
+<br/><br/>
+You can view how I created this pull request <a href="{progress_url}">here</a>.
+
+<h2>Summary</h2>
+<blockquote>
+{summary}
+</blockquote>
+
+<h2>Files Changed</h2>
+<ul>
+{files_changed}
+</ul>
+
+{sweeping_gif}
+<br/>
+Cheers,
+<br/>
+Sweep
+<br/>"""
 
 
 def on_ticket(
@@ -221,7 +248,8 @@ def on_ticket(
                 "comment_id": comment_id,
                 "edited": edited,
                 "tracking_id": tracking_id,
-            }
+            },
+            active=True,
         )
         if MONGODB_URI
         else None
@@ -273,10 +301,7 @@ def on_ticket(
 
     try:
         if current_issue.state == "closed":
-            logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: `{tracking_id}`). Please join our Discord server for support (tracking_id={tracking_id})"
-            )
-            posthog.capture(
+            fire_and_forget_wrapper(posthog.capture)(
                 username,
                 "issue_closed",
                 properties={
@@ -304,7 +329,7 @@ def on_ticket(
             for reaction in reactions:
                 if (
                     reaction.content == content_to_delete
-                    and reaction.user.login == GITHUB_BOT_USERNAME
+                    and reaction.user.login == g.get_user().login
                 ):
                     item_to_react_to.delete_reaction(reaction.id)
 
@@ -329,7 +354,7 @@ def on_ticket(
                 if checked_pr_count >= 40:
                     break
                 if (
-                    pr.user.login == GITHUB_BOT_USERNAME
+                    pr.user.login == g.get_user().login
                     and f"Fixes #{issue_number}.\n" in pr.body
                 ):
                     success = safe_delete_sweep_branch(pr, repo)
@@ -367,6 +392,9 @@ def on_ticket(
 
         config_pr_url = None
 
+        user_settings = UserSettings.from_username(username=username)
+        user_settings_message = user_settings.get_message()
+
         def get_comment_header(
             index,
             errored=False,
@@ -387,7 +415,7 @@ def on_ticket(
                 ]
             )
 
-            sandbox_execution_message = "\n\n## Sandbox execution failed\n\nThe sandbox appears to be unavailable or down.\n\n"
+            sandbox_execution_message = "\n\n## GitHub Actions failed\n\nThe sandbox appears to be unavailable or down.\n\n"
 
             if initial_sandbox_response == -1:
                 sandbox_execution_message = ""
@@ -400,9 +428,9 @@ def on_ticket(
                 )
                 status = "✓" if success else "X"
                 sandbox_execution_message = (
-                    "\n\n## Sandbox Execution "
+                    "\n\n## GitHub Actions"
                     + status
-                    + "\n\nHere are the sandbox execution logs prior to making any changes:\n\n"
+                    + "\n\nHere are the GitHub Actions logs prior to making any changes:\n\n"
                 )
                 sandbox_execution_message += entities_create_error_logs(
                     f'<a href="https://github.com/{repo_full_name}/commit/{commit_hash}"><code>{commit_hash[:7]}</code></a>',
@@ -420,6 +448,7 @@ def on_ticket(
                 return (
                     pr_message
                     + config_pr_message
+                    + f"\n\n---\n{user_settings.get_message(completed=True)}"
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
                 )
@@ -446,6 +475,7 @@ def on_ticket(
                 + ("\n" + stars_suffix if index != -1 else "")
                 + "\n"
                 + center(payment_message_start)
+                + f"\n\n---\n{user_settings_message}"
                 + config_pr_message
                 + f"\n\n---\n{actions_message}"
                 + sandbox_execution_message
@@ -463,9 +493,9 @@ def on_ticket(
                 f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
             )
             if issue_comment is None:
-                issue_comment = current_issue.create_comment(first_comment)
+                issue_comment = current_issue.create_comment(first_comment + BOT_SUFFIX)
             else:
-                issue_comment.edit(first_comment)
+                issue_comment.edit(first_comment + BOT_SUFFIX)
             return {"success": False}
         indexing_message = (
             "I'm searching for relevant snippets in your repository. If this is your first"
@@ -481,13 +511,15 @@ def on_ticket(
         comments = []
         for comment in current_issue.get_comments():
             comments.append(comment)
-            if comment.user.login == GITHUB_BOT_USERNAME:
+            if comment.user.login == g.get_user().login:
                 issue_comment = comment
                 break
         if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
         else:
             fire_and_forget_wrapper(issue_comment.edit)(first_comment)
+        old_edit = issue_comment.edit
+        issue_comment.edit = lambda msg: old_edit(msg + BOT_SUFFIX)
         past_messages = {}
         current_index = 0
         table = None
@@ -551,7 +583,7 @@ def on_ticket(
                 repo = g.get_repo(repo_full_name)
 
                 for comment in comments:
-                    if comment.user.login == GITHUB_BOT_USERNAME:
+                    if comment.user.login == g.get_user().login:
                         issue_comment = comment
                 current_issue = repo.get_issue(number=issue_number)
                 if issue_comment is None:
@@ -560,7 +592,7 @@ def on_ticket(
                     issue_comment = [
                         comment
                         for comment in current_issue.get_comments()
-                        if comment.user == GITHUB_BOT_USERNAME
+                        if comment.user.login == g.get_user().login
                     ][0]
                     issue_comment.edit(msg)
 
@@ -1017,7 +1049,7 @@ def on_ticket(
                     commit,
                     file_change_requests,
                 ) = item
-                changed_files.append(changed_file)
+                changed_files.append(file_change_request.filename)
                 sandbox_response: SandboxResponse | None = sandbox_response
                 logger.info(sandbox_response)
                 commit_hash: str = (
@@ -1269,31 +1301,10 @@ def on_ticket(
             ticket_progress.context.pr_id = pr.number
             ticket_progress.save()
 
-            sandbox_execution_comment_contents = (
-                "## Sandbox Executions\n\n"
-                + "\n".join(
-                    [
-                        checkbox_template.format(
-                            check="X",
-                            filename=file_change_request.display_summary
-                            + " "
-                            + file_change_request.status_display,
-                            instructions=blockquote(
-                                file_change_request.instructions_ticket_display
-                            ),
-                        )
-                        for file_change_request in file_change_requests
-                        if file_change_request.change_type == "check"
-                    ]
-                )
-            )
-
-            pr.create_issue_comment(sandbox_execution_comment_contents)
-
             if revert_buttons:
-                pr.create_issue_comment(revert_buttons_list.serialize())
+                pr.create_issue_comment(revert_buttons_list.serialize() + BOT_SUFFIX)
             if rule_buttons:
-                pr.create_issue_comment(rules_buttons_list.serialize())
+                pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
 
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
@@ -1309,7 +1320,49 @@ def on_ticket(
                 done=True,
             )
 
-            logger.info("Add successful ticket to counter")
+            user_settings = UserSettings.from_username(username=username)
+            user = g.get_user(username)
+            full_name = user.name or user.login
+            name = full_name.split(" ")[0]
+            files_changed = []
+            for fcr in file_change_requests:
+                if fcr.change_type in ("create", "modify"):
+                    diff = list(
+                        difflib.unified_diff(
+                            (fcr.old_content or "").splitlines() or [],
+                            (fcr.new_content or "").splitlines() or [],
+                            lineterm="",
+                        )
+                    )
+                    added = sum(
+                        1
+                        for line in diff
+                        if line.startswith("+") and not line.startswith("+++")
+                    )
+                    removed = sum(
+                        1
+                        for line in diff
+                        if line.startswith("-") and not line.startswith("---")
+                    )
+                    files_changed.append(
+                        f"<code>{fcr.filename}</code> (+{added}/-{removed})"
+                    )
+            user_settings.send_email(
+                subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
+                html=email_template.format(
+                    name=name,
+                    pr_url=pr.html_url,
+                    issue_number=issue_number,
+                    repo_full_name=repo_full_name,
+                    pr_number=pr.number,
+                    progress_url=f"https://progress.sweep.dev/issues/{tracking_id}",
+                    summary=markdown.markdown(pr_changes.body),
+                    files_changed="\n".join(
+                        [f"<li>{item}</li>" for item in files_changed]
+                    ),
+                    sweeping_gif=sweeping_gif,
+                ),
+            )
         except MaxTokensExceeded as e:
             logger.info("Max tokens exceeded")
             ticket_progress.status = TicketProgressStatus.ERROR

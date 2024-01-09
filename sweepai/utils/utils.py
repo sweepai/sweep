@@ -28,6 +28,7 @@ def non_whitespace_len(s: str) -> int:  # new len function
 
 def get_line_number(index: int, source_code: str) -> int:
     total_chars = 0
+    line_number = 0
     for line_number, line in enumerate(source_code.splitlines(keepends=True), start=1):
         total_chars += len(line)
         if total_chars > index:
@@ -102,7 +103,8 @@ def chunk_tree(
     if len(chunks) == 0:
         return []
     if len(chunks) < 2:
-        return [Span(0, len(chunks[0]))]
+        end = get_line_number(chunks[0].end, source_code)
+        return [Span(0, end)]
     for i in range(len(chunks) - 1):
         chunks[i].end = chunks[i + 1].start
     chunks[-1].end = tree.root_node.end_byte
@@ -266,6 +268,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                     new_file,
                     "--errors-only",
                     "--disable=import-error",
+                    "--disable=no-member",
                     "--disable=relative-beyond-top-level",
                 ],
                 reporter=reporter,
