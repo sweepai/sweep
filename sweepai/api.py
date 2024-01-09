@@ -380,7 +380,9 @@ async def handle_request(request_dict, event=None):
                             rules_buttons_list = ButtonList(
                                 buttons=rule_buttons, title=RULES_TITLE
                             )
-                            pr.create_issue_comment(rules_buttons_list.serialize())
+                            pr.create_issue_comment(
+                                rules_buttons_list.serialize() + BOT_SUFFIX
+                            )
 
                         if pr.mergeable == False:
                             on_merge_conflict(
