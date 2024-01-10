@@ -51,8 +51,8 @@ def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
 g = Github(os.environ["GITHUB_PAT"])
 repo_name = os.environ["REPO"]
 repo = g.get_repo(repo_name)
-print(f"Starting server, listening to events from {repo_name}...")
-for event in stream_events(repo):
+
+def construct_payload(event, repo):
     if isinstance(event, IssueEvent):
         payload = event.raw_data
         payload["action"] = payload["event"]
@@ -66,5 +66,9 @@ for event in stream_events(repo):
     payload["after"] = payload.get("after", payload.get("head"))
     payload["repository"] = repo.raw_data
     payload["installation"] = {"id": -1}
+    return payload
+print(f"Starting server, listening to events from {repo_name}...")
+for event in stream_events(repo):
+    payload = construct_payload(event, repo)
     logger.info(str(event) + " " + str(event.created_at))
     asyncio.run(handle_request(payload, get_event_type(event)))
