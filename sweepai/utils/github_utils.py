@@ -204,13 +204,13 @@ class ClonedRepo:
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
+        self.token = self.token or get_token(self.installation_id)
         self.repo = (
             Github(self.token).get_repo(self.repo_full_name)
             if not self.repo
             else self.repo
         )
         self.commit_hash = self.repo.get_commits()[0].sha
-        self.token = self.token or get_token(self.installation_id)
         self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
