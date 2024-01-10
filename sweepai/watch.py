@@ -53,7 +53,7 @@ repo_name = os.environ["REPO"]
 repo = g.get_repo(repo_name)
 print(f"Starting server, listening to events from {repo_name}...")
 print(
-    f"To create a PR, please create an issue at https://github.com/{repo_name}/issues with the title 'Sweep'"
+    f"To create a PR, please create an issue at https://github.com/{repo_name}/issues with a title prefixed with 'Sweep:'"
 )
 for event in stream_events(repo):
     if isinstance(event, IssueEvent):
