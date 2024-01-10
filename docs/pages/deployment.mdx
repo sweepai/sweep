@@ -5,10 +5,7 @@ This is a guide for self-hosting Sweep. If you would like to use our hosted vers
 
 ## 1. Setup
 
-1. Clone the [sweepai/sweep](https://github.com/sweepai/sweep) repository
-2. Create a `.env` file in the root directory
-3. Pull the docker image.
-
+Open [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the following code in your terminal:
 ```sh
 git clone https://github.com/sweepai/sweep
 cd sweep
@@ -16,7 +13,11 @@ touch .env
 docker compose pull
 ```
 
-Configure the repository Sweep should work on in `.env`.
+1. Clone the [sweepai/sweep](https://github.com/sweepai/sweep) repository
+2. Create a `.env` file in the root directory
+3. Pull the docker image.
+
+In the `.env`, configure the repository that Sweep should work on.
 
 ```sh filename=".env"
 REPO=your-username/your-repo
@@ -27,7 +28,14 @@ We're halfway done! Pulling the image will take a few minutes, so let's complete
 ## 2. GitHub PAT
 To allow Sweep to access your repo, create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/personal-access-tokens/new). Sweep will run entirely locally, and no code will be shared outside of OpenAI's API.
 
-Put `sweep` in the `Token name` and select `All Repositories` with the following permissions:
+Add this to your `.env` which should now look like this:
+
+```sh filename=".env"
+REPO=your-username/your-repo
+GITHUB_PAT=github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Set your preferred token name, and select `All Repositories` with the following permissions:
 
 ```markdown
 Actions - Access: Read-only
@@ -38,6 +46,7 @@ Metadata - Access: Read-only
 Pull requests - Access: Read and write
 ```
 
+
 <div align="center"><img src="/assets/tutorial/github_pat_config.gif" alt="How to configure Sweep's GitHub permissions locally." /></div>
 
 ## 3. OpenAI API Token
@@ -47,11 +56,11 @@ Please create an OpenAI API token at https://platform.openai.com/account/api-key
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-After following one of the above sections, you should have the following environment variables in your `.env` file:
+After following the above sections, your `.env` should look like this:
 ```sh filename=".env"
+REPO=your-username/your-repo
 GITHUB_PAT=github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-REPO=your-username/your-repo
 ```
 
 ---
