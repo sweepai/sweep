@@ -72,7 +72,7 @@ COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
 
 EXPOSE 8080
-CMD ["/app/startup.sh"]
+CMD ["/app/startup.hosted.sh"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"
