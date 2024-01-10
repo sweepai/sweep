@@ -176,7 +176,6 @@ class FileChangeRequest(RegexMatchableBaseModel):
         "running"
     ] = "queued"
     destination_module: str | None = None
-    sandbox_response: SandboxResponse | None = None
     commit_hash_url: str | None = None
     id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
