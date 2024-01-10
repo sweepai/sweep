@@ -58,7 +58,7 @@ def handle_button_click(request_dict):
             rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
         handle_rules(request_dict, rules, user_token, repo, gh_client)
         comment.edit(
-            ButtonList(
+    ButtonList(
                 buttons=[
                     button
                     for button in button_list.buttons
