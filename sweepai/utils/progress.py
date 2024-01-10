@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from enum import Enum
 from threading import Thread
 
@@ -211,6 +212,21 @@ class TicketContext(BaseModel):
     payment_context: PaymentContext = PaymentContext()
 
 
+class TicketUserStateTypes(Enum):
+    RUNNING = "running"
+    WAITING = "waiting"
+    EDITING = "editing"
+
+
+class TicketUserState(BaseModel):
+    tracking_id: str
+    state_type: TicketUserStateTypes = TicketUserStateTypes.RUNNING
+    waiting_deadline: int = 0
+
+    class Config:
+        use_enum_values = True
+
+
 class TicketProgress(BaseModel):
     tracking_id: str
     username: str = ""
@@ -221,6 +237,7 @@ class TicketProgress(BaseModel):
     coding_progress: CodingProgress = CodingProgress()
     prev_dict: dict = Field(default_factory=dict)
     error_message: str = ""
+    user_state: TicketUserState = TicketUserState()
 
     class Config:
         use_enum_values = True
@@ -235,6 +252,7 @@ class TicketProgress(BaseModel):
         return cls(**doc)
 
     def _save(self):
+        # Can optimize by only saving the deltas
         try:
             if MONGODB_URI is None:
                 return None
@@ -254,6 +272,28 @@ class TicketProgress(BaseModel):
     def save(self):
         thread = Thread(target=self._save)
         thread.start()
+
+    def wait(self, wait_time: int = 30):
+        if MONGODB_URI is None:
+            return
+        # check if user set breakpoints
+        current_ticket_progress = TicketProgress.load(self.tracking_id)
+        user_state = current_ticket_progress.user_state
+        user_state.state_type = TicketUserStateTypes.WAITING
+        user_state.waiting_deadline = int(time.time()) + wait_time
+        current_ticket_progress.save()
+        while True:
+            current_ticket_progress = TicketProgress.load(self.tracking_id)
+            user_state = current_ticket_progress.user_state
+            if user_state.state_type == TicketUserStateTypes.RUNNING:
+                return
+            if (
+                user_state.state_type == TicketUserStateTypes.EDITING
+                and user_state.waiting_deadline < int(time.time())
+            ):
+                user_state.state_type = TicketUserStateTypes.RUNNING
+                return
+            time.sleep(1)
 
 
 def create_index():
