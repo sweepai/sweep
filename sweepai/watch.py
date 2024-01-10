@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import os
 import time
+from loguru import logger
 
 from github import Github
 from github.Event import Event
@@ -51,8 +52,8 @@ def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
 g = Github(os.environ["GITHUB_PAT"])
 repo_name = os.environ["REPO"]
 repo = g.get_repo(repo_name)
-print(f"Starting server, listening to events from {repo_name}...")
-print(
+logger.info(f"Starting server, listening to events from {repo_name}...")
+logger.info(
     f"To create a PR, please create an issue at https://github.com/{repo_name}/issues with the title 'Sweep'"
 )
 for event in stream_events(repo):
