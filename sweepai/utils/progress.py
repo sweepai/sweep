@@ -4,6 +4,7 @@ import time
 from enum import Enum
 from threading import Thread
 
+from loguru import logger
 from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
 from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
@@ -219,7 +220,6 @@ class TicketUserStateTypes(Enum):
 
 
 class TicketUserState(BaseModel):
-    tracking_id: str
     state_type: TicketUserStateTypes = TicketUserStateTypes.RUNNING
     waiting_deadline: int = 0
 
@@ -278,22 +278,27 @@ class TicketProgress(BaseModel):
             return
         # check if user set breakpoints
         current_ticket_progress = TicketProgress.load(self.tracking_id)
-        user_state = current_ticket_progress.user_state
-        user_state.state_type = TicketUserStateTypes.WAITING
-        user_state.waiting_deadline = int(time.time()) + wait_time
+        current_ticket_progress.user_state = current_ticket_progress.user_state
+        current_ticket_progress.user_state.state_type = TicketUserStateTypes.WAITING
+        current_ticket_progress.user_state.waiting_deadline = (
+            int(time.time()) + wait_time
+        )
         current_ticket_progress.save()
-        while True:
+        for i in range(24 * 60 * 60):
             current_ticket_progress = TicketProgress.load(self.tracking_id)
             user_state = current_ticket_progress.user_state
-            if user_state.state_type == TicketUserStateTypes.RUNNING:
+            if user_state.state_type == TicketUserStateTypes.RUNNING.value:
                 return
             if (
-                user_state.state_type == TicketUserStateTypes.EDITING
+                user_state.state_type == TicketUserStateTypes.WAITING.value
                 and user_state.waiting_deadline < int(time.time())
             ):
-                user_state.state_type = TicketUserStateTypes.RUNNING
+                user_state.state_type = TicketUserStateTypes.RUNNING.value
                 return
             time.sleep(1)
+            if i % 60 == 59:
+                logger.info(f"Waiting for user for {self.tracking_id}...")
+        raise Exception("Timeout")
 
 
 def create_index():
@@ -305,14 +310,15 @@ def create_index():
 
 if __name__ == "__main__":
     ticket_progress = TicketProgress(tracking_id="test")
-    ticket_progress.error_message = (
-        "I'm sorry, but it looks like an error has occurred due to"
-        + " a planning failure. Please create a more detailed issue"
-        + " so I can better address it. Alternatively, reach out to Kevin or William for help at"
-        + " https://discord.gg/sweep."
-    )
-    ticket_progress.status = TicketProgressStatus.ERROR
-    ticket_progress.save()
+    # ticket_progress.error_message = (
+    #     "I'm sorry, but it looks like an error has occurred due to"
+    #     + " a planning failure. Please create a more detailed issue"
+    #     + " so I can better address it. Alternatively, reach out to Kevin or William for help at"
+    #     + " https://discord.gg/sweep."
+    # )
+    # ticket_progress.status = TicketProgressStatus.ERROR
+    # ticket_progress.save()
+    ticket_progress.wait()
     # new_ticket_progress = TicketProgress.load("test")
     # print(new_ticket_progress)
     # assert new_ticket_progress == ticket_progress
