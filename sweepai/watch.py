@@ -49,8 +49,9 @@ def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
 
 
 g = Github(os.environ["GITHUB_PAT"])
-repo = g.get_repo(os.environ["REPO"])
-print("Starting server, listening to events...")
+repo_name = os.environ["REPO"]
+repo = g.get_repo(repo_name)
+print(f"Starting server, listening to events from {repo_name}...")
 for event in stream_events(repo):
     if isinstance(event, IssueEvent):
         payload = event.raw_data
