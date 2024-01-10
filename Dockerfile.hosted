@@ -67,12 +67,12 @@ COPY sweepai /app/sweepai
 COPY sdk /app/sdk
 COPY tests /app/tests
 ENV PYTHONPATH=.
-COPY bin/startup.sh /app/startup.sh
+COPY bin/startup.hosted.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
 
 EXPOSE 8080
-CMD ["/app/startup.hosted.sh"]
+CMD ["/app/startup.sh"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"
