@@ -2,7 +2,6 @@ from __future__ import annotations
 
 # Do not save logs for main process
 import ctypes
-import hashlib
 import json
 import threading
 import time
@@ -75,7 +74,7 @@ from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
-from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
 
 app = FastAPI()
 
@@ -113,10 +112,6 @@ if not IS_SELF_HOSTED:
         tags=["metrics"],
         dependencies=[Depends(auth_metrics)],
     )
-
-
-def get_hash():
-    return hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
 
 
 def run_on_ticket(*args, **kwargs):
