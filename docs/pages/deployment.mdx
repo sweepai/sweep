@@ -1,15 +1,11 @@
 # Deploying your own Sweep instance via Docker
 
-*🎉 We recently changed our license to the&nbsp;[Elastic License V2](https://www.elastic.co/licensing/elastic-license) to allow Sweep for commercial usage.*
+We use the&nbsp;[Elastic License V2](https://www.elastic.co/licensing/elastic-license) which allows commercial usage for Sweep.
+This is a guide for self-hosting Sweep. If you would like to use our hosted version, please visit https://github.com/apps/sweep-ai.
 
-This is the guide for self-deploying Sweep. If you would like to use our hosted version, please visit https://sweep.dev.
+## 1. Setup
 
----
-
-## 0. Setup
-
-Clone the repo, create a `.env` file in the root directory, and pull the docker image.
-
+Open [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the following code in your terminal:
 ```sh
 git clone https://github.com/sweepai/sweep
 cd sweep
@@ -17,21 +13,31 @@ touch .env
 docker compose pull
 ```
 
-Let it pull the image (should take a few minutes) while you complete the next steps.
+1. Clone the [sweepai/sweep](https://github.com/sweepai/sweep) repository
+2. Create a `.env` file in the root directory
+3. Pull the docker image.
 
-## 1. GitHub PAT
+In the `.env`, configure the repository that Sweep should work on.
 
-First decide which repo you would like Sweep to act on and place it in your `.env`.
-
-```
+```sh filename=".env"
 REPO=your-username/your-repo
 ```
 
-Then, create a new GitHub Personal Access Token (PAT) [here](https://github.com/settings/personal-access-tokens/new). Put anything in the "Token name" and select "Only select repositories" and select the repository you chose in step 0.
+We're halfway done! Pulling the image will take a few minutes, so let's complete the next steps for now.
 
-Then set the following permissions:
+## 2. GitHub PAT
+To allow Sweep to access your repo, create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/personal-access-tokens/new). Sweep will run entirely locally, and no code will be shared outside of OpenAI's API.
 
-```python
+Add this to your `.env` which should now look like this:
+
+```sh filename=".env"
+REPO=your-username/your-repo
+GITHUB_PAT=github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Set your preferred token name, and select `All Repositories` with the following permissions:
+
+```markdown
 Actions - Access: Read-only
 Commit statuses - Access: Read and write
 Contents - Access: Read and write
@@ -40,37 +46,38 @@ Metadata - Access: Read-only
 Pull requests - Access: Read and write
 ```
 
-## 2. OpenAI API Token
+
+<div align="center"><img src="/assets/tutorial/github_pat_config.gif" alt="How to configure Sweep's GitHub permissions locally." /></div>
+
+## 3. OpenAI API Token
 
 Please create an OpenAI API token at https://platform.openai.com/account/api-keys.
 ```sh
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-After following one of the above sections, you should have the following environment variables:
-```sh
+After following the above sections, your `.env` should look like this:
+```sh filename=".env"
+REPO=your-username/your-repo
 GITHUB_PAT=github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-REPO=your-username/your-repo
 ```
 
 ---
 
-## 3. Running Sweep
+## 4. Deploying Sweep Locally 
 
-Now, you can run Sweep with the following command:
+Now, you can run Sweep locally with the following command:
 
 ```sh
 docker compose up # Add -d to run in background
 ```
 
----
+## 5. Creating a Pull Request with Sweep
 
-## 4. Using Sweep
+Finally, you can use Sweep by creating a new issue on the repository with a title prefixed with `Sweep:`, like `Sweep: add type hints to BaseIndex.tsx`!
 
-Finally, you can use Sweep by creating a new issue on the repository with a title prefixed with `Sweep:`, like `Sweep: add type hints to BaseIndex.tsx` and watch the magic happen!
-
-For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage/tutorial) and [advanced usage](https://docs.sweep.dev/usage/advanced) guides.
+For more details on using Sweep see [how to use Sweep](https://docs.sweep.dev/#-how-to-use-sweep).
 
 **You have successfully deployed Sweep! 🚀**
 
