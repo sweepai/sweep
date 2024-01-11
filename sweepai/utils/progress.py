@@ -294,11 +294,11 @@ class TicketProgress(BaseModel):
                 user_state = current_ticket_progress.user_state
                 if i == 0:
                     logger.info(user_state)
-                if user_state.state_type == TicketUserStateTypes.RUNNING.value:
+                if user_state.state_type.value == TicketUserStateTypes.RUNNING.value:
                     logger.info(f"Continuing...")
                     return
                 if (
-                    user_state.state_type == TicketUserStateTypes.WAITING.value
+                    user_state.state_type.value == TicketUserStateTypes.WAITING.value
                     and user_state.waiting_deadline < int(time.time())
                 ):
                     logger.info(f"Continuing...")
