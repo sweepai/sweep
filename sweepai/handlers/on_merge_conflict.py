@@ -70,6 +70,7 @@ def on_merge_conflict(
             repo_full_name=repo_full_name,
             installation_id=installation_id,
             branch=branch,
+            token=token,
         )
         metadata = {}
         start_time = time.time()
@@ -311,7 +312,7 @@ def on_merge_conflict(
 
 if __name__ == "__main__":
     on_merge_conflict(
-        pr_number=60,
+        pr_number=66,
         username="MartinYe1234",
         repo_full_name="MartinYe1234/Chess-Game",
         installation_id=45945746,
