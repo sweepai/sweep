@@ -10,7 +10,7 @@ from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import create_pr_changes
 from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.chat_logger import ChatLogger, discord_error_notification
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketContext, TicketProgress, TicketProgressStatus
@@ -49,7 +49,7 @@ def on_merge_conflict(
     try:
         repo = g.get_repo(repo_full_name)
     except Exception as e:
-        print("Exception occured while getting repo", e)
+        logger.exception(f"Exception occurred while getting repo: {e}")
         pass
     pr: PullRequest = repo.get_pull(pr_number)
     branch = pr.head.ref
@@ -294,18 +294,11 @@ def on_merge_conflict(
 
         return {"success": True}
     except Exception as e:
-        print(f"Exception occured: {e}")
+        logger.exception(f"Exception occurred: {e}")
         edit_comment(
             f"> [!CAUTION]\n> \nAn error has occurred: {str(e)} (tracking ID: {tracking_id})"
         )
-        discord_log_error(
-            "Error occured in on_merge_conflict.py" + 
-            traceback.format_exc()
-            + "\n\n"
-            + str(e)
-            + "\n\n"
-            + f"tracking ID: {tracking_id}"
-        )
+        discord_error_notification("Error occurred in on_merge_conflict.py: " + traceback.format_exc() + "\n\n" + str(e) + "\n\ntracking ID: " + tracking_id)
         return {"success": False}
 
 
