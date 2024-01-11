@@ -1481,6 +1481,7 @@ def on_ticket(
                 "failed",
                 properties={
                     "error": str(e),
+                    "trace": traceback.format_exc(),
                     "reason": "Invalid request error / context length",
                     **metadata,
                     "duration": round(time() - on_ticket_start_time),
