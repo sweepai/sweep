@@ -8,7 +8,7 @@ ENV PORT=${PORT:-8080}
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev docker.io \
+    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev docker.io libffi-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
