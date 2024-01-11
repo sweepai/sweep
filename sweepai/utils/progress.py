@@ -276,7 +276,7 @@ class TicketProgress(BaseModel):
         else:
             self._save()
 
-    def wait(self, wait_time: int = 30):
+    def wait(self, wait_time: int = 20):
         if MONGODB_URI is None:
             return
         try:
