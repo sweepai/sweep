@@ -455,8 +455,8 @@ def on_ticket(
                 index = 0
             if index == 4:
                 return (
-                    pr_message
-                    + config_pr_message
+                    config_pr_message
+                    + pr_message
                     + f"\n\n---\n{user_settings.get_message(completed=True)}"
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
