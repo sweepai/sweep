@@ -170,6 +170,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     end_line: int | str | None = None
     start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
+    sandbox_response: None = None
     failed_sandbox_test: bool | None = False
     parent: FileChangeRequest | None = None
     status: Literal["succeeded"] | Literal["failed"] | Literal["queued"] | Literal[
