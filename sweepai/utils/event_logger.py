@@ -1,5 +1,4 @@
 import json
-import threading
 
 import requests
 from loguru import logger
@@ -16,16 +15,6 @@ if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
     )
 else:
     posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
-
-
-def send_log_to_loki(log_data):
-    response = requests.post(
-        LOKI_URL,
-        data=json.dumps(log_data),
-        headers={"Content-Type": "application/json"},
-    )
-    if response.status_code not in (200, 204):
-        print("Error sending log to Loki:", response.text)
 
 
 def loki_sink(message):
@@ -55,7 +44,13 @@ def loki_sink(message):
         for key, value in list(record["extra"].items())[:10]:
             log_data["streams"][0]["stream"][key] = str(value)
 
-        threading.Thread(target=send_log_to_loki, args=(log_data,)).start()
+        response = requests.post(
+            LOKI_URL,
+            data=json.dumps(log_data),
+            headers={"Content-Type": "application/json"},
+        )
+        if response.status_code not in (200, 204):
+            print("Error sending log to Loki:", response.text)
     except Exception as e:
         print("Error sending log to Loki:", e)
 
