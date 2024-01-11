@@ -288,9 +288,12 @@ class TicketProgress(BaseModel):
                 int(time.time()) + wait_time
             )
             current_ticket_progress.save(do_async=False)
+            time.sleep(3)
             for i in range(10 * 60):
                 current_ticket_progress = TicketProgress.load(self.tracking_id)
                 user_state = current_ticket_progress.user_state
+                if i == 0:
+                    logger.info(user_state)
                 if user_state.state_type == TicketUserStateTypes.RUNNING.value:
                     logger.info(f"Continuing...")
                     return
