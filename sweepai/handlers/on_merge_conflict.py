@@ -49,7 +49,7 @@ def on_merge_conflict(
     try:
         repo = g.get_repo(repo_full_name)
     except Exception as e:
-        print("Exception occured while getting repo", e)
+        logger.error("Exception occured while getting repo", e)
         pass
     pr: PullRequest = repo.get_pull(pr_number)
     branch = pr.head.ref
@@ -294,7 +294,7 @@ def on_merge_conflict(
 
         return {"success": True}
     except Exception as e:
-        print(f"Exception occured: {e}")
+        logger.error(f"Exception occured: {e}")
         edit_comment(
             f"> [!CAUTION]\n> \nAn error has occurred: {str(e)} (tracking ID: {tracking_id})"
         )
