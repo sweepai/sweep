@@ -21,6 +21,7 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
         issue_number,
     ) = issue_url.split("/")
     print("Fetching installation ID...")
+    print(org_name)
     installation_id = get_installation_id(org_name)
     print("Fetching access token...")
     _token, g = get_github_client(installation_id)

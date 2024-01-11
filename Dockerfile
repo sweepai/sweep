@@ -52,10 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN playwright install
-RUN apt-get update && apt-get install -y screen
-RUN apt-get update && apt-get install -y redis-server
-RUN apt-get update && apt-get install -y npm
+RUN apt-get update && apt-get install -y screen redis-server npm
 RUN npm install -g prettier @types/react @types/react-dom typescript
 
 FROM base as final
