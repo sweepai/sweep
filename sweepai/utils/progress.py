@@ -269,36 +269,49 @@ class TicketProgress(BaseModel):
         except Exception as e:
             discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
 
-    def save(self):
-        thread = Thread(target=self._save)
-        thread.start()
+    def save(self, do_async: bool = True):
+        if do_async:
+            thread = Thread(target=self._save)
+            thread.start()
+        else:
+            self._save()
 
     def wait(self, wait_time: int = 30):
         if MONGODB_URI is None:
             return
-        # check if user set breakpoints
-        current_ticket_progress = TicketProgress.load(self.tracking_id)
-        current_ticket_progress.user_state = current_ticket_progress.user_state
-        current_ticket_progress.user_state.state_type = TicketUserStateTypes.WAITING
-        current_ticket_progress.user_state.waiting_deadline = (
-            int(time.time()) + wait_time
-        )
-        current_ticket_progress.save()
-        for i in range(24 * 60 * 60):
+        try:
+            # check if user set breakpoints
             current_ticket_progress = TicketProgress.load(self.tracking_id)
-            user_state = current_ticket_progress.user_state
-            if user_state.state_type == TicketUserStateTypes.RUNNING.value:
-                return
-            if (
-                user_state.state_type == TicketUserStateTypes.WAITING.value
-                and user_state.waiting_deadline < int(time.time())
-            ):
-                user_state.state_type = TicketUserStateTypes.RUNNING.value
-                return
-            time.sleep(1)
-            if i % 60 == 59:
-                logger.info(f"Waiting for user for {self.tracking_id}...")
-        raise Exception("Timeout")
+            current_ticket_progress.user_state = current_ticket_progress.user_state
+            current_ticket_progress.user_state.state_type = TicketUserStateTypes.WAITING
+            current_ticket_progress.user_state.waiting_deadline = (
+                int(time.time()) + wait_time
+            )
+            current_ticket_progress.save(do_async=False)
+            for i in range(10 * 60):
+                current_ticket_progress = TicketProgress.load(self.tracking_id)
+                user_state = current_ticket_progress.user_state
+                if user_state.state_type == TicketUserStateTypes.RUNNING.value:
+                    logger.info(f"Continuing...")
+                    return
+                if (
+                    user_state.state_type == TicketUserStateTypes.WAITING.value
+                    and user_state.waiting_deadline < int(time.time())
+                ):
+                    logger.info(f"Continuing...")
+                    user_state.state_type = TicketUserStateTypes.RUNNING.value
+                    return
+                time.sleep(1)
+                if i % 10 == 9:
+                    logger.info(f"Waiting for user for {self.tracking_id}...")
+            raise Exception("Timeout")
+        except Exception as e:
+            discord_log_error(
+                "wait() method crashed with:\n\n"
+                + str(e)
+                + "\n\n"
+                + str(self.tracking_id)
+            )
 
 
 def create_index():
