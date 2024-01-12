@@ -873,7 +873,7 @@ def on_ticket(
             ]
             ticket_progress.save()
             ticket_progress.wait()
-            ticket_progress = TicketProgress.load(tracking_id)
+            ticket_progress.refresh()
             file_change_requests = (
                 ticket_progress.planning_progress.file_change_requests
             )
