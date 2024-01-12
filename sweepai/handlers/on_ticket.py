@@ -488,8 +488,8 @@ def on_ticket(
                 + ("\n" + stars_suffix if index != -1 else "")
                 + "\n"
                 + center(payment_message_start)
-                + f"\n\n---\n{user_settings_message}"
                 + config_pr_message
+                + f"\n\n---\n{user_settings_message}"
                 + f"\n\n---\n{actions_message}"
                 + sandbox_execution_message
             )
