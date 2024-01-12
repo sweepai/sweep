@@ -170,13 +170,13 @@ class FileChangeRequest(RegexMatchableBaseModel):
     end_line: int | str | None = None
     start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
+    sandbox_response: None = None
     failed_sandbox_test: bool | None = False
     parent: FileChangeRequest | None = None
     status: Literal["succeeded"] | Literal["failed"] | Literal["queued"] | Literal[
         "running"
     ] = "queued"
     destination_module: str | None = None
-    sandbox_response: SandboxResponse | None = None
     commit_hash_url: str | None = None
     id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
