@@ -4,7 +4,6 @@ import time
 from enum import Enum
 from threading import Thread
 
-from loguru import logger
 from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
 from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
@@ -287,27 +286,27 @@ class TicketProgress(BaseModel):
             current_ticket_progress.user_state.waiting_deadline = (
                 int(time.time()) + wait_time
             )
-            current_ticket_progress.save(do_async=False)
-            time.sleep(3)
-            for i in range(10 * 60):
-                current_ticket_progress = TicketProgress.load(self.tracking_id)
-                user_state = current_ticket_progress.user_state
-                if i == 0:
-                    logger.info(user_state)
-                if user_state.state_type.value == TicketUserStateTypes.RUNNING.value:
-                    logger.info(f"Continuing...")
-                    return
-                if (
-                    user_state.state_type.value == TicketUserStateTypes.WAITING.value
-                    and user_state.waiting_deadline < int(time.time())
-                ):
-                    logger.info(f"Continuing...")
-                    user_state.state_type = TicketUserStateTypes.RUNNING.value
-                    return
-                time.sleep(1)
-                if i % 10 == 9:
-                    logger.info(f"Waiting for user for {self.tracking_id}...")
-            raise Exception("Timeout")
+            # current_ticket_progress.save(do_async=False)
+            # time.sleep(3)
+            # for i in range(10 * 60):
+            #     current_ticket_progress = TicketProgress.load(self.tracking_id)
+            #     user_state = current_ticket_progress.user_state
+            #     if i == 0:
+            #         logger.info(user_state)
+            #     if user_state.state_type.value == TicketUserStateTypes.RUNNING.value:
+            #         logger.info(f"Continuing...")
+            #         return
+            #     if (
+            #         user_state.state_type.value == TicketUserStateTypes.WAITING.value
+            #         and user_state.waiting_deadline < int(time.time())
+            #     ):
+            #         logger.info(f"Continuing...")
+            #         user_state.state_type = TicketUserStateTypes.RUNNING.value
+            #         return
+            #     time.sleep(1)
+            #     if i % 10 == 9:
+            #         logger.info(f"Waiting for user for {self.tracking_id}...")
+            # raise Exception("Timeout")
         except Exception as e:
             discord_log_error(
                 "wait() method crashed with:\n\n"
