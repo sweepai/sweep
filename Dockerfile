@@ -68,7 +68,7 @@ COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
 
-EXPOSE 8080
+EXPOSE $PORT
 CMD ["/app/startup.sh"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
