@@ -412,12 +412,7 @@ def on_ticket(
             initial_sandbox_response: int | SandboxResponse = -1,
             initial_sandbox_response_file=None,
         ):
-            config_pr_message = (
-                "\n"
-                + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
-                if config_pr_url is not None
-                else ""
-            )
+            config_pr_message = ""
             actions_message = create_action_buttons(
                 [
                     RESTART_SWEEP_BUTTON,
@@ -1370,9 +1365,14 @@ def on_ticket(
                         for line in diff
                         if line.startswith("-") and not line.startswith("---")
                     )
-                    files_changed.append(
-                        f"<code>{fcr.filename}</code> (+{added}/-{removed})"
-                    )
+            # Install Sweep Configs: Pull Request
+            if config_pr_url is not None:
+                files_changed.append(
+                    f"Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a>" 
+                )
+            files_changed.append(
+                f"<code>{fcr.filename}</code> (+{added}/-{removed})"
+            )
             user_settings.send_email(
                 subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
                 html=email_template.format(
