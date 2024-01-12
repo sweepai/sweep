@@ -14,7 +14,7 @@ services:
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     command: >
-      sh -c "echo PORT: ${PORT:-8080} && . bin/startup.sh"
+      sh -c ". bin/startup.sh"
     stdin_open: true
     tty: true
     environment:
