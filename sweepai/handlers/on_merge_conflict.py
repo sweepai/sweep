@@ -13,10 +13,11 @@ from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.progress import TicketContext, TicketProgress, TicketProgressStatus
+from sweepai.utils.progress import PaymentContext, TicketContext, TicketProgress, TicketProgressStatus
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import to_branch_name
 from sweepai.utils.ticket_utils import center
+from sweepai.config.server import OPENAI_USE_3_5_MODEL_ONLY
 
 instructions_format = """Resolve the merge conflicts in the PR by incorporating changes from both branches into the final code.
 
@@ -70,6 +71,7 @@ def on_merge_conflict(
             repo_full_name=repo_full_name,
             installation_id=installation_id,
             branch=branch,
+            token=token,
         )
         metadata = {}
         start_time = time.time()
@@ -78,19 +80,6 @@ def on_merge_conflict(
         title = request
         if len(title) > 50:
             title = title[:50] + "..."
-        ticket_progress = TicketProgress(
-            tracking_id=tracking_id,
-            username=username,
-            context=TicketContext(
-                title=title,
-                description="",
-                repo_full_name=repo_full_name,
-                branch_name="sweep/" + to_branch_name(request),
-                issue_number=pr_number,
-                is_public=repo.private is False,
-                start_time=time.time(),
-            ),
-        )
 
         chat_logger = ChatLogger(
             data={
@@ -102,6 +91,36 @@ def on_merge_conflict(
 
         is_paying_user = chat_logger.is_paying_user()
         is_consumer_tier = chat_logger.is_consumer_tier()
+
+        # this logic is partly taken from on_ticket.py, if there is an issue please refer to that file
+        if chat_logger:
+            use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
+        else:
+            is_paying_user = True
+
+        ticket_progress = TicketProgress(
+            tracking_id=tracking_id,
+            username=username,
+            context=TicketContext(
+                title=title,
+                description="",
+                repo_full_name=repo_full_name,
+                branch_name="sweep/" + to_branch_name(request),
+                issue_number=pr_number,
+                is_public=repo.private is False,
+                start_time=time.time(),
+
+                # mostly copied from on_ticket, if issue please check that file
+                payment_context=PaymentContext(
+                    use_faster_model=use_faster_model,
+                    pro_user=is_paying_user,
+                    daily_tickets_used=chat_logger.get_ticket_count(use_date=True)
+                    if chat_logger
+                    else 0,
+                    monthly_tickets_used=chat_logger.get_ticket_count() if chat_logger else 0
+                )
+            ),
+        )
         issue_url = pr.html_url
 
         edit_comment("Configuring branch...")
