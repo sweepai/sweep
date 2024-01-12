@@ -250,6 +250,12 @@ class TicketProgress(BaseModel):
         doc = collection.find_one({"tracking_id": tracking_id})
         return cls(**doc)
 
+    def refresh(self):
+        if MONGODB_URI is None:
+            return
+        new_ticket_progress = TicketProgress.load(self.tracking_id)
+        self.__dict__.update(new_ticket_progress.__dict__)
+
     def _save(self):
         # Can optimize by only saving the deltas
         try:
