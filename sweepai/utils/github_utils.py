@@ -94,20 +94,21 @@ def get_installation_id(username: str) -> str:
         obj = response.json()
         return obj["id"]
     except Exception as e:
+        # Try org
+        response = requests.get(
+            f"https://api.github.com/orgs/{username}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
         try:
-            # Try org
-            response = requests.get(
-                f"https://api.github.com/orgs/{username}/installation",
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "Authorization": "Bearer " + jwt,
-                    "X-GitHub-Api-Version": "2022-11-28",
-                },
-            )
             obj = response.json()
             return obj["id"]
         except Exception as e:
             logger.error(e)
+            logger.error(response.text)
         raise Exception("Could not get installation id, probably not installed")
 
 

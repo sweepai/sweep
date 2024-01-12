@@ -121,7 +121,7 @@ def stack_pr(
         except:
             edit_comment(
                 "It looks like an issue has occurred around fetching the files."
-                " Perhaps the repo has not been initialized. If this error persists"
+                " Perhaps the repo failed to initialized. If this error persists"
                 f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
             )
             raise Exception("Failed to fetch files")
