@@ -126,7 +126,7 @@ Here are the logs:
 ```
 {cleaned_logs_str}
 ```"""
-    return cleaned_response, response_for_user
+    return cleaned_logs_str, response_for_user
 
 
 def on_check_suite(request: CheckRunCompleted):
@@ -149,14 +149,14 @@ def on_check_suite(request: CheckRunCompleted):
     )
     if not logs:
         return None
-    logs, user_message = clean_logs(logs)
+    cleaned_logs, user_message = clean_logs(logs)
     comment = pr.as_issue().create_comment(user_message)
     pr_change_request = PRChangeRequest(
         params={
             "type": "github_action",
             "repo_full_name": request.repository.full_name,
             "repo_description": request.repository.description,
-            "comment": logs,
+            "comment": cleaned_logs,
             "pr_path": None,
             "pr_line_position": None,
             "username": request.sender.login,
