@@ -1,3 +1,5 @@
+chat_logger = None
+commit_author = None
 from __future__ import annotations
 
 # Do not save logs for main process
@@ -13,6 +15,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
 from prometheus_fastapi_instrumentator import Instrumentator
 
+chat_logger = None
+commit_author = None
 from sweepai import health
 from sweepai.config.client import (
     DEFAULT_RULES,
