@@ -8,7 +8,7 @@ ENV PORT=${PORT:-8080}
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev docker.io \
+    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev docker.io libffi-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,12 +17,6 @@ RUN git clone https://github.com/universal-ctags/ctags.git && \
     ./autogen.sh && \
     ./configure && \
     make && make install
-
-RUN if [ "$(uname -m)" = "x86_64" ]; then \
-    pip install torch --index-url https://download.pytorch.org/whl/cpu; \
-  else \
-    pip install torch; \
-  fi && pip install sentence_transformers --no-cache-dir
 
 COPY pyproject.toml ./
 
@@ -58,10 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN playwright install
-RUN apt-get update && apt-get install -y screen
-RUN apt-get update && apt-get install -y redis-server
-RUN apt-get update && apt-get install -y npm
+RUN apt-get update && apt-get install -y screen redis-server npm
 RUN npm install -g prettier @types/react @types/react-dom typescript
 
 FROM base as final
