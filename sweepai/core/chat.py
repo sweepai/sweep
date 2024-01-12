@@ -10,7 +10,6 @@ from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT35_MODEL,
     OPENAI_API_KEY,
-    OPENAI_DO_HAVE_32K_MODEL_ACCESS,
     OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message
@@ -64,9 +63,7 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = (
-        "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
-    )
+    model: ChatModel = "gpt-4-0613"
     chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
@@ -242,14 +239,6 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
-        if (
-            model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 3000
-            and not OPENAI_DO_HAVE_32K_MODEL_ACCESS
-        ):  # use 16k if it's OOC and no 32k
-            model = DEFAULT_GPT35_MODEL
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )
         max_tokens = min(max_tokens, 4096)
         max_tokens = (
             min(requested_max_tokens, max_tokens)
