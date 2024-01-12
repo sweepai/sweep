@@ -304,13 +304,15 @@ async def handle_request(request_dict, event=None):
                                         logs, user_message = clean_logs(logs)
                                         commit_author = request.sender.login
                                         tracking_id = get_hash()
-                                        stack_pr(
-                                            request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
-                                            pr_number=pr.number,
-                                            username=commit_author,
-                                            repo_full_name=repo.full_name,
+                                        make_pr(
+                                            title="[Sweep GHA Fix] Fix the failing GitHub Actions",
+                                            repo_description=repo.description,
+                                            summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
+                                            repo_full_name=request.repository.full_name,
                                             installation_id=request.installation.id,
-                                            tracking_id=tracking_id,
+                                            user_token=None,
+                                            use_faster_model=chat_logger.use_faster_model(),
+                                            username=commit_author,
                                         )
                         elif (
                             request.check_run.check_suite.head_branch
@@ -331,13 +333,13 @@ async def handle_request(request_dict, event=None):
                                     }
                                 )
                                 make_pr(
+                                commit_author = request.sender.login
+                                make_pr(
                                     title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                                     repo_description=repo.description,
                                     summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
-                                    repo_full_name=request_dict["repository"][
-                                        "full_name"
-                                    ],
-                                    installation_id=request_dict["installation"]["id"],
+                                    repo_full_name=request.repository.full_name,
+                                    installation_id=request.installation.id,
                                     user_token=None,
                                     use_faster_model=chat_logger.use_faster_model(),
                                     username=commit_author,
