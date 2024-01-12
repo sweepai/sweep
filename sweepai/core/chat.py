@@ -64,9 +64,7 @@ class ChatGPT(BaseModel):
     ]
     prev_message_states: list[list[Message]] = []
     model: ChatModel = "gpt-4-0613"
-=======
-    model: ChatModel = "gpt-4-0613"
->>>>>>> origin/main
+    
     chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
