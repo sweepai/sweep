@@ -30,7 +30,7 @@ def loki_sink(message):
 
         message = (
             f"{record['time'].isoformat()} {record['level'].name}:{record['file'].path}{record['line']}: {record['message']}\n\n"
-            + json.dumps(record["extra"])
+            + json.dumps(extras)
         )
 
         log_data = {
@@ -38,8 +38,8 @@ def loki_sink(message):
                 {
                     "stream": {
                         "level": record["level"].name,
-                        # "file": record["file"].path,
-                        # "line": record["line"],
+                        "file": record["file"].path,
+                        "line": record["line"],
                     },
                     "values": [[str(int(record["time"].timestamp() * 1e9)), message]],
                 }
