@@ -63,8 +63,7 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-<<<<<<< HEAD
-    model: ChatModel = "gpt-4-1106-preview"
+    model: ChatModel = "gpt-4-0613"
 =======
     model: ChatModel = "gpt-4-0613"
 >>>>>>> origin/main
