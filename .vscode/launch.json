@@ -19,10 +19,6 @@
             "program":"${workspaceFolder}/tests/rerun_issue_direct.py",
             "console":"integratedTerminal",
             "justMyCode":true,
-            "args": [
-                // "https://github.com/sweepai/sweep/issues/2918"
-                "https://github.com/wehriam/terminal-kit/issues/1"
-            ]
         },
         {
             "name": "FastAPI",
