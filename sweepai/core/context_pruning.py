@@ -630,7 +630,6 @@ if __name__ == "__main__":
     cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
     query = (
         "allow sweep.yaml to be read from the user/organization's .github repository"
-        + "x" * 100000
     )
     # golden response is
     # sweepai/handlers/create_pr.py:401-428
