@@ -44,7 +44,7 @@ def get_jwt():
 
 
 def get_token(installation_id: int):
-    if installation_id < 0:
+    if int(installation_id) < 0:
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
         try:

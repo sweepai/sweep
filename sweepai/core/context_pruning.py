@@ -1,5 +1,6 @@
 import json
 import re
+import textwrap
 import time
 
 from attr import dataclass
@@ -7,6 +8,7 @@ from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
+from sweepai.agents.assistant_function_modify import MAX_CHARS
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.config.server import IS_SELF_HOSTED
 from sweepai.core.entities import Snippet
@@ -275,6 +277,7 @@ def get_relevant_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
+        messages = textwrap.wrap(user_prompt, MAX_CHARS)
         assistant = openai_retry_with_timeout(
             client.beta.assistants.create,
             name="Relevant Files Assistant",
@@ -283,12 +286,13 @@ def get_relevant_context(
             model=model,
         )
         thread = openai_retry_with_timeout(client.beta.threads.create)
-        _ = openai_retry_with_timeout(
-            client.beta.threads.messages.create,
-            thread.id,
-            role="user",
-            content=f"{user_prompt}",
-        )
+        for content in messages:
+            _ = openai_retry_with_timeout(
+                client.beta.threads.messages.create,
+                thread.id,
+                role="user",
+                content=content,
+            )
         run = openai_retry_with_timeout(
             client.beta.threads.runs.create,
             thread_id=thread.id,

@@ -42,7 +42,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
         try:
             return call(*args, **kwargs, timeout=timeout)
         except Exception as e:
-            logger.error(f"Retry {attempt + 1} failed with error: {e}")
+            logger.exception(f"Retry {attempt + 1} failed with error: {e}")
             error_message = str(e)
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"

@@ -1,5 +1,4 @@
 import traceback
-from threading import Thread
 from time import time
 
 from loguru import logger
@@ -244,13 +243,14 @@ def fire_and_forget_wrapper(call):
     """
 
     def wrapper(*args, **kwargs):
-        def run_in_thread(call, *a, **kw):
-            try:
-                call(*a, **kw)
-            except:
-                pass
+        return call(*args, **kwargs)
+        # def run_in_thread(call, *a, **kw):
+        #     try:
+        #         call(*a, **kw)
+        #     except:
+        #         pass
 
-        thread = Thread(target=run_in_thread, args=(call,) + args, kwargs=kwargs)
-        thread.start()
+        # thread = Thread(target=run_in_thread, args=(call,) + args, kwargs=kwargs)
+        # thread.start()
 
     return wrapper
