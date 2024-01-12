@@ -1,4 +1,5 @@
 import json
+import traceback
 from datetime import datetime, timedelta
 from threading import Thread
 from typing import Any
@@ -194,7 +195,9 @@ def discord_log_error(content, priority=0):
         if priority == 2:
             url = DISCORD_LOW_PRIORITY_URL
 
-        data = {"content": content}
+        data = {
+            "content": f"Traceback:{traceback.format_exc()}\n\nMessage:\n\n```\n{content}\n```"
+        }
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
