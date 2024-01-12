@@ -21,16 +21,25 @@ def loki_sink(message):
     try:
         record = message.record
 
-        blocked_labels = ["time", "message"]
+        extras = {
+            **record["extra"],
+            "level": record["level"].name,
+            "file": record["file"].path,
+            "line": record["line"],
+        }
 
-        message = f"{record['time'].isoformat()} {record['level'].name}:{record['file'].path}{record['line']}: {record['message']}"
+        message = (
+            f"{record['time'].isoformat()} {record['level'].name}:{record['file'].path}{record['line']}: {record['message']}\n\n"
+            + json.dumps(record["extra"])
+        )
 
         log_data = {
             "streams": [
                 {
                     "stream": {
                         "level": record["level"].name,
-                        "file": record["file"].path,
+                        # "file": record["file"].path,
+                        # "line": record["line"],
                     },
                     "values": [[str(int(record["time"].timestamp() * 1e9)), message]],
                 }
@@ -38,7 +47,7 @@ def loki_sink(message):
         }
 
         for key, value in list(record["extra"].items())[:10]:
-            if key not in blocked_labels:
+            if key in ["env"]:
                 log_data["streams"][0]["stream"][key] = str(value)
 
         response = requests.post(
