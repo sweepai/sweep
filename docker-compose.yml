@@ -15,6 +15,4 @@ services:
       sh -c ". bin/startup.sh"
     stdin_open: true
     tty: true
-    environment:
-      - PORT=${PORT:-8080}
     restart: unless-stopped

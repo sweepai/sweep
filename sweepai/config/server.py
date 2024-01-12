@@ -123,9 +123,6 @@ blocked_dirs: []
 )
 
 
-OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
-    os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
-)
 OPENAI_USE_3_5_MODEL_ONLY = (
     os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
 )
