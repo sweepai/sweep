@@ -29,7 +29,7 @@ echo "Found open port: $PORT"
 cd ~/sweep
 docker build -t sweepai/sweep:latest -f Dockerfile.hosted .
 container_id=$(docker run -v $(pwd)/logn_logs:/app/logn_logs -v $(pwd)/sweep_docs:/app/sweep_docs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest)
-docker exec -it $container_id python tests/rerun_issue_direct.py --no-debug
+docker exec -it $container_id python tests/rerun_issue_direct.py --no-debug https://github.com/wwzeng1/landing-page/issues/114
 
 echo "Running test on https://github.com/wwzeng1/landing-page/issues/114"
 

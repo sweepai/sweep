@@ -1,6 +1,7 @@
 import html
 import multiprocessing
 import os
+from typing import Optional
 
 import typer
 from fastapi.testclient import TestClient
@@ -79,7 +80,7 @@ def send_request(issue_request):
 
 
 def test_issue_url(
-    issue_url: str | None = None,
+    issue_url: Optional[str],
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
     debug: bool = True,
 ):
