@@ -90,6 +90,7 @@ from sweepai.utils.str_utils import (
     create_collapsible,
     discord_suffix,
     format_sandbox_success,
+    get_hash,
     ordinal,
     sep,
     stars_suffix,
@@ -162,6 +163,8 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
+    if tracking_id is None:
+        tracking_id = get_hash()
     on_ticket_start_time = time()
     logger.info(f"Starting on_ticket with title {title} and summary {summary}")
     (
@@ -474,8 +477,12 @@ def on_ticket(
             pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
             return (
                 f"{center(sweeping_gif)}"
-                + center(
-                    f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="https://progress.sweep.dev/issues/{tracking_id}">progress dashboard</a>!</h2>'
+                + (
+                    center(
+                        f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="https://progress.sweep.dev/issues/{tracking_id}">progress dashboard</a>!</h2>'
+                    )
+                    if not IS_SELF_HOSTED
+                    else ""
                 )
                 + f"<br/>{center(pbar)}"
                 + ("\n" + stars_suffix if index != -1 else "")
@@ -864,6 +871,19 @@ def on_ticket(
             ticket_progress.coding_progress.assistant_conversations = [
                 AssistantConversation() for fcr in file_change_requests
             ]
+            ticket_progress.save()
+            ticket_progress.wait()
+            ticket_progress.refresh()
+            file_change_requests = (
+                ticket_progress.planning_progress.file_change_requests
+            )
+            file_change_requests = sweep_bot.validate_file_change_requests(
+                file_change_requests
+            )
+            ticket_progress.planning_progress.file_change_requests = (
+                file_change_requests
+            )
+            ticket_progress.coding_progress.file_change_requests = file_change_requests
             ticket_progress.status = TicketProgressStatus.CODING
             ticket_progress.save()
 
@@ -1461,6 +1481,7 @@ def on_ticket(
                 "failed",
                 properties={
                     "error": str(e),
+                    "trace": traceback.format_exc(),
                     "reason": "Invalid request error / context length",
                     **metadata,
                     "duration": round(time() - on_ticket_start_time),

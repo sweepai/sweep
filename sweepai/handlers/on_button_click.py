@@ -40,9 +40,9 @@ def handle_button_click(request_dict):
         revert_files = []
         for button_text in selected_buttons:
             revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
-        handle_revert(revert_files, request_dict["issue"]["number"], repo)
+        handle_revert(file_paths=revert_files, pr_number=request_dict["issue"]["number"], repo=repo)
         comment.edit(
-            body=ButtonList(
+            ButtonList(
                 buttons=[
                     button
                     for button in button_list.buttons
@@ -56,9 +56,9 @@ def handle_button_click(request_dict):
         rules = []
         for button_text in selected_buttons:
             rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
-        handle_rules(request_dict, rules, user_token, repo, gh_client)
+        handle_rules(request_dict=request_dict, rules=rules, user_token=user_token, repo=repo, gh_client=gh_client)
         comment.edit(
-            body=ButtonList(
+    ButtonList(
                 buttons=[
                     button
                     for button in button_list.buttons

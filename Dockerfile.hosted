@@ -67,7 +67,7 @@ COPY sweepai /app/sweepai
 COPY sdk /app/sdk
 COPY tests /app/tests
 ENV PYTHONPATH=.
-COPY bin/startup.sh /app/startup.sh
+COPY bin/startup.hosted.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
 
