@@ -1,7 +1,7 @@
 name: Docker Build
 
 on:
-  push:
+  pull_request:
     branches:
       - main
       - dev
