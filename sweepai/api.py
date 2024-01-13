@@ -967,6 +967,8 @@ async def handle_request(request_dict, event=None):
 
         thread = threading.Thread(target=worker_wrapper)
         thread.start()
+        thread_killer = threading.Thread(target=delayed_kill, args=(thread,))
+        thread_killer.start()
         return {"success": True}
 
 

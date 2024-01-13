@@ -63,7 +63,7 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = "gpt-4-0613"
+    model: ChatModel = "gpt-4-1106-preview"
     chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
@@ -368,11 +368,6 @@ class ChatGPT(BaseModel):
             messages_dicts.append(message_dict)
 
         gpt_4_buffer = 800
-        # if int(messages_length) + gpt_4_buffer < 6000 and model == DEFAULT_GPT4_32K_MODEL:
-        #     model = "gpt-4-0613"
-        #     max_tokens = (
-        #         model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-        #     )  # this is for the function tokens
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 4096)
         # Fix for self hosting where TPM limit is super low for GPT-4

@@ -356,19 +356,15 @@ def on_ticket(
                 direction="desc",
                 base=SweepConfig.get_branch(repo),
             )
-            checked_pr_count = 0
-            for pr in tqdm(prs):
+            for pr in tqdm(prs.get_page(0)):
                 # # Check if this issue is mentioned in the PR, and pr is owned by bot
                 # # This is done in create_pr, (pr_description = ...)
-                if checked_pr_count >= 40:
-                    break
                 if (
                     pr.user.login == CURRENT_USERNAME
                     and f"Fixes #{issue_number}.\n" in pr.body
                 ):
                     success = safe_delete_sweep_branch(pr, repo)
                     break
-                checked_pr_count += 1
 
         fire_and_forget_wrapper(delete_old_prs)()
 
