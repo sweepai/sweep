@@ -32,9 +32,7 @@ def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
     local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
     while True:
-        events_iterator = chain(
-            repo.get_events(), islice(repo.get_issues_events(), 100)
-        )
+        events_iterator = chain(repo.get_events(), islice(repo.get_issues_events(), 60))
         for event in events_iterator:
             if event.id not in processed_event_ids:
                 local_time = event.created_at.replace(
