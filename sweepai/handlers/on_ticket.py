@@ -348,23 +348,21 @@ def on_ticket(
         replies_text = ""
         summary = summary if summary else ""
 
-        def delete_old_prs():
+        def delete_old_prs(repo, issue_number):
             logger.info("Deleting old PRs...")
             prs = repo.get_pulls(
                 state="open",
                 sort="created",
                 direction="desc",
-                base=SweepConfig.get_branch(repo),
+                base=SweepConfig.get_branch(repo)
             )
             for pr in tqdm(prs.get_page(0)):
-                # # Check if this issue is mentioned in the PR, and pr is owned by bot
-                # # This is done in create_pr, (pr_description = ...)
-                if (
-                    pr.user.login == CURRENT_USERNAME
-                    and f"Fixes #{issue_number}.\n" in pr.body
-                ):
+                if pr.user.login == CURRENT_USERNAME and f"Fixes #{issue_number}.\n" in pr.body:
                     success = safe_delete_sweep_branch(pr, repo)
-                    break
+                    if not success:
+                        logger.error(f"Failed to delete PR #{pr.number}")
+                        return False
+            return True
 
         fire_and_forget_wrapper(delete_old_prs)()
 
