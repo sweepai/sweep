@@ -752,23 +752,8 @@ def on_ticket(
                     logger.info("The YAML file is valid. No errors found.")
                 break
 
-        # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-        if not sweep_yml_exists:
-            try:
-                logger.info("Creating sweep.yaml file...")
-                config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
-                config_pr_url = config_pr.html_url
-                edit_sweep_comment(message="", index=-2)
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
-                    traceback.format_exc(),
-                )
-        else:
-            logger.info("sweep.yaml file already exists.")
+        # Moved to after the email line
+        pass
 
         try:
             # ANALYZE SNIPPETS
@@ -1312,62 +1297,23 @@ def on_ticket(
                     pass
 
             pr: PullRequest = repo.create_pull(
-                title=pr_changes.title,
-                body=pr_actions_message + pr_changes.body,
-                head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
-            )
-
-            ticket_progress.status = TicketProgressStatus.COMPLETE
-            ticket_progress.context.done_time = time()
-            ticket_progress.context.pr_id = pr.number
-            ticket_progress.save()
-
-            if revert_buttons:
-                pr.create_issue_comment(revert_buttons_list.serialize() + BOT_SUFFIX)
-            if rule_buttons:
-                pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
-
-            # add comments before labelling
-            pr.add_to_labels(GITHUB_LABEL_NAME)
-            current_issue.create_reaction("rocket")
-            heres_pr_message = f'<h1 align="center">🚀 Here\'s the PR! <a href="{pr.html_url}">#{pr.number}</a></h1>'
-            progress_message = f'<div align="center"><b>See Sweep\'s progress at <a href="https://progress.sweep.dev/issues/{tracking_id}">the progress dashboard</a>!</b></div>'
-            edit_sweep_comment(
-                review_message + "\n\nSuccess! 🚀",
-                4,
-                pr_message=(
-                    f"{center(heres_pr_message)}\n{center(progress_message)}\n{center(payment_message_start)}"
-                ),
-                done=True,
-            )
-
-            user_settings = UserSettings.from_username(username=username)
-            user = g.get_user(username)
-            full_name = user.name or user.login
-            name = full_name.split(" ")[0]
-            files_changed = []
-            for fcr in file_change_requests:
-                if fcr.change_type in ("create", "modify"):
-                    diff = list(
-                        difflib.unified_diff(
-                            (fcr.old_content or "").splitlines() or [],
-                            (fcr.new_content or "").splitlines() or [],
-                            lineterm="",
-                        )
+            # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+            if not sweep_yml_exists:
+                try:
+                    logger.info("Creating sweep.yaml file...")
+                    config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
+                    config_pr_url = config_pr.html_url
+                    edit_sweep_comment(message="", index=-2)
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(
+                        "Failed to create new branch for sweep.yaml file.\n",
+                        e,
+                        traceback.format_exc(),
                     )
-                    added = sum(
-                        1
-                        for line in diff
-                        if line.startswith("+") and not line.startswith("+++")
-                    )
-                    removed = sum(
-                        1
-                        for line in diff
-                        if line.startswith("-") and not line.startswith("---")
-                    )
-                    files_changed.append(
-                        f"<code>{fcr.filename}</code> (+{added}/-{removed})"
+            else:
+                logger.info("sweep.yaml file already exists.")
                     )
             user_settings.send_email(
                 subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
