@@ -235,22 +235,27 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
+from threading import Thread
+
+
+def fire_and_forget(call):
+    try:
+        return call()
+    except Exception as e:
+        logger.error(f'fire_and_forget error: {e}')
+        return None
+
+
 def fire_and_forget_wrapper(call):
     """
     This decorator is used to run a function in a separate thread.
     It does not return anything and does not wait for the function to finish.
-    It fails silently.
+    The functionality has been refactored for better testability.
     """
 
     def wrapper(*args, **kwargs):
-        return call(*args, **kwargs)
-        # def run_in_thread(call, *a, **kw):
-        #     try:
-        #         call(*a, **kw)
-        #     except:
-        #         pass
-
-        # thread = Thread(target=run_in_thread, args=(call,) + args, kwargs=kwargs)
-        # thread.start()
+        thread = Thread(target=fire_and_forget, args=(lambda: call(*args, **kwargs),))
+        thread.start()
+        return thread
 
     return wrapper
