@@ -420,6 +420,11 @@ def on_comment(
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
         logger.info("Done!")
+        try:
+            item_to_react_to.delete_reaction("eyes")
+            item_to_react_to.create_reaction("rocket")
+        except Exception as e:
+            pass
     except NoFilesException:
         elapsed_time = time.time() - start_time
         posthog.capture(
