@@ -255,7 +255,7 @@ def on_comment(
                 pr_path, ref=branch_name
             ).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
-            start = max(0, pr_line_position - 11)
+            start = max(0, pr_line_position - 10)
             end = min(len(pr_lines), pr_line_position + 10)
             original_line = pr_lines[pr_line_position - 1]
             pr_chunk = "\n".join(pr_lines[start:end])
@@ -316,7 +316,9 @@ def on_comment(
             snippets=snippets,
             # commit_history=commit_history,
             pr_file_path=pr_file_path,  # may be None
-            pr_chunk=formatted_pr_chunk,  # may be None
+            pr_chunk=pr_chunk,  # may be None
+            original_line=original_line if pr_chunk else None,
+        )
             original_line=original_line if pr_chunk else None,
             relevant_docs=docs_results,
         )
