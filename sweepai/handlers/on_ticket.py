@@ -805,7 +805,7 @@ def on_ticket(
                 + (
                     create_collapsible(
                         "I also found that you mentioned the following Pull Requests that may be helpful:",
-                        f"\n\n{prs_extracted}\n\n",
+                        blockquote(prs_extracted),
                     )
                     if prs_extracted
                     else ""
