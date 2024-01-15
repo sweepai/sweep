@@ -707,7 +707,7 @@ def on_ticket(
         if not repo_description:
             repo_description = "No description provided."
 
-        message_summary = summary + replies_text
+        message_summary += replies_text
         external_results = ExternalSearcher.extract_summaries(message_summary)
         if external_results:
             message_summary += "\n\n" + external_results
