@@ -657,8 +657,9 @@ def on_ticket(
                 return {"success": False}
 
         prs_extracted = PRReader.extract_prs(repo, summary)
+        message_summary = summary
         if prs_extracted:
-            summary += "\n\n" + prs_extracted
+            message_summary += "\n\n" + prs_extracted
             edit_sweep_comment(
                 create_collapsible(
                     "I found that you mentioned the following Pull Requests that might be important:",
@@ -673,7 +674,7 @@ def on_ticket(
             snippets, tree, _ = fetch_relevant_files(
                 cloned_repo,
                 title,
-                summary,
+                message_summary,
                 replies_text,
                 username,
                 metadata,
