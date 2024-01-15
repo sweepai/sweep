@@ -868,18 +868,18 @@ def on_ticket(
                 AssistantConversation() for fcr in file_change_requests
             ]
             ticket_progress.save()
-            ticket_progress.wait()
-            ticket_progress.refresh()
-            file_change_requests = (
-                ticket_progress.planning_progress.file_change_requests
-            )
-            file_change_requests = sweep_bot.validate_file_change_requests(
-                file_change_requests
-            )
-            ticket_progress.planning_progress.file_change_requests = (
-                file_change_requests
-            )
-            ticket_progress.coding_progress.file_change_requests = file_change_requests
+            # ticket_progress.wait()
+            # ticket_progress.refresh()
+            # file_change_requests = (
+            #     ticket_progress.planning_progress.file_change_requests
+            # )
+            # file_change_requests = sweep_bot.validate_file_change_requests(
+            #     file_change_requests
+            # )
+            # ticket_progress.planning_progress.file_change_requests = (
+            #     file_change_requests
+            # )
+            # ticket_progress.coding_progress.file_change_requests = file_change_requests
             ticket_progress.status = TicketProgressStatus.CODING
             ticket_progress.save()
 
