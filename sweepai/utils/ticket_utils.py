@@ -228,7 +228,7 @@ def log_error(
         f"**{error_type} Error**{prefix}\n{username}:"
         f" {issue_url}\n```{exception}```"
     )
-    discord_log_error(content, priority=priority)
+    discord_log_error(content, priority=2)
 
 
 def center(text: str) -> str:

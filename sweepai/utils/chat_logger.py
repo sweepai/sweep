@@ -196,7 +196,7 @@ def discord_log_error(content, priority=0):
             url = DISCORD_LOW_PRIORITY_URL
 
         data = {
-            "content": f"Traceback:{traceback.format_exc()}\n\nMessage:\n\n```\n{content}\n```"
+            "content": f"Traceback:\n\n{traceback.format_exc()}\n\nMessage:\n\n```\n{content}\n```"
         }
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)
