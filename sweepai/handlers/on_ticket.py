@@ -57,6 +57,7 @@ from sweepai.core.entities import (
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.core.external_searcher import ExternalSearcher
+from sweepai.core.pr_reader import PRReader
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import (
     create_config_pr,
@@ -696,6 +697,11 @@ def on_ticket(
         external_results = ExternalSearcher.extract_summaries(message_summary)
         if external_results:
             message_summary += "\n\n" + external_results
+
+        prs_extracted = PRReader.extract_prs(repo, summary)
+        if prs_extracted:
+            message_summary += "\n\n" + prs_extracted
+
         user_dict = get_documentation_dict(repo)
         docs_results = ""
         human_message = HumanMessagePrompt(
