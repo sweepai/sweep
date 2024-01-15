@@ -867,7 +867,7 @@ def on_ticket(
             ticket_progress.coding_progress.assistant_conversations = [
                 AssistantConversation() for fcr in file_change_requests
             ]
-            ticket_progress.save()
+            # ticket_progress.save()
             # ticket_progress.wait()
             # ticket_progress.refresh()
             # file_change_requests = (
