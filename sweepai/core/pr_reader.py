@@ -5,6 +5,7 @@ from github.Repository import Repository
 from pydantic import BaseModel
 
 from sweepai.logn import logger
+from sweepai.utils.chat_logger import discord_log_error
 
 summary_format = """# Pull Request #{id_}
 
@@ -56,10 +57,15 @@ class PRReader(BaseModel):
     @staticmethod
     def extract_prs(repo: Repository, content: str):
         logger.info("Extracting pull requests from content")
-        pr_reader = PRReader(repo=repo)
-        result = ""
-        for pr_id in pr_reader.extract_pr_ids(content):
-            result += pr_reader.extract_summary_from_pr_id(pr_id)
-        if result:
-            result = "The following PRs were mentioned in the issue:\n\n" + result
-        return result
+        try:
+            pr_reader = PRReader(repo=repo)
+            result = ""
+            for pr_id in pr_reader.extract_pr_ids(content):
+                result += pr_reader.extract_summary_from_pr_id(pr_id)
+            if result:
+                result = "The following PRs were mentioned in the issue:\n\n" + result
+            return result
+        except Exception as e:
+            logger.error(f"Failed to extract PRs from content: {e}")
+            discord_log_error(f"Failed to extract PRs from content: {e}")
+            return ""
