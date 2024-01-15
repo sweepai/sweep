@@ -243,7 +243,10 @@ def fire_and_forget_wrapper(call):
     """
 
     def wrapper(*args, **kwargs):
-        return call(*args, **kwargs)
+        try:
+            return call(*args, **kwargs)
+        except:
+            pass
         # def run_in_thread(call, *a, **kw):
         #     try:
         #         call(*a, **kw)
