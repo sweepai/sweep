@@ -17,9 +17,11 @@ summary_format = """# Pull Request #{id_}
 {diff}
 """
 
-diff_format = """### Start of diff for file {file_path}
+diff_format = """*Start of diff for file {file_path}*
+```diff
 {diff}
-### Start of diff for file {file_path}
+```
+*Start of diff for file {file_path}*
 """
 
 
@@ -59,5 +61,5 @@ class PRReader(BaseModel):
         for pr_id in pr_reader.extract_pr_ids(content):
             result += pr_reader.extract_summary_from_pr_id(pr_id)
         if result:
-            result = "The following PRs we're mentioned in the issue:\n\n" + result
+            result = "The following PRs were mentioned in the issue:\n\n" + result
         return result

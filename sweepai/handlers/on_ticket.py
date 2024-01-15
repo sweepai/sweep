@@ -656,6 +656,19 @@ def on_ticket(
                 )
                 return {"success": False}
 
+        prs_extracted = PRReader.extract_prs(repo, summary)
+        if prs_extracted:
+            summary += "\n\n" + prs_extracted
+            edit_sweep_comment(
+                create_collapsible(
+                    "I found that you mentioned the following Pull Requests that might be important:",
+                    blockquote(
+                        prs_extracted,
+                    ),
+                ),
+                1,
+            )
+
         try:
             snippets, tree, _ = fetch_relevant_files(
                 cloned_repo,
@@ -697,10 +710,6 @@ def on_ticket(
         external_results = ExternalSearcher.extract_summaries(message_summary)
         if external_results:
             message_summary += "\n\n" + external_results
-
-        prs_extracted = PRReader.extract_prs(repo, summary)
-        if prs_extracted:
-            message_summary += "\n\n" + prs_extracted
 
         user_dict = get_documentation_dict(repo)
         docs_results = ""
@@ -791,6 +800,14 @@ def on_ticket(
                             for snippet in snippets
                         ]
                     ),
+                )
+                + (
+                    create_collapsible(
+                        "I also found that you mentioned the following Pull Requests that may be helpful:",
+                        f"\n\n{prs_extracted}\n\n",
+                    )
+                    if prs_extracted
+                    else ""
                 )
                 + (
                     create_collapsible(
