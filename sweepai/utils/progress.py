@@ -91,12 +91,14 @@ class AssistantConversation(BaseModel):
         )
         for message_obj in list(all_messages)[::-1]:
             if isinstance(message_obj, ThreadMessage):
-                messages.append(
-                    AssistantAPIMessage(
-                        role=message_obj.role,
-                        content=message_obj.content[0].text.value,
+                text = message_obj.content[0].text.value
+                if text.strip():
+                    messages.append(
+                        AssistantAPIMessage(
+                            role=message_obj.role,
+                            content=message_obj.content[0].text.value,
+                        )
                     )
-                )
             else:
                 if message_obj.type == "message_creation":
                     message_id = message_obj.step_details.message_creation.message_id
