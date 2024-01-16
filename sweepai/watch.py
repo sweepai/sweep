@@ -16,7 +16,7 @@ from sweepai.api import handle_request
 from sweepai.utils.event_logger import logger
 
 DEBUG = os.environ.get("DEBUG", False)
-RECORD_EVENTS = os.environ.get("RECORD_EVENTS", True)
+RECORD_EVENTS = os.environ.get("RECORD_EVENTS", False)
 MAX_EVENTS = 30
 g = Github(os.environ["GITHUB_PAT"])
 repo_name = os.environ["REPO"]
@@ -36,7 +36,7 @@ def get_event_type(event: Event | IssueEvent):
         return pascal_to_snake(event.type)[: -len("_event")]
 
 
-def stream_events(repo: Repository, timeout: int = 2, offset: int = 30 * 60):
+def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
     processed_event_ids = set()
     current_time = time.time() - offset
     current_time = datetime.datetime.fromtimestamp(current_time)
