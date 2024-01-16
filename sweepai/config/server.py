@@ -6,7 +6,7 @@ from loguru import logger
 
 logger.print = logger.info
 
-load_dotenv(dotenv_path=".env")
+load_dotenv(dotenv_path=".env", override=True)
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get("GITHUB_APP_PEM") or base64.b64decode(
     os.environ.get("GITHUB_APP_PEM_BASE64", "")
