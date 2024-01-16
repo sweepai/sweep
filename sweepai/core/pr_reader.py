@@ -65,7 +65,7 @@ class PRReader(BaseModel):
                 result = (
                     "The following PRs were mentioned in the issue:\n\n"
                     + result
-                    + "\nBe sure to follow the PRs as a reference when making code changes."
+                    + "\nBe sure to follow the PRs as a reference when making code changes. If the user instructs you to follow the referenced PR, limit the scope of your changes to the referenced PR."
                 )
             return result
         except Exception as e:
