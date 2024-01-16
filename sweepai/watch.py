@@ -1,6 +1,7 @@
-import asyncio
+# from rich import Console
 import datetime
 import os
+import threading
 import time
 from itertools import chain, islice
 
@@ -8,11 +9,18 @@ from github import Github
 from github.Event import Event
 from github.IssueEvent import IssueEvent
 from github.Repository import Repository
+from rich import print
 
 from sweepai.api import handle_request
 from sweepai.utils.event_logger import logger
 
 DEBUG = os.environ.get("DEBUG", False)
+MAX_EVENTS = 30
+g = Github(os.environ["GITHUB_PAT"])
+repo_name = os.environ["REPO"]
+repo = g.get_repo(repo_name)
+if DEBUG:
+    logger.debug("Debug mode enabled")
 
 
 def pascal_to_snake(name):
@@ -29,22 +37,26 @@ def get_event_type(event: Event | IssueEvent):
 def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
     processed_event_ids = set()
     current_time = time.time() - offset
+    current_time = datetime.datetime.fromtimestamp(current_time)
     local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
     while True:
-        events_iterator = chain(repo.get_events(), islice(repo.get_issues_events(), 60))
-        for event in events_iterator:
+        events_iterator = chain(
+            islice(repo.get_events(), MAX_EVENTS),
+            islice(repo.get_issues_events(), MAX_EVENTS),
+        )
+        for i, event in enumerate(events_iterator):
             if event.id not in processed_event_ids:
                 local_time = event.created_at.replace(
                     tzinfo=datetime.timezone.utc
                 ).astimezone(local_tz)
 
-                if local_time.timestamp() > current_time:
+                if local_time.timestamp() > current_time.timestamp():
                     yield event
                 else:
                     if DEBUG:
                         logger.debug(
-                            f"Skipping event {event.id} because it is too old ({local_time})"
+                            f"Skipping event {event.id} because it is in the past (local_time={local_time}, current_time={current_time}, i={i})"
                         )
             if DEBUG:
                 logger.debug(f"Skipping event {event.id} because it is already handled")
@@ -52,16 +64,7 @@ def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
         time.sleep(timeout)
 
 
-g = Github(os.environ["GITHUB_PAT"])
-repo_name = os.environ["REPO"]
-repo = g.get_repo(repo_name)
-if DEBUG:
-    logger.debug("Debug mode enabled")
-print(f"Starting server, listening to events from {repo_name}...")
-print(
-    f"To create a PR, please create an issue at https://github.com/{repo_name}/issues with a title prefixed with 'Sweep:'"
-)
-for event in stream_events(repo):
+def handle(event: Event | IssueEvent, do_async: bool = True):
     if isinstance(event, IssueEvent):
         payload = event.raw_data
         payload["action"] = payload["event"]
@@ -76,4 +79,26 @@ for event in stream_events(repo):
     payload["repository"] = repo.raw_data
     payload["installation"] = {"id": -1}
     logger.info(str(event) + " " + str(event.created_at))
-    handle_request(payload, get_event_type(event))
+    if do_async:
+        thread = threading.Thread(
+            target=handle_request, args=(payload, get_event_type(event))
+        )
+        thread.start()
+        return thread
+    else:
+        return handle_request(payload, get_event_type(event))
+
+
+def main():
+    print(
+        f"\n[bold black on white]  Starting server, listening to events from {repo_name}...  [/bold black on white]\n",
+    )
+    print(
+        f"To create a PR, please create an issue at https://github.com/{repo_name}/issues with a title prefixed with 'Sweep:' or label an existing issue with 'sweep'. The events will be logged here, but there may be a brief delay.\n"
+    )
+    for event in stream_events(repo):
+        handle(event)
+
+
+if __name__ == "__main__":
+    main()
