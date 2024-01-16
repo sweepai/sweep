@@ -1,6 +1,5 @@
-import multiprocessing
+# import multiprocessing
 import re
-import traceback
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from math import log
@@ -220,7 +219,9 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 
 
 def prepare_index_from_snippets(
-    snippets: list[Snippet], len_repo_cache_dir: int = 0, ticket_progress: TicketProgress | None = None
+    snippets: list[Snippet],
+    len_repo_cache_dir: int = 0,
+    ticket_progress: TicketProgress | None = None,
 ) -> CustomIndex | None:
     all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
@@ -231,14 +232,20 @@ def prepare_index_from_snippets(
         ticket_progress.save()
     all_tokens = []
     try:
-        with multiprocessing.Pool(processes=2) as p:
-            for i, document_tokens in enumerate(
-                p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-            ):
-                all_tokens.append(document_tokens)
-                if ticket_progress and i % 200 == 0:
-                    ticket_progress.search_progress.indexing_progress = i
-                    ticket_progress.save()
+        # with multiprocessing.Pool(processes=2) as p:
+        #     for i, document_tokens in enumerate(
+        #         p.imap(compute_document_tokens, [doc.content for doc in all_docs])
+        #     ):
+        #         all_tokens.append(document_tokens)
+        #         if ticket_progress and i % 200 == 0:
+        #             ticket_progress.search_progress.indexing_progress = i
+        #             ticket_progress.save()
+        for i, doc in enumerate(all_docs):
+            document_tokens = compute_document_tokens(doc.content)
+            all_tokens.append(document_tokens)
+            if ticket_progress and i % 200 == 0:
+                ticket_progress.search_progress.indexing_progress = i
+                ticket_progress.save()
         for doc, document_tokens in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
             index.add_document(
                 title=f"{doc.title}:{doc.start}:{doc.end}", tokens=document_tokens
