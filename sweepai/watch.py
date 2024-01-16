@@ -16,7 +16,7 @@ from sweepai.api import handle_request
 from sweepai.utils.event_logger import logger
 
 DEBUG = os.environ.get("DEBUG", False)
-RECORD_EVENTS = os.environ.get("RECORD_EVENTS", False)
+RECORD_EVENTS = os.environ.get("RECORD_EVENTS", True)
 MAX_EVENTS = 30
 g = Github(os.environ["GITHUB_PAT"])
 repo_name = os.environ["REPO"]
@@ -36,7 +36,7 @@ def get_event_type(event: Event | IssueEvent):
         return pascal_to_snake(event.type)[: -len("_event")]
 
 
-def stream_events(repo: Repository, timeout: int = 2, offset: int = 20 * 60):
+def stream_events(repo: Repository, timeout: int = 2, offset: int = 30 * 60):
     processed_event_ids = set()
     current_time = time.time() - offset
     current_time = datetime.datetime.fromtimestamp(current_time)
@@ -84,7 +84,7 @@ def handle_event(event: Event | IssueEvent, do_async: bool = True):
     if RECORD_EVENTS:
         _type = get_event_type(event) if isinstance(event, Event) else "issue"
         pickle.dump(
-            payload,
+            event,
             open(
                 "tests/events/"
                 + f"{_type}_{payload.get('action')}_{str(event.id)}.pkl",
