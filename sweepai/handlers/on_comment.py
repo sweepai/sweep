@@ -21,7 +21,6 @@ from sweepai.config.server import (
     MONGODB_URI,
 )
 from sweepai.core.context_pruning import get_relevant_context
-from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
@@ -310,12 +309,8 @@ def on_comment(
                 except Exception as e:
                     logger.error(traceback.format_exc())
                     raise e
-            user_dict = get_documentation_dict(repo)
-            docs_results = extract_relevant_docs(
-                pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}",
-                user_dict,
-                chat_logger,
-            )
+            get_documentation_dict(repo)
+            docs_results = ""
             logger.info("Getting response from ChatGPT...")
             human_message = HumanMessageCommentPrompt(
                 comment=comment,

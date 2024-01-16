@@ -1,15 +1,24 @@
 # import multiprocessing
+import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from math import log
 
+from redis import Redis
 from tqdm import tqdm
 from whoosh.analysis import Token, Tokenizer
 
+from sweepai.config.server import REDIS_URL
 from sweepai.core.entities import Snippet
+from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.logn import logger
+from sweepai.utils.hash import hash_sha256
 from sweepai.utils.progress import TicketProgress
+from sweepai.utils.scorer import compute_score, get_scores
+
+CACHE_VERSION = "v1.0.14"
+redis_client = Redis.from_url(REDIS_URL)
 
 
 def compute_document_tokens(
@@ -339,3 +348,54 @@ def search_index(query, index: CustomIndex):
     except Exception as e:
         logger.exception(e)
         return {}
+
+
+def compute_vector_search_scores(file_list, cloned_repo):
+    files_to_scores = {}
+    score_factors = []
+    for file_path in tqdm(file_list):
+        if not redis_client:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            continue
+        cache_key = hash_sha256(file_path) + CACHE_VERSION
+        try:
+            cache_value = redis_client.get(cache_key)
+        except Exception as e:
+            logger.exception(e)
+            cache_value = None
+        if cache_value is not None:
+            score_factor = json.loads(cache_value)
+            score_factors.append(score_factor)
+        else:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            redis_client.set(cache_key, json.dumps(score_factor))
+    # compute all scores
+    all_scores = get_scores(score_factors)
+    files_to_scores = {
+        file_path[len(cloned_repo.cached_dir) + 1 :]: score
+        for file_path, score in zip(file_list, all_scores)
+    }
+    return files_to_scores
+
+
+def prepare_lexical_search_index(
+    cloned_repo,
+    sweep_config,
+    repo_full_name,
+    ticket_progress: TicketProgress | None = None,
+):
+    snippets, file_list = repo_to_chunks(cloned_repo.cached_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    # prepare lexical search
+    index = prepare_index_from_snippets(
+        snippets,
+        len_repo_cache_dir=len(cloned_repo.cached_dir) + 1,
+        ticket_progress=ticket_progress,
+    )
+    return file_list, snippets, index
