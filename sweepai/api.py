@@ -257,7 +257,7 @@ def progress(tracking_id: str = Path(...)):
     return ticket_progress.dict()
 
 
-async def handle_request(request_dict, event=None):
+def handle_request(request_dict, event=None):
     """So it can be exported to the listen endpoint."""
     with logger.contextualize(tracking_id="main", env=ENV):
         action = request_dict.get("action")
@@ -960,15 +960,8 @@ async def handle_request(request_dict, event=None):
                         return {"message": "pong"}
                     case _:
                         return {"error": "Unsupported type"}
-
-        def worker_wrapper():
-            worker()
-            logger.info(f"Done handling {event}, {action}")
-
-        thread = threading.Thread(target=worker_wrapper)
-        thread.start()
-        thread_killer = threading.Thread(target=delayed_kill, args=(thread,))
-        thread_killer.start()
+        worker()
+        logger.info(f"Done handling {event}, {action}")
         return {"success": True}
 
 
@@ -982,7 +975,7 @@ async def webhook(raw_request: Request):
 
         action = request_dict.get("action", None)
         logger.info(f"Received event: {event}, {action}")
-        return await handle_request(request_dict, event=event)
+        return handle_request(request_dict, event=event)
 
 
 # Set up cronjob for this

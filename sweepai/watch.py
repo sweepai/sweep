@@ -76,4 +76,4 @@ for event in stream_events(repo):
     payload["repository"] = repo.raw_data
     payload["installation"] = {"id": -1}
     logger.info(str(event) + " " + str(event.created_at))
-    asyncio.run(handle_request(payload, get_event_type(event)))
+    handle_request(payload, get_event_type(event))
