@@ -57,9 +57,6 @@ RUN npm install -g prettier @types/react @types/react-dom typescript
 
 FROM base as final
 
-COPY sweepai/startup.py /app/sweepai/startup.py
-RUN python sweepai/startup.py
-
 COPY sweepai /app/sweepai
 COPY sdk /app/sdk
 COPY tests /app/tests
