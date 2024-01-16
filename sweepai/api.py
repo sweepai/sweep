@@ -34,7 +34,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
 )
-from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.events import (
     CheckRunCompleted,
@@ -73,7 +72,6 @@ from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
-from sweepai.utils.search_utils import index_full_repository
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
 
 app = FastAPI()
@@ -233,11 +231,6 @@ def call_on_comment(
 
 def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
-    thread.start()
-
-
-def call_write_documentation(*args, **kwargs):
-    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
 
 
@@ -744,10 +737,6 @@ def handle_request(request_dict, event=None):
                                     "repo_full_name": repo.full_name,
                                 },
                             )
-                            index_full_repository(
-                                repo.full_name,
-                                installation_id=repos_added_request.installation.id,
-                            )
                     case "installation", "created":
                         repos_added_request = InstallationCreatedRequest(**request_dict)
 
@@ -759,13 +748,6 @@ def handle_request(request_dict, event=None):
                             )
                         except Exception as e:
                             logger.exception(f"Failed to add config to top repos: {e}")
-
-                        # Index all repos
-                        for repo in repos_added_request.repositories:
-                            index_full_repository(
-                                repo.full_name,
-                                installation_id=repos_added_request.installation.id,
-                            )
                     case "pull_request", "edited":
                         request = PREdited(**request_dict)
 
@@ -960,6 +942,7 @@ def handle_request(request_dict, event=None):
                         return {"message": "pong"}
                     case _:
                         return {"error": "Unsupported type"}
+
         worker()
         logger.info(f"Done handling {event}, {action}")
         return {"success": True}

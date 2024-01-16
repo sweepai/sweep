@@ -6,10 +6,10 @@ from loguru import logger
 from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import search_index
-from sweepai.core.vector_db import (
+from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
+    search_index,
 )
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error

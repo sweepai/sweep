@@ -8,7 +8,6 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.context_pruning import get_relevant_context
-from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import NoFilesException, SandboxResponse
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.sweep_bot import SweepBot
@@ -61,18 +60,7 @@ def make_pr(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
-    user_dict = get_documentation_dict(cloned_repo.repo)
-    docs_results = ""
-    try:
-        docs_results = extract_relevant_docs(
-            title + "\n" + message_summary, user_dict, chat_logger
-        )
-        if docs_results:
-            message_summary += "\n\n" + docs_results
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(f"Failed to extract docs: {e}")
+    get_documentation_dict(cloned_repo.repo)
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         username=username,
