@@ -851,26 +851,6 @@ The only operations you may perform are:
 Return the working user_code without xml tags. All of the text you return will be placed in the file.
 """
 
-gradio_system_message_prompt = """You are a brilliant and thorough engineer assigned to assist the following user with their problems in the Github repo. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes. If the user asks you to create a PR, you will use the create_pr function.
-
-Relevant snippets provided by search engine (decreasing relevance):
-{snippets}
-Repo: {repo_name}
-Description: {repo_description}
-"""
-
-gradio_user_prompt = """
-Respond in the following format (one line per file change, no prefixes, each file should be unique, only files that should be created or changed should go into the plan). There must be a blank line between the summary and the plan:
-
-Response:
-Provide a summary of the proposed changes or inquiries for the user. This section will be displayed directly to the user.
-
-Plan:
-* filename_1: instructions_1
-* filename_2: instructions_2
-...
-"""
-
 doc_query_rewriter_system_prompt = """\
 You must rewrite the user's github issue to leverage the docs. In this case we want to look at {package}. It's used for: {description}. Using the github issue, write a search query that searches for the potential answer using the documentation. This query will be sent to a documentation search engine with vector and lexical based indexing. Make this query contain keywords relevant to the {package} documentation.
 """
