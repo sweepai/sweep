@@ -56,6 +56,7 @@ from sweepai.utils.progress import (
     AssistantConversation,
     TicketProgress,
 )
+from sweepai.utils.str_utils import get_hash
 from sweepai.utils.utils import check_syntax, chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -475,13 +476,14 @@ class GithubBot(BaseModel):
                 f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
             )
             if retry:
-                for i in range(1, 51):
+                for i in range(1, 10):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
+                        _hash = get_hash()[:5]
                         self.repo.create_git_ref(
-                            f"refs/heads/{branch}_{i}", base_branch.commit.sha
+                            f"refs/heads/{branch}_{_hash}", base_branch.commit.sha
                         )
-                        return f"{branch}_{i}"
+                        return f"{branch}_{_hash}"
                     except GithubException:
                         pass
             else:

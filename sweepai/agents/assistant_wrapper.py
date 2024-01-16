@@ -342,12 +342,13 @@ def openai_assistant_call_helper(
     thread = client.beta.threads.create()
     if file_ids:
         logger.info("Uploading files...")
-    client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content=request,
-        file_ids=file_ids,
-    )
+    if request:
+        client.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=request,
+            file_ids=file_ids,
+        )
     if file_ids:
         logger.info("Files uploaded")
     for message in additional_messages:

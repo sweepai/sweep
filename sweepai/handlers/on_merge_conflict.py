@@ -180,7 +180,7 @@ def on_merge_conflict(
 
         git_repo.git.add(update=True)
         # -m and message are needed otherwise exception is thrown
-        git_repo.git.commit("-m", "commit with merge conflict")
+        git_repo.git.commit("-m", "Start of Merge Conflict Resolution")
 
         origin = git_repo.remotes.origin
         new_url = f"https://x-access-token:{token}@github.com/{repo_full_name}.git"

@@ -6,10 +6,10 @@ from loguru import logger
 from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import search_index
-from sweepai.core.vector_db import (
+from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
+    search_index,
 )
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
@@ -228,7 +228,7 @@ def log_error(
         f"**{error_type} Error**{prefix}\n{username}:"
         f" {issue_url}\n```{exception}```"
     )
-    discord_log_error(content, priority=priority)
+    discord_log_error(content, priority=2)
 
 
 def center(text: str) -> str:
@@ -243,7 +243,10 @@ def fire_and_forget_wrapper(call):
     """
 
     def wrapper(*args, **kwargs):
-        return call(*args, **kwargs)
+        try:
+            return call(*args, **kwargs)
+        except:
+            pass
         # def run_in_thread(call, *a, **kw):
         #     try:
         #         call(*a, **kw)

@@ -112,7 +112,7 @@ def function_modify(
             ),
         ]
         assistant_generator = openai_assistant_call(
-            request=request,
+            request="",  # already present in additional_messages
             instructions=instructions,
             additional_messages=additional_messages,
             chat_logger=chat_logger,

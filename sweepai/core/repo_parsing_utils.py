@@ -1,6 +1,7 @@
 import glob
 import logging
-import multiprocessing
+
+# import multiprocessing
 import os
 
 from sweepai.config.client import SweepConfig
@@ -91,7 +92,10 @@ def repo_to_chunks(
         and not is_dir_too_big(file_name)
     ]
     all_chunks = []
-    with multiprocessing.Pool(processes=2) as pool:
-        for chunks in pool.imap(file_path_to_chunks, file_list):
-            all_chunks.extend(chunks)
+    # with multiprocessing.Pool(processes=2) as pool:
+    #     for chunks in pool.imap(file_path_to_chunks, file_list):
+    #         all_chunks.extend(chunks)
+    for file_path in file_list:
+        chunks = file_path_to_chunks(file_path)
+        all_chunks.extend(chunks)
     return all_chunks, file_list

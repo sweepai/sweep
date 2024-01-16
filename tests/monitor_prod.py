@@ -3,6 +3,8 @@ import time
 
 from github import Github
 
+import sweepai.config.server  # NOQA
+
 g = Github(os.environ.get("GITHUB_PAT"))
 issue_url = "https://github.com/wwzeng1/landing-page/issues/206"
 issue = g.get_repo("wwzeng1/landing-page").get_issue(206)
