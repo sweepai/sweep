@@ -1,6 +1,7 @@
 # from rich import Console
 import datetime
 import os
+import pickle
 import threading
 import time
 from itertools import chain, islice
@@ -15,6 +16,7 @@ from sweepai.api import handle_request
 from sweepai.utils.event_logger import logger
 
 DEBUG = os.environ.get("DEBUG", False)
+RECORD_EVENTS = os.environ.get("RECORD_EVENTS", False)
 MAX_EVENTS = 30
 g = Github(os.environ["GITHUB_PAT"])
 repo_name = os.environ["REPO"]
@@ -34,7 +36,7 @@ def get_event_type(event: Event | IssueEvent):
         return pascal_to_snake(event.type)[: -len("_event")]
 
 
-def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
+def stream_events(repo: Repository, timeout: int = 2, offset: int = 20 * 60):
     processed_event_ids = set()
     current_time = time.time() - offset
     current_time = datetime.datetime.fromtimestamp(current_time)
@@ -64,7 +66,7 @@ def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
         time.sleep(timeout)
 
 
-def handle(event: Event | IssueEvent, do_async: bool = True):
+def handle_event(event: Event | IssueEvent, do_async: bool = True):
     if isinstance(event, IssueEvent):
         payload = event.raw_data
         payload["action"] = payload["event"]
@@ -79,6 +81,16 @@ def handle(event: Event | IssueEvent, do_async: bool = True):
     payload["repository"] = repo.raw_data
     payload["installation"] = {"id": -1}
     logger.info(str(event) + " " + str(event.created_at))
+    if RECORD_EVENTS:
+        _type = get_event_type(event) if isinstance(event, Event) else "issue"
+        pickle.dump(
+            payload,
+            open(
+                "tests/events/"
+                + f"{_type}_{payload.get('action')}_{str(event.id)}.pkl",
+                "wb",
+            ),
+        )
     if do_async:
         thread = threading.Thread(
             target=handle_request, args=(payload, get_event_type(event))
@@ -97,7 +109,7 @@ def main():
         f"To create a PR, please create an issue at https://github.com/{repo_name}/issues with a title prefixed with 'Sweep:' or label an existing issue with 'sweep'. The events will be logged here, but there may be a brief delay.\n"
     )
     for event in stream_events(repo):
-        handle(event)
+        handle_event(event)
 
 
 if __name__ == "__main__":
