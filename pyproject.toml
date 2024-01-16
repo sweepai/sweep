@@ -86,13 +86,6 @@ flake8 = "^6.0.0"
 nptyping = "^2.5.0"
 pre-commit = "^3.2.0"
 
-
-[[tool.poetry.source]]
-name = "torch"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "explicit"
-
-
 [tool.poetry.group.dev.dependencies]
 vulture = "^2.10"
 
