@@ -181,11 +181,11 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 
 files_to_change_prompt = """\
 # Task:
-Reference and analyze the snippets, repo, and issue to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
+Reference and analyze the snippets, repo, PRs, and issue to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
 
 Provide a plan to solve the issue, following these rules:
-* You may only create new files and modify existing files.
-* Include the full path (e.g. src/main.py and not just main.py), using the repo_tree for reference.
+* You may only create new files and modify existing files but may not necessarily need both.
+* Include the full path (e.g. src/main.py and not just main.py), using the snippets and repo_tree for reference.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
 
@@ -193,6 +193,7 @@ You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
+* If a PR was referenced, outline the structure of the code changes in the PR.
 * Outline the ideal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
 * Describe each <create> and <modify> section in the following plan and why it will be needed.
 ...
