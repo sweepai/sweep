@@ -1545,9 +1545,10 @@ def on_ticket(
                 delete_branch = True
                 raise e
             except AssistantRaisedException as e:
-                ticket_progress.status = TicketProgressStatus.ERROR
-                ticket_progress.error_message = f"Sweep raised an error with the following message: {e.message}. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
-                ticket_progress.save()
+                if ticket_progress is not None:
+                    ticket_progress.status = TicketProgressStatus.ERROR
+                    ticket_progress.error_message = f"Sweep raised an error with the following message: {e.message}. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
+                    ticket_progress.save()
 
                 logger.exception(e)
                 edit_sweep_comment(
