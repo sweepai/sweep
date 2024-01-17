@@ -222,6 +222,9 @@ class ClonedRepo:
         except:
             pass
 
+    def __del__(self):
+        return self.delete()
+
     def list_directory_tree(
         self,
         included_directories=None,
