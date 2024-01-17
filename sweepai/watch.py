@@ -6,7 +6,6 @@ import threading
 import time
 from itertools import chain, islice
 
-import requests
 from github import Github
 from github.Event import Event
 from github.IssueEvent import IssueEvent
@@ -18,7 +17,7 @@ from sweepai.utils.event_logger import logger
 
 DEBUG = os.environ.get("DEBUG", False)
 RECORD_EVENTS = os.environ.get("RECORD_EVENTS", False)
-MAX_EVENTS = 200
+MAX_EVENTS = 30
 g = Github(os.environ["GITHUB_PAT"])
 repo_name = os.environ["REPO"]
 repo = g.get_repo(repo_name)
@@ -37,7 +36,7 @@ def get_event_type(event: Event | IssueEvent):
         return pascal_to_snake(event.type)[: -len("_event")]
 
 
-def stream_events(repo: Repository, timeout: int = 2, offset: int = 24 * 60 * 60):
+def stream_events(repo: Repository, timeout: int = 2, offset: int = 2 * 60):
     processed_event_ids = set()
     current_time = time.time() - offset
     current_time = datetime.datetime.fromtimestamp(current_time)
@@ -92,11 +91,6 @@ def handle_event(event: Event | IssueEvent, do_async: bool = True):
                 "wb",
             ),
         )
-    return requests.post(
-        "http://localhost:8080/",
-        json=payload,
-        headers={"X-GitHub-Event": get_event_type(event)},
-    )
     if do_async:
         thread = threading.Thread(
             target=handle_request, args=(payload, get_event_type(event))
