@@ -1,53 +1,71 @@
+import queue
 import time
 from queue import Queue
-from threading import Lock, Thread
+from threading import Thread
 
 from fastapi import FastAPI
 
+from sweepai.utils.safe_dictionary import SafeDictionary
+
 app = FastAPI()
 
-user_queues: dict[str, Queue] = {}
-user_queues_lock = Lock()
 
-active_workers: dict[str, int] = {}
+user_queues: dict[str, Queue] = SafeDictionary()
+active_workers: dict[str, 0] = SafeDictionary()
 
 
 def process_queue(username):
     while True:
-        with user_queues_lock:
-            user_queue = user_queues.get(username)
-        if user_queue and not user_queue.empty():
-            task = user_queue.get()
-            print(f"Processing task for {username}: {task}")
-            time.sleep(3)
-            print(f"Task completed for {username}: {task}")
-            user_queue.task_done()
-        else:
-            with user_queues_lock:
-                del user_queues[username]
+        user_queue = user_queues.get(username)
+        if user_queue is None:
             break
+
+        try:
+            task = user_queue.get(timeout=2)
+        except queue.Empty:
+            if user_queues[username].empty():
+                active_workers[username] = active_workers.get(username, 0) - 1
+                break
+            continue
+
+        print(f"Processing task for {username}: {task}")
+        try:
+            time.sleep(3)  # Simulate task processing
+        except Exception as e:
+            print(f"Exception {e}!")
+        print(f"Task completed for {username}: {task}")
+        for key, value in user_queues.items():
+            print(key, value.qsize())
+        print(active_workers._dict)
+        user_queue.task_done()
 
 
 def start_user_workers(username, num_workers=1):
     for _ in range(num_workers):
         worker_thread = Thread(target=process_queue, args=(username,))
         worker_thread.start()
-        with user_queues_lock:
-            active_workers[username] = active_workers.get(username, 0) + 1
+        active_workers[username] = active_workers.get(username, 0) + 1
+
+
+def calculate_num_workers(username):
+    # Temporary way to determine num workers
+    return len(username)
 
 
 @app.post("/task/{username}")
 def add_task(username: str, task: str):
-    with user_queues_lock:
-        if username not in user_queues:
-            user_queues[username] = Queue()
-            start_user_workers(username, 1)
-        elif active_workers[username] < 2:
-            start_user_workers(username, 1)
-        user_queues[username].put(task)
-        if username not in user_queues:
-            start_user_workers(username, MAX_WORKERS_PER_USER)
-        user_queues[username].put(task)
+    num_allowed_workers = calculate_num_workers(username)
+    if username not in user_queues:
+        user_queues[username] = Queue()
+    user_queues[username].put(task)
+    start_user_workers(
+        username,
+        num_workers=min(num_allowed_workers, user_queues[username].qsize() + 1)
+        - active_workers.get(username, 0),
+    )
+    for key, value in user_queues.items():
+        print(key, value.qsize())
+    print(active_workers._dict)
     return {"message": f"Task queued for {username}"}
 
 
