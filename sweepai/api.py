@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 # Do not save logs for main process
-import ctypes
 import json
+import queue
 import threading
 import time
+from dataclasses import dataclass, field
+from queue import Queue
 
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Path, Request, Security, status
+from fastapi import FastAPI, Path, Request
 from fastapi.responses import HTMLResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
-from prometheus_fastapi_instrumentator import Instrumentator
 
 from sweepai import health
 from sweepai.config.client import (
@@ -71,8 +71,11 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
+from sweepai.utils.safe_dictionary import SafeDictionary
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
+from sweepai.web.grafana import add_grafana
+from sweepai.web.thread_utils import terminate_thread
 
 app = FastAPI()
 
@@ -83,33 +86,11 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
-security = HTTPBearer()
-
 logger.bind(application="webhook")
 
 
-def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security)):
-    if credentials.scheme != "Bearer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid authentication scheme.",
-        )
-    if credentials.credentials != "example_token":  # grafana requires authentication
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
-        )
-    return True
-
-
 if not IS_SELF_HOSTED:
-    Instrumentator().instrument(app).expose(
-        app,
-        should_gzip=False,
-        endpoint="/metrics",
-        include_in_schema=True,
-        tags=["metrics"],
-        dependencies=[Depends(auth_metrics)],
-    )
+    add_grafana(app)
 
 
 def run_on_ticket(*args, **kwargs):
@@ -145,28 +126,6 @@ def run_on_check_suite(*args, **kwargs):
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
-
-
-def terminate_thread(thread):
-    """Terminate a python threading.Thread."""
-    try:
-        if not thread.is_alive():
-            return
-
-        exc = ctypes.py_object(SystemExit)
-        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
-            ctypes.c_long(thread.ident), exc
-        )
-        if res == 0:
-            raise ValueError("Invalid thread ID")
-        elif res != 1:
-            # Call with exception set to 0 is needed to cleanup properly.
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
-            raise SystemError("PyThreadState_SetAsyncExc failed")
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.exception(f"Failed to terminate thread: {e}")
 
 
 def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
@@ -234,6 +193,80 @@ def call_on_merge(*args, **kwargs):
     thread.start()
 
 
+function_mapping = {
+    "on_merge": on_merge,
+    "on_merge_conflict": on_merge_conflict,
+    "stack_pr": stack_pr,
+    "make_pr": make_pr,
+}
+
+
+@dataclass
+class Task:
+    handler_name: str
+    args: tuple = ()
+    kwargs: dict = field(default_factory=dict)
+
+
+user_queues: dict[str, "Queue[Task]"] = SafeDictionary()
+active_workers: dict[str, 0] = SafeDictionary()
+
+
+def display_queue():
+    result = "Queue:\n"
+    for key, q in list(user_queues.items()):
+        items = ", ".join([task.handler_name for task in q.queue])
+        result += f"{key}: {items}\n"
+    return result
+
+
+def worker(username):
+    while True:
+        user_queue = user_queues.get(username)
+        if user_queue is None:
+            break
+
+        try:
+            task = user_queue.get(timeout=2)
+        except queue.Empty:
+            if user_queues[username].empty():
+                active_workers[username] = active_workers.get(username, 0) - 1
+                break
+            continue
+
+        try:
+            globals()[task.handler_name](*task.args, **task.kwargs)
+        except Exception as e:
+            logger.error(f"Exception {e}")
+        user_queue.task_done()
+
+
+def start_workers(username, num_workers=1):
+    for _ in range(num_workers):
+        worker_thread = threading.Thread(target=worker, args=(username,))
+        worker_thread.start()
+        active_workers[username] = active_workers.get(username, 0) + 1
+
+
+def add_task(func: callable, username: str, *args, **kwargs):
+    print("Add task called!")
+    num_allowed_workers = 3
+    if username not in user_queues:
+        user_queues[username] = Queue()
+    user_queues[username].put(
+        Task(
+            handler_name=func.__name__,
+            args=args,
+            kwargs=kwargs,
+        )
+    )
+    start_workers(
+        username,
+        num_workers=min(num_allowed_workers, user_queues[username].qsize() + 1)
+        - active_workers.get(username, 0),
+    )
+
+
 @app.get("/health")
 def redirect_to_health():
     return health.health_check()
@@ -242,6 +275,11 @@ def redirect_to_health():
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
+
+@app.get("/queue")
+def show_queue():
+    return display_queue()
 
 
 @app.get("/ticket_progress/{tracking_id}")
@@ -297,7 +335,9 @@ def handle_request(request_dict, event=None):
                                         logs, user_message = clean_logs(logs)
                                         commit_author = request.sender.login
                                         tracking_id = get_hash()
-                                        stack_pr(
+                                        add_task(
+                                            stack_pr,
+                                            pr.user.login,
                                             request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
                                             pr_number=pr.number,
                                             username=commit_author,
@@ -323,7 +363,9 @@ def handle_request(request_dict, event=None):
                                         "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
                                     }
                                 )
-                                make_pr(
+                                add_task(
+                                    make_pr,
+                                    pr.user.login,
                                     title="[Sweep GHA Fix] Fix the failing GitHub Actions",
                                     repo_description=repo.description,
                                     summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
@@ -373,7 +415,9 @@ def handle_request(request_dict, event=None):
                             )
 
                         if pr.mergeable == False:
-                            on_merge_conflict(
+                            add_task(
+                                on_merge_conflict,
+                                pr.user.login,
                                 pr_number=pr.number,
                                 username=pr.user.login,
                                 repo_full_name=request_dict["repository"]["full_name"],
@@ -422,7 +466,11 @@ def handle_request(request_dict, event=None):
                             and button_title_match
                             and request.sender.type == "User"
                         ):
-                            run_on_button_click(request_dict)
+                            add_task(
+                                handle_button_click,
+                                request.comment.user.login,
+                                request_dict,
+                            )
 
                         restart_sweep = False
                         if (
@@ -471,7 +519,9 @@ def handle_request(request_dict, event=None):
                                     "reason": "Comment does not start with 'Sweep', passing",
                                 }
 
-                            call_on_ticket(
+                            add_task(
+                                call_on_ticket,
+                                request.comment.user.login,
                                 title=request.issue.title,
                                 summary=request.issue.body,
                                 issue_number=request.issue.number,
@@ -880,7 +930,6 @@ def handle_request(request_dict, event=None):
                                     + pr_request.pull_request.deletions,
                                 },
                             )
-                        chat_logger = ChatLogger({"username": merged_by})
                     case "push", None:
                         if (
                             event != "pull_request"
@@ -890,7 +939,12 @@ def handle_request(request_dict, event=None):
                                 {"username": request_dict["pusher"]["name"]}
                             )
                             # on merge
-                            call_on_merge(request_dict, chat_logger)
+                            add_task(
+                                on_merge,
+                                request_dict["sender"]["login"],
+                                request_dict,
+                                chat_logger,
+                            )
                             ref = request_dict["ref"] if "ref" in request_dict else ""
                             if ref.startswith("refs/heads") and not ref.startswith(
                                 "ref/heads/sweep"
@@ -927,7 +981,9 @@ def handle_request(request_dict, event=None):
                                         f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
                                     )
                                     if pr.mergeable == False:
-                                        on_merge_conflict(
+                                        add_task(
+                                            pr.user.login,
+                                            "on_merge_conflict",
                                             pr_number=pr.number,
                                             username=pr.user.login,
                                             repo_full_name=request_dict["repository"][

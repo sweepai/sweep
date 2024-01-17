@@ -1,5 +1,6 @@
 import queue
 import time
+from dataclasses import dataclass, field
 from queue import Queue
 from threading import Thread
 
@@ -10,11 +11,36 @@ from sweepai.utils.safe_dictionary import SafeDictionary
 app = FastAPI()
 
 
-user_queues: dict[str, Queue] = SafeDictionary()
+def a_handler():
+    print("a_handler")
+    time.sleep(5)
+    print("a_handler done")
+
+
+def b_handler():
+    print("b_handler")
+    time.sleep(10)
+    print("b_handler done")
+
+
+def unique_handler():
+    print("unique_handler")
+    time.sleep(5)
+    print("unique_handler done")
+
+
+@dataclass
+class Task:
+    handler_name: str
+    args: tuple = ()
+    kwargs: dict = field(default_factory=dict)
+
+
+user_queues: dict[str, "Queue[Task]"] = SafeDictionary()
 active_workers: dict[str, 0] = SafeDictionary()
 
 
-def process_queue(username):
+def worker(username):
     while True:
         user_queue = user_queues.get(username)
         if user_queue is None:
@@ -30,7 +56,7 @@ def process_queue(username):
 
         print(f"Processing task for {username}: {task}")
         try:
-            time.sleep(3)  # Simulate task processing
+            globals()[task.handler_name](*task.args, **task.kwargs)
         except Exception as e:
             print(f"Exception {e}!")
         print(f"Task completed for {username}: {task}")
@@ -40,9 +66,9 @@ def process_queue(username):
         user_queue.task_done()
 
 
-def start_user_workers(username, num_workers=1):
+def start_workers(username, num_workers=1):
     for _ in range(num_workers):
-        worker_thread = Thread(target=process_queue, args=(username,))
+        worker_thread = Thread(target=worker, args=(username,))
         worker_thread.start()
         active_workers[username] = active_workers.get(username, 0) + 1
 
@@ -57,8 +83,14 @@ def add_task(username: str, task: str):
     num_allowed_workers = calculate_num_workers(username)
     if username not in user_queues:
         user_queues[username] = Queue()
-    user_queues[username].put(task)
-    start_user_workers(
+    user_queues[username].put(
+        Task(
+            handler_name=task,
+            args=(),
+            kwargs={},
+        )
+    )
+    start_workers(
         username,
         num_workers=min(num_allowed_workers, user_queues[username].qsize() + 1)
         - active_workers.get(username, 0),
