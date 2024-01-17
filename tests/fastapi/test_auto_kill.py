@@ -66,8 +66,8 @@ def start_task():
     thread = threading.Thread(target=long_running_task, args=(task_id,))
     thread.start()
 
-    delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
-    delayed_kill_thread.start()
+    # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
+    # delayed_kill_thread.start()
 
     return {"task_id": task_id}
 

@@ -128,9 +128,9 @@ def run_on_check_suite(*args, **kwargs):
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
 
 
-def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
-    time.sleep(delay)
-    terminate_thread(thread)
+# def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
+#     time.sleep(delay)
+#     terminate_thread(thread)
 
 
 def call_on_ticket(*args, **kwargs):
@@ -148,8 +148,8 @@ def call_on_ticket(*args, **kwargs):
     on_ticket_events[key] = thread
     thread.start()
 
-    delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
-    delayed_kill_thread.start()
+    # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
+    # delayed_kill_thread.start()
 
 
 def call_on_check_suite(*args, **kwargs):
