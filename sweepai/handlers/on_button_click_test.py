@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from sweepai.handlers.on_button_click import handle_button_click
+from sweepai.agents.filter_agent import FilterAgent
 
 
 def test_handle_button_click():
