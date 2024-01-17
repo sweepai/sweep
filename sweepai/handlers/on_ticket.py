@@ -1611,8 +1611,6 @@ def on_ticket(
                     raise SystemExit
                 except Exception as e:
                     logger.error(e)
-            finally:
-                cloned_repo.delete()
 
             if delete_branch:
                 try:

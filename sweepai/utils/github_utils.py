@@ -215,12 +215,13 @@ class ClonedRepo:
         self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
-    def delete(self):
+    def __del__(self):
         try:
             shutil.rmtree(self.repo_dir)
             os.remove(self.zip_path)
+            return True
         except:
-            pass
+            return False
 
     def list_directory_tree(
         self,
