@@ -1,10 +1,10 @@
+from sandbox.src.sandbox_local import cloned_repo
 import unittest
 from unittest.mock import Mock, patch
 
 from sweepai.utils.github_utils import ClonedRepo
 
 
-@unittest.skip("Fails")
 class TestClonedRepo(unittest.TestCase):
     def setUp(self):
         self.repo_full_name = "sweepai/sweep"
@@ -30,6 +30,34 @@ class TestClonedRepo(unittest.TestCase):
         mock_listdir.return_value = ["file1", "file2"]
         tree, dir_obj = self.cloned_repo.list_directory_tree()
         self.assertEqual(tree.count("\n"), 2)
+
+    @patch("shutil.rmtree")
+    @patch("os.remove")
+    def test_del_method(self, mock_remove, mock_rmtree):
+        cloned_repo = ClonedRepo(
+            repo_full_name=self.repo_full_name,
+            installation_id=self.installation_id,
+            branch=self.branch,
+            token=self.token,
+        )
+        # Explicitly call __del__ to trigger cleanup or let the object go out of scope
+        del cloned_repo
+        mock_rmtree.assert_called_once_with(cloned_repo.repo_dir)
+        mock_remove.assert_called_once_with(cloned_repo.zip_path)
+        mock_rmtree.side_effect = Exception('rmtree error')
+        mock_remove.side_effect = Exception('remove error')
+        try:
+            del cloned_repo
+            rmtree_called = True
+        except Exception:
+            rmtree_called = False
+        self.assertTrue(rmtree_called)
+        try:
+            del cloned_repo
+            remove_called = True
+        except Exception:
+            remove_called = False
+        self.assertTrue(remove_called)
 
     @patch("os.listdir")
     def test_get_file_list(self, mock_listdir):
