@@ -34,7 +34,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
 )
-from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.events import (
     CheckRunCompleted,
@@ -73,7 +72,6 @@ from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
-from sweepai.utils.search_utils import index_full_repository
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
 
 app = FastAPI()
@@ -236,11 +234,6 @@ def call_on_merge(*args, **kwargs):
     thread.start()
 
 
-def call_write_documentation(*args, **kwargs):
-    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
-    thread.start()
-
-
 @app.get("/health")
 def redirect_to_health():
     return health.health_check()
@@ -257,7 +250,7 @@ def progress(tracking_id: str = Path(...)):
     return ticket_progress.dict()
 
 
-async def handle_request(request_dict, event=None):
+def handle_request(request_dict, event=None):
     """So it can be exported to the listen endpoint."""
     with logger.contextualize(tracking_id="main", env=ENV):
         action = request_dict.get("action")
@@ -744,10 +737,6 @@ async def handle_request(request_dict, event=None):
                                     "repo_full_name": repo.full_name,
                                 },
                             )
-                            index_full_repository(
-                                repo.full_name,
-                                installation_id=repos_added_request.installation.id,
-                            )
                     case "installation", "created":
                         repos_added_request = InstallationCreatedRequest(**request_dict)
 
@@ -759,13 +748,6 @@ async def handle_request(request_dict, event=None):
                             )
                         except Exception as e:
                             logger.exception(f"Failed to add config to top repos: {e}")
-
-                        # Index all repos
-                        for repo in repos_added_request.repositories:
-                            index_full_repository(
-                                repo.full_name,
-                                installation_id=repos_added_request.installation.id,
-                            )
                     case "pull_request", "edited":
                         request = PREdited(**request_dict)
 
@@ -961,14 +943,8 @@ async def handle_request(request_dict, event=None):
                     case _:
                         return {"error": "Unsupported type"}
 
-        def worker_wrapper():
-            worker()
-            logger.info(f"Done handling {event}, {action}")
-
-        thread = threading.Thread(target=worker_wrapper)
-        thread.start()
-        thread_killer = threading.Thread(target=delayed_kill, args=(thread,))
-        thread_killer.start()
+        worker()
+        logger.info(f"Done handling {event}, {action}")
         return {"success": True}
 
 
@@ -982,7 +958,7 @@ async def webhook(raw_request: Request):
 
         action = request_dict.get("action", None)
         logger.info(f"Received event: {event}, {action}")
-        return await handle_request(request_dict, event=event)
+        return handle_request(request_dict, event=event)
 
 
 # Set up cronjob for this
@@ -1028,7 +1004,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
 
                 repo.merge(
                     feature_branch,
-                    repo.default_branch,
+                    pr.base.ref,
                     f"Merge main into {feature_branch}",
                 )
 

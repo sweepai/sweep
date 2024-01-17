@@ -1,12 +1,15 @@
 import os
 import re
 
+# pylint: disable=import-error
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
 from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
-from sweepai.core.vector_db import embed_texts
+from sweepai.core.vector_db import embedding_function
+
+# from sweepai.core.vector_db import embed_texts
 from sweepai.core.webscrape import webscrape
 from sweepai.logn import logger
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
@@ -16,9 +19,9 @@ BATCH_SIZE = 128
 timeout = 60 * 60  # 30 minutes
 
 
-def embedding_function(texts: list[str]):
-    # For LRU cache to work
-    return embed_texts(tuple(texts))
+# def embedding_function(texts: list[str]):
+#     # For LRU cache to work
+#     return embed_texts(tuple(texts))
 
 
 def chunk_string(s: str) -> list[str]:
@@ -94,7 +97,9 @@ def daily_update() -> None:
         write_documentation(doc_url)
 
 
-def search_vector_store(doc_url: str, query: str, k: int = 100) -> list[tuple[str, str]]:
+def search_vector_store(
+    doc_url: str, query: str, k: int = 100
+) -> list[tuple[str, str]]:
     logger.info(f'Searching for "{query}" in {doc_url}')
     idx_name = remove_non_alphanumeric(doc_url)
     if not ACTIVELOOP_TOKEN:

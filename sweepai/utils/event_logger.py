@@ -38,6 +38,7 @@ def loki_sink(message):
                 {
                     "stream": {
                         "level": record["level"].name,
+                        "env": ENV,
                         # "file": record["file"].path,
                         # "line": record["line"],
                     },

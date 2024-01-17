@@ -12,6 +12,7 @@ from sweepai.agents.assistant_function_modify import MAX_CHARS
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
 from sweepai.config.server import IS_SELF_HOSTED
 from sweepai.core.entities import Snippet
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.event_logger import posthog
@@ -250,7 +251,7 @@ class RepoContextManager:
             self.current_top_snippets.append(snippet)
 
 
-# @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,

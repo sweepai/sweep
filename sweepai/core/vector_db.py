@@ -7,9 +7,9 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)
+
+# pylint: disable=import-error
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
