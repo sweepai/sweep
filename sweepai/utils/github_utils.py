@@ -222,7 +222,7 @@ class ClonedRepo:
         except:
             pass
 
-    def __del__(self):
+    def __del__(self) -> None:
         return self.delete()
 
     def list_directory_tree(
@@ -296,7 +296,7 @@ class ClonedRepo:
         root_directory = self.repo_dir
         files = []
 
-        def dfs_helper(directory):
+        def dfs_helper(directory) -> None:
             nonlocal files
             for item in os.listdir(directory):
                 if item == ".git":
@@ -453,7 +453,7 @@ class MockClonedRepo(ClonedRepo):
     def git_repo(self):
         return git.Repo(self.repo_dir)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         return self
 
 
@@ -466,7 +466,7 @@ def get_file_names_from_query(query: str) -> list[str]:
     ]
 
 
-def get_hunks(a: str, b: str, context=10):
+def get_hunks(a: str, b: str, context=10) -> str:
     differ = difflib.Differ()
     diff = [
         line
