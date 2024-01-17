@@ -6,6 +6,7 @@ from loguru import logger
 from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import Snippet
+from sweepai.agents.query_filter_agent import QueryFilterAgent
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
@@ -108,6 +109,8 @@ def fetch_relevant_files(
     logger.info("Fetching relevant files...")
     try:
         search_query = (title + summary + replies_text).strip("\n")
+        query_filter_agent = QueryFilterAgent()
+        search_query = query_filter_agent.filter_search_query(search_query, title, summary, replies_text)
         replies_text = f"\n{replies_text}" if replies_text else ""
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
