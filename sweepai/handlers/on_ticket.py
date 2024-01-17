@@ -513,6 +513,7 @@ def on_ticket(
                 repo=repo,
             )
             # check that repo's directory is non-empty
+            # This includes checking for the existence of the sweep.yaml file and creating it if it does not exist and create sweep.yaml if it does not exist
             if os.listdir(cloned_repo.cached_dir) == []:
                 logger.info("Empty repo")
                 first_comment = (
@@ -789,23 +790,6 @@ def on_ticket(
                     else:
                         logger.info("The YAML file is valid. No errors found.")
                     break
-
-            # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-            if not sweep_yml_exists:
-                try:
-                    logger.info("Creating sweep.yaml file...")
-                    config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
-                    config_pr_url = config_pr.html_url
-                    edit_sweep_comment(message="", index=-2)
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(
-                        "Failed to create new branch for sweep.yaml file.\n",
-                        e,
-                        traceback.format_exc(),
-                    )
-            else:
                 logger.info("sweep.yaml file already exists.")
 
             try:
