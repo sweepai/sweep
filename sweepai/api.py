@@ -1004,7 +1004,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
 
                 repo.merge(
                     feature_branch,
-                    repo.default_branch,
+                    pr.base.ref,
                     f"Merge main into {feature_branch}",
                 )
 
