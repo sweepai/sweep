@@ -169,9 +169,9 @@ def terminate_thread(thread):
         logger.exception(f"Failed to terminate thread: {e}")
 
 
-# def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
-#     time.sleep(delay)
-#     terminate_thread(thread)
+def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
+    time.sleep(delay)
+    terminate_thread(thread)
 
 
 def call_on_ticket(*args, **kwargs):
@@ -189,8 +189,8 @@ def call_on_ticket(*args, **kwargs):
     on_ticket_events[key] = thread
     thread.start()
 
-    # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
-    # delayed_kill_thread.start()
+    delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
+    delayed_kill_thread.start()
 
 
 def call_on_check_suite(*args, **kwargs):
@@ -202,7 +202,7 @@ def call_on_check_suite(*args, **kwargs):
 
 def call_on_comment(
     *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
+):
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
@@ -488,7 +488,7 @@ def handle_request(request_dict, event=None):
                         elif (
                             request.issue.pull_request
                             and request.comment.user.type == "User"
-                        ):  # TODO(sweep): set a limit
+                        ):
                             logger.info(
                                 f"Handling comment on PR: {request.issue.pull_request}"
                             )
@@ -610,7 +610,7 @@ def handle_request(request_dict, event=None):
                             request.issue.pull_request
                             and request.comment.user.type == "User"
                             and not (BOT_SUFFIX in request.comment.body)
-                        ):  # TODO(sweep): set a limit
+                        ):
                             _, g = get_github_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
                             pr = repo.get_pull(request.issue.number)
