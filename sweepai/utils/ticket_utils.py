@@ -18,6 +18,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.str_utils import total_number_of_snippet_tokens
 from sweepai.agents.filter_agent import FilterAgent
+from sweepai.agents.filter_agent import FilterAgent
 
 
 @file_cache()
