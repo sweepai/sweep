@@ -1,6 +1,7 @@
 import os
 import re
 
+# pylint: disable=import-error
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
 from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID

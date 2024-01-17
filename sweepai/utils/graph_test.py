@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import mock_open, patch
 
+# pylint: disable=import-error
 import networkx as nx
 
 from sweepai.utils.graph import (
