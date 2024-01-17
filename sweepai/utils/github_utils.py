@@ -8,6 +8,8 @@ import subprocess
 import time
 import traceback
 from dataclasses import dataclass
+import zipfile
+from typing import Optional
 from functools import cached_property
 from typing import Any
 
@@ -123,6 +125,7 @@ class ClonedRepo:
     token: str | None = None
     repo: Any | None = None
     git_repo: git.Repo | None = None
+    zip_file: Optional[zipfile.ZipFile] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -201,6 +204,7 @@ class ClonedRepo:
         )
         logger.info("Done copying")
         repo = git.Repo(self.repo_dir)
+        self.zip_file = zipfile.ZipFile(self.zip_path, 'w') if os.path.isfile(self.zip_path) else None
         return repo
 
     def __post_init__(self):
