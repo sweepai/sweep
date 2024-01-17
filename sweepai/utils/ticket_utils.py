@@ -13,6 +13,7 @@ from sweepai.core.lexical_search import (
 )
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
+from sweepai.agents.filter_agent import FilterAgent
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
