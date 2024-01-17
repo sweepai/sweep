@@ -198,6 +198,7 @@ function_mapping = {
     "on_merge_conflict": on_merge_conflict,
     "stack_pr": stack_pr,
     "make_pr": make_pr,
+    "handle_button_click": handle_button_click,
 }
 
 
@@ -217,6 +218,7 @@ def display_queue():
     for key, q in list(user_queues.items()):
         items = ", ".join([task.handler_name for task in q.queue])
         result += f"{key}: {items}\n"
+    result += str(active_workers._dict)
     return result
 
 
@@ -235,7 +237,7 @@ def worker(username):
             continue
 
         try:
-            globals()[task.handler_name](*task.args, **task.kwargs)
+            function_mapping[task.handler_name](*task.args, **task.kwargs)
         except Exception as e:
             logger.error(f"Exception {e}")
         user_queue.task_done()
@@ -248,12 +250,12 @@ def start_workers(username, num_workers=1):
         active_workers[username] = active_workers.get(username, 0) + 1
 
 
-def add_task(func: callable, username: str, *args, **kwargs):
-    print("Add task called!")
+def add_task(func: callable, _username: str, *args, **kwargs):
+    logger.info(f"Adding task {func.__name__} for {_username}")
     num_allowed_workers = 3
-    if username not in user_queues:
-        user_queues[username] = Queue()
-    user_queues[username].put(
+    if _username not in user_queues:
+        user_queues[_username] = Queue()
+    user_queues[_username].put(
         Task(
             handler_name=func.__name__,
             args=args,
@@ -261,9 +263,9 @@ def add_task(func: callable, username: str, *args, **kwargs):
         )
     )
     start_workers(
-        username,
-        num_workers=min(num_allowed_workers, user_queues[username].qsize() + 1)
-        - active_workers.get(username, 0),
+        _username,
+        num_workers=min(num_allowed_workers, user_queues[_username].qsize() + 1)
+        - active_workers.get(_username, 0),
     )
 
 
@@ -519,9 +521,7 @@ def handle_request(request_dict, event=None):
                                     "reason": "Comment does not start with 'Sweep', passing",
                                 }
 
-                            add_task(
-                                call_on_ticket,
-                                request.comment.user.login,
+                            call_on_ticket(
                                 title=request.issue.title,
                                 summary=request.issue.body,
                                 issue_number=request.issue.number,
@@ -982,8 +982,8 @@ def handle_request(request_dict, event=None):
                                     )
                                     if pr.mergeable == False:
                                         add_task(
+                                            on_merge_conflict,
                                             pr.user.login,
-                                            "on_merge_conflict",
                                             pr_number=pr.number,
                                             username=pr.user.login,
                                             repo_full_name=request_dict["repository"][
