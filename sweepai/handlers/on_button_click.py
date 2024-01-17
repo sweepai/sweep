@@ -136,9 +136,9 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
                 request=issue_description
                 + "\n\nThis issue was created to address the following rule:\n"
                 + rule,
-                pr_number=request_dict["issue"]["number"],
+                pr_number=pr.number,
                 username=request_dict["sender"]["login"],
-                repo_full_name=request_dict["repository"]["full_name"],
+                repo_full_name=repo.full_name,
                 installation_id=request_dict["installation"]["id"],
                 tracking_id=tracking_id,
             )
