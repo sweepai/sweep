@@ -1,7 +1,7 @@
 import unittest
 import unittest.mock
 
-from sweepai.handlers import stack_pr
+from sweepai.handlers.stack_pr import stack_pr
 
 
 class TestStackPR(unittest.TestCase):
