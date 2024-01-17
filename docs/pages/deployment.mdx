@@ -3,7 +3,7 @@
 We use the&nbsp;[Elastic License V2](https://www.elastic.co/licensing/elastic-license) which allows commercial usage for Sweep.
 This is a guide for self-hosting Sweep. If you would like to use our hosted version, please visit https://github.com/apps/sweep-ai.
 
-## 1. Setup
+## 1. Downloading Sweep
 
 Open [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the following code in your terminal (hover over code for copy button):
 
@@ -40,7 +40,7 @@ GITHUB_PAT=github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 <summary>
 ❓ Link not working?
 </summary>
-If the link doesn't work, set your preferred token name (e.g. Sweep Self-Hosted), and select the following permissions:
+If the link doesn't work, you can go [here](https://github.com/settings/tokens/new) and manually set your preferred token name (e.g. Sweep Self-Hosted), and select the following permissions:
 * repo (ALL)
 * workflow
 </details>
@@ -65,7 +65,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Now, you can run Sweep locally with the following command:
 
-```sh
+```sh filename="terminal"
 docker compose up # Add -d to run in background
 ```
 
@@ -82,4 +82,4 @@ For more details on using Sweep see [how to use Sweep](https://docs.sweep.dev/#-
 ### Alternative Deployment via GitHub App:
 If you successfully deployed Sweep, you can skip this section.
 
-You can self-deploy Sweep as a GitHub App to serve many repos at once. This is a more complicated process, but it is more scalable and is what we use for our hosted version. You can find the instructions [here](https://docs.sweep.dev/usage/self-hosting) and contact us at team@sweep.dev if you need help getting set up.
+You can self-deploy Sweep as a GitHub App to serve many repos at once. This is a more complicated process, but it is more scalable and is what we use for our hosted version. You can find the instructions [here](https://docs.sweep.dev/usage/self-hosting) or contact us at team@sweep.dev if you need help getting set up.
