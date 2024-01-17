@@ -310,13 +310,19 @@ def handle_request(request_dict, event=None):
                             == repo.default_branch
                         ):
                             if request.check_run.conclusion == "failure":
+                                commit_author = request.sender.login
+                                chat_logger = ChatLogger(
+                                    data={
+                                        "username": commit_author,
+                                        "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
+                                    }
+                                )
                                 logs = download_logs(
                                     request.repository.full_name,
                                     request.check_run.run_id,
                                     request.installation.id,
                                 )
                                 logs, user_message = clean_logs(logs)
-                                commit_author = request.sender.login
                                 chat_logger = ChatLogger(
                                     data={
                                         "username": commit_author,
