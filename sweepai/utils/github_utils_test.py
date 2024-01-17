@@ -33,14 +33,15 @@ class TestClonedRepo(unittest.TestCase):
         mock_isfile.side_effect = [True, False]
         # Check resources exist before delete
         self.assertTrue(mock_exists(self.cloned_repo.repo_dir))
-        self.assertTrue(mock_isfile(self.cloned_repo.zip_file))
+        self.assertTrue(mock_isfile(self.cloned_repo.zip_path))
+        mock_isfile.return_value = True # Assuming zip_path always returns a valid zip
         self.cloned_repo.delete()
         # Validate the delete operation
         mock_rmtree.assert_called_once_with(self.cloned_repo.repo_dir)
         mock_exists.assert_called_with(self.cloned_repo.repo_dir)
-        mock_isfile.assert_called_with(self.cloned_repo.zip_file)
+        mock_isfile.assert_called_with(self.cloned_repo.zip_path)
         self.assertFalse(mock_exists(self.cloned_repo.repo_dir))
-        self.assertFalse(mock_isfile(self.cloned_repo.zip_file))
+        self.assertFalse(mock_isfile(self.cloned_repo.zip_path))
         mock_rmtree.assert_called_once_with(self.cloned_repo.repo_dir)
 
     @patch("os.listdir")
