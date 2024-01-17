@@ -50,6 +50,19 @@ class TestClonedRepo(unittest.TestCase):
         content = self.cloned_repo.get_file_contents("file1")
         self.assertEqual(content, "file content")
 
+    @patch('shutil.rmtree')
+    @patch('os.remove')
+    def test_del_method(self, mock_remove, mock_rmtree):
+        cloned_repo = ClonedRepo(
+            repo_full_name="sweepai/sweep",
+            installation_id="12345",
+            branch=None,
+            token="mock_token",
+        )
+        cloned_repo.__del__()
+        mock_rmtree.assert_called_once_with(cloned_repo.repo_dir)
+        mock_remove.assert_called_once_with(cloned_repo.zip_path)
+
     @patch("git.Repo")
     def test_get_num_files_from_repo(self, mock_repo):
         mock_repo.git.checkout.return_value = None
