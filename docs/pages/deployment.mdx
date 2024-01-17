@@ -5,9 +5,10 @@ This is a guide for self-hosting Sweep. If you would like to use our hosted vers
 
 ## 1. Setup
 
-Open [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the following code in your terminal:
-```sh
-git clone https://github.com/sweepai/sweep
+Open [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the following code in your terminal (hover over code for copy button):
+
+```sh filename="terminal"
+git clone --depth 1 --single-branch https://github.com/sweepai/sweep
 cd sweep
 touch .env
 docker compose pull
@@ -26,7 +27,7 @@ REPO=your-username/your-repo
 We're halfway done! Pulling the image will take a few minutes, so let's complete the next steps for now.
 
 ## 2. GitHub PAT
-To allow Sweep to access your repo, create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/personal-access-tokens/new). Sweep will run entirely locally, and no code will be shared outside of OpenAI's API.
+To allow Sweep to access your repo, create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow). Sweep will run entirely locally, and no code will be shared outside of OpenAI's API.
 
 Add this to your `.env` which should now look like this:
 
@@ -35,19 +36,14 @@ REPO=your-username/your-repo
 GITHUB_PAT=github_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Set your preferred token name, and select `All Repositories` with the following permissions:
-
-```markdown
-Actions - Access: Read-only
-Commit statuses - Access: Read and write
-Contents - Access: Read and write
-Issues - Access: Read and write
-Metadata - Access: Read-only
-Pull requests - Access: Read and write
-```
-
-
-<div align="center"><img src="/assets/tutorial/github_pat_config.gif" alt="How to configure Sweep's GitHub permissions locally." /></div>
+<details>
+<summary>
+❓ Link not working?
+</summary>
+If the link doesn't work, set your preferred token name (e.g. Sweep Self-Hosted), and select the following permissions:
+* repo (ALL)
+* workflow
+</details>
 
 ## 3. OpenAI API Token
 
@@ -65,7 +61,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-## 4. Deploying Sweep Locally 
+## 4. Deploying Sweep Locally
 
 Now, you can run Sweep locally with the following command:
 
