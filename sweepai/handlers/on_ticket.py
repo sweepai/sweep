@@ -150,6 +150,13 @@ Cheers,
 Sweep
 <br/>"""
 
+FASTER_MODEL_MESSAGE = f"""\
+You ran out of the free tier GPT-4 tickets! We no longer support running Sweep with GPT-3.5 as it is too unreliable. Here are your options:
+- You can get a free trial of Sweep Pro to get unlimited GPT-4 tickets [here](https://buy.stripe.com/00g5npeT71H2gzCfZ8) or purchase a individual GPT-4 tickets [here](https://buy.stripe.com/00g3fh7qF85q0AE14d).
+- You can self-host Sweep with your own GPT-4 API key. You can find instructions [here](https://docs.sweep.dev/deployment).
+- You can book a chat with us to discuss your use case and get additional free GPT-4 tickets [here](https://calendly.com/d/2n5-3qf-9xy/user-interview).
+"""
+
 
 def on_ticket(
     title: str,
@@ -556,7 +563,13 @@ def on_ticket(
             initial_sandbox_response = -1
             initial_sandbox_response_file = None
 
-            def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
+            def edit_sweep_comment(
+                message: str,
+                index: int,
+                pr_message="",
+                done=False,
+                add_bonus_message=True,
+            ):
                 nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
                 # -1 = error, -2 = retry
                 # Only update the progress bar if the issue generation errors.
@@ -590,8 +603,12 @@ def on_ticket(
                         "## ❌ Unable to Complete PR"
                         + "\n"
                         + message
-                        + "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                        f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: `{tracking_id}`)."
+                        + (
+                            "\n\nFor bonus GPT-4 tickets, please report this bug on"
+                            f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: `{tracking_id}`)."
+                            if add_bonus_message
+                            else ""
+                        )
                     )
                     if table is not None:
                         agg_message = (
@@ -627,6 +644,13 @@ def on_ticket(
                             if comment.user.login == CURRENT_USERNAME
                         ][0]
                         issue_comment.edit(msg)
+
+            if use_faster_model:
+                edit_sweep_comment(FASTER_MODEL_MESSAGE, -1, add_bonus_message=False)
+                return {
+                    "success": False,
+                    "error_message": "We deprecated supporting GPT 3.5.",
+                }
 
             if sandbox_mode:
                 handle_sandbox_mode(
