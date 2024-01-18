@@ -1333,7 +1333,7 @@ def on_ticket(
                 rule_buttons = []
                 repo_rules = get_rules(repo)
                 if repo_rules != [""]:
-                    for rule in repo_rules:
+                    for rule in repo_rules or []:
                         if rule:
                             rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
                     if len(repo_rules) == 0:
