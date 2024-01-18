@@ -102,8 +102,9 @@ def on_comment(
             pr = repo.get_pull(pr_number)
         pr_title = pr.title
         pr_body = (
-            pr.body.split("🎉 Latest improvements to Sweep:")[0]
-            if pr.body and "🎉 Latest improvements to Sweep:" in pr.body
+            pr.body.split("<details>\n<summary><b>🎉 Latest improvements to Sweep:")[0]
+            if pr.body
+            and "<details>\n<summary><b>🎉 Latest improvements to Sweep:" in pr.body
             else pr.body
         )
         pr_file_path = None
