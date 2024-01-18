@@ -380,8 +380,8 @@ def handle_request(request_dict, event=None):
                                 "reason": "PR already has a comment from sweep bot",
                             }
                         rule_buttons = []
-                        repo_rules = get_rules(repo)
-                        if repo_rules != [""]:
+                        repo_rules = get_rules(repo) or []
+                        if repo_rules != [""] and repo_rules != []:
                             for rule in repo_rules or []:
                                 if rule:
                                     rule_buttons.append(
