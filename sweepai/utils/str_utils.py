@@ -26,7 +26,7 @@ bot_suffix = (
     f"\n{sep}\n{UPDATES_MESSAGE}\n\n💡 To recreate the pull request edit the issue"
     " title or description. To tweak the pull request, leave a comment on the pull request."
 )
-discord_suffix = ""
+discord_suffix = "<sup>Something wrong? [Let us know](https://discord.gg/sweep).</sup>"
 
 stars_suffix = ""
 
