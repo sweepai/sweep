@@ -192,6 +192,7 @@ def run_until_complete(
     message_strings = []
     json_messages = []
     try:
+        num_tool_calls_made = 0
         for i in range(max_iterations):
             run = openai_retry_with_timeout(
                 client.beta.threads.runs.retrieve,
@@ -207,6 +208,11 @@ def run_until_complete(
                     f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id}"
                 )
             elif run.status == "requires_action":
+                num_tool_calls_made += 1
+                if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
+                    raise AssistantRaisedException(
+                        "Too many tool calls made on gpt-3.5."
+                    )
                 tool_calls = [
                     tool_call
                     for tool_call in run.required_action.submit_tool_outputs.tool_calls
