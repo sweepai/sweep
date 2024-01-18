@@ -361,7 +361,7 @@ def handle_request(request_dict, event=None):
                                     installation_id=request_dict["installation"]["id"],
                                     user_token=None,
                                     use_faster_model=chat_logger.use_faster_model(),
-                                    username=commit_author,
+                                    username=attributor,
                                     chat_logger=chat_logger,
                                 )
 
