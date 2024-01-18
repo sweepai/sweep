@@ -145,7 +145,7 @@ def on_merge_conflict(
         metadata = {
             "tracking_id": tracking_id,
             "username": username,
-            "function": "stack_pr",
+            "function": "on_merge_conflict",
             **ticket_progress.context.dict(),
         }
         posthog.capture(
