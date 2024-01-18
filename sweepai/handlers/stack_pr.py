@@ -25,6 +25,7 @@ def stack_pr(
     repo_full_name: str,
     installation_id: int,
     tracking_id: str,
+    commit_hash: str = None,
 ):
     token, g = get_github_client(installation_id=installation_id)
     repo = g.get_repo(repo_full_name)
@@ -205,6 +206,10 @@ def stack_pr(
         new_description = PRDescriptionBot().describe_diffs(
             diff_text,
             pull_request.title,
+        )
+        new_description = (
+            f"This pull request was created to fix GitHub Actions on [{commit_hash[:7]}](https://github.com/{repo_full_name}/commit/{commit_hash}).\n\n"
+            + new_description
         )
         pull_request.content = new_description
         github_pull_request = repo.create_pull(

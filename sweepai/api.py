@@ -305,31 +305,49 @@ def handle_request(request_dict, event=None):
                                             request.installation.id,
                                         )
                                         logs, user_message = clean_logs(logs)
-                                        commit_author = request.sender.login
+                                        attributor = request.sender.login
+                                        if attributor.endswith("[bot]"):
+                                            attributor = commit.author.login
+                                        if attributor.endswith("[bot]"):
+                                            attributor = pr.assignee.login
+                                        if attributor.endswith("[bot]"):
+                                            return {
+                                                "success": False,
+                                                "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
+                                            }
                                         tracking_id = get_hash()
                                         stack_pr(
                                             request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
                                             pr_number=pr.number,
-                                            username=commit_author,
+                                            username=attributor,
                                             repo_full_name=repo.full_name,
                                             installation_id=request.installation.id,
                                             tracking_id=tracking_id,
+                                            commit_hash=pr.head.sha,
                                         )
                         elif (
                             request.check_run.check_suite.head_branch
                             == repo.default_branch
                         ):
                             if request.check_run.conclusion == "failure":
+                                attributor = request.sender.login
+                                if attributor.endswith("[bot]"):
+                                    commit = repo.get_commit(request.check_run.head_sha)
+                                    attributor = commit.author.login
+                                if attributor.endswith("[bot]"):
+                                    return {
+                                        "success": False,
+                                        "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
+                                    }
                                 logs = download_logs(
                                     request.repository.full_name,
                                     request.check_run.run_id,
                                     request.installation.id,
                                 )
                                 logs, user_message = clean_logs(logs)
-                                commit_author = request.sender.login
                                 chat_logger = ChatLogger(
                                     data={
-                                        "username": commit_author,
+                                        "username": attributor,
                                         "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
                                     }
                                 )
@@ -383,9 +401,17 @@ def handle_request(request_dict, event=None):
                             )
 
                         if pr.mergeable == False:
+                            attributor = pr.user.login
+                            if attributor.endswith("[bot]"):
+                                attributor = pr.assignee.login
+                            if attributor.endswith("[bot]"):
+                                return {
+                                    "success": False,
+                                    "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
+                                }
                             on_merge_conflict(
                                 pr_number=pr.number,
-                                username=pr.user.login,
+                                username=attributor,
                                 repo_full_name=request_dict["repository"]["full_name"],
                                 installation_id=request_dict["installation"]["id"],
                                 tracking_id=get_hash(),
@@ -937,6 +963,14 @@ def handle_request(request_dict, event=None):
                                         f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
                                     )
                                     if pr.mergeable == False:
+                                        attributor = pr.user.login
+                                        if attributor.endswith("[bot]"):
+                                            attributor = pr.assignee.login
+                                        if attributor.endswith("[bot]"):
+                                            return {
+                                                "success": False,
+                                                "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
+                                            }
                                         on_merge_conflict(
                                             pr_number=pr.number,
                                             username=pr.user.login,
