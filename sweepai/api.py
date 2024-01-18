@@ -5,9 +5,19 @@ import ctypes
 import json
 import threading
 import time
+from typing import Optional
 
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Path, Request, Security, status
+from fastapi import (
+    Body,
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Path,
+    Security,
+    status,
+)
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
@@ -949,16 +959,15 @@ def handle_request(request_dict, event=None):
 
 
 @app.post("/")
-async def webhook(raw_request: Request):
+def webhook(
+    request_dict: dict = Body(...),
+    x_github_event: Optional[str] = Header(None, alias="X-GitHub-Event"),
+):
     """Handle a webhook request from GitHub."""
     with logger.contextualize(tracking_id="main", env=ENV):
-        request_dict = await raw_request.json()
-        event = raw_request.headers.get("X-GitHub-Event")
-        assert event is not None
-
         action = request_dict.get("action", None)
-        logger.info(f"Received event: {event}, {action}")
-        return handle_request(request_dict, event=event)
+        logger.info(f"Received event: {x_github_event}, {action}")
+        return handle_request(request_dict, event=x_github_event)
 
 
 # Set up cronjob for this
