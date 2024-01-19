@@ -211,7 +211,7 @@ def run_until_complete(
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
                     raise AssistantRaisedException(
-                        "Too many tool calls made on gpt-3.5."
+                        "Too many tool calls made on GPT 3.5."
                     )
                 tool_calls = [
                     tool_call
