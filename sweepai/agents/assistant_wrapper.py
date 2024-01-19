@@ -2,6 +2,7 @@ import json
 import os
 import re
 import time
+import traceback
 from pathlib import Path
 from typing import Callable
 
@@ -419,6 +420,7 @@ def openai_assistant_call(
             if chat_logger is not None
             else "anonymous",
             "is_self_hosted": IS_SELF_HOSTED,
+            "trace": "".join(traceback.format_list(traceback.extract_stack())),
         },
     )
     retries = range(3)
