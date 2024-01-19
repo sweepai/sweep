@@ -172,6 +172,12 @@ def on_ticket(
         on_ticket_start_time = time()
         logger.info(f"Starting on_ticket with title {title} and summary {summary}")
         (
+                config_pr_message = (
+                    "\n"
+                    + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
+                    if config_pr_url is not None
+                    else ""
+                )
             title,
             slow_mode,
             do_map,
@@ -424,12 +430,6 @@ def on_ticket(
                 initial_sandbox_response: int | SandboxResponse = -1,
                 initial_sandbox_response_file=None,
             ):
-                config_pr_message = (
-                    "\n"
-                    + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
-                    if config_pr_url is not None
-                    else ""
-                )
                 actions_message = create_action_buttons(
                     [
                         RESTART_SWEEP_BUTTON,
