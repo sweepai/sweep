@@ -415,9 +415,10 @@ def openai_assistant_call(
         {
             "query": request,
             "model": model,
-            "username": chat_logger.data.get("username")
+            "username": chat_logger.data.get("username", "anonymous")
             if chat_logger is not None
             else "anonymous",
+            "is_self_hosted": IS_SELF_HOSTED,
         },
     )
     retries = range(3)
