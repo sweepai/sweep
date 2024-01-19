@@ -291,7 +291,16 @@ def handle_request(request_dict, event=None):
                             if (
                                 not (time.time() - pr.created_at.timestamp()) > 60 * 15
                                 and request.check_run.conclusion == "failure"
+                                and pr.state == "open"
                                 and get_gha_enabled(repo)
+                                and len(
+                                    [
+                                        comment
+                                        for comment in pr.get_issue_comments()
+                                        if "Fixing PR" in comment.body
+                                    ]
+                                )
+                                < 2
                             ):
                                 # check if the base branch is passing
                                 commits = repo.get_commits(sha=pr.base.ref)
