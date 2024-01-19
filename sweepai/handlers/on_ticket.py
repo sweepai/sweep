@@ -647,6 +647,14 @@ def on_ticket(
 
             if use_faster_model:
                 edit_sweep_comment(FASTER_MODEL_MESSAGE, -1, add_bonus_message=False)
+                posthog.capture(
+                    username,
+                    "ran_out_of_tickets",
+                    properties={
+                        **metadata,
+                        "duration": round(time() - on_ticket_start_time),
+                    },
+                )
                 return {
                     "success": False,
                     "error_message": "We deprecated supporting GPT 3.5.",
