@@ -33,6 +33,7 @@ from sweepai.config.client import (
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
+    get_gha_enabled,
     get_rules,
 )
 from sweepai.config.server import (
@@ -287,47 +288,51 @@ def handle_request(request_dict, event=None):
                                     if check_suite.conclusion == "failure":
                                         pr.edit(state="closed")
                                         break
-                            if not (time.time() - pr.created_at.timestamp()) > 60 * 15:
-                                if request.check_run.conclusion == "failure":
-                                    # check if the base branch is passing
-                                    commits = repo.get_commits(sha=pr.base.ref)
-                                    latest_commit: Commit = commits[0]
-                                    if all(
-                                        status != "failure"
-                                        for status in [
-                                            status.state
-                                            for status in latest_commit.get_statuses()
-                                        ]
-                                    ):  # base branch is passing
-                                        logs = download_logs(
-                                            request.repository.full_name,
-                                            request.check_run.run_id,
-                                            request.installation.id,
-                                        )
-                                        logs, user_message = clean_logs(logs)
-                                        attributor = request.sender.login
-                                        if attributor.endswith("[bot]"):
-                                            attributor = commit.author.login
-                                        if attributor.endswith("[bot]"):
-                                            attributor = pr.assignee.login
-                                        if attributor.endswith("[bot]"):
-                                            return {
-                                                "success": False,
-                                                "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
-                                            }
-                                        tracking_id = get_hash()
-                                        stack_pr(
-                                            request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
-                                            pr_number=pr.number,
-                                            username=attributor,
-                                            repo_full_name=repo.full_name,
-                                            installation_id=request.installation.id,
-                                            tracking_id=tracking_id,
-                                            commit_hash=pr.head.sha,
-                                        )
+                            if (
+                                not (time.time() - pr.created_at.timestamp()) > 60 * 15
+                                and request.check_run.conclusion == "failure"
+                                and get_gha_enabled(repo)
+                            ):
+                                # check if the base branch is passing
+                                commits = repo.get_commits(sha=pr.base.ref)
+                                latest_commit: Commit = commits[0]
+                                if all(
+                                    status != "failure"
+                                    for status in [
+                                        status.state
+                                        for status in latest_commit.get_statuses()
+                                    ]
+                                ):  # base branch is passing
+                                    logs = download_logs(
+                                        request.repository.full_name,
+                                        request.check_run.run_id,
+                                        request.installation.id,
+                                    )
+                                    logs, user_message = clean_logs(logs)
+                                    attributor = request.sender.login
+                                    if attributor.endswith("[bot]"):
+                                        attributor = commit.author.login
+                                    if attributor.endswith("[bot]"):
+                                        attributor = pr.assignee.login
+                                    if attributor.endswith("[bot]"):
+                                        return {
+                                            "success": False,
+                                            "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
+                                        }
+                                    tracking_id = get_hash()
+                                    stack_pr(
+                                        request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
+                                        pr_number=pr.number,
+                                        username=attributor,
+                                        repo_full_name=repo.full_name,
+                                        installation_id=request.installation.id,
+                                        tracking_id=tracking_id,
+                                        commit_hash=pr.head.sha,
+                                    )
                         elif (
                             request.check_run.check_suite.head_branch
                             == repo.default_branch
+                            and get_gha_enabled(repo)
                         ):
                             if request.check_run.conclusion == "failure":
                                 attributor = request.sender.login
