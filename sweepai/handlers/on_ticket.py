@@ -424,6 +424,8 @@ def on_ticket(
                 initial_sandbox_response: int | SandboxResponse = -1,
                 initial_sandbox_response_file=None,
             ):
+                # Move the 'Install Sweep Configs: Pull Request' message generation to its new location
+                # Doing this as per the user request
                 config_pr_message = (
                     "\n"
                     + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
