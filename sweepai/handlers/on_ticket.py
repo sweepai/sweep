@@ -15,6 +15,7 @@ import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
 from github.Issue import Issue
+from github.PullRequest import PullRequest as GithubPullRequest
 from logtail import LogtailContext, LogtailHandler
 from loguru import logger
 from tabulate import tabulate
@@ -1400,12 +1401,14 @@ def on_ticket(
                     except:
                         pass
 
-                pr: PullRequest = repo.create_pull(
+                pr: GithubPullRequest = repo.create_pull(
                     title=pr_changes.title,
                     body=pr_actions_message + pr_changes.body,
                     head=pr_changes.pr_head,
                     base=SweepConfig.get_branch(repo),
                 )
+
+                pr.add_to_assignees(username)
 
                 ticket_progress.status = TicketProgressStatus.COMPLETE
                 ticket_progress.context.done_time = time()
