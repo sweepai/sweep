@@ -1,7 +1,0 @@
-{
-    "compilerOptions": {
-      "jsx": "react",
-      "lib": ["es6", "es2015", "dom"],
-    },
-    "include": ["src/background.ts"]
-}
