@@ -78,7 +78,7 @@ from sweepai.utils.buttons import (
     check_button_activated,
     check_button_title_match,
 )
-from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
@@ -1001,7 +1001,10 @@ def handle_request(request_dict, event=None):
                     case _:
                         return {"error": "Unsupported type"}
 
-        worker()
+        try:
+            worker()
+        except Exception as e:
+            discord_log_error(str(e), priority=1)
         logger.info(f"Done handling {event}, {action}")
         return {"success": True}
 
