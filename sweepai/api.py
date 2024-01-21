@@ -330,7 +330,7 @@ def handle_request(request_dict, event=None):
                                         }
                                     tracking_id = get_hash()
                                     stack_pr(
-                                        request=f"[Sweep GHA Fix] The GitHub Actions run failed with the following error logs:\n\n```\n\n{logs}\n\n```",
+                                        request=f"[Sweep GHA Fix] The GitHub Actions run failed on {request.check_run.head_sha[:7]} ({repo.default_branch}) with the following error logs:\n\n```\n\n{logs}\n\n```",
                                         pr_number=pr.number,
                                         username=attributor,
                                         repo_full_name=repo.full_name,
@@ -344,9 +344,9 @@ def handle_request(request_dict, event=None):
                             and get_gha_enabled(repo)
                         ):
                             if request.check_run.conclusion == "failure":
+                                commit = repo.get_commit(request.check_run.head_sha)
                                 attributor = request.sender.login
                                 if attributor.endswith("[bot]"):
-                                    commit = repo.get_commit(request.check_run.head_sha)
                                     attributor = commit.author.login
                                 if attributor.endswith("[bot]"):
                                     return {
@@ -366,7 +366,7 @@ def handle_request(request_dict, event=None):
                                     }
                                 )
                                 make_pr(
-                                    title="[Sweep GHA Fix] Fix the failing GitHub Actions",
+                                    title=f"[Sweep GHA Fix] Fix the failing GitHub Actions on {request.check_run.head_sha[:7]} ({repo.default_branch})",
                                     repo_description=repo.description,
                                     summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
                                     repo_full_name=request_dict["repository"][

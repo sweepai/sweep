@@ -74,8 +74,8 @@ def stack_pr(
         start_time = time.time()
 
         title = request
-        if len(title) > 50:
-            title = title[:50] + "..."
+        if len(title) > 150:
+            title = title[:150] + "..."
         ticket_progress = TicketProgress(
             tracking_id=tracking_id,
             username=username,
