@@ -3,9 +3,6 @@ import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Textarea } from "@/components/ui/textarea";
 import React from "react";
-import CodeMirror from "@uiw/react-codemirror";
-import { javascript } from "@codemirror/lang-javascript";
-import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { Button } from "../ui/button";
 import FileSelector from "../shared/FileSelector";
 import DashboardSettings from "./DashboardSettings";
@@ -23,13 +20,10 @@ const DashboardDisplay = () => {
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
                         <FileSelector></FileSelector>
-                        <Textarea className="mt-4 grow">
-                            File content
-                        </Textarea>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel defaultSize={25}>
-                        <CodeMirror value={value} extensions={[javascript({ jsx: true })]} onChange={onChange} theme={vscodeDark} height="100%"/>
+                        <Textarea className="mt-4 grow"> Put info in here</Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>
                 </ResizablePanel>

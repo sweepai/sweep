@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as Body;
     const { repo } = body;
 
-    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = 5000): Promise<string[]> {
+    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = 500): Promise<string[]> {
         let queue: string[] = [rootDir];
         let nonBinaryFiles: string[] = [];
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
                     try {
                         const content: Buffer = await fs.readFile(res);
                         if (!content.includes(0) && nonBinaryFiles.length < fileLimit) {
-                            nonBinaryFiles.push(res);
+                            nonBinaryFiles.push(res.slice(rootDir.length + 1));
                         }
                     } catch (readError) {
                         console.error(`Error reading file ${res}: ${readError}`);

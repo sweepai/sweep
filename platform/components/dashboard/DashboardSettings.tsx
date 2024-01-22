@@ -10,6 +10,7 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
   
 
 const DashboardSettings = () => {
@@ -28,15 +29,21 @@ const DashboardSettings = () => {
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">
-                        Input 1
+                        Repo Name
                         </Label>
                         <Input id="name" value="placeholder" className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="username" className="text-right">
-                        INput 2
+                        <Label htmlFor="script-input" className="text-right">
+                        Script
                         </Label>
-                        <Input id="username" value="second placeholder" className="col-span-3" />
+                        <Textarea id="script-input">Copy paste script here</Textarea>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="run-script" className="text-right">
+                        Test
+                        </Label>
+                        <Button id="run-script">Test</Button>
                     </div>
                 </div>
             </DialogContent>
