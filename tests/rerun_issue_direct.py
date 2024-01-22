@@ -82,7 +82,7 @@ def test_issue_url(
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
     debug: bool = True,
 ):
-    issue_url = issue_url or typer.prompt("Issue URL")
+    issue_url: str = issue_url or typer.prompt("Issue URL")
     print(f"Fetching issue metadata...")
     issue_request = fetch_issue_request(issue_url)
     print(f"Sending request...")

@@ -192,6 +192,7 @@ class CheckRunCompleted(BaseModel):
         pull_requests: list[PullRequest]
         completed_at: str
         check_suite: CheckSuite
+        head_sha: str
 
         @property
         def run_id(self):

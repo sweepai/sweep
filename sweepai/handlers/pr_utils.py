@@ -8,7 +8,6 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.context_pruning import get_relevant_context
-from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import NoFilesException, SandboxResponse
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.sweep_bot import SweepBot
@@ -21,7 +20,6 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.str_utils import blockquote, checkbox_template
 from sweepai.utils.ticket_utils import prep_snippets
 
 
@@ -62,18 +60,7 @@ def make_pr(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
-    user_dict = get_documentation_dict(cloned_repo.repo)
-    docs_results = ""
-    try:
-        docs_results = extract_relevant_docs(
-            title + "\n" + message_summary, user_dict, chat_logger
-        )
-        if docs_results:
-            message_summary += "\n\n" + docs_results
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(f"Failed to extract docs: {e}")
+    get_documentation_dict(cloned_repo.repo)
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         username=username,
@@ -168,22 +155,5 @@ def make_pr(
     revert_buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
     pr.create_issue_comment(revert_buttons_list.serialize())
     pr.add_to_labels(GITHUB_LABEL_NAME)
-
-    sandbox_execution_comment_contents = "## Sandbox Executions\n\n" + "\n".join(
-        [
-            checkbox_template.format(
-                check="X",
-                filename=file_change_request.display_summary
-                + " "
-                + file_change_request.status_display,
-                instructions=blockquote(
-                    file_change_request.instructions_ticket_display
-                ),
-            )
-            for file_change_request in file_change_requests
-            if file_change_request.change_type == "check"
-        ]
-    )
-    pr.create_issue_comment(sandbox_execution_comment_contents)
 
     return pr

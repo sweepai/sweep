@@ -1,6 +1,6 @@
 # Welcome - Sweep installed successfully! 🎉
 
-*You should be redirected here after installing Sweep. If you haven't installed Sweep, install [here](https://github.com/apps/sweepai).*
+*You should be redirected here after installing Sweep. If you haven't installed Sweep, install [here](https://github.com/apps/sweep-ai).*
 
 ⚠️ Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial).*
 

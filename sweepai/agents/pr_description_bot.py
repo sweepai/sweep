@@ -31,16 +31,22 @@ class PRDescriptionBot(ChatGPT):
     ):
         self.messages = []
         self.model = DEFAULT_GPT35_MODEL
-        pr_desc_response = self.chat(
-            content=prompt.format(
-                diffs=diffs,
-                pr_title=pr_title,
-            ),
-        )
+        # attempt to generate description 3 times
         pr_desc_pattern = r"<pr_description>\n(.*?)\n</pr_description>"
-        pr_desc_matches = re.search(pr_desc_pattern, pr_desc_response, re.DOTALL)
-        if pr_desc_matches is None:
-            return None
+        for attempt in [0, 1, 2]:
+            pr_desc_response = self.chat(
+                content=prompt.format(
+                    diffs=diffs,
+                    pr_title=pr_title,
+                ),
+            )
+            pr_desc_matches = re.search(pr_desc_pattern, pr_desc_response, re.DOTALL)
+            if pr_desc_matches is None:
+                if attempt == 2:
+                    return ""
+            else:
+                break
+                
         pr_desc = pr_desc_matches.group(1)
         pr_desc = pr_desc.strip()
         return pr_desc

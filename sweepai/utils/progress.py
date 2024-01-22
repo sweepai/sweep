@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import time
 from enum import Enum
 from threading import Thread
 
 from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
 from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
+from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
@@ -68,8 +70,11 @@ class AssistantConversation(BaseModel):
             run = client.beta.threads.runs.retrieve(
                 run_id=run_id, thread_id=thread_id, timeout=1.5
             )
-            message_objects = client.beta.threads.runs.steps.list(
+            step_objects = client.beta.threads.runs.steps.list(
                 run_id=run_id, thread_id=thread_id, timeout=1.5
+            ).data
+            thread_messages = client.beta.threads.messages.list(
+                thread_id=thread_id, timeout=1.5
             ).data
         except:
             return None
@@ -79,60 +84,76 @@ class AssistantConversation(BaseModel):
                 content=assistant.instructions,
             )
         ]
-        for message_obj in list(message_objects)[::-1]:
-            if message_obj.type == "message_creation":
-                message_id = message_obj.step_details.message_creation.message_id
-                try:
-                    message_content = (
-                        client.beta.threads.messages.retrieve(
-                            message_id=message_id, thread_id=thread_id, timeout=1.5
+        all_messages = sorted(
+            list(thread_messages + step_objects),
+            key=lambda x: x.created_at,
+            reverse=True,
+        )
+        for message_obj in list(all_messages)[::-1]:
+            if isinstance(message_obj, ThreadMessage):
+                text = message_obj.content[0].text.value
+                if text.strip():
+                    messages.append(
+                        AssistantAPIMessage(
+                            role=message_obj.role,
+                            content=message_obj.content[0].text.value,
                         )
-                        .content[0]
-                        .text.value
                     )
-                except:
-                    return None
-                messages.append(
-                    AssistantAPIMessage(
-                        role=AssistantAPIMessageRole.ASSISTANT,
-                        content=message_content,
+            else:
+                if message_obj.type == "message_creation":
+                    message_id = message_obj.step_details.message_creation.message_id
+                    try:
+                        message_content = (
+                            client.beta.threads.messages.retrieve(
+                                message_id=message_id, thread_id=thread_id, timeout=1.5
+                            )
+                            .content[0]
+                            .text.value
+                        )
+                    except:
+                        return None
+                    messages.append(
+                        AssistantAPIMessage(
+                            role=AssistantAPIMessageRole.ASSISTANT,
+                            content=message_content,
+                        )
                     )
-                )
-                # TODO: handle annotations
-            elif message_obj.type == "tool_calls":
-                for tool_call in message_obj.step_details.tool_calls:
-                    if isinstance(tool_call, CodeToolCall):
-                        code_interpreter = tool_call.code_interpreter
-                        input_ = code_interpreter.input
-                        if not input_:
-                            continue
-                        messages.append(
-                            AssistantAPIMessage(
-                                role=AssistantAPIMessageRole.CODE_INTERPRETER_INPUT,
-                                content=input_,
+                    # TODO: handle annotations
+                elif message_obj.type == "tool_calls":
+                    for tool_call in message_obj.step_details.tool_calls:
+                        if isinstance(tool_call, CodeToolCall):
+                            code_interpreter = tool_call.code_interpreter
+                            input_ = code_interpreter.input
+                            if not input_:
+                                continue
+                            messages.append(
+                                AssistantAPIMessage(
+                                    role=AssistantAPIMessageRole.CODE_INTERPRETER_INPUT,
+                                    content=input_,
+                                )
                             )
-                        )
-                        outputs = code_interpreter.outputs
-                        output = outputs[0].logs if outputs else "__No output__"
-                        messages.append(
-                            AssistantAPIMessage(
-                                role=AssistantAPIMessageRole.CODE_INTERPRETER_OUTPUT,
-                                content=output,
+                            outputs = code_interpreter.outputs
+                            output = outputs[0].logs if outputs else "__No output__"
+                            messages.append(
+                                AssistantAPIMessage(
+                                    role=AssistantAPIMessageRole.CODE_INTERPRETER_OUTPUT,
+                                    content=output,
+                                )
                             )
-                        )
-                    elif isinstance(tool_call, FunctionToolCall):
-                        messages.append(
-                            AssistantAPIMessage(
-                                role=AssistantAPIMessageRole.FUNCTION_CALL_INPUT,
-                                content=tool_call.function.arguments,
+                        elif isinstance(tool_call, FunctionToolCall):
+                            messages.append(
+                                AssistantAPIMessage(
+                                    role=AssistantAPIMessageRole.FUNCTION_CALL_INPUT,
+                                    content=tool_call.function.arguments,
+                                )
                             )
-                        )
-                        messages.append(
-                            AssistantAPIMessage(
-                                role=AssistantAPIMessageRole.FUNCTION_CALL_OUTPUT,
-                                content=tool_call.function.output or "__No output__",
+                            messages.append(
+                                AssistantAPIMessage(
+                                    role=AssistantAPIMessageRole.FUNCTION_CALL_OUTPUT,
+                                    content=tool_call.function.output
+                                    or "__No output__",
+                                )
                             )
-                        )
         return cls(
             messages=messages,
             status=run.status,
@@ -211,8 +232,23 @@ class TicketContext(BaseModel):
     payment_context: PaymentContext = PaymentContext()
 
 
+class TicketUserStateTypes(Enum):
+    RUNNING = "running"
+    WAITING = "waiting"
+    EDITING = "editing"
+
+
+class TicketUserState(BaseModel):
+    state_type: TicketUserStateTypes = TicketUserStateTypes.RUNNING
+    waiting_deadline: int = 0
+
+    class Config:
+        use_enum_values = True
+
+
 class TicketProgress(BaseModel):
     tracking_id: str
+    username: str = ""
     context: TicketContext = TicketContext()
     status: TicketProgressStatus = TicketProgressStatus.SEARCHING
     search_progress: SearchProgress = SearchProgress()
@@ -220,6 +256,7 @@ class TicketProgress(BaseModel):
     coding_progress: CodingProgress = CodingProgress()
     prev_dict: dict = Field(default_factory=dict)
     error_message: str = ""
+    user_state: TicketUserState = TicketUserState()
 
     class Config:
         use_enum_values = True
@@ -233,7 +270,14 @@ class TicketProgress(BaseModel):
         doc = collection.find_one({"tracking_id": tracking_id})
         return cls(**doc)
 
+    def refresh(self):
+        if MONGODB_URI is None:
+            return
+        new_ticket_progress = TicketProgress.load(self.tracking_id)
+        self.__dict__.update(new_ticket_progress.__dict__)
+
     def _save(self):
+        # Can optimize by only saving the deltas
         try:
             if MONGODB_URI is None:
                 return None
@@ -250,9 +294,52 @@ class TicketProgress(BaseModel):
         except Exception as e:
             discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
 
-    def save(self):
-        thread = Thread(target=self._save)
-        thread.start()
+    def save(self, do_async: bool = True):
+        if do_async:
+            thread = Thread(target=self._save)
+            thread.start()
+        else:
+            self._save()
+
+    def wait(self, wait_time: int = 20):
+        if MONGODB_URI is None:
+            return
+        try:
+            # check if user set breakpoints
+            current_ticket_progress = TicketProgress.load(self.tracking_id)
+            current_ticket_progress.user_state = current_ticket_progress.user_state
+            current_ticket_progress.user_state.state_type = TicketUserStateTypes.WAITING
+            current_ticket_progress.user_state.waiting_deadline = (
+                int(time.time()) + wait_time
+            )
+            # current_ticket_progress.save(do_async=False)
+            # time.sleep(3)
+            # for i in range(10 * 60):
+            #     current_ticket_progress = TicketProgress.load(self.tracking_id)
+            #     user_state = current_ticket_progress.user_state
+            #     if i == 0:
+            #         logger.info(user_state)
+            #     if user_state.state_type.value == TicketUserStateTypes.RUNNING.value:
+            #         logger.info(f"Continuing...")
+            #         return
+            #     if (
+            #         user_state.state_type.value == TicketUserStateTypes.WAITING.value
+            #         and user_state.waiting_deadline < int(time.time())
+            #     ):
+            #         logger.info(f"Continuing...")
+            #         user_state.state_type = TicketUserStateTypes.RUNNING.value
+            #         return
+            #     time.sleep(1)
+            #     if i % 10 == 9:
+            #         logger.info(f"Waiting for user for {self.tracking_id}...")
+            # raise Exception("Timeout")
+        except Exception as e:
+            discord_log_error(
+                "wait() method crashed with:\n\n"
+                + str(e)
+                + "\n\n"
+                + str(self.tracking_id)
+            )
 
 
 def create_index():
@@ -264,14 +351,15 @@ def create_index():
 
 if __name__ == "__main__":
     ticket_progress = TicketProgress(tracking_id="test")
-    ticket_progress.error_message = (
-        "I'm sorry, but it looks like an error has occurred due to"
-        + " a planning failure. Please create a more detailed issue"
-        + " so I can better address it. Alternatively, reach out to Kevin or William for help at"
-        + " https://discord.gg/sweep."
-    )
-    ticket_progress.status = TicketProgressStatus.ERROR
-    ticket_progress.save()
+    # ticket_progress.error_message = (
+    #     "I'm sorry, but it looks like an error has occurred due to"
+    #     + " a planning failure. Please create a more detailed issue"
+    #     + " so I can better address it. Alternatively, reach out to Kevin or William for help at"
+    #     + " https://discord.gg/sweep."
+    # )
+    # ticket_progress.status = TicketProgressStatus.ERROR
+    # ticket_progress.save()
+    ticket_progress.wait()
     # new_ticket_progress = TicketProgress.load("test")
     # print(new_ticket_progress)
     # assert new_ticket_progress == ticket_progress

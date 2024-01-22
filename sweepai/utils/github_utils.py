@@ -39,11 +39,13 @@ def make_valid_string(string: str):
 def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
-    payload = {"iat": int(time.time()), "exp": int(time.time()) + 590, "iss": app_id}
+    payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
     return encode(payload, signing_key, algorithm="RS256")
 
 
 def get_token(installation_id: int):
+    if int(installation_id) < 0:
+        return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
         try:
             jwt = get_jwt()
@@ -71,26 +73,42 @@ def get_token(installation_id: int):
 
 
 def get_github_client(installation_id: int):
+    if not installation_id:
+        return os.environ["GITHUB_PAT"], Github(os.environ["GITHUB_PAT"])
     token: str = get_token(installation_id)
     return token, Github(token)
 
 
 def get_installation_id(username: str) -> str:
     jwt = get_jwt()
-    response = requests.get(
-        f"https://api.github.com/users/{username}/installation",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": "Bearer " + jwt,
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
-    obj = response.json()
     try:
+        # Try user
+        response = requests.get(
+            f"https://api.github.com/users/{username}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        obj = response.json()
         return obj["id"]
-    except SystemExit:
-        raise SystemExit
-    except:
+    except Exception as e:
+        # Try org
+        response = requests.get(
+            f"https://api.github.com/orgs/{username}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        try:
+            obj = response.json()
+            return obj["id"]
+        except Exception as e:
+            logger.error(e)
+            logger.error(response.text)
         raise Exception("Could not get installation id, probably not installed")
 
 
@@ -187,22 +205,23 @@ class ClonedRepo:
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
+        self.token = self.token or get_token(self.installation_id)
         self.repo = (
             Github(self.token).get_repo(self.repo_full_name)
             if not self.repo
             else self.repo
         )
         self.commit_hash = self.repo.get_commits()[0].sha
-        self.token = self.token or get_token(self.installation_id)
         self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
-    def delete(self):
+    def __del__(self):
         try:
             shutil.rmtree(self.repo_dir)
             os.remove(self.zip_path)
+            return True
         except:
-            pass
+            return False
 
     def list_directory_tree(
         self,

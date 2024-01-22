@@ -10,7 +10,6 @@ from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT35_MODEL,
     OPENAI_API_KEY,
-    OPENAI_DO_HAVE_32K_MODEL_ACCESS,
     OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message
@@ -64,9 +63,7 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = (
-        "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
-    )
+    model: ChatModel = "gpt-4-1106-preview"
     chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
@@ -189,19 +186,28 @@ class ChatGPT(BaseModel):
         requested_max_tokens: int | None = None,
     ):
         if self.chat_logger is not None:
-            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-            tickets_count = self.chat_logger.get_ticket_count()
-            purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
-            if tickets_count < tickets_allocated:
-                model = model or self.model
-                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
-            elif purchased_tickets > 0:
-                model = model or self.model
-                logger.info(
-                    f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
-                )
-            else:
+            if (
+                self.chat_logger.active is False
+                and not self.chat_logger.is_paying_user()
+                and not self.chat_logger.is_consumer_tier()
+            ):
                 model = DEFAULT_GPT35_MODEL
+            else:
+                tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+                tickets_count = self.chat_logger.get_ticket_count()
+                purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
+                if tickets_count < tickets_allocated:
+                    model = model or self.model
+                    logger.info(
+                        f"{tickets_count} tickets found in MongoDB, using {model}"
+                    )
+                elif purchased_tickets > 0:
+                    model = model or self.model
+                    logger.info(
+                        f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
+                    )
+                else:
+                    model = DEFAULT_GPT35_MODEL
 
         count_tokens = Tiktoken().count
         messages_length = sum(
@@ -233,14 +239,6 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
-        if (
-            model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 3000
-            and not OPENAI_DO_HAVE_32K_MODEL_ACCESS
-        ):  # use 16k if it's OOC and no 32k
-            model = DEFAULT_GPT35_MODEL
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )
         max_tokens = min(max_tokens, 4096)
         max_tokens = (
             min(requested_max_tokens, max_tokens)
@@ -370,11 +368,6 @@ class ChatGPT(BaseModel):
             messages_dicts.append(message_dict)
 
         gpt_4_buffer = 800
-        # if int(messages_length) + gpt_4_buffer < 6000 and model == DEFAULT_GPT4_32K_MODEL:
-        #     model = "gpt-4-0613"
-        #     max_tokens = (
-        #         model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-        #     )  # this is for the function tokens
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 4096)
         # Fix for self hosting where TPM limit is super low for GPT-4

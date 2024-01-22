@@ -181,11 +181,11 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 
 files_to_change_prompt = """\
 # Task:
-Reference and analyze the snippets, repo, and issue to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
+Reference and analyze the snippets, repo, PRs, and issue to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
 
 Provide a plan to solve the issue, following these rules:
-* You may only create new files and modify existing files.
-* Include the full path (e.g. src/main.py and not just main.py), using the repo_tree for reference.
+* You may only create new files and modify existing files but may not necessarily need both.
+* Include the full path (e.g. src/main.py and not just main.py), using the snippets and repo_tree for reference.
 * Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
 
@@ -193,6 +193,7 @@ You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
+* If a PR was referenced, outline the structure of the code changes in the PR.
 * Outline the ideal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
 * Describe each <create> and <modify> section in the following plan and why it will be needed.
 ...
@@ -848,26 +849,6 @@ The only operations you may perform are:
 2. Adding or deduplicating code in user_code. This code MUST be code that was modified by the diff.
 
 Return the working user_code without xml tags. All of the text you return will be placed in the file.
-"""
-
-gradio_system_message_prompt = """You are a brilliant and thorough engineer assigned to assist the following user with their problems in the Github repo. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes. If the user asks you to create a PR, you will use the create_pr function.
-
-Relevant snippets provided by search engine (decreasing relevance):
-{snippets}
-Repo: {repo_name}
-Description: {repo_description}
-"""
-
-gradio_user_prompt = """
-Respond in the following format (one line per file change, no prefixes, each file should be unique, only files that should be created or changed should go into the plan). There must be a blank line between the summary and the plan:
-
-Response:
-Provide a summary of the proposed changes or inquiries for the user. This section will be displayed directly to the user.
-
-Plan:
-* filename_1: instructions_1
-* filename_2: instructions_2
-...
 """
 
 doc_query_rewriter_system_prompt = """\

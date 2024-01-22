@@ -6,7 +6,7 @@ from loguru import logger
 
 logger.print = logger.info
 
-load_dotenv(dotenv_path=".env")
+load_dotenv(dotenv_path=".env", override=True)
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get("GITHUB_APP_PEM") or base64.b64decode(
     os.environ.get("GITHUB_APP_PEM_BASE64", "")
@@ -34,6 +34,7 @@ BATCH_SIZE = int(
     os.environ.get("BATCH_SIZE", 32)
 )  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
+TEST_BOT_NAME = "sweep-nightly[bot]"
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
@@ -122,16 +123,13 @@ blocked_dirs: []
 )
 
 
-OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
-    os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
-)
 OPENAI_USE_3_5_MODEL_ONLY = (
     os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
 )
 
 
 # goes under Modal 'mongodb' secret name
-MONGODB_URI = os.environ.get("MONGODB_URI")
+MONGODB_URI = os.environ.get("MONGODB_URI", None)
 
 IS_SELF_HOSTED = MONGODB_URI is None
 
@@ -159,12 +157,6 @@ WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-SANDBOX_URL = os.environ.get("SANDBOX_URL")
-if SANDBOX_URL is None:
-    SANDBOX_URL = "http://0.0.0.0:8081"
-
-
-MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
 
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
@@ -206,4 +198,8 @@ if WHITELISTED_USERS:
 DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-1106-preview")
 DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
 
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
+LOKI_URL = os.environ.get("LOKI_URL", None)
+
 DEBUG: bool = True
+ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"

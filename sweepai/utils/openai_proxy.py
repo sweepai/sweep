@@ -114,6 +114,7 @@ class OpenAIProxy:
         elif (
             model == "gpt-4"
             or model == "gpt-4-0613"
+            or model == "gpt-4-1106-preview"
             and OPENAI_API_ENGINE_GPT4 is not None
         ):
             engine = OPENAI_API_ENGINE_GPT4

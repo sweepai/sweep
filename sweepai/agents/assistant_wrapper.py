@@ -2,6 +2,7 @@ import json
 import os
 import re
 import time
+import traceback
 from pathlib import Path
 from typing import Callable
 
@@ -12,9 +13,10 @@ from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
 from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import OPENAI_API_KEY
+from sweepai.config.server import IS_SELF_HOSTED, OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.event_logger import posthog
 
 client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
 
@@ -41,7 +43,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
         try:
             return call(*args, **kwargs, timeout=timeout)
         except Exception as e:
-            logger.error(f"Retry {attempt + 1} failed with error: {e}")
+            logger.exception(f"Retry {attempt + 1} failed with error: {e}")
             error_message = str(e)
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
@@ -191,6 +193,7 @@ def run_until_complete(
     message_strings = []
     json_messages = []
     try:
+        num_tool_calls_made = 0
         for i in range(max_iterations):
             run = openai_retry_with_timeout(
                 client.beta.threads.runs.retrieve,
@@ -202,8 +205,15 @@ def run_until_complete(
                 break
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(f"Run completed with {run.status}")
-                raise Exception("Run failed")
+                raise Exception(
+                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id}"
+                )
             elif run.status == "requires_action":
+                num_tool_calls_made += 1
+                if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
+                    raise AssistantRaisedException(
+                        "Too many tool calls made on GPT 3.5."
+                    )
                 tool_calls = [
                     tool_call
                     for tool_call in run.required_action.submit_tool_outputs.tool_calls
@@ -339,12 +349,13 @@ def openai_assistant_call_helper(
     thread = client.beta.threads.create()
     if file_ids:
         logger.info("Uploading files...")
-    client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content=request,
-        file_ids=file_ids,
-    )
+    if request:
+        client.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=request,
+            file_ids=file_ids,
+        )
     if file_ids:
         logger.info("Files uploaded")
     for message in additional_messages:
@@ -395,8 +406,22 @@ def openai_assistant_call(
 ):
     model = (
         "gpt-3.5-turbo-1106"
-        if (chat_logger and chat_logger.use_faster_model())
+        if (chat_logger is None or chat_logger.use_faster_model())
+        and not IS_SELF_HOSTED
         else "gpt-4-1106-preview"
+    )
+    posthog.capture(
+        chat_logger.data.get("username") if chat_logger is not None else "anonymous",
+        "call_assistant_api",
+        {
+            "query": request,
+            "model": model,
+            "username": chat_logger.data.get("username", "anonymous")
+            if chat_logger is not None
+            else "anonymous",
+            "is_self_hosted": IS_SELF_HOSTED,
+            "trace": "".join(traceback.format_list(traceback.extract_stack())),
+        },
     )
     retries = range(3)
     for _ in retries:

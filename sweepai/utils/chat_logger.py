@@ -1,4 +1,5 @@
 import json
+import traceback
 from datetime import datetime, timedelta
 from threading import Thread
 from typing import Any
@@ -35,9 +36,10 @@ class ChatLogger(BaseModel):
     current_month: str = Field(
         default_factory=lambda: datetime.utcnow().strftime("%m/%Y")
     )
+    active: bool = False  # refers to whether it was an auto-created PR or if it was created by the user with intent
 
-    def __init__(self, data: dict[str, str] = {}, mock=False):
-        super().__init__(data=data)  # Call the BaseModel's __init__ method
+    def __init__(self, data: dict[str, str] = {}, mock=False, **kwargs):
+        super().__init__(data=data, **kwargs)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
             logger.warning("Chat history logger has no key")
@@ -175,8 +177,9 @@ class ChatLogger(BaseModel):
         if self.is_consumer_tier():
             return self.get_ticket_count() >= 20 and purchased_tickets == 0
         return (
-            self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
-        ) and purchased_tickets == 0
+            (self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3)
+            and purchased_tickets == 0
+        ) or not self.active
 
 
 def discord_log_error(content, priority=0):
@@ -192,7 +195,9 @@ def discord_log_error(content, priority=0):
         if priority == 2:
             url = DISCORD_LOW_PRIORITY_URL
 
-        data = {"content": content}
+        data = {
+            "content": f"Traceback:\n\n{traceback.format_exc()}\n\nMessage:\n\n```\n{content}\n```"
+        }
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:

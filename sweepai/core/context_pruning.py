@@ -1,5 +1,6 @@
 import json
 import re
+import textwrap
 import time
 
 from attr import dataclass
@@ -7,10 +8,14 @@ from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
+from sweepai.agents.assistant_function_modify import MAX_CHARS
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
-from sweepai.core.entities import Snippet
+from sweepai.config.server import IS_SELF_HOSTED
+from sweepai.core.entities import AssistantRaisedException, Snippet
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -246,7 +251,7 @@ class RepoContextManager:
             self.current_top_snippets.append(snippet)
 
 
-# @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -256,14 +261,24 @@ def get_relevant_context(
     modify_iterations: int = 2
     model = (
         "gpt-3.5-turbo-1106"
-        if (chat_logger and chat_logger.use_faster_model())
+        if (chat_logger is None or chat_logger.use_faster_model())
+        and not IS_SELF_HOSTED
         else "gpt-4-1106-preview"
+    )
+    posthog.capture(
+        chat_logger.data.get("username") if chat_logger is not None else "anonymous",
+        "call_assistant_api",
+        {
+            "query": query,
+            "model": model,
+        },
     )
     try:
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
+        messages = textwrap.wrap(user_prompt, MAX_CHARS)
         assistant = openai_retry_with_timeout(
             client.beta.assistants.create,
             name="Relevant Files Assistant",
@@ -272,12 +287,13 @@ def get_relevant_context(
             model=model,
         )
         thread = openai_retry_with_timeout(client.beta.threads.create)
-        _ = openai_retry_with_timeout(
-            client.beta.threads.messages.create,
-            thread.id,
-            role="user",
-            content=f"{user_prompt}",
-        )
+        for content in messages:
+            _ = openai_retry_with_timeout(
+                client.beta.threads.messages.create,
+                thread.id,
+                role="user",
+                content=content,
+            )
         run = openai_retry_with_timeout(
             client.beta.threads.runs.create,
             thread_id=thread.id,
@@ -286,7 +302,7 @@ def get_relevant_context(
         old_top_snippets = [
             snippet for snippet in repo_context_manager.current_top_snippets
         ]
-        modify_context(thread, run, repo_context_manager, ticket_progress)
+        modify_context(thread, run, repo_context_manager, ticket_progress, model=model)
         if len(repo_context_manager.current_top_snippets) == 0:
             repo_context_manager.current_top_snippets = old_top_snippets
             discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
@@ -324,12 +340,14 @@ def modify_context(
     run: Run,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
+    model: str = "gpt-4-1106-preview",
 ) -> bool | None:
     max_iterations = 90
     directories_to_expand = []
     repo_context_manager.current_top_snippets = []
     initial_file_paths = repo_context_manager.top_snippet_paths
     paths_to_add = []
+    num_tool_calls_made = 0
     for iter in range(max_iterations):
         run = openai_retry_with_timeout(
             client.beta.threads.runs.retrieve,
@@ -351,6 +369,9 @@ def modify_context(
         ):
             time.sleep(3)
             continue
+        num_tool_calls_made += 1
+        if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
+            raise AssistantRaisedException("Too many tool calls made on gpt-3.5.")
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
         for tool_call in tool_calls:
@@ -597,6 +618,11 @@ def modify_context(
     paths_changed = set(initial_file_paths) != set(
         repo_context_manager.top_snippet_paths
     )
+    repo_context_manager.current_top_snippets = [
+        snippet
+        for snippet in repo_context_manager.current_top_snippets
+        if snippet.file_path != "sweep.yaml"
+    ]
     # if the paths have not changed or all tools were empty, we are done
     return not (paths_changed and (paths_to_add or directories_to_expand))
 

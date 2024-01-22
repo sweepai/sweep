@@ -7,7 +7,6 @@ import uuid
 from collections import OrderedDict
 from typing import Dict, Generator
 
-import requests
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
@@ -20,13 +19,7 @@ from sweepai.agents.move_bot import MoveBot
 from sweepai.agents.refactor_bot import RefactorBot
 from sweepai.agents.test_bot import TestBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import (
-    DEBUG,
-    DEFAULT_GPT4_32K_MODEL,
-    DEFAULT_GPT35_MODEL,
-    MINIS3_URL,
-    SANDBOX_URL,
-)
+from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     AssistantRaisedException,
@@ -63,6 +56,7 @@ from sweepai.utils.progress import (
     AssistantConversation,
     TicketProgress,
 )
+from sweepai.utils.str_utils import get_hash
 from sweepai.utils.utils import check_syntax, chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -471,8 +465,6 @@ class GithubBot(BaseModel):
                 branch = branch.replace(
                     "/", "_"
                 )  # Replace sweep/ with sweep_ (temp fix)
-            except SystemExit:
-                raise SystemExit
             except Exception:
                 pass
 
@@ -484,19 +476,23 @@ class GithubBot(BaseModel):
                 f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
             )
             if retry:
-                for i in range(1, 31):
+                for i in range(1, 10):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
+                        _hash = get_hash()[:5]
                         self.repo.create_git_ref(
-                            f"refs/heads/{branch}_{i}", base_branch.commit.sha
+                            f"refs/heads/{branch}_{_hash}", base_branch.commit.sha
                         )
-                        return f"{branch}_{i}"
+                        return f"{branch}_{_hash}"
                     except GithubException:
                         pass
             else:
                 new_branch = self.repo.get_branch(branch)
                 if new_branch:
                     return new_branch.name
+            discord_log_error(
+                f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
+            )
             raise e
 
     def populate_snippets(self, snippets: list[Snippet]):
@@ -656,11 +652,12 @@ class SweepBot(CodeGenBot, GithubBot):
         file_path = f"{hash_}_{file_path}"
         try:
             try:
-                response = requests.post(
-                    MINIS3_URL, json={"filename": file_path, "content": content}
-                )
-                response.raise_for_status()
-                return MINIS3_URL.rstrip("/") + response.json()["url"]
+                # response = requests.post(
+                #     MINIS3_URL, json={"filename": file_path, "content": content}
+                # )
+                # response.raise_for_status()
+                # return MINIS3_URL.rstrip("/") + response.json()["url"]
+                return ""
             except Exception as e:
                 logger.error(e)
                 self.init_asset_branch()
@@ -697,28 +694,7 @@ class SweepBot(CodeGenBot, GithubBot):
         only_lint: bool = False,
         check: list[str] = [],
     ) -> dict:
-        if not SANDBOX_URL:
-            return {"success": False}
-
-        response = requests.post(
-            SANDBOX_URL,
-            json={
-                "token": token,
-                "repo_url": repo_url,
-                "file_path": file_path,
-                "content": content,
-                "changed_files": {
-                    file_path: new_contents
-                    for file_path, (_old_contents, new_contents) in changed_files
-                },
-                "check": check,
-                "only_lint": only_lint,
-            },
-            timeout=(5, 500),
-        )
-        response.raise_for_status()
-        output = response.json()
-        return output
+        return {"success": False}
 
     def check_completion(self, file_name: str, new_content: str) -> bool:
         return True
@@ -1619,7 +1595,8 @@ class SweepBot(CodeGenBot, GithubBot):
 
         changed_files.append((file_change_request.filename, ("", file_change.code)))
 
-        file_change_request.new_content = file_change.code, changed_files
+        # file_change_request.new_content = file_change.code, changed_files
+        file_change_request.new_content = file_change.code
 
         return True, sandbox_response, result["commit"], changed_files
 

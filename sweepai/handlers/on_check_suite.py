@@ -70,7 +70,7 @@ def clean_logs(logs_str: str):
 
     # Extract the matched groups
     if not match:
-        return ""
+        return "", ""
     group_start = match.group(1).strip()
     command_line = group_start.split("\n")[0]
     log_content = match.group(2).strip()
@@ -107,7 +107,7 @@ def clean_logs(logs_str: str):
         if not any(log.strip().startswith(pattern) for pattern in patterns)
     ]
     if len(cleaned_logs) > MAX_LINES:
-        return ""
+        return "", ""
     cleaned_logs_str = "\n".join(cleaned_logs)
     cleaned_response = f"""\
 The command:

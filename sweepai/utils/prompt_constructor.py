@@ -127,7 +127,8 @@ class HumanMessagePrompt(BaseModel):
         )
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
-Issue Title: {self.title}{issue_description}"""
+Issue Title: {self.title}
+{issue_description}"""
 
 
 def render_snippets(snippets):
@@ -238,7 +239,8 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
         )
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
-Issue Title: {self.title}{issue_description}
+Issue Title: {self.title}
+{issue_description}
 The above was the original plan. Please address the user comment: {self.comment}"""
 
 
