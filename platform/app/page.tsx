@@ -1,9 +1,12 @@
+"use client"
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
+import CodeMirror from "@uiw/react-codemirror";
 
 export default function Home() {
   return (
@@ -28,9 +31,7 @@ export default function Home() {
             </ResizablePanel>
             <ResizableHandle withHandle/>
             <ResizablePanel defaultSize={25}>
-              <Textarea className="mt-4">
-                Terminal
-              </Textarea>
+              <CodeMirror value="//test code"/>
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>
