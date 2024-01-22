@@ -7,29 +7,54 @@ interface Body {
     repo: string
 }
 
+const blockedPaths = [
+    ".git",
+    "node_modules",
+    "venv",
+    "__pycache__",
+    ".next",
+    "cache"
+]
+
+
 export async function POST(request: NextRequest) {
     // Body -> { stdout: string, stderr: string, code: number}
     const body = await request.json() as Body;
     const { repo } = body;
-    async function listNonBinaryFiles(dir: string): Promise<string[]> {
+
+    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = 5000): Promise<string[]> {
+        let queue: string[] = [rootDir];
         let nonBinaryFiles: string[] = [];
-        const files: Dirent[] = await fs.readdir(dir, { withFileTypes: true });
-        for (const file of files) {
-            const res: string = path.resolve(dir, file.name);
-            if (file.isDirectory()) {
-                nonBinaryFiles = nonBinaryFiles.concat(await listNonBinaryFiles(res));
-            } else {
-                const content: Buffer = await fs.readFile(res);
-                if (!content.includes(0)) {
-                    nonBinaryFiles.push(res);
+
+        while (queue.length > 0 && nonBinaryFiles.length < fileLimit) {
+            const currentDir = queue.shift()!;
+            if (blockedPaths.some(blockedPath => currentDir.includes(blockedPath))) {
+                continue;
+            }
+            const items: Dirent[] = await fs.readdir(currentDir, { withFileTypes: true });
+
+            for (const item of items) {
+                const res: string = path.resolve(currentDir, item.name);
+                if (item.isDirectory()) {
+                    queue.push(res);
+                } else if (item.isFile()) {
+                    try {
+                        const content: Buffer = await fs.readFile(res);
+                        if (!content.includes(0) && nonBinaryFiles.length < fileLimit) {
+                            nonBinaryFiles.push(res);
+                        }
+                    } catch (readError) {
+                        console.error(`Error reading file ${res}: ${readError}`);
+                    }
                 }
             }
         }
+
         return nonBinaryFiles;
     }
 
     try {
-        const nonBinaryFiles = await listNonBinaryFiles(repo);
+        const nonBinaryFiles = await listNonBinaryFilesBFS(repo);
         return new Response(JSON.stringify(nonBinaryFiles), { status: 200 });
     } catch (error: any) {
         return new Response(error.message, { status: 500 });
