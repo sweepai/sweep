@@ -11,7 +11,7 @@ export default function Home() {
       <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
         <ResizablePanel defaultSize={67}>
           <ResizablePanelGroup direction="vertical">
-            <ResizablePanel defaultSize={75}>
+            <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
               <Select>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="File path" />
@@ -22,19 +22,22 @@ export default function Home() {
                   <SelectItem value="system">System</SelectItem>
                 </SelectContent>
               </Select>
+              <Textarea className="mt-4 grow">
+                File content
+              </Textarea>
             </ResizablePanel>
             <ResizableHandle withHandle/>
             <ResizablePanel defaultSize={25}>
-              <Textarea>
+              <Textarea className="mt-4">
                 Terminal
               </Textarea>
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>
         <ResizableHandle withHandle/>
-        <ResizablePanel defaultSize={33} className="p-6 h-full">
-          <div className="flex flex-col">
-            <Input className="mb-4" value="pnpm dlx shadcn-ui@latest add input"/>
+        <ResizablePanel defaultSize={33} className="p-6 h-[80vh]">
+          <div className="flex flex-col h-full">
+            <Input className="mb-4" value="sweep/fix-branch"/>
             <Textarea placeholder="Edge cases for Sweep to cover." className="grow"></Textarea>
             <div className="flex flex-row justify-center">
               <Button className="mt-4 mr-4" variant="secondary">Generate tests</Button>
