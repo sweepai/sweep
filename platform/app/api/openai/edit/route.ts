@@ -133,6 +133,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     };
     const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
     const response = chatCompletion.choices[0].message.content!;
+    console.log("file contents", fileContents, "\n")
     console.log("response\n", response, "\n")
     const additionalUnitTestMatch = response.match(additionalUnitTestRegex)!;
     const codeBlockToExtendMatch = response.match(codeBlockToExtendRegex)!;
@@ -145,7 +146,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
         console.log(additionalUnitTest)
         return fileContents.replace(codeBlockToExtend, codeBlockToExtend + '\n' + additionalUnitTest);
     } else {
-        return null;
+        return "";
     }
 }
 
