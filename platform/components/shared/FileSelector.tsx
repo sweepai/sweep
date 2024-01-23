@@ -22,8 +22,8 @@ const FileSelector = (
     const [value, setValue] = useState("console.log('hello world!');");
     const placeholderText = "Your code will be displayed here once you select a Repository and file."
     const onChange = useCallback((val, viewUpdate) => {
-        console.log('val:', val);
         setValue(val);
+        setFile(val)
     }, []);
 
     useEffect(() => {
