@@ -7,9 +7,9 @@ import { useLocalStorage } from "usehooks-ts";
 
 
 const DashboardDisplay = () => {
-    const [filePath, setFilePath] = useState("")
-    const [scriptOutput, setScriptOutput] = useState("")
-    const [file, setFile] = useState("")
+    const [filePath, setFilePath] = useLocalStorage("filePath", "")
+    const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
+    const [file, setFile] = useLocalStorage("file", "")
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
     return (
         <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
