@@ -10,8 +10,8 @@ import { useLocalStorage } from 'usehooks-ts';
 
 
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, setHideMerge, setOldFile, repoName, setRepoName} 
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any,setHideMerge: any, setOldFile: any, repoName: string, setRepoName: any }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, setOldFile, repoName, setRepoName} 
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, setOldFile: any, repoName: string, setRepoName: any }) => {
     const [script, setScript] = useLocalStorage("script", '');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
@@ -71,7 +71,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, setHideMer
     }
 
     return (
-        <ResizablePanel defaultSize={33} className="p-6 h-[80vh]">
+        <ResizablePanel defaultSize={33} className="p-6 h-[90vh]">
             <div className="flex flex-col h-full">
                 <Input id="name" placeholder="Enter Repository Name" value={currentRepoName} className="col-span-4 w-full" onChange={(e) => setCurrentRepoName(e.target.value)} onBlur={() => {
                     setCurrentRepoName(currentRepoName => {
@@ -85,11 +85,17 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, setHideMer
                 <div className="flex flex-row justify-center">
                     <Button className="mt-4" variant="secondary" onClick={runScriptWrapper}>Run tests</Button>
                     <Button
-                            className="mt-4 mr-4"
-                            variant="secondary"
-                            onClick={getFileChanges}
+                        className="mt-4 mr-4"
+                        variant="secondary"
+                        onClick={getFileChanges}
                         disabled={isLoading}
                     >Generate tests</Button>
+                    <Button
+                        className="mt-4 mr-4"
+                        variant="secondary"
+                        onClick={() => {setHideMerge(!hideMerge)}}
+                        disabled={isLoading}
+                    >Toggle Merge View(debug)</Button>
                 </div>
             </div>
         </ResizablePanel>
