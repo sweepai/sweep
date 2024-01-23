@@ -95,7 +95,10 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                 <Label className="mb-2">
                     Test Script
                 </Label>
-                <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 mb-4 w-full font-mono" value={script} onChange={updateScript}></Textarea>
+                <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full font-mono" value={script} onChange={updateScript}></Textarea>
+                <p className="text-sm text-muted-foreground mb-4">
+                    Use $FILE_PATH to refer to the file you selected. E.g. `python $FILE_PATH`.
+                </p>
                 <div className="flex flex-row justify-center">
                     <Button
                         className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
