@@ -17,7 +17,7 @@ const DashboardDisplay = () => {
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
     return (
         <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
-            <ResizablePanel defaultSize={67}>
+            <ResizablePanel defaultSize={75}>
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
                         <FileSelector filePath={filePath} setFilePath={setFilePath}
@@ -29,10 +29,10 @@ const DashboardDisplay = () => {
                         <Label className="mb-2">
                             Test Output
                         </Label>
-                        <Textarea className="mt-4 grow font-mono" value={scriptOutput} placeholder="Your script output will be displayed here" readOnly></Textarea>
+                        <Textarea className="mt-4 grow font-mono h-[150px]" value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly></Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>
-                </ResizablePanel>
+            </ResizablePanel>
             <ResizableHandle withHandle/>
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
             file={file} setFile={setFile} hideMerge={hideMerge}

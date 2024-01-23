@@ -63,14 +63,14 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         console.log(object)
         setIsLoading(false)
         toast.success("Successfully generated tests!")
-        file = file + object.newFileContents;
+        file = object.newFileContents;
         console.log("file is", file)
         setFile(file)
         setHideMerge(false)
     }
 
     return (
-        <ResizablePanel defaultSize={33} className="p-6 h-[90vh]">
+        <ResizablePanel defaultSize={25} className="p-6 h-[90vh]">
             <div className="flex flex-col h-full">
                 <Label className="mb-2">
                     Path to Repository
