@@ -20,12 +20,13 @@ export const getFile = async (repoName: string, filePath: string) => {
     return object
 }
 
-export const runScript = async (repo: string, filePath: string, script: string) => {
+export const runScript = async (repo: string, filePath: string, script: string, file: string) => {
     const url = "/api/run";
     const body = {
         repo,
         filePath,
         script,
+        file
     }
     console.log("body!", body)
     const response = await fetch(url, {

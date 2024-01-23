@@ -29,7 +29,7 @@ const DashboardDisplay = () => {
                         <Label className="mb-2">
                             Test Output
                         </Label>
-                        <Textarea className="mt-4 grow font-mono h-[150px]" value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly></Textarea>
+                        <Textarea className={`mt-4 grow font-mono h-[150px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly></Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </ResizablePanel>

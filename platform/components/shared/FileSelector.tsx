@@ -14,8 +14,8 @@ import CodeMirrorMerge from 'react-codemirror-merge';
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
-const FileSelector = ( 
-    { filePath, setFilePath, file, setFile, hideMerge, oldFile, setOldFile, repoName } 
+const FileSelector = (
+    { filePath, setFilePath, file, setFile, hideMerge, oldFile, setOldFile, repoName }
     : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, oldFile: string, setOldFile: any, repoName: string } ) => {
     const [open, setOpen] = useState(false)
     const [files, setFiles] = useState([])
@@ -77,11 +77,14 @@ const FileSelector = (
                 </Command>
             </PopoverContent>
         </Popover>
-        <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} height="380px" hidden={!hideMerge}/>
-        <CodeMirrorMerge theme={vscodeDark} hidden={hideMerge} style={{overflow:'auto'}}>
-            <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
-            <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
-        </CodeMirrorMerge>
+        {hideMerge ? (
+            <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}}/>
+        ): (
+            <CodeMirrorMerge theme={vscodeDark} style={{overflow:'auto'}}>
+                <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
+                <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
+            </CodeMirrorMerge>
+        )}
         </>
     )
 };
