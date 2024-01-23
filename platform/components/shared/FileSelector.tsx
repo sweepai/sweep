@@ -11,6 +11,18 @@ import { javascript } from "@codemirror/lang-javascript";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import CodeMirrorMerge from 'react-codemirror-merge';
 
+const extensions = [
+    EditorView.theme({
+        // '.cm-gutterElement': {
+        //     backgroundColor: '#1A1A1C',
+        // },
+        '.cm-content': {
+            backgroundColor: '#0E0E10'
+        },
+    }),
+];
+
+
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
@@ -22,8 +34,8 @@ const FileSelector = (
     const [value, setValue] = useState("console.log('hello world!');");
     const placeholderText = "Your code will be displayed here once you select a Repository and file."
     const onChange = useCallback((val, viewUpdate) => {
-        console.log('val:', val);
         setValue(val);
+        setFile(val)
     }, []);
 
     useEffect(() => {
@@ -79,7 +91,7 @@ const FileSelector = (
             </PopoverContent>
         </Popover>
         {hideMerge ? (
-            <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}} placeholder={placeholderText}/>
+            <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping, extensions]} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}} placeholder={placeholderText}/>
         ): (
             <CodeMirrorMerge theme={vscodeDark} style={{overflow:'auto'}}>
                 <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
