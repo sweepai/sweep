@@ -51,7 +51,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     const getFileChanges = async () => {
         setIsLoading(true)
         const url = "/api/openai/edit"
-        file = file.replace(/\\n/g, "\\\\n");
+        file = file.replace(/\\n/g, "\\n");
         console.log("file after parse", file)
         const body = JSON.stringify({
             fileContents: file,
