@@ -23,7 +23,7 @@ const DashboardDisplay = () => {
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
                         <FileSelector filePath={filePath} setFilePath={setFilePath}
-                        file={file} setFile={setFile} hideMerge={hideMerge}
+                        file={file} setFile={setFile} hideMerge={hideMerge} setHideMerge={setHideMerge}
                         oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
