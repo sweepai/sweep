@@ -187,3 +187,5 @@ sweepai/sandbox/sandbox.venv
 benchmark
 data
 metals.*
+
+certs

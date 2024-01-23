@@ -17,7 +17,7 @@ Homepage = "https://sweep.dev"
 [tool.poetry.dependencies]
 python = "^3.10"
 PyGithub = "1.58.2"
-loguru = "^0.6.0"
+loguru = "^0.7.2"
 requests = "^2.28.2"
 urllib3 = "<2.0.0"
 config-path = "^1.0.3"
@@ -74,6 +74,7 @@ markdown = "^3.5.1"
 py-spy = "^0.3.14"
 prometheus-fastapi-instrumentator = "^6.1.0"
 rich = "^13.7.0"
+hatchet-sdk = "^0.5.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.17.4"
