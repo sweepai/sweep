@@ -15,6 +15,12 @@ const openai = new OpenAI({
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add edge cases for a unit test. When you write code, the code works on the first try, is syntactically perfect and is fully implemented. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully implemented, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies.
 
 You can append to the file by responding in the following format:
+<code_block_to_extend>
+\`\`\`
+The code section to add the additional unit tests right after. Ensure that you have valid indentation.
+\`\`\`
+</code_block_to_extend>
+
 <additional_unit_tests>
 \`\`\`
 The additional unit tests that cover the edge cases. Ensure that you have valid indentation.
