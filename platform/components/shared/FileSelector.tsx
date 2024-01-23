@@ -60,14 +60,6 @@ const FileSelector = (
         })()
     }, [repoName])
 
-    // useEffect(() => {
-    //     const timer = setInterval(async () => {
-    //         const response = await getFile(repoName, filePath)
-    //         setFile(response.contents)
-    //     }, 1000)
-    //     return () => clearInterval(timer)
-    // }, [repoName, filePath, setFile])
-
     const ext = filePath.split(".").pop() || "js"
     const languageExtension = getLanguage(ext)
     const extensions = [languageExtension, EditorView.lineWrapping]
@@ -98,19 +90,6 @@ const FileSelector = (
                     disabled={isLoading || filePath === "" || file === ""}
                 >
                     <FaSave /> &nbsp;&nbsp;Save
-                </Button>
-                <Button
-                    variant="secondary"
-                    onClick={async () => {
-                        setIsLoading(true)
-                        const response = await getFile(repoName, filePath)
-                        setFile(response.contents)
-                        toast.success("File synced from storage!")
-                        setIsLoading(false)
-                    }}
-                    disabled={isLoading || filePath === "" || file === ""}
-                >
-                    <FaArrowsRotate />&nbsp;&nbsp;Refresh
                 </Button>
             </div>
             <PopoverContent className="w-full p-0 text-left">

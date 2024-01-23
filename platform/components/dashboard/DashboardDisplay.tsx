@@ -19,6 +19,11 @@ const DashboardDisplay = () => {
     console.log("file", file)
     return (
         <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
+            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
+            file={file} setFile={setFile} hideMerge={hideMerge}
+            setHideMerge={setHideMerge} oldFile={oldFile} setOldFile={setOldFile}
+            repoName={repoName} setRepoName={setRepoName}></DashboardActions>
+            <ResizableHandle withHandle/>
             <ResizablePanel defaultSize={75}>
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
@@ -37,12 +42,7 @@ const DashboardDisplay = () => {
                         <Textarea className={`mt-4 grow font-mono h-[200px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly></Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>
-            </ResizablePanel>
-            <ResizableHandle withHandle/>
-            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
-            file={file} setFile={setFile} hideMerge={hideMerge}
-            setHideMerge={setHideMerge} oldFile={oldFile} setOldFile={setOldFile}
-            repoName={repoName} setRepoName={setRepoName}></DashboardActions>
+            </ResizablePanel>      
         </ResizablePanelGroup>
     );
 };
