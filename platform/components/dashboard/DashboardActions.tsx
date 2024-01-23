@@ -21,7 +21,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
     useEffect(() => {
         (async () => {
-            const params = new URLSearchParams({repo: "/home/kevin/sweep"}).toString();
+            const params = new URLSearchParams({repo: repoName}).toString();
             const response = await fetch("/api/branch?" + params)
             const object = await response.json()
             setBranch(object.branch)
