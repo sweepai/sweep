@@ -1,6 +1,6 @@
-export const getFiles = async (repoName: string) => {
+export const getFiles = async (repoName: string, limit: number = 500) => {
     const url = "/api/files/list";
-    const body = {repo: repoName}
+    const body = {repo: repoName, limit}
     const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify(body)
