@@ -11,35 +11,11 @@ import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { javascript } from "@codemirror/lang-javascript";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 
-// const frameworks = [
-//     {
-//       value: "next.js",
-//       label: "Next.js",
-//     },
-//     {
-//       value: "sveltekit",
-//       label: "SvelteKit",
-//     },
-//     {
-//       value: "nuxt.js",
-//       label: "Nuxt.js",
-//     },
-//     {
-//       value: "remix",
-//       label: "Remix",
-//     },
-//     {
-//       value: "astro",
-//       label: "Astro",
-//     },
-// ]
-
-const FileSelector = () => {
+const FileSelector = ( { filePath, setFilePath } : { filePath: string, setFilePath: any } ) => {
     const [open, setOpen] = useState(false)
-    const [value, setValue] = useState("")
     const [files, setFiles] = useState([])
     const [file, setFile] = useState("")
-    const [value1, setValue1] = React.useState("console.log('hello world!');");
+    const [value, setValue] = React.useState("console.log('hello world!');");
     const onChange = React.useCallback((val, viewUpdate) => {
         console.log('val:', val);
         setValue(val);
@@ -61,30 +37,30 @@ const FileSelector = () => {
                     role="combobox"
                     aria-expanded={open}
                     className="w-full justify-between">
-                    {value ? files.find((framework) => framework.value === value)?.label : "Select framework..."}
+                    {filePath ? files.find((file) => file.value === filePath)?.label : "Select file..."}
                     <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-full p-0 text-left">
                 <Command>
-                    <CommandInput placeholder="Search framework..." className="h-9" />
-                    <CommandEmpty>No framework found.</CommandEmpty>
+                    <CommandInput placeholder="Search file..." className="h-9" />
+                    <CommandEmpty>No file found.</CommandEmpty>
                     <CommandGroup>
-                        {files.map((framework) => (
+                        {files.map((file) => (
                             <CommandItem
-                                key={framework.value}
-                                value={framework.value}
+                                key={file.value}
+                                value={file.value}
                                 onSelect={async (currentValue) => {
-                                    setValue(currentValue === value ? "" : currentValue)
+                                    setFilePath(currentValue === filePath ? "" : currentValue)
                                     setOpen(false)
-                                    setFile((await getFile(framework.value)).contents)
+                                    setFile((await getFile(file.value)).contents)
                                 }}
                             >
-                            {framework.label}
+                            {file.label}
                                 <CheckIcon
                                     className={cn(
                                         "ml-auto h-4 w-4",
-                                        value === framework.value ? "opacity-100" : "opacity-0"
+                                        filePath === file.value ? "opacity-100" : "opacity-0"
                                     )}
                                 />
                             </CommandItem>
