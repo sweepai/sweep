@@ -35,23 +35,26 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         setInstructions(event.target.value);
     }
     const runScriptWrapper = async () => {
-        const response = await runScript(repoName, filePath, script, file);
-        console.log("run script response", response)
-        const { code } = response;
-        let scriptOutput = response.stdout + "\n" + response.stderr
-        if (code != 0) {
-            scriptOutput = `Error (exit code ${code}):\n` + scriptOutput
-        }
-        if (response.code != 0) {
-            toast.error("An Error Occured", {
-                description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
-            })
-        } else {
-            toast.success("The script ran successfully", {
-                description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
-            })
-        }
-        setScriptOutput(scriptOutput)
+        setFile(async (file: string) => {
+            const response = await runScript(repoName, filePath, script, file);
+            console.log("run script response", response)
+            const { code } = response;
+            let scriptOutput = response.stdout + "\n" + response.stderr
+            if (code != 0) {
+                scriptOutput = `Error (exit code ${code}):\n` + scriptOutput
+            }
+            if (response.code != 0) {
+                toast.error("An Error Occured", {
+                    description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
+                })
+            } else {
+                toast.success("The script ran successfully", {
+                    description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
+                })
+            }
+            setScriptOutput(scriptOutput)
+            return file
+        })
     }
     const getFileChanges = async () => {
         setIsLoading(true)

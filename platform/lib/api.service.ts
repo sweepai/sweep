@@ -20,21 +20,37 @@ export const getFile = async (repoName: string, filePath: string) => {
     return object
 }
 
-export const runScript = async (repo: string, filePath: string, script: string, file: string) => {
+const runSingleScript = async (repo: string, filePath: string, script: string) => {
     const url = "/api/run";
     const body = {
         repo,
         filePath,
         script,
-        file
     }
-    console.log("body!", body)
     const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify(body)
     })
     const object = await response.json()
-    console.log("ran script!", object)
+    return object
+}
+
+var escapeShell = (cmd: string) => {
+    return '"'+cmd.replace(/(["'$`\\])/g,'\\$1')+'"';
+  };
+
+
+export const runScript = async (repo: string, filePath: string, script: string, file?: string) => {
+    // sorry for the mess
+    if (!file) {
+        return runSingleScript(repo, filePath, script)
+    }
+    const { stdout: oldFile } = await runSingleScript(repo, filePath, `cat $FILE_PATH`)
+    await runSingleScript(repo, filePath, `echo "${escapeShell(file)}" > $FILE_PATH`)
+    const { stdout: newOldFile } = await runSingleScript(repo, filePath, `cat $FILE_PATH`)
+    console.log(newOldFile)
+    const object = await runSingleScript(repo, filePath, script)
+    await runSingleScript(repo, filePath, `echo "${escapeShell(oldFile)}" > $FILE_PATH`)
     return object
 }
 
