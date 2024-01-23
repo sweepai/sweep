@@ -4,9 +4,9 @@ import { ResizablePanel } from "@/components/ui/resizable";
 import { Textarea } from "@/components/ui/textarea";
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import getFiles, { getFile, runScript } from "@/lib/api.service";
+import getFiles, { getFile, runScript, writeFile } from "@/lib/api.service";
 import { toast } from "sonner";
-import { FaArrowRotateLeft, FaCheck, FaPen, FaPlay } from "react-icons/fa6";
+import { FaCheck, FaPen, FaPlay } from "react-icons/fa6";
 import { useLocalStorage } from 'usehooks-ts';
 import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
@@ -88,7 +88,10 @@ except Exception as e:
         })
         const object = await response.json();
         setIsLoading(false)
-        
+        if (!object.newFileContents || object.newFileContents === file) {
+            toast.error("An error occured while generating your code.", {description: "Please try again"})
+            return
+        }
         setFile(object.newFileContents)
         setHideMerge(false)
         const changeCount = Math.abs(oldFile.split("\n").length - object.newFileContents.split("\n").length)
@@ -176,19 +179,21 @@ except Exception as e:
                             setIsLoading(false)
                             setHideMerge(true)
                         }}
-                        disabled={isLoading || filePath === "" || file === ""}
+                        disabled={isLoading}
                         >
                         <FaArrowsRotate />&nbsp;&nbsp;Refresh
                     </Button>
                     <Button
                         className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
-                        onClick={() => {
+                        onClick={async () => {
                             console.log("oldFile", oldFile)
                             setFile((file: string) => {
                                 setOldFile(file)
                                 return file
                             })
                             setHideMerge(true)
+                            await writeFile(repoName, filePath, file)
+                            toast.success("Succesfully saved new file!")
                         }}
                         disabled={isLoading || hideMerge}
                     >

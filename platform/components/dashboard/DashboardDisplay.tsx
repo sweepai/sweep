@@ -5,7 +5,6 @@ import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
-import { Button } from "../ui/button";
 
 
 const DashboardDisplay = () => {
@@ -18,7 +17,9 @@ const DashboardDisplay = () => {
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
     console.log("file", file)
     return (
-        <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
+        <>
+        <h1 className="font-bold text-xl">Sweep Unit Test Generator</h1>
+        <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
             file={file} setFile={setFile} hideMerge={hideMerge}
             setHideMerge={setHideMerge} oldFile={oldFile} setOldFile={setOldFile}
@@ -44,6 +45,7 @@ const DashboardDisplay = () => {
                 </ResizablePanelGroup>
             </ResizablePanel>      
         </ResizablePanelGroup>
+        </>
     );
 };
 

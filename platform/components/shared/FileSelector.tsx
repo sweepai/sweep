@@ -16,7 +16,6 @@ import { html } from "@codemirror/lang-html";
 
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import CodeMirrorMerge from 'react-codemirror-merge';
-import { FaArrowsRotate } from "react-icons/fa6";
 import { toast } from "sonner";
 
 const getLanguage = (ext: string) => {

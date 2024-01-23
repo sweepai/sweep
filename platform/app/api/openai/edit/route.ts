@@ -14,11 +14,11 @@ const openai = new OpenAI({
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add a unit test to cover an edge case for the testing suite. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. When writing tests, you will make up test data as needed. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more.
 
-You MUST append a unit test by responding in the following format:
+You MUST append a unit test by responding in the following format with XML tags:
 
 <code_block_to_extend>
 \`\`\`
-The code section to append the additional unit tests to. Ensure the indentation is valid.
+The code section to append the additional unit tests to. Max 10 lines. Ensure the indentation is valid.
 \`\`\`
 </code_block_to_extend>
 
