@@ -26,7 +26,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
             const object = await response.json()
             setBranch(object.branch)
         })()
-    }, [])
+    }, [repoName])
 
     const updateScript = (event: any) => {
         setScript(event.target.value);
@@ -49,7 +49,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                     })
                 } else {
                     toast.success("The script ran successfully", {
-                        description: [<div key="stdout">{response.stdout.slice(0, 800)}</div>, <div className="text-red-500" key="stderr">{response.stderr.slice(0, 800)}</div>,]
+                        description: [<div key="stdout">{response.stdout.slice(0, 800)}</div>, <div key="stderr">{response.stderr.slice(0, 800)}</div>,]
                     })
                 }
                 setScriptOutput(scriptOutput)
@@ -58,6 +58,14 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         })
     }
     const getFileChanges = async () => {
+        if (!hideMerge) {
+            setOldFile((oldFile: string) => {
+                setFile(oldFile)
+                return oldFile
+            })
+            setHideMerge(true)
+        }
+
         setIsLoading(true)
         const url = "/api/openai/edit"
         file = file.replace(/\\n/g, "\\\\n");

@@ -54,6 +54,7 @@ export const runScript = async (repo: string, filePath: string, script: string, 
         return runSingleScript(repo, filePath, script)
     }
     const {contents: oldContents} = await getFile(repo, filePath)
+    console.log(oldContents)
     await writeFile(repo, filePath, file)
     const object = await runSingleScript(repo, filePath, script)
     await writeFile(repo, filePath, oldContents)
