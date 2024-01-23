@@ -12,19 +12,19 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY, // This is the default and can be omitted
 });
 
-const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add a unit test to cover an edge case for the testing suite. When you write code, the code works on the first try, is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. When writing tests, you will make up test data as needed. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more.
+const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add a unit test to cover an edge case for the testing suite. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. When writing tests, you will make up test data as needed. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more.
 
-You must modify the existing file by responding in the following format:
+You MUST append a unit test by responding in the following format:
 
 <code_block_to_extend>
 \`\`\`
-The code section to add the additional unit tests right after. Ensure that you have valid indentation.
+The code section to append the additional unit tests to. Ensure the indentation is valid.
 \`\`\`
 </code_block_to_extend>
 
 <additional_unit_test>
 \`\`\`
-The additional unit test that covers the edge case. Ensure that you have valid indentation.
+The additional unit test that covers the edge case. Ensure the indentation is valid.
 \`\`\`
 </additional_unit_test>`
 
@@ -62,7 +62,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
         additionalUnitTest = additionalUnitTest.split('\n').slice(2, -2).join('\n');
         console.log(codeBlockToExtend)
         console.log(additionalUnitTest)
-        return fileContents.replace(codeBlockToExtend, codeBlockToExtend + '\n' + additionalUnitTest);
+        return fileContents.replace(codeBlockToExtend, codeBlockToExtend + '\n\n' + additionalUnitTest);
     } else {
         return "";
     }

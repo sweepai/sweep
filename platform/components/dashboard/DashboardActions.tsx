@@ -61,23 +61,26 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         setIsLoading(true)
         const url = "/api/openai/edit"
         file = file.replace(/\\n/g, "\\n");
-        console.log("file after parse", file)
         const body = JSON.stringify({
             fileContents: file,
             prompt: instructions
         })
-        console.log("body after json strinigy", body)
         const response = await fetch(url, {
             method: "POST",
             body: body
         })
         const object = await response.json();
         setIsLoading(false)
-        toast.success("Successfully generated tests!")
+        
         file = object.newFileContents;
         setFile(file)
         setHideMerge(false)
-        runScriptWrapper()
+        const changeCount = Math.abs(oldFile.split("\n").length - file.split("\n").length)
+        toast.success(`Successfully generated tests!`,
+        {
+            description: [<div key="stdout">{`There were ${changeCount} line changes made`}</div>,]
+        } )
+        // runScriptWrapper()
     }
 
     return (

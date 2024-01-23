@@ -31,11 +31,10 @@ const FileSelector = (
     : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, oldFile: string, setOldFile: any, repoName: string } ) => {
     const [open, setOpen] = useState(false)
     const [files, setFiles] = useState([])
-    const [value, setValue] = useState("console.log('hello world!');");
     const placeholderText = "Your code will be displayed here once you select a Repository and file."
     const onChange = useCallback((val, viewUpdate) => {
-        setValue(val);
-        setFile(val)
+        console.log("ON CHANGE RUNS", viewUpdate)
+        setFile(val);
     }, []);
 
     useEffect(() => {
@@ -95,7 +94,7 @@ const FileSelector = (
         ): (
             <CodeMirrorMerge theme={vscodeDark} style={{overflow:'auto'}}>
                 <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
-                <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
+                <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]}/>
             </CodeMirrorMerge>
         )}
         </>
