@@ -8,10 +8,11 @@ import { runScript } from "@/lib/api.service";
 import { toast } from "sonner";
   
 
-const DashboardDisplay = ({ filePath, setScriptOutput } : { filePath: string, setScriptOutput: any }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file } : { filePath: string, setScriptOutput: any, file: string }) => {
     const [repoName, setRepoName] = useState('');
     const [script, setScript] = useState('');
     const [instructions, setInstructions] = useState('');
+    const [isLoading, setIsLoading] = useState(false)
 
     const updateRepoName = (event: any) => {
         setRepoName(event.target.value);
@@ -46,8 +47,26 @@ const DashboardDisplay = ({ filePath, setScriptOutput } : { filePath: string, se
                 <Textarea id="instructions-input" placeholder="Edge cases for Sweep to cover." value={instructions} className="grow" onChange={updateInstructons}></Textarea>
                 <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full" value={script} onChange={updateScript}></Textarea>
                 <div className="flex flex-row justify-center">
-                    <Button className="mt-4 mr-4" variant="secondary">Generate tests</Button>
                     <Button className="mt-4" variant="secondary" onClick={runScriptWrapper}>Run tests</Button>
+                    <Button 
+                            className="mt-4 mr-4" 
+                            variant="secondary" 
+                            onClick={async () => {
+                            setIsLoading(true)
+                            const response = await fetch("/api/openai/edit", {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    fileContents: file,
+                                    prompt: instructions
+                                })
+                            })
+                            const object = await response.json();
+                            console.log(object)
+                            setIsLoading(false)
+                            toast("Completed succesfully")
+                        }}
+                        disabled={isLoading}
+                    >Generate tests</Button>
                 </div>
             </div>
         </ResizablePanel>

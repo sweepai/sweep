@@ -12,7 +12,7 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY, // This is the default and can be omitted
 });
 
-const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add edge cases for a unit test. When you write code, the code works on the first try, is syntactically perfect and is fully implemented. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully implemented, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies.
+const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add a unit test to cover an edge case for the testing suite. When you write code, the code works on the first try, is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes and every function. When writing tests, you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies. You are to follow the instructions exactly and do nothing more.
 
 You can append to the file by responding in the following format:
 <code_block_to_extend>
@@ -21,17 +21,21 @@ The code section to add the additional unit tests right after. Ensure that you h
 \`\`\`
 </code_block_to_extend>
 
-<additional_unit_tests>
+<additional_unit_test>
 \`\`\`
-The additional unit tests that cover the edge cases. Ensure that you have valid indentation.
+The additional unit test that covers the edge case. Ensure that you have valid indentation.
 \`\`\`
-</additional_unit_tests>`
+</additional_unit_test>`
 
-const userMessagePrompt = `Your job is to code edge cases to the following file to complete the user's request:
+const userMessagePrompt = `Your job is to add a unit test to the following file to complete the user's request:
+<user_request>
 {prompt}
+</user_request>
 
 Here is the file's current contents:
-{fileContents}`
+<file_contents>
+{fileContents}
+</file_contents>`
 
 const unitTest = `import unittest
 from unittest.mock import patch
@@ -116,7 +120,8 @@ class TestDiff(unittest.TestCase):
         self.assertTrue(is_markdown(filename))
 `
 
-const regex = /<additional_unit_tests>([\s\S]*)<\/additional_unit_tests>/g
+const codeBlockToExtendRegex = /<code_block_to_extend>([\s\S]*)<\/code_block_to_extend>/g
+const additionalUnitTestRegex = /<additional_unit_test>([\s\S]*)$/g
 
 const callOpenAI = async (prompt: string, fileContents: string) => {
     const params: OpenAI.Chat.ChatCompletionCreateParams = {
@@ -128,10 +133,17 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     };
     const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
     const response = chatCompletion.choices[0].message.content!;
-    const match = response.match(regex);
-    if (match) {
-        const result = match[0];
-        return result.split('\n').slice(2, -2).join('\n');
+    console.log(response)
+    const additionalUnitTestMatch = response.match(additionalUnitTestRegex)!;
+    const codeBlockToExtendMatch = response.match(codeBlockToExtendRegex)!;
+    if (additionalUnitTestMatch && codeBlockToExtendMatch) {
+        let codeBlockToExtend = codeBlockToExtendMatch[0];
+        codeBlockToExtend = codeBlockToExtend.split('\n').slice(2, -2).join('\n');
+        let additionalUnitTest = additionalUnitTestMatch[0];
+        additionalUnitTest = additionalUnitTest.split('\n').slice(2, -2).join('\n');
+        console.log(codeBlockToExtend)
+        console.log(additionalUnitTest)
+        return fileContents.replace(codeBlockToExtend, codeBlockToExtend + '\n' + additionalUnitTest);
     } else {
         return null;
     }
@@ -139,7 +151,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
 
 export async function POST(request: NextRequest) {
     const body = await request.json() as Body;
-    const response = await callOpenAI(body.prompt, body.fileContents);
+    const response = await callOpenAI(body.prompt, unitTest);
     console.log(response)
 
     return Response.json({

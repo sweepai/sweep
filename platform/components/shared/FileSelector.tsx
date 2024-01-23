@@ -11,10 +11,10 @@ import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { javascript } from "@codemirror/lang-javascript";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 
-const FileSelector = ( { filePath, setFilePath } : { filePath: string, setFilePath: any } ) => {
+const FileSelector = ( { filePath, setFilePath, file, setFile } : { filePath: string, setFilePath: any, file: string, setFile: any } ) => {
     const [open, setOpen] = useState(false)
     const [files, setFiles] = useState([])
-    const [file, setFile] = useState("")
+    
     const [value, setValue] = React.useState("console.log('hello world!');");
     const onChange = React.useCallback((val, viewUpdate) => {
         console.log('val:', val);
