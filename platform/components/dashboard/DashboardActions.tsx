@@ -71,7 +71,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, repoName, 
     return (
         <ResizablePanel defaultSize={33} className="p-6 h-[80vh]">
             <div className="flex flex-col h-full">
-                <Input id="name" placeholder="Enter Repository Name" value={repoName} className="col-span-4 w-full" onChange={updateRepoName}/>
+                <Input id="name" placeholder="Enter Repository Name" value={repoName} className="col-span-4 w-full" onBlur={updateRepoName}/>
                 <Input className="mb-4" value={branch}/>
                 <Textarea id="instructions-input" placeholder="Edge cases for Sweep to cover." value={instructions} className="grow" onChange={updateInstructons}></Textarea>
                 <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full" value={script} onChange={updateScript}></Textarea>
