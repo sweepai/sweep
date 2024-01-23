@@ -8,18 +8,19 @@ import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import getFiles, { getFile } from "@/lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { javascript } from "@codemirror/lang-javascript";
+import { python } from "@codemirror/lang-python";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import CodeMirrorMerge from 'react-codemirror-merge';
 
 const extensions = [
-    EditorView.theme({
+    // EditorView.theme({
         // '.cm-gutterElement': {
         //     backgroundColor: '#1A1A1C',
         // },
-        '.cm-content': {
-            backgroundColor: '#0E0E10'
-        },
-    }),
+        // '.cm-content': {
+        //     backgroundColor: '#0E0E10'
+        // },
+    // }),
 ];
 
 
@@ -91,7 +92,7 @@ const FileSelector = (
             </PopoverContent>
         </Popover>
         {hideMerge ? (
-            <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping, extensions]} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}} placeholder={placeholderText}/>
+            <CodeMirror value={file} extensions={[javascript({ jsx: true }, python({})), EditorView.lineWrapping, extensions]} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}} placeholder={placeholderText}/>
         ): (
             <CodeMirrorMerge theme={vscodeDark} style={{overflow:'auto'}}>
                 <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
