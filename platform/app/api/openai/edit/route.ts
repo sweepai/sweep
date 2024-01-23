@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import OpenAI from 'openai';
 
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const response = await callOpenAI(body.prompt, body.fileContents);
     console.log(response)
 
-    return Response.json({
+    return NextResponse.json({
         newFileContents: response
     })
 }

@@ -59,11 +59,11 @@ export async function POST(request: NextRequest) {
     try {
         const stats = await fs.stat(repo)
         if (!stats.isDirectory()) {
-            return new Response("Not a directory", { status: 400 });
+            return new NextResponse("Not a directory", { status: 400 });
         }
         const nonBinaryFiles = await listNonBinaryFilesBFS(repo);
-        return new Response(JSON.stringify(nonBinaryFiles), { status: 200 });
+        return new NextResponse(JSON.stringify(nonBinaryFiles), { status: 200 });
     } catch (error: any) {
-        return new Response(error.message, { status: 500 });
+        return new NextResponse(error.message, { status: 500 });
     }
 }

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -20,14 +20,14 @@ export async function GET(request: NextRequest) {
         const fullPath = path.join(dataDir, filePath);
         await fs.access(fullPath)
         const contents = await fs.readFile(fullPath, {encoding: "utf-8"});
-        return Response.json({
+        return NextResponse.json({
             contents,
             success: true,
             message: 'File updated successfully'
         });
     } catch (error: any) {
         console.error(error);
-        return Response.json({
+        return NextResponse.json({
             success: false,
             message: 'File update failed with error ' + error.message
         });
@@ -48,13 +48,13 @@ export async function POST(request: NextRequest) {
         const fullPath = path.join(dataDir, filePath);
         await fs.access(fullPath)
         await fs.writeFile(fullPath, newContent);
-        return Response.json({
+        return NextResponse.json({
             success: true,
             message: 'File updated successfully'
         });
     } catch (error: any) {
         console.error(error);
-        return Response.json({
+        return NextResponse.json({
             success: false,
             message: 'File update failed with error ' + error.message
         });
