@@ -21,7 +21,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
     useEffect(() => {
         (async () => {
-            const params = new URLSearchParams({repo: "/home/kevin/sweep"}).toString();
+            const params = new URLSearchParams({repo: repoName}).toString();
             const response = await fetch("/api/branch?" + params)
             const object = await response.json()
             setBranch(object.branch)
@@ -35,23 +35,25 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         setInstructions(event.target.value);
     }
     const runScriptWrapper = async () => {
-        setFile(async (file: string) => {
-            const response = await runScript(repoName, filePath, script, file);
-            const { code } = response;
-            let scriptOutput = response.stdout + "\n" + response.stderr
-            if (code != 0) {
-                scriptOutput = `Error (exit code ${code}):\n` + scriptOutput
-            }
-            if (response.code != 0) {
-                toast.error("An Error Occured", {
-                    description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
-                })
-            } else {
-                toast.success("The script ran successfully", {
-                    description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
-                })
-            }
-            setScriptOutput(scriptOutput)
+        setFile((file: string) => {
+            (async () => {
+                const response = await runScript(repoName, filePath, script, file);
+                const { code } = response;
+                let scriptOutput = response.stdout + "\n" + response.stderr
+                if (code != 0) {
+                    scriptOutput = `Error (exit code ${code}):\n` + scriptOutput
+                }
+                if (response.code != 0) {
+                    toast.error("An Error Occured", {
+                        description: [<div key="stdout">{response.stdout.slice(0, 800)}</div>, <div className="text-red-500" key="stderr">{response.stderr.slice(0, 800)}</div>,]
+                    })
+                } else {
+                    toast.success("The script ran successfully", {
+                        description: [<div key="stdout">{response.stdout.slice(0, 800)}</div>, <div className="text-red-500" key="stderr">{response.stderr.slice(0, 800)}</div>,]
+                    })
+                }
+                setScriptOutput(scriptOutput)
+            })()
             return file
         })
     }
