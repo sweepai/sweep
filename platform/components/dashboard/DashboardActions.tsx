@@ -36,7 +36,6 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     }
     const runScriptWrapper = async (event: any) => {
         const response = await runScript(repoName, filePath, script);
-        console.log("run script response", response)
         let scriptOutput = response.stdout + "\n" + response.stderr
         if (response.code != 0) {
             toast.error("An Error Occured", {
@@ -52,19 +51,21 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     const getFileChanges = async () => {
         setIsLoading(true)
         const url = "/api/openai/edit"
+        file = file.replace(/\\n/g, "\\\\n");
+        console.log("file after parse", file)
+        const body = JSON.stringify({
+            fileContents: file,
+            prompt: instructions
+        })
+        console.log("body after json strinigy", body)
         const response = await fetch(url, {
             method: "POST",
-            body: JSON.stringify({
-                fileContents: file,
-                prompt: instructions
-            })
+            body: body
         })
         const object = await response.json();
-        console.log(object)
         setIsLoading(false)
         toast.success("Successfully generated tests!")
         file = object.newFileContents;
-        console.log("file is", file)
         setFile(file)
         setHideMerge(false)
     }

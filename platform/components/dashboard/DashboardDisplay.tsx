@@ -5,6 +5,7 @@ import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
+import { Button } from "../ui/button";
 
 
 const DashboardDisplay = () => {
@@ -13,8 +14,9 @@ const DashboardDisplay = () => {
     const [branch, setBranch] = useLocalStorage("branch", "");
     const [filePath, setFilePath] = useLocalStorage("filePath", "")
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
-    const [file, setFile] = useLocalStorage("file", "")
+    const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
+    console.log("file", file)
     return (
         <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
             <ResizablePanel defaultSize={75}>
@@ -29,6 +31,9 @@ const DashboardDisplay = () => {
                         <Label className="mb-2">
                             Test Output
                         </Label>
+                        <Button onClick={() => {
+                            setHideMerge(!hideMerge)
+                        }}>Toggle</Button>
                         <Textarea className="mt-4 grow font-mono h-[150px]" value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly></Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>

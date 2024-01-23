@@ -1,6 +1,6 @@
 "use client"
 import { cn } from "@/lib/utils";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
@@ -20,6 +20,7 @@ const FileSelector = (
     const [open, setOpen] = useState(false)
     const [files, setFiles] = useState([])
     const [value, setValue] = useState("console.log('hello world!');");
+    const placeholderText = "Your code will be displayed here once you select a Repository and file."
     const onChange = useCallback((val, viewUpdate) => {
         console.log('val:', val);
         setValue(val);
@@ -77,7 +78,9 @@ const FileSelector = (
                 </Command>
             </PopoverContent>
         </Popover>
-        <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} height="380px" hidden={!hideMerge}/>
+        <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} 
+        onChange={onChange} theme={vscodeDark} height="380px" hidden={!hideMerge}
+        placeholder={placeholderText}/>
         <CodeMirrorMerge theme={vscodeDark} hidden={hideMerge} style={{overflow:'auto'}}>
             <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
             <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
