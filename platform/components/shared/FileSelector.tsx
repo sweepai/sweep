@@ -1,6 +1,6 @@
 "use client"
 import { cn } from "@/lib/utils";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
@@ -16,24 +16,25 @@ const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
 const FileSelector = ( 
-    { filePath, setFilePath, file, setFile, hideMerge, oldFile, setOldFile } 
-    : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, oldFile: string, setOldFile: any } ) => {
+    { filePath, setFilePath, file, setFile, hideMerge, oldFile, setOldFile, repoName } 
+    : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, oldFile: string, setOldFile: any, repoName: string } ) => {
     const [open, setOpen] = useState(false)
     const [files, setFiles] = useState([])
-    
-    const [value, setValue] = React.useState("console.log('hello world!');");
-    const onChange = React.useCallback((val, viewUpdate) => {
+
+    const [value, setValue] = useState("console.log('hello world!');");
+    const onChange = useCallback((val, viewUpdate) => {
         console.log('val:', val);
         setValue(val);
     }, []);
 
     useEffect(() => {
         (async () => {
-            let newFiles = await getFiles()
+            let newFiles = await getFiles(repoName)
+            console.log(newFiles)
             newFiles = newFiles.map((file: any) => {return {value: file, label: file}})
             setFiles(newFiles)
         })()
-    }, [])
+    }, [repoName])
     return (
         <>
         <Popover open={open} onOpenChange={setOpen}>
@@ -59,7 +60,7 @@ const FileSelector = (
                                 onSelect={async (currentValue) => {
                                     setFilePath(currentValue === filePath ? "" : currentValue)
                                     setOpen(false)
-                                    const contents = (await getFile(file.value)).contents
+                                    const contents = (await getFile(repoName, file.value)).contents
                                     setFile(contents)
                                     setOldFile(contents)
                                 }}

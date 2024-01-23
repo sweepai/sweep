@@ -1,26 +1,19 @@
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Textarea } from "@/components/ui/textarea";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
-import { setFlagsFromString } from "v8";
-  
+import { useLocalStorage } from "usehooks-ts";
+
 
 const DashboardDisplay = () => {
-    const [filePath, setFilePath] = useState("")
-    const [scriptOutput, setScriptOutput] = useState("")
-    const [file, setFile] = useState("")
-    const [oldFile, setOldFile] = useState("")
-    const [hideMerge, setHideMerge] = useState(true)
-    const [branch, setBranch] = useState("");
-    useEffect(() => {
-        (async () => {
-            const params = new URLSearchParams({repo: "/home/kevin/sweep"}).toString();
-            const response = await fetch("/api/branch?" + params)
-            const object = await response.json()
-            setBranch(object.branch)
-        })()
-    }, [])
+    const [oldFile, setOldFile] = useLocalStorage("oldFile", "")
+    const [hideMerge, setHideMerge] = useLocalStorage("hideMerge", true)
+    const [branch, setBranch] = useLocalStorage("branch", "");
+    const [filePath, setFilePath] = useLocalStorage("filePath", "")
+    const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
+    const [file, setFile] = useLocalStorage("file", "")
+    const [repoName, setRepoName] = useLocalStorage("repoName", '');
     return (
         <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
             <ResizablePanel defaultSize={67}>
@@ -28,7 +21,7 @@ const DashboardDisplay = () => {
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
                         <FileSelector filePath={filePath} setFilePath={setFilePath} 
                         file={file} setFile={setFile} hideMerge={hideMerge} 
-                        oldFile={oldFile} setOldFile={setOldFile}></FileSelector>
+                        oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel defaultSize={25}>
@@ -39,7 +32,8 @@ const DashboardDisplay = () => {
             <ResizableHandle withHandle/>
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} 
             file={file} setFile={setFile} 
-            setHideMerge={setHideMerge} setOldFile={setOldFile}></DashboardActions>
+            setHideMerge={setHideMerge} setOldFile={setOldFile}
+            repoName={repoName} setRepoName={setRepoName}></DashboardActions>
         </ResizablePanelGroup>
     );
 };
