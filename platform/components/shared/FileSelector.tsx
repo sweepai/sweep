@@ -7,21 +7,29 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import getFiles, { getFile } from "@/lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
+
 import { javascript } from "@codemirror/lang-javascript";
+import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
+import { html } from "@codemirror/lang-html";
+import { markdown } from "@codemirror/lang-markdown";
+
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import CodeMirrorMerge from 'react-codemirror-merge';
 
-const extensions = [
-    // EditorView.theme({
-        // '.cm-gutterElement': {
-        //     backgroundColor: '#1A1A1C',
-        // },
-        // '.cm-content': {
-        //     backgroundColor: '#0E0E10'
-        // },
-    // }),
-];
+const languageMap: {[key: string]: any } = {
+    js: javascript(),
+    jsx: javascript({ jsx: true }),
+    ts: javascript({ typescript: true }),
+    tsx: javascript({ typescript: true, jsx: true }),
+    html: html(),
+    ejs: html(),
+    erb: html(),
+    py: python(),
+    md: markdown(),
+    txt: markdown(),
+    kt: java(),
+}
 
 
 const Original = CodeMirrorMerge.Original;
@@ -47,6 +55,10 @@ const FileSelector = (
             setFiles(newFiles)
         })()
     }, [repoName])
+
+    const ext = filePath.split(".").pop() || "js"
+    const languageExtension = languageMap[ext]
+    const extensions = [languageExtension, EditorView.lineWrapping]
 
     return (
         <>
@@ -92,11 +104,11 @@ const FileSelector = (
             </PopoverContent>
         </Popover>
         {hideMerge ? (
-            <CodeMirror value={file} extensions={[javascript({ jsx: true }, python({})), EditorView.lineWrapping, extensions]} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}} placeholder={placeholderText}/>
+            <CodeMirror value={file} extensions={extensions} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}} placeholder={placeholderText}/>
         ): (
             <CodeMirrorMerge theme={vscodeDark} style={{overflow:'auto'}}>
-                <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
-                <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
+                <Original value={oldFile} extensions={extensions} onChange={onChange}/>
+                <Modified value={file} extensions={extensions} onChange={onChange}/>
             </CodeMirrorMerge>
         )}
         </>
