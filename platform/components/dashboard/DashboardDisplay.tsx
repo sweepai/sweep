@@ -41,7 +41,7 @@ const DashboardDisplay = () => {
             <ResizableHandle withHandle/>
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
             file={file} setFile={setFile} hideMerge={hideMerge}
-            setHideMerge={setHideMerge} setOldFile={setOldFile}
+            setHideMerge={setHideMerge} setOldFile={setOldFile} oldFile={oldFile}
             repoName={repoName} setRepoName={setRepoName}></DashboardActions>
         </ResizablePanelGroup>
     );
