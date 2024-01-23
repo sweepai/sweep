@@ -42,7 +42,8 @@ const DashboardDisplay = () => {
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
             file={file} setFile={setFile} hideMerge={hideMerge}
             setHideMerge={setHideMerge} setOldFile={setOldFile}
-            repoName={repoName} setRepoName={setRepoName}></DashboardActions>
+            repoName={repoName} setRepoName={setRepoName}
+            oldFile={oldFile}></DashboardActions>
         </ResizablePanelGroup>
     );
 };
