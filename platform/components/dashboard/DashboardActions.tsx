@@ -8,7 +8,7 @@ import { runScript } from "@/lib/api.service";
 import { toast } from "sonner";
   
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file } : { filePath: string, setScriptOutput: any, file: string }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile } : { filePath: string, setScriptOutput: any, file: string, setFile: any }) => {
     const [repoName, setRepoName] = useState('');
     const [script, setScript] = useState('');
     const [instructions, setInstructions] = useState('');
@@ -38,6 +38,24 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file } : { filePath: stri
         }
         setScriptOutput(scriptOutput)
     }
+    const getFileChanges = async () => {
+        setIsLoading(true)
+        const url = "/api/openai/edit"
+        const response = await fetch(url, {
+            method: "POST",
+            body: JSON.stringify({
+                fileContents: file,
+                prompt: instructions
+            })
+        })
+        const object = await response.json();
+        console.log(object)
+        setIsLoading(false)
+        toast("Successfully generated tests!")
+        file = file + object.newFileContents;
+        console.log("file is", file)
+        setFile(file)
+    }
 
     return (
         <ResizablePanel defaultSize={33} className="p-6 h-[80vh]">
@@ -51,20 +69,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file } : { filePath: stri
                     <Button 
                             className="mt-4 mr-4" 
                             variant="secondary" 
-                            onClick={async () => {
-                            setIsLoading(true)
-                            const response = await fetch("/api/openai/edit", {
-                                method: "POST",
-                                body: JSON.stringify({
-                                    fileContents: file,
-                                    prompt: instructions
-                                })
-                            })
-                            const object = await response.json();
-                            console.log(object)
-                            setIsLoading(false)
-                            toast("Completed succesfully")
-                        }}
+                            onClick={getFileChanges}
                         disabled={isLoading}
                     >Generate tests</Button>
                 </div>

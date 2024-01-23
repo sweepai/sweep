@@ -141,6 +141,6 @@ export async function POST(request: NextRequest) {
     console.log(response)
 
     return Response.json({
-        newFileContents: body.fileContents
+        newFileContents: response
     })
 }

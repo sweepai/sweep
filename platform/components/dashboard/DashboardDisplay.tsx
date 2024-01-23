@@ -33,7 +33,7 @@ const DashboardDisplay = () => {
                 </ResizablePanelGroup>
                 </ResizablePanel>
             <ResizableHandle withHandle/>
-            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} file={file}></DashboardActions>
+            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} file={file} setFile={setFile}></DashboardActions>
         </ResizablePanelGroup>
     );
 };

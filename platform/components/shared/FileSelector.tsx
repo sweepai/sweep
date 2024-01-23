@@ -37,7 +37,7 @@ const FileSelector = ( { filePath, setFilePath, file, setFile } : { filePath: st
                     role="combobox"
                     aria-expanded={open}
                     className="w-full justify-between">
-                    {filePath ? files.find((file) => file.value === filePath)?.label : "Select file..."}
+                    {filePath ? files.find((file: any) => file.value === filePath)?.label : "Select file..."}
                     <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
@@ -46,7 +46,7 @@ const FileSelector = ( { filePath, setFilePath, file, setFile } : { filePath: st
                     <CommandInput placeholder="Search file..." className="h-9" />
                     <CommandEmpty>No file found.</CommandEmpty>
                     <CommandGroup>
-                        {files.map((file) => (
+                        {files.map((file: any) => (
                             <CommandItem
                                 key={file.value}
                                 value={file.value}
@@ -69,7 +69,7 @@ const FileSelector = ( { filePath, setFilePath, file, setFile } : { filePath: st
                 </Command>
             </PopoverContent>
         </Popover>
-        <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} height="400px"/>
+        <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} height="380px"/>
         </>
     )
 };
