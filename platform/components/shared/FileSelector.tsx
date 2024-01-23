@@ -1,12 +1,11 @@
 "use client"
 import { cn } from "@/lib/utils";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import getFiles, { getFile } from "@/lib/api.service";
-import { Textarea } from "../ui/textarea";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { javascript } from "@codemirror/lang-javascript";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
@@ -20,7 +19,6 @@ const FileSelector = (
     : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, oldFile: string, setOldFile: any, repoName: string } ) => {
     const [open, setOpen] = useState(false)
     const [files, setFiles] = useState([])
-
     const [value, setValue] = useState("console.log('hello world!');");
     const onChange = useCallback((val, viewUpdate) => {
         console.log('val:', val);
@@ -35,6 +33,7 @@ const FileSelector = (
             setFiles(newFiles)
         })()
     }, [repoName])
+
     return (
         <>
         <Popover open={open} onOpenChange={setOpen}>
@@ -79,7 +78,7 @@ const FileSelector = (
             </PopoverContent>
         </Popover>
         <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} height="380px" hidden={!hideMerge}/>
-        <CodeMirrorMerge theme={vscodeDark} hidden={hideMerge}>
+        <CodeMirrorMerge theme={vscodeDark} hidden={hideMerge} style={{overflow:'auto'}}>
             <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
             <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
         </CodeMirrorMerge>
