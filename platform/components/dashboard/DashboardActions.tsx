@@ -12,8 +12,8 @@ import { Label } from "../ui/label";
 
 
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, setOldFile, repoName, setRepoName}
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, setOldFile: any, repoName: string, setRepoName: any }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName, setRepoName}
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any }) => {
     const [script, setScript] = useLocalStorage("script", '');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
@@ -34,19 +34,26 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     const updateInstructons = (event: any) => {
         setInstructions(event.target.value);
     }
-    const runScriptWrapper = async (event: any) => {
-        const response = await runScript(repoName, filePath, script);
-        let scriptOutput = response.stdout + "\n" + response.stderr
-        if (response.code != 0) {
-            toast.error("An Error Occured", {
-                description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
-            })
-        } else {
-            toast.success("The script ran successfully", {
-                description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
-            })
-        }
-        setScriptOutput(scriptOutput)
+    const runScriptWrapper = async () => {
+        setFile(async (file: string) => {
+            const response = await runScript(repoName, filePath, script, file);
+            const { code } = response;
+            let scriptOutput = response.stdout + "\n" + response.stderr
+            if (code != 0) {
+                scriptOutput = `Error (exit code ${code}):\n` + scriptOutput
+            }
+            if (response.code != 0) {
+                toast.error("An Error Occured", {
+                    description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
+                })
+            } else {
+                toast.success("The script ran successfully", {
+                    description: [<div key="stdout">{response.stdout}</div>, <div className="text-red-500" key="stderr">{response.stderr}</div>,]
+                })
+            }
+            setScriptOutput(scriptOutput)
+            return file
+        })
     }
     const getFileChanges = async () => {
         setIsLoading(true)
@@ -68,6 +75,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         file = object.newFileContents;
         setFile(file)
         setHideMerge(false)
+        runScriptWrapper()
     }
 
     return (
@@ -103,16 +111,28 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                 <div className="flex flex-row justify-center">
                     <Button
                         className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
-                        onClick={runScriptWrapper}
-                        disabled={isLoading}
+                        onClick={() => {
+                            setFile((file: string) => {
+                                setOldFile(file)
+                                return file
+                            })
+                            setHideMerge(true)
+                        }}
+                        disabled={isLoading || hideMerge}
                     >
                         <FaCheck />
                     </Button>
                     <Button
                         className="mt-4 mr-2"
                         variant="destructive"
-                        onClick={runScriptWrapper}
-                        disabled={isLoading}
+                        onClick={() => {
+                            setOldFile((oldFile: string) => {
+                                setFile(oldFile)
+                                return oldFile
+                            })
+                            setHideMerge(true)
+                        }}
+                        disabled={isLoading || hideMerge}
                     >
                         <FaArrowRotateLeft />
                     </Button>
