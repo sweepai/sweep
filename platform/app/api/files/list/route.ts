@@ -5,6 +5,7 @@ import path from "path";
 
 interface Body {
     repo: string
+    limit: number
 }
 
 const blockedPaths = [
@@ -22,9 +23,9 @@ const blockedPaths = [
 export async function POST(request: NextRequest) {
     // Body -> { stdout: string, stderr: string, code: number}
     const body = await request.json() as Body;
-    const { repo } = body;
+    const { repo, limit = 1000 } = body;
 
-    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = 1000): Promise<string[]> {
+    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = limit): Promise<string[]> {
         let queue: string[] = [rootDir];
         let nonBinaryFiles: string[] = [];
 
@@ -56,6 +57,10 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+        const stats = await fs.stat(repo)
+        if (!stats.isDirectory()) {
+            return new Response("Not a directory", { status: 400 });
+        }
         const nonBinaryFiles = await listNonBinaryFilesBFS(repo);
         return new Response(JSON.stringify(nonBinaryFiles), { status: 200 });
     } catch (error: any) {
