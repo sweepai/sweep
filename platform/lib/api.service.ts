@@ -1,10 +1,8 @@
 
 
-export const getFiles = async () => {
+export const getFiles = async (repoName: string) => {
     const url = "/api/files/list";
-    const body = {
-        repo: "/root/sweep"
-    }
+    const body = {repo: repoName}
     const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify(body)
@@ -12,9 +10,9 @@ export const getFiles = async () => {
     return await response.json()
 }
 
-export const getFile = async (filePath: string) => {
+export const getFile = async (repoName: string, filePath: string) => {
     const url = "/api/files";
-    const params = new URLSearchParams({repo: "/root/sweep", filePath}).toString();
+    const params = new URLSearchParams({repo: repoName, filePath}).toString();
     const response = await fetch(url + "?" +params)
     console.log("response", response)
     const object = await response.json()

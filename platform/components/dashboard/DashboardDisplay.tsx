@@ -1,30 +1,22 @@
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Textarea } from "@/components/ui/textarea";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
-import { setFlagsFromString } from "v8";
-  
+import { useLocalStorage } from "usehooks-ts";
+
 
 const DashboardDisplay = () => {
     const [filePath, setFilePath] = useState("")
     const [scriptOutput, setScriptOutput] = useState("")
     const [file, setFile] = useState("")
-    const [branch, setBranch] = useState("");
-    useEffect(() => {
-        (async () => {
-            const params = new URLSearchParams({repo: "/home/kevin/sweep"}).toString();
-            const response = await fetch("/api/branch?" + params)
-            const object = await response.json()
-            setBranch(object.branch)
-        })()
-    }, [])
+    const [repoName, setRepoName] = useLocalStorage("repoName", '');
     return (
         <ResizablePanelGroup className="min-h-[80vh]" direction="horizontal">
             <ResizablePanel defaultSize={67}>
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
-                        <FileSelector filePath={filePath} setFilePath={setFilePath} file={file} setFile={setFile}></FileSelector>
+                        <FileSelector filePath={filePath} setFilePath={setFilePath} file={file} setFile={setFile} repoName={repoName}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel defaultSize={25}>
@@ -33,7 +25,7 @@ const DashboardDisplay = () => {
                 </ResizablePanelGroup>
                 </ResizablePanel>
             <ResizableHandle withHandle/>
-            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} file={file} setFile={setFile}></DashboardActions>
+            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} file={file} setFile={setFile} repoName={repoName} setRepoName={setRepoName} ></DashboardActions>
         </ResizablePanelGroup>
     );
 };

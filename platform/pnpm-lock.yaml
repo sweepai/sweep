@@ -86,6 +86,9 @@ dependencies:
   tailwindcss-animate:
     specifier: ^1.0.7
     version: 1.0.7(tailwindcss@3.3.0)
+  usehooks-ts:
+    specifier: ^2.9.5
+    version: 2.9.5(react-dom@18.0.0)(react@18.0.0)
 
 devDependencies:
   '@types/node':
@@ -3972,6 +3975,17 @@ packages:
       detect-node-es: 1.1.0
       react: 18.0.0
       tslib: 2.6.2
+    dev: false
+
+  /usehooks-ts@2.9.5(react-dom@18.0.0)(react@18.0.0):
+    resolution: {integrity: sha512-M5LrjX9Wo4XRsof0zCCsq81x5+so/b89aUO53XPTjUehKAbOFhRq/DDRyv7qsRK4AEaJe1rhReFZqesPGnREhQ==}
+    engines: {node: '>=16.15.0'}
+    peerDependencies:
+      react: ^16.8.0  || ^17.0.0 || ^18.0.0
+      react-dom: ^16.8.0  || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 18.0.0
+      react-dom: 18.0.0(react@18.0.0)
     dev: false
 
   /util-deprecate@1.0.2:
