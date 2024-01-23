@@ -12,23 +12,23 @@ import { javascript } from "@codemirror/lang-javascript";
 import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { html } from "@codemirror/lang-html";
-import { markdown } from "@codemirror/lang-markdown";
 
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import CodeMirrorMerge from 'react-codemirror-merge';
 
-const languageMap: {[key: string]: any } = {
-    js: javascript(),
-    jsx: javascript({ jsx: true }),
-    ts: javascript({ typescript: true }),
-    tsx: javascript({ typescript: true, jsx: true }),
-    html: html(),
-    ejs: html(),
-    erb: html(),
-    py: python(),
-    md: markdown(),
-    txt: markdown(),
-    kt: java(),
+const getLanguage = (ext: string) => {
+    const languageMap: {[key: string]: any } = {
+        js: javascript(),
+        jsx: javascript({ jsx: true }),
+        ts: javascript({ typescript: true }),
+        tsx: javascript({ typescript: true, jsx: true }),
+        html: html(),
+        ejs: html(),
+        erb: html(),
+        py: python(),
+        kt: java(),
+    }
+    return languageMap[ext] || javascript()
 }
 
 
@@ -57,7 +57,7 @@ const FileSelector = (
     }, [repoName])
 
     const ext = filePath.split(".").pop() || "js"
-    const languageExtension = languageMap[ext]
+    const languageExtension = getLanguage(ext)
     const extensions = [languageExtension, EditorView.lineWrapping]
 
     return (
