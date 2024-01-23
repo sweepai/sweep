@@ -10,8 +10,14 @@ import { Textarea } from "../ui/textarea";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { javascript } from "@codemirror/lang-javascript";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+import CodeMirrorMerge from 'react-codemirror-merge';
 
-const FileSelector = ( { filePath, setFilePath, file, setFile } : { filePath: string, setFilePath: any, file: string, setFile: any } ) => {
+const Original = CodeMirrorMerge.Original;
+const Modified = CodeMirrorMerge.Modified;
+
+const FileSelector = ( 
+    { filePath, setFilePath, file, setFile, hideMerge, oldFile, setOldFile } 
+    : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, oldFile: string, setOldFile: any } ) => {
     const [open, setOpen] = useState(false)
     const [files, setFiles] = useState([])
     
@@ -53,7 +59,9 @@ const FileSelector = ( { filePath, setFilePath, file, setFile } : { filePath: st
                                 onSelect={async (currentValue) => {
                                     setFilePath(currentValue === filePath ? "" : currentValue)
                                     setOpen(false)
-                                    setFile((await getFile(file.value)).contents)
+                                    const contents = (await getFile(file.value)).contents
+                                    setFile(contents)
+                                    setOldFile(contents)
                                 }}
                             >
                             {file.label}
@@ -69,7 +77,11 @@ const FileSelector = ( { filePath, setFilePath, file, setFile } : { filePath: st
                 </Command>
             </PopoverContent>
         </Popover>
-        <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} height="380px"/>
+        <CodeMirror value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange} theme={vscodeDark} height="380px" hidden={!hideMerge}/>
+        <CodeMirrorMerge theme={vscodeDark} hidden={hideMerge}>
+            <Original value={oldFile} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
+            <Modified value={file} extensions={[javascript({ jsx: true }), EditorView.lineWrapping]} onChange={onChange}/>
+        </CodeMirrorMerge>
         </>
     )
 };

@@ -10,6 +10,8 @@ const DashboardDisplay = () => {
     const [filePath, setFilePath] = useState("")
     const [scriptOutput, setScriptOutput] = useState("")
     const [file, setFile] = useState("")
+    const [oldFile, setOldFile] = useState("")
+    const [hideMerge, setHideMerge] = useState(true)
     const [branch, setBranch] = useState("");
     useEffect(() => {
         (async () => {
@@ -24,7 +26,9 @@ const DashboardDisplay = () => {
             <ResizablePanel defaultSize={67}>
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
-                        <FileSelector filePath={filePath} setFilePath={setFilePath} file={file} setFile={setFile}></FileSelector>
+                        <FileSelector filePath={filePath} setFilePath={setFilePath} 
+                        file={file} setFile={setFile} hideMerge={hideMerge} 
+                        oldFile={oldFile} setOldFile={setOldFile}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel defaultSize={25}>
@@ -33,7 +37,9 @@ const DashboardDisplay = () => {
                 </ResizablePanelGroup>
                 </ResizablePanel>
             <ResizableHandle withHandle/>
-            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} file={file} setFile={setFile}></DashboardActions>
+            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} 
+            file={file} setFile={setFile} 
+            setHideMerge={setHideMerge} setOldFile={setOldFile}></DashboardActions>
         </ResizablePanelGroup>
     );
 };

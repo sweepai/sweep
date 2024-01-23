@@ -31,6 +31,7 @@
     "next-themes": "^0.2.1",
     "openai": "^4.25.0",
     "react": "^18",
+    "react-codemirror-merge": "^4.21.21",
     "react-dom": "^18",
     "react-resizable-panels": "^1.0.9",
     "sonner": "^1.3.1",

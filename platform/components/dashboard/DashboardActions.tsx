@@ -8,7 +8,8 @@ import { runScript } from "@/lib/api.service";
 import { toast } from "sonner";
   
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile } : { filePath: string, setScriptOutput: any, file: string, setFile: any }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, setHideMerge, setOldFile } 
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, setHideMerge: any, setOldFile: any }) => {
     const [repoName, setRepoName] = useState('');
     const [script, setScript] = useState('');
     const [instructions, setInstructions] = useState('');
@@ -55,6 +56,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile } : { fileP
         file = file + object.newFileContents;
         console.log("file is", file)
         setFile(file)
+        setHideMerge(false)
     }
 
     return (
