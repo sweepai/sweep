@@ -3,12 +3,14 @@ import { Textarea } from "@/components/ui/textarea";
 import React, { useEffect, useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
+import { setFlagsFromString } from "v8";
   
 
 const DashboardDisplay = () => {
     const [filePath, setFilePath] = useState("")
     const [scriptOutput, setScriptOutput] = useState("")
-    const [branch, setBranch] = React.useState("");
+    const [file, setFile] = useState("")
+    const [branch, setBranch] = useState("");
     useEffect(() => {
         (async () => {
             const params = new URLSearchParams({repo: "/home/kevin/sweep"}).toString();
@@ -22,7 +24,7 @@ const DashboardDisplay = () => {
             <ResizablePanel defaultSize={67}>
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
-                        <FileSelector filePath={filePath} setFilePath={setFilePath}></FileSelector>
+                        <FileSelector filePath={filePath} setFilePath={setFilePath} file={file} setFile={setFile}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel defaultSize={25}>
@@ -31,7 +33,7 @@ const DashboardDisplay = () => {
                 </ResizablePanelGroup>
                 </ResizablePanel>
             <ResizableHandle withHandle/>
-            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}></DashboardActions>
+            <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput} file={file}></DashboardActions>
         </ResizablePanelGroup>
     );
 };
