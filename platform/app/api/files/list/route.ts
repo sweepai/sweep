@@ -13,7 +13,9 @@ const blockedPaths = [
     "venv",
     "__pycache__",
     ".next",
-    "cache"
+    "cache",
+    "benchmark",
+    "logn_logs"
 ]
 
 
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as Body;
     const { repo } = body;
 
-    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = 5000): Promise<string[]> {
+    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = 1000): Promise<string[]> {
         let queue: string[] = [rootDir];
         let nonBinaryFiles: string[] = [];
 
