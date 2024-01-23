@@ -188,4 +188,12 @@ benchmark
 data
 metals.*
 
+# certificates
 certs
+*.pem
+*.crt
+*.key
+*.srl
+*.csr
+*.pfx
+*.cert
