@@ -64,7 +64,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         console.log(object)
         setIsLoading(false)
         toast("Successfully generated tests!")
-        file = file + object.newFileContents;
+        file = object.newFileContents;
         console.log("file is", file)
         setFile(file)
         setHideMerge(false)
