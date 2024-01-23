@@ -4,7 +4,7 @@ import { ResizablePanel } from "@/components/ui/resizable";
 import { Textarea } from "@/components/ui/textarea";
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { runScript } from "@/lib/api.service";
+import getFiles, { runScript } from "@/lib/api.service";
 import { toast } from "sonner";
 import { FaArrowRotateLeft, FaCheck, FaPen, FaPlay } from "react-icons/fa6";
 import { useLocalStorage } from 'usehooks-ts';
@@ -26,7 +26,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
             const object = await response.json()
             setBranch(object.branch)
         })()
-    }, [])
+    }, [repoName])
 
     const updateScript = (event: any) => {
         setScript(event.target.value);
@@ -49,7 +49,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                     })
                 } else {
                     toast.success("The script ran successfully", {
-                        description: [<div key="stdout">{response.stdout.slice(0, 800)}</div>, <div className="text-red-500" key="stderr">{response.stderr.slice(0, 800)}</div>,]
+                        description: [<div key="stdout">{response.stdout.slice(0, 800)}</div>, <div key="stderr">{response.stderr.slice(0, 800)}</div>,]
                     })
                 }
                 setScriptOutput(scriptOutput)
@@ -58,6 +58,14 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         })
     }
     const getFileChanges = async () => {
+        if (!hideMerge) {
+            setOldFile((oldFile: string) => {
+                setFile(oldFile)
+                return oldFile
+            })
+            setHideMerge(true)
+        }
+
         setIsLoading(true)
         const url = "/api/openai/edit"
         file = file.replace(/\\n/g, "\\n");
@@ -89,11 +97,20 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                 <Label className="mb-2">
                     Path to Repository
                 </Label>
-                <Input id="name" placeholder="Enter Repository Name" value={currentRepoName} className="col-span-4 w-full" onChange={(e) => setCurrentRepoName(e.target.value)} onBlur={() => {
-                    setCurrentRepoName(currentRepoName => {
-                        setRepoName(currentRepoName)
-                        return currentRepoName
-                    })
+                <Input id="name" placeholder="Enter Repository Name" value={currentRepoName} className="col-span-4 w-full" onChange={(e) => setCurrentRepoName(e.target.value)} onBlur={async () => {
+                    try {
+                        let newFiles = await getFiles(currentRepoName, 0)
+                        toast.success("Successfully fetched files from the repository!")
+                        setCurrentRepoName(currentRepoName => {
+                            setRepoName(currentRepoName)
+                            return currentRepoName
+                        })
+                    } catch (e) {
+                        console.error(e)
+                        toast.error("An Error Occured", {
+                            description: "Please enter a valid repository name."
+                        })
+                    }
                 }}/>
                 <p className="text-sm text-muted-foreground mb-4">
                     Use the absolute path to the repository you want to test.
@@ -117,6 +134,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                     <Button
                         className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
                         onClick={() => {
+                            console.log("oldFile", oldFile)
                             setFile((file: string) => {
                                 setOldFile(file)
                                 return file

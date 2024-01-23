@@ -1,6 +1,6 @@
-export const getFiles = async (repoName: string) => {
+export const getFiles = async (repoName: string, limit: number = 500) => {
     const url = "/api/files/list";
-    const body = {repo: repoName}
+    const body = {repo: repoName, limit}
     const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify(body)
@@ -54,6 +54,7 @@ export const runScript = async (repo: string, filePath: string, script: string, 
         return runSingleScript(repo, filePath, script)
     }
     const {contents: oldContents} = await getFile(repo, filePath)
+    console.log(oldContents)
     await writeFile(repo, filePath, file)
     const object = await runSingleScript(repo, filePath, script)
     await writeFile(repo, filePath, oldContents)
