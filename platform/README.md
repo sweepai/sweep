@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Sweep AI Unit Testing Tool
+
+This is a fully locally running dev tool for getting Sweep to generate unit tests. 
 
 ## Getting Started
 
-First, run the development server:
+### Step 0: Pre-requisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+For most user's the following script should work:
+
+```sh
+# For NVM (optional)
+wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# For PNPM
+npm install -g pnpm
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+But if that doesn't work, the installation for NVM can be found [here](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) and PNPM at [here](https://pnpm.io/installation#using-npm).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Step 1: Set up the Environment and Building
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Clone into the repo and set up the environment.
 
-## Learn More
+```sh
+git clone https://github.com/sweepai/sweep
+cd sweep/platform
+nvm use
+pnpm i
+pnpm build
+```
 
-To learn more about Next.js, take a look at the following resources:
+This should take a couple minutes to install. In the meantime, move onto the next step.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Step 2: Get your OpenAI key
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Add the following to your `.env.local`.
 
-## Deploy on Vercel
+```sh
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Step 3: Run the Tool
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Now you're ready to run the tool! Just run:
+
+```sh
+pnpm start
+```
