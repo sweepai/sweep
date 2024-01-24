@@ -18,7 +18,7 @@ const DashboardDisplay = () => {
     console.log("file", file)
     return (
         <>
-        <h1 className="font-bold text-xl">Sweep Unit Test Generator</h1>
+        <h1 className="font-bold text-xl">Sweep Assistant</h1>
         <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
             file={file} setFile={setFile} hideMerge={hideMerge}

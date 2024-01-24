@@ -21,19 +21,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     const [branch, setBranch] = useState("");
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
     const testCasePlaceholder = `Example:
-Add a unit test that checks for a bad postgres connection:
-
-def get_data(conn):
-"""Retrieves data from the PostgreSQL database using a given connection."""
-try:
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM example_table")
-    records = cur.fetchall()
-    cur.close()
-    return records
-except Exception as e:
-    print(f"Error retrieving data: {e}")
-    return []`
+Rename the class name to something more descriptive then add a print statement to the front of each function to describe what each function does.`
     useEffect(() => {
         (async () => {
             const params = new URLSearchParams({repo: repoName}).toString();

@@ -46,8 +46,11 @@ const FileSelector = (
     const [isLoading, setIsLoading] = useState(false)
     const placeholderText = "Your code will be displayed here once you select a Repository and file."
     const onChange = useCallback((val: any, viewUpdate: any) => {
-        setValue(val);
         setFile(val)
+    }, [setValue, setFile]);
+
+    const onOldChange = useCallback((val: any, viewUpdate: any) => {
+        setOldFile(val)
     }, [setValue, setFile]);
 
     useEffect(() => {
@@ -127,7 +130,7 @@ const FileSelector = (
             <CodeMirror value={file} extensions={extensions} onChange={onChange} theme={vscodeDark} style={{overflow: "auto"}} placeholder={placeholderText}/>
         ): (
             <CodeMirrorMerge theme={vscodeDark} style={{overflow:'auto'}}>
-                <Original value={oldFile} extensions={extensions} onChange={onChange}/>
+                <Original value={oldFile} extensions={extensions} onChange={onOldChange}/>
                 <Modified value={file} extensions={extensions} onChange={onChange}/>
             </CodeMirrorMerge>
         )}
