@@ -54,6 +54,7 @@ pnpm start
 ## Using Sweep Unit Test Tool
 
 1. Insert the path to your local repository.
+    - You can run `pwd` to use your current working directory.
     - (Optional) Edit the branch name to checkout into a new branch for Sweep to work in (defaults to current branch).
 2. Select an existing file for Sweep to add unit tests to.
 3. Add meticulous instructions for the unit tests to add, such as the additional edge cases you would like covered.
