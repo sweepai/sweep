@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 
@@ -21,13 +21,13 @@ export async function POST(request: NextRequest) {
         const { stdout, stderr } = await exec(command);
         console.log('stdout:', stdout);
         console.log('stderr:', stderr);
-        return Response.json({
+        return NextResponse.json({
             stdout,
             stderr,
             code: 0
         })
     } catch (error: any) {
-        return Response.json({
+        return NextResponse.json({
             stdout: error.stdout,
             stderr: error.stderr,
             code: error.code

@@ -41,11 +41,11 @@ const FileSelector = (
     { filePath, setFilePath, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName }
     : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: string, setOldFile: any, repoName: string } ) => {
     const [open, setOpen] = useState(false)
-    const [files, setFiles] = useState([])
+    const [files, setFiles] = useState<{label: string, name: string}[]>([])
     const [value, setValue] = useState("console.log('hello world!');");
     const [isLoading, setIsLoading] = useState(false)
     const placeholderText = "Your code will be displayed here once you select a Repository and file."
-    const onChange = useCallback((val, viewUpdate) => {
+    const onChange = useCallback((val: any, viewUpdate: any) => {
         setValue(val);
         setFile(val)
     }, [setValue, setFile]);
