@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { promises as fs, Dirent } from "fs";
 import path from "path";
 
