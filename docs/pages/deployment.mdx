@@ -38,7 +38,7 @@ GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 <details>
 <summary>
-If the link doesn't work.
+Link not working?
 </summary>
 If the link doesn't work, you can go [here](https://github.com/settings/tokens/new) and manually set your preferred token name (e.g. Sweep Self-Hosted), and select the following permissions:
 * repo (ALL)
@@ -58,6 +58,16 @@ REPO=your-username/your-repo
 GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+<details>
+<summary>
+(Optional) Disabling Telemetry
+</summary>
+We log user events(not user code) to improve the product, such as the # of pull requests created and merged. To disable telemetry, you can add the following line to your `.env`:
+```sh filename=".env"
+POSTHOG_API_KEY=none
+```
+</details>
 
 ---
 

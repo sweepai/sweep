@@ -72,9 +72,13 @@ const FileSelector = (
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
+<<<<<<< HEAD
                         className="w-full justify-between mr-2"
                         disabled={!files}
                     >
+=======
+                        className="w-full justify-between mr-2">
+>>>>>>> origin/main
                         {filePath ? files.find((file: any) => file.value === filePath)?.label : "Select file..."}
                         <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
