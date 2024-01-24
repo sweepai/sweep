@@ -12,23 +12,19 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || "", // This is the default and can be omitted
 });
 
-const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add a unit test to cover an edge case for the testing suite. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. When writing tests, you will make up test data as needed. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more.
+const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more.
 
-You MUST append a unit test by responding in the following format with XML tags:
+You MUST respond in the following diff format:
 
-<code_block_to_extend>
 \`\`\`
-The code section to append the additional unit tests to. Max 10 lines. Ensure the indentation is valid.
-\`\`\`
-</code_block_to_extend>
+<<<<<<< ORIGINAL
+The code block to replace. Ensure the indentation is valid.
+=======
+The new code block. Ensure the indentation is valid.
+>>>>>>> MODIFIED
+\`\`\``
 
-<additional_unit_test>
-\`\`\`
-The additional unit test that covers the edge case. Ensure the indentation is valid.
-\`\`\`
-</additional_unit_test>`
-
-const userMessagePrompt = `Your job is to add a unit test to the following file to complete the user's request:
+const userMessagePrompt = `Your job is to add modify the current code file in order to complete the user's request:
 <user_request>
 {prompt}
 </user_request>
@@ -38,8 +34,10 @@ Here are the file's current contents:
 {fileContents}
 </file_contents>`
 
-const codeBlockToExtendRegex = /<code_block_to_extend>([\s\S]*)<\/code_block_to_extend>/g
-const additionalUnitTestRegex = /<additional_unit_test>([\s\S]*)$/g
+// const codeBlockToExtendRegex = /<code_block_to_extend>([\s\S]*)<\/code_block_to_extend>/g
+// const additionalUnitTestRegex = /<new_code>([\s\S]*)$/g
+
+const diffRegex = /<<<<<<< ORIGINAL\n(?<oldCode>.*?)\n=======\n(?<newCode>.*?)\n>>>>>>> MODIFIED/gs
 
 const countNumOccurences = (needle: string, haystack: string) => {
     if (needle === '') return 0;
@@ -93,20 +91,20 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
     const response = chatCompletion.choices[0].message.content!;
     console.log("file contents", fileContents, "\n")
-    console.log("response\n", response, "\n")
-    const additionalUnitTestMatch = response.match(additionalUnitTestRegex)!;
-    const codeBlockToExtendMatch = response.match(codeBlockToExtendRegex)!;
-    if (codeBlockToExtendMatch && additionalUnitTestMatch) {
-        let codeBlockToExtend = codeBlockToExtendMatch[0];
-        codeBlockToExtend = codeBlockToExtend.split('\n').slice(2, -2).join('\n');
-        let additionalUnitTest = additionalUnitTestMatch[0];
-        additionalUnitTest = additionalUnitTest.split('\n').slice(2, -2).join('\n');
-        console.log(codeBlockToExtend)
-        console.log(additionalUnitTest)
-        return appendUnitTests(fileContents, codeBlockToExtend, additionalUnitTest)
-    } else {
+    console.log("response\n", response, "\nend of response\n")
+    const diffMatches = response.matchAll(diffRegex)!;
+    if (!diffMatches) {
         return "";
     }
+    var currentFileContents = fileContents;
+    for (const diffMatch of diffMatches) {
+        const oldCode = diffMatch.groups!.oldCode;
+        const newCode = diffMatch.groups!.newCode;
+        // console.log("old code", oldCode, "\n")
+        // console.log("new code", newCode, "\n")
+        currentFileContents = currentFileContents.replace(oldCode, newCode)
+    }
+    return currentFileContents
 }
 
 const haystack = `# ...
