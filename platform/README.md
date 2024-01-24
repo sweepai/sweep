@@ -2,9 +2,9 @@
 
 This is a fully locally running dev tool for getting Sweep to improve your unit testing suite. It uses your local machine to execute all unit tests for security and rapid iteration.
 
-## Getting Started
+## Getting Started (10 min)
 
-### Step 0: Pre-requisites
+### Step 0: Pre-requisites (3 min)
 
 For most users the following script should work:
 
@@ -15,28 +15,29 @@ npm install -g pnpm # For PNPM
 
 But if that doesn't work, the installation for NVM can be found [here](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) and PNPM at [here](https://pnpm.io/installation#using-npm).
 
-### Step 1: Set up the Environment and Building
+### Step 1: Set up the Environment and Building (3 min)
 
 Clone into the repo and set up the environment.
 
 ```sh
 git clone https://github.com/sweepai/sweep
 cd sweep/platform
-nvm install && nvm use
+nvm install
+nvm use
 pnpm i
 ```
 
 This should take a couple minutes to install. In the meantime, move onto the next step.
 
-### Step 2: Get your OpenAI key
+### Step 2: Get your OpenAI key (3 min)
 
-Add the following to your `.env.local`.
+Get an OpenAI key [here](https://platform.openai.com/api-keys) and add it to your `.env.local`.
 
 ```sh
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### Step 3: Run the Tool
+### Step 3: Run the Tool (1 min)
 
 Now you can build the tool with 
 
