@@ -1,0 +1,7 @@
+{
+	"dependencies": {
+		"@codemirror/lang-html": "^6.4.8",
+		"@codemirror/lang-java": "^6.0.1",
+		"@codemirror/lang-markdown": "^6.2.4"
+	}
+}
