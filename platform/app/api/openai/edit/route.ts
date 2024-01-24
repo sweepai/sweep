@@ -9,7 +9,7 @@ interface Body {
 }
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY, // This is the default and can be omitted
+    apiKey: process.env.OPENAI_API_KEY || "", // This is the default and can be omitted
 });
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to add a unit test to cover an edge case for the testing suite. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. When writing tests, you will make up test data as needed. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more.
@@ -41,6 +41,47 @@ Here are the file's current contents:
 const codeBlockToExtendRegex = /<code_block_to_extend>([\s\S]*)<\/code_block_to_extend>/g
 const additionalUnitTestRegex = /<additional_unit_test>([\s\S]*)$/g
 
+const countNumOccurences = (needle: string, haystack: string) => {
+    if (needle === '') return 0;
+
+    let count = 0;
+    let pos = haystack.indexOf(needle);
+
+    while (pos !== -1) {
+        count++;
+        pos = haystack.indexOf(needle, pos + 1);
+    }
+
+    return count;
+}
+
+const findMaximalSuffixMatch = (needle: string, haystack: string) => {
+    const lines = needle.split("\n")
+    for (var i = 0; i < lines.length; i += 1) {
+        const substring = lines.slice(i).join("\n");
+        if (countNumOccurences(substring, haystack) === 1) {
+            return substring;
+        }
+    }
+    return "";
+}
+
+
+const appendUnitTests = (oldCode: string, searchCode: string, appendCode: string) => {
+    // if (searchCode && appendCode) {
+    //     let codeBlockToExtend = searchCode[0];
+    //     codeBlockToExtend = codeBlockToExtend.split('\n').slice(2, -2).join('\n');
+    //     let additionalUnitTest = appendCode[0];
+    //     additionalUnitTest = additionalUnitTest.split('\n').slice(2, -2).join('\n');
+    //     console.log(codeBlockToExtend)
+    //     console.log(additionalUnitTest)
+        const maximalMatch = findMaximalSuffixMatch(searchCode, oldCode);
+        return oldCode.replace(maximalMatch, maximalMatch + '\n\n' + appendCode);
+    // } else {
+    //     return "";
+    // }
+}
+
 const callOpenAI = async (prompt: string, fileContents: string) => {
     const params: OpenAI.Chat.ChatCompletionCreateParams = {
         messages: [
@@ -55,18 +96,32 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     console.log("response\n", response, "\n")
     const additionalUnitTestMatch = response.match(additionalUnitTestRegex)!;
     const codeBlockToExtendMatch = response.match(codeBlockToExtendRegex)!;
-    if (additionalUnitTestMatch && codeBlockToExtendMatch) {
+    if (codeBlockToExtendMatch && additionalUnitTestMatch) {
         let codeBlockToExtend = codeBlockToExtendMatch[0];
         codeBlockToExtend = codeBlockToExtend.split('\n').slice(2, -2).join('\n');
         let additionalUnitTest = additionalUnitTestMatch[0];
         additionalUnitTest = additionalUnitTest.split('\n').slice(2, -2).join('\n');
         console.log(codeBlockToExtend)
         console.log(additionalUnitTest)
-        return fileContents.replace(codeBlockToExtend, codeBlockToExtend + '\n\n' + additionalUnitTest);
+        return appendUnitTests(fileContents, codeBlockToExtend, additionalUnitTest)
     } else {
         return "";
     }
 }
+
+const haystack = `# ...
+        print("hello world")
+
+    def print():
+        print("hello world")`
+
+const needle = `class TestUnit():
+    # ...
+    
+    def print():
+        print("hello world")`
+
+const codeToAppend = `print("goodbye")`
 
 export async function POST(request: NextRequest) {
     const body = await request.json() as Body;
@@ -75,6 +130,6 @@ export async function POST(request: NextRequest) {
     console.log(response)
 
     return NextResponse.json({
-        newFileContents: response
+        newFileContents: response    
     })
 }

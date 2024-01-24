@@ -146,8 +146,10 @@ except Exception as e:
                     <Button
                         className="mb-2 py-1"
                         variant="secondary"
-                        onClick={() => {
-                            runScriptWrapper(file)
+                        onClick={async () => {
+                            setIsLoading(true)
+                            await runScriptWrapper(file)
+                            setIsLoading(false)
                         }}
                         disabled={isLoading || !script.length}
                     >
@@ -181,7 +183,7 @@ except Exception as e:
                         }}
                         disabled={isLoading}
                         >
-                        <FaArrowsRotate />&nbsp;&nbsp;Refresh
+                        <FaArrowsRotate />&nbsp;&nbsp;Restart
                     </Button>
                     <Button
                         className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
