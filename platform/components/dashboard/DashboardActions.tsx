@@ -183,7 +183,7 @@ except Exception as e:
                         }}
                         disabled={isLoading}
                         >
-                        <FaArrowsRotate />&nbsp;&nbsp;Refresh
+                        <FaArrowsRotate />&nbsp;&nbsp;Restart
                     </Button>
                     <Button
                         className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
