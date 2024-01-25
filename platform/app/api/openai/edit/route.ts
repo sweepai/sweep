@@ -19,17 +19,17 @@ You MUST respond in the following diff format:
 <<<<<<< ORIGINAL
 The first code block to replace. Ensure the indentation is valid.
 =======
-The new code block to replace the first code block. Ensure the indentation is valid.
+The new code block to replace the first code block. Ensure the indentation and syntax is valid.
 >>>>>>> MODIFIED
 
 <<<<<<< ORIGINAL
 The second code block to replace. Ensure the indentation is valid.
 =======
-The new code block to replace the second code block. Ensure the indentation is valid.
+The new code block to replace the second code block. Ensure the indentation and synatx is valid.
 >>>>>>> MODIFIED
 \`\`\`
 
-You may write one or multiple diff hunks. DO NOT include extra lines of code. The MODIFIED can be empty.`
+You may write one or multiple diff hunks. The MODIFIED can be empty.`
 
 const userMessagePrompt = `Your job is to add modify the current code file in order to complete the user's request:
 <user_request>
@@ -44,7 +44,7 @@ Here are the file's current contents:
 // const codeBlockToExtendRegex = /<code_block_to_extend>([\s\S]*)<\/code_block_to_extend>/g
 // const additionalUnitTestRegex = /<new_code>([\s\S]*)$/g
 
-const diffRegex = /<<<<<<< ORIGINAL\n(?<oldCode>.*?)\n=======\n(?<newCode>.*?)\n>>>>>>> MODIFIED/gs
+const diffRegex = /<<<<<<< ORIGINAL(\n*?)(?<oldCode>.*?)(\n*?)=======(\n*?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs
 
 const countNumOccurences = (needle: string, haystack: string) => {
     if (needle === '') return 0;
@@ -99,13 +99,12 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     const response = chatCompletion.choices[0].message.content!;
     console.log("file contents:\n", fileContents, "\n")
     console.log("response:\n", response, "\nend of response\n")
-    const diffMatches = response.matchAll(diffRegex)!;
+    const diffMatches: any = response.matchAll(diffRegex)!;
     if (!diffMatches) {
         return "";
     }
     var currentFileContents = fileContents;
     let it = 0
-    console.log("inital currentFileContents:\n", currentFileContents, "\n")
     for (const diffMatch of diffMatches) {
         it += 1
         const oldCode = diffMatch.groups!.oldCode;
@@ -124,171 +123,166 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as Body;
     console.log("body after being extracted in post request:", body)
     const response = await callOpenAI(body.prompt, body.fileContents);
-    console.log(response)
+    // console.log(response)
 
     return NextResponse.json({
         newFileContents: response    
     })
 }
 
-let mockFileContents = String.raw`
-file contents import unittest
-from unittest.mock import patch
-
-from sweepai.utils.diff import (
-    format_contents,
-    is_markdown,
-    match_string,
-    revert_whitespace_changes,
-)
-
-
-class TestDiff(unittest.TestCase):
-    def test_revert_whitespace_changes(self):
-        original_file_str = "  line1\n  line2\n  line3"
-        modified_file_str = "line1\n  line2\n    line3"
-        expected_output = "  line1\n  line2\n  line3"
-        self.assertEqual(
-            revert_whitespace_changes(original_file_str, modified_file_str),
-            expected_output,
-        )
-
-    def test_revert_whitespace_changes_more_whitespace(self):
-        original_file_str = "line1\nline2\nline3"
-        modified_file_str = "  line1\n  line2\n  line3"
-        expected_output = "line1\nline2\nline3"
-        self.assertEqual(
-            revert_whitespace_changes(original_file_str, modified_file_str),
-            expected_output,
-        )
-
-    def test_revert_whitespace_changes_non_whitespace_changes(self):
-        original_file_str = "line1\nline2\nline3"
-        modified_file_str = "line4\nline5\nline6"
-        expected_output = "line1\nline2\nline3"
-        self.assertEqual(
-            revert_whitespace_changes(original_file_str, modified_file_str),
-            expected_output,
-        )
-
-    def test_revert_whitespace_changes_same_files(self):
-        original_file_str = "line1\nline2\nline3"
-        modified_file_str = "line1\nline2\nline3"
-        expected_output = "line1\nline2\nline3"
-        self.assertEqual(
-            revert_whitespace_changes(original_file_str, modified_file_str),
-            expected_output,
-        )
-
-    def test_revert_whitespace_changes_empty_files(self):
-        original_file_str = ""
-        modified_file_str = ""
-        expected_output = ""
-        self.assertEqual(
-            revert_whitespace_changes(original_file_str, modified_file_str),
-            expected_output,
-        )
-
-    def test_revert_whitespace_changes_whitespace_only_files(self):
-        original_file_str = "  \n  \n  "
-        modified_file_str = "  \n  \n  "
-        expected_output = "  \n  \n  "
-        self.assertEqual(
-            revert_whitespace_changes(original_file_str, modified_file_str),
-            expected_output,
-        )
-
-    def test_format_contents(self):
-        file_contents = "line1\nline2\nline3"
-        expected_output = "line1\nline2\nline3"
-        self.assertEqual(format_contents(file_contents), expected_output)
-
-    @patch("sweepai.utils.diff.find_best_match")
-    def test_match_string(self, mock_find_best_match):
-        original = ["line1", "line2", "line3"]
-        search = ["line2"]
-        mock_find_best_match.return_value = 1
-        self.assertEqual(match_string(original, search), 1)
-
-    def test_is_markdown(self):
-        filename = "test.md"
-        self.assertTrue(is_markdown(filename))
-
-
-if __name__ == "__main__":
-    unittest.main()
-`
-
-// const mockResponse = String.raw`
-// <<<<<<< ORIGINAL
-// class TestDiff(unittest.TestCase):
+// const mockResponse = String.raw`<<<<<<< ORIGINAL
+// from loguru import logger
 // =======
-// class TestWhitespaceReversion(unittest.TestCase):
-//     def test_revert_whitespace_changes(self):
-//         print("Testing whitespace reversion with additional spaces")
 // >>>>>>> MODIFIED
 
 // <<<<<<< ORIGINAL
-//     def test_revert_whitespace_changes(self):
+//                 logger.error(f"Error deleting comment: {e}")
 // =======
-//     def test_revert_whitespace_changes_more_whitespace(self):
-//         print("Testing whitespace reversion with more whitespace in modified file")
-// >>>>>>> MODIFIED
+// >>>>>>> MODIFIED`
 
-// <<<<<<< ORIGINAL
-//     def test_revert_whitespace_changes_more_whitespace(self):
-// =======
-//     def test_revert_whitespace_changes_non_whitespace_changes(self):
-//         print("Testing whitespace reversion ignoring non-whitespace changes")
-// >>>>>>> MODIFIED
+// const mockFileContents = String.raw`import hashlib
+// import time
 
-// <<<<<<< ORIGINAL
-//     def test_revert_whitespace_changes_non_whitespace_changes(self):
-// =======
-//     def test_revert_whitespace_changes_same_files(self):
-//         print("Testing whitespace reversion with identical original and modified files")
-// >>>>>>> MODIFIED
+// from github.Repository import Repository
+// from loguru import logger
 
-// <<<<<<< ORIGINAL
-//     def test_revert_whitespace_changes_same_files(self):
-// =======
-//     def test_revert_whitespace_changes_empty_files(self):
-//         print("Testing whitespace reversion with empty files")
-// >>>>>>> MODIFIED
+// from sweepai.config.client import (
+//     RESET_FILE,
+//     REVERT_CHANGED_FILES_TITLE,
+//     RULES_LABEL,
+//     RULES_TITLE,
+//     get_blocked_dirs,
+// )
+// from sweepai.config.server import MONGODB_URI
+// from sweepai.core.post_merge import PostMerge
+// from sweepai.events import IssueCommentRequest
+// from sweepai.handlers.on_merge import comparison_to_diff
+// from sweepai.handlers.stack_pr import stack_pr
+// from sweepai.utils.buttons import ButtonList, check_button_title_match
+// from sweepai.utils.chat_logger import ChatLogger
+// from sweepai.utils.event_logger import posthog
+// from sweepai.utils.github_utils import get_github_client
+// from sweepai.utils.str_utils import BOT_SUFFIX
 
-// <<<<<<< ORIGINAL
-//     def test_revert_whitespace_changes_empty_files(self):
-// =======
-//     def test_revert_whitespace_changes_whitespace_only_files(self):
-//         print("Testing whitespace reversion with files that contain only whitespace")
-// >>>>>>> MODIFIED
 
-// <<<<<<< ORIGINAL
-//     def test_revert_whitespace_changes_whitespace_only_files(self):
-// =======
-//     def test_format_contents(self):
-//         print("Testing formatting of file contents")
-// >>>>>>> MODIFIED
+// def handle_button_click(request_dict):
+//     request = IssueCommentRequest(**request_dict)
+//     user_token, gh_client = get_github_client(request_dict["installation"]["id"])
+//     button_list = ButtonList.deserialize(request_dict["comment"]["body"])
+//     selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
+//     repo = gh_client.get_repo(
+//         request_dict["repository"]["full_name"]
+//     )  # do this after checking ref
+//     comment_id = request.comment.id
+//     pr = repo.get_pull(request_dict["issue"]["number"])
+//     comment = pr.get_issue_comment(comment_id)
+//     if check_button_title_match(
+//         REVERT_CHANGED_FILES_TITLE, request.comment.body, request.changes
+//     ):
+//         revert_files = []
+//         for button_text in selected_buttons:
+//             revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
+//         handle_revert(file_paths=revert_files, pr_number=request_dict["issue"]["number"], repo=repo)
+//         comment.edit(
+//             ButtonList(
+//                 buttons=[
+//                     button
+//                     for button in button_list.buttons
+//                     if button.label not in selected_buttons
+//                 ],
+//                 title=REVERT_CHANGED_FILES_TITLE,
+//             ).serialize()
+//         )
 
-// <<<<<<< ORIGINAL
-//     def test_format_contents(self):
-// =======
-//     @patch("sweepai.utils.diff.find_best_match")
-//     def test_match_string(self, mock_find_best_match):
-//         print("Testing string matching with mock")
-// >>>>>>> MODIFIED
+//     if check_button_title_match(RULES_TITLE, request.comment.body, request.changes):
+//         rules = []
+//         for button_text in selected_buttons:
+//             rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
+//         handle_rules(request_dict=request_dict, rules=rules, user_token=user_token, repo=repo, gh_client=gh_client)
+//         comment.edit(
+//     ButtonList(
+//                 buttons=[
+//                     button
+//                     for button in button_list.buttons
+//                     if button.label not in selected_buttons
+//                 ],
+//                 title=RULES_TITLE,
+//             ).serialize()
+//             + BOT_SUFFIX
+//         )
+//         if not rules:
+//             try:
+//                 comment.delete()
+//             except Exception as e:
+//                 logger.error(f"Error deleting comment: {e}")
 
-// <<<<<<< ORIGINAL
-//     @patch("sweepai.utils.diff.find_best_match")
-//     def test_match_string(self, mock_find_best_match):
-// =======
-//     def test_is_markdown(self):
-//         print("Testing if file extension is markdown")
-// >>>>>>> MODIFIED
 
-// <<<<<<< ORIGINAL
-//     def test_is_markdown(self):
-// =======
-// # No modifications required for this block.
-// >>>>>>> MODIFIED
+// def handle_revert(file_paths, pr_number, repo: Repository):
+//     pr = repo.get_pull(pr_number)
+//     branch_name = pr.head.ref if pr_number else pr.pr_head
+
+//     def get_contents_with_fallback(
+//         repo: Repository, file_path: str, branch: str = None
+//     ):
+//         try:
+//             if branch:
+//                 return repo.get_contents(file_path, ref=branch)
+//             return repo.get_contents(file_path)
+//         except Exception:
+//             return None
+
+//     old_file_contents = [
+//         get_contents_with_fallback(repo, file_path) for file_path in file_paths
+//     ]
+//     for file_path, old_file_content in zip(file_paths, old_file_contents):
+//         try:
+//             current_content = repo.get_contents(file_path, ref=branch_name)
+//             if old_file_content:
+//                 repo.update_file(
+//                     file_path,
+//                     f"Revert {file_path}",
+//                     old_file_content.decoded_content,
+//                     sha=current_content.sha,
+//                     branch=branch_name,
+//                 )
+//             else:
+//                 repo.delete_file(
+//                     file_path,
+//                     f"Delete {file_path}",
+//                     sha=current_content.sha,
+//                     branch=branch_name,
+//                 )
+//         except Exception:
+//             pass  # file may not exist and this is expected
+
+
+// def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
+//     pr = repo.get_pull(request_dict["issue"]["number"])
+//     chat_logger = (
+//         ChatLogger(
+//             {"username": request_dict["sender"]["login"]},
+//         )
+//         if MONGODB_URI
+//         else None
+//     )
+//     blocked_dirs = get_blocked_dirs(repo)
+//     comparison = repo.compare(pr.base.sha, pr.head.sha)  # head is the most recent
+//     commits_diff = comparison_to_diff(comparison, blocked_dirs)
+//     for rule in rules:
+//         changes_required, issue_title, issue_description = PostMerge(
+//             chat_logger=chat_logger
+//         ).check_for_issues(rule=rule, diff=commits_diff)
+//         tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+//         if changes_required:
+//             new_pr = stack_pr(
+//                 request=issue_description
+//                 + "\n\nThis issue was created to address the following rule:\n"
+//                 + rule,
+//                 pr_number=request_dict["issue"]["number"],
+//                 username=request_dict["sender"]["login"],
+//                 repo_full_name=request_dict["repository"]["full_name"],
+//                 installation_id=request_dict["installation"]["id"],
+//                 tracking_id=tracking_id,
+//             )
+//             posthog.capture(request_dict["sender"]["login"], "rule_pr_created")
 // `
