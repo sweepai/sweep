@@ -19,6 +19,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!platform/lib
 lib64/
 parts/
 sdist/
@@ -187,3 +188,13 @@ sweepai/sandbox/sandbox.venv
 benchmark
 data
 metals.*
+
+# certificates
+certs
+*.pem
+*.crt
+*.key
+*.srl
+*.csr
+*.pfx
+*.cert
