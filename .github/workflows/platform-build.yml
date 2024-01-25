@@ -20,5 +20,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm install
+        working-directory: platform
       - run: npm run build
+        working-directory: platform
       - run: npm run lint
+        working-directory: platform
