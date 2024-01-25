@@ -1,5 +1,5 @@
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Textarea } from "@/components/ui/textarea";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../ui/resizable";
+import { Textarea } from "../ui/textarea";
 import React, { useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
@@ -43,7 +43,7 @@ const DashboardDisplay = () => {
                         <Textarea className={`mt-4 grow font-mono h-[200px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly></Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>
-            </ResizablePanel>      
+            </ResizablePanel>
         </ResizablePanelGroup>
         </>
     );
