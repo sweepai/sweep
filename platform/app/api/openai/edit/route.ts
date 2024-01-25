@@ -103,33 +103,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     };
     const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
     const response = chatCompletion.choices[0].message.content!;
-<<<<<<< HEAD
-    console.log("file contents:\n", fileContents, "\n")
-    console.log("response:\n", response, "\nend of response\n")
-    const diffMatches = response.matchAll(diffRegex)!;
-    if (!diffMatches) {
-        return "";
-    }
-    var currentFileContents = fileContents;
-    let it = 0
-    console.log("inital currentFileContents:\n", currentFileContents, "\n")
-    // @ts-ignore
-    for (const diffMatch of diffMatches) {
-        it += 1
-        const oldCode = diffMatch.groups!.oldCode;
-        const newCode = diffMatch.groups!.newCode;
-        console.log("old code", oldCode, "\n")
-        console.log("new code", newCode, "\n")
-        currentFileContents = currentFileContents.replace(oldCode, newCode)
-        // if (it < 3) {
-        //     console.log("current file contents:\n", currentFileContents, "\n")
-        // }
-
-    }
-    return currentFileContents
-=======
     return parseRegexFromOpenAI(response, fileContents);
->>>>>>> origin/main
 }
 
 export async function POST(request: NextRequest) {
