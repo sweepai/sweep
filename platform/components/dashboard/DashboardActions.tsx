@@ -1,7 +1,13 @@
+<<<<<<< HEAD
 
 import { Input } from "../ui/input";
 import { ResizablePanel } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
+=======
+import { Input } from "@/components/ui/input";
+import { ResizablePanel } from "@/components/ui/resizable";
+import { Textarea } from "@/components/ui/textarea";
+>>>>>>> origin/main
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import getFiles, { getFile, runScript, writeFile } from "../../lib/api.service";
@@ -75,6 +81,11 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
             method: "POST",
             body: body
         })
+        if (!response.ok) {
+            toast.error("An error occured while generating your code.", {description: await response.text()})
+            setIsLoading(false)
+            return
+        }
         const object = await response.json();
         setIsLoading(false)
         if (!object.newFileContents || object.newFileContents === file) {
