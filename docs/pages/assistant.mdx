@@ -4,7 +4,7 @@ This is a fully locally running dev tool for getting Sweep to code alongside you
 
 ## Installation
 
-*5 minutes*
+*5 minutes to setup*
 
 ### Pre-requisites
 
@@ -12,6 +12,8 @@ Ensure you have the following installed:
 - [Node.js](https://nodejs.org/en/download/) (> v18)
 
 ### Step 1: Downloading Sweep
+
+You can download Sweep by running the following command in your terminal in any directory:
 
 ```sh filename="terminal"
 npm i sweepai
@@ -21,6 +23,19 @@ npm run build --no-lint
 ```
 
 This should take a couple minutes to install. In the meantime, move onto the next step.
+
+<details>
+<summary>⚠️ If you get the error: "You are using Node.js 16.14.2. For Next.js, Node.js version >= v18.17.0 is required."</summary>
+
+If you see this warning, you need to update your Node.js version by first installing [NVM](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+Then run nvm install and rebuild:
+
+```sh filename="terminal"
+nvm i
+npm run build --no-lint
+```
+</details>
 
 ### Step 2: Get your OpenAI key
 
