@@ -1,6 +1,6 @@
-# Sweep AI Unit Testing Tool
+# Sweep Assistant
 
-This is a fully locally running dev tool for getting Sweep to improve your unit testing suite. It uses your local machine to execute all unit tests for security and rapid iteration.
+This is a fully locally running dev tool for getting Sweep to code alongside you. It uses your local machine to execute all your code for security and rapid iteration.
 
 ## Installation (10 min)
 
@@ -39,7 +39,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ### Step 3: Run the Tool (1 min)
 
-Now you can build the tool with 
+Now you can build the tool with
 
 ```sh
 pnpm build
@@ -53,12 +53,12 @@ pnpm start
 
 ## Using Sweep Unit Test Tool
 
-1. Insert the path to your local repositorrey.
+1. Insert the path to your local repository.
     - You can run `pwd` to use your current working directory.
     - (Optional) Edit the branch name to checkout into a new branch for Sweep to work in (defaults to current branch).
-2. Select an existing file for Sweep to add unit tests to.
-3. Add meticulous instructions for the unit tests to add, such as the additional edge cases you would like covered.
+2. Select an existing file for Sweep to edit.
+3. Add meticulous instructions for the code to edit, such as the modification.
 4. Modify the "Test Script" to write your script for running unit tests, such as `python $FILE_PATH`. You may use the variable $FILE_PATH to refer to the current path. Click the "Run Tests" button to test the script.
-    - Hint: use the $FILE_PATH parameter to only run the unit tests in the current file to reduce noise from the unit tests from other files.
-5. Click "Generate Code" to get Sweep to generate additional unit tests.
-6. Then click "Refresh" or the check mark to restart or approve the change.
+    - Hint: use the $FILE_PATH parameter to only check the current file to reduce noise from the unit tests or other failing lints from other files.
+5. Click "Generate Code" to get Sweep to edit the file based on the changes.
+6. Then click "Reload" or the check mark to restart or approve the change.
