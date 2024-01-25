@@ -106,6 +106,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     var currentFileContents = fileContents;
     let it = 0
     console.log("inital currentFileContents:\n", currentFileContents, "\n")
+    // @ts-ignore
     for (const diffMatch of diffMatches) {
         it += 1
         const oldCode = diffMatch.groups!.oldCode;
@@ -116,7 +117,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
         // if (it < 3) {
         //     console.log("current file contents:\n", currentFileContents, "\n")
         // }
-        
+
     }
     return currentFileContents
 }
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
     console.log(response)
 
     return NextResponse.json({
-        newFileContents: response    
+        newFileContents: response
     })
 }
 

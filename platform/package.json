@@ -1,13 +1,17 @@
 {
-  "name": "platform",
+  "name": "sweepai",
   "version": "0.1.0",
-  "private": true,
+  "bin": {
+    "sweep": "./cli.js",
+    "sweepai": "./cli.js"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit",
+    "prepublishOnly": "next build"
   },
   "dependencies": {
     "@codemirror/commands": "^6.3.3",
