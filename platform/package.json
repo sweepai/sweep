@@ -1,10 +1,6 @@
 {
   "name": "sweepai",
-  "version": "0.1.8",
-  "bin": {
-    "sweep": "./cli.js",
-    "sweepai": "./cli.js"
-  },
+  "version": "0.1.11",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
