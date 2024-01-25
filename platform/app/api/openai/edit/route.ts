@@ -99,7 +99,7 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     const response = chatCompletion.choices[0].message.content!;
     console.log("file contents:\n", fileContents, "\n")
     console.log("response:\n", response, "\nend of response\n")
-    const diffMatches = response.matchAll(diffRegex)!;
+    const diffMatches: any = response.matchAll(diffRegex)!;
     if (!diffMatches) {
         return "";
     }
