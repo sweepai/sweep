@@ -8,24 +8,16 @@ This is a fully locally running dev tool for getting Sweep to code alongside you
 
 ### Pre-requisites
 
-For most users the following script should work:
+Ensure you have the following installed:
+- [Node.js](https://nodejs.org/en/download/) (> v18)
+
+### Step 1: Downloading Sweep
 
 ```sh filename="terminal"
-curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-npm install -g pnpm
-```
-
-But if that doesn't work, the installation for NVM can be found [here](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) and PNPM at [here](https://pnpm.io/installation#using-npm).
-
-### Step 1: Set up the Environment
-
-Clone the repo anywhere and set up the environment.
-
-```sh filename="terminal"
-git clone https://github.com/sweepai/sweep
-cd sweep/platform
-nvm i
-pnpm i
+npm i sweepai
+cd node_modules/sweepai
+npm i
+npm run build
 ```
 
 This should take a couple minutes to install. In the meantime, move onto the next step.
@@ -43,8 +35,7 @@ echo "OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" > .env.local
 Now you can build the tool and this will take about 20s. Then you can start the tool with:
 
 ```sh filename="terminal"
-pnpm build
-pnpm start
+npm start
 ```
 
 ## Using Sweep Unit Test Tool
