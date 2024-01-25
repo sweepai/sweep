@@ -2,21 +2,15 @@
 
 We use the&nbsp;[Elastic License V2](https://www.elastic.co/licensing/elastic-license) which allows commercial usage for Sweep.
 This is a guide for self-hosting Sweep. If you would like to use our hosted version, please visit https://github.com/apps/sweep-ai.
-
-## 1. Downloading Sweep
-
-Open [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the following code in your terminal (hover over code for copy button):
-
+## Install Sweep
 ```sh filename="terminal"
 git clone --depth 1 --single-branch https://github.com/sweepai/sweep
 cd sweep
 touch .env
-docker compose pull
 ```
 
 1. Clone the [sweepai/sweep](https://github.com/sweepai/sweep) repository
 2. Create a `.env` file in the root directory
-3. Pull the docker image.
 
 In the `.env`, configure the repository that Sweep should work on.
 
@@ -24,9 +18,7 @@ In the `.env`, configure the repository that Sweep should work on.
 REPO=your-username/your-repo
 ```
 
-We're halfway done! Pulling the image will take a few minutes, so let's complete the next steps for now.
-
-## 2. GitHub PAT
+## GitHub Personal Access Token
 To allow Sweep to access your repo, create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow). Sweep will run entirely locally, and no code will be shared outside of OpenAI's API.
 
 Add this to your `.env` which should now look like this:
@@ -45,8 +37,7 @@ If the link doesn't work, you can go [here](https://github.com/settings/tokens/n
 * workflow
 </details>
 
-## 3. OpenAI API Token
-
+## OpenAI API Key
 Please create an OpenAI API token at https://platform.openai.com/account/api-keys.
 ```sh
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -71,15 +62,13 @@ POSTHOG_API_KEY=none
 
 ---
 
-## 4. Deploying Sweep Locally
-
-Once `docker compose pull` from Step 1 is complete, you can run Sweep locally with the following command:
+You can run Sweep locally with the following command:
 
 ```sh filename="terminal"
-docker compose up # Add -d to run in background
+poetry install; poetry shell; python sweepai/watch.py
 ```
 
-## 5. Creating a Pull Request with Sweep
+## Creating a Pull Request with Sweep
 
 Finally, you can use Sweep by creating a new issue on the repository with a title prefixed with `Sweep:`, like `Sweep: add type hints to BaseIndex.tsx`!
 
