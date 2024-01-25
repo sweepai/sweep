@@ -1,5 +1,5 @@
 "use client"
-import { cn } from "@/lib/utils";
+import { cn } from "./lib/utils";
 import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -106,7 +106,7 @@ const FileSelector = (
                                 key={file.value}
                                 value={file.value}
                                 onSelect={async (currentValue) => {
-                                    setFilePath(currentValue === filePath ? "" : currentValue)
+                                    setFilePath(file.value === filePath ? "" : file.value)
                                     setOpen(false)
                                     const contents = (await getFile(repoName, file.value)).contents
                                     setFile(contents)
