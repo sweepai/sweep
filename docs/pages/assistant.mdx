@@ -2,52 +2,48 @@
 
 This is a fully locally running dev tool for getting Sweep to code alongside you. It uses your local machine to execute all your code for security and rapid iteration.
 
-## Installation (10 min)
+## Installation
 
-### Step 0: Pre-requisites (3 min)
+*5 minutes*
+
+### Pre-requisites
 
 For most users the following script should work:
 
-```sh
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash # For NVM
-npm install -g pnpm # For PNPM
+```sh filename="terminal"
+curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+npm install -g pnpm
 ```
 
 But if that doesn't work, the installation for NVM can be found [here](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) and PNPM at [here](https://pnpm.io/installation#using-npm).
 
-### Step 1: Set up the Environment and Building (3 min)
+### Step 1: Set up the Environment
 
-Clone into the repo and set up the environment.
+Clone the repo anywhere and set up the environment.
 
-```sh
+```sh filename="terminal"
 git clone https://github.com/sweepai/sweep
 cd sweep/platform
-nvm install
-nvm use
+nvm i
 pnpm i
 ```
 
 This should take a couple minutes to install. In the meantime, move onto the next step.
 
-### Step 2: Get your OpenAI key (3 min)
+### Step 2: Get your OpenAI key
 
 Get an OpenAI key [here](https://platform.openai.com/api-keys) and add it to your `.env.local`.
 
-```sh
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```sh filename="terminal"
+echo "OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" > .env.local
 ```
 
-### Step 3: Run the Tool (1 min)
+### Step 3: Run the Tool
 
-Now you can build the tool with
+Now you can build the tool and this will take about 20s. Then you can start the tool with:
 
-```sh
+```sh filename="terminal"
 pnpm build
-```
-
-This will take about 20s. Then you can start the tool with:
-
-```sh
 pnpm start
 ```
 
