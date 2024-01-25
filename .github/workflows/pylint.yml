@@ -35,7 +35,9 @@ jobs:
       #       ${{ runner.os }}-poetry-
 
       - name: Install dependencies
-        run: poetry install
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          poetry install
 
       - name: Run pylint
         run: poetry run pylint sweepai --errors-only
