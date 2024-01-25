@@ -29,7 +29,7 @@ The new code block to replace the second code block. Ensure the indentation is v
 >>>>>>> MODIFIED
 \`\`\`
 
-You may write one or multiple diff hunks. DO NOT include extra lines of code.`
+You may write one or multiple diff hunks. DO NOT include extra lines of code. The MODIFIED can be empty.`
 
 const userMessagePrompt = `Your job is to add modify the current code file in order to complete the user's request:
 <user_request>
