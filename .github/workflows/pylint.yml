@@ -23,6 +23,11 @@ jobs:
           # python-version: ${{ matrix.python-version }}
           python-version: "3.10"
 
+      - name: Add Poetry to PATH
+        run: |
+          echo 'export PATH="/Users/runner/.local/bin:$PATH"' >> $GITHUB_ENV
+          source $GITHUB_ENV
+
       - name: Cache Python dependencies
         uses: actions/cache@v2
         with:
