@@ -220,76 +220,76 @@ if __name__ == "__main__":
     unittest.main()
 `
 
-const mockResponse = String.raw`
-<<<<<<< ORIGINAL
-class TestDiff(unittest.TestCase):
-=======
-class TestWhitespaceReversion(unittest.TestCase):
-    def test_revert_whitespace_changes(self):
-        print("Testing whitespace reversion with additional spaces")
->>>>>>> MODIFIED
+// const mockResponse = String.raw`
+// <<<<<<< ORIGINAL
+// class TestDiff(unittest.TestCase):
+// =======
+// class TestWhitespaceReversion(unittest.TestCase):
+//     def test_revert_whitespace_changes(self):
+//         print("Testing whitespace reversion with additional spaces")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_revert_whitespace_changes(self):
-=======
-    def test_revert_whitespace_changes_more_whitespace(self):
-        print("Testing whitespace reversion with more whitespace in modified file")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     def test_revert_whitespace_changes(self):
+// =======
+//     def test_revert_whitespace_changes_more_whitespace(self):
+//         print("Testing whitespace reversion with more whitespace in modified file")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_revert_whitespace_changes_more_whitespace(self):
-=======
-    def test_revert_whitespace_changes_non_whitespace_changes(self):
-        print("Testing whitespace reversion ignoring non-whitespace changes")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     def test_revert_whitespace_changes_more_whitespace(self):
+// =======
+//     def test_revert_whitespace_changes_non_whitespace_changes(self):
+//         print("Testing whitespace reversion ignoring non-whitespace changes")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_revert_whitespace_changes_non_whitespace_changes(self):
-=======
-    def test_revert_whitespace_changes_same_files(self):
-        print("Testing whitespace reversion with identical original and modified files")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     def test_revert_whitespace_changes_non_whitespace_changes(self):
+// =======
+//     def test_revert_whitespace_changes_same_files(self):
+//         print("Testing whitespace reversion with identical original and modified files")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_revert_whitespace_changes_same_files(self):
-=======
-    def test_revert_whitespace_changes_empty_files(self):
-        print("Testing whitespace reversion with empty files")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     def test_revert_whitespace_changes_same_files(self):
+// =======
+//     def test_revert_whitespace_changes_empty_files(self):
+//         print("Testing whitespace reversion with empty files")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_revert_whitespace_changes_empty_files(self):
-=======
-    def test_revert_whitespace_changes_whitespace_only_files(self):
-        print("Testing whitespace reversion with files that contain only whitespace")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     def test_revert_whitespace_changes_empty_files(self):
+// =======
+//     def test_revert_whitespace_changes_whitespace_only_files(self):
+//         print("Testing whitespace reversion with files that contain only whitespace")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_revert_whitespace_changes_whitespace_only_files(self):
-=======
-    def test_format_contents(self):
-        print("Testing formatting of file contents")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     def test_revert_whitespace_changes_whitespace_only_files(self):
+// =======
+//     def test_format_contents(self):
+//         print("Testing formatting of file contents")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_format_contents(self):
-=======
-    @patch("sweepai.utils.diff.find_best_match")
-    def test_match_string(self, mock_find_best_match):
-        print("Testing string matching with mock")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     def test_format_contents(self):
+// =======
+//     @patch("sweepai.utils.diff.find_best_match")
+//     def test_match_string(self, mock_find_best_match):
+//         print("Testing string matching with mock")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    @patch("sweepai.utils.diff.find_best_match")
-    def test_match_string(self, mock_find_best_match):
-=======
-    def test_is_markdown(self):
-        print("Testing if file extension is markdown")
->>>>>>> MODIFIED
+// <<<<<<< ORIGINAL
+//     @patch("sweepai.utils.diff.find_best_match")
+//     def test_match_string(self, mock_find_best_match):
+// =======
+//     def test_is_markdown(self):
+//         print("Testing if file extension is markdown")
+// >>>>>>> MODIFIED
 
-<<<<<<< ORIGINAL
-    def test_is_markdown(self):
-=======
-# No modifications required for this block.
->>>>>>> MODIFIED
-`
+// <<<<<<< ORIGINAL
+//     def test_is_markdown(self):
+// =======
+// # No modifications required for this block.
+// >>>>>>> MODIFIED
+// `
