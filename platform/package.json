@@ -1,10 +1,6 @@
 {
-  "name": "platform",
-  "version": "0.1.0",
-  "private": true,
-  "presets": [
-    "@babel/preset-env"
-  ],
+  "name": "sweepai",
+  "version": "0.1.11",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

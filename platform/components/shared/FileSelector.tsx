@@ -1,11 +1,11 @@
 "use client"
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
-import getFiles, { getFile, writeFile } from "@/lib/api.service";
+import getFiles, { getFile, writeFile } from "../../lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { FaSave } from "react-icons/fa";
 

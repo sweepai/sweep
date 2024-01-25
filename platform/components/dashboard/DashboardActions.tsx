@@ -1,9 +1,9 @@
-import { Input } from "@/components/ui/input";
-import { ResizablePanel } from "@/components/ui/resizable";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "../ui/input";
+import { ResizablePanel } from "../ui/resizable";
+import { Textarea } from "../ui/textarea";
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import getFiles, { getFile, runScript, writeFile } from "@/lib/api.service";
+import getFiles, { getFile, runScript, writeFile } from "../../lib/api.service";
 import { toast } from "sonner";
 import { FaCheck, FaPen, FaPlay } from "react-icons/fa6";
 import { useLocalStorage } from 'usehooks-ts';
@@ -65,7 +65,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         }
 
         setIsLoading(true)
-        const url = "/api/openai/edit" 
+        const url = "/api/openai/edit"
         const body = JSON.stringify({
             fileContents: file.replace(/\\n/g, "\\n"),
             prompt: instructions
@@ -92,7 +92,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         {
             description: [<div key="stdout">{`There were ${changeCount} line changes made`}</div>,]
         } )
-        if (script) { 
+        if (script) {
             runScriptWrapper(object.newFileContents)
         } else {
             toast.warning("Your Script is empty and will not be run.")
@@ -131,7 +131,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                     Instructions
                 </Label>
                 <Textarea id="instructions-input" placeholder={testCasePlaceholder} value={instructions} className="grow mb-4" onChange={updateInstructons}></Textarea>
-                
+
                 <div className="flex flex-row justify-between items-center mt-2">
                     <Label className="mb-2 mr-2">
                         Test Script

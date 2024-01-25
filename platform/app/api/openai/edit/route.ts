@@ -116,6 +116,6 @@ export async function POST(request: NextRequest) {
     const response = await callOpenAI(body.prompt, body.fileContents);
 
     return NextResponse.json({
-        newFileContents: response    
+        newFileContents: response
     })
 }
