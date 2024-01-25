@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
-    // "downlevelIteration": true, this should work but it doesn't which is why strict is false
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": false,
+    "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
