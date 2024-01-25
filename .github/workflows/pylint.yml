@@ -28,13 +28,13 @@ jobs:
           echo 'export PATH="/Users/runner/.local/bin:$PATH"' >> $GITHUB_ENV
           source $GITHUB_ENV
 
-      - name: Cache Python dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
+      # - name: Cache Python dependencies
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ~/.cache/pypoetry
+      #     key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/pyproject.toml') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-poetry-
 
       - name: Install dependencies
         run: |
