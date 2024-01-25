@@ -85,8 +85,8 @@ export const parseRegexFromOpenAI = (response: string, fileContents: string) => 
     for (const diffMatch of diffMatches) {
         const oldCode = diffMatch.groups!.oldCode;
         const newCode = diffMatch.groups!.newCode;
-        console.log("old code", oldCode, "\n")
-        console.log("new code", newCode, "\n")
+        // console.log("old code", oldCode, "\n")
+        // console.log("new code", newCode, "\n")
         currentFileContents = currentFileContents.replace(oldCode, newCode)
     }
     //console.log("current file contents:\n", currentFileContents, "\n")
