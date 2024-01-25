@@ -11,12 +11,17 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || "", // This is the default and can be omitted
 });
 
+<<<<<<< HEAD
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more. If the user requests multiple changes, you must make the changes one at a time and finish each change fully before moving onto the next change.
+=======
+const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more.
+>>>>>>> origin/main
 
 You MUST respond in the following diff format:
 
 \`\`\`
 <<<<<<< ORIGINAL
+<<<<<<< HEAD
 The first code block to replace. Ensure the indentation is valid.
 =======
 The new code block to replace the first code block. Ensure the indentation is valid.
@@ -31,6 +36,14 @@ The new code block to replace the second code block. Ensure the indentation is v
 
 You may write one or multiple diff hunks. DO NOT include extra lines of code. The MODIFIED can be empty.`
 
+=======
+The code block to replace. Ensure the indentation is valid.
+=======
+The new code block. Ensure the indentation is valid.
+>>>>>>> MODIFIED
+\`\`\``
+
+>>>>>>> origin/main
 const userMessagePrompt = `Your job is to add modify the current code file in order to complete the user's request:
 <user_request>
 {prompt}
@@ -97,13 +110,19 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
     };
     const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
     const response = chatCompletion.choices[0].message.content!;
+<<<<<<< HEAD
     console.log("file contents:\n", fileContents, "\n")
     console.log("response:\n", response, "\nend of response\n")
+=======
+    console.log("file contents", fileContents, "\n")
+    console.log("response\n", response, "\nend of response\n")
+>>>>>>> origin/main
     const diffMatches = response.matchAll(diffRegex)!;
     if (!diffMatches) {
         return "";
     }
     var currentFileContents = fileContents;
+<<<<<<< HEAD
     let it = 0
     console.log("inital currentFileContents:\n", currentFileContents, "\n")
     for (const diffMatch of diffMatches) {
@@ -117,6 +136,14 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
         //     console.log("current file contents:\n", currentFileContents, "\n")
         // }
         
+=======
+    for (const diffMatch of diffMatches) {
+        const oldCode = diffMatch.groups!.oldCode;
+        const newCode = diffMatch.groups!.newCode;
+        // console.log("old code", oldCode, "\n")
+        // console.log("new code", newCode, "\n")
+        currentFileContents = currentFileContents.replace(oldCode, newCode)
+>>>>>>> origin/main
     }
     return currentFileContents
 }

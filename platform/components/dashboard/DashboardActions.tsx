@@ -21,8 +21,12 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     const [branch, setBranch] = useState("");
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
     const testCasePlaceholder = `Example:
+<<<<<<< HEAD
 1. Modify the class name to be something more descriptive
 2. Add a print statement to the front of each function to describe what each function does.`
+=======
+Rename the class name to something more descriptive then add a print statement to the front of each function to describe what each function does.`
+>>>>>>> origin/main
     useEffect(() => {
         (async () => {
             const params = new URLSearchParams({repo: repoName}).toString();
