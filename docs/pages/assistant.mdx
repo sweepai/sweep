@@ -24,7 +24,7 @@ This should take a couple minutes to install. In the meantime, move onto the nex
 
 ### Step 2: Get your OpenAI key
 
-Get an OpenAI key [here](https://platform.openai.com/api-keys) and add it to your `.env.local`.
+Get an OpenAI key [here](https://platform.openai.com/api-keys) and add it to your `.env.local` (in `./node_modules/sweepai/.env.local`).
 
 ```sh filename="terminal"
 echo "OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" > .env.local
@@ -35,6 +35,7 @@ echo "OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" > .env.local
 Now you can build the tool and this will take about 20s. Then you can start the tool with:
 
 ```sh filename="terminal"
+# Run this in the same directory (should be ./node_modules/sweepai)
 npm start
 ```
 
