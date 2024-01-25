@@ -38,6 +38,6 @@ jobs:
         file: Dockerfile
         load: true
         tags: user/app:latest
-        platforms: linux/amd64,linux/arm64
+        # platforms: linux/amd64,linux/arm64
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
