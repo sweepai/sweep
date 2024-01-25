@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - dev
+  push:
+    branches:
+      - main
 
 jobs:
   pylint:
@@ -23,13 +26,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cache Python dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
+      # - name: Cache Python dependencies
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ~/.cache/pypoetry
+      #     key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/pyproject.toml') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-poetry-
 
       - name: Install dependencies
         run: |
