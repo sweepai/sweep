@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - dev
+  push:
+    branches:
+      - main
 
 jobs:
   pylint:
@@ -23,23 +26,19 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Add Poetry to PATH (macOS only)
-        if: matrix.os == 'macos-latest'
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo 'export PATH="/Users/runner/.local/bin:$PATH"' >> $GITHUB_ENV
-          source $GITHUB_ENV
+      # - name: Cache Python dependencies
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ~/.cache/pypoetry
+      #     key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/pyproject.toml') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-poetry-
 
-      - name: Cache Python dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
 
       - name: Install dependencies
-        run: poetry install
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          poetry install
 
       - name: Run pylint
         run: poetry run pylint sweepai --errors-only
