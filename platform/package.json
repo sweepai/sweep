@@ -2,12 +2,16 @@
   "name": "platform",
   "version": "0.1.0",
   "private": true,
+  "presets": [
+    "@babel/preset-env"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
     "@codemirror/commands": "^6.3.3",
@@ -46,14 +50,19 @@
     "usehooks-ts": "^2.9.5"
   },
   "devDependencies": {
+    "@babel/core": "^7.23.9",
+    "@babel/preset-env": "^7.23.9",
+    "@types/jest": "^29.5.11",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
+    "babel-jest": "^29.7.0",
     "eslint": "^8",
     "eslint-config-next": "14.1.0",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
+    "ts-jest": "^29.1.2",
     "typescript": "^5.0.2"
   }
 }
