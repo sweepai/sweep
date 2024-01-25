@@ -74,7 +74,7 @@ const diffRegex = /<<<<<<< ORIGINAL(\n*?)(?<oldCode>.*?)(\n*?)=======(\n*?)(?<ne
 //     return oldCode.replace(maximalMatch, maximalMatch + '\n\n' + appendCode);
 // }
 
-export const parseRegexFromOpenAI = (response: string, fileContents: string) => {
+const parseRegexFromOpenAI = (response: string, fileContents: string) => {
     // console.log("file contents:\n", fileContents, "\n")
     console.log("response:\n", response, "\nend of response\n")
     const diffMatches: any = response.matchAll(diffRegex)!;
