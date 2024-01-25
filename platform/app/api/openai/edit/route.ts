@@ -25,13 +25,13 @@ The new code block to replace the first code block. Ensure the indentation and s
 <<<<<<< ORIGINAL
 The second code block to replace. Ensure the indentation is valid.
 =======
-The new code block to replace the second code block. Ensure the indentation and synatx is valid.
+The new code block to replace the second code block. Ensure the indentation and syntax is valid.
 >>>>>>> MODIFIED
 \`\`\`
 
 You may write one or multiple diff hunks. The MODIFIED can be empty.`
 
-const userMessagePrompt = `Your job is to add modify the current code file in order to complete the user's request:
+const userMessagePrompt = `Your job is to modify the current code file in order to complete the user's request:
 <user_request>
 {prompt}
 </user_request>
@@ -107,10 +107,13 @@ const callOpenAI = async (prompt: string, fileContents: string) => {
 }
 
 export async function POST(request: NextRequest) {
+    if (openai.apiKey === "") {
+        const response = NextResponse.json({message: "OpenAI API key not set, ensure you have set the OPENAI_API_KEY environment variable"}, {status: 401})
+        return response
+    }
     const body = await request.json() as Body;
     console.log("body after being extracted in post request:", body)
     const response = await callOpenAI(body.prompt, body.fileContents);
-    // console.log(response)
 
     return NextResponse.json({
         newFileContents: response    
