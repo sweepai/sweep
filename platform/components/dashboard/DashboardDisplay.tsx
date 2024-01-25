@@ -15,7 +15,6 @@ const DashboardDisplay = () => {
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
-    console.log("file", file)
     return (
         <>
         <h1 className="font-bold text-xl">Sweep Assistant</h1>

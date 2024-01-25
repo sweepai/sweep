@@ -106,7 +106,7 @@ const FileSelector = (
                                 key={file.value}
                                 value={file.value}
                                 onSelect={async (currentValue) => {
-                                    setFilePath(currentValue === filePath ? "" : currentValue)
+                                    setFilePath(file.value === filePath ? "" : file.value)
                                     setOpen(false)
                                     const contents = (await getFile(repoName, file.value)).contents
                                     setFile(contents)
