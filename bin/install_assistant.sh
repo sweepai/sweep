@@ -3,6 +3,7 @@
 RED="\033[0;31m"
 GREEN="\033[1;32m"
 BLUE="\033[1;34m"
+BLUE="\033[1;35m"
 YELLOW="\033[1;33m"
 NC="\033[0m" # No Color
 
@@ -14,7 +15,7 @@ echo -e "
          (             ,  /   @
          @@@@#         ( ..,@%
         @@@@@@@@@@@@@@@@ #@@@@.
-       @@@@&@@@@&@@@@@@. @@@@@@#          ${GREEN}Sweep AI Assistant${NC}
+       @@@@&@@@@&@@@@@@. @@@@@@#          ${BLUE}Sweep AI Assistant${NC}
        @@@  #@@#  %@@@@%@@@@@@@@@@@*
        (@@@@@@@@@@@@@@ @@@@@@@@@@@,       https://docs.sweep.dev/assistant
         %@@@@@@@@@@@@ /@@@@@@@@@@
@@ -85,22 +86,25 @@ echo -e "\n${BLUE}Installing Node dependencies...${NC}\n"
 npm i
 
 echo -e "\n${BLUE}Building the project...${NC}\n"
-npm run build
+npm run build --no-lint
+
+SHELL_CONFIG_FILE="$HOME/.zshrc"
+if [[ $0 == */bash ]]; then
+    SHELL_CONFIG_FILE=$HOME/.bashrc
+elif [[ $0 == */zsh ]]; then
+    SHELL_CONFIG_FILE=$HOME/.zshrc
+fi
 
 [[ "$INSTALL_PATH" != */ ]] && INSTALL_PATH="$INSTALL_PATH/"
 
-echo -e "${GREEN}Setup complete!${NC}"
-echo ""
-echo -e "${YELLOW}To run the assistant, use:${NC}"
+echo -e "\n${BLUE}Setting alias for Sweep in ${SHELL_CONFIG_FILE}${NC}...\n"
+echo "alias sweep='npm start --prefix ${INSTALL_PATH}sweep/platform'" >> $SHELL_CONFIG_FILE
+
+echo -e "\n${GREEN}Setup complete!${NC}\n\n"
+
+alias sweep="npm start --prefix ${INSTALL_PATH}sweep/platform"
+
+echo -e "${YELLOW}To run the assistant, run:${NC}\n"
 echo "npm start --prefix ${INSTALL_PATH}sweep/platform"
-echo ""
-
-SHELL_CONFIG_FILE="~/.zshrc"
-if [[ $0 == */bash ]]; then
-    SHELL_CONFIG_FILE=~/.bashrc
-elif [[ $0 == */zsh ]]; then
-    SHELL_CONFIG_FILE=~/.zshrc
-fi
-
-echo -e "${YELLOW}To create an alias, use:${NC}"
-echo "echo \"alias sweep='npm start --prefix ${INSTALL_PATH}sweep/platform'\" >> ${SHELL_CONFIG_FILE}"
+echo -e "\n${YELLOW}or${NC}\n"
+echo "sweep"
