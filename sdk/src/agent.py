@@ -50,6 +50,7 @@ OpenAIModel = (
     | Literal["gpt-4"]
     | Literal["gpt-4-0613"]
     | Literal["gpt-4-1106-preview"]
+    | Literal["gpt-4-0125-preview"]
     | Literal["gpt-4-32k"]
 )
 
@@ -60,6 +61,7 @@ model_to_max_tokens = {
     "gpt-4": 8192,
     "gpt-4-0613": 8192,
     "gpt-4-1106-preview": 128000,
+    "gpt-4-0125-preview": 128000,
     "gpt-4-32k": 32000,
 }
 
@@ -112,7 +114,7 @@ class SweepChatGPT(BaseModel):
 
         computed_max_tokens = (
             min(computed_max_tokens, 4096)
-            if model == "gpt-4-1106-preview"
+            if model == "gpt-4-0125-preview"
             else computed_max_tokens
         )
         max_tokens = (
