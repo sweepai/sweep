@@ -46,6 +46,7 @@ then
     if ! command -v nvm &> /dev/null
     then
         echo -e "${RED}nvm could not be found, upgrade the Node version to v18 using nvm: ${BLUE}https://github.com/nvm-sh/nvm#installing-and-updating${NC}"
+        echo -e "Once nvm is installed, run: ${BLUE}nvm install 18 && nvm use 18.${NC}"
         exit
     else
         echo -e "${BLUE}Upgrading Node version to v18 using nvm...${NC}"
