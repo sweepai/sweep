@@ -8,8 +8,6 @@ YELLOW="\033[1;33m"
 NC="\033[0m" # No Color
 
 echo -e "
-
-
                    (@@@%%%%@@@&(.
              /%                  .*
            @           @@(    &,&
@@ -43,6 +41,7 @@ if [ $NODE_VERSION_MAJOR -lt 18 ]
 then
     echo -e "${RED}Node version must be greater than v18, trying to fix with nvm...${NC}"
 
+    # Check if nvm is installed
     if ! command -v nvm &> /dev/null
     then
         echo -e "${RED}nvm could not be found, upgrade the Node version to v18 using nvm: ${BLUE}https://github.com/nvm-sh/nvm#installing-and-updating${NC}"

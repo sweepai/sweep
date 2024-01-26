@@ -4,14 +4,21 @@ This is a fully locally running dev tool for getting Sweep to code alongside you
 
 ## Installation
 
-*5 minutes to setup*
+*5 minutes to set up*
 
-### Pre-requisites
+**Pre-requisites**
+1. Make sure you have an [OpenAI account](https://platform.openai.com)
+2. Ensure you have the following installed on your machine [Node.js](https://nodejs.org/en/download/) (> v18). If you are using a different version, you can use [`nvm`](https://github.com/nvm-sh/nvm#installing-and-updating) to upgrade your Node.js version.
 
-Ensure you have the following installed:
-- [Node.js](https://nodejs.org/en/download/) (> v18)
+Then, install the assistant by running the following command in your terminal and following:
 
-### Step 1: Downloading Sweep
+```sh filename="terminal"
+curl -O https://raw.githubusercontent.com/sweepai/sweep/feat/platform-install-script/bin/install_assistant.sh && sh install_assistant.sh
+```
+
+Once everything is installed, you can run the assistant by running `sweep` in your terminal.
+
+{/* ### Step 1: Downloading Sweep
 
 You can download Sweep by running the following command in your terminal in any directory:
 
@@ -52,7 +59,7 @@ Now you can build the tool and this will take about 20s. Then you can start the 
 ```sh filename="terminal"
 # Run this in the same directory (should be ./node_modules/sweepai)
 npm start
-```
+``` */}
 
 ## Using Sweep Assistant
 
