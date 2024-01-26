@@ -126,6 +126,9 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Comment on a file, Sweep will only modify the commented file
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
+config_pr_message = ""
+config_pr_url = None
+
 email_template = """Hey {name},
 <br/><br/>
 🚀 I just finished creating a pull request for your issue ({repo_full_name}#{issue_number}) at <a href="{pr_url}">{repo_full_name}#{pr_number}</a>!
@@ -424,12 +427,6 @@ def on_ticket(
                 initial_sandbox_response: int | SandboxResponse = -1,
                 initial_sandbox_response_file=None,
             ):
-                config_pr_message = (
-                    "\n"
-                    + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
-                    if config_pr_url is not None
-                    else ""
-                )
                 actions_message = create_action_buttons(
                     [
                         RESTART_SWEEP_BUTTON,
