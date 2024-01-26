@@ -412,24 +412,6 @@ def on_ticket(
             ticket_progress.save()
 
             config_pr_url = None
-
-            user_settings = UserSettings.from_username(username=username)
-            user_settings_message = user_settings.get_message()
-
-            def get_comment_header(
-                index,
-                errored=False,
-                pr_message="",
-                done=False,
-                initial_sandbox_response: int | SandboxResponse = -1,
-                initial_sandbox_response_file=None,
-            ):
-                config_pr_message = (
-                    "\n"
-                    + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
-                    if config_pr_url is not None
-                    else ""
-                )
                 actions_message = create_action_buttons(
                     [
                         RESTART_SWEEP_BUTTON,
@@ -1464,6 +1446,14 @@ def on_ticket(
                             f"Sorry, I could not edit `{e.filename}` as this file is too long."
                             " We are currently working on improved file streaming to address"
                             " this issue.\n"
+                config_pr_message = (
+                    "\n"
+                    + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
+                    if config_pr_url is not None
+                    else ""
+                )
+                user_settings = UserSettings.from_username(username=username)
+                user_settings_message = user_settings.get_message()
                         ),
                         -1,
                     )
