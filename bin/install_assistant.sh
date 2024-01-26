@@ -26,6 +26,7 @@ echo -e "
              %@,*% /
 "
 
+# Check if npm is installed
 if ! command -v npm &> /dev/null
 then
     echo -e "${RED}npm could not be found, please install npm and try again.${NC}"
@@ -37,8 +38,18 @@ NODE_VERSION=${NODE_VERSION#"v"}
 NODE_VERSION_MAJOR=$(echo $NODE_VERSION | cut -d. -f1)
 if [ $NODE_VERSION_MAJOR -lt 18 ]
 then
-    echo -e "${RED}Node version must be greater than v18.${NC}"
-    exit
+    echo -e "${RED}Node version must be greater than v18, trying to fix with nvm...${NC}"
+
+    # Check if nvm is installed
+    if ! command -v nvm &> /dev/null
+    then
+        echo -e "${RED}nvm could not be found, upgrade the Node version to v18 using nvm: ${BLUE}https://github.com/nvm-sh/nvm#installing-and-updating${NC}"
+        exit
+    else
+        echo -e "${BLUE}Upgrading Node version to v18 using nvm...${NC}"
+        nvm install 18
+        nvm use 18
+    fi
 fi
 
 echo -e -n "${BLUE}Enter your OpenAI API key (https://platform.openai.com/api-keys): ${NC}"
@@ -50,13 +61,17 @@ then
     exit
 fi
 
-echo -e -n "${BLUE}Enter where to install Sweep (~/): ${NC}"
-read INSTALL_PATH
+# CURRENT_PATH=$(pwd)
 
-if [ -z "$INSTALL_PATH" ]
-then
-    INSTALL_PATH=~/
-fi
+# echo -e -n "${BLUE}Enter where to download Sweep ($CURRENT_PATH): ${NC}"
+# read INSTALL_PATH
+
+# if [ -z "$INSTALL_PATH" ]
+# then
+#     INSTALL_PATH=~/
+# fi
+
+INSTALL_PATH=$(pwd)
 
 cd $INSTALL_PATH
 echo -e "\n${BLUE}Cloning the Sweep repository in ${INSTALL_PATH}...${NC}\n"
@@ -66,16 +81,18 @@ cd sweep/platform
 echo -e "\n${BLUE}Storing OpenAI API key...${NC}"
 echo "OPENAI_API_KEY=$OPENAI_API_KEY" > .env.local
 
-echo -e "\n${BLUE}Installing dependencies...${NC}\n"
+echo -e "\n${BLUE}Installing Node dependencies...${NC}\n"
 npm i
 
 echo -e "\n${BLUE}Building the project...${NC}\n"
 npm run build
 
+[[ "$INSTALL_PATH" != */ ]] && INSTALL_PATH="$INSTALL_PATH/"
+
 echo -e "${GREEN}Setup complete!${NC}"
 echo ""
 echo -e "${YELLOW}To run the assistant, use:${NC}"
-echo "npm start --prefix $INSTALL_PATH/sweep/platform"
+echo "npm start --prefix ${INSTALL_PATH}sweep/platform"
 echo ""
 
 SHELL_CONFIG_FILE="~/.zshrc"
@@ -86,4 +103,4 @@ elif [[ $0 == */zsh ]]; then
 fi
 
 echo -e "${YELLOW}To create an alias, use:${NC}"
-echo "echo \"alias sweep='npm start --prefix $INSTALL_PATH/sweep/platform'\" >> ${SHELL_CONFIG_FILE}"
+echo "echo \"alias sweep='npm start --prefix ${INSTALL_PATH}sweep/platform'\" >> ${SHELL_CONFIG_FILE}"
