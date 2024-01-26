@@ -91,6 +91,7 @@ echo -e "\n${BLUE}Building the project...${NC}\n"
 npm run build --no-lint
 
 SHELL_CONFIG_FILE="$HOME/.zshrc"
+SHELL_NAME=$(basename $SHELL)
 if [[ $0 == */bash ]]; then
     SHELL_CONFIG_FILE=$HOME/.bashrc
 elif [[ $0 == */zsh ]]; then
@@ -102,11 +103,14 @@ fi
 echo -e "\n${BLUE}Setting alias for Sweep in ${SHELL_CONFIG_FILE}${NC}...\n"
 echo "alias sweep='npm start --prefix ${INSTALL_PATH}sweep/platform'" >> $SHELL_CONFIG_FILE
 
-echo -e "\n${GREEN}Setup complete!${NC}\n\n"
+echo -e "\n${GREEN}Setup complete!${NC}\n"
 
 alias sweep="npm start --prefix ${INSTALL_PATH}sweep/platform"
 
-echo -e "${YELLOW}To run the assistant, run:${NC}\n"
+echo -e "\n${YELLOW}To activate the sweep script, run:${NC}\n"
+echo "exec $SHELL_NAME"
+
+echo -e "\n${YELLOW}Then, to run the assistant, run:${NC}\n"
 echo "npm start --prefix ${INSTALL_PATH}sweep/platform"
 echo -e "\n${YELLOW}or${NC}\n"
 echo "sweep"
