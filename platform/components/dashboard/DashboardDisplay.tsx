@@ -1,5 +1,5 @@
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Textarea } from "@/components/ui/textarea";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../ui/resizable";
+import { Textarea } from "../ui/textarea";
 import React, { useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
@@ -52,7 +52,7 @@ const DashboardDisplay = () => {
                         <Textarea className={`mt-4 grow font-mono h-[200px] `} value={streamData} placeholder="GPT will display what it is thinking here." readOnly hidden={outputToggle!== "llm"}></Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>
-            </ResizablePanel>      
+            </ResizablePanel>
         </ResizablePanelGroup>
         </>
     );

@@ -43,6 +43,7 @@ model_to_max_tokens = {
     "gpt-3.5-turbo-16k": 16385,
     "gpt-4": 8192,
     "gpt-4-1106-preview": 128000,
+    "gpt-4-0125-preview": 128000,
     "gpt-4-0613": 8192,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
@@ -63,7 +64,7 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = "gpt-4-1106-preview"
+    model: ChatModel = "gpt-4-0125-preview"
     chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []

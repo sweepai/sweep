@@ -24,6 +24,7 @@ OPENAI_TIMEOUT = 60  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
     "gpt-4-1106-preview",
+    "gpt-4-0125-preview",
     "gpt-3.5-turbo-1106",
     "gpt-3.5-turbo-1106",
 ]
@@ -115,6 +116,7 @@ class OpenAIProxy:
             model == "gpt-4"
             or model == "gpt-4-0613"
             or model == "gpt-4-1106-preview"
+            or model == "gpt-4-0125-preview"
             and OPENAI_API_ENGINE_GPT4 is not None
         ):
             engine = OPENAI_API_ENGINE_GPT4

@@ -1,6 +1,6 @@
 "use client"
 
-import DashboardDisplay from "@/components/dashboard/DashboardDisplay";
+import DashboardDisplay from "../components/dashboard/DashboardDisplay";
 
 
 export default function Home() {
