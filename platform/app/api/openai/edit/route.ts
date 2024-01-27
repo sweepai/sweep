@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import OpenAI from 'openai';
+import { Stream } from "stream";
+import { OpenAIStream, StreamingTextResponse } from 'ai';
 
 
 interface Body {
@@ -93,17 +95,22 @@ const parseRegexFromOpenAI = (response: string, fileContents: string) => {
     return currentFileContents
 }
 
-const callOpenAI = async (prompt: string, fileContents: string) => {
+async function* callOpenAI (prompt: string, fileContents: string) {
     const params: OpenAI.Chat.ChatCompletionCreateParams = {
         messages: [
             { role: 'user', content: systemMessagePrompt},
             { role: 'system', content: userMessagePrompt.replace('{prompt}', prompt).replace('{fileContents}', fileContents) }
         ],
         model: 'gpt-4-1106-preview',
+        stream: true
     };
     const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
+    
     const response = chatCompletion.choices[0].message.content!;
     return parseRegexFromOpenAI(response, fileContents);
+
+    
+    return ""
 }
 
 export async function POST(request: NextRequest) {
@@ -112,10 +119,16 @@ export async function POST(request: NextRequest) {
         return response
     }
     const body = await request.json() as Body;
-    console.log("body after being extracted in post request:", body)
-    const response = await callOpenAI(body.prompt, body.fileContents);
 
-    return NextResponse.json({
-        newFileContents: response    
-    })
+    const params: OpenAI.Chat.ChatCompletionCreateParams = {
+        messages: [
+            { role: 'user', content: systemMessagePrompt},
+            { role: 'system', content: userMessagePrompt.replace('{prompt}', body.prompt).replace('{fileContents}', body.fileContents) }
+        ],
+        model: 'gpt-4-1106-preview',
+        stream: true
+    };
+    const response = await openai.chat.completions.create(params)
+    const stream = OpenAIStream(response)
+    return new StreamingTextResponse(stream)
 }
