@@ -12,8 +12,8 @@ import { FaArrowsRotate } from "react-icons/fa6";
 
 
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName, setRepoName}
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName, setRepoName, setStreamData}
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any }) => {
     const [script, setScript] = useLocalStorage("script", 'python $FILE_PATH');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
@@ -55,7 +55,48 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         }
         setScriptOutput(scriptOutput)
     }
+
+    const softIndentationCheck = (oldCode: string, newCode: string, fileContents: string): [string, string] => {
+        let newOldCode = oldCode;
+        let newNewCode = newCode;
+        if (oldCode[0] === '\n') { // expect there to be a newline at the beginning of oldCode
+            // find correct indentaton - try up to 16 spaces (8 indentations worth)
+            for (let i of [2, 4 ,6 ,8, 10, 12, 14, 16, 18, 20, 22, 24]) {
+                // split new code by \n and add the same indentation to each line, then rejoin with new lines
+                newOldCode = "\n" + oldCode.split("\n").slice(1).map((line) => " ".repeat(i) + line).join("\n")
+                if (fileContents.includes(newOldCode)) {
+                    newNewCode = "\n" + newCode.split("\n").slice(1).map((line) => " ".repeat(i) + line).join("\n")
+                    break
+                }
+            }
+        }
+        return [newOldCode, newNewCode]
+    }
+
+    const parseRegexFromOpenAI = (response: string, fileContents: string) => {
+        const diffRegex = /<<<<<<< ORIGINAL(\n*?)(?<oldCode>.*?)(\n*?)=======(\n*?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs
+        //console.log("response:\n", response, "\nend of response\n")
+        const diffMatches: any = response.matchAll(diffRegex)!;
+        if (!diffMatches) {
+            return "";
+        }
+        var currentFileContents = fileContents;
+        for (const diffMatch of diffMatches) {
+            let oldCode = diffMatch.groups!.oldCode;
+            let newCode = diffMatch.groups!.newCode;
+            // soft match indentation, there are cases where openAi will miss indentations
+            if (!currentFileContents.includes(oldCode)) {
+                const [ newOldCode, newNewCode ] : [string, string] = softIndentationCheck(oldCode, newCode, currentFileContents);
+                currentFileContents = currentFileContents.replace(newOldCode, newNewCode)
+            } else {
+                currentFileContents = currentFileContents.replace(oldCode, newCode)
+            }
+        }
+        return currentFileContents
+    }
+
     const getFileChanges = async () => {
+        setStreamData("")
         if (!hideMerge) {
             setOldFile((oldFile: string) => {
                 setFile(oldFile)
@@ -70,33 +111,48 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
             fileContents: file.replace(/\\n/g, "\\n"),
             prompt: instructions
         })
-        const response = await fetch(url, {
+        
+        const response = fetch(url, {
             method: "POST",
             body: body
-        })
-        if (!response.ok) {
-            toast.error("An error occured while generating your code.", {description: await response.text()})
+        }).then(async (response) => {
+            const reader = response.body!.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let rawText = String.raw``
+
+            while (true) {
+                const { done, value } = await reader?.read();
+                if (done) {
+                    console.log("STREAM IS FULLY READ")
+                    setIsLoading(false)
+                    setFile(parseRegexFromOpenAI(rawText, oldFile))
+                    break;
+                }
+                const text = decoder.decode(value);
+                rawText += text
+                setStreamData((prev: any) => prev + text)
+                let updatedFile = parseRegexFromOpenAI(rawText, oldFile);
+                //console.log("updated file is:", updatedFile)
+                setHideMerge(false)
+                setFile(updatedFile);
+            }
+            
+            setHideMerge(false)
+            const changeCount = Math.abs(oldFile.split("\n").length - file.split("\n").length)
+            toast.success(`Successfully generated tests!`,{
+                description: [<div key="stdout">{`There were ${changeCount} line changes made`}</div>,]}
+            )
+
+            if (script) { 
+                runScriptWrapper(file)
+            } else {
+                toast.warning("Your Script is empty and will not be run.")
+            }
+        }).catch((e) => {
+            toast.error("An error occured while generating your code.", {description: e})
             setIsLoading(false)
             return
-        }
-        const object = await response.json();
-        setIsLoading(false)
-        if (!object.newFileContents || object.newFileContents === file) {
-            toast.error("An error occured while generating your code.", {description: "Please try again"})
-            return
-        }
-        setFile(object.newFileContents)
-        setHideMerge(false)
-        const changeCount = Math.abs(oldFile.split("\n").length - object.newFileContents.split("\n").length)
-        toast.success(`Successfully generated tests!`,
-        {
-            description: [<div key="stdout">{`There were ${changeCount} line changes made`}</div>,]
-        } )
-        if (script) {
-            runScriptWrapper(object.newFileContents)
-        } else {
-            toast.warning("Your Script is empty and will not be run.")
-        }
+        })
     }
 
     return (
