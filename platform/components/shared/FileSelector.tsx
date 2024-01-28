@@ -1,11 +1,11 @@
 "use client"
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
-import getFiles, { getFile, writeFile } from "@/lib/api.service";
+import getFiles, { getFile, writeFile } from "../../lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { FaSave } from "react-icons/fa";
 
@@ -14,9 +14,11 @@ import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { html } from "@codemirror/lang-html";
 
-import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+import CodeMirror, { EditorState, EditorView, keymap } from "@uiw/react-codemirror";
 import CodeMirrorMerge from 'react-codemirror-merge';
 import { toast } from "sonner";
+import { indentWithTab } from "@codemirror/commands"
+import { indentUnit } from "@codemirror/language"
 
 const getLanguage = (ext: string) => {
     const languageMap: {[key: string]: any } = {
@@ -64,7 +66,7 @@ const FileSelector = (
 
     const ext = filePath.split(".").pop() || "js"
     const languageExtension = getLanguage(ext)
-    const extensions = [languageExtension, EditorView.lineWrapping]
+    const extensions = [languageExtension, EditorView.lineWrapping, keymap.of([indentWithTab]), indentUnit.of("    ")]
 
     return (
         <>

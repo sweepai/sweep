@@ -6,7 +6,6 @@ import json
 import threading
 import time
 from typing import Optional
-from hatchet_sdk import Hatchet, Context
 
 import requests
 from fastapi import (
@@ -22,6 +21,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
+from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from sweepai import health
@@ -79,7 +79,7 @@ from sweepai.utils.buttons import (
     check_button_activated,
     check_button_title_match,
 )
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
@@ -261,18 +261,19 @@ def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
     return ticket_progress.dict()
 
+
 def init_hatchet() -> Hatchet | None:
     try:
         hatchet = Hatchet(debug=True)
 
-        worker = hatchet.worker('github-worker')
+        worker = hatchet.worker("github-worker")
 
         @hatchet.workflow(on_events=["github:webhook"])
         class OnGithubEvent:
             """Workflow for handling GitHub events."""
-            
+
             @hatchet.step()
-            def run(self, context : Context):
+            def run(self, context: Context):
                 event_payload = context.workflow_input()
 
                 request_dict = event_payload.get("request")
@@ -292,13 +293,16 @@ def init_hatchet() -> Hatchet | None:
         print(f"Failed to initialize Hatchet: {e}, continuing with local mode")
         return None
 
-hatchet = init_hatchet()    
+
+# hatchet = init_hatchet()
+
 
 def handle_github_webhook(event_payload):
-    if hatchet:
-        hatchet.client.event.push("github:webhook", event_payload)
-    else:
-        run(event_payload.get("request"), event_payload.get("event"))
+    # if hatchet:
+    #     hatchet.client.event.push("github:webhook", event_payload)
+    # else:
+    run(event_payload.get("request"), event_payload.get("event"))
+
 
 def handle_request(request_dict, event=None):
     """So it can be exported to the listen endpoint."""
@@ -394,6 +398,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
     except:
         logger.warning("Failed to update sweep PRs")
 
+
 def run(request_dict, event):
     action = request_dict.get("action")
 
@@ -438,8 +443,7 @@ def run(request_dict, event):
                         if all(
                             status != "failure"
                             for status in [
-                                status.state
-                                for status in latest_commit.get_statuses()
+                                status.state for status in latest_commit.get_statuses()
                             ]
                         ):  # base branch is passing
                             logs = download_logs(
@@ -469,8 +473,7 @@ def run(request_dict, event):
                                 commit_hash=pr.head.sha,
                             )
                 elif (
-                    request.check_run.check_suite.head_branch
-                    == repo.default_branch
+                    request.check_run.check_suite.head_branch == repo.default_branch
                     and get_gha_enabled(repo)
                 ):
                     if request.check_run.conclusion == "failure":
@@ -499,9 +502,7 @@ def run(request_dict, event):
                             title=f"[Sweep GHA Fix] Fix the failing GitHub Actions on {request.check_run.head_sha[:7]} ({repo.default_branch})",
                             repo_description=repo.description,
                             summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
-                            repo_full_name=request_dict["repository"][
-                                "full_name"
-                            ],
+                            repo_full_name=request_dict["repository"]["full_name"],
                             installation_id=request_dict["installation"]["id"],
                             user_token=None,
                             use_faster_model=chat_logger.use_faster_model(),
@@ -528,21 +529,15 @@ def run(request_dict, event):
                 if repo_rules != [""] and repo_rules != []:
                     for rule in repo_rules or []:
                         if rule:
-                            rule_buttons.append(
-                                Button(label=f"{RULES_LABEL} {rule}")
-                            )
+                            rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
                     if len(repo_rules) == 0:
                         for rule in DEFAULT_RULES:
-                            rule_buttons.append(
-                                Button(label=f"{RULES_LABEL} {rule}")
-                            )
+                            rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
                 if rule_buttons:
                     rules_buttons_list = ButtonList(
                         buttons=rule_buttons, title=RULES_TITLE
                     )
-                    pr.create_issue_comment(
-                        rules_buttons_list.serialize() + BOT_SUFFIX
-                    )
+                    pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
 
                 if pr.mergeable == False:
                     attributor = pr.user.login
@@ -626,8 +621,7 @@ def run(request_dict, event):
                     and request.comment.user.type == "User"
                     and not request.comment.user.login.startswith("sweep")
                     and not (
-                        request.issue.pull_request
-                        and request.issue.pull_request.url
+                        request.issue.pull_request and request.issue.pull_request.url
                     )
                     or restart_sweep
                 ):
@@ -643,9 +637,7 @@ def run(request_dict, event):
                         .startswith(GITHUB_LABEL_NAME)
                         and not restart_sweep
                     ):
-                        logger.info(
-                            "Comment does not start with 'Sweep', passing"
-                        )
+                        logger.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
@@ -660,18 +652,13 @@ def run(request_dict, event):
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
                         installation_id=request.installation.id,
-                        comment_id=request.comment.id
-                        if not restart_sweep
-                        else None,
+                        comment_id=request.comment.id if not restart_sweep else None,
                         edited=True,
                     )
                 elif (
-                    request.issue.pull_request
-                    and request.comment.user.type == "User"
+                    request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
-                    logger.info(
-                        f"Handling comment on PR: {request.issue.pull_request}"
-                    )
+                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
@@ -679,9 +666,7 @@ def run(request_dict, event):
                     comment = request.comment.body
                     if (
                         comment.lower().startswith("sweep:")
-                        or any(
-                            label.name.lower() == "sweep" for label in labels
-                        )
+                        or any(label.name.lower() == "sweep" for label in labels)
                     ) and not BOT_SUFFIX in comment:
                         pr_change_request = PRChangeRequest(
                             params={
@@ -752,8 +737,7 @@ def run(request_dict, event):
                     in [label.name.lower() for label in request.issue.labels]
                     and request.comment.user.type == "User"
                     and not (
-                        request.issue.pull_request
-                        and request.issue.pull_request.url
+                        request.issue.pull_request and request.issue.pull_request.url
                     )
                     and not (BOT_SUFFIX in request.comment.body)
                 ):
@@ -767,9 +751,7 @@ def run(request_dict, event):
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
                     ):
-                        logger.info(
-                            "Comment does not start with 'Sweep', passing"
-                        )
+                        logger.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
@@ -798,9 +780,7 @@ def run(request_dict, event):
                     comment = request.comment.body
                     if (
                         comment.lower().startswith("sweep:")
-                        or any(
-                            label.name.lower() == "sweep" for label in labels
-                        )
+                        or any(label.name.lower() == "sweep" for label in labels)
                         and not BOT_SUFFIX in comment
                     ):
                         pr_change_request = PRChangeRequest(
@@ -828,9 +808,7 @@ def run(request_dict, event):
                 if (
                     (
                         comment.lower().startswith("sweep:")
-                        or any(
-                            label.name.lower() == "sweep" for label in labels
-                        )
+                        or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
                     and not BOT_SUFFIX in comment
@@ -860,9 +838,7 @@ def run(request_dict, event):
                 if (
                     (
                         comment.lower().startswith("sweep:")
-                        or any(
-                            label.name.lower() == "sweep" for label in labels
-                        )
+                        or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
                     and not BOT_SUFFIX in comment
@@ -1020,9 +996,7 @@ def run(request_dict, event):
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
-                            logger.exception(
-                                f"Failed to edit PR description: {e}"
-                            )
+                            logger.exception(f"Failed to edit PR description: {e}")
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 (
@@ -1035,16 +1009,11 @@ def run(request_dict, event):
                     if pr_request.pull_request.merged_by
                     else None
                 )
-                if (
-                    GITHUB_BOT_USERNAME == commit_author
-                    and merged_by is not None
-                ):
+                if GITHUB_BOT_USERNAME == commit_author and merged_by is not None:
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
-                    elif pr_request.pull_request.title.startswith(
-                        "[Sweep Rules]"
-                    ):
+                    elif pr_request.pull_request.title.startswith("[Sweep Rules]"):
                         event_name = "sweep_rules_pr_merged"
                     posthog.capture(
                         merged_by,
@@ -1062,10 +1031,7 @@ def run(request_dict, event):
                     )
                 chat_logger = ChatLogger({"username": merged_by})
             case "push", None:
-                if (
-                    event != "pull_request"
-                    or request_dict["base"]["merged"] == True
-                ):
+                if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
                     )
@@ -1075,20 +1041,12 @@ def run(request_dict, event):
                     if ref.startswith("refs/heads") and not ref.startswith(
                         "ref/heads/sweep"
                     ):
-                        _, g = get_github_client(
-                            request_dict["installation"]["id"]
-                        )
-                        repo = g.get_repo(
-                            request_dict["repository"]["full_name"]
-                        )
-                        if ref[len("refs/heads/") :] == SweepConfig.get_branch(
-                            repo
-                        ):
+                        _, g = get_github_client(request_dict["installation"]["id"])
+                        repo = g.get_repo(request_dict["repository"]["full_name"])
+                        if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
                             update_sweep_prs_v2(
                                 request_dict["repository"]["full_name"],
-                                installation_id=request_dict["installation"][
-                                    "id"
-                                ],
+                                installation_id=request_dict["installation"]["id"],
                             )
                     if ref.startswith("refs/heads"):
                         branch_name = ref[len("refs/heads/") :]
@@ -1121,14 +1079,10 @@ def run(request_dict, event):
                                     repo_full_name=request_dict["repository"][
                                         "full_name"
                                     ],
-                                    installation_id=request_dict[
-                                        "installation"
-                                    ]["id"],
+                                    installation_id=request_dict["installation"]["id"],
                                     tracking_id=get_hash(),
                                 )
             case "ping", None:
                 return {"message": "pong"}
             case _:
                 return {"error": "Unsupported type"}
-
-

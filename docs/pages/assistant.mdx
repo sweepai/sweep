@@ -4,35 +4,49 @@ This is a fully locally running dev tool for getting Sweep to code alongside you
 
 ## Installation
 
-*5 minutes*
+*5 minutes to set up*
 
-### Pre-requisites
+**Pre-requisites**
+1. Make sure you have an [OpenAI account](https://platform.openai.com).
+2. Ensure you have the following installed on your machine [Node.js](https://nodejs.org/en/download/) (> v18). If you are using a different version, you can use [`nvm`](https://github.com/nvm-sh/nvm#installing-and-updating) to upgrade your Node.js version.
 
-For most users the following script should work:
+Then, install the assistant by running the following command in your terminal and following:
 
 ```sh filename="terminal"
-curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-npm install -g pnpm
+curl -O https://raw.githubusercontent.com/sweepai/sweep/main/bin/install_assistant.sh && $(basename $SHELL) install_assistant.sh
 ```
 
-But if that doesn't work, the installation for NVM can be found [here](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) and PNPM at [here](https://pnpm.io/installation#using-npm).
+Once everything is installed, you can run the assistant by running `sweep` in your terminal.
 
-### Step 1: Set up the Environment
+{/* ### Step 1: Downloading Sweep
 
-Clone the repo anywhere and set up the environment.
+You can download Sweep by running the following command in your terminal in any directory:
 
 ```sh filename="terminal"
-git clone https://github.com/sweepai/sweep
-cd sweep/platform
-nvm i
-pnpm i
+npm i sweepai
+cd node_modules/sweepai
+npm i
+npm run build --no-lint
 ```
 
 This should take a couple minutes to install. In the meantime, move onto the next step.
 
+<details>
+<summary>⚠️ If you get the error: "You are using Node.js 16.14.2. For Next.js, Node.js version >= v18.17.0 is required."</summary>
+
+If you see this warning, you need to update your Node.js version by first installing [NVM](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+Then run nvm install and rebuild:
+
+```sh filename="terminal"
+nvm i
+npm run build --no-lint
+```
+</details>
+
 ### Step 2: Get your OpenAI key
 
-Get an OpenAI key [here](https://platform.openai.com/api-keys) and add it to your `.env.local`.
+Get an OpenAI key [here](https://platform.openai.com/api-keys) and add it to your `.env.local` (in `./node_modules/sweepai/.env.local`).
 
 ```sh filename="terminal"
 echo "OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" > .env.local
@@ -43,11 +57,11 @@ echo "OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" > .env.local
 Now you can build the tool and this will take about 20s. Then you can start the tool with:
 
 ```sh filename="terminal"
-pnpm build
-pnpm start
-```
+# Run this in the same directory (should be ./node_modules/sweepai)
+npm start
+``` */}
 
-## Using Sweep Unit Test Tool
+## Using Sweep Assistant
 
 1. Insert the path to your local repository.
     - You can run `pwd` to use your current working directory.
