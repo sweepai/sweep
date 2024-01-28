@@ -110,7 +110,6 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
             fileContents: file.replace(/\\n/g, "\\n"),
             prompt: instructions
         })
-
         const response = fetch(url, {
             method: "POST",
             body: body
@@ -135,7 +134,6 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                 setHideMerge(false)
                 setFile(updatedFile);
             }
-
             setHideMerge(false)
             const changeCount = Math.abs(oldFile.split("\n").length - file.split("\n").length)
             toast.success(`Successfully generated tests!`,{

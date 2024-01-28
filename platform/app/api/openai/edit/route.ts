@@ -109,9 +109,6 @@ async function* callOpenAI (prompt: string, fileContents: string) {
 
     const response = chatCompletion.choices[0].message.content!;
     return parseRegexFromOpenAI(response, fileContents);
-
-
-    return ""
 }
 
 export async function POST(request: NextRequest) {
