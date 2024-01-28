@@ -12,12 +12,11 @@ import { FaArrowsRotate } from "react-icons/fa6";
 
 
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName, setRepoName, setStreamData}
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData}
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any }) => {
     const [script, setScript] = useLocalStorage("script", 'python $FILE_PATH');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
-    const [branch, setBranch] = useState("");
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
     const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
@@ -111,7 +110,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
             fileContents: file.replace(/\\n/g, "\\n"),
             prompt: instructions
         })
-        
+
         const response = fetch(url, {
             method: "POST",
             body: body
@@ -136,14 +135,14 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                 setHideMerge(false)
                 setFile(updatedFile);
             }
-            
+
             setHideMerge(false)
             const changeCount = Math.abs(oldFile.split("\n").length - file.split("\n").length)
             toast.success(`Successfully generated tests!`,{
                 description: [<div key="stdout">{`There were ${changeCount} line changes made`}</div>,]}
             )
 
-            if (script) { 
+            if (script) {
                 runScriptWrapper(file)
             } else {
                 toast.warning("Your Script is empty and will not be run.")
@@ -182,7 +181,10 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                 <Label className="mb-2">
                     Branch
                 </Label>
-                <Input className="mb-4" value={branch} placeholder="your-branch-here"/>
+                <Input className="mb-4" value={branch} onChange={e => {
+                    setBranch(e.target.value)
+                    // TODO: make this work
+                }} placeholder="your-branch-here"/>
                 <Label className="mb-2">
                     Instructions
                 </Label>

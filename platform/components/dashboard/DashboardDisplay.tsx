@@ -24,7 +24,7 @@ const DashboardDisplay = () => {
         <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
             file={file} setFile={setFile} hideMerge={hideMerge}
-            setHideMerge={setHideMerge} oldFile={oldFile} setOldFile={setOldFile}
+            setHideMerge={setHideMerge} branch={branch} setBranch={setBranch} oldFile={oldFile} setOldFile={setOldFile}
             repoName={repoName} setRepoName={setRepoName} setStreamData={setStreamData}></DashboardActions>
             <ResizableHandle withHandle/>
             <ResizablePanel defaultSize={75}>
