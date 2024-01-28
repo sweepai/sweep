@@ -35,19 +35,27 @@ const DashboardDisplay = () => {
                             oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
-                    <ResizablePanel defaultSize={25}>
-                        <Label className="mb-2">
+                    <ResizablePanel className="mt-2" defaultSize={25}>
+                        <Label className="mb-2 mr-2">
                             Toggle between outputs:
                         </Label>
-                        <Button variant="secondary" onClick={() => {
-                            setOutputToggle("script")
-                            console.log(outputToggle)
-                        }}>Test Output</Button>
-
-                        <Button variant="secondary" onClick={() => {
-                            setOutputToggle("llm")
-                            console.log(outputToggle)
-                        }}>See GPT</Button>
+                        <Button
+                            className="mr-2"
+                            variant="secondary"
+                            onClick={() => {
+                                setOutputToggle("script")
+                                console.log(outputToggle)
+                            }}>
+                            Test Output
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                setOutputToggle("llm")
+                                console.log(outputToggle)
+                            }}>
+                            See GPT
+                        </Button>
                         <Textarea className={`mt-4 grow font-mono h-[200px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly hidden={outputToggle !== "script"}></Textarea>
                         <Textarea className={`mt-4 grow font-mono h-[200px] `} value={streamData} placeholder="GPT will display what it is thinking here." readOnly hidden={outputToggle!== "llm"}></Textarea>
                     </ResizablePanel>
