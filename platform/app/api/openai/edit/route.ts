@@ -104,12 +104,13 @@ async function* callOpenAI (prompt: string, fileContents: string) {
         model: 'gpt-4-1106-preview',
         stream: true
     };
+    //@ts-ignore
     const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
-    
+
     const response = chatCompletion.choices[0].message.content!;
     return parseRegexFromOpenAI(response, fileContents);
 
-    
+
     return ""
 }
 
