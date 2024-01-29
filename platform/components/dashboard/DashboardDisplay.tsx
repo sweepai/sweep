@@ -7,6 +7,15 @@ import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 
+const blockedPaths = [
+    ".git",
+    "node_modules",
+    "venv",
+    "__pycache__",
+    ".next",
+    "cache",
+    "logs"
+]
 
 const DashboardDisplay = () => {
     const [oldFile, setOldFile] = useLocalStorage("oldFile", "")
@@ -18,6 +27,9 @@ const DashboardDisplay = () => {
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
+    const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000)
+    const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", blockedPaths.join(", "))
+
     const [files, setFiles] = useState<{label: string, name: string}[]>([])
 
     useEffect(() => {
@@ -29,7 +41,7 @@ const DashboardDisplay = () => {
         <h1 className="font-bold text-xl">Sweep Assistant</h1>
         <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
-            file={file} setFile={setFile} hideMerge={hideMerge}
+            file={file} setFile={setFile} fileLimit={fileLimit} setFileLimit={setFileLimit} blockedGlobs={blockedGlobs} setBlockedGlobs={setBlockedGlobs} hideMerge={hideMerge}
             setHideMerge={setHideMerge} branch={branch} setBranch={setBranch} oldFile={oldFile} setOldFile={setOldFile}
             repoName={repoName} setRepoName={setRepoName} setStreamData={setStreamData} files={files}></DashboardActions>
             <ResizableHandle withHandle/>
@@ -39,7 +51,7 @@ const DashboardDisplay = () => {
                         <FileSelector filePath={filePath} setFilePath={setFilePath}
                             file={file} setFile={setFile} hideMerge={hideMerge} setHideMerge={setHideMerge}
                             oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}
-                            files={files} setFiles={setFiles}></FileSelector>
+                            files={files} setFiles={setFiles} blockedGlobs={blockedGlobs} fileLimit={fileLimit}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel className="mt-2" defaultSize={25}>
@@ -53,7 +65,7 @@ const DashboardDisplay = () => {
                                 setOutputToggle("script")
                                 console.log(outputToggle)
                             }}>
-                            Script Output
+                            Validation Output
                         </Button>
                         <Button
                             variant="secondary"
@@ -61,7 +73,7 @@ const DashboardDisplay = () => {
                                 setOutputToggle("llm")
                                 console.log(outputToggle)
                             }}>
-                            GPT Debug
+                            Debug Logs
                         </Button>
                         <Textarea className={`mt-4 grow font-mono h-[110px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} id="script-output" placeholder="Your script output will be displayed here" readOnly hidden={outputToggle !== "script"}></Textarea>
                         <Textarea className={`mt-4 grow font-mono h-[110px] `} id="llm-output" value={streamData} placeholder="GPT will display what it is thinking here." readOnly hidden={outputToggle!== "llm"}></Textarea>
