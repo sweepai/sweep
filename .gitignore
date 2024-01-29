@@ -198,3 +198,5 @@ certs
 *.csr
 *.pfx
 *.cert
+
+docker-compose

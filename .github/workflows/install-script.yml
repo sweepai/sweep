@@ -1,0 +1,37 @@
+name: Test Install Script
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 21]
+        shell: [bash, zsh]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install ZSH (if required)
+        if: matrix.shell == 'zsh'
+        run: |
+          if ! command -v zsh &> /dev/null
+          then
+            echo "ZSH not found, installing..."
+            sudo apt-get update
+            sudo apt-get install -y zsh
+          else
+            echo "ZSH already installed."
+          fi
+      - run: echo "test_openai_key" | ${{ matrix.shell }} ./bin/install_assistant.sh

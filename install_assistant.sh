@@ -76,6 +76,15 @@ fi
 INSTALL_PATH=$(pwd)
 
 cd $INSTALL_PATH
+
+if [ -d "sweep" ]; then
+  echo "Sweep folder exists. Pulling latest changes..."
+  cd sweep
+  git pull
+else
+  echo "Sweep folder does not exist."
+fi
+
 echo -e "\n${BLUE}Cloning the Sweep repository in ${INSTALL_PATH}...${NC}\n"
 git clone https://github.com/sweepai/sweep
 cd sweep/platform
