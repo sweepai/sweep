@@ -34,4 +34,4 @@ jobs:
           else
             echo "ZSH already installed."
           fi
-      - run: ${{ matrix.shell }} ./bin/install_assistant.sh < test_openai_key
+      - run: echo "test_openai_key" | ${{ matrix.shell }} ./bin/install_assistant.sh
