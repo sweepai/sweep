@@ -1,6 +1,6 @@
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
@@ -18,6 +18,11 @@ const DashboardDisplay = () => {
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
+
+    useEffect(() => {
+        let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
+        textarea.scrollTop = textarea.scrollHeight;
+    }, [streamData])
     return (
         <>
         <h1 className="font-bold text-xl">Sweep Assistant</h1>
@@ -56,8 +61,8 @@ const DashboardDisplay = () => {
                             }}>
                             See GPT
                         </Button>
-                        <Textarea className={`mt-4 grow font-mono h-[200px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} placeholder="Your script output will be displayed here" readOnly hidden={outputToggle !== "script"}></Textarea>
-                        <Textarea className={`mt-4 grow font-mono h-[200px] `} value={streamData} placeholder="GPT will display what it is thinking here." readOnly hidden={outputToggle!== "llm"}></Textarea>
+                        <Textarea className={`mt-4 grow font-mono h-[200px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} id="script-output" placeholder="Your script output will be displayed here" readOnly hidden={outputToggle !== "script"}></Textarea>
+                        <Textarea className={`mt-4 grow font-mono h-[200px] `} id="llm-output" value={streamData} placeholder="GPT will display what it is thinking here." readOnly hidden={outputToggle!== "llm"}></Textarea>
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </ResizablePanel>

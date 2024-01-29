@@ -618,6 +618,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_requests = super().validate_file_change_requests(
             file_change_requests, branch
         )
+        return file_change_requests
         if initial_sandbox_response is None:
             initial_sandbox_response, _ = self.validate_sandbox(file_change_requests)
         if initial_sandbox_response is None or (
