@@ -23,4 +23,15 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
+      - name: Install ZSH (if required)
+        if: matrix.shell == 'zsh'
+        run: |
+          if ! command -v zsh &> /dev/null
+          then
+            echo "ZSH not found, installing..."
+            sudo apt-get update
+            sudo apt-get install -y zsh
+          else
+            echo "ZSH already installed."
+          fi
       - run: ${{ matrix.shell }} ./bin/install_assistant.sh
