@@ -141,3 +141,4 @@ const FileSelector = (
 };
 
 export default FileSelector;
+export { getLanguage };
