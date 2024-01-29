@@ -202,6 +202,7 @@ def check_valid_typescript(code: str) -> tuple[bool, str]:
         result = subprocess.run(
             ["npx", "prettier", "--parser", "babel-ts", tmp_file],
             capture_output=True,
+            timeout=5,
         )
 
         os.remove(tmp_file)
