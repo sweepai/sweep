@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import OpenAI from 'openai';
-import { Stream } from "stream";
 import { OpenAIStream, StreamingTextResponse } from 'ai';
-import { Snippet } from "@/lib/search";
+import { Snippet } from "../../../../lib/search";
 
 
 interface Body {
