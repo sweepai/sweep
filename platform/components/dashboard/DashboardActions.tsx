@@ -190,7 +190,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
 
                 <div className="flex flex-row justify-between items-center mt-2">
                     <Label className="mb-2 mr-2">
-                        Test Script
+                        Validation Script
                     </Label>
                     <Button
                         className="mb-2 py-1"

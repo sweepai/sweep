@@ -51,7 +51,7 @@ const DashboardDisplay = () => {
                                 setOutputToggle("script")
                                 console.log(outputToggle)
                             }}>
-                            Test Output
+                            Validation Output
                         </Button>
                         <Button
                             variant="secondary"
@@ -59,7 +59,7 @@ const DashboardDisplay = () => {
                                 setOutputToggle("llm")
                                 console.log(outputToggle)
                             }}>
-                            See GPT
+                            GPT Debug Logs
                         </Button>
                         <Textarea className={`mt-4 grow font-mono h-[200px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} id="script-output" placeholder="Your script output will be displayed here" readOnly hidden={outputToggle !== "script"}></Textarea>
                         <Textarea className={`mt-4 grow font-mono h-[200px] `} id="llm-output" value={streamData} placeholder="GPT will display what it is thinking here." readOnly hidden={outputToggle!== "llm"}></Textarea>
