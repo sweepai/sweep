@@ -1,9 +1,13 @@
-export const getFiles = async (repoName: string, limit: number = 500) => {
+export const getFiles = async (repoName: string, blocekdGlobs: string, limit: number = -1) => {
     const url = "/api/files/list";
-    const body = {repo: repoName, limit}
+    const body = {
+        repo: repoName,
+        blockedGlobs: blocekdGlobs.split(",").map(s => s.trim()),
+        limit,
+    }
     const response = await fetch(url, {
         method: "POST",
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
     })
     return await response.json()
 }

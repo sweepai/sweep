@@ -7,6 +7,14 @@ import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 
+const blockedPaths = [
+    ".git",
+    "node_modules",
+    "venv",
+    "__pycache__",
+    ".next",
+    "cache"
+]
 
 const DashboardDisplay = () => {
     const [oldFile, setOldFile] = useLocalStorage("oldFile", "")
@@ -19,7 +27,7 @@ const DashboardDisplay = () => {
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
     const [fileLimit, setFileLimit] = useLocalStorage(2000)
-    const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", "")
+    const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", blockedPaths.join(", "))
 
     const [files, setFiles] = useState<{label: string, name: string}[]>([])
 
@@ -42,7 +50,7 @@ const DashboardDisplay = () => {
                         <FileSelector filePath={filePath} setFilePath={setFilePath}
                             file={file} setFile={setFile} hideMerge={hideMerge} setHideMerge={setHideMerge}
                             oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}
-                            files={files} setFiles={setFiles}></FileSelector>
+                            files={files} setFiles={setFiles} blockedGlobs={blockedGlobs}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel className="mt-2" defaultSize={25}>
