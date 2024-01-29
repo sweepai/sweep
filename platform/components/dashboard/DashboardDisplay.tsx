@@ -18,6 +18,7 @@ const DashboardDisplay = () => {
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
+    const [files, setFiles] = useState<{label: string, name: string}[]>([])
 
     useEffect(() => {
         let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
@@ -30,14 +31,15 @@ const DashboardDisplay = () => {
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
             file={file} setFile={setFile} hideMerge={hideMerge}
             setHideMerge={setHideMerge} branch={branch} setBranch={setBranch} oldFile={oldFile} setOldFile={setOldFile}
-            repoName={repoName} setRepoName={setRepoName} setStreamData={setStreamData}></DashboardActions>
+            repoName={repoName} setRepoName={setRepoName} setStreamData={setStreamData} files={files}></DashboardActions>
             <ResizableHandle withHandle/>
             <ResizablePanel defaultSize={75}>
                 <ResizablePanelGroup direction="vertical">
                     <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
                         <FileSelector filePath={filePath} setFilePath={setFilePath}
                             file={file} setFile={setFile} hideMerge={hideMerge} setHideMerge={setHideMerge}
-                            oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}></FileSelector>
+                            oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}
+                            files={files} setFiles={setFiles}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel className="mt-2" defaultSize={25}>

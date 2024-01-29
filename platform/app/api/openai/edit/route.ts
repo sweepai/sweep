@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import OpenAI from 'openai';
 import { Stream } from "stream";
 import { OpenAIStream, StreamingTextResponse } from 'ai';
+import { Snippet } from "@/lib/search";
 
 
 interface Body {
     fileContents: string
     prompt: string
+    snippets: Snippet[]
 }
 
 const openai = new OpenAI({
@@ -33,83 +35,24 @@ The new code block to replace the second code block. Ensure the indentation and 
 
 You may write one or multiple diff hunks. The MODIFIED can be empty.`
 
-const userMessagePrompt = `Your job is to modify the current code file in order to complete the user's request:
-<user_request>
-{prompt}
-</user_request>
+const userMessagePrompt = `Here are relevant read-only files:
+<read_only_files>
+{readOnlyFiles}
+</read_only_files>
 
 Here are the file's current contents:
 <file_contents>
 {fileContents}
-</file_contents>`
+</file_contents>
 
-const diffRegex = /<<<<<<< ORIGINAL(\n*?)(?<oldCode>.*?)(\n*?)=======(\n*?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs
+Your job is to modify the current code file in order to complete the user's request:
+<user_request>
+{prompt}
+</user_request>`
 
-// const countNumOccurences = (needle: string, haystack: string) => {
-//     if (needle === '') return 0;
-
-//     let count = 0;
-//     let pos = haystack.indexOf(needle);
-
-//     while (pos !== -1) {
-//         count++;
-//         pos = haystack.indexOf(needle, pos + 1);
-//     }
-
-//     return count;
-// }
-
-// const findMaximalSuffixMatch = (needle: string, haystack: string) => {
-//     const lines = needle.split("\n")
-//     for (var i = 0; i < lines.length; i += 1) {
-//         const substring = lines.slice(i).join("\n");
-//         if (countNumOccurences(substring, haystack) === 1) {
-//             return substring;
-//         }
-//     }
-//     return "";
-// }
-
-
-// const appendUnitTests = (oldCode: string, searchCode: string, appendCode: string) => {
-//     const maximalMatch = findMaximalSuffixMatch(searchCode, oldCode);
-//     return oldCode.replace(maximalMatch, maximalMatch + '\n\n' + appendCode);
-// }
-
-const parseRegexFromOpenAI = (response: string, fileContents: string) => {
-    // console.log("file contents:\n", fileContents, "\n")
-    console.log("response:\n", response, "\nend of response\n")
-    const diffMatches: any = response.matchAll(diffRegex)!;
-    if (!diffMatches) {
-        return "";
-    }
-    var currentFileContents = fileContents;
-    for (const diffMatch of diffMatches) {
-        const oldCode = diffMatch.groups!.oldCode;
-        const newCode = diffMatch.groups!.newCode;
-        // console.log("old code", oldCode, "\n")
-        // console.log("new code", newCode, "\n")
-        currentFileContents = currentFileContents.replace(oldCode, newCode)
-    }
-    //console.log("current file contents:\n", currentFileContents, "\n")
-    return currentFileContents
-}
-
-async function* callOpenAI (prompt: string, fileContents: string) {
-    const params: OpenAI.Chat.ChatCompletionCreateParams = {
-        messages: [
-            { role: 'user', content: systemMessagePrompt},
-            { role: 'system', content: userMessagePrompt.replace('{prompt}', prompt).replace('{fileContents}', fileContents) }
-        ],
-        model: 'gpt-4-1106-preview',
-        stream: true
-    };
-    //@ts-ignore
-    const chatCompletion: OpenAI.Chat.ChatCompletion = await openai.chat.completions.create(params);
-
-    const response = chatCompletion.choices[0].message.content!;
-    return parseRegexFromOpenAI(response, fileContents);
-}
+const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_line}" end_line="{end_line}">
+{contents}
+<file_contents>`
 
 export async function POST(request: NextRequest) {
     if (openai.apiKey === "") {
@@ -118,10 +61,19 @@ export async function POST(request: NextRequest) {
     }
     const body = await request.json() as Body;
 
+    console.log("BODY IS", body)
+
+    if (body.snippets.map(snippet => snippet.content).join("").length > 128000 * 3){
+        const response = NextResponse.json({message: "Input is too large, ran out of tokens, remove some read-only files."}, {status: 400})
+        return response
+    }
+
     const params: OpenAI.Chat.ChatCompletionCreateParams = {
         messages: [
-            { role: 'user', content: systemMessagePrompt},
-            { role: 'system', content: userMessagePrompt.replace('{prompt}', body.prompt).replace('{fileContents}', body.fileContents) }
+            { role: 'system', content: systemMessagePrompt},
+            { role: 'user', content: userMessagePrompt.replace('{prompt}', body.prompt).replace('{fileContents}', body.fileContents).replace('{readOnlyFiles}', body.snippets.map(
+                snippet => readOnlyFileFormat.replace('{file}', snippet.file).replace('{start_line}', snippet.start.toString()).replace('{end_line}', snippet.end.toString()).replace('{contents}', snippet.content)
+            ).join("\n"))}
         ],
         model: 'gpt-4-1106-preview',
         stream: true

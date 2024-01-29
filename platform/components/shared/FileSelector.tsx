@@ -40,10 +40,10 @@ const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
 const FileSelector = (
-    { filePath, setFilePath, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName }
-    : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: string, setOldFile: any, repoName: string } ) => {
+    { filePath, setFilePath, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName, files, setFiles }
+    : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: string, setOldFile: any, repoName: string,
+    files: {label: string, name: string}[], setFiles: any } ) => {
     const [open, setOpen] = useState(false)
-    const [files, setFiles] = useState<{label: string, name: string}[]>([])
     const [value, setValue] = useState("console.log('hello world!');");
     const [isLoading, setIsLoading] = useState(false)
     const placeholderText = "Your code will be displayed here once you select a Repository and file."
