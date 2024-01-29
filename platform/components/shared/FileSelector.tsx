@@ -42,7 +42,7 @@ const Modified = CodeMirrorMerge.Modified;
 const FileSelector = (
     { filePath, setFilePath, file, setFile, hideMerge, setHideMerge, oldFile, setOldFile, repoName, files, setFiles, blockedGlobs, fileLimit }
     : { filePath: string, setFilePath: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, oldFile: string, setOldFile: any, repoName: string,
-    files: {label: string, name: string}[], setFiles: any, blockedGlobs: any } ) => {
+    files: {label: string, name: string}[], setFiles: any, blockedGlobs: any, fileLimit: number } ) => {
     const [open, setOpen] = useState(false)
     const [value, setValue] = useState("console.log('hello world!');");
     const [isLoading, setIsLoading] = useState(false)

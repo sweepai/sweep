@@ -27,7 +27,7 @@ const DashboardDisplay = () => {
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
-    const [fileLimit, setFileLimit] = useLocalStorage(10000)
+    const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000)
     const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", blockedPaths.join(", "))
 
     const [files, setFiles] = useState<{label: string, name: string}[]>([])
