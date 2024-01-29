@@ -14,16 +14,18 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { cn } from "@/lib/utils";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
 import { Snippet } from "@/lib/search";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 
 
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData, files}
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any, files: {label: string, name: string}[] }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit, setFileLimit, blockedGlobs, setBlockedGlobs, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData, files}
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, fileLimit: string, setFileLimit: any, blockedGlobs: string, setBlockedGlobs: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any, files: {label: string, name: string}[] }) => {
     const [script, setScript] = useLocalStorage("script", 'python $FILE_PATH');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
     const [open, setOpen] = useState(false)
+    const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useState(repoName === "")
     const [snippets, setSnippets] = useLocalStorage("snippets", {} as {[key: string]: Snippet});
     const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
@@ -35,6 +37,9 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
             const object = await response.json()
             setBranch(object.branch)
         })()
+        if (repoName === "") {
+            setRepoNameCollapsibleOpen(true)
+        }
     }, [repoName])
 
     const updateScript = (event: any) => {
@@ -115,7 +120,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         const body = JSON.stringify({
             fileContents: file.replace(/\\n/g, "\\n"),
             prompt: instructions,
-            snippets: Object.values(snippets) 
+            snippets: Object.values(snippets)
         })
         const response = fetch(url, {
             method: "POST",
@@ -162,39 +167,70 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
     return (
         <ResizablePanel defaultSize={25} className="p-6 h-[90vh]">
             <div className="flex flex-col h-full">
-                <Label className="mb-2">
-                    Repository Path
-                </Label>
-                <Input id="name" placeholder="/Users/sweep/path/to/repo" value={currentRepoName} className="col-span-4 w-full" onChange={(e) => setCurrentRepoName(e.target.value)} onBlur={async () => {
-                    try {
-                        let newFiles = await getFiles(currentRepoName, 0)
-                        toast.success("Successfully fetched files from the repository!")
-                        setCurrentRepoName(currentRepoName => {
-                            setRepoName(currentRepoName)
-                            return currentRepoName
-                        })
-                    } catch (e) {
-                        console.error(e)
-                        toast.error("An Error Occured", {
-                            description: "Please enter a valid repository name."
-                        })
-                    }
-                }}/>
-                <p className="text-sm text-muted-foreground mb-4">
-                    Absolute path to your repository.
-                </p>
-                <Label className="mb-2">
-                    Branch
-                </Label>
-                <Input className="mb-4" value={branch} onChange={e => {
-                    setBranch(e.target.value)
-                    // TODO: make this work
-                }} placeholder="your-branch-here"/>
+                <Collapsible defaultOpen={repoName === ""} open={repoNameCollapsibleOpen}>
+                    <div className="flex flex-row justify-between items-center mb-2">
+                        <Label className="mb-0">
+                            Repository Settings&nbsp;&nbsp;
+                        </Label>
+                        <CollapsibleTrigger>
+                            <Button variant="secondary" size="sm" onClick={() => setRepoNameCollapsibleOpen(open => !open)}>
+                                Expand&nbsp;&nbsp;
+                                <CaretSortIcon className="h-4 w-4" />
+                                <span className="sr-only">Toggle</span>
+                            </Button>
+                        </CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent>
+                        <Label className="mb-2">
+                            Repository Path
+                        </Label>
+                        <Input id="name" placeholder="/Users/sweep/path/to/repo" value={currentRepoName} className="col-span-4 w-full" onChange={(e) => setCurrentRepoName(e.target.value)} onBlur={async () => {
+                            try {
+                                let newFiles = await getFiles(currentRepoName, 0)
+                                toast.success("Successfully fetched files from the repository!")
+                                setCurrentRepoName(currentRepoName => {
+                                    setRepoName(currentRepoName)
+                                    return currentRepoName
+                                })
+                            } catch (e) {
+                                console.error(e)
+                                toast.error("An Error Occured", {
+                                    description: "Please enter a valid repository name."
+                                })
+                            }
+                        }}/>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Absolute path to your repository.
+                        </p>
+                        <Label className="mb-2">
+                            Branch
+                        </Label>
+                        <Input className="mb-4" value={branch} onChange={e => {
+                            setBranch(e.target.value)
+                            // TODO: make this work
+                        }} placeholder="your-branch-here"/>
+                        <Label className="mb-2">
+                            File Limit
+                        </Label>
+                        <Input className="mb-4" value={fileLimit} onChange={e => {
+                            setFileLimit(e.target.value)
+                            // TODO: make this work
+                        }} placeholder="2000" type="number"/>
+                        <Label className="mb-2">
+                            Blocked Globs
+                        </Label>
+                        <Input className="mb-4" value={setBlockedGlobs} onChange={e => {
+                            setFileLimit(e.target.value)
+                            // TODO: make this work
+                        }} placeholder="node_modules/**, *.log, build/**"/>
+                    </CollapsibleContent>
+                </Collapsible>
+
                 <Label className="mb-2">
                     Instructions
                 </Label>
                 <Textarea id="instructions-input" placeholder={testCasePlaceholder} value={instructions} className="grow mb-4" onChange={updateInstructons}></Textarea>
-                
+
                 <Popover open={open} onOpenChange={setOpen}>
                     <div className="flex flex-row mb-2">
                         <PopoverTrigger asChild>
@@ -205,9 +241,9 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                                 className="w-full justify-between mr-2 overflow-hidden"
                                 disabled={!files}
                             >
-                                Select relevant read-only files
+                                Add relevant read-only files for Sweep to read
                                 <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>                            
+                            </Button>
                         </PopoverTrigger>
                     </div>
                     <PopoverContent className="w-full p-0 text-left">
@@ -266,27 +302,39 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                     ))}
                 </div>
 
-                <div className="flex flex-row justify-between items-center mt-2">
-                    <Label className="mb-2 mr-2">
-                        Test Script
-                    </Label>
-                    <Button
-                        className="mb-2 py-1"
-                        variant="secondary"
-                        onClick={async () => {
-                            setIsLoading(true)
-                            await runScriptWrapper(file)
-                            setIsLoading(false)
-                        }}
-                        disabled={isLoading || !script.length}
-                    >
-                        <FaPlay />&nbsp;&nbsp;Run Tests
-                    </Button>
-                </div>
-                <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full font-mono height-fit-content" value={script} onChange={updateScript}></Textarea>
-                <p className="text-sm text-muted-foreground mb-4">
-                    Use $FILE_PATH to refer to the file you selected. E.g. `python $FILE_PATH`.
-                </p>
+                <Collapsible className="flex-grow" defaultOpen={true}>
+                    <div className="flex flex-row justify-between items-center mt-2 mb-2">
+                        <Label className="mb-0">
+                            Validation Script&nbsp;&nbsp;
+                        </Label>
+                        <CollapsibleTrigger>
+                            <Button variant="secondary" size="sm">
+                                Expand&nbsp;&nbsp;
+                                <CaretSortIcon className="h-4 w-4" />
+                                <span className="sr-only">Toggle</span>
+                            </Button>
+                        </CollapsibleTrigger>
+                        <div className="grow"></div>
+                        <Button
+                            variant="secondary"
+                            onClick={async () => {
+                                setIsLoading(true)
+                                await runScriptWrapper(file)
+                                setIsLoading(false)
+                            }}
+                            disabled={isLoading || !script.length}
+                            size="sm"
+                        >
+                            <FaPlay />&nbsp;&nbsp;Run Tests
+                        </Button>
+                    </div>
+                    <CollapsibleContent>
+                        <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full font-mono height-fit-content" value={script} onChange={updateScript}></Textarea>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Use $FILE_PATH to refer to the file you selected. E.g. `python $FILE_PATH`.
+                        </p>
+                    </CollapsibleContent>
+                </Collapsible>
                 <div className="flex flex-row justify-center">
                     <Button
                         className="mt-4 mr-4"

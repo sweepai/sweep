@@ -18,6 +18,9 @@ const DashboardDisplay = () => {
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
+    const [fileLimit, setFileLimit] = useLocalStorage(2000)
+    const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", [])
+
     const [files, setFiles] = useState<{label: string, name: string}[]>([])
 
     useEffect(() => {
@@ -29,7 +32,7 @@ const DashboardDisplay = () => {
         <h1 className="font-bold text-xl">Sweep Assistant</h1>
         <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
             <DashboardActions filePath={filePath} setScriptOutput={setScriptOutput}
-            file={file} setFile={setFile} hideMerge={hideMerge}
+            file={file} setFile={setFile} fileLimit={fileLimit} setFileLimit={setFileLimit} blockedGlobs={blockedGlobs} setBlockedGlobs={setBlockedGlobs} hideMerge={hideMerge}
             setHideMerge={setHideMerge} branch={branch} setBranch={setBranch} oldFile={oldFile} setOldFile={setOldFile}
             repoName={repoName} setRepoName={setRepoName} setStreamData={setStreamData} files={files}></DashboardActions>
             <ResizableHandle withHandle/>
@@ -53,7 +56,7 @@ const DashboardDisplay = () => {
                                 setOutputToggle("script")
                                 console.log(outputToggle)
                             }}>
-                            Test Output
+                            Validation Output
                         </Button>
                         <Button
                             variant="secondary"
@@ -61,7 +64,7 @@ const DashboardDisplay = () => {
                                 setOutputToggle("llm")
                                 console.log(outputToggle)
                             }}>
-                            See GPT
+                            Debug Logs
                         </Button>
                         <Textarea className={`mt-4 grow font-mono h-[200px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600": "text-green-600"}`} value={scriptOutput.trim()} id="script-output" placeholder="Your script output will be displayed here" readOnly hidden={outputToggle !== "script"}></Textarea>
                         <Textarea className={`mt-4 grow font-mono h-[200px] `} id="llm-output" value={streamData} placeholder="GPT will display what it is thinking here." readOnly hidden={outputToggle!== "llm"}></Textarea>
