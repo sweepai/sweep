@@ -23,13 +23,13 @@ const blockedPaths = [
 export async function POST(request: NextRequest) {
     // Body -> { stdout: string, stderr: string, code: number}
     const body = await request.json() as Body;
-    const { repo, limit = 1000 } = body;
+    const { repo, limit = -1 } = body;
 
     async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = limit): Promise<string[]> {
         let queue: string[] = [rootDir];
         let nonBinaryFiles: string[] = [];
 
-        while (queue.length > 0 && nonBinaryFiles.length < fileLimit) {
+        while (queue.length > 0 && fileLimit > 0 && nonBinaryFiles.length < fileLimit) {
             const currentDir = queue.shift()!;
             if (blockedPaths.some(blockedPath => currentDir.includes(blockedPath))) {
                 continue;
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
                 } else if (item.isFile()) {
                     try {
                         const content: Buffer = await fs.readFile(res);
-                        if (!content.includes(0) && nonBinaryFiles.length < fileLimit) {
+                        if (!content.includes(0) && fileLimit > 0 && nonBinaryFiles.length < fileLimit) {
                             nonBinaryFiles.push(res.slice(rootDir.length + 1));
                         }
                     } catch (readError) {

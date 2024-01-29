@@ -19,7 +19,7 @@ const DashboardDisplay = () => {
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
     const [fileLimit, setFileLimit] = useLocalStorage(2000)
-    const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", [])
+    const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", "")
 
     const [files, setFiles] = useState<{label: string, name: string}[]>([])
 

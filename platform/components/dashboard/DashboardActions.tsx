@@ -210,17 +210,10 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                             // TODO: make this work
                         }} placeholder="your-branch-here"/>
                         <Label className="mb-2">
-                            File Limit
-                        </Label>
-                        <Input className="mb-4" value={fileLimit} onChange={e => {
-                            setFileLimit(e.target.value)
-                            // TODO: make this work
-                        }} placeholder="2000" type="number"/>
-                        <Label className="mb-2">
                             Blocked Globs
                         </Label>
-                        <Input className="mb-4" value={setBlockedGlobs} onChange={e => {
-                            setFileLimit(e.target.value)
+                        <Input className="mb-4" value={blockedGlobs} onChange={e => {
+                            setBlockedGlobs(e.target.value)
                             // TODO: make this work
                         }} placeholder="node_modules/**, *.log, build/**"/>
                     </CollapsibleContent>
