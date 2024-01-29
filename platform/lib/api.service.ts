@@ -1,8 +1,8 @@
-export const getFiles = async (repoName: string, blocekdGlobs: string, limit: number = -1) => {
+export const getFiles = async (repoName: string, blockedGlobs: string, limit: number = 10000) => {
     const url = "/api/files/list";
     const body = {
         repo: repoName,
-        blockedGlobs: blocekdGlobs.split(",").map(s => s.trim()),
+        blockedGlobs: blockedGlobs.split(",").map(s => s.trim()),
         limit,
     }
     const response = await fetch(url, {

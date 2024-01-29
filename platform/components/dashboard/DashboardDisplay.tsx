@@ -13,7 +13,8 @@ const blockedPaths = [
     "venv",
     "__pycache__",
     ".next",
-    "cache"
+    "cache",
+    "logs"
 ]
 
 const DashboardDisplay = () => {
@@ -26,7 +27,7 @@ const DashboardDisplay = () => {
     const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "")
     const [file, setFile] = useLocalStorage("file", "");
     const [repoName, setRepoName] = useLocalStorage("repoName", '');
-    const [fileLimit, setFileLimit] = useLocalStorage(2000)
+    const [fileLimit, setFileLimit] = useLocalStorage(10000)
     const [blockedGlobs, setBlockedGlobs] = useLocalStorage("blockedGlobs", blockedPaths.join(", "))
 
     const [files, setFiles] = useState<{label: string, name: string}[]>([])
@@ -50,7 +51,7 @@ const DashboardDisplay = () => {
                         <FileSelector filePath={filePath} setFilePath={setFilePath}
                             file={file} setFile={setFile} hideMerge={hideMerge} setHideMerge={setHideMerge}
                             oldFile={oldFile} setOldFile={setOldFile} repoName={repoName}
-                            files={files} setFiles={setFiles} blockedGlobs={blockedGlobs}></FileSelector>
+                            files={files} setFiles={setFiles} blockedGlobs={blockedGlobs} fileLimit={fileLimit}></FileSelector>
                     </ResizablePanel>
                     <ResizableHandle withHandle/>
                     <ResizablePanel className="mt-2" defaultSize={25}>
