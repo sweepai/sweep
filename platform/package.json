@@ -39,7 +39,7 @@
     "next-themes": "^0.2.1",
     "openai": "^4.25.0",
     "pyodide": "^0.25.0",
-    "react": "18.3.0-canary-4cd706566-20230512",
+    "react": "18.2.0",
     "react-codemirror-merge": "^4.21.21",
     "react-dom": "^18",
     "react-icons": "^5.0.1",
