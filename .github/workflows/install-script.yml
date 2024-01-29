@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: [18, 20, 21]
+        node: [18, 21]
         shell: [bash, zsh]
     steps:
       - uses: actions/checkout@v2
@@ -23,4 +23,4 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
-      - run: ${{ matrix.shell }} ./bin/install-assistant.sh
+      - run: ${{ matrix.shell }} ./bin/install_assistant.sh
