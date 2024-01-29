@@ -5,19 +5,26 @@ import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import getFiles, { getFile, runScript, writeFile } from "../../lib/api.service";
 import { toast } from "sonner";
-import { FaCheck, FaPen, FaPlay } from "react-icons/fa6";
+import { FaCheck, FaPen, FaPlay, FaTrash } from "react-icons/fa6";
 import { useLocalStorage } from 'usehooks-ts';
 import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
+import { cn } from "@/lib/utils";
+import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
+import { Snippet } from "@/lib/search";
 
 
 
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData}
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData, files}
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any, files: {label: string, name: string}[] }) => {
     const [script, setScript] = useLocalStorage("script", 'python $FILE_PATH');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
+    const [open, setOpen] = useState(false)
+    const [snippets, setSnippets] = useLocalStorage("snippets", {} as {[key: string]: Snippet});
     const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
 2. Add a print statement to the front of each function to describe what each function does.`
@@ -74,7 +81,6 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
 
     const parseRegexFromOpenAI = (response: string, fileContents: string) => {
         const diffRegex = /<<<<<<< ORIGINAL(\n*?)(?<oldCode>.*?)(\n*?)=======(\n*?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs
-        //console.log("response:\n", response, "\nend of response\n")
         const diffMatches: any = response.matchAll(diffRegex)!;
         if (!diffMatches) {
             return "";
@@ -108,7 +114,8 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
         const url = "/api/openai/edit"
         const body = JSON.stringify({
             fileContents: file.replace(/\\n/g, "\\n"),
-            prompt: instructions
+            prompt: instructions,
+            snippets: Object.values(snippets) 
         })
         const response = fetch(url, {
             method: "POST",
@@ -187,6 +194,77 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                     Instructions
                 </Label>
                 <Textarea id="instructions-input" placeholder={testCasePlaceholder} value={instructions} className="grow mb-4" onChange={updateInstructons}></Textarea>
+                
+                <Popover open={open} onOpenChange={setOpen}>
+                    <div className="flex flex-row mb-2">
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={open}
+                                className="w-full justify-between mr-2 overflow-hidden"
+                                disabled={!files}
+                            >
+                                Select relevant read-only files
+                                <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>                            
+                        </PopoverTrigger>
+                    </div>
+                    <PopoverContent className="w-full p-0 text-left">
+                        <Command>
+                            <CommandInput placeholder="Search file..." className="h-9" />
+                            <CommandEmpty>No file found.</CommandEmpty>
+                            <CommandGroup>
+                                {files.map((file: any) => (
+                                    <CommandItem
+                                        key={file.value}
+                                        value={file.value}
+                                        onSelect={async (currentValue) => {
+                                            const contents = (await getFile(repoName, file.value)).contents
+                                            setSnippets((prev) => {
+                                                let newSnippet = {
+                                                    file: file.value,
+                                                    start: 0,
+                                                    end: contents.split("\n").length,
+                                                    entireFile: contents,
+                                                    content: contents // this is the slice based on start and end, remeber to change this
+                                                } as Snippet
+                                                prev[newSnippet.file] = newSnippet
+                                                return prev
+                                            })
+                                            setOpen(false)
+                                        }}
+                                    >
+                                    {file.label}
+                                        <CheckIcon
+                                            className={cn(
+                                                "ml-auto h-4 w-4",
+                                                filePath === file.value ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+                <div>
+                    {Object.keys(snippets).map((snippet: string, index: number) => (
+                        <div className="flex mb-2" key={snippet}>
+                            <p className="border rounded overflow-x-auto grow mr-2 whitespace-pre bg-zinc-900 p-2 align-items-center">
+                                {snippet}
+                            </p>
+                            <Button variant="secondary" className="bg-zinc-900" onClick={() => {
+                                setSnippets((prev: {[key: string]: Snippet}) => {
+                                    delete prev[snippet]
+                                    return prev
+                                })
+                            }}>
+                                <FaTrash/>
+                            </Button>
+                        </div>
+                    ))}
+                </div>
 
                 <div className="flex flex-row justify-between items-center mt-2">
                     <Label className="mb-2 mr-2">
@@ -205,7 +283,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                         <FaPlay />&nbsp;&nbsp;Run Tests
                     </Button>
                 </div>
-                <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full font-mono" value={script} onChange={updateScript}></Textarea>
+                <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full font-mono height-fit-content" value={script} onChange={updateScript}></Textarea>
                 <p className="text-sm text-muted-foreground mb-4">
                     Use $FILE_PATH to refer to the file you selected. E.g. `python $FILE_PATH`.
                 </p>
