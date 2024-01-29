@@ -11,9 +11,9 @@ import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import { Snippet } from "@/lib/search";
+import { Snippet } from "../../lib/search";
 
 
 
@@ -268,7 +268,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
 
                 <div className="flex flex-row justify-between items-center mt-2">
                     <Label className="mb-2 mr-2">
-                        Test Script
+                        Validation Script
                     </Label>
                     <Button
                         className="mb-2 py-1"
@@ -280,7 +280,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, hideMerge,
                         }}
                         disabled={isLoading || !script.length}
                     >
-                        <FaPlay />&nbsp;&nbsp;Run Tests
+                        <FaPlay />&nbsp;&nbsp;Run Script
                     </Button>
                 </div>
                 <Textarea id="script-input" placeholder="Enter your script here" className="col-span-4 w-full font-mono height-fit-content" value={script} onChange={updateScript}></Textarea>
