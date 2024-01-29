@@ -11,10 +11,10 @@ import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "../ui/command";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import { Snippet } from "@/lib/search";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { Snippet } from "../../lib/search";
 
 
 
