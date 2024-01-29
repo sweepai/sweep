@@ -19,7 +19,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 
 
 const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit, setFileLimit, blockedGlobs, setBlockedGlobs, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData, files}
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any, fileLimit: string, setFileLimit: any, blockedGlobs: string, setBlockedGlobs: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any, files: {label: string, name: string}[] }) => {
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, fileLimit: number, setFileLimit: any, blockedGlobs: string, setBlockedGlobs: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any, files: {label: string, name: string}[] }) => {
     const [script, setScript] = useLocalStorage("script", 'python $FILE_PATH');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
@@ -186,7 +186,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                         </Label>
                         <Input id="name" placeholder="/Users/sweep/path/to/repo" value={currentRepoName} className="col-span-4 w-full" onChange={(e) => setCurrentRepoName(e.target.value)} onBlur={async () => {
                             try {
-                                let newFiles = await getFiles(currentRepoName, 0)
+                                let newFiles = await getFiles(currentRepoName, blockedGlobs, fileLimit)
                                 toast.success("Successfully fetched files from the repository!")
                                 setCurrentRepoName(currentRepoName => {
                                     setRepoName(currentRepoName)
