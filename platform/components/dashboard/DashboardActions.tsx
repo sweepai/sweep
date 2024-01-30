@@ -15,24 +15,24 @@ import { cn } from "../../lib/utils";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Snippet } from "../../lib/search";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import DashboardInstructions from "./DashboardInstructions";
+import { FileChangeRequest } from "../../lib/types";
 
-
-
-const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit, setFileLimit, blockedGlobs, setBlockedGlobs, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData, files}
-    : { filePath: string, setScriptOutput: any, file: string, setFile: any, fileLimit: number, setFileLimit: any, blockedGlobs: string, setBlockedGlobs: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any, files: {label: string, name: string}[] }) => {
+const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit, setFileLimit, blockedGlobs, setBlockedGlobs, hideMerge, setHideMerge, branch, setBranch, oldFile, setOldFile, repoName, setRepoName, setStreamData, files }
+    : { filePath: string, setScriptOutput: any, file: string, setFile: any, fileLimit: number, setFileLimit: any, blockedGlobs: string, setBlockedGlobs: any, hideMerge: boolean, setHideMerge: any, branch: string, setBranch: any, oldFile: any, setOldFile: any, repoName: string, setRepoName: any, setStreamData: any, files: { label: string, name: string }[] }) => {
     const [script, setScript] = useLocalStorage("script", 'python $FILE_PATH');
     const [instructions, setInstructions] = useLocalStorage("instructions", '');
     const [isLoading, setIsLoading] = useState(false)
     const [currentRepoName, setCurrentRepoName] = useState(repoName);
     const [open, setOpen] = useState(false)
     const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useState(repoName === "")
-    const [snippets, setSnippets] = useLocalStorage("snippets", {} as {[key: string]: Snippet});
-    const testCasePlaceholder = `Example:
-1. Modify the class name to be something more descriptive
-2. Add a print statement to the front of each function to describe what each function does.`
+    const [snippets, setSnippets] = useLocalStorage("snippets", {} as { [key: string]: Snippet });
+    const [fileChangeRequests, setFileChangeRequests] = useLocalStorage<FileChangeRequest[]>("fileChangeRequests", [])
+    const [currentFileChangeRequestIndex, setCurrentFileChangeRequestIndex] = useLocalStorage("currentFileChangeRequestIndex", 0)
     useEffect(() => {
         (async () => {
-            const params = new URLSearchParams({repo: repoName}).toString();
+            const params = new URLSearchParams({ repo: repoName }).toString();
             const response = await fetch("/api/branch?" + params)
             const object = await response.json()
             setBranch(object.branch)
@@ -72,7 +72,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
         let newNewCode = newCode;
         if (oldCode[0] === '\n') { // expect there to be a newline at the beginning of oldCode
             // find correct indentaton - try up to 16 spaces (8 indentations worth)
-            for (let i of [2, 4 ,6 ,8, 10, 12, 14, 16, 18, 20, 22, 24]) {
+            for (let i of [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]) {
                 // split new code by \n and add the same indentation to each line, then rejoin with new lines
                 newOldCode = "\n" + oldCode.split("\n").slice(1).map((line) => " ".repeat(i) + line).join("\n")
                 if (fileContents.includes(newOldCode)) {
@@ -96,7 +96,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
             let newCode = diffMatch.groups!.newCode;
             // soft match indentation, there are cases where openAi will miss indentations
             if (!currentFileContents.includes(oldCode)) {
-                const [ newOldCode, newNewCode ] : [string, string] = softIndentationCheck(oldCode, newCode, currentFileContents);
+                const [newOldCode, newNewCode]: [string, string] = softIndentationCheck(oldCode, newCode, currentFileContents);
                 currentFileContents = currentFileContents.replace(newOldCode, newNewCode)
             } else {
                 currentFileContents = currentFileContents.replace(oldCode, newCode)
@@ -148,8 +148,9 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
             }
             setHideMerge(false)
             const changeCount = Math.abs(oldFile.split("\n").length - file.split("\n").length)
-            toast.success(`Successfully generated tests!`,{
-                description: [<div key="stdout">{`There were ${changeCount} line changes made`}</div>,]}
+            toast.success(`Successfully generated tests!`, {
+                description: [<div key="stdout">{`There were ${changeCount} line changes made`}</div>,]
+            }
             )
 
             if (script) {
@@ -158,7 +159,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                 toast.warning("Your Script is empty and will not be run.")
             }
         }).catch((e) => {
-            toast.error("An error occured while generating your code.", {description: e})
+            toast.error("An error occured while generating your code.", { description: e })
             setIsLoading(false)
             return
         })
@@ -198,7 +199,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                                     description: "Please enter a valid repository name."
                                 })
                             }
-                        }}/>
+                        }} />
                         <p className="text-sm text-muted-foreground mb-4">
                             Absolute path to your repository.
                         </p>
@@ -208,81 +209,35 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                         <Input className="mb-4" value={branch} onChange={e => {
                             setBranch(e.target.value)
                             // TODO: make this work
-                        }} placeholder="your-branch-here"/>
+                        }} placeholder="your-branch-here" />
                         <Label className="mb-2">
                             Blocked Keywords
                         </Label>
                         <Input className="mb-4" value={blockedGlobs} onChange={e => {
                             setBlockedGlobs(e.target.value)
                             // TODO: make this work
-                        }} placeholder="node_modules, .log, build"/>
+                        }} placeholder="node_modules, .log, build" />
                         <Label className="mb-2">
                             File Limit
                         </Label>
                         <Input className="mb-4" value={fileLimit} onChange={e => {
                             setFileLimit(e.target.value)
-                        }} placeholder="10000" type="number"/>
+                        }} placeholder="10000" type="number" />
                     </CollapsibleContent>
                 </Collapsible>
 
-                <Label className="mb-2">
-                    Instructions
-                </Label>
-                <Textarea id="instructions-input" placeholder={testCasePlaceholder} value={instructions} className="grow mb-4" onChange={updateInstructons}></Textarea>
-
-                <Popover open={open} onOpenChange={setOpen}>
-                    <div className="flex flex-row mb-2">
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={open}
-                                className="w-full justify-between mr-2 overflow-hidden"
-                                disabled={!files}
-                            >
-                                Add relevant read-only files for Sweep to read
-                                <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                    </div>
-                    <PopoverContent className="w-full p-0 text-left">
-                        <Command>
-                            <CommandInput placeholder="Search file..." className="h-9" />
-                            <CommandEmpty>No file found.</CommandEmpty>
-                            <CommandGroup>
-                                {files.map((file: any) => (
-                                    <CommandItem
-                                        key={file.value}
-                                        value={file.value}
-                                        onSelect={async (currentValue) => {
-                                            const contents = (await getFile(repoName, file.value)).contents
-                                            setSnippets((prev) => {
-                                                let newSnippet = {
-                                                    file: file.value,
-                                                    start: 0,
-                                                    end: contents.split("\n").length,
-                                                    entireFile: contents,
-                                                    content: contents // this is the slice based on start and end, remeber to change this
-                                                } as Snippet
-                                                prev[newSnippet.file] = newSnippet
-                                                return prev
-                                            })
-                                            setOpen(false)
-                                        }}
-                                    >
-                                    {file.label}
-                                        <CheckIcon
-                                            className={cn(
-                                                "ml-auto h-4 w-4",
-                                                filePath === file.value ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </Command>
-                    </PopoverContent>
-                </Popover>
+                <DashboardInstructions
+                    filePath={filePath}
+                    repoName={repoName}
+                    setSnippets={setSnippets}
+                    open={open}
+                    setOpen={setOpen}
+                    files={files}
+                    instructions={instructions}
+                    setInstructions={setInstructions}
+                    fileChangeRequests={fileChangeRequests}
+                    setFileChangeRequests={setFileChangeRequests}
+                />
                 <div>
                     {Object.keys(snippets).map((snippet: string, index: number) => (
                         <div className="flex mb-2" key={snippet}>
@@ -290,18 +245,18 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                                 {snippet}
                             </p>
                             <Button variant="secondary" className="bg-zinc-900" onClick={() => {
-                                setSnippets((prev: {[key: string]: Snippet}) => {
+                                setSnippets((prev: { [key: string]: Snippet }) => {
                                     delete prev[snippet]
                                     return prev
                                 })
                             }}>
-                                <FaTrash/>
+                                <FaTrash />
                             </Button>
                         </div>
                     ))}
                 </div>
 
-                <Collapsible className="flex-grow" defaultOpen={true}>
+                <Collapsible defaultOpen={true}>
                     <div className="flex flex-row justify-between items-center mt-2 mb-2">
                         <Label className="mb-0">
                             Validation Script&nbsp;&nbsp;
@@ -356,7 +311,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                             setHideMerge(true)
                         }}
                         disabled={isLoading}
-                        >
+                    >
                         <FaArrowsRotate />&nbsp;&nbsp;Restart
                     </Button>
                     <Button

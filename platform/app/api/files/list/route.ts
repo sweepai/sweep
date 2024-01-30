@@ -21,9 +21,6 @@ const blockedPaths = [
     "logn_logs"
 ]
 
-export const revalidate = 0
-export const dynamic = 'force-dynamic'
-
 export async function POST(request: NextRequest) {
     // Body -> { stdout: string, stderr: string, code: number}
     const body = await request.json() as Body;
@@ -37,8 +34,6 @@ export async function POST(request: NextRequest) {
             const currentDir = queue.shift()!;
             // if (blockedGlobs.some(blockedGlob => minimatch(currentDir, blockedGlob))) {
             if (blockedGlobs.some(blockedGlob => currentDir.includes(blockedGlob))) {
-                console.log(blockedGlobs.some(blockedGlob => currentDir.includes(blockedGlob)))
-                console.log("here!")
                 continue;
             }
             const items: Dirent[] = await fs.readdir(currentDir, { withFileTypes: true });
@@ -51,7 +46,6 @@ export async function POST(request: NextRequest) {
                     try {
                         const content: Buffer = await fs.readFile(res);
                         if (!content.includes(0) && fileLimit > 0 && nonBinaryFiles.length < fileLimit) {
-                            console.log("here!")
                             nonBinaryFiles.push(res.slice(rootDir.length + 1));
                         }
                     } catch (readError) {

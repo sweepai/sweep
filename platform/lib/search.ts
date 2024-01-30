@@ -1,25 +1,12 @@
 import { Dirent, promises as fs } from 'fs';
+import { File, Snippet } from './types';
 // import { cache } from 'react'
 
 import path from 'path';
 import Fuse from 'fuse.js';
 
 
-interface File {
-    name: string
-    path: string
-    isDirectory: boolean
-    content?: string
-    snippets?: Snippet[]
-}
 
-interface Snippet {
-    file: string
-    start: number
-    end: number
-    entireFile: string
-    content: string
-}
 
 const blockedPaths = [
     ".git",
