@@ -360,7 +360,6 @@ const DashboardActions = ({
             />
             <Label className="mb-2">File Limit</Label>
             <Input
-              className="mb-4"
               value={fileLimit}
               onChange={(e) => {
                 setFileLimit(e.target.value);
