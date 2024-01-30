@@ -9,27 +9,17 @@ import { FaCheck, FaPen, FaPlay, FaTrash } from "react-icons/fa6";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "../ui/command";
-import { cn } from "../../lib/utils";
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
+import { CaretSortIcon } from "@radix-ui/react-icons";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../ui/collapsible";
 import { Snippet } from "../../lib/search";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import DashboardInstructions from "./DashboardInstructions";
 import { FileChangeRequest } from "../../lib/types";
 
-const DashboardDisplay = ({
+const DashboardActions = ({
   filePath,
   setScriptOutput,
   file,
@@ -52,20 +42,22 @@ const DashboardDisplay = ({
   setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
+  setHideMergeAll,
+  setFileByIndex,
+  setOldFileByIndex,
 }: any) => {
   const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
 //   const [instructions, setInstructions] = useLocalStorage("instructions", "");
   const [isLoading, setIsLoading] = useState(false);
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
-  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useState(
-    repoName === "",
-  );
+  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen",repoName === "");
+  const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen",true);
   const [snippets, setSnippets] = useLocalStorage(
     "snippets",
     {} as { [key: string]: Snippet },
   );
-  console.log("file in DashboardActions.tsx", file)
+  //console.log("file in DashboardActions.tsx", file)
   const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
   const setInstructions = (instructions: string) => {
     setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -188,25 +180,24 @@ const DashboardDisplay = ({
     return currentFileContents;
   };
 
-  const getFileChanges = async () => {
+  const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
+    console.log("getting file changes")
     setStreamData("");
+    // case where we are showing mergediff
     if (!hideMerge) {
-      setCurrentFileChangeRequestIndex((index: number) => {
-        setFileChangeRequests((prev: FileChangeRequest[]) => {
-          setFile(prev[index].snippet.entireFile);
-          return prev
-        })
-        return index;
+      setFileChangeRequests((prev: FileChangeRequest[]) => {
+        setHideMerge(true, index);
+        setFileByIndex(prev[index].snippet.entireFile, index);
+        return prev
       })
-      setHideMerge(true);
     }
 
     setIsLoading(true);
     const url = "/api/openai/edit";
     const body = JSON.stringify({
-      fileContents: file.replace(/\\n/g, "\\n"),
-      prompt: instructions,
-      snippets: Object.values(snippets),
+      fileContents: fcr.snippet.content.replace(/\\n/g, "\\n"),
+      prompt: fcr.instructions,
+      snippets: Object.values(snippets), //THIS MIGHT NEEED TO CHANGE LATER IF WE HAVE SNIPPETS FOR CERTAIN FCRS
     });
     const response = fetch(url, {
       method: "POST",
@@ -219,39 +210,33 @@ const DashboardDisplay = ({
         console.log("ran!")
 
         var i = 0;
-        setHideMerge(false);
+        setHideMerge(false, index);
         while (true) {
           i += 1;
           var { done, value } = await reader?.read();
-          done = true;
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
             console.log("STREAM IS FULLY READ");
-            console.log(rawText)
-            console.log(oldFile)
             setIsLoading(false);
-            const updatedFile = parseRegexFromOpenAI(rawText || "", oldFile)
-            console.log(updatedFile)
-            setFile(updatedFile);
+            const updatedFile = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
+            setFileByIndex(updatedFile, index);
             break;
           }
           const text = decoder.decode(value);
           rawText += text;
           setStreamData((prev: any) => prev + text);
-          if (i % 10 == 0) {
+          if (i % 3 == 0) {
             try {
-              console.log("RAW TEXT", rawText)
-              let updatedFile = parseRegexFromOpenAI(rawText, oldFile);
-              console.log("updated file is:", updatedFile)
-              setFile(updatedFile);
+              let updatedFile = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
+              setFileByIndex(updatedFile, index);
             } catch (e) {
               console.error(e)
             }
           }
         }
-        setHideMerge(false);
+        setHideMerge(false, index);
         const changeCount = Math.abs(
-          oldFile.split("\n").length - file.split("\n").length,
+          fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length,
         );
         toast.success(`Successfully generated tests!`, {
           description: [
@@ -259,11 +244,11 @@ const DashboardDisplay = ({
           ],
         });
 
-        if (script) {
-          runScriptWrapper(file);
-        } else {
-          toast.warning("Your Script is empty and will not be run.");
-        }
+        // if (script) {
+        //   runScriptWrapper(file); // file is incorrect it should be based off of fcr
+        // } else {
+        //   toast.warning("Your Script is empty and will not be run.");
+        // }
       })
       .catch((e) => {
         toast.error("An error occured while generating your code.", {
@@ -274,12 +259,20 @@ const DashboardDisplay = ({
       });
   };
 
+  const syncAllFiles = async () => {
+    fileChangeRequests.forEach(async (fcr: FileChangeRequest, index: number) => {
+      const response = await getFile(repoName, fcr.snippet.file);
+      setFileByIndex(response.contents, index);
+      setOldFileByIndex(response.contents, index);
+    })
+  }
   return (
     <ResizablePanel defaultSize={25} className="p-6 h-[90vh]">
       <div className="flex flex-col h-full">
         <Collapsible
           defaultOpen={repoName === ""}
           open={repoNameCollapsibleOpen}
+          className="border-2 rounded"
         >
           <div className="flex flex-row justify-between items-center mb-2">
             <Label className="mb-0">Repository Settings&nbsp;&nbsp;</Label>
@@ -289,7 +282,7 @@ const DashboardDisplay = ({
                 size="sm"
                 onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
               >
-                Expand&nbsp;&nbsp;
+                { !repoNameCollapsibleOpen ? 'Expand': 'Collapse'}&nbsp;&nbsp;
                 <CaretSortIcon className="h-4 w-4" />
                 <span className="sr-only">Toggle</span>
               </Button>
@@ -374,6 +367,10 @@ const DashboardDisplay = ({
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+          setFileByIndex={setFileByIndex}
+          setOldFileByIndex={setOldFileByIndex}
+          setHideMerge={setHideMerge}
+          getFileChanges={getFileChanges}
         />
         <div>
           {Object.keys(snippets).map((snippet: string, index: number) => (
@@ -397,12 +394,12 @@ const DashboardDisplay = ({
           ))}
         </div>
 
-        <Collapsible defaultOpen={true}>
+        <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded">
           <div className="flex flex-row justify-between items-center mt-2 mb-2">
             <Label className="mb-0">Validation Script&nbsp;&nbsp;</Label>
             <CollapsibleTrigger>
-              <Button variant="secondary" size="sm">
-                Expand&nbsp;&nbsp;
+              <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open) => !open)}>
+                { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
                 <CaretSortIcon className="h-4 w-4" />
                 <span className="sr-only">Toggle</span>
               </Button>
@@ -451,17 +448,15 @@ const DashboardDisplay = ({
             variant="secondary"
             onClick={async () => {
               setIsLoading(true);
-              const response = await getFile(repoName, filePath);
-              setFile(response.contents);
-              setOldFile(response.contents);
-              toast.success("File synced from storage!");
+              syncAllFiles();
+              toast.success("Files synced from storage!");
               setIsLoading(false);
-              setHideMerge(true);
+              setHideMergeAll(true);
             }}
             disabled={isLoading}
           >
             <FaArrowsRotate />
-            &nbsp;&nbsp;Restart
+            &nbsp;&nbsp;Restart All
           </Button>
           <Button
             className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
@@ -470,7 +465,7 @@ const DashboardDisplay = ({
                 setOldFile(file);
                 return file;
               });
-              setHideMerge(true);
+              setHideMerge(true, currentFileChangeRequestIndex);
               await writeFile(repoName, filePath, file);
               toast.success("Succesfully saved new file!");
             }}
@@ -484,4 +479,4 @@ const DashboardDisplay = ({
   );
 };
 
-export default DashboardDisplay;
+export default DashboardActions;

@@ -24,7 +24,7 @@ const blockedPaths = [
 
 const DashboardDisplay = () => {
 //   const [oldFile, setOldFile] = useLocalStorage("oldFile", "");
-  const [hideMerge, setHideMerge] = useLocalStorage("hideMerge", true);
+  // const [hideMerge, setHideMerge] = useLocalStorage("hideMerge", true);
   const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
@@ -49,8 +49,34 @@ const DashboardDisplay = () => {
   const filePath = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
   const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
+  const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
+  
+  const setHideMerge = (newHideMerge: boolean, index: number) => {
+    setFileChangeRequests(newFileChangeRequests => {
+      return [
+          ...newFileChangeRequests.slice(0, index),
+          {
+              ...newFileChangeRequests[index],
+              hideMerge: newHideMerge
+          },
+          ...newFileChangeRequests.slice(index + 1)
+      ]
+    });
+  }
+
+  const setHideMergeAll = (newHideMerge: boolean) => {
+    setFileChangeRequests(newFileChangeRequests => {
+      return newFileChangeRequests.map(fileChangeRequest => {
+        return {
+          ...fileChangeRequest,
+          hideMerge: newHideMerge
+        }
+      })
+    })
+  }
 
   const setOldFile = (newOldFile: string) => {
+    console.log("set Old File is run")
       setCurrentFileChangeRequestIndex(index => {
         setFileChangeRequests(newFileChangeRequests => {
             return [
@@ -66,7 +92,23 @@ const DashboardDisplay = () => {
             ]
         });
         return index;
-    })
+      })
+  }
+
+  const setOldFileByIndex = (newOldFile: string, index: number) => {
+    setFileChangeRequests(newFileChangeRequests => {
+      return [
+        ...newFileChangeRequests.slice(0, index),
+        {
+          ...newFileChangeRequests[index],
+          snippet: {
+            ...newFileChangeRequests[index].snippet,
+            entireFile: newOldFile,
+          },
+        },
+        ...newFileChangeRequests.slice(index + 1)
+      ]
+    });
   }
 
   const setFile = (newFile: string) => {
@@ -85,6 +127,18 @@ const DashboardDisplay = () => {
     });
   }
 
+  const setFileByIndex = (newFile: string, index: number) => {
+    setFileChangeRequests(newFileChangeRequests => {
+      return [
+          ...newFileChangeRequests.slice(0, index),
+          {
+              ...newFileChangeRequests[index],
+              newContents: newFile
+          },
+          ...newFileChangeRequests.slice(index + 1)
+      ]
+  });
+  }
 
   useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
@@ -117,6 +171,9 @@ const DashboardDisplay = () => {
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+          setHideMergeAll={setHideMergeAll}
+          setFileByIndex={setFileByIndex}
+          setOldFileByIndex={setOldFileByIndex}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>

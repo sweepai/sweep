@@ -17,12 +17,12 @@ import { getFile } from "../../lib/api.service";
 import { Snippet } from "../../lib/search";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Tabs, TabsContent } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
 import { FileChangeRequest } from "../../lib/types";
-import { ScrollArea } from "../ui/scroll-area";
 import { FaPlay } from "react-icons/fa";
-import { useLocalStorage } from "usehooks-ts";
+import { FaArrowsRotate } from "react-icons/fa6";
+import { toast } from "sonner";
 
 const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
@@ -43,13 +43,14 @@ const DashboardInstructions = ({
   setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
+  setFileByIndex,
+  setOldFileByIndex,
+  setHideMerge,
+  getFileChanges
 }: any) => {
+  const [isLoading, setIsLoading] = useState(false);
   return (
     <Tabs defaultValue="plan" className="grow">
-      {/* <TabsList>
-                <TabsTrigger value="plan">Plan</TabsTrigger>
-                <TabsTrigger value="modify">Modify</TabsTrigger>
-            </TabsList> */}
       <TabsContent value="plan">
         <div className="h-96 border rounded-md overflow-auto p-2">
           <Popover open={open} onOpenChange={setOpen} className="mb-4">
@@ -79,7 +80,7 @@ const DashboardInstructions = ({
                       onSelect={async (currentValue) => {
                         const contents = (await getFile(repoName, file.value))
                           .contents;
-                        setFileChangeRequests((prev) => {
+                        setFileChangeRequests((prev: FileChangeRequest[]) => {
                           let snippet = {
                             file: file.value,
                             start: 0,
@@ -114,8 +115,12 @@ const DashboardInstructions = ({
           </Popover>
           {fileChangeRequests.map(
             (fileChangeRequest: FileChangeRequest, index: number) => (
-              <div key={index} className="mb-4">
-                <div className={`flex flex-row justify-between p-2 ${index === currentFileChangeRequestIndex ? "bg-blue-900": "bg-zinc-900"} rounded font-sm font-mono items-center`}>
+              <div key={index} className="mb-4"
+                onClick={(e) => {
+                  setCurrentFileChangeRequestIndex(index)
+                }}
+              >
+                <div className={`flex flex-row justify-between p-2 ${index === currentFileChangeRequestIndex ? "bg-blue-900" : "bg-zinc-900"} rounded font-sm font-mono items-center`}>
                   <span>
                     {fileChangeRequest.snippet.file}:
                     {fileChangeRequest.snippet.start}-
@@ -125,19 +130,46 @@ const DashboardInstructions = ({
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => {
-                        setCurrentFileChangeRequestIndex(index)
+                    onClick={(e) => {
+                      console.log("current index", index)
+                      console.log("global index", currentFileChangeRequestIndex)
+                      setCurrentFileChangeRequestIndex(index);
+                      console.log("changing current file change request index")
+                      getFileChanges(fileChangeRequest, index);
+                      e.preventDefault()
+                      e.stopPropagation()
                     }}
+                    disabled={isLoading}
                   >
                     {fileChangeRequest.changeType.toUpperCase()}&nbsp;
                     <FaPlay />
+                  </Button>
+                  <Button
+                    className="mt-4 mr-4"
+                    variant="secondary"
+                    onClick={async () => {
+                      setIsLoading(true);
+                      const response = await getFile(repoName, fileChangeRequest.snippet.file);
+                      setFileByIndex(response.contents, index);
+                      setOldFileByIndex(response.contents, index);
+                      toast.success("File synced from storage!");
+                      setIsLoading(false);
+                      setCurrentFileChangeRequestIndex(index)
+                      setHideMerge(false, index);
+                    }}
+                    disabled={isLoading}
+                  >
+                    <FaArrowsRotate />
                   </Button>
                 </div>
                 <Textarea
                   placeholder={instructionsPlaceholder}
                   value={fileChangeRequest.instructions}
+                  onClick={(e) => {
+                    setCurrentFileChangeRequestIndex(index)
+                  }}
                   onChange={(e) => {
-                    setFileChangeRequests((prev) => [
+                    setFileChangeRequests((prev: FileChangeRequest[]) => [
                       ...prev.slice(0, index),
                       {
                         ...prev[index],
@@ -194,7 +226,7 @@ const DashboardInstructions = ({
                     onSelect={async (currentValue) => {
                       const contents = (await getFile(repoName, file.value))
                         .contents;
-                      setSnippets((prev) => {
+                      setSnippets((prev: { [key: string]: Snippet }) => {
                         let newSnippet = {
                           file: file.value,
                           start: 0,

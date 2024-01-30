@@ -19,6 +19,7 @@ interface FileChangeRequest {
   instructions: string;
   newContents: string;
   changeType: "create" | "modify";
+  hideMerge: boolean;
 }
 
 export type { File, Snippet, FileChangeRequest };

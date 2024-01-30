@@ -73,8 +73,6 @@ const FileSelector = ({
     },
     [setValue, setFile],
   );
-  console.log("oldFile inside FileSelector", oldFile)
-  console.log("file inside FileSelector", file)
 
 //   const onOldChange = useCallback(
 //     (val: any, viewUpdate: any) => {
@@ -104,69 +102,9 @@ const FileSelector = ({
 
   return (
     <>
-      {/* <Popover open={open} onOpenChange={setOpen}>
-        <div className="flex flex-row mb-2">
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="w-full justify-between mr-2"
-              disabled={!files}
-            >
-              {filePath
-                ? files.find((file: any) => file.value === filePath)?.label
-                : "Select file..."}
-              <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <Button
-            className="mr-2"
-            variant="secondary"
-            onClick={async () => {
-              setIsLoading(true);
-              await writeFile(repoName, filePath, file);
-              toast.success("File synced to storage!");
-              setIsLoading(false);
-            }}
-            disabled={isLoading || filePath === "" || file === ""}
-          >
-            <FaSave /> &nbsp;&nbsp;Save
-          </Button>
-        </div>
-        <PopoverContent className="w-full p-0 text-left">
-          <Command>
-            <CommandInput placeholder="Search file..." className="h-9" />
-            <CommandEmpty>No file found.</CommandEmpty>
-            <CommandGroup>
-              {files.map((file: any) => (
-                <CommandItem
-                  key={file.value}
-                  value={file.value}
-                  onSelect={async (currentValue) => {
-                    setOpen(false);
-                    const contents = (await getFile(repoName, file.value))
-                      .contents;
-                    setFile(contents);
-                    setOldFile(contents);
-                  }}
-                >
-                  {file.label}
-                  <CheckIcon
-                    className={cn(
-                      "ml-auto h-4 w-4",
-                      filePath === file.value ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover> */}
       <div className="flex flex-row mb-2">
         <span className="border rounded grow p-2 mr-2 font-mono">
-            {filePath === "" ? "Select a file to modify on the left." : filePath}
+            {filePath === "" || filePath === undefined ? "Select a file to modify on the left." : filePath}
         </span>
         <Button
             className="mr-2"
@@ -185,7 +123,7 @@ const FileSelector = ({
 
       {hideMerge ? (
         <CodeMirror
-          value={JSON?.parse(JSON?.stringify(file || ""))}
+          value={file}
           extensions={extensions}
           onChange={onChange}
           theme={vscodeDark}
@@ -195,11 +133,11 @@ const FileSelector = ({
       ) : (
         <CodeMirrorMerge theme={vscodeDark} style={{ overflow: "auto" }}>
           <Original
-            value={JSON?.parse(JSON?.stringify(oldFile || ""))}
+            value={oldFile}
             extensions={extensions}
             onChange={onOldChange}
           />
-          <Modified value={JSON?.parse(JSON?.stringify(file || ""))} extensions={extensions} onChange={onChange} />
+          <Modified value={file} extensions={extensions} onChange={onChange} />
         </CodeMirrorMerge>
       )}
     </>

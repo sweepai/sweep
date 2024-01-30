@@ -53,6 +53,7 @@ const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_lin
 <file_contents>`;
 
 export async function POST(request: NextRequest) {
+  console.log("openAI is called!")
   if (openai.apiKey === "") {
     const response = NextResponse.json(
       {

@@ -22,7 +22,6 @@ export const getFile = async (repoName: string, filePath: string) => {
   const response = await fetch(url + "?" + params);
   console.log("response", response);
   const object = await response.json();
-  console.log(object);
   return object;
 };
 

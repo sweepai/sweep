@@ -55,12 +55,10 @@ const DashboardContext = () => {
 
   useEffect(() => {
     const executeSearch = async () => {
-      console.log("Fired");
       setSearchIsLoading(true);
       const params = new URLSearchParams({ repo: repoName, query }).toString();
       const response = await fetch("/api/files/search?" + params);
       const { snippets } = await response.json();
-      console.log(snippets);
       setSearchedSnippets(snippets);
       setSearchIsLoading(false);
     };
