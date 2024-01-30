@@ -41,6 +41,8 @@ const DashboardInstructions = ({
   setInstructions,
   fileChangeRequests,
   setFileChangeRequests,
+  currentFileChangeRequestIndex,
+  setCurrentFileChangeRequestIndex,
 }: any) => {
   return (
     <Tabs defaultValue="plan" className="grow">
@@ -122,9 +124,7 @@ const DashboardInstructions = ({
                   <Button
                     variant="secondary"
                     size="sm"
-                    // onClick={() => {
-
-                    // }}
+                    onClick={() => setCurrentFileChangeRequestIndex(index)}
                   >
                     {fileChangeRequest.changeType.toUpperCase()}&nbsp;
                     <FaPlay />

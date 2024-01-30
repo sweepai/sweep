@@ -48,28 +48,13 @@ const DashboardDisplay = ({
   setRepoName,
   setStreamData,
   files,
-}: {
-  filePath: string;
-  setScriptOutput: any;
-  file: string;
-  setFile: any;
-  fileLimit: number;
-  setFileLimit: any;
-  blockedGlobs: string;
-  setBlockedGlobs: any;
-  hideMerge: boolean;
-  setHideMerge: any;
-  branch: string;
-  setBranch: any;
-  oldFile: any;
-  setOldFile: any;
-  repoName: string;
-  setRepoName: any;
-  setStreamData: any;
-  files: { label: string; name: string }[];
-}) => {
+  fileChangeRequests,
+  setFileChangeRequests,
+  currentFileChangeRequestIndex,
+  setCurrentFileChangeRequestIndex,
+}: any) => {
   const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
-  const [instructions, setInstructions] = useLocalStorage("instructions", "");
+//   const [instructions, setInstructions] = useLocalStorage("instructions", "");
   const [isLoading, setIsLoading] = useState(false);
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
@@ -80,6 +65,20 @@ const DashboardDisplay = ({
     "snippets",
     {} as { [key: string]: Snippet },
   );
+  const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
+  const setInstructions = (instructions: string) => {
+    setFileChangeRequests((prev: FileChangeRequest[]) => {
+      return prev.map((fileChangeRequest: FileChangeRequest, index: number) => {
+        if (index === currentFileChangeRequestIndex) {
+          return {
+            ...fileChangeRequest,
+            instructions: instructions,
+          };
+        }
+        return fileChangeRequest;
+      });
+    });
+  }
   useEffect(() => {
     (async () => {
       const params = new URLSearchParams({ repo: repoName }).toString();
@@ -353,6 +352,8 @@ const DashboardDisplay = ({
           setInstructions={setInstructions}
           fileChangeRequests={fileChangeRequests}
           setFileChangeRequests={setFileChangeRequests}
+          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
         />
         <div>
           {Object.keys(snippets).map((snippet: string, index: number) => (

@@ -50,7 +50,6 @@ const Modified = CodeMirrorMerge.Modified;
 
 const FileSelector = ({
   filePath,
-  setFilePath,
   file,
   setFile,
   hideMerge,
@@ -62,21 +61,7 @@ const FileSelector = ({
   setFiles,
   blockedGlobs,
   fileLimit,
-}: {
-  filePath: string;
-  setFilePath: any;
-  file: string;
-  setFile: any;
-  hideMerge: boolean;
-  setHideMerge: any;
-  oldFile: string;
-  setOldFile: any;
-  repoName: string;
-  files: { label: string; name: string }[];
-  setFiles: any;
-  blockedGlobs: any;
-  fileLimit: number;
-}) => {
+}: any) => {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("console.log('hello world!');");
   const [isLoading, setIsLoading] = useState(false);
@@ -118,7 +103,7 @@ const FileSelector = ({
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      {/* <Popover open={open} onOpenChange={setOpen}>
         <div className="flex flex-row mb-2">
           <PopoverTrigger asChild>
             <Button
@@ -158,7 +143,6 @@ const FileSelector = ({
                   key={file.value}
                   value={file.value}
                   onSelect={async (currentValue) => {
-                    setFilePath(file.value === filePath ? "" : file.value);
                     setOpen(false);
                     const contents = (await getFile(repoName, file.value))
                       .contents;
@@ -178,7 +162,26 @@ const FileSelector = ({
             </CommandGroup>
           </Command>
         </PopoverContent>
-      </Popover>
+      </Popover> */}
+      <div className="flex flex-row mb-2">
+        <span className="border rounded grow p-2 mr-2 font-mono">
+            {filePath === "" ? "Select a file to modify on the left." : filePath}
+        </span>
+        <Button
+            className="mr-2"
+            variant="secondary"
+            onClick={async () => {
+              setIsLoading(true);
+              await writeFile(repoName, filePath, file);
+              toast.success("File synced to storage!");
+              setIsLoading(false);
+            }}
+            disabled={isLoading || filePath === "" || file === ""}
+          >
+            <FaSave /> &nbsp;&nbsp;Save
+          </Button>
+      </div>
+
       {hideMerge ? (
         <CodeMirror
           value={file}

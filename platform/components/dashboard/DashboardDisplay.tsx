@@ -28,9 +28,8 @@ const DashboardDisplay = () => {
   const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
-  const [filePath, setFilePath] = useLocalStorage("filePath", "");
   const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "");
-  const [file, setFile] = useLocalStorage("file", "");
+//   const [file, setFile] = useLocalStorage("file", "");
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
   const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000);
   const [blockedGlobs, setBlockedGlobs] = useLocalStorage(
@@ -44,6 +43,22 @@ const DashboardDisplay = () => {
     useLocalStorage("currentFileChangeRequestIndex", 0);
 
   const [files, setFiles] = useState<{ label: string; name: string }[]>([]);
+
+  const filePath = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
+  const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContent || fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
+
+  const setFile = (newFile: string) => {
+    setFileChangeRequests(newFileChangeRequests => {
+        return [
+            ...newFileChangeRequests.slice(0, currentFileChangeRequestIndex),
+            {
+                ...newFileChangeRequests[currentFileChangeRequestIndex],
+                newContent: newFile
+            },
+            ...newFileChangeRequests.slice(currentFileChangeRequestIndex + 1)
+        ]
+    });
+  }
 
   useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
@@ -72,6 +87,10 @@ const DashboardDisplay = () => {
           setRepoName={setRepoName}
           setStreamData={setStreamData}
           files={files}
+          fileChangeRequests={fileChangeRequests}
+          setFileChangeRequests={setFileChangeRequests}
+          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -79,7 +98,6 @@ const DashboardDisplay = () => {
             <ResizablePanel defaultSize={75} className="flex flex-col mb-4">
               <FileSelector
                 filePath={filePath}
-                setFilePath={setFilePath}
                 file={file}
                 setFile={setFile}
                 hideMerge={hideMerge}
