@@ -83,7 +83,7 @@ const DashboardInstructions = ({
                       value={file.value}
                       onSelect={async (currentValue) => {
                         // ensure file is not already included
-                        if (fileChangeRequests.some((fcr: FileChangeRequest) => {fcr.snippet.file === file.value})) {
+                        if (fileChangeRequests.some(fcr => fcr.snippet.file === file.value)) {
                           return;
                         }
                         const contents = (await getFile(repoName, file.value))
@@ -125,7 +125,7 @@ const DashboardInstructions = ({
           </Popover>
           {fileChangeRequests.map(
             (fileChangeRequest: FileChangeRequest, index: number) => (
-              <div key={index} className="mb-4"
+              <div key={index} className="mb-4 grow"
                 onClick={(e) => {
                   setCurrentFileChangeRequestIndex(index)
                 }}
