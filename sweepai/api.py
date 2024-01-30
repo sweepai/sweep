@@ -3,6 +3,7 @@ from __future__ import annotations
 # Do not save logs for main process
 import ctypes
 import json
+import signal
 import threading
 import time
 from typing import Optional
@@ -126,6 +127,7 @@ if not IS_SELF_HOSTED:
 
 def run_on_ticket(*args, **kwargs):
     tracking_id = get_hash()
+
     with logger.contextualize(
         **kwargs,
         name="ticket_" + kwargs["username"],
@@ -143,11 +145,12 @@ def run_on_comment(*args, **kwargs):
     ):
         on_comment(*args, **kwargs, tracking_id=tracking_id)
 
-
 def run_on_button_click(*args, **kwargs):
-    thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
-    thread.start()
-
+    if use_threading:
+        thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
+        thread.start()
+    else:
+        handle_button_click(*args, **kwargs)
 
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
@@ -190,16 +193,25 @@ def call_on_ticket(*args, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
-    # Use multithreading
-    # Check if a previous process exists for the same key, cancel it
-    e = on_ticket_events.get(key, None)
-    if e:
-        logger.info(f"Found previous thread for key {key} and cancelling it")
-        terminate_thread(e)
+    if hatchet:
+        serialized = {i: arg for i, arg in enumerate(args)}
+        serialized.update(kwargs)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
-    on_ticket_events[key] = thread
-    thread.start()
+        hatchet.client.event.push(
+            "ticket:create",
+            serialized,
+        )
+    else:
+        # Use multithreading
+        # Check if a previous process exists for the same key, cancel it
+        e = on_ticket_events.get(key, None)
+        if e:
+            logger.info(f"Found previous thread for key {key} and cancelling it")
+            terminate_thread(e)
+
+        thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+        on_ticket_events[key] = thread
+        thread.start()
 
     # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
     # delayed_kill_thread.start()
@@ -208,38 +220,50 @@ def call_on_ticket(*args, **kwargs):
 def call_on_check_suite(*args, **kwargs):
     kwargs["request"].repository.full_name
     kwargs["request"].check_run.pull_requests[0].number
-    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
-    thread.start()
 
+    if use_threading:
+        thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
+        thread.start()
+    else:
+        run_on_check_suite(*args, **kwargs)
 
 def call_on_comment(
     *args, **kwargs
 ):  # TODO: if its a GHA delete all previous GHA and append to the end
-    def worker():
-        while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
-            run_on_comment(*task_args, **task_kwargs)
-
     global events
-    repo_full_name = kwargs["repo_full_name"]
-    pr_id = kwargs["pr_number"]
-    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
-    comment_type = kwargs["comment_type"]
-    logger.info(f"Received comment type: {comment_type}")
+    if hatchet:
+        serialized = {i: arg for i, arg in enumerate(args)}
+        serialized.update(kwargs)
 
-    if key not in events:
-        events[key] = SafePriorityQueue()
+        hatchet.client.event.push(
+            "comment:create",
+            serialized,
+        )
+    else:
+        def worker():
+            while not events[key].empty():
+                task_args, task_kwargs = events[key].get()
+                run_on_comment(*task_args, **task_kwargs)
 
-    events[key].put(0, (args, kwargs))
+        repo_full_name = kwargs["repo_full_name"]
+        pr_id = kwargs["pr_number"]
+        key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
-    # If a thread isn't running, start one
-    if not any(
-        thread.name == key and thread.is_alive() for thread in threading.enumerate()
-    ):
-        thread = threading.Thread(target=worker, name=key)
-        thread.start()
+        comment_type = kwargs["comment_type"]
+        logger.info(f"Received comment type: {comment_type}")
 
+        if key not in events:
+            events[key] = SafePriorityQueue()
+
+        events[key].put(0, (args, kwargs))
+
+        # If a thread isn't running, start one
+        if not any(
+            thread.name == key and thread.is_alive() for thread in threading.enumerate()
+        ):
+            thread = threading.Thread(target=worker, name=key)
+            thread.start()
 
 def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
@@ -261,6 +285,8 @@ def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
     return ticket_progress.dict()
 
+def get_concurrency_key(request_dict, event):
+    return "hello"
 
 def init_hatchet() -> Hatchet | None:
     try:
@@ -268,11 +294,11 @@ def init_hatchet() -> Hatchet | None:
 
         worker = hatchet.worker("github-worker")
 
-        @hatchet.workflow(on_events=["github:webhook"])
+        @hatchet.workflow(on_events=["github:webhook"],timeout="60m")
         class OnGithubEvent:
             """Workflow for handling GitHub events."""
 
-            @hatchet.step()
+            @hatchet.step(timeout="60m")
             def run(self, context: Context):
                 event_payload = context.workflow_input()
 
@@ -281,8 +307,58 @@ def init_hatchet() -> Hatchet | None:
 
                 run(request_dict, event)
 
-        workflow = OnGithubEvent()
-        worker.register_workflow(workflow)
+        @hatchet.workflow(on_events=["ticket:create"], timeout="60m")
+        class OnTicket:
+            """Workflow for handling new tickets."""
+
+            @hatchet.concurrency(max_runs=1)
+            def get_concurrency_key(self, context: Context):
+                event_payload = context.workflow_input()
+
+                return event_payload.get("repo_full_name") + "-" + event_payload.get("issue_number")
+
+            @hatchet.step(timeout="60m")
+            def run(self, context: Context):
+                event_payload = context.workflow_input()
+
+                run_on_ticket(
+                    title=event_payload.get("title"),
+                    summary=event_payload.get("summary"),
+                    issue_number=event_payload.get("issue_number"),
+                    issue_url=event_payload.get("issue_url"),
+                    username=event_payload.get("username"),
+                    repo_full_name=event_payload.get("repo_full_name"),
+                    repo_description=event_payload.get("repo_description"),
+                    installation_id=event_payload.get("installation_id"),
+                    comment_id=event_payload.get("comment_id"),
+                    edited=event_payload.get("edited"),
+                )
+
+        @hatchet.workflow(on_events=["comment:create"], timeout="60m")
+        class OnComment:
+            """Workflow for handling new comments."""
+
+            @hatchet.step(timeout="60m")
+            def run(self, context: Context):
+                event_payload = context.workflow_input()
+
+                run_on_comment(
+                    repo_full_name=event_payload.get("repo_full_name"),
+                    repo_description=event_payload.get("repo_description"),
+                    comment=event_payload.get("comment"),
+                    pr_path=event_payload.get("pr_path"),
+                    pr_line_position=event_payload.get("pr_line_position"),
+                    username=event_payload.get("username"),
+                    installation_id=event_payload.get("installation_id"),
+                    pr_number=event_payload.get("pr_number"),
+                    comment_id=event_payload.get("comment_id"),
+                    comment_type=event_payload.get("comment_type"),
+                    type=event_payload.get("type"),
+                )
+
+        worker.register_workflow(OnGithubEvent())
+        worker.register_workflow(OnTicket())
+        worker.register_workflow(OnComment())
 
         # start worker in the background
         thread = threading.Thread(target=worker.start)
@@ -293,16 +369,18 @@ def init_hatchet() -> Hatchet | None:
         print(f"Failed to initialize Hatchet: {e}, continuing with local mode")
         return None
 
+hatchet = init_hatchet()
 
-# hatchet = init_hatchet()
+use_threading = True
 
+if hatchet:
+    use_threading = False
 
 def handle_github_webhook(event_payload):
-    # if hatchet:
-    #     hatchet.client.event.push("github:webhook", event_payload)
-    # else:
-    run(event_payload.get("request"), event_payload.get("event"))
-
+    if hatchet:
+        hatchet.client.event.push("github:webhook", event_payload)
+    else:
+        run(event_payload.get("request"), event_payload.get("event"))
 
 def handle_request(request_dict, event=None):
     """So it can be exported to the listen endpoint."""
