@@ -45,7 +45,7 @@ NO_TELEMETRY=false
 
 for arg in "$@"
 do
-    if [ "$arg" == "--no-telemetry" ]; then
+    if [ "$arg" = "--no-telemetry" ]; then
         NO_TELEMETRY=true
     fi
 done
