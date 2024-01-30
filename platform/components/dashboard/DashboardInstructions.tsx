@@ -52,6 +52,22 @@ const DashboardInstructions = ({
   setHideMerge,
   getFileChanges
 }: any) => {
+  const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
+    let classNames = "";
+    if (index === currentFileChangeRequestIndex) { // current selected fcr
+      classNames += " font-extrabold text-white";
+    } 
+    // background highlighting
+    if (fcr.isLoading) { // is being generated
+      classNames += " bg-orange-900 ";
+    } else if (!fcr.hideMerge && !fcr.isLoading) { // has completed generation
+      classNames += " bg-green-900 ";
+    }
+    else { // default
+      classNames += " bg-zinc-900 ";
+    }
+    return classNames
+  }
   return (
     <Tabs defaultValue="plan" className="grow">
       <TabsContent value="plan">
@@ -130,7 +146,7 @@ const DashboardInstructions = ({
                   setCurrentFileChangeRequestIndex(index)
                 }}
               >
-                <div className={`flex flex-row justify-between p-2 ${index === currentFileChangeRequestIndex ? "bg-blue-900" : fileChangeRequest.hideMerge ? "bg-zinc-900" : "bg-green-900"} rounded font-sm font-mono items-center`}>
+                <div className={`flex flex-row justify-between p-2 ${getDynamicClassNames(fileChangeRequest, index)} rounded font-sm font-mono items-center text-zinc-300`}>
                   <span>
                     {fileChangeRequest.snippet.file.split("/")[fileChangeRequest.snippet.file.split("/").length - 1]}:
                     {fileChangeRequest.snippet.start}-
@@ -147,7 +163,7 @@ const DashboardInstructions = ({
                     }}
                     disabled={fileChangeRequest.isLoading}
                   >
-                    <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
+                    <FaPlay/>&nbsp;{capitalize(fileChangeRequest.changeType)}
                   </Button>
                   <Button
                     className="mr-2 flex-row flex"
