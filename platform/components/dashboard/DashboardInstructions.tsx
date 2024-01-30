@@ -28,7 +28,7 @@ const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
 2. Add a print statement to the front of each function to describe what each function does.`;
 
-const instructionsPlaceholder = `Example: add a docstring statement after each function definition to describe what it does.`;
+const instructionsPlaceholder = `Example: add a docstring after each function definition describing what it does.`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -52,6 +52,7 @@ const DashboardInstructions = ({
   setHideMerge,
   getFileChanges
 }: any) => {
+<<<<<<< HEAD
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
     if (index === currentFileChangeRequestIndex) { // current selected fcr
@@ -68,6 +69,8 @@ const DashboardInstructions = ({
     }
     return classNames
   }
+=======
+>>>>>>> origin/main
   return (
     <Tabs defaultValue="plan" className="grow">
       <TabsContent value="plan">
