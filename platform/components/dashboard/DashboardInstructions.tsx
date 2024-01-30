@@ -13,7 +13,7 @@ import {
   CommandItem,
 } from "../ui/command";
 import React, { useState } from "react";
-import { getFile } from "../../lib/api.service";
+import { getFile, writeFile } from "../../lib/api.service";
 import { Snippet } from "../../lib/search";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -21,7 +21,7 @@ import { Tabs, TabsContent } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
 import { FileChangeRequest } from "../../lib/types";
 import { FaPlay } from "react-icons/fa";
-import { FaArrowsRotate } from "react-icons/fa6";
+import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
 import { toast } from "sonner";
 
 const testCasePlaceholder = `Example:
@@ -29,6 +29,10 @@ const testCasePlaceholder = `Example:
 2. Add a print statement to the front of each function to describe what each function does.`;
 
 const instructionsPlaceholder = `Example: add a print statement to the front of each function to describe what each function does.`;
+
+const capitalize = (s: string) => {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 const DashboardInstructions = ({
   filePath,
@@ -120,9 +124,9 @@ const DashboardInstructions = ({
                   setCurrentFileChangeRequestIndex(index)
                 }}
               >
-                <div className={`flex flex-row justify-between p-2 ${index === currentFileChangeRequestIndex ? "bg-blue-900" : "bg-zinc-900"} rounded font-sm font-mono items-center`}>
+                <div className={`flex flex-row justify-between p-2 ${index === currentFileChangeRequestIndex ? "bg-blue-900" : fileChangeRequest.hideMerge ? "bg-zinc-900" : "bg-green-900"} rounded font-sm font-mono items-center`}>
                   <span>
-                    {fileChangeRequest.snippet.file}:
+                    {fileChangeRequest.snippet.file.split("/")[fileChangeRequest.snippet.file.split("/").length - 1]}:
                     {fileChangeRequest.snippet.start}-
                     {fileChangeRequest.snippet.end}
                   </span>
@@ -130,22 +134,20 @@ const DashboardInstructions = ({
                   <Button
                     variant="secondary"
                     size="sm"
+                    className="mr-2 flex-row flex"
                     onClick={(e) => {
-                      console.log("current index", index)
-                      console.log("global index", currentFileChangeRequestIndex)
-                      setCurrentFileChangeRequestIndex(index);
-                      console.log("changing current file change request index")
-                      getFileChanges(fileChangeRequest, index);
+                      setCurrentFileChangeRequestIndex(index)
+                      getFileChanges(fileChangeRequest, index)
                       e.preventDefault()
                       e.stopPropagation()
                     }}
                     disabled={isLoading}
                   >
-                    {fileChangeRequest.changeType.toUpperCase()}&nbsp;
-                    <FaPlay />
+                    <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
                   </Button>
                   <Button
-                    className="mt-4 mr-4"
+                    className="mr-2 flex-row flex"
+                    size="sm"
                     variant="secondary"
                     onClick={async () => {
                       setIsLoading(true);
@@ -155,11 +157,24 @@ const DashboardInstructions = ({
                       toast.success("File synced from storage!");
                       setIsLoading(false);
                       setCurrentFileChangeRequestIndex(index)
-                      setHideMerge(false, index);
+                      setHideMerge(true, index);
                     }}
                     disabled={isLoading}
                   >
                     <FaArrowsRotate />
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="mr-2 bg-green-600 hover:bg-green-700"
+                    onClick={async () => {
+                      setOldFileByIndex(fileChangeRequest.newContents, index);
+                      setHideMerge(true, index);
+                      await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
+                      toast.success("Succesfully saved file!");
+                    }}
+                    disabled={isLoading || fileChangeRequest.hideMerge}
+                  >
+                    <FaCheck />
                   </Button>
                 </div>
                 <Textarea

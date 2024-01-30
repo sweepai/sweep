@@ -259,6 +259,23 @@ const DashboardActions = ({
       });
   };
 
+  // this needs to be async but its sync right now, fix later
+  const getAllFileChanges = async (fcrs: FileChangeRequest[]) => {
+    for await (const [index, fcr] of fcrs.entries()) {
+      await getFileChanges(fcr, index)
+      setCurrentFileChangeRequestIndex(index);
+    }
+  }
+
+  const saveAllFiles = async (fcrs: FileChangeRequest[]) => {
+    for await (const [index, fcr] of fcrs.entries()) {
+      setOldFileByIndex(fcr.newContents, index);
+      setHideMerge(true, index);
+      await writeFile(repoName, fcr.snippet.file, fcr.newContents);
+    }
+    toast.success(`Succesfully saved ${fcrs.length} files!`);
+  }
+
   const syncAllFiles = async () => {
     fileChangeRequests.forEach(async (fcr: FileChangeRequest, index: number) => {
       const response = await getFile(repoName, fcr.snippet.file);
@@ -306,7 +323,7 @@ const DashboardActions = ({
                   toast.success(
                     "Successfully fetched files from the repository!",
                   );
-                  setCurrentRepoName((currentRepoName) => {
+                  setCurrentRepoName((currentRepoName: string) => {
                     setRepoName(currentRepoName);
                     return currentRepoName;
                   });
@@ -437,11 +454,13 @@ const DashboardActions = ({
           <Button
             className="mt-4 mr-4"
             variant="secondary"
-            onClick={getFileChanges}
+            onClick={(e) => {
+              getAllFileChanges(fileChangeRequests);
+            }}
             disabled={isLoading}
           >
-            <FaPen />
-            &nbsp;&nbsp;Generate Code
+            <FaPlay />
+            &nbsp;&nbsp;Modify All
           </Button>
           <Button
             className="mt-4 mr-4"
@@ -461,17 +480,12 @@ const DashboardActions = ({
           <Button
             className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
             onClick={async () => {
-              setFile((file: string) => {
-                setOldFile(file);
-                return file;
-              });
-              setHideMerge(true, currentFileChangeRequestIndex);
-              await writeFile(repoName, filePath, file);
-              toast.success("Succesfully saved new file!");
+              saveAllFiles(fileChangeRequests);
             }}
             disabled={isLoading || hideMerge}
           >
             <FaCheck />
+            &nbsp;&nbsp;Save All
           </Button>
         </div>
       </div>
