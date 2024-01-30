@@ -285,9 +285,6 @@ def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
     return ticket_progress.dict()
 
-def get_concurrency_key(request_dict, event):
-    return "hello"
-
 def init_hatchet() -> Hatchet | None:
     try:
         hatchet = Hatchet(debug=True)
