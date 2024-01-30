@@ -1,22 +1,21 @@
 # Sweep Assistant
 
-This is a fully locally running dev tool for getting Sweep to code alongside you. It uses your local machine to execute all your code for security and rapid iteration.
+This is a locally running dev tool for getting Sweep to code alongside you. All of your code will be executed locally (no external calls besides OpenAI).
 
 ## Installation
-
-*5 minutes to set up*
-
+*5 minutes*
 **Pre-requisites**
-1. Make sure you have an [OpenAI account](https://platform.openai.com).
-2. Ensure you have the following installed on your machine [Node.js](https://nodejs.org/en/download/) (> v18). If you are using a different version, you can use [`nvm`](https://github.com/nvm-sh/nvm#installing-and-updating) to upgrade your Node.js version.
+1. [OpenAI api key](https://platform.openai.com).
+2. [Node.js](https://nodejs.org/en/download/) (> v18) should be installed. If you are using a different version, you can use `npm install -g n && n 18`
+ to upgrade your Node.js version.
 
-Then, install the assistant by running the following command in your terminal and following:
+Install the assistant by running the following command in your terminal:
 
 ```sh filename="terminal"
 curl -O https://raw.githubusercontent.com/sweepai/sweep/main/bin/install_assistant.sh && $(basename $SHELL) install_assistant.sh
 ```
 
-Once everything is installed, you can run the assistant by running `sweep` in your terminal.
+Run the assistant by running `sweep` in your terminal.
 
 {/* ### Step 1: Downloading Sweep
 
@@ -61,14 +60,14 @@ Now you can build the tool and this will take about 20s. Then you can start the 
 npm start
 ``` */}
 
-## Using Sweep Assistant
+## Usage (After Installation)
 
-1. Insert the path to your local repository.
+1. Set `Repository Path`
     - You can run `pwd` to use your current working directory.
-    - (Optional) Edit the branch name to checkout into a new branch for Sweep to work in (defaults to current branch).
-2. Select an existing file for Sweep to edit.
-3. Add meticulous instructions for the code to edit, such as the modification.
-4. Modify the "Test Script" to write your script for running unit tests, such as `python $FILE_PATH`. You may use the variable $FILE_PATH to refer to the current path. Click the "Run Tests" button to test the script.
-    - Hint: use the $FILE_PATH parameter to only check the current file to reduce noise from the unit tests or other failing lints from other files.
-5. Click "Generate Code" to get Sweep to edit the file based on the changes.
-6. Then click "Reload" or the check mark to restart or approve the change.
+    - (Optional) Edit the branch name to create a new branch for Sweep.
+2. Select a file for Sweep to edit.
+3. Add meticulous instructions for the code to edit.
+4. Insert your script to running unit tests, such as `python $FILE_PATH`. $FILE_PATH refers to the current path. Click the "Run Tests" button to test the script.
+    - Hint: use the $FILE_PATH parameter to only check the current file to reduce noise.
+5. Click `Generate Code`.
+6. Click "Reload" to reject changes, or the check mark to approve the change.
