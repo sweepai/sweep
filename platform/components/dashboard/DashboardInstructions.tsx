@@ -83,7 +83,7 @@ const DashboardInstructions = ({
                       value={file.value}
                       onSelect={async (currentValue) => {
                         // ensure file is not already included
-                        if (fileChangeRequests.some(fcr => fcr.snippet.file === file.value)) {
+                        if (fileChangeRequests.some((fcr: FileChangeRequest) => {fcr.snippet.file === file.value})) {
                           return;
                         }
                         const contents = (await getFile(repoName, file.value))

@@ -68,7 +68,6 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    console.log("here files", nonBinaryFiles);
 
     return nonBinaryFiles;
   }
@@ -79,7 +78,6 @@ export async function POST(request: NextRequest) {
       return new NextResponse("Not a directory", { status: 400 });
     }
     const nonBinaryFiles = await listNonBinaryFilesBFS(repo);
-    console.log("nonBinaryFiles", nonBinaryFiles);
     return new NextResponse(JSON.stringify(nonBinaryFiles), { status: 200 });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });
