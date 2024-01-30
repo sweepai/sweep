@@ -235,6 +235,10 @@ const DashboardActions = ({
           }
         }
         setHideMerge(false, index);
+        console.log("setting hide merge to false", index)
+        console.log("hidemerge local", fcr.hideMerge)
+        console.log("setting hide merge to false global", currentFileChangeRequestIndex)
+        console.log("global hidemerge", hideMerge)
         const changeCount = Math.abs(
           fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length,
         );
@@ -243,12 +247,6 @@ const DashboardActions = ({
             <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
           ],
         });
-
-        // if (script) {
-        //   runScriptWrapper(file); // file is incorrect it should be based off of fcr
-        // } else {
-        //   toast.warning("Your Script is empty and will not be run.");
-        // }
       })
       .catch((e) => {
         toast.error("An error occured while generating your code.", {

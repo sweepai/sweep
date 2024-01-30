@@ -49,7 +49,8 @@ const DashboardDisplay = () => {
   const filePath = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
   const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
-  const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge || true;
+  const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
+  console.log("hideMerge", hideMerge)
   
   const setHideMerge = (newHideMerge: boolean, index: number) => {
     setFileChangeRequests(newFileChangeRequests => {
