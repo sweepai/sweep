@@ -92,7 +92,8 @@ const DashboardInstructions = ({
                             {
                               snippet,
                               changeType: "modify",
-                            },
+                              newContents: contents,
+                            } as FileChangeRequest,
                           ];
                         });
                         setOpen(false);
@@ -114,7 +115,7 @@ const DashboardInstructions = ({
           {fileChangeRequests.map(
             (fileChangeRequest: FileChangeRequest, index: number) => (
               <div key={index} className="mb-4">
-                <div className="flex flex-row justify-between p-2 bg-zinc-900 rounded font-sm font-mono items-center">
+                <div className={`flex flex-row justify-between p-2 ${index === currentFileChangeRequestIndex ? "bg-blue-900": "bg-zinc-900"} rounded font-sm font-mono items-center`}>
                   <span>
                     {fileChangeRequest.snippet.file}:
                     {fileChangeRequest.snippet.start}-
@@ -124,7 +125,9 @@ const DashboardInstructions = ({
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => setCurrentFileChangeRequestIndex(index)}
+                    onClick={() => {
+                        setCurrentFileChangeRequestIndex(index)
+                    }}
                   >
                     {fileChangeRequest.changeType.toUpperCase()}&nbsp;
                     <FaPlay />

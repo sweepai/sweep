@@ -17,7 +17,7 @@ interface Snippet {
 interface FileChangeRequest {
   snippet: Snippet;
   instructions: string;
-  newContent: string | undefined;
+  newContents: string;
   changeType: "create" | "modify";
 }
 

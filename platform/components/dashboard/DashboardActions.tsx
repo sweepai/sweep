@@ -65,6 +65,7 @@ const DashboardDisplay = ({
     "snippets",
     {} as { [key: string]: Snippet },
   );
+  console.log("file in DashboardActions.tsx", file)
   const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
   const setInstructions = (instructions: string) => {
     setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -190,10 +191,13 @@ const DashboardDisplay = ({
   const getFileChanges = async () => {
     setStreamData("");
     if (!hideMerge) {
-      setOldFile((oldFile: string) => {
-        setFile(oldFile);
-        return oldFile;
-      });
+      setCurrentFileChangeRequestIndex((index: number) => {
+        setFileChangeRequests((prev: FileChangeRequest[]) => {
+          setFile(prev[index].snippet.entireFile);
+          return prev
+        })
+        return index;
+      })
       setHideMerge(true);
     }
 
@@ -212,22 +216,38 @@ const DashboardDisplay = ({
         const reader = response.body!.getReader();
         const decoder = new TextDecoder("utf-8");
         let rawText = String.raw``;
+        console.log("ran!")
 
+        var i = 0;
+        setHideMerge(false);
         while (true) {
-          const { done, value } = await reader?.read();
+          i += 1;
+          var { done, value } = await reader?.read();
+          done = true;
+          // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
             console.log("STREAM IS FULLY READ");
+            console.log(rawText)
+            console.log(oldFile)
             setIsLoading(false);
-            setFile(parseRegexFromOpenAI(rawText, oldFile));
+            const updatedFile = parseRegexFromOpenAI(rawText || "", oldFile)
+            console.log(updatedFile)
+            setFile(updatedFile);
             break;
           }
           const text = decoder.decode(value);
           rawText += text;
           setStreamData((prev: any) => prev + text);
-          let updatedFile = parseRegexFromOpenAI(rawText, oldFile);
-          //console.log("updated file is:", updatedFile)
-          setHideMerge(false);
-          setFile(updatedFile);
+          if (i % 10 == 0) {
+            try {
+              console.log("RAW TEXT", rawText)
+              let updatedFile = parseRegexFromOpenAI(rawText, oldFile);
+              console.log("updated file is:", updatedFile)
+              setFile(updatedFile);
+            } catch (e) {
+              console.error(e)
+            }
+          }
         }
         setHideMerge(false);
         const changeCount = Math.abs(
@@ -446,7 +466,6 @@ const DashboardDisplay = ({
           <Button
             className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
             onClick={async () => {
-              console.log("oldFile", oldFile);
               setFile((file: string) => {
                 setOldFile(file);
                 return file;

@@ -4,7 +4,7 @@ import {
   ResizablePanelGroup,
 } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
@@ -23,42 +23,68 @@ const blockedPaths = [
 ];
 
 const DashboardDisplay = () => {
-  const [oldFile, setOldFile] = useLocalStorage("oldFile", "");
+//   const [oldFile, setOldFile] = useLocalStorage("oldFile", "");
   const [hideMerge, setHideMerge] = useLocalStorage("hideMerge", true);
   const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
   const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "");
-//   const [file, setFile] = useLocalStorage("file", "");
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
   const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000);
   const [blockedGlobs, setBlockedGlobs] = useLocalStorage(
     "blockedGlobs",
     blockedPaths.join(", "),
   );
-  const [fileChangeRequests, setFileChangeRequests] = useLocalStorage<
-    FileChangeRequest[]
-  >("fileChangeRequests", []);
+//   const [fileChangeRequests, setFileChangeRequests] = useLocalStorage<
+//     FileChangeRequest[]
+//   >("fileChangeRequests", []);
+  const [fileChangeRequests, setFileChangeRequests] = useState<
+  FileChangeRequest[]
+>([]);
   const [currentFileChangeRequestIndex, setCurrentFileChangeRequestIndex] =
     useLocalStorage("currentFileChangeRequestIndex", 0);
 
   const [files, setFiles] = useState<{ label: string; name: string }[]>([]);
 
   const filePath = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
-  const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContent || fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
+  const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
+  const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
+
+  const setOldFile = (newOldFile: string) => {
+      setCurrentFileChangeRequestIndex(index => {
+        setFileChangeRequests(newFileChangeRequests => {
+            return [
+                ...newFileChangeRequests.slice(0, index),
+                {
+                    ...newFileChangeRequests[index],
+                    snippet: {
+                        ...newFileChangeRequests[index].snippet,
+                        entireFile: newOldFile,
+                    },
+                },
+                ...newFileChangeRequests.slice(index + 1)
+            ]
+        });
+        return index;
+    })
+  }
 
   const setFile = (newFile: string) => {
-    setFileChangeRequests(newFileChangeRequests => {
-        return [
-            ...newFileChangeRequests.slice(0, currentFileChangeRequestIndex),
-            {
-                ...newFileChangeRequests[currentFileChangeRequestIndex],
-                newContent: newFile
-            },
-            ...newFileChangeRequests.slice(currentFileChangeRequestIndex + 1)
-        ]
+    setCurrentFileChangeRequestIndex(index => {
+        setFileChangeRequests(newFileChangeRequests => {
+            return [
+                ...newFileChangeRequests.slice(0, index),
+                {
+                    ...newFileChangeRequests[index],
+                    newContents: newFile
+                },
+                ...newFileChangeRequests.slice(index + 1)
+            ]
+        });
+        return index;
     });
   }
+
 
   useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
@@ -119,7 +145,6 @@ const DashboardDisplay = () => {
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("script");
-                  console.log(outputToggle);
                 }}
               >
                 Validation Output
@@ -128,7 +153,6 @@ const DashboardDisplay = () => {
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("llm");
-                  console.log(outputToggle);
                 }}
               >
                 Debug Logs

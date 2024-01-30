@@ -73,26 +73,27 @@ const FileSelector = ({
     },
     [setValue, setFile],
   );
+  console.log("oldFile inside FileSelector", oldFile)
+  console.log("file inside FileSelector", file)
 
-  const onOldChange = useCallback(
-    (val: any, viewUpdate: any) => {
-      setOldFile(val);
-    },
-    [setValue, setFile],
-  );
+//   const onOldChange = useCallback(
+//     (val: any, viewUpdate: any) => {
+//       setOldFile(val);
+//     },
+//     [setValue, setFile],
+//   );
 
+  const onOldChange = setOldFile;
   useEffect(() => {
     (async () => {
       let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
-      console.log(newFiles);
       newFiles = newFiles.map((file: any) => {
         return { value: file, label: file };
       });
       setFiles(newFiles);
     })();
   }, [repoName]);
-
-  const ext = filePath.split(".").pop() || "js";
+  const ext = filePath?.split(".").pop() || "js";
   const languageExtension = getLanguage(ext);
   const extensions = [
     languageExtension,
@@ -184,7 +185,7 @@ const FileSelector = ({
 
       {hideMerge ? (
         <CodeMirror
-          value={file}
+          value={JSON?.parse(JSON?.stringify(file || ""))}
           extensions={extensions}
           onChange={onChange}
           theme={vscodeDark}
@@ -194,11 +195,11 @@ const FileSelector = ({
       ) : (
         <CodeMirrorMerge theme={vscodeDark} style={{ overflow: "auto" }}>
           <Original
-            value={oldFile}
+            value={JSON?.parse(JSON?.stringify(oldFile || ""))}
             extensions={extensions}
             onChange={onOldChange}
           />
-          <Modified value={file} extensions={extensions} onChange={onChange} />
+          <Modified value={JSON?.parse(JSON?.stringify(file || ""))} extensions={extensions} onChange={onChange} />
         </CodeMirrorMerge>
       )}
     </>
