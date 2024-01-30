@@ -41,17 +41,17 @@ echo -e "
 
                                                             "
 
-NO_TELMETRY=false
+NO_TELEMETRY=false
 
 for arg in "$@"
 do
     if [ "$arg" == "--no-telemetry" ]; then
-        NO_TELMETRY=true
+        NO_TELEMETRY=true
     fi
 done
 
 send_event() {
-    if [ "$NO_TELMETRY" = true ]; then
+    if [ "$NO_TELEMETRY" = true ]; then
         return 0
     fi
 
