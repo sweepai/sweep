@@ -4,7 +4,7 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-} from "@radix-ui/react-popover";
+} from "../ui/popover"
 import {
   Command,
   CommandInput,
@@ -56,9 +56,9 @@ const DashboardInstructions = ({
   return (
     <Tabs defaultValue="plan" className="grow">
       <TabsContent value="plan">
-        <div className="h-96 border rounded-md overflow-auto p-2">
-          <Popover open={open} onOpenChange={setOpen} className="mb-4">
-            <div className="flex flex-row mb-2">
+        <div className="h-96 border rounded-md overflow-auto p-4">
+          <Popover open={open} onOpenChange={setOpen}>
+            <div className="flex flex-row mb-4">
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -198,7 +198,7 @@ const DashboardInstructions = ({
             ),
           )}
           {fileChangeRequests.length === 0 && (
-            <div className="p-2">No files added yet.</div>
+            <div className="p-2 text-zinc-300">No files added yet.</div>
           )}
         </div>
       </TabsContent>
@@ -214,8 +214,8 @@ const DashboardInstructions = ({
             style={{ height: "-webkit-fill-available" }}
           ></Textarea>
         </div>
-        <Popover open={open} onOpenChange={setOpen} className="mb-4">
-          <div className="flex flex-row mb-2">
+        <Popover open={open} onOpenChange={setOpen}>
+          <div className="flex flex-row mb-4 p-2">
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -232,7 +232,11 @@ const DashboardInstructions = ({
           <PopoverContent className="w-full p-0 text-left">
             <Command>
               <CommandInput placeholder="Search file..." className="h-9" />
-              <CommandEmpty>No file found.</CommandEmpty>
+              <CommandEmpty>
+                <div className="text-zinc-300">
+                  No file found.
+                </div>
+              </CommandEmpty>
               <CommandGroup>
                 {files.map((file: any) => (
                   <CommandItem

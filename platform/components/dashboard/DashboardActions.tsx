@@ -289,7 +289,7 @@ const DashboardActions = ({
         <Collapsible
           defaultOpen={repoName === ""}
           open={repoNameCollapsibleOpen}
-          className="border-2 rounded"
+          className="border-2 rounded p-4"
         >
           <div className="flex flex-row justify-between items-center mb-2">
             <Label className="mb-0">Repository Settings&nbsp;&nbsp;</Label>
@@ -411,7 +411,7 @@ const DashboardActions = ({
           ))}
         </div>
 
-        <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded">
+        <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
           <div className="flex flex-row justify-between items-center mt-2 mb-2">
             <Label className="mb-0">Validation Script&nbsp;&nbsp;</Label>
             <CollapsibleTrigger>
