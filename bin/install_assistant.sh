@@ -139,7 +139,7 @@ else
 fi
 
 echo -e "\n${BLUE}Cloning the Sweep repository in ${INSTALL_PATH}...${NC}\n"
-git clone https://github.com/sweepai/sweep
+GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --single-branch https://github.com/sweepai/sweep
 cd sweep/platform
 
 echo -e "\n${BLUE}Storing OpenAI API key...${NC}"
