@@ -372,6 +372,7 @@ const DashboardDisplay = ({ filePath, setScriptOutput, file, setFile, fileLimit,
                             toast.success("Succesfully saved new file!")
                         }}
                         disabled={isLoading || hideMerge}
+                        hidden={hideMerge}
                     >
                         <FaCheck />
                     </Button>
