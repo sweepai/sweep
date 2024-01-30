@@ -105,7 +105,6 @@ then
     echo -e "${BLUE}Upgrading Node version to v18 using nvm...${NC}"
     npm install -g n
     n 18
-    fi
 fi
 
 echo -e -n "${BLUE}Enter your OpenAI API key (https://platform.openai.com/api-keys): ${NC}"
