@@ -10,24 +10,78 @@ NC="\033[0m" # No Color
 echo -e "
 
 
-                   (@@@%%%%@@@&(.
-             /%                  .*
-           @           @@(    &,&
-         ..            /  ,   *
-         (             ,  /   @
-         @@@@#         ( ..,@%
-        @@@@@@@@@@@@@@@@ #@@@@.
-       @@@@&@@@@&@@@@@@. @@@@@@#          ${BLUE}Sweep AI Assistant${NC}
-       @@@  #@@#  %@@@@%@@@@@@@@@@@*
-       (@@@@@@@@@@@@@@ @@@@@@@@@@@,       https://docs.sweep.dev/assistant
-        %@@@@@@@@@@@@ /@@@@@@@@@@
-          @@@@@@@@@,  ,@@@@@@@@
-             ,@@&   @@@@@@@#
-      @@@@@,        @
-       @          # @
-         #*      .. @
-             %@,*% /
-"
+                         @@@@@@@@@@@@@@@@@@@%*
+                     #@@@                    @+
+                   @@                       @
+                 =@             @@@       @@
+                @@              @  @=   @-
+                @               @@ @*   @
+               @                +@ @%   @
+               %@               *@ @=   @@
+               @@@@@            =% %  @@
+              @@@@@@@@@@@@@@@@@@@  @@@@@
+              @@@@@@@@@@@@@@@@@@@  @@@@@@
+             @@@@@@@@@@@@@@@@@@@@  @@@@@@#                  ${BLUE}Sweep AI Assistant${NC}
+             @@@   %@@@   @@@@@@  @@@@@@@@@
+             @@@    @@%   *@@@@# @@@@@@@@@@@@@@
+             @@@   @@@@   @@@@@ @@@@@@@@@@@@@@
+             @@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@               https://docs.sweep.dev/assistant
+              @@@@@@@@@@@@@@@@  @@@@@@@@@@@@
+               @@@@@@@@@@@@@@  @@@@@@@@@@@@
+                #@@@@@@@@@@@    @@@@@@@@@@
+                   @@@@@@@    @@@@@@@@@*
+                      @*    @@@@@@@@
+           @%*@@@@@@@       %
+           #@               #@
+             @            @ @@
+              @@         @# @*
+                @@*      @  @
+                  %@@@# @@  @
+                      %@@@@@
+
+                                                            "
+
+NO_TELMETRY=false
+
+for arg in "$@"
+do
+    if [ "$arg" == "--no-telemetry" ]; then
+        NO_TELMETRY=true
+    fi
+done
+
+send_event() {
+    if [ "$NO_TELMETRY" = true ]; then
+        return 0
+    fi
+
+    local event_name=$1
+    local timestamp=$(date +%s)
+    local distinct_id="$(whoami)@$(hostname)"
+
+    curl -v -L --header "Content-Type: application/json" -d '{
+        "event": "'"${event_name}"'",
+        "api_key": "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n",
+        "distinct_id": "'"${distinct_id}"'",
+        "timestamp": "'"${timestamp}"'",
+        "properties": {
+            "timestamp": "'"${timestamp}"'",
+            "whoami": "'"$(whoami)"'",
+            "hostname": "'"$(hostname)"'",
+            "os": "'"$(uname -s)"'",
+            "os_version": "'"$(uname -r)"'",
+            "os_arch": "'"$(uname -m)"'",
+            "os_platform": "'"$(uname -o)"'",
+            "os_release": "'"$(uname -v)"'",
+            "os_distribution": "'"$(lsb_release -d | cut -f2)"'",
+            "os_codename": "'"$(lsb_release -c | cut -f2)"'",
+            "node_version": "'"$(node -v || echo "N/A")"'",
+            "npm_version": "'"$(npm -v || echo "N/A")"'"
+        }
+    }' https://app.posthog.com/capture/ > /dev/null 2>&1
+}
+
+send_event "assistant_install_started"
 
 # Check if npm is installed
 if ! command -v npm &> /dev/null
@@ -118,3 +172,5 @@ echo -e "${YELLOW}To run the assistant, run:${NC}\n"
 echo "npm start --prefix ${INSTALL_PATH}sweep/platform"
 echo -e "\n${YELLOW}or${NC}\n"
 echo "sweep"
+
+send_event "assistant_install_success"
