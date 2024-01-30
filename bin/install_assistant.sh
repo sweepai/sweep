@@ -56,8 +56,8 @@ send_event() {
     fi
 
     local event_name=$1
-    local timestamp=$(date +%s)
-    local distinct_id="$(whoami)@$(hostname)"
+    local timestamp=$(date +%s 2>/dev/null)
+    local distinct_id="$(whoami 2>/dev/null)@$(hostname 2>/dev/null)"
 
     curl -v -L --header "Content-Type: application/json" -d '{
         "event": "'"${event_name}"'",
@@ -66,17 +66,18 @@ send_event() {
         "timestamp": "'"${timestamp}"'",
         "properties": {
             "timestamp": "'"${timestamp}"'",
-            "whoami": "'"$(whoami)"'",
-            "hostname": "'"$(hostname)"'",
-            "os": "'"$(uname -s)"'",
-            "os_version": "'"$(uname -r)"'",
-            "os_arch": "'"$(uname -m)"'",
-            "os_platform": "'"$(uname -o)"'",
-            "os_release": "'"$(uname -v)"'",
-            "os_distribution": "'"$(lsb_release -d | cut -f2)"'",
-            "os_codename": "'"$(lsb_release -c | cut -f2)"'",
-            "node_version": "'"$(node -v || echo "N/A")"'",
-            "npm_version": "'"$(npm -v || echo "N/A")"'"
+            "whoami": "'"$(whoami 2>/dev/null)"'",
+            "hostname": "'"$(hostname 2>/dev/null)"'",
+            "os": "'"$(uname -s 2>/dev/null)"'",
+            "os_version": "'"$(uname -r 2>/dev/null)"'",
+            "os_arch": "'"$(uname -m 2>/dev/null)"'",
+            "os_platform": "'"$(uname -o 2>/dev/null)"'",
+            "os_release": "'"$(uname -v 2>/dev/null)"'",
+            "os_distribution": "'"$(lsb_release -d 2>/dev/null | cut -f2)"'",
+            "os_codename": "'"$(lsb_release -c 2>/dev/null | cut -f2)"'",
+            "node_version": "'"$(node -v 2>/dev/null || echo "N/A")"'",
+            "npm_version": "'"$(npm -v 2>/dev/null || echo "N/A")"'",
+            "nvm_version": "'"$(nvm --version 2>/dev/null || echo "N/A")"'"
         }
     }' https://app.posthog.com/capture/ > /dev/null 2>&1
 }
