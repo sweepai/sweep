@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
   const repo = (await request.nextUrl.searchParams.get("repo")) as string;
 
   const dataDir = repo.startsWith("/") ? repo : path.join(process.cwd(), repo);
-  console.log(dataDir);
 
   try {
     const fullPath = path.join(dataDir, filePath);
@@ -40,7 +39,6 @@ export async function POST(request: NextRequest) {
   const { repo, filePath, newContent } = body;
 
   const dataDir = repo.startsWith("/") ? repo : path.join(process.cwd(), repo);
-  console.log(dataDir);
 
   try {
     await fs.mkdir(dataDir, { recursive: true });

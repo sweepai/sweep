@@ -4,7 +4,7 @@ import {
   ResizablePanelGroup,
 } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
@@ -49,7 +49,7 @@ const DashboardDisplay = () => {
   const filePath = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
   const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
-  const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge || true;
+  const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
   
   const setHideMerge = (newHideMerge: boolean, index: number) => {
     setFileChangeRequests(newFileChangeRequests => {
@@ -76,7 +76,6 @@ const DashboardDisplay = () => {
   }
 
   const setOldFile = (newOldFile: string) => {
-    console.log("set Old File is run")
       setCurrentFileChangeRequestIndex(index => {
         setFileChangeRequests(newFileChangeRequests => {
             return [

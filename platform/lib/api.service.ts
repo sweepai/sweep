@@ -20,7 +20,6 @@ export const getFile = async (repoName: string, filePath: string) => {
   const url = "/api/files";
   const params = new URLSearchParams({ repo: repoName, filePath }).toString();
   const response = await fetch(url + "?" + params);
-  console.log("response", response);
   const object = await response.json();
   return object;
 };
@@ -74,7 +73,6 @@ export const runScript = async (
     return runSingleScript(repo, filePath, script);
   }
   const { contents: oldContents } = await getFile(repo, filePath);
-  console.log(oldContents);
   await writeFile(repo, filePath, file);
   const object = await runSingleScript(repo, filePath, script);
   await writeFile(repo, filePath, oldContents);

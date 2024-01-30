@@ -28,7 +28,7 @@ const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
 2. Add a print statement to the front of each function to describe what each function does.`;
 
-const instructionsPlaceholder = `Example: add a print statement to the front of each function to describe what each function does.`;
+const instructionsPlaceholder = `Example: add a docstring statement after each function definition to describe what it does.`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -82,6 +82,10 @@ const DashboardInstructions = ({
                       key={file.value}
                       value={file.value}
                       onSelect={async (currentValue) => {
+                        // ensure file is not already included
+                        if (fileChangeRequests.some(fcr => fcr.snippet.file === file.value)) {
+                          return;
+                        }
                         const contents = (await getFile(repoName, file.value))
                           .contents;
                         setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -98,6 +102,8 @@ const DashboardInstructions = ({
                               snippet,
                               changeType: "modify",
                               newContents: contents,
+                              hideMerge: true,
+                              instructions: ""
                             } as FileChangeRequest,
                           ];
                         });
@@ -119,7 +125,7 @@ const DashboardInstructions = ({
           </Popover>
           {fileChangeRequests.map(
             (fileChangeRequest: FileChangeRequest, index: number) => (
-              <div key={index} className="mb-4"
+              <div key={index} className="mb-4 grow"
                 onClick={(e) => {
                   setCurrentFileChangeRequestIndex(index)
                 }}
@@ -138,8 +144,6 @@ const DashboardInstructions = ({
                     onClick={(e) => {
                       setCurrentFileChangeRequestIndex(index)
                       getFileChanges(fileChangeRequest, index)
-                      e.preventDefault()
-                      e.stopPropagation()
                     }}
                     disabled={isLoading}
                   >
