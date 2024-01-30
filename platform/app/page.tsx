@@ -6,7 +6,7 @@ import React from "react";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-4">
+    <main className="flex min-h-screen flex-col items-center justify-around p-4">
       <DashboardDisplay></DashboardDisplay>
       {/* <DashboardContext></DashboardContext> */}
     </main>
