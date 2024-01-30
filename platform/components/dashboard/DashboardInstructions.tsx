@@ -12,7 +12,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "../ui/command";
-import React, { useState } from "react";
+import React from "react";
 import { getFile, writeFile } from "../../lib/api.service";
 import { Snippet } from "../../lib/search";
 import { cn } from "../../lib/utils";
@@ -52,7 +52,6 @@ const DashboardInstructions = ({
   setHideMerge,
   getFileChanges
 }: any) => {
-  const [isLoading, setIsLoading] = useState(false);
   return (
     <Tabs defaultValue="plan" className="grow">
       <TabsContent value="plan">
@@ -103,7 +102,8 @@ const DashboardInstructions = ({
                               changeType: "modify",
                               newContents: contents,
                               hideMerge: true,
-                              instructions: ""
+                              instructions: "",
+                              isLoading: false,
                             } as FileChangeRequest,
                           ];
                         });
@@ -145,7 +145,7 @@ const DashboardInstructions = ({
                       setCurrentFileChangeRequestIndex(index)
                       getFileChanges(fileChangeRequest, index)
                     }}
-                    disabled={isLoading}
+                    disabled={fileChangeRequest.isLoading}
                   >
                     <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
                   </Button>
@@ -154,16 +154,14 @@ const DashboardInstructions = ({
                     size="sm"
                     variant="secondary"
                     onClick={async () => {
-                      setIsLoading(true);
                       const response = await getFile(repoName, fileChangeRequest.snippet.file);
                       setFileByIndex(response.contents, index);
                       setOldFileByIndex(response.contents, index);
                       toast.success("File synced from storage!");
-                      setIsLoading(false);
                       setCurrentFileChangeRequestIndex(index)
                       setHideMerge(true, index);
                     }}
-                    disabled={isLoading}
+                    disabled={fileChangeRequest.isLoading}
                   >
                     <FaArrowsRotate />
                   </Button>
@@ -176,7 +174,7 @@ const DashboardInstructions = ({
                       await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
                       toast.success("Succesfully saved file!");
                     }}
-                    disabled={isLoading || fileChangeRequest.hideMerge}
+                    disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
                   >
                     <FaCheck />
                   </Button>

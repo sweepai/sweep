@@ -45,10 +45,10 @@ const DashboardActions = ({
   setHideMergeAll,
   setFileByIndex,
   setOldFileByIndex,
+  setIsLoading,
 }: any) => {
   const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
 //   const [instructions, setInstructions] = useLocalStorage("instructions", "");
-  const [isLoading, setIsLoading] = useState(false);
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen",repoName === "");
@@ -190,7 +190,7 @@ const DashboardActions = ({
       })
     }
 
-    setIsLoading(true);
+    setIsLoading(true, index);
     const url = "/api/openai/edit";
     const body = JSON.stringify({
       fileContents: fcr.snippet.content.replace(/\\n/g, "\\n"),
@@ -213,7 +213,7 @@ const DashboardActions = ({
           var { done, value } = await reader?.read();
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
-            setIsLoading(false);
+            setIsLoading(false, index);
             const updatedFile = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
             setFileByIndex(updatedFile, index);
             break;
@@ -244,7 +244,7 @@ const DashboardActions = ({
         toast.error("An error occured while generating your code.", {
           description: e,
         });
-        setIsLoading(false);
+        setIsLoading(false, index);
         return;
       });
   };
@@ -414,11 +414,9 @@ const DashboardActions = ({
             <Button
               variant="secondary"
               onClick={async () => {
-                setIsLoading(true);
                 await runScriptWrapper(file);
-                setIsLoading(false);
               }}
-              disabled={isLoading || !script.length}
+              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading === true) || !script.length}
               size="sm"
             >
               <FaPlay />
@@ -443,10 +441,10 @@ const DashboardActions = ({
           <Button
             className="mt-4 mr-4"
             variant="secondary"
-            onClick={(e) => {
-              getAllFileChanges(fileChangeRequests);
+            onClick={async (e) => {
+              await getAllFileChanges(fileChangeRequests);
             }}
-            disabled={isLoading}
+            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading === true)}
           >
             <FaPlay />
             &nbsp;&nbsp;Modify All
@@ -455,13 +453,11 @@ const DashboardActions = ({
             className="mt-4 mr-4"
             variant="secondary"
             onClick={async () => {
-              setIsLoading(true);
               syncAllFiles();
               toast.success("Files synced from storage!");
-              setIsLoading(false);
               setHideMergeAll(true);
             }}
-            disabled={isLoading}
+            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading === true)}
           >
             <FaArrowsRotate />
             &nbsp;&nbsp;Restart All
@@ -471,7 +467,7 @@ const DashboardActions = ({
             onClick={async () => {
               saveAllFiles(fileChangeRequests);
             }}
-            disabled={isLoading || hideMerge}
+            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading === true) || hideMerge}
           >
             <FaCheck />
             &nbsp;&nbsp;Save All
