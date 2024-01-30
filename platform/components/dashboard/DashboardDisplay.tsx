@@ -23,8 +23,6 @@ const blockedPaths = [
 ];
 
 const DashboardDisplay = () => {
-//   const [oldFile, setOldFile] = useLocalStorage("oldFile", "");
-  // const [hideMerge, setHideMerge] = useLocalStorage("hideMerge", true);
   const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
@@ -35,9 +33,6 @@ const DashboardDisplay = () => {
     "blockedGlobs",
     blockedPaths.join(", "),
   );
-//   const [fileChangeRequests, setFileChangeRequests] = useLocalStorage<
-//     FileChangeRequest[]
-//   >("fileChangeRequests", []);
   const [fileChangeRequests, setFileChangeRequests] = useState<
   FileChangeRequest[]
 >([]);
@@ -50,7 +45,7 @@ const DashboardDisplay = () => {
   const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
   const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge || true;
-  
+
   const setHideMerge = (newHideMerge: boolean, index: number) => {
     setFileChangeRequests(newFileChangeRequests => {
       return [

@@ -46,8 +46,8 @@ const DashboardActions = ({
   setFileByIndex,
   setOldFileByIndex,
 }: any) => {
-  const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
-//   const [instructions, setInstructions] = useLocalStorage("instructions", "");
+  const [validationScript, setValidationScript] = useLocalStorage("validationScript", "black - < $FILE_PATH\nflake8 $FILE_PATH");
+  const [testScript, setTestScript] = useLocalStorage("testScript", "pytest $FILE_PATH");
   const [isLoading, setIsLoading] = useState(false);
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
@@ -84,14 +84,8 @@ const DashboardActions = ({
     }
   }, [repoName]);
 
-  const updateScript = (event: any) => {
-    setScript(event.target.value);
-  };
-  const updateInstructons = (event: any) => {
-    setInstructions(event.target.value);
-  };
   const runScriptWrapper = async (newFile: string) => {
-    const response = await runScript(repoName, filePath, script, newFile);
+    const response = await runScript(repoName, filePath, validationScript + "\n" + testScript, newFile);
     const { code } = response;
     let scriptOutput = response.stdout + "\n" + response.stderr;
     if (code != 0) {
@@ -412,9 +406,9 @@ const DashboardActions = ({
 
         <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
           <div className="flex flex-row justify-between items-center mt-2 mb-2">
-            <Label className="mb-0">Validation Script&nbsp;&nbsp;</Label>
+            <Label className="mb-0">Checks&nbsp;&nbsp;</Label>
             <CollapsibleTrigger>
-              <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open) => !open)}>
+              <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
                 { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
                 <CaretSortIcon className="h-4 w-4" />
                 <span className="sr-only">Toggle</span>
@@ -428,7 +422,7 @@ const DashboardActions = ({
                 await runScriptWrapper(file);
                 setIsLoading(false);
               }}
-              disabled={isLoading || !script.length}
+              disabled={isLoading || !filePath || !testScript.length || !validationScript.length}
               size="sm"
             >
               <FaPlay />
@@ -440,8 +434,15 @@ const DashboardActions = ({
               id="script-input"
               placeholder="Enter your script here"
               className="col-span-4 w-full font-mono height-fit-content"
-              value={script}
-              onChange={updateScript}
+              value={validationScript}
+              onChange={setValidationScript}
+            ></Textarea>
+            <Textarea
+              id="script-input"
+              placeholder="Enter your script here"
+              className="col-span-4 w-full font-mono height-fit-content"
+              value={testScript}
+              onChange={setTestScript}
             ></Textarea>
             <p className="text-sm text-muted-foreground mb-4">
               Use $FILE_PATH to refer to the file you selected. E.g. `python
