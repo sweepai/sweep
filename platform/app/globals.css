@@ -75,7 +75,7 @@
     @apply bg-background text-foreground;
     font-size: 14px;
   }
-  div[cmdk-group-items] > div:nth-child(n+21) {
+  div[cmdk-group-items] > div:nth-child(n + 21) {
     display: none;
   }
 }
