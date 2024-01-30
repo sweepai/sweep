@@ -1,9 +1,8 @@
-"use client"
+"use client";
 
 // import DashboardContext from "@/components/dashboard/DashboardContext";
 import DashboardDisplay from "../components/dashboard/DashboardDisplay";
 import React from "react";
-
 
 export default function Home() {
   return (

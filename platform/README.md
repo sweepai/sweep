@@ -39,7 +39,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ### Step 3: Run the Tool (1 min)
 
-Now you can build the tool with 
+Now you can build the tool with
 
 ```sh
 pnpm build
@@ -54,11 +54,11 @@ pnpm start
 ## Using Sweep Unit Test Tool
 
 1. Insert the path to your local repositorrey.
-    - You can run `pwd` to use your current working directory.
-    - (Optional) Edit the branch name to checkout into a new branch for Sweep to work in (defaults to current branch).
+   - You can run `pwd` to use your current working directory.
+   - (Optional) Edit the branch name to checkout into a new branch for Sweep to work in (defaults to current branch).
 2. Select an existing file for Sweep to add unit tests to.
 3. Add meticulous instructions for the unit tests to add, such as the additional edge cases you would like covered.
 4. Modify the "Test Script" to write your script for running unit tests, such as `python $FILE_PATH`. You may use the variable $FILE_PATH to refer to the current path. Click the "Run Tests" button to test the script.
-    - Hint: use the $FILE_PATH parameter to only run the unit tests in the current file to reduce noise from the unit tests from other files.
+   - Hint: use the $FILE_PATH parameter to only run the unit tests in the current file to reduce noise from the unit tests from other files.
 5. Click "Generate Code" to get Sweep to generate additional unit tests.
 6. Then click "Refresh" or the check mark to restart or approve the change.
