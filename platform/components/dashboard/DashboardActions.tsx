@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import getFiles, { getFile, runScript, writeFile } from "../../lib/api.service";
 import { toast } from "sonner";
-import { FaCheck, FaPen, FaPlay, FaTrash } from "react-icons/fa6";
+import { FaCheck, FaPlay, FaTrash } from "react-icons/fa6";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
@@ -57,7 +57,6 @@ const DashboardActions = ({
     "snippets",
     {} as { [key: string]: Snippet },
   );
-  //console.log("file in DashboardActions.tsx", file)
   const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
   const setInstructions = (instructions: string) => {
     setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -181,7 +180,6 @@ const DashboardActions = ({
   };
 
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
-    console.log("getting file changes")
     setStreamData("");
     // case where we are showing mergediff
     if (!hideMerge) {
@@ -207,7 +205,6 @@ const DashboardActions = ({
         const reader = response.body!.getReader();
         const decoder = new TextDecoder("utf-8");
         let rawText = String.raw``;
-        console.log("ran!")
 
         var i = 0;
         setHideMerge(false, index);
@@ -216,7 +213,6 @@ const DashboardActions = ({
           var { done, value } = await reader?.read();
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
-            console.log("STREAM IS FULLY READ");
             setIsLoading(false);
             const updatedFile = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
             setFileByIndex(updatedFile, index);
@@ -243,12 +239,6 @@ const DashboardActions = ({
             <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
           ],
         });
-
-        // if (script) {
-        //   runScriptWrapper(file); // file is incorrect it should be based off of fcr
-        // } else {
-        //   toast.warning("Your Script is empty and will not be run.");
-        // }
       })
       .catch((e) => {
         toast.error("An error occured while generating your code.", {

@@ -14,12 +14,9 @@ export async function POST(request: NextRequest) {
   // Body -> { stdout: string, stderr: string, code: number}
   const body = (await request.json()) as Body;
   const { repo, filePath, script } = body;
-  console.log("inside post", body);
   const command = `cd ${repo} && export FILE_PATH=${filePath} && ${script}`;
   try {
     const { stdout, stderr } = await exec(command);
-    console.log("stdout:", stdout);
-    console.log("stderr:", stderr);
     return NextResponse.json({
       stdout,
       stderr,
