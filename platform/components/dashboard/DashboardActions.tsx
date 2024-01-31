@@ -361,16 +361,35 @@ const DashboardActions = ({
     return [currentFileContents, errorMessage];
   };
 
+  const checkCode = async (sourceCode: string, filePath: string) => {
+    const response = await fetch("/api/files/check?" + new URLSearchParams({ filePath, sourceCode }).toString());
+    return await response.text();
+  }
+
   const checkForErrors = async (filePath: string, oldFile: string, newFile: string) => {
+    const parsingErrorMessageOld = checkCode(oldFile, filePath);
+    const parsingErrorMessage = checkCode(newFile, filePath);
+    if (!parsingErrorMessageOld && parsingErrorMessage) {
+      return parsingErrorMessage;
+    }
     if (!doValidate) {
       return "";
     }
-    const { stdout, stderr, code } = await runScript(repoName, filePath, validationScript, newFile);
+    var { stdout, stderr, code } = await runScript(repoName, filePath, validationScript, oldFile);
+    if (code !== 0) {
+      toast.error("An error occured while running the validation script. Please disable it or configure it properly (see bottom left).", {
+        description: stdout + "\n" + stderr,
+      });
+      return ""
+    }
+    var { stdout, stderr, code } = await runScript(repoName, filePath, validationScript, newFile);
     // TODO: add diff
     return code !== 0 ? stdout + "\n" + stderr: "";
   }
 
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
+    var validationOutput = "";
+    setScriptOutput(validationOutput);
     setStreamData("");
     // case where we are showing mergediff
     if (!hideMerge) {
@@ -454,8 +473,9 @@ const DashboardActions = ({
         )
         if (errorMessage.length > 0) {
           toast.error("An error occured while generating your code." + (i < 2 ? " Retrying...": " Retried 3 times so I will give up."), {
-            description: errorMessage,
+            description: errorMessage.slice(0, 800),
           });
+          validationOutput += "\n\n" + errorMessage;
           continue
         } else {
           toast.success(`Successfully modified file!`, {
