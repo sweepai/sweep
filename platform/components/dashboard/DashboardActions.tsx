@@ -148,7 +148,8 @@ const DashboardActions = ({
     return [newOldCode, newNewCode];
   };
 
-  const parseRegexFromOpenAI = (response: string, fileContents: string) => {
+  const parseRegexFromOpenAI = (response: string, fileContents: string): [string, string] => {
+    let errorMessage = "";
     const diffRegex =
       /<<<<<<< ORIGINAL(\n*?)(?<oldCode>.*?)(\n*?)=======(\n*?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs;
     const diffMatches: any = response.matchAll(diffRegex)!;
@@ -172,10 +173,17 @@ const DashboardActions = ({
         );
       } else {
         currentFileContents = currentFileContents.replace(oldCode, newCode);
+        errorMessage += "ORIGINAL Code not found in file\n";
       }
     }
-    return currentFileContents;
+    return [currentFileContents, errorMessage];
   };
+
+  const checkForErrors = async (filePath: string, oldFile: string, newFile: string) => {
+    const { stdout, stderr, code } = await runScript(repoName, filePath, validationScript, newFile);
+    // TODO: add diff
+    return code !== 0 ? stdout + "\n" + stderr: "";
+  }
 
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
     setStreamData("");
@@ -190,17 +198,21 @@ const DashboardActions = ({
 
     setIsLoading(true);
     const url = "/api/openai/edit";
-    const body = JSON.stringify({
-      fileContents: fcr.snippet.content.replace(/\\n/g, "\\n"),
+    const body = {
+      fileContents: fcr.snippet.entireFile.replace(/\\n/g, "\\n"),
       prompt: fcr.instructions,
       snippets: Object.values(snippets), //THIS MIGHT NEEED TO CHANGE LATER IF WE HAVE SNIPPETS FOR CERTAIN FCRS
-    });
-    var errorMessages = [];
-    const response = fetch(url, {
-      method: "POST",
-      body: body,
-    })
-      .then(async (response) => {
+    };
+    var currentContents = fcr.snippet.entireFile.replace(/\\n/g, "\\n");
+    for (let i = 0; i < 3; i++) {
+      const response = await fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+          ...body,
+          fileContents: currentContents,
+        }),
+      })
+      try {
         const reader = response.body!.getReader();
         const decoder = new TextDecoder("utf-8");
         let rawText = String.raw``;
@@ -213,7 +225,13 @@ const DashboardActions = ({
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
             setIsLoading(false);
-            const updatedFile = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
+            let errorMessage = ""
+            const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
+            if (patchingErrors) {
+              errorMessage += patchingErrors;
+            } else {
+              errorMessage += await checkForErrors(fcr.snippet.file, fcr.snippet.entireFile, updatedFile);
+            }
             setFileByIndex(updatedFile, index);
             break;
           }
@@ -222,7 +240,7 @@ const DashboardActions = ({
           setStreamData((prev: any) => prev + text);
           if (i % 3 == 0) {
             try {
-              let updatedFile = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
+              let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
               setFileByIndex(updatedFile, index);
             } catch (e) {
               console.error(e)
@@ -238,14 +256,13 @@ const DashboardActions = ({
             <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
           ],
         });
-      })
-      .catch((e) => {
+      } catch (e: any) {
         toast.error("An error occured while generating your code.", {
           description: e,
         });
         setIsLoading(false);
-        return;
-      });
+      }
+    }
   };
 
   // this needs to be async but its sync right now, fix later
