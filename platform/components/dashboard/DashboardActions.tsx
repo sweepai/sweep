@@ -101,6 +101,7 @@ const DashboardActions = ({
             {response.stderr.slice(0, 800)}
           </div>,
         ],
+        action: {label: "Dismiss", onClick: () => {}}
       });
     } else {
       toast.success("The script ran successfully", {
@@ -108,6 +109,7 @@ const DashboardActions = ({
           <div key="stdout">{response.stdout.slice(0, 800)}</div>,
           <div key="stderr">{response.stderr.slice(0, 800)}</div>,
         ],
+        action: {label: "Dismiss", onClick: () => {}}
       });
     }
     setScriptOutput(scriptOutput);
@@ -234,11 +236,12 @@ const DashboardActions = ({
         description: [
           <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
         ],
+        action: {label: "Dismiss", onClick: () => {}}
       });
     })
     .catch((e) => {
       toast.error("An error occured while generating your code.", {
-        description: e,
+        description: e, action: {label: "Dismiss", onClick: () => {}}
       });
       setIsLoading(false, index);
       return;
@@ -258,7 +261,7 @@ const DashboardActions = ({
       setHideMerge(true, index);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
-    toast.success(`Succesfully saved ${fcrs.length} files!`);
+    toast.success(`Succesfully saved ${fcrs.length} files!`, {action: {label: "Dismiss", onClick: () => {}}});
   }
 
   const syncAllFiles = async () => {
@@ -306,7 +309,7 @@ const DashboardActions = ({
                     fileLimit,
                   );
                   toast.success(
-                    "Successfully fetched files from the repository!",
+                    "Successfully fetched files from the repository!", {action: {label: "Dismiss", onClick: () => {}}}
                   );
                   setCurrentRepoName((currentRepoName: string) => {
                     setRepoName(currentRepoName);
@@ -316,6 +319,7 @@ const DashboardActions = ({
                   console.error(e);
                   toast.error("An Error Occured", {
                     description: "Please enter a valid repository name.",
+                    action: {label: "Dismiss", onClick: () => {}}
                   });
                 }
               }}
@@ -450,7 +454,7 @@ const DashboardActions = ({
             variant="secondary"
             onClick={async () => {
               syncAllFiles();
-              toast.success("Files synced from storage!");
+              toast.success("Files synced from storage!", {action: {label: "Dismiss", onClick: () => {}}});
               setHideMergeAll(true);
             }}
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading === true)}

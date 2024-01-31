@@ -106,19 +106,6 @@ const FileSelector = ({
         <span className="border rounded grow p-2 mr-2 font-mono">
             {filePath === "" || filePath === undefined ? "Select a file to modify on the left." : filePath}
         </span>
-        <Button
-            className="mr-2"
-            variant="secondary"
-            onClick={async () => {
-              setIsLoading(true);
-              await writeFile(repoName, filePath, file);
-              toast.success("File synced to storage!");
-              setIsLoading(false);
-            }}
-            disabled={isLoading || filePath === "" || file === ""}
-          >
-            <FaSave /> &nbsp;&nbsp;Save
-          </Button>
       </div>
 
       {hideMerge ? (

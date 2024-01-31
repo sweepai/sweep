@@ -156,6 +156,38 @@ const DashboardInstructions = ({
                   </span>
                   <span>
                     <Button
+                      size="sm"
+                      className="mr-2 bg-green-600 hover:bg-green-700 float-right"
+                      onClick={async () => {
+                        setOldFileByIndex(fileChangeRequest.newContents, index);
+                        setHideMerge(true, index);
+                        await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
+                        toast.success("Succesfully saved file!", {
+                          action: {label: "Dismiss", onClick: () => {}}
+                        });
+                      }}
+                      disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
+                    >
+                        <FaCheck />
+                    </Button>
+                    <Button
+                      className="mr-2 float-right"
+                      size="sm"
+                      variant="secondary"
+                      onClick={async () => {
+                        const response = await getFile(repoName, fileChangeRequest.snippet.file);
+                        setFileByIndex(response.contents, index);
+                        setOldFileByIndex(response.contents, index);
+                        toast.success("File synced from storage!", {action: {label: "Dismiss", onClick: () => {}}});
+                        setCurrentFileChangeRequestIndex(index)
+                        setHideMerge(true, index);
+                      }}
+                      disabled={fileChangeRequest.isLoading}
+                    >
+                      <FaArrowsRotate />
+                    </Button>
+                    
+                    <Button
                       variant="secondary"
                       size="sm"
                       className="mr-2 float-right"
@@ -166,35 +198,6 @@ const DashboardInstructions = ({
                       disabled={fileChangeRequest.isLoading}
                     >
                       <FaPlay/>&nbsp;{capitalize(fileChangeRequest.changeType)}
-                    </Button>
-                    <Button
-                      className="mr-2 float-right"
-                      size="sm"
-                      variant="secondary"
-                      onClick={async () => {
-                        const response = await getFile(repoName, fileChangeRequest.snippet.file);
-                        setFileByIndex(response.contents, index);
-                        setOldFileByIndex(response.contents, index);
-                        toast.success("File synced from storage!");
-                        setCurrentFileChangeRequestIndex(index)
-                        setHideMerge(true, index);
-                      }}
-                      disabled={fileChangeRequest.isLoading}
-                    >
-                      <FaArrowsRotate />
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="mr-2 bg-green-600 hover:bg-green-700 float-right"
-                      onClick={async () => {
-                        setOldFileByIndex(fileChangeRequest.newContents, index);
-                        setHideMerge(true, index);
-                        await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
-                        toast.success("Succesfully saved file!");
-                      }}
-                      disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
-                    >
-                      <FaCheck />
                     </Button>
                   </span>
                 </div>
