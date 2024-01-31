@@ -119,7 +119,36 @@ const DashboardActions = ({
   setIsLoading,
   setIsLoadingAll,
   undefinedCheck
-}: any) => {
+}: {
+  filePath: string;
+  setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
+  file: string;
+  setFile: (newFile: string) => void;
+  fileLimit: number;
+  setFileLimit: React.Dispatch<React.SetStateAction<number>>;
+  blockedGlobs: string;
+  setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
+  hideMerge: boolean;
+  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  branch: string;
+  setBranch: React.Dispatch<React.SetStateAction<string>>;
+  oldFile: string;
+  setOldFile: (newOldFile: string) => void;
+  repoName: string;
+  setRepoName: React.Dispatch<React.SetStateAction<string>>;
+  setStreamData: React.Dispatch<React.SetStateAction<string>>;
+  files: { label: string; name: string }[];
+  fileChangeRequests: FileChangeRequest[];
+  setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
+  currentFileChangeRequestIndex: number;
+  setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
+  setHideMergeAll: (newHideMerge: boolean) => void;
+  setFileByIndex: (newFile: string, index: number) => void;
+  setOldFileByIndex: (newOldFile: string, index: number) => void;
+  setIsLoading: (newIsLoading: boolean, index: number) => void;
+  setIsLoadingAll: (newIsLoading: boolean) => void;
+  undefinedCheck: (variable: any) => void;
+}) => {
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
@@ -403,7 +432,7 @@ const DashboardActions = ({
           }
           const text = decoder.decode(value);
           rawText += text;
-          setStreamData((prev: any) => prev + text);
+          setStreamData((prev: string) => prev + text);
           if (i % 3 == 0) {
             try {
               let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
@@ -549,7 +578,7 @@ const DashboardActions = ({
             <Input
               value={fileLimit}
               onChange={(e) => {
-                setFileLimit(e.target.value);
+                setFileLimit(parseInt(e.target.value));
               }}
               placeholder="10000"
               type="number"
@@ -704,7 +733,7 @@ const DashboardActions = ({
             className="mt-4 mr-4"
             variant="secondary"
             onClick={async (e) => {
-              setIsLoadingAll(fileChangeRequests, true);
+              setIsLoadingAll(true);
               await getAllFileChanges(fileChangeRequests);
             }}
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
