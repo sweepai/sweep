@@ -680,7 +680,7 @@ const DashboardActions = ({
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
           >
             <FaCheck />
-            &nbsp;&nbsp;Save All
+            &nbsp;&nbsp;Save
           </Button>
         </div>
       </div>
