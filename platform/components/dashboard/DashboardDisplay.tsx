@@ -196,6 +196,7 @@ const DashboardDisplay = () => {
           setFileByIndex={setFileByIndex}
           setOldFileByIndex={setOldFileByIndex}
           setIsLoading={setIsLoading}
+          setIsLoadingAll={setIsLoadingAll}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>

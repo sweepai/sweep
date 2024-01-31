@@ -46,9 +46,9 @@ const DashboardActions = ({
   setFileByIndex,
   setOldFileByIndex,
   setIsLoading,
+  setIsLoadingAll,
 }: any) => {
   const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
-//   const [instructions, setInstructions] = useLocalStorage("instructions", "");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen",repoName === "");
@@ -85,9 +85,6 @@ const DashboardActions = ({
 
   const updateScript = (event: any) => {
     setScript(event.target.value);
-  };
-  const updateInstructons = (event: any) => {
-    setInstructions(event.target.value);
   };
   const runScriptWrapper = async (newFile: string) => {
     const response = await runScript(repoName, filePath, script, newFile);
@@ -197,63 +194,61 @@ const DashboardActions = ({
       prompt: fcr.instructions,
       snippets: Object.values(snippets), //THIS MIGHT NEEED TO CHANGE LATER IF WE HAVE SNIPPETS FOR CERTAIN FCRS
     });
-    const response = fetch(url, {
+    const response = await fetch(url, {
       method: "POST",
       body: body,
-    })
-      .then(async (response) => {
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let rawText = String.raw``;
+    }).then(async (response) => {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let rawText = String.raw``;
 
-        var i = 0;
-        setHideMerge(false, index);
-        while (true) {
-          i += 1;
-          var { done, value } = await reader?.read();
-          // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
-          if (done) {
-            setIsLoading(false, index);
-            const updatedFile = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
+      var i = 0;
+      setHideMerge(false, index);
+      while (true) {
+        i += 1;
+        var { done, value } = await reader?.read();
+        // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
+        if (done) {
+          setIsLoading(false, index);
+          const updatedFile = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
+          setFileByIndex(updatedFile, index);
+          break;
+        }
+        const text = decoder.decode(value);
+        rawText += text;
+        setStreamData((prev: any) => prev + text);
+        if (i % 3 == 0) {
+          try {
+            let updatedFile = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
             setFileByIndex(updatedFile, index);
-            break;
-          }
-          const text = decoder.decode(value);
-          rawText += text;
-          setStreamData((prev: any) => prev + text);
-          if (i % 3 == 0) {
-            try {
-              let updatedFile = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
-              setFileByIndex(updatedFile, index);
-            } catch (e) {
-              console.error(e)
-            }
+          } catch (e) {
+            console.error(e)
           }
         }
-        setHideMerge(false, index);
-        const changeCount = Math.abs(
-          fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length,
-        );
-        toast.success(`Successfully generated tests!`, {
-          description: [
-            <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
-          ],
-        });
-      })
-      .catch((e) => {
-        toast.error("An error occured while generating your code.", {
-          description: e,
-        });
-        setIsLoading(false, index);
-        return;
+      }
+      setHideMerge(false, index);
+      const changeCount = Math.abs(
+        fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length,
+      );
+      toast.success(`Successfully generated tests!`, {
+        description: [
+          <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
+        ],
       });
+    })
+    .catch((e) => {
+      toast.error("An error occured while generating your code.", {
+        description: e,
+      });
+      setIsLoading(false, index);
+      return;
+    });
   };
 
   // this needs to be async but its sync right now, fix later
   const getAllFileChanges = async (fcrs: FileChangeRequest[]) => {
-    for await (const [index, fcr] of fcrs.entries()) {
-      await getFileChanges(fcr, index)
-      setCurrentFileChangeRequestIndex(index);
+    for (let index = 0; index < fcrs.length; index++) {
+      await getFileChanges(fcrs[index], index)
     }
   }
 
@@ -442,6 +437,7 @@ const DashboardActions = ({
             className="mt-4 mr-4"
             variant="secondary"
             onClick={async (e) => {
+              setIsLoadingAll(fileChangeRequests, true);
               await getAllFileChanges(fileChangeRequests);
             }}
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading === true)}

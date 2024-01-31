@@ -55,8 +55,10 @@ const DashboardInstructions = ({
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
     if (index === currentFileChangeRequestIndex) { // current selected fcr
-      classNames += " font-extrabold text-white";
-    } 
+      classNames += " font-extrabold text-white ";
+    } else {
+      classNames += " text-zinc-300 ";
+    }
     // background highlighting
     if (fcr.isLoading) { // is being generated
       classNames += " bg-orange-900 ";
@@ -146,7 +148,7 @@ const DashboardInstructions = ({
                   setCurrentFileChangeRequestIndex(index)
                 }}
               >
-                <div className={`flex flex-row justify-between p-2 ${getDynamicClassNames(fileChangeRequest, index)} rounded font-sm font-mono items-center text-zinc-300`}>
+                <div className={`flex flex-row justify-between p-2 ${getDynamicClassNames(fileChangeRequest, index)} rounded font-sm font-mono items-center`}>
                   <span>
                     {fileChangeRequest.snippet.file.split("/")[fileChangeRequest.snippet.file.split("/").length - 1]}:
                     {fileChangeRequest.snippet.start}-
