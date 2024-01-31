@@ -317,8 +317,11 @@ const DashboardActions = ({
     var changesMade = false;
     for (const diffMatch of diffMatches) {
       changesMade = true;
-      let oldCode = diffMatch.groups!.oldCode;
-      let newCode = diffMatch.groups!.newCode;
+      let oldCode = diffMatch.groups!.oldCode ?? "";
+      let newCode = diffMatch.groups!.newCode ?? "";
+      if (!oldCode || !newCode) {
+        throw new Error("oldCode or newCode are undefined");
+      }
       let didFind = false;
       if (oldCode.startsWith("\n")) {
         oldCode = oldCode.slice(1);
