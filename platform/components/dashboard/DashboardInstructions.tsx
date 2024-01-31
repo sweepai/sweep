@@ -70,6 +70,7 @@ const DashboardInstructions = ({
     }
     return classNames
   }
+
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
       <TabsContent value="plan">
