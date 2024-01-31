@@ -1,3 +1,8 @@
+"""Unit tests for diff utilities in the sweepai package.
+
+This module contains various unittests that cover functionality
+of the diff utility functions employed within sweepai's systems.
+"""
 import unittest
 from unittest.mock import patch
 

@@ -18,10 +18,8 @@ import {
 import { Snippet } from "../../lib/search";
 import DashboardInstructions from "./DashboardInstructions";
 import { FileChangeRequest, Message } from "../../lib/types";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
-import { FaQuestion, FaQuestionCircle } from "react-icons/fa";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more. If the user requests multiple changes, you must make the changes one at a time and finish each change fully before moving onto the next change.
@@ -121,9 +119,8 @@ const DashboardActions = ({
   setIsLoading,
   setIsLoadingAll,
 }: any) => {
-  const [validationScript, setValidationScript] = useLocalStorage("validationScript", "python -m py_compile $FILE_PATH\npylint $FILE_PATH --error-only")
-  const [testScript, setTestScript] = useLocalStorage("testScript", "pytest $FILE_PATH");
-  const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
+  const [validationScript, setValidationScript] = useLocalStorage("validationScript", "python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only")
+  const [testScript, setTestScript] = useLocalStorage("testScript", "python3 -m pytest $FILE_PATH");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
@@ -644,6 +641,7 @@ const DashboardActions = ({
               className="col-span-4 w-full font-mono height-fit-content"
               value={validationScript}
               onChange={(e) => setValidationScript(e.target.value)}
+              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
             ></Textarea>
             <Label className="mb-0">Test Script</Label>
             <Textarea
@@ -652,6 +650,7 @@ const DashboardActions = ({
               className="col-span-4 w-full font-mono height-fit-content"
               value={testScript}
               onChange={(e) => setTestScript(e.target.value)}
+              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
             ></Textarea>
             <p className="text-sm text-muted-foreground mb-4">
               Use $FILE_PATH to refer to the file you selected. E.g. `python

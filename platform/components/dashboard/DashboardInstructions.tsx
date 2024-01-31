@@ -73,7 +73,7 @@ const DashboardInstructions = ({
 
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
-      <TabsContent value="plan">
+      <TabsContent value="plan" className="h-full">
         <div className="grow border rounded-md p-4 overflow-auto h-full">
           <Popover open={open} onOpenChange={setOpen}>
             <div className="flex flex-row mb-4">
