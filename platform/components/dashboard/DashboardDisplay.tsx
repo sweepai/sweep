@@ -238,7 +238,7 @@ const DashboardDisplay = () => {
                 Debug Logs
               </Button>
               <Textarea
-                className={`mt-4 grow font-mono h-[110px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
+                className={`mt-4 grow font-mono h-4/5 ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
                 value={scriptOutput.trim()}
                 id="script-output"
                 placeholder="Your script output will be displayed here"
@@ -246,7 +246,7 @@ const DashboardDisplay = () => {
                 hidden={outputToggle !== "script"}
               ></Textarea>
               <Textarea
-                className={`mt-4 grow font-mono h-[110px] `}
+                className={`mt-4 grow font-mono h-4/5`}
                 id="llm-output"
                 value={streamData}
                 placeholder="GPT will display what it is thinking here."
