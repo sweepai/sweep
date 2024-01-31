@@ -119,8 +119,10 @@ const DashboardActions = ({
   setIsLoading,
   setIsLoadingAll,
 }: any) => {
-  const [validationScript, setValidationScript] = useLocalStorage("validationScript", "python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only")
-  const [testScript, setTestScript] = useLocalStorage("testScript", "python3 -m pytest $FILE_PATH");
+  const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
+  const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
+  const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
+  const [testScript, setTestScript] = useLocalStorage("testScript", "");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
@@ -327,7 +329,6 @@ const DashboardActions = ({
           var { done, value } = await reader?.read();
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
-            setIsLoading(false, index);
             const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", currentContents)
             // console.log(patchingErrors)
             if (patchingErrors) {
@@ -364,8 +365,6 @@ const DashboardActions = ({
           toast.error("An error occured while generating your code." + (i < 2 ? " Retrying...": " Retried 3 times so I will give up."), {
             description: errorMessage,
           });
-          console.error(errorMessage)
-          setIsLoading(false, index);
           continue
         } else {
           toast.success(`Successfully modified file!`, {
@@ -374,6 +373,7 @@ const DashboardActions = ({
             ],
             action: { label: "Dismiss", onClick: () => { } }
           });
+          setIsLoading(false, index);
           break
         }
       } catch (e: any) {
@@ -383,6 +383,7 @@ const DashboardActions = ({
         setIsLoading(false, index);
       }
     }
+    setIsLoading(false, index);
   };
 
   // this needs to be async but its sync right now, fix later
@@ -637,7 +638,7 @@ const DashboardActions = ({
             </Label>
             <Textarea
               id="script-input"
-              placeholder="Enter your script here"
+              placeholder={validationScriptPlaceholder}
               className="col-span-4 w-full font-mono height-fit-content"
               value={validationScript}
               onChange={(e) => setValidationScript(e.target.value)}
@@ -646,7 +647,7 @@ const DashboardActions = ({
             <Label className="mb-0">Test Script</Label>
             <Textarea
               id="script-input"
-              placeholder="Enter your script here"
+              placeholder={testScriptPlaceholder}
               className="col-span-4 w-full font-mono height-fit-content"
               value={testScript}
               onChange={(e) => setTestScript(e.target.value)}
