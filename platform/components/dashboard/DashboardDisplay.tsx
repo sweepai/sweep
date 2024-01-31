@@ -259,8 +259,8 @@ const DashboardDisplay = () => {
                 Debug Logs
               </Button>
               <Textarea
-                className={`mt-4 grow font-mono h-4/5 ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
-                value={scriptOutput.trim()}
+                className={`mt-4 grow font-mono h-4/5 ${scriptOutput.startsWith("Error") ? "text-red-600" : "text-green-600"}`}
+                value={scriptOutput}
                 id="script-output"
                 placeholder="Your script output will be displayed here"
                 readOnly
