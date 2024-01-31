@@ -48,7 +48,20 @@ const FileSelector = ({
   setFiles,
   blockedGlobs,
   fileLimit,
-}: any) => {
+}: {
+  filePath: string;
+  file: string;
+  setFile: (newFile: string) => void;
+  hideMerge: boolean;
+  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  oldFile: string;
+  setOldFile: (newOldFile: string) => void;
+  repoName: string;
+  files: { label: string; name: string }[];
+  setFiles: React.Dispatch<React.SetStateAction<{ label: string; name: string }[]>>;
+  blockedGlobs: string;
+  fileLimit: number;
+}) => {
   const [value, setValue] = useState("console.log('hello world!');");
   const placeholderText =
     "Your code will be displayed here once you select a Repository and add a file to modify.";

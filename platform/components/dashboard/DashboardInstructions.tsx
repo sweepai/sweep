@@ -53,7 +53,26 @@ const DashboardInstructions = ({
   setReadOnlySnippetForFCR,
   setReadOnlyFilesOpen,
   removeReadOnlySnippetForFCR
-}: any) => {
+}: {
+  filePath: string;
+  repoName: string;
+  open: boolean;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  files: { label: string; name: string }[];
+  instructions: string;
+  setInstructions: (instructions: string) => void;
+  fileChangeRequests: FileChangeRequest[];
+  setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
+  currentFileChangeRequestIndex: number;
+  setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
+  setFileByIndex: (newFile: string, index: number) => void;
+  setOldFileByIndex: (newOldFile: string, index: number) => void;
+  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  getFileChanges: (fileChangeRequest: FileChangeRequest, index: number) => Promise<void>;
+  setReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippet: Snippet) => void;
+  setReadOnlyFilesOpen: (open: boolean, fileChangeRequest: FileChangeRequest) => void;
+  removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
+}) => {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
     if (index === currentFileChangeRequestIndex) { // current selected fcr
