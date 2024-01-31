@@ -33,12 +33,7 @@ const DashboardDisplay = () => {
     "blockedGlobs",
     blockedPaths.join(", "),
   );
-//   const [fileChangeRequests, setFileChangeRequests] = useLocalStorage<
-//     FileChangeRequest[]
-//   >("fileChangeRequests", []);
-  const [fileChangeRequests, setFileChangeRequests] = useState<
-  FileChangeRequest[]
->([]);
+  const [fileChangeRequests, setFileChangeRequests] = useState<FileChangeRequest[]>([]);
   const [currentFileChangeRequestIndex, setCurrentFileChangeRequestIndex] =
     useLocalStorage("currentFileChangeRequestIndex", 0);
 
@@ -49,17 +44,28 @@ const DashboardDisplay = () => {
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
   const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
 
+  const undefinedCheck = (variable: any) => {
+    if (typeof variable === "undefined") {
+      throw new Error("Variable is undefined");
+    }
+  }
+
   const setIsLoading = (newIsLoading: boolean, index: number) => {
-    setFileChangeRequests(newFileChangeRequests => {
-      return [
+    try {
+      undefinedCheck(index);
+      setFileChangeRequests(newFileChangeRequests => {
+        return [
           ...newFileChangeRequests.slice(0, index),
           {
             ...newFileChangeRequests[index],
             isLoading: newIsLoading
           },
           ...newFileChangeRequests.slice(index + 1)
-      ]
-    });
+        ]
+      });
+    } catch (error) {
+      console.error("Error in setIsLoading: ",error);
+    }
   }
 
   const setIsLoadingAll = (newIsLoading: boolean) => {
@@ -72,18 +78,23 @@ const DashboardDisplay = () => {
       })
     })
   }
-  
+
   const setHideMerge = (newHideMerge: boolean, index: number) => {
-    setFileChangeRequests(newFileChangeRequests => {
-      return [
-        ...newFileChangeRequests.slice(0, index),
-        {
-          ...newFileChangeRequests[index],
-          hideMerge: newHideMerge
-        },
-        ...newFileChangeRequests.slice(index + 1)
-      ]
-    });
+    try {
+      undefinedCheck(index);
+      setFileChangeRequests(newFileChangeRequests => {
+        return [
+          ...newFileChangeRequests.slice(0, index),
+          {
+            ...newFileChangeRequests[index],
+            hideMerge: newHideMerge
+          },
+          ...newFileChangeRequests.slice(index + 1)
+        ]
+      });
+    } catch (error) {
+      console.error("Error in setHideMerge: ",error);
+    }
   }
 
   const setHideMergeAll = (newHideMerge: boolean) => {
@@ -98,67 +109,76 @@ const DashboardDisplay = () => {
   }
 
   const setOldFile = (newOldFile: string) => {
-      setCurrentFileChangeRequestIndex(index => {
-        setFileChangeRequests(newFileChangeRequests => {
-            return [
-                ...newFileChangeRequests.slice(0, index),
-                {
-                    ...newFileChangeRequests[index],
-                    snippet: {
-                        ...newFileChangeRequests[index].snippet,
-                        entireFile: newOldFile,
-                    },
-                },
-                ...newFileChangeRequests.slice(index + 1)
-            ]
-        });
-        return index;
-      })
+    setCurrentFileChangeRequestIndex(index => {
+      setFileChangeRequests(newFileChangeRequests => {
+        return [
+          ...newFileChangeRequests.slice(0, index),
+          {
+            ...newFileChangeRequests[index],
+            snippet: {
+              ...newFileChangeRequests[index].snippet,
+              entireFile: newOldFile,
+            },
+          },
+          ...newFileChangeRequests.slice(index + 1)
+        ]
+      });
+      return index;
+    })
   }
 
   const setOldFileByIndex = (newOldFile: string, index: number) => {
-    setFileChangeRequests(newFileChangeRequests => {
-      return [
-        ...newFileChangeRequests.slice(0, index),
-        {
-          ...newFileChangeRequests[index],
-          snippet: {
-            ...newFileChangeRequests[index].snippet,
-            entireFile: newOldFile,
+    try {
+      setFileChangeRequests(newFileChangeRequests => {
+        return [
+          ...newFileChangeRequests.slice(0, index),
+          {
+            ...newFileChangeRequests[index],
+            snippet: {
+              ...newFileChangeRequests[index].snippet,
+              entireFile: newOldFile,
+            },
           },
-        },
-        ...newFileChangeRequests.slice(index + 1)
-      ]
-    });
+          ...newFileChangeRequests.slice(index + 1)
+        ]
+      });
+    } catch (error) {
+      console.error("Error in setOldFileByIndex: ",error);
+    }
   }
 
   const setFile = (newFile: string) => {
     setCurrentFileChangeRequestIndex(index => {
-        setFileChangeRequests(newFileChangeRequests => {
-            return [
-                ...newFileChangeRequests.slice(0, index),
-                {
-                    ...newFileChangeRequests[index],
-                    newContents: newFile
-                },
-                ...newFileChangeRequests.slice(index + 1)
-            ]
-        });
-        return index;
+      setFileChangeRequests(newFileChangeRequests => {
+        return [
+          ...newFileChangeRequests.slice(0, index),
+          {
+            ...newFileChangeRequests[index],
+            newContents: newFile
+          },
+          ...newFileChangeRequests.slice(index + 1)
+        ]
+      });
+      return index;
     });
   }
 
   const setFileByIndex = (newFile: string, index: number) => {
-    setFileChangeRequests(newFileChangeRequests => {
-      return [
+    try {
+      undefinedCheck(index);
+      setFileChangeRequests(newFileChangeRequests => {
+        return [
           ...newFileChangeRequests.slice(0, index),
           {
-              ...newFileChangeRequests[index],
-              newContents: newFile
+            ...newFileChangeRequests[index],
+            newContents: newFile
           },
           ...newFileChangeRequests.slice(index + 1)
-      ]
-  });
+        ]
+      });
+    } catch (error) {
+      console.error("Error in setFileByIndex: ",error);
+    }
   }
 
   useEffect(() => {
@@ -196,6 +216,7 @@ const DashboardDisplay = () => {
           setFileByIndex={setFileByIndex}
           setOldFileByIndex={setOldFileByIndex}
           setIsLoading={setIsLoading}
+          setIsLoadingAll={setIsLoadingAll}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -237,7 +258,7 @@ const DashboardDisplay = () => {
                 Debug Logs
               </Button>
               <Textarea
-                className={`mt-4 grow font-mono h-[110px] ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
+                className={`mt-4 grow font-mono h-4/5 ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
                 value={scriptOutput.trim()}
                 id="script-output"
                 placeholder="Your script output will be displayed here"
@@ -245,7 +266,7 @@ const DashboardDisplay = () => {
                 hidden={outputToggle !== "script"}
               ></Textarea>
               <Textarea
-                className={`mt-4 grow font-mono h-[110px] `}
+                className={`mt-4 grow font-mono h-4/5`}
                 id="llm-output"
                 value={streamData}
                 placeholder="GPT will display what it is thinking here."

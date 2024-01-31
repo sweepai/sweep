@@ -1,19 +1,8 @@
 "use client";
-import { cn } from "../../lib/utils";
 import React, { useCallback, useEffect, useState } from "react";
-import { Button } from "../ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "../ui/command";
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import getFiles, { getFile, writeFile } from "../../lib/api.service";
+
+import getFiles from "../../lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
-import { FaSave } from "react-icons/fa";
 
 import { javascript } from "@codemirror/lang-javascript";
 import { java } from "@codemirror/lang-java";
@@ -21,12 +10,10 @@ import { python } from "@codemirror/lang-python";
 import { html } from "@codemirror/lang-html";
 
 import CodeMirror, {
-  EditorState,
   EditorView,
   keymap,
 } from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
-import { toast } from "sonner";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 
@@ -62,11 +49,9 @@ const FileSelector = ({
   blockedGlobs,
   fileLimit,
 }: any) => {
-  const [open, setOpen] = useState(false);
   const [value, setValue] = useState("console.log('hello world!');");
-  const [isLoading, setIsLoading] = useState(false);
   const placeholderText =
-    "Your code will be displayed here once you select a Repository and file.";
+    "Your code will be displayed here once you select a Repository and add a file to modify.";
   const onChange = useCallback(
     (val: any, viewUpdate: any) => {
       setFile(val);
@@ -99,29 +84,15 @@ const FileSelector = ({
     keymap.of([indentWithTab]),
     indentUnit.of("    "),
   ];
-
   return (
     <>
       <div className="flex flex-row mb-2">
         <span className="border rounded grow p-2 mr-2 font-mono">
-            {filePath === "" || filePath === undefined ? "Select a file to modify on the left." : filePath}
+            {filePath === "" || filePath === undefined ? "Add a file to modify on the left." : filePath}
         </span>
-        <Button
-            className="mr-2"
-            variant="secondary"
-            onClick={async () => {
-              setIsLoading(true);
-              await writeFile(repoName, filePath, file);
-              toast.success("File synced to storage!");
-              setIsLoading(false);
-            }}
-            disabled={isLoading || filePath === "" || file === ""}
-          >
-            <FaSave /> &nbsp;&nbsp;Save
-          </Button>
       </div>
 
-      {hideMerge ? (
+      {(hideMerge || hideMerge === undefined) ? (
         <CodeMirror
           value={file}
           extensions={extensions}
@@ -136,8 +107,9 @@ const FileSelector = ({
             value={oldFile}
             extensions={extensions}
             onChange={onOldChange}
+            placeholder={placeholderText}
           />
-          <Modified value={file} extensions={extensions} onChange={onChange} />
+          <Modified value={file} extensions={extensions} onChange={onChange} placeholder={placeholderText}/>
         </CodeMirrorMerge>
       )}
     </>

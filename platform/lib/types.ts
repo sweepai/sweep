@@ -23,4 +23,9 @@ interface FileChangeRequest {
   isLoading: boolean;
 }
 
-export type { File, Snippet, FileChangeRequest };
+interface Message {
+  role: "user" | "system" | "assistant";
+  content: string;
+}
+
+export type { File, Snippet, FileChangeRequest, Message };
