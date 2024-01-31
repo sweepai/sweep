@@ -163,12 +163,12 @@ const DashboardInstructions = ({
                         setHideMerge(true, index);
                         await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
                         toast.success("Succesfully saved file!", {
-                          action: {label: "Dismiss", onClick: () => {}}
+                          action: { label: "Dismiss", onClick: () => { } }
                         });
                       }}
                       disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
                     >
-                        <FaCheck />
+                      <FaCheck />
                     </Button>
                     <Button
                       className="mr-2 float-right"
@@ -178,7 +178,7 @@ const DashboardInstructions = ({
                         const response = await getFile(repoName, fileChangeRequest.snippet.file);
                         setFileByIndex(response.contents, index);
                         setOldFileByIndex(response.contents, index);
-                        toast.success("File synced from storage!", {action: {label: "Dismiss", onClick: () => {}}});
+                        toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
                         setCurrentFileChangeRequestIndex(index)
                         setHideMerge(true, index);
                       }}
@@ -186,7 +186,7 @@ const DashboardInstructions = ({
                     >
                       <FaArrowsRotate />
                     </Button>
-                    
+
                     <Button
                       variant="secondary"
                       size="sm"
@@ -197,7 +197,7 @@ const DashboardInstructions = ({
                       }}
                       disabled={fileChangeRequest.isLoading}
                     >
-                      <FaPlay/>&nbsp;{capitalize(fileChangeRequest.changeType)}
+                      <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
                     </Button>
                   </span>
                 </div>

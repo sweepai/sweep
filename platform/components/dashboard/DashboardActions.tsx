@@ -51,8 +51,8 @@ const DashboardActions = ({
   const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
-  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen",repoName === "");
-  const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen",true);
+  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
+  const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen", true);
   const [snippets, setSnippets] = useLocalStorage(
     "snippets",
     {} as { [key: string]: Snippet },
@@ -101,7 +101,7 @@ const DashboardActions = ({
             {response.stderr.slice(0, 800)}
           </div>,
         ],
-        action: {label: "Dismiss", onClick: () => {}}
+        action: { label: "Dismiss", onClick: () => { } }
       });
     } else {
       toast.success("The script ran successfully", {
@@ -109,7 +109,7 @@ const DashboardActions = ({
           <div key="stdout">{response.stdout.slice(0, 800)}</div>,
           <div key="stderr">{response.stderr.slice(0, 800)}</div>,
         ],
-        action: {label: "Dismiss", onClick: () => {}}
+        action: { label: "Dismiss", onClick: () => { } }
       });
     }
     setScriptOutput(scriptOutput);
@@ -236,16 +236,16 @@ const DashboardActions = ({
         description: [
           <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
         ],
-        action: {label: "Dismiss", onClick: () => {}}
+        action: { label: "Dismiss", onClick: () => { } }
       });
     })
-    .catch((e) => {
-      toast.error("An error occured while generating your code.", {
-        description: e, action: {label: "Dismiss", onClick: () => {}}
+      .catch((e) => {
+        toast.error("An error occured while generating your code.", {
+          description: e, action: { label: "Dismiss", onClick: () => { } }
+        });
+        setIsLoading(false, index);
+        return;
       });
-      setIsLoading(false, index);
-      return;
-    });
   };
 
   // this needs to be async but its sync right now, fix later
@@ -261,7 +261,7 @@ const DashboardActions = ({
       setHideMerge(true, index);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
-    toast.success(`Succesfully saved ${fcrs.length} files!`, {action: {label: "Dismiss", onClick: () => {}}});
+    toast.success(`Succesfully saved ${fcrs.length} files!`, { action: { label: "Dismiss", onClick: () => { } } });
   }
 
   const syncAllFiles = async () => {
@@ -287,7 +287,7 @@ const DashboardActions = ({
                 size="sm"
                 onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
               >
-                { !repoNameCollapsibleOpen ? 'Expand': 'Collapse'}&nbsp;&nbsp;
+                {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
                 <CaretSortIcon className="h-4 w-4" />
                 <span className="sr-only">Toggle</span>
               </Button>
@@ -309,7 +309,7 @@ const DashboardActions = ({
                     fileLimit,
                   );
                   toast.success(
-                    "Successfully fetched files from the repository!", {action: {label: "Dismiss", onClick: () => {}}}
+                    "Successfully fetched files from the repository!", { action: { label: "Dismiss", onClick: () => { } } }
                   );
                   setCurrentRepoName((currentRepoName: string) => {
                     setRepoName(currentRepoName);
@@ -319,7 +319,7 @@ const DashboardActions = ({
                   console.error(e);
                   toast.error("An Error Occured", {
                     description: "Please enter a valid repository name.",
-                    action: {label: "Dismiss", onClick: () => {}}
+                    action: { label: "Dismiss", onClick: () => { } }
                   });
                 }
               }}
@@ -404,7 +404,7 @@ const DashboardActions = ({
             <Label className="mb-0">Validation Script&nbsp;&nbsp;</Label>
             <CollapsibleTrigger>
               <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open) => !open)}>
-                { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
+                {!validationScriptCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
                 <CaretSortIcon className="h-4 w-4" />
                 <span className="sr-only">Toggle</span>
               </Button>
@@ -454,7 +454,7 @@ const DashboardActions = ({
             variant="secondary"
             onClick={async () => {
               syncAllFiles();
-              toast.success("Files synced from storage!", {action: {label: "Dismiss", onClick: () => {}}});
+              toast.success("Files synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
               setHideMergeAll(true);
             }}
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading === true)}
