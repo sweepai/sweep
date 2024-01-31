@@ -223,10 +223,12 @@ const DashboardActions = ({
       /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs;
     const diffMatches: any = response.matchAll(diffRegex)!;
     if (!diffMatches) {
-      return "";
+      return ["", ""];
     }
     var currentFileContents = fileContents;
+    var changesMade = false;
     for (const diffMatch of diffMatches) {
+      changesMade = true;
       let oldCode = diffMatch.groups!.oldCode;
       let newCode = diffMatch.groups!.newCode;
       let didFind = false;
@@ -261,6 +263,9 @@ const DashboardActions = ({
       if (!didFind) {
         errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
       }
+    }
+    if (!changesMade) {
+      errorMessage += "No diff hunks we're found in the response.\n\n";
     }
     return [currentFileContents, errorMessage];
   };
