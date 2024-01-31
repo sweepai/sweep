@@ -26,7 +26,7 @@ const DashboardDisplay = () => {
   const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
-  const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "");
+  const [scriptOutput = "" as string, setScriptOutput] = useLocalStorage("scriptOutput", "");
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
   const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000);
   const [blockedGlobs, setBlockedGlobs] = useLocalStorage(
