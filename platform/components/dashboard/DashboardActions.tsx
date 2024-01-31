@@ -327,7 +327,7 @@ const DashboardActions = ({
         oldCode = oldCode.slice(1);
       }
       // soft match indentation, there are cases where openAi will miss indentations
-      if (oldCode.length === 0) {
+      if (oldCode.trim().length === 0) {
         errorMessage += "ORIGINAL code block can not be empty.\n\n";
         continue
       }
@@ -396,7 +396,7 @@ const DashboardActions = ({
       Object.values(fcr.readOnlySnippets)
     )
     for (let i = 0; i < 3; i++) {
-      userMessage = i === 0 ? userMessage : retryPrompt.replace("{errorMessage}", errorMessage)
+      userMessage = i === 0 ? userMessage : retryPrompt.replace("{errorMessage}", errorMessage.trim())
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
@@ -404,7 +404,7 @@ const DashboardActions = ({
           fileContents: currentContents,
           additionalMessages,
           userMessage: (
-            i === 0 ? userMessage : retryPrompt.replace("{errorMessage}", errorMessage)
+            i === 0 ? userMessage : retryPrompt.replace("{errorMessage}", errorMessage.trim())
           ),
         }),
       })

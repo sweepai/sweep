@@ -6,7 +6,7 @@ export const getFiles = async (
   const url = "/api/files/list";
   const body = {
     repo: repoName,
-    blockedGlobs: blockedGlobs.split(",").map((s) => s),
+    blockedGlobs: blockedGlobs.split(",").map((s) => s.trim()),
     limit,
   };
   const response = await fetch(url, {
