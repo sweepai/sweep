@@ -213,6 +213,7 @@ const DashboardActions = ({
         if (done) {
           setIsLoading(false, index);
           const updatedFile = parseRegexFromOpenAI(rawText || "", fcr.snippet.entireFile)
+          fcr.newContents = updatedFile // set this to get line and char changes
           setFileByIndex(updatedFile, index);
           break;
         }
@@ -229,12 +230,15 @@ const DashboardActions = ({
         }
       }
       setHideMerge(false, index);
-      const changeCount = Math.abs(
-        fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length,
+      const changeLineCount = Math.abs(
+        fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length
       );
-      toast.success(`Successfully generated tests!`, {
+      const changeCharCount = Math.abs(
+        fcr.snippet.entireFile.length - fcr.newContents.length
+      )
+      toast.success(`Successfully modified file!`, {
         description: [
-          <div key="stdout">{`There were ${changeCount} line changes made`}</div>,
+          <div key="stdout">{`There were ${changeLineCount} line and ${changeCharCount} character changes made.`}</div>,
         ],
         action: { label: "Dismiss", onClick: () => { } }
       });
@@ -272,7 +276,7 @@ const DashboardActions = ({
     })
   }
   return (
-    <ResizablePanel defaultSize={25} className="p-6 h-[90vh]">
+    <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
       <div className="flex flex-col h-full">
         <Collapsible
           defaultOpen={repoName === ""}
