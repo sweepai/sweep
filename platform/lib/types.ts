@@ -21,6 +21,8 @@ interface FileChangeRequest {
   changeType: "create" | "modify";
   hideMerge: boolean;
   isLoading: boolean;
+  openReadOnlyFiles: boolean;
+  readOnlySnippets: { [key: string]: Snippet };
 }
 
 interface Message {

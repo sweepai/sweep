@@ -29,9 +29,6 @@ describe("splitIntoChunks", () => {
 
 it("fetches all the files", async () => {
   const files = await listFiles("./");
-  // for (const file of files) {
-  //     console.log(file.name, file.path, file.content?.length)
-  // }
   expect(files.length > 0);
 });
 
