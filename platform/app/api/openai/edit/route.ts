@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { OpenAIStream, StreamingTextResponse } from "ai";
 import { Snippet } from "../../../../lib/search";
 import { Message } from "@/lib/types";
+import { ChatCompletionMessageParam } from "openai/resources/chat/completions.mjs";
 
 interface Body {
   fileContents: string;
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     );
     return response;
   };
-  const messages = [
+  const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: systemMessagePrompt },
     ...(body.additionalMessages || []),
     {role: "user", content: body.userMessage}

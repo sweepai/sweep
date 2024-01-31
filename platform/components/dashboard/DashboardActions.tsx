@@ -117,14 +117,17 @@ const DashboardActions = ({
   setHideMergeAll,
   setFileByIndex,
   setOldFileByIndex,
+  setIsLoading,
+  setIsLoadingAll,
 }: any) => {
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "python -m py_compile $FILE_PATH\npylint $FILE_PATH --error-only")
   const [testScript, setTestScript] = useLocalStorage("testScript", "pytest $FILE_PATH");
   const [isLoading, setIsLoading] = useState(false);
+  const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
-  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen",repoName === "");
-  const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen",true);
+  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
+  const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen", false);
   const [snippets, setSnippets] = useLocalStorage(
     "snippets",
     {} as { [key: string]: Snippet },
@@ -170,6 +173,7 @@ const DashboardActions = ({
             {response.stderr.slice(0, 800)}
           </div>,
         ],
+        action: { label: "Dismiss", onClick: () => { } }
       });
     } else {
       toast.success("The script ran successfully", {
@@ -177,6 +181,7 @@ const DashboardActions = ({
           <div key="stdout">{response.stdout.slice(0, 800)}</div>,
           <div key="stderr">{response.stderr.slice(0, 800)}</div>,
         ],
+        action: { label: "Dismiss", onClick: () => { } }
       });
     }
     setScriptOutput(scriptOutput);
@@ -362,7 +367,7 @@ const DashboardActions = ({
         }
       } catch (e: any) {
         toast.error("An error occured while generating your code.", {
-          description: e,
+          description: e, action: { label: "Dismiss", onClick: () => { } }
         });
         setIsLoading(false);
       }
@@ -371,9 +376,8 @@ const DashboardActions = ({
 
   // this needs to be async but its sync right now, fix later
   const getAllFileChanges = async (fcrs: FileChangeRequest[]) => {
-    for await (const [index, fcr] of fcrs.entries()) {
-      await getFileChanges(fcr, index)
-      setCurrentFileChangeRequestIndex(index);
+    for (let index = 0; index < fcrs.length; index++) {
+      await getFileChanges(fcrs[index], index)
     }
   }
 
@@ -383,7 +387,7 @@ const DashboardActions = ({
       setHideMerge(true, index);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
-    toast.success(`Succesfully saved ${fcrs.length} files!`);
+    toast.success(`Succesfully saved ${fcrs.length} files!`, { action: { label: "Dismiss", onClick: () => { } } });
   }
 
   const syncAllFiles = async () => {
@@ -409,7 +413,7 @@ const DashboardActions = ({
                 size="sm"
                 onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
               >
-                { !repoNameCollapsibleOpen ? 'Expand': 'Collapse'}&nbsp;&nbsp;
+                {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
                 <CaretSortIcon className="h-4 w-4" />
                 <span className="sr-only">Toggle</span>
               </Button>
@@ -431,7 +435,7 @@ const DashboardActions = ({
                     fileLimit,
                   );
                   toast.success(
-                    "Successfully fetched files from the repository!",
+                    "Successfully fetched files from the repository!", { action: { label: "Dismiss", onClick: () => { } } }
                   );
                   setCurrentRepoName((currentRepoName: string) => {
                     setRepoName(currentRepoName);
@@ -441,6 +445,7 @@ const DashboardActions = ({
                   console.error(e);
                   toast.error("An Error Occured", {
                     description: "Please enter a valid repository name.",
+                    action: { label: "Dismiss", onClick: () => { } }
                   });
                 }
               }}
@@ -640,8 +645,9 @@ const DashboardActions = ({
           <Button
             className="mt-4 mr-4"
             variant="secondary"
-            onClick={(e) => {
-              getAllFileChanges(fileChangeRequests);
+            onClick={async (e) => {
+              setIsLoadingAll(fileChangeRequests, true);
+              await getAllFileChanges(fileChangeRequests);
             }}
             disabled={isLoading}
           >
@@ -654,8 +660,7 @@ const DashboardActions = ({
             onClick={async () => {
               setIsLoading(true);
               syncAllFiles();
-              toast.success("Files synced from storage!");
-              setIsLoading(false);
+              toast.success("Files synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
               setHideMergeAll(true);
             }}
             disabled={isLoading}
