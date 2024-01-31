@@ -122,7 +122,6 @@ const DashboardActions = ({
 }: any) => {
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "python -m py_compile $FILE_PATH\npylint $FILE_PATH --error-only")
   const [testScript, setTestScript] = useLocalStorage("testScript", "pytest $FILE_PATH");
-  const [isLoading, setIsLoading] = useState(false);
   const [script, setScript] = useLocalStorage("script", "python $FILE_PATH");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [open, setOpen] = useState(false);
@@ -605,7 +604,7 @@ const DashboardActions = ({
                 await runScriptWrapper(file);
                 setIsLoading(false);
               }}
-              disabled={isLoading || !filePath || !testScript.length || !validationScript.length}
+              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
               size="sm"
               className="mr-2"
             >
@@ -654,7 +653,7 @@ const DashboardActions = ({
               setIsLoadingAll(fileChangeRequests, true);
               await getAllFileChanges(fileChangeRequests);
             }}
-            disabled={isLoading}
+            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
           >
             <FaPlay />
             &nbsp;&nbsp;Modify All
@@ -668,7 +667,7 @@ const DashboardActions = ({
               toast.success("Files synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
               setHideMergeAll(true);
             }}
-            disabled={isLoading}
+            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
           >
             <FaArrowsRotate />
             &nbsp;&nbsp;Restart All
@@ -678,7 +677,7 @@ const DashboardActions = ({
             onClick={async () => {
               saveAllFiles(fileChangeRequests);
             }}
-            disabled={isLoading || hideMerge}
+            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
           >
             <FaCheck />
             &nbsp;&nbsp;Save All
