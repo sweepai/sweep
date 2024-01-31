@@ -195,6 +195,7 @@ const DashboardActions = ({
       prompt: fcr.instructions,
       snippets: Object.values(snippets), //THIS MIGHT NEEED TO CHANGE LATER IF WE HAVE SNIPPETS FOR CERTAIN FCRS
     });
+    var errorMessages = [];
     const response = fetch(url, {
       method: "POST",
       body: body,

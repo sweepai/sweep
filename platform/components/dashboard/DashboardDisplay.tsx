@@ -44,17 +44,41 @@ const DashboardDisplay = () => {
   const filePath = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
   const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
-  const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge || true;
+  const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
 
-  const setHideMerge = (newHideMerge: boolean, index: number) => {
+  const setIsLoading = (newIsLoading: boolean, index: number) => {
     setFileChangeRequests(newFileChangeRequests => {
       return [
           ...newFileChangeRequests.slice(0, index),
           {
-              ...newFileChangeRequests[index],
-              hideMerge: newHideMerge
+            ...newFileChangeRequests[index],
+            isLoading: newIsLoading
           },
           ...newFileChangeRequests.slice(index + 1)
+      ]
+    });
+  }
+
+  const setIsLoadingAll = (newIsLoading: boolean) => {
+    setFileChangeRequests(newFileChangeRequests => {
+      return newFileChangeRequests.map(fileChangeRequest => {
+        return {
+          ...fileChangeRequest,
+          isLoading: newIsLoading
+        }
+      })
+    })
+  }
+
+  const setHideMerge = (newHideMerge: boolean, index: number) => {
+    setFileChangeRequests(newFileChangeRequests => {
+      return [
+        ...newFileChangeRequests.slice(0, index),
+        {
+          ...newFileChangeRequests[index],
+          hideMerge: newHideMerge
+        },
+        ...newFileChangeRequests.slice(index + 1)
       ]
     });
   }
@@ -168,6 +192,7 @@ const DashboardDisplay = () => {
           setHideMergeAll={setHideMergeAll}
           setFileByIndex={setFileByIndex}
           setOldFileByIndex={setOldFileByIndex}
+          setIsLoading={setIsLoading}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
