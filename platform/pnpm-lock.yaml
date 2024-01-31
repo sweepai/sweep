@@ -95,9 +95,6 @@ dependencies:
   codemirror:
     specifier: ^6.65.7
     version: 6.65.7
-  extends:
-    specifier: link:@babel/runtime/helpers/extends
-    version: link:@babel/runtime/helpers/extends
   fuse.js:
     specifier: ^7.0.0
     version: 7.0.0
