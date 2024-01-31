@@ -1,5 +1,4 @@
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import { Label } from "@radix-ui/react-label";
 import {
   Popover,
   PopoverTrigger,
@@ -20,9 +19,10 @@ import { Button } from "../ui/button";
 import { Tabs, TabsContent } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
 import { FileChangeRequest } from "../../lib/types";
-import { FaPlay } from "react-icons/fa";
+import { FaPlay, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
 import { toast } from "sonner";
+import { Badge } from "../ui/badge";
 
 const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
@@ -37,7 +37,6 @@ const capitalize = (s: string) => {
 const DashboardInstructions = ({
   filePath,
   repoName,
-  setSnippets,
   open,
   setOpen,
   files,
@@ -50,7 +49,10 @@ const DashboardInstructions = ({
   setFileByIndex,
   setOldFileByIndex,
   setHideMerge,
-  getFileChanges
+  getFileChanges,
+  setReadOnlySnippetForFCR,
+  setReadOnlyFilesOpen,
+  removeReadOnlySnippetForFCR
 }: any) => {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
@@ -123,6 +125,8 @@ const DashboardInstructions = ({
                               hideMerge: true,
                               instructions: "",
                               isLoading: false,
+                              openReadOnlyFiles: false,
+                              readOnlySnippets: {},
                             } as FileChangeRequest,
                           ];
                         });
@@ -144,7 +148,7 @@ const DashboardInstructions = ({
           </Popover>
           {fileChangeRequests.map(
             (fileChangeRequest: FileChangeRequest, index: number) => (
-              <div key={index} className="mb-4 grow"
+              <div key={index} className="mb-4 grow border rounded"
                 onClick={(e) => {
                   setCurrentFileChangeRequestIndex(index)
                 }}
@@ -203,6 +207,7 @@ const DashboardInstructions = ({
                   </span>
                 </div>
                 <Textarea
+                  className="mb-0"
                   placeholder={instructionsPlaceholder}
                   value={fileChangeRequest.instructions}
                   onClick={(e) => {
@@ -219,6 +224,80 @@ const DashboardInstructions = ({
                     ]);
                   }}
                 />
+                <Popover open={fileChangeRequest.openReadOnlyFiles}>
+                  <div className="flex flex-row mb-0 p-0">
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={fileChangeRequest.openReadOnlyFiles}
+                        className="w-full justify-between overflow-hidden mt-0 bg-zinc-900 text-zinc-300"
+                        disabled={!files || fileChangeRequest.isLoading}
+                        onClick={(e) => {
+                          setReadOnlyFilesOpen(!fileChangeRequest.openReadOnlyFiles, fileChangeRequest)
+                        }}
+                      >
+                        Add relevant read-only files
+                        <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                  </div>
+                  <PopoverContent className="w-full p-0 text-left">
+                    <Command>
+                      <CommandInput placeholder="Search file..." className="h-9" />
+                      <CommandEmpty>
+                        <div className="text-zinc-300">
+                          No file found.
+                        </div>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {files.map((file: any) => (
+                          <CommandItem
+                            key={file.value}
+                            value={file.value}
+                            className="mb-0"
+                            onSelect={async (currentValue) => {
+                              const contents = (await getFile(repoName, file.value))
+                                .contents;
+                              const newSnippet = {
+                                file: file.value,
+                                start: 0,
+                                end: contents.split("\n").length,
+                                entireFile: contents,
+                                content: contents, // this is the slice based on start and end, remeber to change this
+                              } as Snippet;
+                              setReadOnlySnippetForFCR(fileChangeRequest, newSnippet);
+                              setReadOnlyFilesOpen(false, fileChangeRequest);
+                            }}
+                          >
+                            {file.label}
+                            <CheckIcon
+                              className={cn(
+                                "ml-auto h-4 w-4",
+                                filePath === file.value ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <div hidden={Object.keys(fileChangeRequest.readOnlySnippets).length === 0} className="mb-2">
+                  {Object.keys(fileChangeRequest.readOnlySnippets).map((snippetFile: string, index: number) => (
+                      <Badge variant="secondary" key={index} className="bg-zinc-800 text-zinc-300">
+                        {snippetFile.split("/")[snippetFile.split("/").length - 1]} 
+                        <FaTimes
+                          key={String(index) + "-remove"}
+                          className="bg-zinc-800 cursor-pointer"
+                          onClick={() => {
+                            removeReadOnlySnippetForFCR(fileChangeRequest, snippetFile);
+                          }} 
+                        />
+                      </Badge>
+                  ))}
+                </div>
+                <div></div>
               </div>
             ),
           )}
@@ -226,77 +305,6 @@ const DashboardInstructions = ({
             <div className="p-2 text-zinc-300">No files added yet.</div>
           )}
         </div>
-      </TabsContent>
-      <TabsContent className="flex flex-col h-full pt-4" value="modify">
-        <div className="grow">
-          <Label className="mb-2 font-bold">Instructions</Label>
-          <Textarea
-            id="instructions-input"
-            placeholder={testCasePlaceholder}
-            value={instructions}
-            className="grow mb-4"
-            onChange={(e) => setInstructions(e.target.value)}
-            style={{ height: "-webkit-fill-available" }}
-          ></Textarea>
-        </div>
-        <Popover open={open} onOpenChange={setOpen}>
-          <div className="flex flex-row mb-4 p-2">
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={open}
-                className="w-full justify-between overflow-hidden mt-4"
-                disabled={!files}
-              >
-                Add relevant read-only files for Sweep to read
-                <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-          </div>
-          <PopoverContent className="w-full p-0 text-left">
-            <Command>
-              <CommandInput placeholder="Search file..." className="h-9" />
-              <CommandEmpty>
-                <div className="text-zinc-300">
-                  No file found.
-                </div>
-              </CommandEmpty>
-              <CommandGroup>
-                {files.map((file: any) => (
-                  <CommandItem
-                    key={file.value}
-                    value={file.value}
-                    onSelect={async (currentValue) => {
-                      const contents = (await getFile(repoName, file.value))
-                        .contents;
-                      setSnippets((prev: { [key: string]: Snippet }) => {
-                        let newSnippet = {
-                          file: file.value,
-                          start: 0,
-                          end: contents.split("\n").length,
-                          entireFile: contents,
-                          content: contents, // this is the slice based on start and end, remeber to change this
-                        } as Snippet;
-                        prev[newSnippet.file] = newSnippet;
-                        return prev;
-                      });
-                      setOpen(false);
-                    }}
-                  >
-                    {file.label}
-                    <CheckIcon
-                      className={cn(
-                        "ml-auto h-4 w-4",
-                        filePath === file.value ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
       </TabsContent>
     </Tabs>
   );
