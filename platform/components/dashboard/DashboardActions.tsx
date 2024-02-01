@@ -59,7 +59,7 @@ Your job is to modify the current code file in order to complete the user's requ
 
 const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_line}" end_line="{end_line}">
 {contents}
-<file_contents>`;
+</read_only_file>`;
 
 const retryPrompt = `The following error occurred while generating the code:
 <error_message>
@@ -118,7 +118,37 @@ const DashboardActions = ({
   setOldFileByIndex,
   setIsLoading,
   setIsLoadingAll,
-}: any) => {
+  undefinedCheck
+}: {
+  filePath: string;
+  setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
+  file: string;
+  setFile: (newFile: string) => void;
+  fileLimit: number;
+  setFileLimit: React.Dispatch<React.SetStateAction<number>>;
+  blockedGlobs: string;
+  setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
+  hideMerge: boolean;
+  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  branch: string;
+  setBranch: React.Dispatch<React.SetStateAction<string>>;
+  oldFile: string;
+  setOldFile: (newOldFile: string) => void;
+  repoName: string;
+  setRepoName: React.Dispatch<React.SetStateAction<string>>;
+  setStreamData: React.Dispatch<React.SetStateAction<string>>;
+  files: { label: string; name: string }[];
+  fileChangeRequests: FileChangeRequest[];
+  setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
+  currentFileChangeRequestIndex: number;
+  setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
+  setHideMergeAll: (newHideMerge: boolean) => void;
+  setFileByIndex: (newFile: string, index: number) => void;
+  setOldFileByIndex: (newOldFile: string, index: number) => void;
+  setIsLoading: (newIsLoading: boolean, index: number) => void;
+  setIsLoadingAll: (newIsLoading: boolean) => void;
+  undefinedCheck: (variable: any) => void;
+}) => {
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
@@ -127,10 +157,11 @@ const DashboardActions = ({
   const [open, setOpen] = useState(false);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
   const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen", false);
-  const [snippets, setSnippets] = useLocalStorage(
-    "snippets",
-    {} as { [key: string]: Snippet },
-  );
+  const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
+  // const [snippets, setSnippets] = useLocalStorage(
+  //   "snippets",
+  //   {} as { [key: string]: Snippet },
+  // );
   const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
   const setInstructions = (instructions: string) => {
     setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -145,7 +176,64 @@ const DashboardActions = ({
       });
     });
   }
-  const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
+  
+  // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
+  const setReadOnlySnippetForFCR = (fcr: FileChangeRequest, readOnlySnippet: Snippet) => {
+    try {
+      fcr.readOnlySnippets[readOnlySnippet.file] = readOnlySnippet;
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests((prev: FileChangeRequest[]) => {
+        return [
+          ...prev.slice(0, fcrIndex),
+          fcr,
+          ...prev.slice(fcrIndex + 1)
+        ]
+      });
+    } catch (error) {
+      console.error("Error in setReadOnlySnippetForFCR: ",error);
+    }
+  }
+
+  const removeReadOnlySnippetForFCR = (fcr: FileChangeRequest, snippetFile: string) => {
+    try {
+      delete fcr.readOnlySnippets[snippetFile];
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests((prev: FileChangeRequest[]) => {
+        return [
+          ...prev.slice(0, fcrIndex),
+          fcr,
+          ...prev.slice(fcrIndex + 1)
+        ]
+      });
+    } catch (error) {
+      console.error("Error in removeReadOnlySnippetForFCR: ",error);
+    }
+  }
+
+  const setReadOnlyFilesOpen = (newOpen: boolean, fcr: FileChangeRequest, index: number | undefined = undefined) => {
+    try {
+      let fcrIndex = index;
+      if (typeof index === "undefined") {
+        fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      }
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests((prev: FileChangeRequest[]) => {  
+        return [
+          ...prev.slice(0, fcrIndex),
+          {
+            ...prev[fcrIndex!],
+            openReadOnlyFiles: newOpen
+          },
+          ...prev.slice(fcrIndex! + 1)
+        ]
+      })
+    } catch (error) {
+      console.error("Error in setReadOnlyFilesOpen: ",error);
+    }
+  }
+
   useEffect(() => {
     (async () => {
       const params = new URLSearchParams({ repo: repoName }).toString();
@@ -229,8 +317,11 @@ const DashboardActions = ({
     var changesMade = false;
     for (const diffMatch of diffMatches) {
       changesMade = true;
-      let oldCode = diffMatch.groups!.oldCode;
-      let newCode = diffMatch.groups!.newCode;
+      let oldCode = diffMatch.groups!.oldCode ?? "";
+      let newCode = diffMatch.groups!.newCode ?? "";
+      if (!oldCode || !newCode) {
+        throw new Error("oldCode or newCode are undefined");
+      }
       let didFind = false;
       if (oldCode.startsWith("\n")) {
         oldCode = oldCode.slice(1);
@@ -313,7 +404,7 @@ const DashboardActions = ({
     const url = "/api/openai/edit";
     const body = {
       prompt: fcr.instructions,
-      snippets: Object.values(snippets), //THIS MIGHT NEEED TO CHANGE LATER IF WE HAVE SNIPPETS FOR CERTAIN FCRS
+      snippets: Object.values(fcr.readOnlySnippets),
     };
     const additionalMessages: Message[] = [];
     var currentContents = fcr.snippet.entireFile.replace(/\\n/g, "\\n");
@@ -321,7 +412,7 @@ const DashboardActions = ({
     let userMessage = formatUserMessage(
       fcr.instructions,
       currentContents,
-      Object.values(snippets)
+      Object.values(fcr.readOnlySnippets)
     )
     for (let i = 0; i < 3; i++) {
       userMessage = i === 0 ? userMessage : retryPrompt.replace("{errorMessage}", errorMessage.trim())
@@ -363,7 +454,7 @@ const DashboardActions = ({
           }
           const text = decoder.decode(value);
           rawText += text;
-          setStreamData((prev: any) => prev + text);
+          setStreamData((prev: string) => prev + text);
           if (i % 3 == 0) {
             try {
               let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
@@ -511,7 +602,7 @@ const DashboardActions = ({
             <Input
               value={fileLimit}
               onChange={(e) => {
-                setFileLimit(e.target.value);
+                setFileLimit(parseInt(e.target.value));
               }}
               placeholder="10000"
               type="number"
@@ -522,7 +613,6 @@ const DashboardActions = ({
         <DashboardInstructions
           filePath={filePath}
           repoName={repoName}
-          setSnippets={setSnippets}
           open={open}
           setOpen={setOpen}
           files={files}
@@ -536,28 +626,10 @@ const DashboardActions = ({
           setOldFileByIndex={setOldFileByIndex}
           setHideMerge={setHideMerge}
           getFileChanges={getFileChanges}
+          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
         />
-        <div>
-          {Object.keys(snippets).map((snippet: string, index: number) => (
-            <div className="flex mb-2" key={snippet}>
-              <p className="border rounded overflow-x-auto grow mr-2 whitespace-pre bg-zinc-900 p-2 align-items-center">
-                {snippet}
-              </p>
-              <Button
-                variant="secondary"
-                className="bg-zinc-900"
-                onClick={() => {
-                  setSnippets((prev: { [key: string]: Snippet }) => {
-                    delete prev[snippet];
-                    return prev;
-                  });
-                }}
-              >
-                <FaTrash />
-              </Button>
-            </div>
-          ))}
-        </div>
 
         <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
           <div className="flex flex-row justify-between items-center mt-2 mb-2">
@@ -689,7 +761,7 @@ const DashboardActions = ({
             className="mt-4 mr-4"
             variant="secondary"
             onClick={async (e) => {
-              setIsLoadingAll(fileChangeRequests, true);
+              setIsLoadingAll(true);
               await getAllFileChanges(fileChangeRequests);
             }}
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}

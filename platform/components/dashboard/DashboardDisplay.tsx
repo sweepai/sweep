@@ -26,7 +26,7 @@ const DashboardDisplay = () => {
   const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
-  const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "");
+  const [scriptOutput = "" as string, setScriptOutput] = useLocalStorage("scriptOutput", "");
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
   const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000);
   const [blockedGlobs, setBlockedGlobs] = useLocalStorage(
@@ -217,6 +217,7 @@ const DashboardDisplay = () => {
           setOldFileByIndex={setOldFileByIndex}
           setIsLoading={setIsLoading}
           setIsLoadingAll={setIsLoadingAll}
+          undefinedCheck={undefinedCheck}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -259,7 +260,7 @@ const DashboardDisplay = () => {
               </Button>
               <Textarea
                 className={`mt-4 grow font-mono h-4/5 ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
-                value={scriptOutput.trim()}
+                value={scriptOutput}
                 id="script-output"
                 placeholder="Your script output will be displayed here"
                 readOnly
