@@ -1,7 +1,6 @@
 "use client";
-import React, { memo, useCallback, useEffect, useState } from "react";
+import React, { memo, useCallback, useState } from "react";
 
-import getFiles from "../../lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
 import { javascript } from "@codemirror/lang-javascript";
