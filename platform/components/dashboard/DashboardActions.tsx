@@ -503,7 +503,6 @@ const DashboardActions = ({
         setHideMerge(false, fcr);
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
-          // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
             const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", currentContents)
             // console.log(patchingErrors)
@@ -552,7 +551,7 @@ const DashboardActions = ({
             description: [
               <div key="stdout">{`There were ${changeLineCount} line and ${changeCharCount} character changes made.`}</div>,
             ],
-            action: { label: "Dismiss", onClick: () => { } }
+            action: { label: "Dismiss", onClick: () => {} }
           });
           setIsLoading(false, fcr);
           isRunningRef.current = false
