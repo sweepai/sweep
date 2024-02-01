@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { memo, useCallback, useEffect, useState } from "react";
 
 import getFiles from "../../lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
@@ -35,33 +35,21 @@ const getLanguage = (ext: string) => {
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
-const FileSelector = ({
+const FileSelector = memo(function FileSelector({
   filePath,
   file,
   setFile,
   hideMerge,
-  setHideMerge,
   oldFile,
   setOldFile,
-  repoName,
-  files,
-  setFiles,
-  blockedGlobs,
-  fileLimit,
 }: {
   filePath: string;
   file: string;
   setFile: (newFile: string) => void;
   hideMerge: boolean;
-  setHideMerge: (newHideMerge: boolean, index: number) => void;
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
-  repoName: string;
-  files: { label: string; name: string }[];
-  setFiles: React.Dispatch<React.SetStateAction<{ label: string; name: string }[]>>;
-  blockedGlobs: string;
-  fileLimit: number;
-}) => {
+}) {
   const [value, setValue] = useState("console.log('hello world!');");
   const placeholderText =
     "Your code will be displayed here once you select a Repository and add a file to modify.";
@@ -72,23 +60,8 @@ const FileSelector = ({
     [setValue, setFile],
   );
 
-//   const onOldChange = useCallback(
-//     (val: any, viewUpdate: any) => {
-//       setOldFile(val);
-//     },
-//     [setValue, setFile],
-//   );
-
   const onOldChange = setOldFile;
-  useEffect(() => {
-    (async () => {
-      let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
-      newFiles = newFiles.map((file: any) => {
-        return { value: file, label: file };
-      });
-      setFiles(newFiles);
-    })();
-  }, [repoName]);
+
   const ext = filePath?.split(".").pop() || "js";
   const languageExtension = getLanguage(ext);
   const extensions = [
@@ -127,7 +100,7 @@ const FileSelector = ({
       )}
     </>
   );
-};
+});
 
 export default FileSelector;
 export { getLanguage };
