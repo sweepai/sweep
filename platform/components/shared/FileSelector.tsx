@@ -1,7 +1,6 @@
 "use client";
-import React, { memo, useCallback, useEffect, useState } from "react";
+import React, { memo, useCallback, useState } from "react";
 
-import getFiles from "../../lib/api.service";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
 import { javascript } from "@codemirror/lang-javascript";
@@ -16,6 +15,7 @@ import CodeMirror, {
 import CodeMirrorMerge from "react-codemirror-merge";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
+import { FileChangeRequest } from "@/lib/types";
 
 const getLanguage = (ext: string) => {
   const languageMap: { [key: string]: any } = {
@@ -47,6 +47,7 @@ const FileSelector = memo(function FileSelector({
   file: string;
   setFile: (newFile: string) => void;
   hideMerge: boolean;
+  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
 }) {

@@ -20,9 +20,10 @@ import { Tabs, TabsContent } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
 import { FileChangeRequest } from "../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { FaArrowsRotate, FaCheck, FaMinus, FaStop, FaTrash } from "react-icons/fa6";
+import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Badge } from "../ui/badge";
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
@@ -46,8 +47,8 @@ const DashboardInstructions = ({
   setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
-  setFileByIndex,
-  setOldFileByIndex,
+  setFileForFCR,
+  setOldFileForFCR,
   setHideMerge,
   getFileChanges,
   setReadOnlySnippetForFCR,
@@ -67,14 +68,14 @@ const DashboardInstructions = ({
   setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
   currentFileChangeRequestIndex: number;
   setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
-  setFileByIndex: (newFile: string, index: number) => void;
-  setOldFileByIndex: (newOldFile: string, index: number) => void;
-  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
+  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
+  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   getFileChanges: (fileChangeRequest: FileChangeRequest, index: number) => Promise<void>;
   setReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippet: Snippet) => void;
   setReadOnlyFilesOpen: (open: boolean, fileChangeRequest: FileChangeRequest) => void;
   removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
+  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>
 }) => {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
@@ -95,6 +96,38 @@ const DashboardInstructions = ({
     }
     return classNames
   }
+
+  // helper functions mostly copied from https://codesandbox.io/p/sandbox/k260nyxq9v?file=%2Findex.js%3A36%2C1-40%2C4
+  const reorder = (fcrList: FileChangeRequest[], startIndex: number, endIndex: number) => {
+    const result = Array.from(fcrList);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+  
+    return result;
+  };
+
+  const onDragEnd = (result: any) => {
+    if (!result.destination) {
+      return;
+    }
+    const items = reorder(fileChangeRequests, result.source.index, result.destination.index);
+    setFileChangeRequests(items);
+  }
+
+  const getListStyle = (isDraggingOver: boolean) => ({
+    background: isDraggingOver ? "#3c3e3f" : "black",
+  })
+
+  const getItemStyle = (isDragging: boolean, draggableStyle: any) => ({
+    // some basic styles to make the items look a bit nicer
+    userSelect: "none",
+  
+    // change background colour if dragging
+    background: isDragging ? "black" : "black",
+  
+    // styles we need to apply on draggables
+    ...draggableStyle
+  });
 
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
@@ -169,28 +202,46 @@ const DashboardInstructions = ({
               </Command>
             </PopoverContent>
           </Popover>
-          {fileChangeRequests.map(
-            (fileChangeRequest: FileChangeRequest, index: number) => (
-              <div key={index} className="mb-4 grow border rounded"
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="droppable">
+              {(provided: any, snapshot: any) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  style={getListStyle(snapshot.isDraggingOver)}
+                >
+                  {fileChangeRequests.map((fcr: FileChangeRequest, index: number) => (
+                    <Draggable key={fcr.snippet.file} draggableId={fcr.snippet.file} index={index}>
+                      {(provided: any, snapshot: any) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          style={getItemStyle(
+                            snapshot.isDragging,
+                            provided.draggableProps.style
+                          )}
+                        >
+                          <div key={index} className="mb-4 grow border rounded"
                 onClick={(e) => {
                   setCurrentFileChangeRequestIndex(index)
                 }}
               >
-                <div className={`justify-between p-2 ${getDynamicClassNames(fileChangeRequest, index)} rounded font-sm font-mono items-center`}>
+                <div className={`justify-between p-2 ${getDynamicClassNames(fcr, index)} rounded font-sm font-mono items-center`}>
                   <div className="flex flex-row w-full items-center">
                     <span>
-                      {fileChangeRequest.snippet.file.split("/")[fileChangeRequest.snippet.file.split("/").length - 1]}:
-                      {fileChangeRequest.snippet.start}-
-                      {fileChangeRequest.snippet.end}
+                      {fcr.snippet.file.split("/")[fcr.snippet.file.split("/").length - 1]}:
+                      {fcr.snippet.start}-
+                      {fcr.snippet.end}
                     </span>
                     <Button
                       size="sm"
                       variant="secondary"
                       className="mr-2 ml-auto"
                       onClick={async () => {
-                        removeFileChangeRequest(fileChangeRequest);
+                        removeFileChangeRequest(fcr);
                       }}
-                      disabled={fileChangeRequest.isLoading}
+                      disabled={fcr.isLoading}
                     >
                       <FaTrash />
                     </Button>
@@ -199,7 +250,7 @@ const DashboardInstructions = ({
                 <Textarea
                   className="mb-0"
                   placeholder={instructionsPlaceholder}
-                  value={fileChangeRequest.instructions}
+                  value={fcr.instructions}
                   onClick={(e) => {
                     setCurrentFileChangeRequestIndex(index)
                   }}
@@ -214,17 +265,17 @@ const DashboardInstructions = ({
                     ]);
                   }}
                 />
-                <Popover open={fileChangeRequest.openReadOnlyFiles}>
+                <Popover open={fcr.openReadOnlyFiles}>
                   <div className="flex flex-row mb-2 p-0">
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
-                        aria-expanded={fileChangeRequest.openReadOnlyFiles}
+                        aria-expanded={fcr.openReadOnlyFiles}
                         className="w-full justify-between overflow-hidden mt-0 bg-zinc-900 text-zinc-300"
-                        disabled={!files || fileChangeRequest.isLoading}
+                        disabled={!files || fcr.isLoading}
                         onClick={(e) => {
-                          setReadOnlyFilesOpen(!fileChangeRequest.openReadOnlyFiles, fileChangeRequest)
+                          setReadOnlyFilesOpen(!fcr.openReadOnlyFiles, fcr)
                         }}
                       >
                         Add relevant read-only files
@@ -256,8 +307,8 @@ const DashboardInstructions = ({
                                 entireFile: contents,
                                 content: contents, // this is the slice based on start and end, remeber to change this
                               } as Snippet;
-                              setReadOnlySnippetForFCR(fileChangeRequest, newSnippet);
-                              setReadOnlyFilesOpen(false, fileChangeRequest);
+                              setReadOnlySnippetForFCR(fcr, newSnippet);
+                              setReadOnlyFilesOpen(false, fcr);
                             }}
                           >
                             {file.label}
@@ -273,18 +324,18 @@ const DashboardInstructions = ({
                     </Command>
                   </PopoverContent>
                 </Popover>
-                <div hidden={Object.keys(fileChangeRequest.readOnlySnippets).length === 0} className="mb-2">
-                  {Object.keys(fileChangeRequest.readOnlySnippets).map((snippetFile: string, index: number) => (
-                      <Badge variant="secondary" key={index} className="bg-zinc-800 text-zinc-300">
-                        {snippetFile.split("/")[snippetFile.split("/").length - 1]}
-                        <FaTimes
-                          key={String(index) + "-remove"}
-                          className="bg-zinc-800 cursor-pointer"
-                          onClick={() => {
-                            removeReadOnlySnippetForFCR(fileChangeRequest, snippetFile);
-                          }}
-                        />
-                      </Badge>
+                <div hidden={Object.keys(fcr.readOnlySnippets).length === 0} className="mb-2">
+                  {Object.keys(fcr.readOnlySnippets).map((snippetFile: string, index: number) => (
+                    <Badge variant="secondary" key={index} className="bg-zinc-800 text-zinc-300">
+                      {snippetFile.split("/")[snippetFile.split("/").length - 1]}
+                      <FaTimes
+                        key={String(index) + "-remove"}
+                        className="bg-zinc-800 cursor-pointer"
+                        onClick={() => {
+                          removeReadOnlySnippetForFCR(fcr, snippetFile);
+                        }}
+                      />
+                    </Badge>
                   ))}
                 </div>
                 <div className="flex flex-row justify-end w-full pb-2">
@@ -296,13 +347,13 @@ const DashboardInstructions = ({
                         className="mr-2"
                         onClick={(e) => {
                           setCurrentFileChangeRequestIndex(index)
-                          getFileChanges(fileChangeRequest, index)
+                          getFileChanges(fcr, index)
                         }}
-                        disabled={fileChangeRequest.isLoading}
+                        disabled={fcr.isLoading}
                       >
-                        <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
+                        <FaPlay />&nbsp;{capitalize(fcr.changeType)}
                       </Button>
-                    ): (
+                    ) : (
                       <Button
                         variant="secondary"
                         size="sm"
@@ -319,14 +370,14 @@ const DashboardInstructions = ({
                       size="sm"
                       variant="secondary"
                       onClick={async () => {
-                        const response = await getFile(repoName, fileChangeRequest.snippet.file);
-                        setFileByIndex(response.contents, index);
-                        setOldFileByIndex(response.contents, index);
+                        const response = await getFile(repoName, fcr.snippet.file);
+                        setFileForFCR(response.contents, fcr);
+                        setOldFileForFCR(response.contents, fcr);
                         toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
                         setCurrentFileChangeRequestIndex(index)
-                        setHideMerge(true, index);
+                        setHideMerge(true, fcr);
                       }}
-                      disabled={fileChangeRequest.isLoading}
+                      disabled={fcr.isLoading}
                     >
                       <FaArrowsRotate />
                     </Button>
@@ -334,22 +385,29 @@ const DashboardInstructions = ({
                       size="sm"
                       className="mr-2 bg-green-600 hover:bg-green-700"
                       onClick={async () => {
-                        setOldFileByIndex(fileChangeRequest.newContents, index);
-                        setHideMerge(true, index);
-                        await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
+                        setOldFileForFCR(fcr.newContents, fcr);
+                        setHideMerge(true, fcr);
+                        await writeFile(repoName, fcr.snippet.file, fcr.newContents);
                         toast.success("Succesfully saved file!", {
                           action: { label: "Dismiss", onClick: () => { } }
                         });
                       }}
-                      disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
+                      disabled={fcr.isLoading || fcr.hideMerge}
                     >
                       <FaCheck />
                     </Button>
                   </span>
                 </div>
               </div>
-            ),
-          )}
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
           {fileChangeRequests.length === 0 && (
             <div className="p-2 text-zinc-300">No files added yet.</div>
           )}
