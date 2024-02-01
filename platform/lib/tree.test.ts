@@ -1,5 +1,7 @@
 // @ts-ignore
 import JavaScript from "tree-sitter-javascript";
+// @ts-ignore
+import Python from "tree-sitter-python";
 import { checkCode, checkTree, parseCode } from "./tree";
 
 const sourceCode = 'let x = 1; console.log(x);';
@@ -62,6 +64,10 @@ const codeExamplesByLanguage: {[key in string]: string} = {
     </html>`
 }
 
+const badPythonCode = `def foo():
+
+print("hello")`
+
 describe('checkCode', () => {
     it('should return a tree', () => {
         expect(tree.rootNode.type).toBe('program');
@@ -73,6 +79,11 @@ describe('checkCode', () => {
             expect(checkTree(brokenTree).length > 0).toBe(true);
         }
     });
+
+    // it('should identify broken python', () => {
+    //     console.log(parseCode(badPythonCode, Python).rootNode.toString())
+    //     expect(checkCode(badPythonCode, 'main.py').length > 0).toBe(true);
+    // })
 
     for (const language in codeExamplesByLanguage) {
         it(`parses ${language}`, () => {
@@ -96,13 +107,4 @@ describe('checkCode', () => {
             })
         }
     }
-// for (const language in codeExamplesByLanguage) {
-//         if (language === 'py') {
-//             continue;
-//         }
-//         it(`should return an error for parsing ${language} with py`, () => {
-//             const results = checkCode(codeExamplesByLanguage[language], `main.py`);
-//             expect(results.length > 0).toBe(true);
-//         })
-//     }
 })
