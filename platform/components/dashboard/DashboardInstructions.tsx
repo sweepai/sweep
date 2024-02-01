@@ -46,8 +46,8 @@ const DashboardInstructions = ({
   setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
-  setFileByIndex,
-  setOldFileByIndex,
+  setFileForFCR,
+  setOldFileForFCR,
   setHideMerge,
   getFileChanges,
   setReadOnlySnippetForFCR,
@@ -67,14 +67,14 @@ const DashboardInstructions = ({
   setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
   currentFileChangeRequestIndex: number;
   setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
-  setFileByIndex: (newFile: string, index: number) => void;
-  setOldFileByIndex: (newOldFile: string, index: number) => void;
-  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
+  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
+  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   getFileChanges: (fileChangeRequest: FileChangeRequest, index: number) => Promise<void>;
   setReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippet: Snippet) => void;
   setReadOnlyFilesOpen: (open: boolean, fileChangeRequest: FileChangeRequest) => void;
   removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
+  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>
 }) => {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
@@ -320,11 +320,11 @@ const DashboardInstructions = ({
                       variant="secondary"
                       onClick={async () => {
                         const response = await getFile(repoName, fileChangeRequest.snippet.file);
-                        setFileByIndex(response.contents, index);
-                        setOldFileByIndex(response.contents, index);
+                        setFileForFCR(response.contents, fileChangeRequest);
+                        setOldFileForFCR(response.contents, fileChangeRequest);
                         toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
                         setCurrentFileChangeRequestIndex(index)
-                        setHideMerge(true, index);
+                        setHideMerge(true, fileChangeRequest);
                       }}
                       disabled={fileChangeRequest.isLoading}
                     >
@@ -334,8 +334,8 @@ const DashboardInstructions = ({
                       size="sm"
                       className="mr-2 bg-green-600 hover:bg-green-700"
                       onClick={async () => {
-                        setOldFileByIndex(fileChangeRequest.newContents, index);
-                        setHideMerge(true, index);
+                        setOldFileForFCR(fileChangeRequest.newContents, fileChangeRequest);
+                        setHideMerge(true, fileChangeRequest);
                         await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
                         toast.success("Succesfully saved file!", {
                           action: { label: "Dismiss", onClick: () => { } }
