@@ -340,25 +340,29 @@ const DashboardActions = ({
     return [newOldCode, newNewCode];
   };
 
-  const parseRegexFromOpenAI = (response: string, fileContents: string): [string, string] => {
+  const parseRegexFromOpenAI = (response: string, fileContents: string, completedChanges: RegExpMatchArray[]): [string, string, RegExpMatchArray[]] => {
     let errorMessage = "";
     const diffRegex =
       /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs;
-    const diffMatches: any = response.matchAll(diffRegex)!;
+    const diffMatches: RegExpMatchArray[] = Array.from(response.matchAll(diffRegex)!);
     if (!diffMatches) {
-      return ["", ""];
+      return ["", "", completedChanges];
     }
     var currentFileContents = fileContents;
     var changesMade = false;
+
     for (const diffMatch of diffMatches) {
+      let didFind = false;
       changesMade = true;
       let oldCode = diffMatch.groups!.oldCode ?? "";
       let newCode = diffMatch.groups!.newCode ?? "";
-      
+      if (completedChanges.some((change) => (change.groups?.oldCode === oldCode && change.groups?.newCode === newCode))) {
+        didFind = true
+        break;
+      }
       if (!oldCode || !newCode) {
         throw new Error("oldCode or newCode are undefined");
       }
-      let didFind = false;
       if (oldCode.startsWith("\n")) {
         oldCode = oldCode.slice(1);
       }
@@ -383,14 +387,15 @@ const DashboardActions = ({
         didFind = true;
         currentFileContents = currentFileContents.replace(oldCode, newCode);
       }
-      // if (!didFind) {
-      //   errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
-      // }
+      completedChanges.push(diffMatch);
+      if (!didFind) {
+        errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
+      }
     }
     if (!changesMade) {
-      errorMessage += "No diff hunks we're found in the response.\n\n";
+      errorMessage += "No diff hunks were found in the response.\n\n";
     }
-    return [currentFileContents, errorMessage];
+    return [currentFileContents, errorMessage, completedChanges];
   };
 
   const checkCode = async (sourceCode: string, filePath: string) => {
@@ -457,6 +462,7 @@ const DashboardActions = ({
     }
 
     for (let i = 0; i < 3; i++) {
+      var completedChanges: RegExpMatchArray[] = [];
       if (!isRunningRef.current) {
         setIsLoading(false, fcr);
         return
@@ -499,7 +505,8 @@ const DashboardActions = ({
           var { done, value } = await reader?.read();
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
-            const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", currentContents)
+            const [updatedFile, patchingErrors, newCompletedChanges ] = parseRegexFromOpenAI(rawText || "", currentContents, completedChanges);
+            completedChanges = newCompletedChanges;
             // console.log(patchingErrors)
             if (patchingErrors) {
               errorMessage += patchingErrors;
@@ -517,7 +524,8 @@ const DashboardActions = ({
           rawText += text;
           setStreamData((prev: string) => prev + text);
           try {
-            let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
+            let [updatedFile, _, newCompletedChanges] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile, completedChanges);
+            completedChanges = newCompletedChanges;
             updateIfChanged(updatedFile);
           } catch (e) {
             console.error(e)
