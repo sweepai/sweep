@@ -361,14 +361,10 @@ const DashboardActions = ({
       if (oldCode.startsWith("\n")) {
         oldCode = oldCode.slice(1);
       }
-      // soft match indentation, there are cases where openAi will miss indentations
       if (oldCode.trim().length === 0) {
         errorMessage += "ORIGINAL code block can not be empty.\n\n";
         continue
       }
-      // console.log(oldCode)
-      // console.log(currentFileContents)
-      // console.log(currentFileContents.includes(oldCode))
       if (!currentFileContents.includes(oldCode)) {
         const [newOldCode, newNewCode]: [string, string] = softIndentationCheck(
           oldCode,
@@ -386,9 +382,9 @@ const DashboardActions = ({
         didFind = true;
         currentFileContents = currentFileContents.replace(oldCode, newCode);
       }
-      if (!didFind) {
-        errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
-      }
+      // if (!didFind) {
+      //   errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
+      // }
     }
     if (!changesMade) {
       errorMessage += "No diff hunks we're found in the response.\n\n";
@@ -510,7 +506,6 @@ const DashboardActions = ({
               errorMessage += await checkForErrors(fcr.snippet.file, fcr.snippet.entireFile, updatedFile);
             }
             additionalMessages.push({ role: "assistant", content: rawText });
-            // setFileByIndex(updatedFile, index);
             updateIfChanged(updatedFile);
             fcr.newContents = updatedFile // set this to get line and char changes
             rawText += "\n\n"
@@ -520,14 +515,11 @@ const DashboardActions = ({
           const text = decoder.decode(value);
           rawText += text;
           setStreamData((prev: string) => prev + text);
-          if (i % 3 == 0) {
-            try {
-              let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
-              // setFileByIndex(updatedFile, index);
-              updateIfChanged(updatedFile);
-            } catch (e) {
-              console.error(e)
-            }
+          try {
+            let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
+            updateIfChanged(updatedFile);
+          } catch (e) {
+            console.error(e)
           }
         }
         if (!isRunningRef.current) {
@@ -556,6 +548,7 @@ const DashboardActions = ({
             action: { label: "Dismiss", onClick: () => { } }
           });
           setIsLoading(false, index);
+          isRunningRef.current = false
           break
         }
       } catch (e: any) {
@@ -563,9 +556,12 @@ const DashboardActions = ({
           description: e, action: { label: "Dismiss", onClick: () => { } }
         });
         setIsLoading(false, index);
+        isRunningRef.current = false
+        break
       }
     }
     setIsLoading(false, index);
+    isRunningRef.current = false
   };
 
   // this needs to be async but its sync right now, fix later
