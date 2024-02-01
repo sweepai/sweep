@@ -614,7 +614,7 @@ const DashboardActions = ({
               </Button>
             </CollapsibleTrigger>
           </div>
-          <CollapsibleContent>
+          <CollapsibleContent className="CollapsibleContent">
             <Label className="mb-2">Repository Path</Label>
             <Input
               id="name"
@@ -800,7 +800,7 @@ const DashboardActions = ({
               </Button>
             </CollapsibleTrigger>
           </div>
-          <CollapsibleContent className="pt-2">
+          <CollapsibleContent className="pt-2 CollapsibleContent">
             <Label className="mb-0">
               Validation Script&nbsp;
 
