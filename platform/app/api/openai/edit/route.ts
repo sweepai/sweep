@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     return response;
   }
   const body = (await request.json()) as Body;
-
+  
   if (
     body.snippets.map((snippet) => snippet.content).join("").length >
     128000 * 3
