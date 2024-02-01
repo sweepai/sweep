@@ -20,7 +20,7 @@ import { Tabs, TabsContent } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
 import { FileChangeRequest } from "../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { FaArrowsRotate, FaCheck, FaMinus, FaTrash } from "react-icons/fa6";
+import { FaArrowsRotate, FaCheck, FaMinus, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Badge } from "../ui/badge";
 
@@ -54,6 +54,7 @@ const DashboardInstructions = ({
   setReadOnlyFilesOpen,
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
+  isRunningRef,
 }: {
   filePath: string;
   repoName: string;
@@ -74,6 +75,7 @@ const DashboardInstructions = ({
   setReadOnlyFilesOpen: (open: boolean, fileChangeRequest: FileChangeRequest) => void;
   removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
+  isRunningRef: React.MutableRefObject<boolean>
 }) => {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
@@ -175,7 +177,7 @@ const DashboardInstructions = ({
                 }}
               >
                 <div className={`justify-between p-2 ${getDynamicClassNames(fileChangeRequest, index)} rounded font-sm font-mono items-center`}>
-                  <div className="flex flex-row w-full items-center mb-1">
+                  <div className="flex flex-row w-full items-center">
                     <span>
                       {fileChangeRequest.snippet.file.split("/")[fileChangeRequest.snippet.file.split("/").length - 1]}:
                       {fileChangeRequest.snippet.start}-
@@ -184,7 +186,7 @@ const DashboardInstructions = ({
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="mr-2  ml-auto"
+                      className="mr-2 ml-auto"
                       onClick={async () => {
                         removeFileChangeRequest(fileChangeRequest);
                       }}
@@ -192,53 +194,6 @@ const DashboardInstructions = ({
                     >
                       <FaTrash />
                     </Button>
-                  </div>
-                  <div className="flex flex-row justify-end w-full">
-                    <span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="mr-2"
-                        onClick={(e) => {
-                          setCurrentFileChangeRequestIndex(index)
-                          getFileChanges(fileChangeRequest, index)
-                        }}
-                        disabled={fileChangeRequest.isLoading}
-                      >
-                        <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
-                      </Button>
-                      <Button
-                        className="mr-2"
-                        size="sm"
-                        variant="secondary"
-                        onClick={async () => {
-                          const response = await getFile(repoName, fileChangeRequest.snippet.file);
-                          setFileByIndex(response.contents, index);
-                          setOldFileByIndex(response.contents, index);
-                          toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
-                          setCurrentFileChangeRequestIndex(index)
-                          setHideMerge(true, index);
-                        }}
-                        disabled={fileChangeRequest.isLoading}
-                      >
-                        <FaArrowsRotate />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="mr-2 bg-green-600 hover:bg-green-700"
-                        onClick={async () => {
-                          setOldFileByIndex(fileChangeRequest.newContents, index);
-                          setHideMerge(true, index);
-                          await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
-                          toast.success("Succesfully saved file!", {
-                            action: { label: "Dismiss", onClick: () => { } }
-                          });
-                        }}
-                        disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
-                      >
-                        <FaCheck />
-                      </Button>
-                    </span>
                   </div>
                 </div>
                 <Textarea
@@ -260,7 +215,7 @@ const DashboardInstructions = ({
                   }}
                 />
                 <Popover open={fileChangeRequest.openReadOnlyFiles}>
-                  <div className="flex flex-row mb-0 p-0">
+                  <div className="flex flex-row mb-2 p-0">
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -321,18 +276,77 @@ const DashboardInstructions = ({
                 <div hidden={Object.keys(fileChangeRequest.readOnlySnippets).length === 0} className="mb-2">
                   {Object.keys(fileChangeRequest.readOnlySnippets).map((snippetFile: string, index: number) => (
                       <Badge variant="secondary" key={index} className="bg-zinc-800 text-zinc-300">
-                        {snippetFile.split("/")[snippetFile.split("/").length - 1]} 
+                        {snippetFile.split("/")[snippetFile.split("/").length - 1]}
                         <FaTimes
                           key={String(index) + "-remove"}
                           className="bg-zinc-800 cursor-pointer"
                           onClick={() => {
                             removeReadOnlySnippetForFCR(fileChangeRequest, snippetFile);
-                          }} 
+                          }}
                         />
                       </Badge>
                   ))}
                 </div>
-                <div></div>
+                <div className="flex flex-row justify-end w-full pb-2">
+                  <span>
+                    {!isRunningRef.current ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mr-2"
+                        onClick={(e) => {
+                          setCurrentFileChangeRequestIndex(index)
+                          getFileChanges(fileChangeRequest, index)
+                        }}
+                        disabled={fileChangeRequest.isLoading}
+                      >
+                        <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
+                      </Button>
+                    ): (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mr-2"
+                        onClick={(e) => {
+                          isRunningRef.current = false;
+                        }}
+                      >
+                        <FaStop />&nbsp;Cancel
+                      </Button>
+                    )}
+                    <Button
+                      className="mr-2"
+                      size="sm"
+                      variant="secondary"
+                      onClick={async () => {
+                        const response = await getFile(repoName, fileChangeRequest.snippet.file);
+                        setFileByIndex(response.contents, index);
+                        setOldFileByIndex(response.contents, index);
+                        toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
+                        setCurrentFileChangeRequestIndex(index)
+                        setHideMerge(true, index);
+                      }}
+                      disabled={fileChangeRequest.isLoading}
+                    >
+                      <FaArrowsRotate />
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="mr-2 bg-green-600 hover:bg-green-700"
+                      onClick={async () => {
+                        setOldFileByIndex(fileChangeRequest.newContents, index);
+                        setHideMerge(true, index);
+                        await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
+                        toast.success("Succesfully saved file!", {
+                          action: { label: "Dismiss", onClick: () => { } }
+                        });
+                      }}
+                      disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
+                    >
+                      <FaCheck />
+                    </Button>
+                  </span>
+                </div>
               </div>
             ),
           )}

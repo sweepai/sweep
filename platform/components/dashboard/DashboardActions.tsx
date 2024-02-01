@@ -1,11 +1,11 @@
 import { Input } from "../ui/input";
 import { ResizablePanel } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import getFiles, { getFile, runScript, writeFile } from "../../lib/api.service";
 import { toast } from "sonner";
-import { FaCheck, FaPlay } from "react-icons/fa6";
+import { FaCheck, FaPause, FaPlay, FaStop } from "react-icons/fa6";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
@@ -196,6 +196,7 @@ const DashboardActions = ({
   //   "snippets",
   //   {} as { [key: string]: Snippet },
   // );
+  const isRunningRef = useRef(false)
   const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
   const setInstructions = (instructions: string) => {
     setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -423,17 +424,6 @@ const DashboardActions = ({
 
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
     var validationOutput = "";
-    setScriptOutput(validationOutput);
-    setStreamData("");
-    // case where we are showing mergediff
-    if (!hideMerge) {
-      setFileChangeRequests((prev: FileChangeRequest[]) => {
-        setHideMerge(true, index);
-        setFileByIndex(prev[index].snippet.entireFile, index);
-        return prev
-      })
-    }
-
     const patches = fileChangeRequests.slice(0, index).map((fcr: FileChangeRequest) => {
       return createPatch(
         fcr.snippet.file,
@@ -457,7 +447,23 @@ const DashboardActions = ({
       Object.values(fcr.readOnlySnippets),
       patches
     )
+
+    isRunningRef.current = true
+    setScriptOutput(validationOutput);
+    setStreamData("");
+    if (!hideMerge) {
+      setFileChangeRequests((prev: FileChangeRequest[]) => {
+        setHideMerge(true, index);
+        setFileByIndex(prev[index].snippet.entireFile, index);
+        return prev
+      })
+    }
+
     for (let i = 0; i < 3; i++) {
+      if (!isRunningRef.current) {
+        setIsLoading(false, index);
+        return
+      }
       if (i !== 0) {
         var retryMessage = ""
         if (fcr.snippet.entireFile === currentContents) {
@@ -480,13 +486,19 @@ const DashboardActions = ({
       })
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = ""
+      const updateIfChanged = (newContents: string) => {
+        if (newContents !== currentContents) {
+          setFileByIndex(newContents, index);
+          currentContents = newContents;
+        }
+      }
       try {
         const reader = response.body!.getReader();
         const decoder = new TextDecoder("utf-8");
         let rawText = String.raw``;
 
         setHideMerge(false, index);
-        while (true) {
+        while (isRunningRef.current) {
           var { done, value } = await reader?.read();
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
@@ -498,7 +510,8 @@ const DashboardActions = ({
               errorMessage += await checkForErrors(fcr.snippet.file, fcr.snippet.entireFile, updatedFile);
             }
             additionalMessages.push({ role: "assistant", content: rawText });
-            setFileByIndex(updatedFile, index);
+            // setFileByIndex(updatedFile, index);
+            updateIfChanged(updatedFile);
             fcr.newContents = updatedFile // set this to get line and char changes
             rawText += "\n\n"
             setStreamData(prev => prev + "\n\n")
@@ -510,11 +523,16 @@ const DashboardActions = ({
           if (i % 3 == 0) {
             try {
               let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
-              setFileByIndex(updatedFile, index);
+              // setFileByIndex(updatedFile, index);
+              updateIfChanged(updatedFile);
             } catch (e) {
               console.error(e)
             }
           }
+        }
+        if (!isRunningRef.current) {
+          setIsLoading(false, index);
+          return
         }
         setHideMerge(false, index);
         const changeLineCount = Math.abs(
@@ -682,6 +700,7 @@ const DashboardActions = ({
           setReadOnlyFilesOpen={setReadOnlyFilesOpen}
           removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
           removeFileChangeRequest={removeFileChangeRequest}
+          isRunningRef={isRunningRef}
         />
 
         <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
@@ -810,18 +829,31 @@ const DashboardActions = ({
           </CollapsibleContent>
         </Collapsible>
         <div className="flex flex-row justify-center">
-          <Button
-            className="mt-4 mr-4"
-            variant="secondary"
-            onClick={async (e) => {
-              setIsLoadingAll(true);
-              await getAllFileChanges(fileChangeRequests);
-            }}
-            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
-          >
-            <FaPlay />
-            &nbsp;&nbsp;Modify All
-          </Button>
+          {!isRunningRef.current ? (
+            <Button
+              className="mt-4 mr-4"
+              variant="secondary"
+              onClick={async (e) => {
+                setIsLoadingAll(true);
+                await getAllFileChanges(fileChangeRequests);
+              }}
+              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
+            >
+              <FaPlay />
+              &nbsp;&nbsp;Modify All
+            </Button>
+          ): (
+            <Button
+              className="mt-4 mr-4"
+              variant="secondary"
+              onClick={(e) => {
+                isRunningRef.current = false
+              }}
+            >
+              <FaStop />
+              &nbsp;&nbsp;Cancel
+            </Button>
+          )}
           <Button
             className="mt-4 mr-4"
             variant="secondary"
