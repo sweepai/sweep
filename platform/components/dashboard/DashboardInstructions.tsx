@@ -177,7 +177,7 @@ const DashboardInstructions = ({
                 }}
               >
                 <div className={`justify-between p-2 ${getDynamicClassNames(fileChangeRequest, index)} rounded font-sm font-mono items-center`}>
-                  <div className="flex flex-row w-full items-center mb-1">
+                  <div className="flex flex-row w-full items-center">
                     <span>
                       {fileChangeRequest.snippet.file.split("/")[fileChangeRequest.snippet.file.split("/").length - 1]}:
                       {fileChangeRequest.snippet.start}-
@@ -186,7 +186,7 @@ const DashboardInstructions = ({
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="mr-2  ml-auto"
+                      className="mr-2 ml-auto"
                       onClick={async () => {
                         removeFileChangeRequest(fileChangeRequest);
                       }}
@@ -194,66 +194,6 @@ const DashboardInstructions = ({
                     >
                       <FaTrash />
                     </Button>
-                  </div>
-                  <div className="flex flex-row justify-end w-full">
-                    <span>
-                      {!isRunningRef.current ? (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="mr-2"
-                          onClick={(e) => {
-                            setCurrentFileChangeRequestIndex(index)
-                            getFileChanges(fileChangeRequest, index)
-                          }}
-                          disabled={fileChangeRequest.isLoading}
-                        >
-                          <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
-                        </Button>
-                      ): (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="mr-2"
-                          onClick={(e) => {
-                            isRunningRef.current = false;
-                          }}
-                        >
-                          <FaStop />&nbsp;Cancel
-                        </Button>
-                      )}
-                      <Button
-                        className="mr-2"
-                        size="sm"
-                        variant="secondary"
-                        onClick={async () => {
-                          const response = await getFile(repoName, fileChangeRequest.snippet.file);
-                          setFileByIndex(response.contents, index);
-                          setOldFileByIndex(response.contents, index);
-                          toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
-                          setCurrentFileChangeRequestIndex(index)
-                          setHideMerge(true, index);
-                        }}
-                        disabled={fileChangeRequest.isLoading}
-                      >
-                        <FaArrowsRotate />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="mr-2 bg-green-600 hover:bg-green-700"
-                        onClick={async () => {
-                          setOldFileByIndex(fileChangeRequest.newContents, index);
-                          setHideMerge(true, index);
-                          await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
-                          toast.success("Succesfully saved file!", {
-                            action: { label: "Dismiss", onClick: () => { } }
-                          });
-                        }}
-                        disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
-                      >
-                        <FaCheck />
-                      </Button>
-                    </span>
                   </div>
                 </div>
                 <Textarea
@@ -275,7 +215,7 @@ const DashboardInstructions = ({
                   }}
                 />
                 <Popover open={fileChangeRequest.openReadOnlyFiles}>
-                  <div className="flex flex-row mb-0 p-0">
+                  <div className="flex flex-row mb-2 p-0">
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -347,7 +287,66 @@ const DashboardInstructions = ({
                       </Badge>
                   ))}
                 </div>
-                <div></div>
+                <div className="flex flex-row justify-end w-full pb-2">
+                  <span>
+                    {!isRunningRef.current ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mr-2"
+                        onClick={(e) => {
+                          setCurrentFileChangeRequestIndex(index)
+                          getFileChanges(fileChangeRequest, index)
+                        }}
+                        disabled={fileChangeRequest.isLoading}
+                      >
+                        <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
+                      </Button>
+                    ): (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mr-2"
+                        onClick={(e) => {
+                          isRunningRef.current = false;
+                        }}
+                      >
+                        <FaStop />&nbsp;Cancel
+                      </Button>
+                    )}
+                    <Button
+                      className="mr-2"
+                      size="sm"
+                      variant="secondary"
+                      onClick={async () => {
+                        const response = await getFile(repoName, fileChangeRequest.snippet.file);
+                        setFileByIndex(response.contents, index);
+                        setOldFileByIndex(response.contents, index);
+                        toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
+                        setCurrentFileChangeRequestIndex(index)
+                        setHideMerge(true, index);
+                      }}
+                      disabled={fileChangeRequest.isLoading}
+                    >
+                      <FaArrowsRotate />
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="mr-2 bg-green-600 hover:bg-green-700"
+                      onClick={async () => {
+                        setOldFileByIndex(fileChangeRequest.newContents, index);
+                        setHideMerge(true, index);
+                        await writeFile(repoName, fileChangeRequest.snippet.file, fileChangeRequest.newContents);
+                        toast.success("Succesfully saved file!", {
+                          action: { label: "Dismiss", onClick: () => { } }
+                        });
+                      }}
+                      disabled={fileChangeRequest.isLoading || fileChangeRequest.hideMerge}
+                    >
+                      <FaCheck />
+                    </Button>
+                  </span>
+                </div>
               </div>
             ),
           )}
