@@ -263,6 +263,7 @@ const DashboardDisplay = () => {
                 hideMerge={hideMerge}
                 oldFile={oldFile}
                 setOldFile={setOldFile}
+                setHideMerge={setHideMerge}
               ></FileSelector>
             </ResizablePanel>
             <ResizableHandle withHandle />
