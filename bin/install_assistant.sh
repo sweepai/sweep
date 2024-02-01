@@ -114,15 +114,15 @@ then
     exit
 fi
 
-echo -e -n "${BLUE}Enable telemetry to help us improve the product? (Y/n): ${NC}"
-read TELEMETRY -n 1
-echo    # move to a new line
-if [[ $TELEMETRY =~ ^[Nn]$ ]]
-then
-    echo -e "${YELLOW}Telemetry is disabled.${NC}\n"
-else
-    echo -e "${GREEN}Telemetry is enabled.${GREEN}\n"
-fi
+# echo -e -n "${BLUE}Enable telemetry to help us improve the product? (Y/n): ${NC}"
+# read TELEMETRY -n 1
+# echo    # move to a new line
+# if [[ $TELEMETRY =~ ^[Nn]$ ]]
+# then
+#     echo -e "${YELLOW}Telemetry is disabled.${NC}\n"
+# else
+#     echo -e "${GREEN}Telemetry is enabled.${GREEN}\n"
+# fi
 
 # CURRENT_PATH=$(pwd)
 
@@ -152,10 +152,10 @@ cd sweep/platform
 
 echo -e "\n${BLUE}Storing OpenAI API key...${NC}"
 echo "OPENAI_API_KEY=$OPENAI_API_KEY" > .env.local
-if [[ $TELEMETRY =~ ^[Nn]$ ]]
-then
-    echo "NO_TELEMETRY=true" >> .env.local
-fi
+# if [[ $TELEMETRY =~ ^[Nn]$ ]]
+# then
+#     echo "NO_TELEMETRY=true" >> .env.local
+# fi
 
 echo -e "\n${BLUE}Installing Node dependencies...${NC}\n"
 npm i
