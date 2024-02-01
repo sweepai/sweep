@@ -66,7 +66,7 @@ const retryPrompt = `The following error occurred while generating the code:
 {errorMessage}
 </error_message>
 
-Please try again by rewriting the diff hunks with corrections.`;
+Please identify the error and how to correct the error. Then rewrite the diff hunks with corrections.`;
 
 const formatUserMessage = (
   request: string,
@@ -367,13 +367,13 @@ const DashboardActions = ({
   }
 
   const checkForErrors = async (filePath: string, oldFile: string, newFile: string) => {
+    if (!doValidate) {
+      return "";
+    }
     const parsingErrorMessageOld = checkCode(oldFile, filePath);
     const parsingErrorMessage = checkCode(newFile, filePath);
     if (!parsingErrorMessageOld && parsingErrorMessage) {
       return parsingErrorMessage;
-    }
-    if (!doValidate) {
-      return "";
     }
     var { stdout, stderr, code } = await runScript(repoName, filePath, validationScript, oldFile);
     if (code !== 0) {
@@ -476,6 +476,7 @@ const DashboardActions = ({
             description: errorMessage.slice(0, 800),
           });
           validationOutput += "\n\n" + errorMessage;
+          setScriptOutput(validationOutput)
           continue
         } else {
           toast.success(`Successfully modified file!`, {
