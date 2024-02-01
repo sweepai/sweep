@@ -21,12 +21,7 @@ import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 // }
 
 const DashboardContext = () => {
-  const [oldFile, setOldFile] = useLocalStorage("oldFile", "");
-  const [hideMerge, setHideMerge] = useLocalStorage("hideMerge", true);
   const [branch, setBranch] = useLocalStorage("branch", "");
-  const [filePath, setFilePath] = useLocalStorage("filePath", "");
-  const [scriptOutput, setScriptOutput] = useLocalStorage("scriptOutput", "");
-  const [file, setFile] = useLocalStorage("file", "");
   const [searchedSnippets, setSearchedSnippets] = useState([] as Snippet[]);
   const [searchIsLoading, setSearchIsLoading] = useState(false);
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
