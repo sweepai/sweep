@@ -357,8 +357,8 @@ const DashboardActions = ({
       changesMade = true;
       let oldCode = diffMatch.groups!.oldCode ?? "";
       let newCode = diffMatch.groups!.newCode ?? "";
-      
-      if (!oldCode || !newCode) {
+
+      if (oldCode === undefined || newCode === undefined) {
         throw new Error("oldCode or newCode are undefined");
       }
       let didFind = false;
