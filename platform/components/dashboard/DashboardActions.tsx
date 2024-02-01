@@ -26,17 +26,17 @@ const Diff = require('diff');
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more. If the user requests multiple changes, you must make the changes one at a time and finish each change fully before moving onto the next change.
 
-You MUST respond in the following merge conflict hunks format:
+You MUST respond in the following arrow diff hunk format:
 
 \`\`\`
 <<<<<<< ORIGINAL
-The first code block to replace. Ensure the indentation is valid.
+The first code block to replace. Ensure the indentation is valid. MUST be non-empty and copied EXACTLY from the original code file.
 =======
 The new code block to replace the first code block. Ensure the indentation and syntax is valid.
 >>>>>>> MODIFIED
 
 <<<<<<< ORIGINAL
-The second code block to replace. Ensure the indentation is valid.
+The second code block to replace. Ensure the indentation is valid. MUST be non-empty and copied EXACTLY from the original code file.
 =======
 The new code block to replace the second code block. Ensure the indentation and syntax is valid.
 >>>>>>> MODIFIED
@@ -79,14 +79,14 @@ However, the following error occurred while editing the code:
 {error_message}
 </error_message>
 
-Please identify the error and how to correct the error. Then rewrite the diff hunks with the corrections using the merge conflict hunks format.`;
+Please identify the error and how to correct the error. Then rewrite the diff hunks with the corrections to continue to modify the code.`;
 
 const retryPrompt = `The following error occurred while generating the code:
 <error_message>
 {error_message}
 </error_message>
 
-Please identify the error and how to correct the error. Then rewrite the diff hunks with the corrections using the merge conflict hunks format.`;
+Please identify the error and how to correct the error. Then rewrite the diff hunks with the corrections to continue to modify the code.`;
 
 const createPatch = (filePath: string, oldFile: string, newFile: string) => {
   if (oldFile === newFile) {
@@ -102,7 +102,7 @@ const formatUserMessage = (
   snippets: Snippet[],
   patches: string,
 ) => {
-  const patchesSection = patches.length > 0 ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n" : "";
+  const patchesSection = patches.trim().length > 0 ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n" : "";
   const userMessage = patchesSection + userMessagePrompt
     .replace("{prompt}", request)
     .replace("{fileContents}", fileContents)
@@ -501,6 +501,7 @@ const DashboardActions = ({
             setFileByIndex(updatedFile, index);
             fcr.newContents = updatedFile // set this to get line and char changes
             rawText += "\n\n"
+            setStreamData(prev => prev + "\n\n")
             break;
           }
           const text = decoder.decode(value);
