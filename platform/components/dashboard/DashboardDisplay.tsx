@@ -181,6 +181,24 @@ const DashboardDisplay = () => {
     }
   }
 
+  const removeFileChangeRequest = (fcr: FileChangeRequest, index: number | undefined = undefined) => {
+    try {
+      let fcrIndex = index;
+      if (typeof index === "undefined") {
+        fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      }
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests((prev: FileChangeRequest[]) => {  
+        return [
+          ...prev.slice(0, fcrIndex),
+          ...prev.slice(fcrIndex! + 1)
+        ]
+      })
+    } catch (error) {
+      console.error("Error in removeFileChangeRequest: ",error);
+    }
+  }
+
   useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
     textarea.scrollTop = textarea.scrollHeight;
@@ -218,6 +236,7 @@ const DashboardDisplay = () => {
           setIsLoading={setIsLoading}
           setIsLoadingAll={setIsLoadingAll}
           undefinedCheck={undefinedCheck}
+          removeFileChangeRequest={removeFileChangeRequest}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>

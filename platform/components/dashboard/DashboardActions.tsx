@@ -118,7 +118,8 @@ const DashboardActions = ({
   setOldFileByIndex,
   setIsLoading,
   setIsLoadingAll,
-  undefinedCheck
+  undefinedCheck,
+  removeFileChangeRequest
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -148,6 +149,7 @@ const DashboardActions = ({
   setIsLoading: (newIsLoading: boolean, index: number) => void;
   setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
+  removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
 }) => {
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
@@ -608,6 +610,7 @@ const DashboardActions = ({
           setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
           setReadOnlyFilesOpen={setReadOnlyFilesOpen}
           removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+          removeFileChangeRequest={removeFileChangeRequest}
         />
 
         <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
@@ -765,7 +768,7 @@ const DashboardActions = ({
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
           >
             <FaCheck />
-            &nbsp;&nbsp;Save
+            &nbsp;&nbsp;Save All
           </Button>
         </div>
       </div>
