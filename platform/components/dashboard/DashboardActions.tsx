@@ -354,7 +354,6 @@ const DashboardActions = ({
       changesMade = true;
       let oldCode = diffMatch.groups!.oldCode ?? "";
       let newCode = diffMatch.groups!.newCode ?? "";
-      console.log("diffMatch", diffMatch)
       
       if (!oldCode || !newCode) {
         throw new Error("oldCode or newCode are undefined");
