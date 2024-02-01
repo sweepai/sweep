@@ -2,22 +2,22 @@ import Parser, { SyntaxNode, Tree } from 'tree-sitter';
 // @ts-ignore
 import JavaScript from 'tree-sitter-javascript';
 // @ts-ignore
-import { tsx, typescript } from 'tree-sitter-typescript';
-// @ts-ignore
-import Python from 'tree-sitter-python';
-// @ts-ignore
-import Rust from 'tree-sitter-rust';
-// @ts-ignore
-import HTML from 'tree-sitter-html';
+// import { tsx, typescript } from 'tree-sitter-typescript';
+// // @ts-ignore
+// import Python from 'tree-sitter-python';
+// // @ts-ignore
+// import Rust from 'tree-sitter-rust';
+// // @ts-ignore
+// import HTML from 'tree-sitter-html';
 
 const languageMap: {[key in string]: string} = {
     "js": JavaScript,
     "jsx": JavaScript,
-    "ts": typescript,
-    "tsx": tsx,
-    "py": Python,
-    "rust": Rust,
-    "html": HTML,
+    // "ts": typescript,
+    // "tsx": tsx,
+    // "py": Python,
+    // "rust": Rust,
+    // "html": HTML,
 }
 
 const parseCode = (sourceCode: string, language: any) => {
