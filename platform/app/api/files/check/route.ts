@@ -12,5 +12,5 @@ export async function GET(request: NextRequest) {
     "filePath",
   )) as string;
 
-  return checkCode(sourceCode, filePath);
+  return new Response(checkCode(sourceCode, filePath));
 }
