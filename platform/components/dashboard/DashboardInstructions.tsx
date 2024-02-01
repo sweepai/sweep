@@ -115,7 +115,7 @@ const DashboardInstructions = ({
   }
 
   const getListStyle = (isDraggingOver: boolean) => ({
-    background: isDraggingOver ? "lightgrey" : "black",
+    background: isDraggingOver ? "#3c3e3f" : "black",
   })
 
   const getItemStyle = (isDragging: boolean, draggableStyle: any) => ({
