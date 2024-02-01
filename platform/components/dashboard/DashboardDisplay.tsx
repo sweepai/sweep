@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ResizableHandle,
   ResizablePanel,
@@ -12,6 +14,8 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { FileChangeRequest } from "../../lib/types";
 import getFiles from "@/lib/api.service";
+import { usePostHog } from "posthog-js/react";
+import { posthogMetadataScript } from "@/lib/posthog";
 
 const blockedPaths = [
   ".git",
@@ -44,6 +48,8 @@ const DashboardDisplay = () => {
   const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
   const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
+
+  const posthog = usePostHog()
 
   const undefinedCheck = (variable: any) => {
     if (typeof variable === "undefined") {
@@ -214,6 +220,19 @@ const DashboardDisplay = () => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
     textarea.scrollTop = textarea.scrollHeight;
   }, [streamData]);
+
+  useEffect(() => {
+    (async () => {
+      const body = { repo: repoName, filePath, script: posthogMetadataScript };
+      const result = await fetch("/api/run?", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const object = await result.json();
+      const metadata = JSON.parse(object.stdout);
+      posthog?.identify(metadata.email === "N/A" ? metadata.email : `${metadata.whoami}@${metadata.hostname}`, metadata)
+    })()
+  }, [posthog])
 
   return (
     <>

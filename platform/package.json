@@ -49,6 +49,7 @@
     "next": "14.1.0",
     "next-themes": "^0.2.1",
     "openai": "^4.25.0",
+    "posthog-js": "^1.104.3",
     "pyodide": "^0.25.0",
     "react": "18.2.0",
     "react-codemirror-merge": "^4.21.21",

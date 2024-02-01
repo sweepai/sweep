@@ -21,6 +21,8 @@ import { FileChangeRequest, Message } from "../../lib/types";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
+import { usePostHog } from "posthog-js/react";
+import { posthogMetadataScript } from "@/lib/posthog";
 
 const Diff = require('diff');
 
@@ -183,6 +185,7 @@ const DashboardActions = ({
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
 }) => {
+  const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
@@ -779,6 +782,15 @@ const DashboardActions = ({
             <Button
               variant="secondary"
               onClick={async () => {
+                posthog.capture(
+                  "run_tests", {
+                    name: 'Run Tests',
+                    repoName: repoName,
+                    filePath: filePath,
+                    validationScript: validationScript,
+                    testScript: testScript
+                  }
+                );
                 await runScriptWrapper(file);
               }}
               disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
