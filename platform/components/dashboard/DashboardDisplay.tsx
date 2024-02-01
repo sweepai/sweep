@@ -51,21 +51,22 @@ const DashboardDisplay = () => {
     }
   }
 
-  const setIsLoading = (newIsLoading: boolean, index: number) => {
+  const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest) => {
     try {
-      undefinedCheck(index);
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             isLoading: newIsLoading
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setIsLoading: ",error);
+      console.error("Error in setIsLoading: ", error);
     }
   }
 
@@ -80,21 +81,22 @@ const DashboardDisplay = () => {
     })
   }
 
-  const setHideMerge = (newHideMerge: boolean, index: number) => {
+  const setHideMerge = (newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
-      undefinedCheck(index);
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             hideMerge: newHideMerge
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setHideMerge: ",error);
+      console.error("Error in setHideMerge: ", error);
     }
   }
 
@@ -128,23 +130,25 @@ const DashboardDisplay = () => {
     })
   }, []);
 
-  const setOldFileByIndex = (newOldFile: string, index: number) => {
+  const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest) => {
     try {
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             snippet: {
-              ...newFileChangeRequests[index].snippet,
+              ...prev[fcrIndex].snippet,
               entireFile: newOldFile,
             },
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setOldFileByIndex: ",error);
+      console.error("Error in setOldFileByFCR: ", error);
     }
   }
 
@@ -164,30 +168,28 @@ const DashboardDisplay = () => {
     });
   }, [])
 
-  const setFileByIndex = (newFile: string, index: number) => {
+  const setFileForFCR = (newFile: string, fcr: FileChangeRequest) => {
     try {
-      undefinedCheck(index);
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             newContents: newFile
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setFileByIndex: ",error);
+      console.error("Error in setFileForFCR: ", error);
     }
   }
 
-  const removeFileChangeRequest = (fcr: FileChangeRequest, index: number | undefined = undefined) => {
+  const removeFileChangeRequest = (fcr: FileChangeRequest) => {
     try {
-      let fcrIndex = index;
-      if (typeof index === "undefined") {
-        fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
-      }
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
@@ -243,8 +245,8 @@ const DashboardDisplay = () => {
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
           setHideMergeAll={setHideMergeAll}
-          setFileByIndex={setFileByIndex}
-          setOldFileByIndex={setOldFileByIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
           setIsLoading={setIsLoading}
           setIsLoadingAll={setIsLoadingAll}
           undefinedCheck={undefinedCheck}
@@ -261,6 +263,7 @@ const DashboardDisplay = () => {
                 hideMerge={hideMerge}
                 oldFile={oldFile}
                 setOldFile={setOldFile}
+                setHideMerge={setHideMerge}
               ></FileSelector>
             </ResizablePanel>
             <ResizableHandle withHandle />
