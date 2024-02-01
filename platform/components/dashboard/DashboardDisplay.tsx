@@ -4,13 +4,14 @@ import {
   ResizablePanelGroup,
 } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { FileChangeRequest } from "../../lib/types";
+import getFiles from "@/lib/api.service";
 
 const blockedPaths = [
   ".git",
@@ -108,7 +109,7 @@ const DashboardDisplay = () => {
     })
   }
 
-  const setOldFile = (newOldFile: string) => {
+  const setOldFile = useCallback((newOldFile: string) => {
     setCurrentFileChangeRequestIndex(index => {
       setFileChangeRequests(newFileChangeRequests => {
         return [
@@ -125,7 +126,7 @@ const DashboardDisplay = () => {
       });
       return index;
     })
-  }
+  }, []);
 
   const setOldFileByIndex = (newOldFile: string, index: number) => {
     try {
@@ -147,7 +148,7 @@ const DashboardDisplay = () => {
     }
   }
 
-  const setFile = (newFile: string) => {
+  const setFile = useCallback((newFile: string) => {
     setCurrentFileChangeRequestIndex(index => {
       setFileChangeRequests(newFileChangeRequests => {
         return [
@@ -161,7 +162,7 @@ const DashboardDisplay = () => {
       });
       return index;
     });
-  }
+  }, [])
 
   const setFileByIndex = (newFile: string, index: number) => {
     try {
@@ -188,7 +189,7 @@ const DashboardDisplay = () => {
         fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
       }
       undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev: FileChangeRequest[]) => {  
+      setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
           ...prev.slice(fcrIndex! + 1)
@@ -200,9 +201,20 @@ const DashboardDisplay = () => {
   }
 
   useEffect(() => {
+    (async () => {
+      let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
+      newFiles = newFiles.map((file: any) => {
+        return { value: file, label: file };
+      });
+      setFiles(newFiles);
+    })();
+  }, [repoName, blockedGlobs, fileLimit]);
+
+  useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
     textarea.scrollTop = textarea.scrollHeight;
   }, [streamData]);
+
   return (
     <>
       <h1 className="font-bold text-xl">Sweep Assistant</h1>
@@ -247,14 +259,9 @@ const DashboardDisplay = () => {
                 file={file}
                 setFile={setFile}
                 hideMerge={hideMerge}
-                setHideMerge={setHideMerge}
                 oldFile={oldFile}
                 setOldFile={setOldFile}
                 repoName={repoName}
-                files={files}
-                setFiles={setFiles}
-                blockedGlobs={blockedGlobs}
-                fileLimit={fileLimit}
               ></FileSelector>
             </ResizablePanel>
             <ResizableHandle withHandle />
