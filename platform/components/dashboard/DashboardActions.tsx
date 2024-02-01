@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import getFiles, { getFile, runScript, writeFile } from "../../lib/api.service";
 import { toast } from "sonner";
-import { FaCheck, FaPlay, FaTrash } from "react-icons/fa6";
+import { FaCheck, FaPlay } from "react-icons/fa6";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { FaArrowsRotate } from "react-icons/fa6";
@@ -22,19 +22,21 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 
+const Diff = require('diff');
+
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more. If the user requests multiple changes, you must make the changes one at a time and finish each change fully before moving onto the next change.
 
-You MUST respond in the following diff format:
+You MUST respond in the following arrow diff hunk format:
 
 \`\`\`
 <<<<<<< ORIGINAL
-The first code block to replace. Ensure the indentation is valid.
+The first code block to replace. Ensure the indentation is valid. MUST be non-empty and copied EXACTLY from the original code file.
 =======
 The new code block to replace the first code block. Ensure the indentation and syntax is valid.
 >>>>>>> MODIFIED
 
 <<<<<<< ORIGINAL
-The second code block to replace. Ensure the indentation is valid.
+The second code block to replace. Ensure the indentation is valid. MUST be non-empty and copied EXACTLY from the original code file.
 =======
 The new code block to replace the second code block. Ensure the indentation and syntax is valid.
 >>>>>>> MODIFIED
@@ -42,15 +44,21 @@ The new code block to replace the second code block. Ensure the indentation and 
 
 You may write one or multiple diff hunks. The MODIFIED can be empty.`;
 
+const changesMadePrompt = `The following changes have already been made as part of this task in unified diff format:
+
+<changes_made>
+{changesMade}
+</changes_made>`
+
 const userMessagePrompt = `Here are relevant read-only files:
 <read_only_files>
 {readOnlyFiles}
 </read_only_files>
 
 Here are the file's current contents:
-<file_contents>
+<file_to_modify>
 {fileContents}
-</file_contents>
+</file_to_modify>
 
 Your job is to modify the current code file in order to complete the user's request:
 <user_request>
@@ -61,19 +69,41 @@ const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_lin
 {contents}
 </read_only_file>`;
 
-const retryPrompt = `The following error occurred while generating the code:
+const retryChangesMadePrompt = `The following error occurred while editing the code. The following changes have been made:
+<changes_made>
+{changes_made}
+</changes_made>
+
+However, the following error occurred while editing the code:
 <error_message>
-{errorMessage}
+{error_message}
 </error_message>
 
-Please identify the error and how to correct the error. Then rewrite the diff hunks with corrections.`;
+Please identify the error and how to correct the error. Then rewrite the diff hunks with the corrections to continue to modify the code.`;
+
+const retryPrompt = `The following error occurred while generating the code:
+<error_message>
+{error_message}
+</error_message>
+
+Please identify the error and how to correct the error. Then rewrite the diff hunks with the corrections to continue to modify the code.`;
+
+const createPatch = (filePath: string, oldFile: string, newFile: string) => {
+  if (oldFile === newFile) {
+    return "";
+  }
+  return Diff.createPatch(filePath, oldFile, newFile);
+}
+
 
 const formatUserMessage = (
   request: string,
   fileContents: string,
-  snippets: Snippet[]
+  snippets: Snippet[],
+  patches: string,
 ) => {
-  return userMessagePrompt
+  const patchesSection = patches.trim().length > 0 ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n" : "";
+  const userMessage = patchesSection + userMessagePrompt
     .replace("{prompt}", request)
     .replace("{fileContents}", fileContents)
     .replace(
@@ -88,6 +118,8 @@ const formatUserMessage = (
         )
         .join("\n"),
     )
+  console.log(userMessage)
+  return userMessage
 };
 
 const DashboardActions = ({
@@ -118,7 +150,8 @@ const DashboardActions = ({
   setOldFileByIndex,
   setIsLoading,
   setIsLoadingAll,
-  undefinedCheck
+  undefinedCheck,
+  removeFileChangeRequest
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -148,6 +181,7 @@ const DashboardActions = ({
   setIsLoading: (newIsLoading: boolean, index: number) => void;
   setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
+  removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
 }) => {
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
@@ -176,7 +210,7 @@ const DashboardActions = ({
       });
     });
   }
-  
+
   // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
   const setReadOnlySnippetForFCR = (fcr: FileChangeRequest, readOnlySnippet: Snippet) => {
     try {
@@ -219,7 +253,7 @@ const DashboardActions = ({
         fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
       }
       undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev: FileChangeRequest[]) => {  
+      setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
           {
@@ -400,6 +434,14 @@ const DashboardActions = ({
       })
     }
 
+    const patches = fileChangeRequests.slice(0, index).map((fcr: FileChangeRequest) => {
+      return createPatch(
+        fcr.snippet.file,
+        fcr.snippet.entireFile,
+        fcr.newContents,
+      );
+    }).join("\n\n");
+
     setIsLoading(true, index);
     const url = "/api/openai/edit";
     const body = {
@@ -412,19 +454,28 @@ const DashboardActions = ({
     let userMessage = formatUserMessage(
       fcr.instructions,
       currentContents,
-      Object.values(fcr.readOnlySnippets)
+      Object.values(fcr.readOnlySnippets),
+      patches
     )
     for (let i = 0; i < 3; i++) {
-      userMessage = i === 0 ? userMessage : retryPrompt.replace("{errorMessage}", errorMessage.trim())
+      if (i !== 0) {
+        var retryMessage = ""
+        if (fcr.snippet.entireFile === currentContents) {
+          retryMessage = retryChangesMadePrompt.replace("{changes_made}", createPatch(fcr.snippet.file, fcr.snippet.entireFile, currentContents))
+        } else {
+          retryMessage = retryPrompt
+        }
+        retryMessage = retryMessage.replace("{error_message}", errorMessage.trim());
+        console.log("retryMessage", retryMessage)
+        userMessage = retryMessage
+      }
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
           ...body,
           fileContents: currentContents,
           additionalMessages,
-          userMessage: (
-            i === 0 ? userMessage : retryPrompt.replace("{errorMessage}", errorMessage.trim())
-          ),
+          userMessage
         }),
       })
       additionalMessages.push({ role: "user", content: userMessage });
@@ -450,6 +501,7 @@ const DashboardActions = ({
             setFileByIndex(updatedFile, index);
             fcr.newContents = updatedFile // set this to get line and char changes
             rawText += "\n\n"
+            setStreamData(prev => prev + "\n\n")
             break;
           }
           const text = decoder.decode(value);
@@ -629,6 +681,7 @@ const DashboardActions = ({
           setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
           setReadOnlyFilesOpen={setReadOnlyFilesOpen}
           removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+          removeFileChangeRequest={removeFileChangeRequest}
         />
 
         <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
@@ -790,7 +843,7 @@ const DashboardActions = ({
             disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
           >
             <FaCheck />
-            &nbsp;&nbsp;Save
+            &nbsp;&nbsp;Save All
           </Button>
         </div>
       </div>
