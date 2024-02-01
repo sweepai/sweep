@@ -153,7 +153,8 @@ const DashboardActions = ({
   setIsLoading,
   setIsLoadingAll,
   undefinedCheck,
-  removeFileChangeRequest
+  removeFileChangeRequest,
+  setOutputToggle,
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -184,6 +185,7 @@ const DashboardActions = ({
   setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
+  setOutputToggle: (newOutputToggle: string) => void;
 }) => {
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
@@ -357,7 +359,7 @@ const DashboardActions = ({
       changesMade = true;
       let oldCode = diffMatch.groups!.oldCode ?? "";
       let newCode = diffMatch.groups!.newCode ?? "";
-      
+
       if (!oldCode || !newCode) {
         throw new Error("oldCode or newCode are undefined");
       }
@@ -433,6 +435,7 @@ const DashboardActions = ({
     }).join("\n\n");
 
     setIsLoading(true, fcr);
+    setOutputToggle("llm");
     const url = "/api/openai/edit";
     const body = {
       prompt: fcr.instructions,
