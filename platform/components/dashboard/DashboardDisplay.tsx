@@ -261,7 +261,6 @@ const DashboardDisplay = () => {
                 hideMerge={hideMerge}
                 oldFile={oldFile}
                 setOldFile={setOldFile}
-                repoName={repoName}
               ></FileSelector>
             </ResizablePanel>
             <ResizableHandle withHandle />
