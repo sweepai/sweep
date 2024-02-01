@@ -20,7 +20,7 @@ import { Tabs, TabsContent } from "../ui/tabs";
 import { Textarea } from "../ui/textarea";
 import { FileChangeRequest } from "../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { FaArrowsRotate, FaCheck, FaMinus, FaTrash } from "react-icons/fa6";
+import { FaArrowsRotate, FaCheck, FaMinus, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Badge } from "../ui/badge";
 
@@ -54,6 +54,7 @@ const DashboardInstructions = ({
   setReadOnlyFilesOpen,
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
+  isRunningRef,
 }: {
   filePath: string;
   repoName: string;
@@ -74,6 +75,7 @@ const DashboardInstructions = ({
   setReadOnlyFilesOpen: (open: boolean, fileChangeRequest: FileChangeRequest) => void;
   removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
+  isRunningRef: React.MutableRefObject<boolean>
 }) => {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
@@ -195,18 +197,31 @@ const DashboardInstructions = ({
                   </div>
                   <div className="flex flex-row justify-end w-full">
                     <span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="mr-2"
-                        onClick={(e) => {
-                          setCurrentFileChangeRequestIndex(index)
-                          getFileChanges(fileChangeRequest, index)
-                        }}
-                        disabled={fileChangeRequest.isLoading}
-                      >
-                        <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
-                      </Button>
+                      {!isRunningRef.current ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="mr-2"
+                          onClick={(e) => {
+                            setCurrentFileChangeRequestIndex(index)
+                            getFileChanges(fileChangeRequest, index)
+                          }}
+                          disabled={fileChangeRequest.isLoading}
+                        >
+                          <FaPlay />&nbsp;{capitalize(fileChangeRequest.changeType)}
+                        </Button>
+                      ): (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="mr-2"
+                          onClick={(e) => {
+                            isRunningRef.current = false;
+                          }}
+                        >
+                          <FaStop />&nbsp;Cancel
+                        </Button>
+                      )}
                       <Button
                         className="mr-2"
                         size="sm"
@@ -321,13 +336,13 @@ const DashboardInstructions = ({
                 <div hidden={Object.keys(fileChangeRequest.readOnlySnippets).length === 0} className="mb-2">
                   {Object.keys(fileChangeRequest.readOnlySnippets).map((snippetFile: string, index: number) => (
                       <Badge variant="secondary" key={index} className="bg-zinc-800 text-zinc-300">
-                        {snippetFile.split("/")[snippetFile.split("/").length - 1]} 
+                        {snippetFile.split("/")[snippetFile.split("/").length - 1]}
                         <FaTimes
                           key={String(index) + "-remove"}
                           className="bg-zinc-800 cursor-pointer"
                           onClick={() => {
                             removeReadOnlySnippetForFCR(fileChangeRequest, snippetFile);
-                          }} 
+                          }}
                         />
                       </Badge>
                   ))}
