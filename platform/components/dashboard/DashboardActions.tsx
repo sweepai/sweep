@@ -146,8 +146,8 @@ const DashboardActions = ({
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
   setHideMergeAll,
-  setFileByIndex,
-  setOldFileByIndex,
+  setFileForFCR,
+  setOldFileForFCR,
   setIsLoading,
   setIsLoadingAll,
   undefinedCheck,
@@ -162,7 +162,7 @@ const DashboardActions = ({
   blockedGlobs: string;
   setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
   hideMerge: boolean;
-  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   branch: string;
   setBranch: React.Dispatch<React.SetStateAction<string>>;
   oldFile: string;
@@ -176,12 +176,12 @@ const DashboardActions = ({
   currentFileChangeRequestIndex: number;
   setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
   setHideMergeAll: (newHideMerge: boolean) => void;
-  setFileByIndex: (newFile: string, index: number) => void;
-  setOldFileByIndex: (newOldFile: string, index: number) => void;
-  setIsLoading: (newIsLoading: boolean, index: number) => void;
+  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
+  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
+  setIsLoading: (newIsLoading: boolean, fcr: FileChangeRequest) => void;
   setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
+  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
 }) => {
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
@@ -432,7 +432,7 @@ const DashboardActions = ({
       );
     }).join("\n\n");
 
-    setIsLoading(true, index);
+    setIsLoading(true, fcr);
     const url = "/api/openai/edit";
     const body = {
       prompt: fcr.instructions,
@@ -453,15 +453,15 @@ const DashboardActions = ({
     setStreamData("");
     if (!hideMerge) {
       setFileChangeRequests((prev: FileChangeRequest[]) => {
-        setHideMerge(true, index);
-        setFileByIndex(prev[index].snippet.entireFile, index);
+        setHideMerge(true, fcr);
+        setFileForFCR(prev[index].snippet.entireFile, fcr);
         return prev
       })
     }
 
     for (let i = 0; i < 3; i++) {
       if (!isRunningRef.current) {
-        setIsLoading(false, index);
+        setIsLoading(false, fcr);
         return
       }
       if (i !== 0) {
@@ -488,7 +488,7 @@ const DashboardActions = ({
       errorMessage = ""
       const updateIfChanged = (newContents: string) => {
         if (newContents !== currentContents) {
-          setFileByIndex(newContents, index);
+          setFileForFCR(newContents, fcr);
           currentContents = newContents;
         }
       }
@@ -497,7 +497,7 @@ const DashboardActions = ({
         const decoder = new TextDecoder("utf-8");
         let rawText = String.raw``;
 
-        setHideMerge(false, index);
+        setHideMerge(false, fcr);
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
           // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
@@ -531,10 +531,10 @@ const DashboardActions = ({
           }
         }
         if (!isRunningRef.current) {
-          setIsLoading(false, index);
+          setIsLoading(false, fcr);
           return
         }
-        setHideMerge(false, index);
+        setHideMerge(false, fcr);
         const changeLineCount = Math.abs(
           fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length
         );
@@ -555,17 +555,17 @@ const DashboardActions = ({
             ],
             action: { label: "Dismiss", onClick: () => { } }
           });
-          setIsLoading(false, index);
+          setIsLoading(false, fcr);
           break
         }
       } catch (e: any) {
         toast.error("An error occured while generating your code.", {
           description: e, action: { label: "Dismiss", onClick: () => { } }
         });
-        setIsLoading(false, index);
+        setIsLoading(false, fcr);
       }
     }
-    setIsLoading(false, index);
+    setIsLoading(false, fcr);
   };
 
   // this needs to be async but its sync right now, fix later
@@ -577,8 +577,8 @@ const DashboardActions = ({
 
   const saveAllFiles = async (fcrs: FileChangeRequest[]) => {
     for await (const [index, fcr] of fcrs.entries()) {
-      setOldFileByIndex(fcr.newContents, index);
-      setHideMerge(true, index);
+      setOldFileForFCR(fcr.newContents, fcr);
+      setHideMerge(true, fcr);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
     toast.success(`Succesfully saved ${fcrs.length} files!`, { action: { label: "Dismiss", onClick: () => { } } });
@@ -587,9 +587,9 @@ const DashboardActions = ({
   const syncAllFiles = async () => {
     fileChangeRequests.forEach(async (fcr: FileChangeRequest, index: number) => {
       const response = await getFile(repoName, fcr.snippet.file);
-      setFileByIndex(response.contents, index);
-      setOldFileByIndex(response.contents, index);
-      setIsLoading(false, index);
+      setFileForFCR(response.contents, fcr);
+      setOldFileForFCR(response.contents, fcr);
+      setIsLoading(false, fcr);
     })
   }
   return (
@@ -692,8 +692,8 @@ const DashboardActions = ({
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileByIndex={setFileByIndex}
-          setOldFileByIndex={setOldFileByIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
           setHideMerge={setHideMerge}
           getFileChanges={getFileChanges}
           setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}

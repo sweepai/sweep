@@ -16,6 +16,7 @@ import CodeMirror, {
 import CodeMirrorMerge from "react-codemirror-merge";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
+import { FileChangeRequest } from "@/lib/types";
 
 const getLanguage = (ext: string) => {
   const languageMap: { [key: string]: any } = {
@@ -53,7 +54,7 @@ const FileSelector = ({
   file: string;
   setFile: (newFile: string) => void;
   hideMerge: boolean;
-  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
   repoName: string;
