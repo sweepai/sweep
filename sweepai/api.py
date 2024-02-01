@@ -463,6 +463,17 @@ def run(request_dict, event):
                                     "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
                                 }
                             tracking_id = get_hash()
+                            chat_logger = ChatLogger(
+                                data={
+                                    "username": attributor,
+                                    "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
+                                }
+                            )
+                            if chat_logger.use_faster_model() and not IS_SELF_HOSTED:
+                                return {
+                                    "success": False,
+                                    "error_message": "Disabled for free users",
+                                }
                             stack_pr(
                                 request=f"[Sweep GHA Fix] The GitHub Actions run failed on {request.check_run.head_sha[:7]} ({repo.default_branch}) with the following error logs:\n\n```\n\n{logs}\n\n```",
                                 pr_number=pr.number,
@@ -552,6 +563,17 @@ def run(request_dict, event):
                         return {
                             "success": False,
                             "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
+                        }
+                    chat_logger = ChatLogger(
+                        data={
+                            "username": attributor,
+                            "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
+                        }
+                    )
+                    if chat_logger.use_faster_model() and not IS_SELF_HOSTED:
+                        return {
+                            "success": False,
+                            "error_message": "Disabled for free users",
                         }
                     on_merge_conflict(
                         pr_number=pr.number,
@@ -1040,6 +1062,11 @@ def run(request_dict, event):
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
                     )
+                    if chat_logger.use_faster_model() and not IS_SELF_HOSTED:
+                        return {
+                            "success": False,
+                            "error_message": "Disabled for free users",
+                        }
                     # on merge
                     call_on_merge(request_dict, chat_logger)
                     ref = request_dict["ref"] if "ref" in request_dict else ""
