@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { checkCode } from "@/lib/tree";
+// @ts-ignore
+// import { checkCode } from "@/lib/tree";
 
 interface Body {
   sourceCode: string;
@@ -12,5 +13,6 @@ export async function GET(request: NextRequest) {
     "filePath",
   )) as string;
 
-  return new Response(checkCode(sourceCode, filePath));
+  // return new Response(checkCode(sourceCode, filePath));
+  return new Response("")
 }
