@@ -24,13 +24,8 @@ import { toast } from "sonner";
 import { Badge } from "../ui/badge";
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions'
-import { Textarea } from "../ui/textarea";
 
-const testCasePlaceholder = `Example:
-1. Modify the class name to be something more descriptive
-2. Add a print statement to the front of each function to describe what each function does.`;
-
-const instructionsPlaceholder = `Example: add a docstring after each function definition describing what it does.`;
+const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -146,7 +141,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
     const maxLength = 50;
     const suggestedFileName = suggestion.display!.length < maxLength ? suggestion.display : "..." + suggestion.display!.slice(suggestion.display!.length - maxLength, suggestion.display!.length);
     return (
-      <div className={`user ${focused ? 'focused' : ''} bg-zinc-900 text-white`}>
+      <div className={`user ${focused ? 'bg-zinc-500' : ''} bg-zinc-700 text-white`}>
         {suggestedFileName}
       </div>
     );
@@ -263,6 +258,12 @@ const DashboardInstructions = memo(function DashboardInstructions({
                       className="mr-2 ml-auto"
                       onClick={async () => {
                         removeFileChangeRequest(fcr);
+                        setFCRInstructions((prev: any) => {
+                          return {
+                            ...prev,
+                            [fcr.snippet.file]: ""
+                          }
+                        })
                       }}
                       disabled={fcr.isLoading}
                     >
