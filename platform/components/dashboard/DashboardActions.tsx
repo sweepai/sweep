@@ -1,3 +1,5 @@
+"use client"
+
 import { Input } from "../ui/input";
 import { ResizablePanel } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
@@ -21,6 +23,8 @@ import { FileChangeRequest, Message } from "../../lib/types";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
+import { usePostHog } from "posthog-js/react";
+import { posthogMetadataScript } from "@/lib/posthog";
 
 const Diff = require('diff');
 
@@ -151,7 +155,8 @@ const DashboardActions = ({
   setIsLoading,
   setIsLoadingAll,
   undefinedCheck,
-  removeFileChangeRequest
+  removeFileChangeRequest,
+  setOutputToggle,
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -182,7 +187,9 @@ const DashboardActions = ({
   setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
+  setOutputToggle: (newOutputToggle: string) => void;
 }) => {
+  const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
@@ -340,29 +347,25 @@ const DashboardActions = ({
     return [newOldCode, newNewCode];
   };
 
-  const parseRegexFromOpenAI = (response: string, fileContents: string, completedChanges: RegExpMatchArray[]): [string, string, RegExpMatchArray[]] => {
+  const parseRegexFromOpenAI = (response: string, fileContents: string): [string, string] => {
     let errorMessage = "";
     const diffRegex =
       /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs;
-    const diffMatches: RegExpMatchArray[] = Array.from(response.matchAll(diffRegex)!);
+    const diffMatches: any = response.matchAll(diffRegex)!;
     if (!diffMatches) {
-      return ["", "", completedChanges];
+      return ["", ""];
     }
     var currentFileContents = fileContents;
     var changesMade = false;
-
     for (const diffMatch of diffMatches) {
-      let didFind = false;
       changesMade = true;
       let oldCode = diffMatch.groups!.oldCode ?? "";
       let newCode = diffMatch.groups!.newCode ?? "";
-      if (completedChanges.some((change) => (change.groups?.oldCode === oldCode && change.groups?.newCode === newCode))) {
-        didFind = true
-        break;
-      }
+
       if (oldCode === undefined || newCode === undefined) {
         throw new Error("oldCode or newCode are undefined");
       }
+      let didFind = false;
       if (oldCode.startsWith("\n")) {
         oldCode = oldCode.slice(1);
       }
@@ -387,15 +390,14 @@ const DashboardActions = ({
         didFind = true;
         currentFileContents = currentFileContents.replace(oldCode, newCode);
       }
-      completedChanges.push(diffMatch);
-      if (!didFind) {
-        errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
-      }
+      // if (!didFind) {
+      //   errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
+      // }
     }
     if (!changesMade) {
-      errorMessage += "No diff hunks were found in the response.\n\n";
+      errorMessage += "No diff hunks we're found in the response.\n\n";
     }
-    return [currentFileContents, errorMessage, completedChanges];
+    return [currentFileContents, errorMessage];
   };
 
   const checkCode = async (sourceCode: string, filePath: string) => {
@@ -435,6 +437,7 @@ const DashboardActions = ({
     }).join("\n\n");
 
     setIsLoading(true, fcr);
+    setOutputToggle("llm");
     const url = "/api/openai/edit";
     const body = {
       prompt: fcr.instructions,
@@ -462,7 +465,6 @@ const DashboardActions = ({
     }
 
     for (let i = 0; i < 3; i++) {
-      var completedChanges: RegExpMatchArray[] = [];
       if (!isRunningRef.current) {
         setIsLoading(false, fcr);
         return
@@ -503,10 +505,8 @@ const DashboardActions = ({
         setHideMerge(false, fcr);
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
-          // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
-            const [updatedFile, patchingErrors, newCompletedChanges ] = parseRegexFromOpenAI(rawText || "", currentContents, completedChanges);
-            completedChanges = newCompletedChanges;
+            const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", currentContents)
             // console.log(patchingErrors)
             if (patchingErrors) {
               errorMessage += patchingErrors;
@@ -524,8 +524,7 @@ const DashboardActions = ({
           rawText += text;
           setStreamData((prev: string) => prev + text);
           try {
-            let [updatedFile, _, newCompletedChanges] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile, completedChanges);
-            completedChanges = newCompletedChanges;
+            let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
             updateIfChanged(updatedFile);
           } catch (e) {
             console.error(e)
@@ -554,7 +553,7 @@ const DashboardActions = ({
             description: [
               <div key="stdout">{`There were ${changeLineCount} line and ${changeCharCount} character changes made.`}</div>,
             ],
-            action: { label: "Dismiss", onClick: () => { } }
+            action: { label: "Dismiss", onClick: () => {} }
           });
           setIsLoading(false, fcr);
           isRunningRef.current = false
@@ -788,6 +787,15 @@ const DashboardActions = ({
             <Button
               variant="secondary"
               onClick={async () => {
+                posthog.capture(
+                  "run_tests", {
+                    name: 'Run Tests',
+                    repoName: repoName,
+                    filePath: filePath,
+                    validationScript: validationScript,
+                    testScript: testScript
+                  }
+                );
                 await runScriptWrapper(file);
               }}
               disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
