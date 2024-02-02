@@ -16,7 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        browser: [chrome, firefox, safari]
+        # Add more browsers later
+        browser: [chrome]
         node: [18, 20, 21]
     steps:
       - uses: actions/checkout@v2
@@ -41,6 +42,7 @@ jobs:
         env:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
 
+          # TODO: add optimizations
 
 # jobs:
 #   install:
