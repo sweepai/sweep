@@ -51,14 +51,13 @@ const FileSelector = memo(function FileSelector({
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
 }) {
-  const [value, setValue] = useState("console.log('hello world!');");
   const placeholderText =
     "Your code will be displayed here once you select a Repository and add a file to modify.";
   const onChange = useCallback(
     (val: any, viewUpdate: any) => {
       setFile(val);
     },
-    [setValue, setFile],
+    [setFile],
   );
 
   const onOldChange = setOldFile;

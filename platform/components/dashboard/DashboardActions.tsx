@@ -198,25 +198,7 @@ const DashboardActions = ({
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
   const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen", false);
   const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
-  // const [snippets, setSnippets] = useLocalStorage(
-  //   "snippets",
-  //   {} as { [key: string]: Snippet },
-  // );
   const isRunningRef = useRef(false)
-  const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
-  const setInstructions = (instructions: string) => {
-    setFileChangeRequests((prev: FileChangeRequest[]) => {
-      return prev.map((fileChangeRequest: FileChangeRequest, index: number) => {
-        if (index === currentFileChangeRequestIndex) {
-          return {
-            ...fileChangeRequest,
-            instructions: instructions,
-          };
-        }
-        return fileChangeRequest;
-      });
-    });
-  }
 
   // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
   const setReadOnlySnippetForFCR = (fcr: FileChangeRequest, readOnlySnippet: Snippet) => {
@@ -689,8 +671,6 @@ const DashboardActions = ({
           filePath={filePath}
           repoName={repoName}
           files={files}
-          instructions={instructions}
-          setInstructions={setInstructions}
           fileChangeRequests={fileChangeRequests}
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
