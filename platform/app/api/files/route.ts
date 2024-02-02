@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     await fs.mkdir(dataDir, { recursive: true });
     const fullPath = path.join(dataDir, filePath);
-    await fs.access(fullPath);
+    // await fs.access(fullPath);
     await fs.writeFile(fullPath, newContent);
     return NextResponse.json({
       success: true,

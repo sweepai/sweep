@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       nonBinaryFiles.length < fileLimit
     ) {
       const currentDir = queue.shift()!;
-      directories.add(currentDir);
+      directories.add(currentDir.slice(rootDir.length));
       // if (blockedGlobs.some(blockedGlob => minimatch(currentDir, blockedGlob))) {
       if (
         blockedGlobs.some((blockedGlob) => currentDir.includes(blockedGlob))
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         const res: string = path.resolve(currentDir, item.name);
         if (item.isDirectory()) {
           queue.push(res);
-          directories.add(res);
+          directories.add(res.slice(rootDir.length));
         } else if (item.isFile()) {
           try {
             const content: Buffer = await fs.readFile(res);
