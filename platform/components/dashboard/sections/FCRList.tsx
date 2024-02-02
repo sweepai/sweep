@@ -1,16 +1,10 @@
 import React, { ReactNode, memo, useState } from "react";
-import { getFile, writeFile } from "../../../lib/api.service";
 import { Snippet } from "../../../lib/search";
 import { FileChangeRequest } from "../../../lib/types";
-import { FaPlay, FaTimes } from "react-icons/fa";
-import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
-import { toast } from "sonner";
-import { Badge } from "../../ui/badge";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
-import { Button } from "../../ui/button";
 import FCRCreate from "./FCRCreate";
 import FCRModify from "./FCRModify";
+import { SuggestionDataItem } from "react-mentions";
 
 const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
 
@@ -181,27 +175,27 @@ const FCRList = memo(function FCRList({
             {fileChangeRequests.map((fcr: FileChangeRequest, index: number) => (
               (fcr.changeType == "create") ? (
                 <FCRCreate
-                key={index}
-                repoName={repoName}
-                setFileChangeRequests={setFileChangeRequests}
-                setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-                setFileForFCR={setFileForFCR}
-                setOldFileForFCR={setOldFileForFCR}
-                setHideMerge={setHideMerge}
-                getFileChanges={getFileChanges}
-                setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-                setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-                removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-                removeFileChangeRequest={removeFileChangeRequest}
-                isRunningRef={isRunningRef}
-                fcr={fcr}
-                index={index}
-                getDynamicClassNames={getDynamicClassNames}
-                getItemStyle={getItemStyle}
-                mentionFiles={mentionFiles}
-                fcrInstructions={fcrInstructions}
-                setFCRInstructions={setFCRInstructions}
-                setUserSuggestion={setUserSuggestion}
+                  repoName={repoName}
+                  setFileChangeRequests={setFileChangeRequests}
+                  setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+                  setFileForFCR={setFileForFCR}
+                  setOldFileForFCR={setOldFileForFCR}
+                  setHideMerge={setHideMerge}
+                  getFileChanges={getFileChanges}
+                  setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+                  setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+                  removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+                  removeFileChangeRequest={removeFileChangeRequest}
+                  isRunningRef={isRunningRef}
+                  fcr={fcr}
+                  index={index}
+                  getDynamicClassNames={getDynamicClassNames}
+                  getItemStyle={getItemStyle}
+                  mentionFiles={mentionFiles}
+                  fcrInstructions={fcrInstructions}
+                  setFCRInstructions={setFCRInstructions}
+                  setUserSuggestion={setUserSuggestion}
+                  key={index}
                 />
               ) : (
                 <FCRModify

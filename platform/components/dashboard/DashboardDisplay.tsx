@@ -41,15 +41,15 @@ const DashboardDisplay = () => {
     "blockedGlobs",
     blockedPaths.join(", "),
   );
-  const [fileChangeRequests, setFileChangeRequests] = useState<
+  const [fileChangeRequests = [], setFileChangeRequests] = useState<
     FileChangeRequest[]
   >([]);
   const [currentFileChangeRequestIndex, setCurrentFileChangeRequestIndex] =
     useLocalStorage("currentFileChangeRequestIndex", 0);
   const [versionNumber, setVersionNumber] = useState("");
 
-  const [files, setFiles] = useLocalStorage<{ label: string; name: string }[]>("files",[]);
-  const [directories, setDirectories] = useLocalStorage<{ label: string; name: string }[]>("directories",[]);
+  const [files = [], setFiles] = useLocalStorage<{ label: string; name: string }[]>("files",[]);
+  const [directories = [], setDirectories] = useLocalStorage<{ label: string; name: string }[]>("directories",[]);
 
   const filePath =
     fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
