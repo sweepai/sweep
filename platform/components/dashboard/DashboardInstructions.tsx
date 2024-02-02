@@ -11,19 +11,20 @@ import {
   CommandGroup,
   CommandItem,
 } from "../ui/command";
-import React from "react";
+import React, { ReactNode, memo, useCallback, useState } from "react";
 import { getFile, writeFile } from "../../lib/api.service";
 import { Snippet } from "../../lib/search";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent } from "../ui/tabs";
-import { Textarea } from "../ui/textarea";
 import { FileChangeRequest } from "../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Badge } from "../ui/badge";
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions'
+import { Textarea } from "../ui/textarea";
 
 const testCasePlaceholder = `Example:
 1. Modify the class name to be something more descriptive
@@ -35,7 +36,7 @@ const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const DashboardInstructions = ({
+const DashboardInstructions = memo(function DashboardInstructions({
   filePath,
   repoName,
   open,
@@ -56,7 +57,7 @@ const DashboardInstructions = ({
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
-}: {
+} : {
   filePath: string;
   repoName: string;
   open: boolean;
@@ -77,7 +78,7 @@ const DashboardInstructions = ({
   removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>
-}) => {
+}) {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
     if (index === currentFileChangeRequestIndex) { // current selected fcr
@@ -128,6 +129,28 @@ const DashboardInstructions = ({
     // styles we need to apply on draggables
     ...draggableStyle
   });
+
+  const mentionFiles = files.map((file: any) => ({ id: file.label, display: file.label }))
+
+  // this is a work around to the fcr instructions not being updated properly
+  // { fcr.file : instructions }
+  const [fcrInstructions, setFCRInstructions] = useState(() => {
+    let newMap: {[key: string]: string} = {};
+    fileChangeRequests.forEach((fcr: FileChangeRequest) => {
+      newMap[fcr.snippet.file] = fcr.instructions;
+    });
+    return newMap;
+  });
+
+  const setUserSuggestion = (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => {
+    const maxLength = 50;
+    const suggestedFileName = suggestion.display!.length < maxLength ? suggestion.display : "..." + suggestion.display!.slice(suggestion.display!.length - maxLength, suggestion.display!.length);
+    return (
+      <div className={`user ${focused ? 'focused' : ''} bg-zinc-900 text-white`}>
+        {suggestedFileName}
+      </div>
+    );
+  }
 
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
@@ -247,14 +270,32 @@ const DashboardInstructions = ({
                     </Button>
                   </div>
                 </div>
-                <Textarea
-                  className="mb-0"
+                <MentionsInput 
+                  className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput"
                   placeholder={instructionsPlaceholder}
-                  value={fcr.instructions}
-                  onClick={(e) => {
+                  value={fcrInstructions[fcr.snippet.file as string]} 
+                  onClick={(e: any) => {
                     setCurrentFileChangeRequestIndex(index)
                   }}
-                  onChange={(e) => {
+                  onChange={(e: any) => {
+                    console.log("current insturcitons", fcr.instructions)
+                    setFileChangeRequests((prev: FileChangeRequest[]) => [
+                      ...prev.slice(0, index),
+                      {
+                        ...prev[index],
+                        instructions: e.target.value,
+                      },
+                      ...prev.slice(index + 1),
+                    ]);
+                    setFCRInstructions((prev: any) => {
+                      return {
+                        ...prev,
+                        [fcr.snippet.file]: e.target.value
+                      }
+                    })
+                  }}
+                  onBlur={(e: any) => {
+                    // this apparently removes the styling on the mentions, this may be a hack
                     setFileChangeRequests((prev: FileChangeRequest[]) => [
                       ...prev.slice(0, index),
                       {
@@ -264,66 +305,29 @@ const DashboardInstructions = ({
                       ...prev.slice(index + 1),
                     ]);
                   }}
-                />
-                <Popover open={fcr.openReadOnlyFiles}>
-                  <div className="flex flex-row mb-2 p-0">
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={fcr.openReadOnlyFiles}
-                        className="w-full justify-between overflow-hidden mt-0 bg-zinc-900 text-zinc-300"
-                        disabled={!files || fcr.isLoading}
-                        onClick={(e) => {
-                          setReadOnlyFilesOpen(!fcr.openReadOnlyFiles, fcr)
-                        }}
-                      >
-                        Add relevant read-only files
-                        <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                  </div>
-                  <PopoverContent className="w-full p-0 text-left">
-                    <Command>
-                      <CommandInput placeholder="Search file..." className="h-9" />
-                      <CommandEmpty>
-                        <div className="text-zinc-300">
-                          No file found.
-                        </div>
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {files.map((file: any) => (
-                          <CommandItem
-                            key={file.value}
-                            value={file.value}
-                            className="mb-0"
-                            onSelect={async (currentValue) => {
-                              const contents = (await getFile(repoName, file.value))
-                                .contents;
-                              const newSnippet = {
-                                file: file.value,
-                                start: 0,
-                                end: contents.split("\n").length,
-                                entireFile: contents,
-                                content: contents, // this is the slice based on start and end, remeber to change this
-                              } as Snippet;
-                              setReadOnlySnippetForFCR(fcr, newSnippet);
-                              setReadOnlyFilesOpen(false, fcr);
-                            }}
-                          >
-                            {file.label}
-                            <CheckIcon
-                              className={cn(
-                                "ml-auto h-4 w-4",
-                                filePath === file.value ? "opacity-100" : "opacity-0",
-                              )}
-                            />
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                >
+                  <Mention
+                    trigger="@"
+                    data={mentionFiles}
+                    renderSuggestion={setUserSuggestion}
+                    onAdd={async (currentValue) => {
+                      console.log("current value", currentValue)
+                      console.log("isntructions are", fcr.instructions)
+                      const contents = (await getFile(repoName, currentValue.toString()))
+                        .contents;
+                      const newSnippet = {
+                        file: currentValue,
+                        start: 0,
+                        end: contents.split("\n").length,
+                        entireFile: contents,
+                        content: contents, // this is the slice based on start and end, remeber to change this
+                      } as Snippet;
+                      setReadOnlySnippetForFCR(fcr, newSnippet);
+                      setReadOnlyFilesOpen(false, fcr);
+                    }}
+                    appendSpaceOnAdd={true}
+                  />
+                </MentionsInput>
                 <div hidden={Object.keys(fcr.readOnlySnippets).length === 0} className="mb-2">
                   {Object.keys(fcr.readOnlySnippets).map((snippetFile: string, index: number) => (
                     <Badge variant="secondary" key={index} className="bg-zinc-800 text-zinc-300">
@@ -346,6 +350,7 @@ const DashboardInstructions = ({
                         size="sm"
                         className="mr-2"
                         onClick={(e) => {
+                          // syncFCRInstructions();
                           setCurrentFileChangeRequestIndex(index)
                           getFileChanges(fcr, index)
                         }}
@@ -415,5 +420,5 @@ const DashboardInstructions = ({
       </TabsContent>
     </Tabs>
   );
-};
+});
 export default DashboardInstructions;
