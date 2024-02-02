@@ -4,6 +4,7 @@ import { FileChangeRequest } from "../../../lib/types";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import FCRCreate from "./FCRCreate";
 import FCRModify from "./FCRModify";
+import { SuggestionDataItem } from "react-mentions";
 
 const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
 
