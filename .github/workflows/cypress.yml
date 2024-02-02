@@ -13,6 +13,7 @@ jobs:
   e2e:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         node: [18]
@@ -33,6 +34,10 @@ jobs:
           start: pnpm start
           browser: chrome
           working-directory: platform
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 # jobs:
 #   install:
