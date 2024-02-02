@@ -111,7 +111,7 @@ read OPENAI_API_KEY
 if [ -z "$OPENAI_API_KEY" ]
 then
     echo -e "${RED}OpenAI API key is required.${NC}"
-    exit
+    exit 1
 fi
 
 # echo -e -n "${BLUE}Enable telemetry to help us improve the product? (Y/n): ${NC}"
