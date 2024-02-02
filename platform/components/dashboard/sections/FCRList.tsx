@@ -181,6 +181,7 @@ const FCRList = memo(function FCRList({
             {fileChangeRequests.map((fcr: FileChangeRequest, index: number) => (
               (fcr.changeType == "create") ? (
                 <FCRCreate
+                key={index}
                 repoName={repoName}
                 setFileChangeRequests={setFileChangeRequests}
                 setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
@@ -204,6 +205,7 @@ const FCRList = memo(function FCRList({
                 />
               ) : (
                 <FCRModify
+                  key={index}
                   repoName={repoName}
                   setFileChangeRequests={setFileChangeRequests}
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
