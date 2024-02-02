@@ -1,9 +1,5 @@
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "../../ui/popover"
+import { Popover, PopoverTrigger, PopoverContent } from "../../ui/popover";
 import {
   Command,
   CommandInput,
@@ -22,7 +18,7 @@ const instructionsPlaceholder = `Tell Sweep what modifications you want here. To
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
+};
 
 const ModifyOrCreate = ({
   filePath,
@@ -35,7 +31,9 @@ const ModifyOrCreate = ({
   repoName: string;
   files: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
+  setFileChangeRequests: React.Dispatch<
+    React.SetStateAction<FileChangeRequest[]>
+  >;
 }) => {
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
@@ -67,7 +65,12 @@ const ModifyOrCreate = ({
                 value={file.value}
                 onSelect={async (currentValue) => {
                   // ensure file is not already included
-                  if (fileChangeRequests.some((fcr: FileChangeRequest) => fcr.snippet.file === file.value)) {
+                  if (
+                    fileChangeRequests.some(
+                      (fcr: FileChangeRequest) =>
+                        fcr.snippet.file === file.value,
+                    )
+                  ) {
                     return;
                   }
                   const contents = (await getFile(repoName, file.value))
@@ -111,5 +114,5 @@ const ModifyOrCreate = ({
       </PopoverContent>
     </Popover>
   );
-}
+};
 export default ModifyOrCreate;

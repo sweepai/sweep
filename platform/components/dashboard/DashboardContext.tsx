@@ -2,10 +2,7 @@ import { Snippet } from "../../lib/search";
 
 import React, { useEffect, useState } from "react";
 import { getLanguage } from "../shared/FileSelector";
-import CodeMirror, {
-  EditorView,
-  lineNumbers,
-} from "@uiw/react-codemirror";
+import CodeMirror, { EditorView, lineNumbers } from "@uiw/react-codemirror";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";

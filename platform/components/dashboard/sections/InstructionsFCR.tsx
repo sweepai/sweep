@@ -6,15 +6,15 @@ import { FaPlay, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Badge } from "../../ui/badge";
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions'
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
 
 const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
+};
 
 const InstructionsFCR = memo(function InstructionsFCR({
   repoName,
@@ -36,40 +36,63 @@ const InstructionsFCR = memo(function InstructionsFCR({
   repoName: string;
   files: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
+  setFileChangeRequests: React.Dispatch<
+    React.SetStateAction<FileChangeRequest[]>
+  >;
   currentFileChangeRequestIndex: number;
-  setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
+  setCurrentFileChangeRequestIndex: React.Dispatch<
+    React.SetStateAction<number>
+  >;
   setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
   setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
   setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
-  getFileChanges: (fileChangeRequest: FileChangeRequest, index: number) => Promise<void>;
-  setReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippet: Snippet) => void;
-  setReadOnlyFilesOpen: (open: boolean, fileChangeRequest: FileChangeRequest) => void;
-  removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
+  getFileChanges: (
+    fileChangeRequest: FileChangeRequest,
+    index: number,
+  ) => Promise<void>;
+  setReadOnlySnippetForFCR: (
+    fileChangeRequest: FileChangeRequest,
+    snippet: Snippet,
+  ) => void;
+  setReadOnlyFilesOpen: (
+    open: boolean,
+    fileChangeRequest: FileChangeRequest,
+  ) => void;
+  removeReadOnlySnippetForFCR: (
+    fileChangeRequest: FileChangeRequest,
+    snippetFile: string,
+  ) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
-  isRunningRef: React.MutableRefObject<boolean>
+  isRunningRef: React.MutableRefObject<boolean>;
 }) {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
-    if (index === currentFileChangeRequestIndex) { // current selected fcr
+    if (index === currentFileChangeRequestIndex) {
+      // current selected fcr
       classNames += " font-extrabold text-white ";
     } else {
       classNames += " text-zinc-300 ";
     }
     // background highlighting
-    if (fcr.isLoading) { // is being generated
+    if (fcr.isLoading) {
+      // is being generated
       classNames += " bg-orange-900 ";
-    } else if (!fcr.hideMerge && !fcr.isLoading) { // has completed generation
+    } else if (!fcr.hideMerge && !fcr.isLoading) {
+      // has completed generation
       classNames += " bg-green-900 ";
-    }
-    else { // default
+    } else {
+      // default
       classNames += " bg-zinc-900 ";
     }
-    return classNames
-  }
+    return classNames;
+  };
 
   // helper functions mostly copied from https://codesandbox.io/p/sandbox/k260nyxq9v?file=%2Findex.js%3A36%2C1-40%2C4
-  const reorder = (fcrList: FileChangeRequest[], startIndex: number, endIndex: number) => {
+  const reorder = (
+    fcrList: FileChangeRequest[],
+    startIndex: number,
+    endIndex: number,
+  ) => {
     const result = Array.from(fcrList);
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);
@@ -81,13 +104,17 @@ const InstructionsFCR = memo(function InstructionsFCR({
     if (!result.destination) {
       return;
     }
-    const items = reorder(fileChangeRequests, result.source.index, result.destination.index);
+    const items = reorder(
+      fileChangeRequests,
+      result.source.index,
+      result.destination.index,
+    );
     setFileChangeRequests(items);
-  }
+  };
 
   const getListStyle = (isDraggingOver: boolean) => ({
     background: isDraggingOver ? "#3c3e3f" : "black",
-  })
+  });
 
   const getItemStyle = (isDragging: boolean, draggableStyle: any) => ({
     // some basic styles to make the items look a bit nicer
@@ -97,10 +124,13 @@ const InstructionsFCR = memo(function InstructionsFCR({
     background: isDragging ? "black" : "black",
 
     // styles we need to apply on draggables
-    ...draggableStyle
+    ...draggableStyle,
   });
 
-  const mentionFiles = files.map((file: any) => ({ id: file.label, display: file.label }))
+  const mentionFiles = files.map((file: any) => ({
+    id: file.label,
+    display: file.label,
+  }));
 
   // this is a work around to the fcr instructions not being updated properly
   // { fcr.file : instructions }
@@ -112,15 +142,30 @@ const InstructionsFCR = memo(function InstructionsFCR({
     return newMap;
   });
 
-  const setUserSuggestion = (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => {
+  const setUserSuggestion = (
+    suggestion: SuggestionDataItem,
+    search: string,
+    highlightedDisplay: ReactNode,
+    index: number,
+    focused: boolean,
+  ) => {
     const maxLength = 50;
-    const suggestedFileName = suggestion.display!.length < maxLength ? suggestion.display : "..." + suggestion.display!.slice(suggestion.display!.length - maxLength, suggestion.display!.length);
+    const suggestedFileName =
+      suggestion.display!.length < maxLength
+        ? suggestion.display
+        : "..." +
+          suggestion.display!.slice(
+            suggestion.display!.length - maxLength,
+            suggestion.display!.length,
+          );
     return (
-      <div className={`user ${focused ? 'bg-zinc-500' : ''} bg-zinc-700 text-white`}>
+      <div
+        className={`user ${focused ? "bg-zinc-500" : ""} bg-zinc-700 text-white`}
+      >
         {suggestedFileName}
       </div>
     );
-  }
+  };
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
@@ -132,7 +177,11 @@ const InstructionsFCR = memo(function InstructionsFCR({
             style={getListStyle(snapshot.isDraggingOver)}
           >
             {fileChangeRequests.map((fcr: FileChangeRequest, index: number) => (
-              <Draggable key={fcr.snippet.file} draggableId={fcr.snippet.file} index={index}>
+              <Draggable
+                key={fcr.snippet.file}
+                draggableId={fcr.snippet.file}
+                index={index}
+              >
                 {(provided: any, snapshot: any) => (
                   <div
                     ref={provided.innerRef}
@@ -140,20 +189,27 @@ const InstructionsFCR = memo(function InstructionsFCR({
                     {...provided.dragHandleProps}
                     style={getItemStyle(
                       snapshot.isDragging,
-                      provided.draggableProps.style
+                      provided.draggableProps.style,
                     )}
                   >
-                    <div key={index} className="mb-4 grow border rounded"
+                    <div
+                      key={index}
+                      className="mb-4 grow border rounded"
                       onClick={(e) => {
-                        setCurrentFileChangeRequestIndex(index)
+                        setCurrentFileChangeRequestIndex(index);
                       }}
                     >
-                      <div className={`justify-between p-2 ${getDynamicClassNames(fcr, index)} rounded font-sm font-mono items-center`}>
+                      <div
+                        className={`justify-between p-2 ${getDynamicClassNames(fcr, index)} rounded font-sm font-mono items-center`}
+                      >
                         <div className="flex flex-row w-full items-center">
                           <span>
-                            {fcr.snippet.file.split("/")[fcr.snippet.file.split("/").length - 1]}:
-                            {fcr.snippet.start}-
-                            {fcr.snippet.end}
+                            {
+                              fcr.snippet.file.split("/")[
+                                fcr.snippet.file.split("/").length - 1
+                              ]
+                            }
+                            :{fcr.snippet.start}-{fcr.snippet.end}
                           </span>
                           <Button
                             size="sm"
@@ -164,9 +220,9 @@ const InstructionsFCR = memo(function InstructionsFCR({
                               setFCRInstructions((prev: any) => {
                                 return {
                                   ...prev,
-                                  [fcr.snippet.file]: ""
-                                }
-                              })
+                                  [fcr.snippet.file]: "",
+                                };
+                              });
                             }}
                             disabled={fcr.isLoading}
                           >
@@ -179,10 +235,10 @@ const InstructionsFCR = memo(function InstructionsFCR({
                         placeholder={instructionsPlaceholder}
                         value={fcrInstructions[fcr.snippet.file as string]}
                         onClick={(e: any) => {
-                          setCurrentFileChangeRequestIndex(index)
+                          setCurrentFileChangeRequestIndex(index);
                         }}
                         onChange={(e: any) => {
-                          console.log("current insturcitons", fcr.instructions)
+                          console.log("current insturcitons", fcr.instructions);
                           setFileChangeRequests((prev: FileChangeRequest[]) => [
                             ...prev.slice(0, index),
                             {
@@ -194,9 +250,9 @@ const InstructionsFCR = memo(function InstructionsFCR({
                           setFCRInstructions((prev: any) => {
                             return {
                               ...prev,
-                              [fcr.snippet.file]: e.target.value
-                            }
-                          })
+                              [fcr.snippet.file]: e.target.value,
+                            };
+                          });
                         }}
                         onBlur={(e: any) => {
                           // this apparently removes the styling on the mentions, this may be a hack
@@ -215,10 +271,11 @@ const InstructionsFCR = memo(function InstructionsFCR({
                           data={mentionFiles}
                           renderSuggestion={setUserSuggestion}
                           onAdd={async (currentValue) => {
-                            console.log("current value", currentValue)
-                            console.log("isntructions are", fcr.instructions)
-                            const contents = (await getFile(repoName, currentValue.toString()))
-                              .contents;
+                            console.log("current value", currentValue);
+                            console.log("isntructions are", fcr.instructions);
+                            const contents = (
+                              await getFile(repoName, currentValue.toString())
+                            ).contents;
                             const newSnippet = {
                               file: currentValue,
                               start: 0,
@@ -232,19 +289,32 @@ const InstructionsFCR = memo(function InstructionsFCR({
                           appendSpaceOnAdd={true}
                         />
                       </MentionsInput>
-                      <div hidden={Object.keys(fcr.readOnlySnippets).length === 0} className="mb-2">
-                        {Object.keys(fcr.readOnlySnippets).map((snippetFile: string, index: number) => (
-                          <Badge variant="secondary" key={index} className="bg-zinc-800 text-zinc-300">
-                            {snippetFile.split("/")[snippetFile.split("/").length - 1]}
-                            <FaTimes
-                              key={String(index) + "-remove"}
-                              className="bg-zinc-800 cursor-pointer"
-                              onClick={() => {
-                                removeReadOnlySnippetForFCR(fcr, snippetFile);
-                              }}
-                            />
-                          </Badge>
-                        ))}
+                      <div
+                        hidden={Object.keys(fcr.readOnlySnippets).length === 0}
+                        className="mb-2"
+                      >
+                        {Object.keys(fcr.readOnlySnippets).map(
+                          (snippetFile: string, index: number) => (
+                            <Badge
+                              variant="secondary"
+                              key={index}
+                              className="bg-zinc-800 text-zinc-300"
+                            >
+                              {
+                                snippetFile.split("/")[
+                                  snippetFile.split("/").length - 1
+                                ]
+                              }
+                              <FaTimes
+                                key={String(index) + "-remove"}
+                                className="bg-zinc-800 cursor-pointer"
+                                onClick={() => {
+                                  removeReadOnlySnippetForFCR(fcr, snippetFile);
+                                }}
+                              />
+                            </Badge>
+                          ),
+                        )}
                       </div>
                       <div className="flex flex-row justify-end w-full pb-2">
                         <span>
@@ -255,12 +325,13 @@ const InstructionsFCR = memo(function InstructionsFCR({
                               className="mr-2"
                               onClick={(e: any) => {
                                 // syncFCRInstructions();
-                                setCurrentFileChangeRequestIndex(index)
-                                getFileChanges(fcr, index)
+                                setCurrentFileChangeRequestIndex(index);
+                                getFileChanges(fcr, index);
                               }}
                               disabled={fcr.isLoading}
                             >
-                              <FaPlay />&nbsp;{capitalize(fcr.changeType)}
+                              <FaPlay />
+                              &nbsp;{capitalize(fcr.changeType)}
                             </Button>
                           ) : (
                             <Button
@@ -271,7 +342,8 @@ const InstructionsFCR = memo(function InstructionsFCR({
                                 isRunningRef.current = false;
                               }}
                             >
-                              <FaStop />&nbsp;Cancel
+                              <FaStop />
+                              &nbsp;Cancel
                             </Button>
                           )}
                           <Button
@@ -279,11 +351,16 @@ const InstructionsFCR = memo(function InstructionsFCR({
                             size="sm"
                             variant="secondary"
                             onClick={async () => {
-                              const response = await getFile(repoName, fcr.snippet.file);
+                              const response = await getFile(
+                                repoName,
+                                fcr.snippet.file,
+                              );
                               setFileForFCR(response.contents, fcr);
                               setOldFileForFCR(response.contents, fcr);
-                              toast.success("File synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
-                              setCurrentFileChangeRequestIndex(index)
+                              toast.success("File synced from storage!", {
+                                action: { label: "Dismiss", onClick: () => {} },
+                              });
+                              setCurrentFileChangeRequestIndex(index);
                               setHideMerge(true, fcr);
                             }}
                             disabled={fcr.isLoading}
@@ -296,9 +373,13 @@ const InstructionsFCR = memo(function InstructionsFCR({
                             onClick={async () => {
                               setOldFileForFCR(fcr.newContents, fcr);
                               setHideMerge(true, fcr);
-                              await writeFile(repoName, fcr.snippet.file, fcr.newContents);
+                              await writeFile(
+                                repoName,
+                                fcr.snippet.file,
+                                fcr.newContents,
+                              );
                               toast.success("Succesfully saved file!", {
-                                action: { label: "Dismiss", onClick: () => { } }
+                                action: { label: "Dismiss", onClick: () => {} },
                               });
                             }}
                             disabled={fcr.isLoading || fcr.hideMerge}
@@ -316,7 +397,8 @@ const InstructionsFCR = memo(function InstructionsFCR({
           </div>
         )}
       </Droppable>
-    </DragDropContext>)
+    </DragDropContext>
+  );
 });
-  
+
 export default InstructionsFCR;

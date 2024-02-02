@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
 import posthog from "../lib/posthog";
 import DashboardDisplay from "../components/dashboard/DashboardDisplay";
-import { PostHogProvider} from 'posthog-js/react'
+import { PostHogProvider } from "posthog-js/react";
 import React from "react";
 
 export default function Home() {
