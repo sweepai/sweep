@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
               nonBinaryFiles.length < fileLimit
             ) {
               const { mtimeMs } = await fs.stat(res);
-            nonBinaryFiles.push({
-              path: res.slice(rootDir.length + 1),
-              lastModified: mtimeMs
-            });
+              nonBinaryFiles.push({
+                path: res.slice(rootDir.length + 1),
+                lastModified: mtimeMs,
+              });
             }
           } catch (readError) {
             console.error(`Error reading file ${res}: ${readError}`);
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse("Not a directory", { status: 400 });
     }
     const filesWithMeta = await listNonBinaryFilesBFS(repo);
-    const sortedFiles = filesWithMeta.map(fileMeta => fileMeta.path);
+    const sortedFiles = filesWithMeta.map((fileMeta) => fileMeta.path);
     return new NextResponse(JSON.stringify(sortedFiles), { status: 200 });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });

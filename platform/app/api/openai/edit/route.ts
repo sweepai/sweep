@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     return response;
   }
   const body = (await request.json()) as Body;
-  
+
   if (
     body.snippets.map((snippet) => snippet.content).join("").length >
     128000 * 3
@@ -62,12 +62,12 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
     return response;
-  };
+  }
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: systemMessagePrompt },
     ...(body.additionalMessages || []),
-    {role: "user", content: body.userMessage}
-  ]
+    { role: "user", content: body.userMessage },
+  ];
 
   const params: OpenAI.Chat.ChatCompletionCreateParams = {
     messages,

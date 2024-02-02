@@ -1,9 +1,5 @@
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "../ui/popover"
+import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
 import {
   Command,
   CommandInput,
@@ -22,8 +18,8 @@ import { FaPlay, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Badge } from "../ui/badge";
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions'
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import InstructionsFCR from "./sections/InstructionsFCR";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
 
@@ -31,7 +27,7 @@ const instructionsPlaceholder = `Tell Sweep what modifications you want here. To
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
+};
 
 const DashboardInstructions = memo(function DashboardInstructions({
   filePath,
@@ -50,23 +46,39 @@ const DashboardInstructions = memo(function DashboardInstructions({
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
-} : {
+}: {
   filePath: string;
   repoName: string;
   files: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
+  setFileChangeRequests: React.Dispatch<
+    React.SetStateAction<FileChangeRequest[]>
+  >;
   currentFileChangeRequestIndex: number;
-  setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
+  setCurrentFileChangeRequestIndex: React.Dispatch<
+    React.SetStateAction<number>
+  >;
   setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
   setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
   setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
-  getFileChanges: (fileChangeRequest: FileChangeRequest, index: number) => Promise<void>;
-  setReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippet: Snippet) => void;
-  setReadOnlyFilesOpen: (open: boolean, fileChangeRequest: FileChangeRequest) => void;
-  removeReadOnlySnippetForFCR: (fileChangeRequest: FileChangeRequest, snippetFile: string) => void;
+  getFileChanges: (
+    fileChangeRequest: FileChangeRequest,
+    index: number,
+  ) => Promise<void>;
+  setReadOnlySnippetForFCR: (
+    fileChangeRequest: FileChangeRequest,
+    snippet: Snippet,
+  ) => void;
+  setReadOnlyFilesOpen: (
+    open: boolean,
+    fileChangeRequest: FileChangeRequest,
+  ) => void;
+  removeReadOnlySnippetForFCR: (
+    fileChangeRequest: FileChangeRequest,
+    snippetFile: string,
+  ) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
-  isRunningRef: React.MutableRefObject<boolean>
+  isRunningRef: React.MutableRefObject<boolean>;
 }) {
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
