@@ -33,6 +33,8 @@ jobs:
           build: pnpm run build
           start: pnpm start
           browser: chrome
+          wait-on: 'http://localhost:3000' # Waits for above
+          record: true
           working-directory: platform
         env:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
