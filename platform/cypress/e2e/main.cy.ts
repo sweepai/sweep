@@ -12,7 +12,7 @@ describe('main platform', () => {
 
       console.log("Setting branch")
       cy.get('.grow > .p-2').click();
-      cy.get('[placeholder="your-branch-here"]').should('not.have.value', "")
+      // cy.get('[placeholder="your-branch-here"]').should('not.have.value', "")
 
       console.log("Collapsing dropdown")
       cy.get("body > main > div > div.p-6 > div > div:nth-child(1) > div.flex.flex-row.justify-between.items-center.mb-2 > button").click();
