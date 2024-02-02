@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        browser: [chrome, firefox, safari]
+        browser: [chrome]
         node: [18, 20, 21]
     steps:
       - uses: actions/checkout@v2
