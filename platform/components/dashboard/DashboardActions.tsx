@@ -1,3 +1,5 @@
+"use client"
+
 import { Input } from "../ui/input";
 import { ResizablePanel } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
