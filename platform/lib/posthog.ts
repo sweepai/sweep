@@ -1,15 +1,5 @@
 import posthog from 'posthog-js'
 
-posthog.init('phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n')
-
-if (process.env.NO_TELEMETRY || false) {
-  posthog.opt_out_capturing()
-}
-
-if (process.env.NODE_ENV === 'development') {
-    posthog.debug(true)
-}
-
 const posthogMetadataScript = String.raw`echo '{
     "email": "'"$(git config --global user.email 2>/dev/null || echo "N/A")"'",
     "whoami": "'"$(whoami 2>/dev/null)"'",
@@ -26,6 +16,18 @@ const posthogMetadataScript = String.raw`echo '{
     "nvm_version": "'"$(nvm --version 2>/dev/null || echo "N/A")"'",
     "ip_address": "'"$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -n1 || echo "N/A")"'"
 }'`
+
+if (typeof window !== 'undefined') {
+    posthog.init('phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n')
+
+    if (process.env.NO_TELEMETRY || false) {
+        posthog.opt_out_capturing()
+    }
+
+    // if (process.env.NODE_ENV === 'development') {
+    //     posthog.debug(true)
+    // }
+}
 
 export default posthog
 export { posthogMetadataScript }
