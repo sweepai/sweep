@@ -22,11 +22,19 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install
-        working-directory: platform
-      - run: npm run build
-        working-directory: platform
+      # - run: npm install
+      #   working-directory: platform
+      # - run: npm run build
+      #   working-directory: platform
       - name: Write to .env
         run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
-      - run: npm run test:e2e
-        working-directory: platform
+      # - run: npm run test:e2e
+      #   working-directory: platform
+      # - name: Checkout
+      #   uses: actions/checkout@v4
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          build: npm run build
+          start: npm start
+          browser: chrome
