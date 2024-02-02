@@ -1,16 +1,21 @@
+"use client";
+
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import FileSelector from "../shared/FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { FileChangeRequest } from "../../lib/types";
+import getFiles from "@/lib/api.service";
+import { usePostHog } from "posthog-js/react";
+import { posthogMetadataScript } from "@/lib/posthog";
 
 const blockedPaths = [
   ".git",
@@ -44,27 +49,30 @@ const DashboardDisplay = () => {
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
   const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
 
+  const posthog = usePostHog()
+
   const undefinedCheck = (variable: any) => {
     if (typeof variable === "undefined") {
       throw new Error("Variable is undefined");
     }
   }
 
-  const setIsLoading = (newIsLoading: boolean, index: number) => {
+  const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest) => {
     try {
-      undefinedCheck(index);
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             isLoading: newIsLoading
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setIsLoading: ",error);
+      console.error("Error in setIsLoading: ", error);
     }
   }
 
@@ -79,21 +87,22 @@ const DashboardDisplay = () => {
     })
   }
 
-  const setHideMerge = (newHideMerge: boolean, index: number) => {
+  const setHideMerge = (newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
-      undefinedCheck(index);
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             hideMerge: newHideMerge
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setHideMerge: ",error);
+      console.error("Error in setHideMerge: ", error);
     }
   }
 
@@ -108,7 +117,7 @@ const DashboardDisplay = () => {
     })
   }
 
-  const setOldFile = (newOldFile: string) => {
+  const setOldFile = useCallback((newOldFile: string) => {
     setCurrentFileChangeRequestIndex(index => {
       setFileChangeRequests(newFileChangeRequests => {
         return [
@@ -125,29 +134,31 @@ const DashboardDisplay = () => {
       });
       return index;
     })
-  }
+  }, []);
 
-  const setOldFileByIndex = (newOldFile: string, index: number) => {
+  const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest) => {
     try {
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             snippet: {
-              ...newFileChangeRequests[index].snippet,
+              ...prev[fcrIndex].snippet,
               entireFile: newOldFile,
             },
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setOldFileByIndex: ",error);
+      console.error("Error in setOldFileByFCR: ", error);
     }
   }
 
-  const setFile = (newFile: string) => {
+  const setFile = useCallback((newFile: string) => {
     setCurrentFileChangeRequestIndex(index => {
       setFileChangeRequests(newFileChangeRequests => {
         return [
@@ -161,34 +172,32 @@ const DashboardDisplay = () => {
       });
       return index;
     });
-  }
+  }, [])
 
-  const setFileByIndex = (newFile: string, index: number) => {
+  const setFileForFCR = (newFile: string, fcr: FileChangeRequest) => {
     try {
-      undefinedCheck(index);
-      setFileChangeRequests(newFileChangeRequests => {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests(prev => {
         return [
-          ...newFileChangeRequests.slice(0, index),
+          ...prev.slice(0, fcrIndex),
           {
-            ...newFileChangeRequests[index],
+            ...prev[fcrIndex],
             newContents: newFile
           },
-          ...newFileChangeRequests.slice(index + 1)
+          ...prev.slice(fcrIndex + 1)
         ]
       });
     } catch (error) {
-      console.error("Error in setFileByIndex: ",error);
+      console.error("Error in setFileForFCR: ", error);
     }
   }
 
-  const removeFileChangeRequest = (fcr: FileChangeRequest, index: number | undefined = undefined) => {
+  const removeFileChangeRequest = (fcr: FileChangeRequest) => {
     try {
-      let fcrIndex = index;
-      if (typeof index === "undefined") {
-        fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
-      }
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
       undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev: FileChangeRequest[]) => {  
+      setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
           ...prev.slice(fcrIndex! + 1)
@@ -200,9 +209,33 @@ const DashboardDisplay = () => {
   }
 
   useEffect(() => {
+    (async () => {
+      let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
+      newFiles = newFiles.map((file: string) => {
+        return { value: file, label: file };
+      });
+      setFiles(newFiles);
+    })();
+  }, [repoName, blockedGlobs, fileLimit]);
+
+  useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
     textarea.scrollTop = textarea.scrollHeight;
   }, [streamData]);
+
+  useEffect(() => {
+    (async () => {
+      const body = { repo: repoName, filePath, script: posthogMetadataScript };
+      const result = await fetch("/api/run?", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const object = await result.json();
+      const metadata = JSON.parse(object.stdout);
+      posthog?.identify(metadata.email === "N/A" ? metadata.email : `${metadata.whoami}@${metadata.hostname}`, metadata)
+    })()
+  }, [posthog])
+
   return (
     <>
       <h1 className="font-bold text-xl">Sweep Assistant</h1>
@@ -231,12 +264,13 @@ const DashboardDisplay = () => {
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
           setHideMergeAll={setHideMergeAll}
-          setFileByIndex={setFileByIndex}
-          setOldFileByIndex={setOldFileByIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
           setIsLoading={setIsLoading}
           setIsLoadingAll={setIsLoadingAll}
           undefinedCheck={undefinedCheck}
           removeFileChangeRequest={removeFileChangeRequest}
+          setOutputToggle={setOutputToggle}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -247,21 +281,16 @@ const DashboardDisplay = () => {
                 file={file}
                 setFile={setFile}
                 hideMerge={hideMerge}
-                setHideMerge={setHideMerge}
                 oldFile={oldFile}
                 setOldFile={setOldFile}
-                repoName={repoName}
-                files={files}
-                setFiles={setFiles}
-                blockedGlobs={blockedGlobs}
-                fileLimit={fileLimit}
+                setHideMerge={setHideMerge}
               ></FileSelector>
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel className="mt-2" defaultSize={25}>
               <Label className="mb-2 mr-2">Toggle outputs:</Label>
               <Button
-                className="mr-2"
+                className={`mr-2 ${outputToggle === "script" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("script");
@@ -270,6 +299,7 @@ const DashboardDisplay = () => {
                 Validation Output
               </Button>
               <Button
+                className={`${outputToggle === "llm" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("llm");

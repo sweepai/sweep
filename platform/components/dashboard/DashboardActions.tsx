@@ -1,3 +1,5 @@
+"use client"
+
 import { Input } from "../ui/input";
 import { ResizablePanel } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
@@ -21,6 +23,8 @@ import { FileChangeRequest, Message } from "../../lib/types";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
+import { usePostHog } from "posthog-js/react";
+import { posthogMetadataScript } from "@/lib/posthog";
 
 const Diff = require('diff');
 
@@ -146,12 +150,13 @@ const DashboardActions = ({
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
   setHideMergeAll,
-  setFileByIndex,
-  setOldFileByIndex,
+  setFileForFCR,
+  setOldFileForFCR,
   setIsLoading,
   setIsLoadingAll,
   undefinedCheck,
-  removeFileChangeRequest
+  removeFileChangeRequest,
+  setOutputToggle,
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -162,7 +167,7 @@ const DashboardActions = ({
   blockedGlobs: string;
   setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
   hideMerge: boolean;
-  setHideMerge: (newHideMerge: boolean, index: number) => void;
+  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   branch: string;
   setBranch: React.Dispatch<React.SetStateAction<string>>;
   oldFile: string;
@@ -176,13 +181,15 @@ const DashboardActions = ({
   currentFileChangeRequestIndex: number;
   setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
   setHideMergeAll: (newHideMerge: boolean) => void;
-  setFileByIndex: (newFile: string, index: number) => void;
-  setOldFileByIndex: (newOldFile: string, index: number) => void;
-  setIsLoading: (newIsLoading: boolean, index: number) => void;
+  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
+  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
+  setIsLoading: (newIsLoading: boolean, fcr: FileChangeRequest) => void;
   setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest, index?: number | undefined) => void;
+  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
+  setOutputToggle: (newOutputToggle: string) => void;
 }) => {
+  const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
@@ -354,21 +361,18 @@ const DashboardActions = ({
       changesMade = true;
       let oldCode = diffMatch.groups!.oldCode ?? "";
       let newCode = diffMatch.groups!.newCode ?? "";
-      if (!oldCode || !newCode) {
+
+      if (oldCode === undefined || newCode === undefined) {
         throw new Error("oldCode or newCode are undefined");
       }
       let didFind = false;
       if (oldCode.startsWith("\n")) {
         oldCode = oldCode.slice(1);
       }
-      // soft match indentation, there are cases where openAi will miss indentations
       if (oldCode.trim().length === 0) {
         errorMessage += "ORIGINAL code block can not be empty.\n\n";
         continue
       }
-      // console.log(oldCode)
-      // console.log(currentFileContents)
-      // console.log(currentFileContents.includes(oldCode))
       if (!currentFileContents.includes(oldCode)) {
         const [newOldCode, newNewCode]: [string, string] = softIndentationCheck(
           oldCode,
@@ -386,9 +390,9 @@ const DashboardActions = ({
         didFind = true;
         currentFileContents = currentFileContents.replace(oldCode, newCode);
       }
-      if (!didFind) {
-        errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
-      }
+      // if (!didFind) {
+      //   errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
+      // }
     }
     if (!changesMade) {
       errorMessage += "No diff hunks we're found in the response.\n\n";
@@ -432,7 +436,8 @@ const DashboardActions = ({
       );
     }).join("\n\n");
 
-    setIsLoading(true, index);
+    setIsLoading(true, fcr);
+    setOutputToggle("llm");
     const url = "/api/openai/edit";
     const body = {
       prompt: fcr.instructions,
@@ -453,15 +458,15 @@ const DashboardActions = ({
     setStreamData("");
     if (!hideMerge) {
       setFileChangeRequests((prev: FileChangeRequest[]) => {
-        setHideMerge(true, index);
-        setFileByIndex(prev[index].snippet.entireFile, index);
+        setHideMerge(true, fcr);
+        setFileForFCR(prev[index].snippet.entireFile, fcr);
         return prev
       })
     }
 
     for (let i = 0; i < 3; i++) {
       if (!isRunningRef.current) {
-        setIsLoading(false, index);
+        setIsLoading(false, fcr);
         return
       }
       if (i !== 0) {
@@ -488,7 +493,7 @@ const DashboardActions = ({
       errorMessage = ""
       const updateIfChanged = (newContents: string) => {
         if (newContents !== currentContents) {
-          setFileByIndex(newContents, index);
+          setFileForFCR(newContents, fcr);
           currentContents = newContents;
         }
       }
@@ -497,10 +502,9 @@ const DashboardActions = ({
         const decoder = new TextDecoder("utf-8");
         let rawText = String.raw``;
 
-        setHideMerge(false, index);
+        setHideMerge(false, fcr);
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
-          // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
             const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", currentContents)
             // console.log(patchingErrors)
@@ -510,7 +514,6 @@ const DashboardActions = ({
               errorMessage += await checkForErrors(fcr.snippet.file, fcr.snippet.entireFile, updatedFile);
             }
             additionalMessages.push({ role: "assistant", content: rawText });
-            // setFileByIndex(updatedFile, index);
             updateIfChanged(updatedFile);
             fcr.newContents = updatedFile // set this to get line and char changes
             rawText += "\n\n"
@@ -520,21 +523,18 @@ const DashboardActions = ({
           const text = decoder.decode(value);
           rawText += text;
           setStreamData((prev: string) => prev + text);
-          if (i % 3 == 0) {
-            try {
-              let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
-              // setFileByIndex(updatedFile, index);
-              updateIfChanged(updatedFile);
-            } catch (e) {
-              console.error(e)
-            }
+          try {
+            let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
+            updateIfChanged(updatedFile);
+          } catch (e) {
+            console.error(e)
           }
         }
         if (!isRunningRef.current) {
-          setIsLoading(false, index);
+          setIsLoading(false, fcr);
           return
         }
-        setHideMerge(false, index);
+        setHideMerge(false, fcr);
         const changeLineCount = Math.abs(
           fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length
         );
@@ -553,19 +553,23 @@ const DashboardActions = ({
             description: [
               <div key="stdout">{`There were ${changeLineCount} line and ${changeCharCount} character changes made.`}</div>,
             ],
-            action: { label: "Dismiss", onClick: () => { } }
+            action: { label: "Dismiss", onClick: () => {} }
           });
-          setIsLoading(false, index);
+          setIsLoading(false, fcr);
+          isRunningRef.current = false
           break
         }
       } catch (e: any) {
         toast.error("An error occured while generating your code.", {
           description: e, action: { label: "Dismiss", onClick: () => { } }
         });
-        setIsLoading(false, index);
+        setIsLoading(false, fcr);
+        isRunningRef.current = false
+        break
       }
     }
-    setIsLoading(false, index);
+    setIsLoading(false, fcr);
+    isRunningRef.current = false
   };
 
   // this needs to be async but its sync right now, fix later
@@ -577,8 +581,8 @@ const DashboardActions = ({
 
   const saveAllFiles = async (fcrs: FileChangeRequest[]) => {
     for await (const [index, fcr] of fcrs.entries()) {
-      setOldFileByIndex(fcr.newContents, index);
-      setHideMerge(true, index);
+      setOldFileForFCR(fcr.newContents, fcr);
+      setHideMerge(true, fcr);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
     toast.success(`Succesfully saved ${fcrs.length} files!`, { action: { label: "Dismiss", onClick: () => { } } });
@@ -587,9 +591,9 @@ const DashboardActions = ({
   const syncAllFiles = async () => {
     fileChangeRequests.forEach(async (fcr: FileChangeRequest, index: number) => {
       const response = await getFile(repoName, fcr.snippet.file);
-      setFileByIndex(response.contents, index);
-      setOldFileByIndex(response.contents, index);
-      setIsLoading(false, index);
+      setFileForFCR(response.contents, fcr);
+      setOldFileForFCR(response.contents, fcr);
+      setIsLoading(false, fcr);
     })
   }
   return (
@@ -614,7 +618,7 @@ const DashboardActions = ({
               </Button>
             </CollapsibleTrigger>
           </div>
-          <CollapsibleContent>
+          <CollapsibleContent className="CollapsibleContent">
             <Label className="mb-2">Repository Path</Label>
             <Input
               id="name"
@@ -692,8 +696,8 @@ const DashboardActions = ({
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileByIndex={setFileByIndex}
-          setOldFileByIndex={setOldFileByIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
           setHideMerge={setHideMerge}
           getFileChanges={getFileChanges}
           setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
@@ -783,6 +787,15 @@ const DashboardActions = ({
             <Button
               variant="secondary"
               onClick={async () => {
+                posthog.capture(
+                  "run_tests", {
+                    name: 'Run Tests',
+                    repoName: repoName,
+                    filePath: filePath,
+                    validationScript: validationScript,
+                    testScript: testScript
+                  }
+                );
                 await runScriptWrapper(file);
               }}
               disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
@@ -800,7 +813,7 @@ const DashboardActions = ({
               </Button>
             </CollapsibleTrigger>
           </div>
-          <CollapsibleContent className="pt-2">
+          <CollapsibleContent className="pt-2 CollapsibleContent">
             <Label className="mb-0">
               Validation Script&nbsp;
 
