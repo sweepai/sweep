@@ -35,6 +35,7 @@ jobs:
             echo "ZSH already installed."
           fi
       - run: |
+          set -e
           output=$(echo "test_openai_key" | ${{ matrix.shell }} ./bin/install_assistant.sh --no-telemetry 2>&1)
           if echo "$output" | grep -q "npm start --prefix"; then
               echo "Keyword found, proceeding..."
