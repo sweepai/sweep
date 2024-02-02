@@ -27,16 +27,17 @@ export async function POST(request: NextRequest) {
   async function listNonBinaryFilesBFS(
     rootDir: string,
     fileLimit: number = limit,
-  ): Promise<{ path: string; lastModified: number }[]> {
+  ): Promise<[{ path: string; lastModified: number }[], string[]]> {
     let queue: string[] = [rootDir];
     let nonBinaryFiles: { path: string; lastModified: number }[] = [];
-
+    let directories: Set<string> = new Set([rootDir]);
     while (
       queue.length > 0 &&
       fileLimit > 0 &&
       nonBinaryFiles.length < fileLimit
     ) {
       const currentDir = queue.shift()!;
+      directories.add(currentDir.slice(rootDir.length));
       // if (blockedGlobs.some(blockedGlob => minimatch(currentDir, blockedGlob))) {
       if (
         blockedGlobs.some((blockedGlob) => currentDir.includes(blockedGlob))
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
         const res: string = path.resolve(currentDir, item.name);
         if (item.isDirectory()) {
           queue.push(res);
+          directories.add(res.slice(rootDir.length));
         } else if (item.isFile()) {
           try {
             const content: Buffer = await fs.readFile(res);
@@ -60,10 +62,10 @@ export async function POST(request: NextRequest) {
               nonBinaryFiles.length < fileLimit
             ) {
               const { mtimeMs } = await fs.stat(res);
-            nonBinaryFiles.push({
-              path: res.slice(rootDir.length + 1),
-              lastModified: mtimeMs
-            });
+              nonBinaryFiles.push({
+                path: res.slice(rootDir.length + 1),
+                lastModified: mtimeMs,
+              });
             }
           } catch (readError) {
             console.error(`Error reading file ${res}: ${readError}`);
@@ -71,8 +73,8 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-
-    return nonBinaryFiles.sort((a, b) => b.lastModified - a.lastModified);
+    directories.delete(rootDir);
+    return [nonBinaryFiles.sort((a, b) => b.lastModified - a.lastModified), Array.from(directories)];
   }
 
   try {
@@ -80,9 +82,9 @@ export async function POST(request: NextRequest) {
     if (!stats.isDirectory()) {
       return new NextResponse("Not a directory", { status: 400 });
     }
-    const filesWithMeta = await listNonBinaryFilesBFS(repo);
-    const sortedFiles = filesWithMeta.map(fileMeta => fileMeta.path);
-    return new NextResponse(JSON.stringify(sortedFiles), { status: 200 });
+    const [filesWithMeta, directories ] = await listNonBinaryFilesBFS(repo);
+    const sortedFiles = filesWithMeta.map((fileMeta) => fileMeta.path);
+    return new NextResponse(JSON.stringify({ sortedFiles, directories }), { status: 200 });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });
   }

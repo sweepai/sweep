@@ -8,10 +8,7 @@ import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { html } from "@codemirror/lang-html";
 
-import CodeMirror, {
-  EditorView,
-  keymap,
-} from "@uiw/react-codemirror";
+import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
@@ -51,14 +48,13 @@ const FileSelector = memo(function FileSelector({
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
 }) {
-  const [value, setValue] = useState("console.log('hello world!');");
   const placeholderText =
     "Your code will be displayed here once you select a Repository and add a file to modify.";
   const onChange = useCallback(
     (val: any, viewUpdate: any) => {
       setFile(val);
     },
-    [setValue, setFile],
+    [setFile],
   );
 
   const onOldChange = setOldFile;
@@ -75,11 +71,13 @@ const FileSelector = memo(function FileSelector({
     <>
       <div className="flex flex-row mb-2">
         <span className="border rounded grow p-2 mr-2 font-mono">
-            {filePath === "" || filePath === undefined ? "Add a file to modify on the left." : filePath}
+          {filePath === "" || filePath === undefined
+            ? "Add a file to modify on the left."
+            : filePath}
         </span>
       </div>
 
-      {(hideMerge || hideMerge === undefined) ? (
+      {hideMerge || hideMerge === undefined ? (
         <CodeMirror
           value={file}
           extensions={extensions}
@@ -90,14 +88,23 @@ const FileSelector = memo(function FileSelector({
           className="ph-no-capture"
         />
       ) : (
-        <CodeMirrorMerge theme={vscodeDark} style={{ overflow: "auto" }} className="ph-no-capture">
+        <CodeMirrorMerge
+          theme={vscodeDark}
+          style={{ overflow: "auto" }}
+          className="ph-no-capture"
+        >
           <Original
             value={oldFile}
             extensions={extensions}
             onChange={onOldChange}
             placeholder={placeholderText}
           />
-          <Modified value={file} extensions={extensions} onChange={onChange} placeholder={placeholderText}/>
+          <Modified
+            value={file}
+            extensions={extensions}
+            onChange={onChange}
+            placeholder={placeholderText}
+          />
         </CodeMirrorMerge>
       )}
     </>

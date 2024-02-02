@@ -10,12 +10,12 @@ on:
       - main
 
 jobs:
-  build:
+  install:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: [18, 21]
+        node: [18, 19, 20, 21]
         shell: [bash, zsh]
     steps:
       - uses: actions/checkout@v2
@@ -34,4 +34,13 @@ jobs:
           else
             echo "ZSH already installed."
           fi
-      - run: echo "test_openai_key" | ${{ matrix.shell }} ./bin/install_assistant.sh --no-telemetry
+      - run: |
+          set -e
+          output=$(echo "test_openai_key" | ${{ matrix.shell }} ./bin/install_assistant.sh --no-telemetry 2>&1)
+          if echo "$output" | grep -q "npm start --prefix"; then
+              echo "Keyword found, proceeding..."
+          else
+              echo "Error: 'npm start --prefix' not found in the output." >&2
+              exit 1
+          fi
+        shell: ${{ matrix.shell }} {0}

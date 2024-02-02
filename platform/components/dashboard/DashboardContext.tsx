@@ -2,27 +2,16 @@ import { Snippet } from "../../lib/search";
 
 import React, { useEffect, useState } from "react";
 import { getLanguage } from "../shared/FileSelector";
-import CodeMirror, {
-  EditorView,
-  lineNumbers,
-} from "@uiw/react-codemirror";
+import CodeMirror, { EditorView, lineNumbers } from "@uiw/react-codemirror";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
-// const debounce = (func: (...args: any[]) => void, delay: number): (() => void) => {
-//     let debounceTimer: NodeJS.Timeout;
-//     return function(this: any, ...args: any[]) {
-//         clearTimeout(debounceTimer);
-//         debounceTimer = setTimeout(() => func.apply(this, args), delay);
-//     };
-// }
-
 const DashboardContext = () => {
   const [branch, setBranch] = useLocalStorage("branch", "");
-  const [searchedSnippets, setSearchedSnippets] = useState([] as Snippet[]);
+  const [searchedSnippets = [], setSearchedSnippets] = useState([] as Snippet[]);
   const [searchIsLoading, setSearchIsLoading] = useState(false);
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
   const [query, setQuery] = useState("");

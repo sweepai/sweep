@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  pylint:
+  unittest:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

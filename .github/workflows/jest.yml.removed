@@ -1,4 +1,4 @@
-name: Platform Build
+name: Jest Tests
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  build:
+  jest_unittests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -26,5 +26,5 @@ jobs:
         working-directory: platform
       - run: npm run build
         working-directory: platform
-      - run: npm run lint
+      - run: npm run test:unit
         working-directory: platform
