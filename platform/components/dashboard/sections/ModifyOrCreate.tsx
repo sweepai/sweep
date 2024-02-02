@@ -18,12 +18,14 @@ const ModifyOrCreate = ({
   filePath,
   repoName,
   files,
+  directories,
   fileChangeRequests,
   setFileChangeRequests,
 }: {
   filePath: string;
   repoName: string;
   files: { label: string; name: string }[];
+  directories: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
   setFileChangeRequests: React.Dispatch<
     React.SetStateAction<FileChangeRequest[]>
@@ -33,9 +35,9 @@ const ModifyOrCreate = ({
   const [openCreate, setOpenCreate] = useState(false);
 
   return (
-    <>
+    <div className="flex flex-row mb-4">
     <Popover open={openModify} onOpenChange={setOpenModify}>
-      <div className="flex flex-row mb-4">
+      <div className="flex flex-row mb-4 overflow-auto">
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -51,7 +53,7 @@ const ModifyOrCreate = ({
       </div>
       <PopoverContent className="w-full p-0 text-left">
         <Command>
-          <CommandInput placeholder="Search file..." className="h-9" />
+          <CommandInput placeholder="Search for a file to modify..." className="h-9" />
           <CommandEmpty>No file found.</CommandEmpty>
           <CommandGroup>
             {files.map((file: any) => (
@@ -108,8 +110,8 @@ const ModifyOrCreate = ({
         </Command>
       </PopoverContent>
     </Popover>
-    <Popover open={openCreate} onOpenChange={setOpenCreate}>
-      <div className="flex flex-row mb-4">
+    {/* <Popover open={openCreate} onOpenChange={setOpenCreate}>
+      <div className="flex flex-row mb-4 overflow-auto">
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -125,39 +127,28 @@ const ModifyOrCreate = ({
       </div>
       <PopoverContent className="w-full p-0 text-left">
         <Command>
-          <CommandInput placeholder="Search file..." className="h-9" />
-          <CommandEmpty>No file found.</CommandEmpty>
+          <CommandInput placeholder="Search for a directory..." className="h-9" />
+          <CommandEmpty>No directory found.</CommandEmpty>
           <CommandGroup>
-            {files.map((file: any) => (
+            {directories.map((dir: any) => (
               <CommandItem
-                key={file.value}
-                value={file.value}
+                key={dir.value}
+                value={dir.value}
                 onSelect={async (currentValue) => {
-                  // ensure file is not already included
-                  if (
-                    fileChangeRequests.some(
-                      (fcr: FileChangeRequest) =>
-                        fcr.snippet.file === file.value,
-                    )
-                  ) {
-                    return;
-                  }
-                  const contents = (await getFile(repoName, file.value))
-                    .contents;
                   setFileChangeRequests((prev: FileChangeRequest[]) => {
                     let snippet = {
-                      file: file.value,
+                      file: dir.value,
                       start: 0,
-                      end: contents.split("\n").length,
-                      entireFile: contents,
-                      content: contents, // this is the slice based on start and end, remeber to change this
+                      end: 0,
+                      entireFile: "",
+                      content: "",
                     } as Snippet;
                     return [
                       ...prev,
                       {
                         snippet,
                         changeType: "create",
-                        newContents: contents,
+                        newContents: "",
                         hideMerge: true,
                         instructions: "",
                         isLoading: false,
@@ -169,11 +160,11 @@ const ModifyOrCreate = ({
                   setOpenCreate(false);
                 }}
               >
-                {file.label}
+                {dir.label}
                 <CheckIcon
                   className={cn(
                     "ml-auto h-4 w-4",
-                    filePath === file.value ? "opacity-100" : "opacity-0",
+                    filePath === dir.value ? "opacity-100" : "opacity-0",
                   )}
                 />
               </CommandItem>
@@ -181,8 +172,8 @@ const ModifyOrCreate = ({
           </CommandGroup>
         </Command>
       </PopoverContent>
-    </Popover>
-    </>
+    </Popover> */}
+    </div>
   );
 };
 export default ModifyOrCreate;

@@ -2,13 +2,14 @@ import React, { memo } from "react";
 import { Snippet } from "../../lib/search";
 import { Tabs, TabsContent } from "../ui/tabs";
 import { FileChangeRequest } from "../../lib/types";
-import InstructionsFCR from "./sections/InstructionsFCR";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
+import FCRList from "./sections/FCRList";
 
 const DashboardInstructions = memo(function DashboardInstructions({
   filePath,
   repoName,
   files,
+  directories,
   fileChangeRequests,
   setFileChangeRequests,
   currentFileChangeRequestIndex,
@@ -26,6 +27,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
   filePath: string;
   repoName: string;
   files: { label: string; name: string }[];
+  directories: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
   setFileChangeRequests: React.Dispatch<
     React.SetStateAction<FileChangeRequest[]>
@@ -64,10 +66,11 @@ const DashboardInstructions = memo(function DashboardInstructions({
             filePath={filePath}
             repoName={repoName}
             files={files}
+            directories={directories}
             fileChangeRequests={fileChangeRequests}
             setFileChangeRequests={setFileChangeRequests}
           />
-          <InstructionsFCR
+          <FCRList
             repoName={repoName}
             files={files}
             fileChangeRequests={fileChangeRequests}

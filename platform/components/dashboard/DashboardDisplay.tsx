@@ -239,7 +239,7 @@ const DashboardDisplay = () => {
         return { value: file, label: file };
       });
       directories = directories.map((directory: string) => {
-        return { value: directory, label: directory };
+        return { value: directory + "/", label: directory + "/" };
       })
       setFiles(newFiles);
       setDirectories(directories)
@@ -311,6 +311,7 @@ const DashboardDisplay = () => {
           setRepoName={setRepoName}
           setStreamData={setStreamData}
           files={files}
+          directories={directories}
           fileChangeRequests={fileChangeRequests}
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
