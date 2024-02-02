@@ -199,6 +199,7 @@ const FCRList = memo(function FCRList({
                 />
               ) : (
                 <FCRModify
+                  key={index}
                   repoName={repoName}
                   setFileChangeRequests={setFileChangeRequests}
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
@@ -219,7 +220,6 @@ const FCRList = memo(function FCRList({
                   fcrInstructions={fcrInstructions}
                   setFCRInstructions={setFCRInstructions}
                   setUserSuggestion={setUserSuggestion}
-                  key={index}
                 />
               )
             ))}

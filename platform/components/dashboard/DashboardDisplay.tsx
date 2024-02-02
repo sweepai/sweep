@@ -173,7 +173,7 @@ const DashboardDisplay = () => {
         ];
       });
     } catch (error) {
-      console.error("Error in setOldFileByFCR: ", error);
+      console.error("Error in setOldFileForFCR: ", error);
     }
   };
 

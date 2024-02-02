@@ -1,4 +1,4 @@
-import React, { ReactNode, memo, useState } from "react";
+import React, { ReactNode, memo, useEffect, useState } from "react";
 import { getFile, writeFile } from "../../../lib/api.service";
 import { Snippet } from "../../../lib/search";
 import { FileChangeRequest } from "../../../lib/types";
@@ -9,8 +9,9 @@ import { Badge } from "../../ui/badge";
 import { Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
 
-const instructionsPlaceholder = `Tell Sweep what this new file should do.`;
+const instructionsPlaceholder = `Give this new file a name and tell Sweep what this new file should do. Mention another file Sweep should look at with "@filename"`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -75,6 +76,12 @@ const FCRCreate = memo(function FCRCreate({
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
   setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element;
 }) {
+  const [newFileName, setNewFileName] = useState("");
+
+  useEffect(() => {
+    setNewFileName(fcr.snippet.file.split("/")[fcr.snippet.file.split("/").length - 1]);
+  }, 
+  [fcr]);
   return (
     <Draggable
       key={fcr.snippet.file}
@@ -102,13 +109,39 @@ const FCRCreate = memo(function FCRCreate({
               className={`justify-between p-2 ${getDynamicClassNames(fcr, index)} rounded font-sm font-mono items-center`}
             >
               <div className="flex flex-row w-full items-center">
-                <span>
+                <span className="flex flex-row items-center">
                   {
-                    fcr.snippet.file.split("/")[
-                    fcr.snippet.file.split("/").length - 1
-                    ]
+                    fcr.snippet.file.split("/").slice(0, fcr.snippet.file.split("/").length - 1).join("/") + "/"
                   }
-                  :{fcr.snippet.start}-{fcr.snippet.end}
+                  <Input 
+                    placeholder="your_file_name.ext" 
+                    value={newFileName}
+                    onChange={(e: any) => {
+                      setNewFileName(e.target.value);
+                    }}
+                    onBlur={(e: any) => {
+                      let currentFilePath = fcr.snippet.file.split("/");
+                      currentFilePath[currentFilePath.length - 1] = e.target.value;
+                      let newFilePath = currentFilePath.join("/");
+                      setFCRInstructions((prev: any) => {
+                        return {
+                          ...prev,
+                          [newFilePath]: prev[fcr.snippet.file],
+                        };
+                      });
+                      setFileChangeRequests((prev: FileChangeRequest[]) => [
+                        ...prev.slice(0, index),
+                        {
+                          ...prev[index],
+                          snippet: {
+                            ...prev[index].snippet,
+                            file: newFilePath,
+                          },
+                        },
+                        ...prev.slice(index + 1),
+                      ]);
+                    }}
+                  />
                 </span>
                 <Button
                   size="sm"
@@ -131,13 +164,13 @@ const FCRCreate = memo(function FCRCreate({
             </div>
             <MentionsInput
               className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput"
+              disabled={!newFileName}
               placeholder={instructionsPlaceholder}
               value={fcrInstructions[fcr.snippet.file as string]}
               onClick={(e: any) => {
                 setCurrentFileChangeRequestIndex(index);
               }}
               onChange={(e: any) => {
-                console.log("current insturcitons", fcr.instructions);
                 setFileChangeRequests((prev: FileChangeRequest[]) => [
                   ...prev.slice(0, index),
                   {
@@ -170,8 +203,6 @@ const FCRCreate = memo(function FCRCreate({
                 data={mentionFiles}
                 renderSuggestion={setUserSuggestion}
                 onAdd={async (currentValue) => {
-                  console.log("current value", currentValue);
-                  console.log("isntructions are", fcr.instructions);
                   const contents = (
                     await getFile(repoName, currentValue.toString())
                   ).contents;
@@ -223,7 +254,7 @@ const FCRCreate = memo(function FCRCreate({
                     size="sm"
                     className="mr-2"
                     onClick={(e: any) => {
-                      // syncFCRInstructions();
+                      //console.log("clicked play button!", fcr)
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}
@@ -250,13 +281,9 @@ const FCRCreate = memo(function FCRCreate({
                   size="sm"
                   variant="secondary"
                   onClick={async () => {
-                    const response = await getFile(
-                      repoName,
-                      fcr.snippet.file,
-                    );
-                    setFileForFCR(response.contents, fcr);
-                    setOldFileForFCR(response.contents, fcr);
-                    toast.success("File synced from storage!", {
+                    setFileForFCR("", fcr);
+                    setOldFileForFCR("", fcr);
+                    toast.success("Reset new File", {
                       action: { label: "Dismiss", onClick: () => { } },
                     });
                     setCurrentFileChangeRequestIndex(index);

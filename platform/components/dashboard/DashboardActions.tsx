@@ -37,31 +37,29 @@ import { posthogMetadataScript } from "@/lib/posthog";
 
 const Diff = require("diff");
 
-const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more. If the user requests multiple changes, you must make the changes one at a time and finish each change fully before moving onto the next change.
+const systemMessagePromptCreate = `You are creating a file of code in order to solve a user's request. You will follow the request under "# Request" and respond based on the format under "# Format".
 
-You MUST respond in the following arrow diff hunk format:
+# Request
 
-\`\`\`
-<<<<<<< ORIGINAL
-The first code block to replace. Ensure the indentation is valid. MUST be non-empty and copied EXACTLY from the original code file.
-=======
-The new code block to replace the first code block. Ensure the indentation and syntax is valid.
->>>>>>> MODIFIED
+file_name: "{filename}"
 
-<<<<<<< ORIGINAL
-The second code block to replace. Ensure the indentation is valid. MUST be non-empty and copied EXACTLY from the original code file.
-=======
-The new code block to replace the second code block. Ensure the indentation and syntax is valid.
->>>>>>> MODIFIED
-\`\`\`
-
-You may write one or multiple diff hunks. The MODIFIED can be empty.`;
+{instructions}`;
 
 const changesMadePrompt = `The following changes have already been made as part of this task in unified diff format:
 
 <changes_made>
 {changesMade}
 </changes_made>`;
+
+const userMessagePromptCreate = `Here are relevant read-only files:
+<read_only_files>
+{readOnlyFiles}
+</read_only_files>
+
+Your job is to create a new code file in order to complete the user's request:
+<user_request>
+{prompt}
+</user_request>`;
 
 const userMessagePrompt = `Here are relevant read-only files:
 <read_only_files>
@@ -113,14 +111,19 @@ const formatUserMessage = (
   fileContents: string,
   snippets: Snippet[],
   patches: string,
+  changeType: string
 ) => {
   const patchesSection =
     patches.trim().length > 0
       ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n"
       : "";
+  let basePrompt = userMessagePrompt
+  if (changeType == "create") {
+    basePrompt = userMessagePromptCreate
+  }
   const userMessage =
     patchesSection +
-    userMessagePrompt
+    basePrompt
       .replace("{prompt}", request)
       .replace("{fileContents}", fileContents)
       .replace(
@@ -135,7 +138,6 @@ const formatUserMessage = (
           )
           .join("\n"),
       );
-  console.log(userMessage);
   return userMessage;
 };
 
@@ -385,14 +387,14 @@ const DashboardActions = ({
     return [newOldCode, newNewCode];
   };
 
-  const parseRegexFromOpenAI = (
+  const parseRegexFromOpenAIModify = (
     response: string,
     fileContents: string,
   ): [string, string] => {
     let errorMessage = "";
-    const diffRegex =
+    const diffRegexModify =
       /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs;
-    const diffMatches: any = response.matchAll(diffRegex)!;
+    const diffMatches: any = response.matchAll(diffRegexModify)!;
     if (!diffMatches) {
       return ["", ""];
     }
@@ -437,6 +439,40 @@ const DashboardActions = ({
     }
     if (!changesMade) {
       errorMessage += "No diff hunks we're found in the response.\n\n";
+    }
+    return [currentFileContents, errorMessage];
+  };
+
+  const parseRegexFromOpenAICreate = (
+    response: string,
+    fileContents: string,
+  ): [string, string] => {
+    let errorMessage = "";
+    const diffRegexCreate = /<new_file(.*?)>(?<newFile>.*)<\/new_file>/gs;
+    const diffMatches: any = response.matchAll(diffRegexCreate)!;
+    if (!diffMatches) {
+      return ["", ""];
+    }
+    var currentFileContents = fileContents;
+    var changesMade = false;
+    for (const diffMatch of diffMatches) {
+      changesMade = true;
+      let newFile = diffMatch.groups!.newFile ?? "";
+
+      if (newFile === undefined) {
+        throw new Error("oldCode or newCode are undefined");
+      }
+      if (newFile.startsWith("\n")) {
+        newFile = newFile.slice(1);
+      }
+      if (newFile.trim().length === 0) {
+        errorMessage += "NEWFILE can not be empty.\n\n";
+        continue;
+      }
+      currentFileContents = newFile;
+    }
+    if (!changesMade) {
+      errorMessage += "No new file was created.\n\n";
     }
     return [currentFileContents, errorMessage];
   };
@@ -488,6 +524,7 @@ const DashboardActions = ({
     return code !== 0 ? stdout + "\n" + stderr : "";
   };
 
+  // modify an existing file or create a new file
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
     var validationOutput = "";
     const patches = fileChangeRequests
@@ -503,9 +540,17 @@ const DashboardActions = ({
 
     setIsLoading(true, fcr);
     setOutputToggle("llm");
-    const url = "/api/openai/edit";
+    const changeType = fcr.changeType;
+    // by default we modify file
+    let url = "/api/openai/edit";
+    let prompt = fcr.instructions
+    if (changeType === "create") {
+      url = "/api/openai/create"
+      prompt = systemMessagePromptCreate.replace('{instructions}', fcr.instructions).replace('{filename}', fcr.snippet.file)
+    }
+
     const body = {
-      prompt: fcr.instructions,
+      prompt: prompt,
       snippets: Object.values(fcr.readOnlySnippets),
     };
     const additionalMessages: Message[] = [];
@@ -516,7 +561,12 @@ const DashboardActions = ({
       currentContents,
       Object.values(fcr.readOnlySnippets),
       patches,
+      changeType
     );
+
+    if (changeType === "create") {
+      userMessage = systemMessagePromptCreate.replace('{instructions}', fcr.instructions).replace('{filename}', fcr.snippet.file) + userMessage
+    }
 
     isRunningRef.current = true;
     setScriptOutput(validationOutput);
@@ -552,7 +602,6 @@ const DashboardActions = ({
           "{error_message}",
           errorMessage.trim(),
         );
-        console.log("retryMessage", retryMessage);
         userMessage = retryMessage;
       }
       const response = await fetch(url, {
@@ -581,11 +630,23 @@ const DashboardActions = ({
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
           if (done) {
-            const [updatedFile, patchingErrors] = parseRegexFromOpenAI(
-              rawText || "",
-              currentContents,
-            );
-            // console.log(patchingErrors)
+            let updatedFile = "";
+            let patchingErrors = "";
+            if (changeType == "modify") {
+              let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
+                rawText || "",
+                currentContents,
+              );
+              updatedFile = newUpdatedFile;
+              patchingErrors = newPatchingErrors;
+            } else if (changeType == "create") {
+              let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
+                rawText || "",
+                currentContents,
+              );
+              updatedFile = newUpdatedFile;
+              patchingErrors = newPatchingErrors;
+            }
             if (patchingErrors) {
               errorMessage += patchingErrors;
             } else {
@@ -606,10 +667,13 @@ const DashboardActions = ({
           rawText += text;
           setStreamData((prev: string) => prev + text);
           try {
-            let [updatedFile, _] = parseRegexFromOpenAI(
-              rawText,
-              fcr.snippet.entireFile,
-            );
+            let updatedFile = "";
+            let _ = "";
+            if (changeType == "modify") {
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText,fcr.snippet.entireFile);
+            } else if (changeType == "create") {
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText,fcr.snippet.entireFile);
+            }
             updateIfChanged(updatedFile);
           } catch (e) {
             console.error(e);
@@ -664,10 +728,12 @@ const DashboardActions = ({
     isRunningRef.current = false;
   };
 
-  // this needs to be async but its sync right now, fix later
+
+  // syncronously modify/create all files
   const getAllFileChanges = async (fcrs: FileChangeRequest[]) => {
     for (let index = 0; index < fcrs.length; index++) {
-      await getFileChanges(fcrs[index], index);
+      const fcr = fcrs[index]
+      await getFileChanges(fcr, index);
     }
   };
 

@@ -10,7 +10,7 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
 
-const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
+const instructionsPlaceholder = `Tell Sweep what modifications you want here. Mention another file Sweep should look at with "@filename"`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -137,7 +137,6 @@ const FCRModify = memo(function FCRModify({
                 setCurrentFileChangeRequestIndex(index);
               }}
               onChange={(e: any) => {
-                console.log("current insturcitons", fcr.instructions);
                 setFileChangeRequests((prev: FileChangeRequest[]) => [
                   ...prev.slice(0, index),
                   {
@@ -170,8 +169,6 @@ const FCRModify = memo(function FCRModify({
                 data={mentionFiles}
                 renderSuggestion={setUserSuggestion}
                 onAdd={async (currentValue) => {
-                  console.log("current value", currentValue);
-                  console.log("isntructions are", fcr.instructions);
                   const contents = (
                     await getFile(repoName, currentValue.toString())
                   ).contents;
@@ -224,6 +221,7 @@ const FCRModify = memo(function FCRModify({
                     className="mr-2"
                     onClick={(e: any) => {
                       // syncFCRInstructions();
+                      //console.log("current fcr", fcr)
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}
