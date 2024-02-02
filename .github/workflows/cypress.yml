@@ -10,6 +10,44 @@ on:
       - main
 
 jobs:
+  install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        # Add more browsers later
+        browser: [chrome]
+        node: [18, 20, 21]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Cypress install
+        uses: cypress-io/github-action@v6
+        with:
+          install: pnpm i
+          runTests: false
+          build: pnpm build
+        # with:
+        #   build: pnpm run build
+        #   start: pnpm start
+        #   browser: ${{ matrix.browser }}
+        #   wait-on: 'http://localhost:3000' # Waits for above
+        #   record: true
+        #   working-directory: platform
+        # env:
+        #   CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+      - name: Save build folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: .next
+          if-no-files-found: error
+          path: .next
   e2e:
     runs-on: ${{ matrix.os }}
     strategy:
