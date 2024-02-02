@@ -90,7 +90,7 @@ send_event "assistant_install_started"
 if ! command -v npm &> /dev/null
 then
     echo -e "${RED}npm could not be found, please install npm and try again.${NC}"
-    exit
+    exit 1
 fi
 
 NODE_VERSION=$(node -v)
@@ -111,7 +111,7 @@ read OPENAI_API_KEY
 if [ -z "$OPENAI_API_KEY" ]
 then
     echo -e "${RED}OpenAI API key is required.${NC}"
-    exit
+    exit 1
 fi
 
 # echo -e -n "${BLUE}Enable telemetry to help us improve the product? (Y/n): ${NC}"
