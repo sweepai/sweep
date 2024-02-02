@@ -27,6 +27,7 @@ if (typeof window !== 'undefined') {
     // if (process.env.NODE_ENV === 'development') {
     //     posthog.debug(true)
     // }
+    posthog.debug(false)
 }
 
 export default posthog
