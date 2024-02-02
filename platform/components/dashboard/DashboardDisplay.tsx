@@ -48,7 +48,8 @@ const DashboardDisplay = () => {
     useLocalStorage("currentFileChangeRequestIndex", 0);
   const [versionNumber, setVersionNumber] = useState("");
 
-  const [files, setFiles] = useState<{ label: string; name: string }[]>([]);
+  const [files, setFiles] = useLocalStorage<{ label: string; name: string }[]>("files",[]);
+  const [directories, setDirectories] = useLocalStorage<{ label: string; name: string }[]>("directories",[]);
 
   const filePath =
     fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
@@ -231,11 +232,17 @@ const DashboardDisplay = () => {
 
   useEffect(() => {
     (async () => {
-      let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
+      const filesAndDirectories = await getFiles(repoName, blockedGlobs, fileLimit);
+      let newFiles = filesAndDirectories.sortedFiles;
+      let directories = filesAndDirectories.directories;
       newFiles = newFiles.map((file: string) => {
         return { value: file, label: file };
       });
+      directories = directories.map((directory: string) => {
+        return { value: directory, label: directory };
+      })
       setFiles(newFiles);
+      setDirectories(directories)
     })();
   }, [repoName, blockedGlobs, fileLimit]);
 
