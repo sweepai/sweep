@@ -48,6 +48,7 @@ jobs:
           if-no-files-found: error
           path: platform/.next
   e2e:
+    needs: install
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
