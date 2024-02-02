@@ -23,10 +23,6 @@ if (typeof window !== 'undefined') {
     if (process.env.NO_TELEMETRY || false) {
         posthog.opt_out_capturing()
     }
-
-    // if (process.env.NODE_ENV === 'development') {
-    //     posthog.debug(true)
-    // }
     posthog.debug(false)
 }
 

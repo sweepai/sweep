@@ -204,6 +204,7 @@ const DashboardActions = ({
   //   {} as { [key: string]: Snippet },
   // );
   const isRunningRef = useRef(false)
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
   const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
   const setInstructions = (instructions: string) => {
     setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -608,17 +609,15 @@ const DashboardActions = ({
         >
           <div className="flex flex-row justify-between items-center mb-2">
             <Label className="mb-0">Repository Settings&nbsp;&nbsp;</Label>
-            <CollapsibleTrigger>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
-              >
-                {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
-                <CaretSortIcon className="h-4 w-4" />
-                <span className="sr-only">Toggle</span>
-              </Button>
-            </CollapsibleTrigger>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
+            >
+              {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
+              <CaretSortIcon className="h-4 w-4" />
+              <span className="sr-only">Toggle</span>
+            </Button>
           </div>
           <CollapsibleContent className="CollapsibleContent">
             <Label className="mb-2">Repository Path</Label>
@@ -712,12 +711,10 @@ const DashboardActions = ({
         <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
           <div className="flex flex-row justify-between items-center mt-2 mb-2">
             <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
-              <AlertDialog>
-                <AlertDialogTrigger>
-                  <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2">
-                    <FaQuestion style={{fontSize: 12 }} />
-                  </Button>
-                </AlertDialogTrigger>
+              <AlertDialog open={alertDialogOpen}>
+                <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
+                  <FaQuestion style={{fontSize: 12 }} />
+                </Button>
                 <Switch
                   checked={doValidate}
                   onClick={() => setDoValidate(!doValidate)}
@@ -778,7 +775,7 @@ const DashboardActions = ({
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>
+                    <AlertDialogCancel onClick={() => setAlertDialogOpen(false)}>
                       Close
                     </AlertDialogCancel>
                   </AlertDialogFooter>
@@ -807,16 +804,14 @@ const DashboardActions = ({
               <FaPlay />
               &nbsp;&nbsp;Run Tests
             </Button>
-            <CollapsibleTrigger>
-              <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
-                { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
-                <CaretSortIcon className="h-4 w-4" />
-                <span className="sr-only">Toggle</span>
-              </Button>
-            </CollapsibleTrigger>
+            <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
+              { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
+              <CaretSortIcon className="h-4 w-4" />
+              <span className="sr-only">Toggle</span>
+            </Button>
           </div>
           <CollapsibleContent className="pt-2 CollapsibleContent">
-            <Label 
+            <Label
               className="mb-0"
             >
               Validation Script&nbsp;
