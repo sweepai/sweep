@@ -195,7 +195,6 @@ const DashboardActions = ({
   const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
   const [testScript, setTestScript] = useLocalStorage("testScript", "");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
-  const [open, setOpen] = useState(false);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
   const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen", false);
   const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
@@ -689,8 +688,6 @@ const DashboardActions = ({
         <DashboardInstructions
           filePath={filePath}
           repoName={repoName}
-          open={open}
-          setOpen={setOpen}
           files={files}
           instructions={instructions}
           setInstructions={setInstructions}

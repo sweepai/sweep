@@ -34,8 +34,6 @@ const capitalize = (s: string) => {
 const DashboardInstructions = memo(function DashboardInstructions({
   filePath,
   repoName,
-  open,
-  setOpen,
   files,
   instructions,
   setInstructions,
@@ -55,8 +53,6 @@ const DashboardInstructions = memo(function DashboardInstructions({
 } : {
   filePath: string;
   repoName: string;
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   files: { label: string; name: string }[];
   instructions: string;
   setInstructions: (instructions: string) => void;
@@ -74,6 +70,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>
 }) {
+  const [open, setOpen] = useState(false);
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
     if (index === currentFileChangeRequestIndex) { // current selected fcr
@@ -161,7 +158,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
                   className="w-full justify-between overflow-hidden"
                   disabled={files.length === 0}
                 >
-                  Add files for Sweep to modify
+                  Modify Files
                   <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
