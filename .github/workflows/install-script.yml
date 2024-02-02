@@ -10,12 +10,12 @@ on:
       - main
 
 jobs:
-  build:
+  install:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: [18, 21]
+        node: [18, 19, 20, 21]
         shell: [bash, zsh]
     steps:
       - uses: actions/checkout@v2

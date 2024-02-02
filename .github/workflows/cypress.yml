@@ -1,4 +1,4 @@
-name: Platform Build
+name: Cypress Tests
 
 on:
   pull_request:
@@ -10,12 +10,12 @@ on:
       - main
 
 jobs:
-  build:
+  e2e:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: [18, 19, 20, 21]
+        node: [18]
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node }}
@@ -26,5 +26,5 @@ jobs:
         working-directory: platform
       - run: npm run build
         working-directory: platform
-      - run: npm run lint
+      - run: npm run test:e2e
         working-directory: platform
