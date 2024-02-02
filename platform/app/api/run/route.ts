@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as Body;
   const { repo, filePath, script } = body;
   let command = `cd ${repo} && export FILE_PATH=${filePath}`;
-  if (script) { // optional script
+  if (script) {
+    // optional script
     command += ` && ${script}`;
   }
   try {

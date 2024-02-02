@@ -1,4 +1,4 @@
-import posthog from 'posthog-js'
+import posthog from "posthog-js";
 
 const posthogMetadataScript = String.raw`echo '{
     "email": "'"$(git config --global user.email 2>/dev/null || echo "N/A")"'",
@@ -15,16 +15,27 @@ const posthogMetadataScript = String.raw`echo '{
     "npm_version": "'"$(npm -v 2>/dev/null || echo "N/A")"'",
     "nvm_version": "'"$(nvm --version 2>/dev/null || echo "N/A")"'",
     "ip_address": "'"$(ip addr show 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -n1 || echo "N/A")"'"
-}'`
+}'`;
 
-if (typeof window !== 'undefined') {
-    posthog.init('phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n')
+if (typeof window !== "undefined") {
+  posthog.init("phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n");
 
+<<<<<<< HEAD
     if (process.env.NO_TELEMETRY || false) {
         posthog.opt_out_capturing()
     }
     posthog.debug(false)
+=======
+  if (process.env.NO_TELEMETRY || false) {
+    posthog.opt_out_capturing();
+  }
+
+  // if (process.env.NODE_ENV === 'development') {
+  //     posthog.debug(true)
+  // }
+  posthog.debug(false);
+>>>>>>> origin/main
 }
 
-export default posthog
-export { posthogMetadataScript }
+export default posthog;
+export { posthogMetadataScript };

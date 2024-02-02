@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Input } from "../ui/input";
 import { ResizablePanel } from "../ui/resizable";
@@ -20,13 +20,22 @@ import {
 import { Snippet } from "../../lib/search";
 import DashboardInstructions from "./DashboardInstructions";
 import { FileChangeRequest, Message } from "../../lib/types";
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 import { usePostHog } from "posthog-js/react";
 import { posthogMetadataScript } from "@/lib/posthog";
 
-const Diff = require('diff');
+const Diff = require("diff");
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to modify a code file. When you write code, the code works on the first try and is syntactically perfect. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current code's language, code style and what the user is attempting to accomplish. You are to follow the instructions exactly and do nothing more. If the user requests multiple changes, you must make the changes one at a time and finish each change fully before moving onto the next change.
 
@@ -52,7 +61,7 @@ const changesMadePrompt = `The following changes have already been made as part 
 
 <changes_made>
 {changesMade}
-</changes_made>`
+</changes_made>`;
 
 const userMessagePrompt = `Here are relevant read-only files:
 <read_only_files>
@@ -97,8 +106,7 @@ const createPatch = (filePath: string, oldFile: string, newFile: string) => {
     return "";
   }
   return Diff.createPatch(filePath, oldFile, newFile);
-}
-
+};
 
 const formatUserMessage = (
   request: string,
@@ -106,24 +114,29 @@ const formatUserMessage = (
   snippets: Snippet[],
   patches: string,
 ) => {
-  const patchesSection = patches.trim().length > 0 ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n" : "";
-  const userMessage = patchesSection + userMessagePrompt
-    .replace("{prompt}", request)
-    .replace("{fileContents}", fileContents)
-    .replace(
-      "{readOnlyFiles}",
-      snippets
-        .map((snippet) =>
-          readOnlyFileFormat
-            .replace("{file}", snippet.file)
-            .replace("{start_line}", snippet.start.toString())
-            .replace("{end_line}", snippet.end.toString())
-            .replace("{contents}", snippet.content),
-        )
-        .join("\n"),
-    )
-  console.log(userMessage)
-  return userMessage
+  const patchesSection =
+    patches.trim().length > 0
+      ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n"
+      : "";
+  const userMessage =
+    patchesSection +
+    userMessagePrompt
+      .replace("{prompt}", request)
+      .replace("{fileContents}", fileContents)
+      .replace(
+        "{readOnlyFiles}",
+        snippets
+          .map((snippet) =>
+            readOnlyFileFormat
+              .replace("{file}", snippet.file)
+              .replace("{start_line}", snippet.start.toString())
+              .replace("{end_line}", snippet.end.toString())
+              .replace("{contents}", snippet.content),
+          )
+          .join("\n"),
+      );
+  console.log(userMessage);
+  return userMessage;
 };
 
 const DashboardActions = ({
@@ -145,6 +158,7 @@ const DashboardActions = ({
   setRepoName,
   setStreamData,
   files,
+  directories,
   fileChangeRequests,
   setFileChangeRequests,
   currentFileChangeRequestIndex,
@@ -176,10 +190,15 @@ const DashboardActions = ({
   setRepoName: React.Dispatch<React.SetStateAction<string>>;
   setStreamData: React.Dispatch<React.SetStateAction<string>>;
   files: { label: string; name: string }[];
+  directories: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<React.SetStateAction<FileChangeRequest[]>>;
+  setFileChangeRequests: React.Dispatch<
+    React.SetStateAction<FileChangeRequest[]>
+  >;
   currentFileChangeRequestIndex: number;
-  setCurrentFileChangeRequestIndex: React.Dispatch<React.SetStateAction<number>>;
+  setCurrentFileChangeRequestIndex: React.Dispatch<
+    React.SetStateAction<number>
+  >;
   setHideMergeAll: (newHideMerge: boolean) => void;
   setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
   setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
@@ -190,15 +209,22 @@ const DashboardActions = ({
   setOutputToggle: (newOutputToggle: string) => void;
 }) => {
   const posthog = usePostHog();
-  const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
-  const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`
-  const [validationScript, setValidationScript] = useLocalStorage("validationScript", "")
+  const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`;
+  const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`;
+  const [validationScript, setValidationScript] = useLocalStorage(
+    "validationScript",
+    "",
+  );
   const [testScript, setTestScript] = useLocalStorage("testScript", "");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
-  const [open, setOpen] = useState(false);
-  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage("repoNameCollapsibleOpen", repoName === "");
-  const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] = useLocalStorage("validationScriptCollapsibleOpen", false);
+  const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage(
+    "repoNameCollapsibleOpen",
+    repoName === "",
+  );
+  const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] =
+    useLocalStorage("validationScriptCollapsibleOpen", false);
   const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
+<<<<<<< HEAD
   // const [snippets, setSnippets] = useLocalStorage(
   //   "snippets",
   //   {} as { [key: string]: Snippet },
@@ -219,47 +245,61 @@ const DashboardActions = ({
       });
     });
   }
+=======
+  const isRunningRef = useRef(false);
+>>>>>>> origin/main
 
   // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
-  const setReadOnlySnippetForFCR = (fcr: FileChangeRequest, readOnlySnippet: Snippet) => {
+  const setReadOnlySnippetForFCR = (
+    fcr: FileChangeRequest,
+    readOnlySnippet: Snippet,
+  ) => {
     try {
       fcr.readOnlySnippets[readOnlySnippet.file] = readOnlySnippet;
-      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      const fcrIndex = fileChangeRequests.findIndex(
+        (fileChangeRequest: FileChangeRequest) =>
+          fileChangeRequest.snippet.file === fcr.snippet.file,
+      );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          fcr,
-          ...prev.slice(fcrIndex + 1)
-        ]
+        return [...prev.slice(0, fcrIndex), fcr, ...prev.slice(fcrIndex + 1)];
       });
     } catch (error) {
-      console.error("Error in setReadOnlySnippetForFCR: ",error);
+      console.error("Error in setReadOnlySnippetForFCR: ", error);
     }
-  }
+  };
 
-  const removeReadOnlySnippetForFCR = (fcr: FileChangeRequest, snippetFile: string) => {
+  const removeReadOnlySnippetForFCR = (
+    fcr: FileChangeRequest,
+    snippetFile: string,
+  ) => {
     try {
       delete fcr.readOnlySnippets[snippetFile];
-      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+      const fcrIndex = fileChangeRequests.findIndex(
+        (fileChangeRequest: FileChangeRequest) =>
+          fileChangeRequest.snippet.file === fcr.snippet.file,
+      );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          fcr,
-          ...prev.slice(fcrIndex + 1)
-        ]
+        return [...prev.slice(0, fcrIndex), fcr, ...prev.slice(fcrIndex + 1)];
       });
     } catch (error) {
-      console.error("Error in removeReadOnlySnippetForFCR: ",error);
+      console.error("Error in removeReadOnlySnippetForFCR: ", error);
     }
-  }
+  };
 
-  const setReadOnlyFilesOpen = (newOpen: boolean, fcr: FileChangeRequest, index: number | undefined = undefined) => {
+  const setReadOnlyFilesOpen = (
+    newOpen: boolean,
+    fcr: FileChangeRequest,
+    index: number | undefined = undefined,
+  ) => {
     try {
       let fcrIndex = index;
       if (typeof index === "undefined") {
-        fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) => fileChangeRequest.snippet.file === fcr.snippet.file);
+        fcrIndex = fileChangeRequests.findIndex(
+          (fileChangeRequest: FileChangeRequest) =>
+            fileChangeRequest.snippet.file === fcr.snippet.file,
+        );
       }
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -267,15 +307,15 @@ const DashboardActions = ({
           ...prev.slice(0, fcrIndex),
           {
             ...prev[fcrIndex!],
-            openReadOnlyFiles: newOpen
+            openReadOnlyFiles: newOpen,
           },
-          ...prev.slice(fcrIndex! + 1)
-        ]
-      })
+          ...prev.slice(fcrIndex! + 1),
+        ];
+      });
     } catch (error) {
-      console.error("Error in setReadOnlyFilesOpen: ",error);
+      console.error("Error in setReadOnlyFilesOpen: ", error);
     }
-  }
+  };
 
   useEffect(() => {
     (async () => {
@@ -290,7 +330,12 @@ const DashboardActions = ({
   }, [repoName]);
 
   const runScriptWrapper = async (newFile: string) => {
-    const response = await runScript(repoName, filePath, validationScript + "\n" + testScript, newFile);
+    const response = await runScript(
+      repoName,
+      filePath,
+      validationScript + "\n" + testScript,
+      newFile,
+    );
     const { code } = response;
     let scriptOutput = response.stdout + "\n" + response.stderr;
     if (code != 0) {
@@ -304,7 +349,7 @@ const DashboardActions = ({
             {response.stderr.slice(0, 800)}
           </div>,
         ],
-        action: { label: "Dismiss", onClick: () => { } }
+        action: { label: "Dismiss", onClick: () => {} },
       });
     } else {
       toast.success("The script ran successfully", {
@@ -312,7 +357,7 @@ const DashboardActions = ({
           <div key="stdout">{response.stdout.slice(0, 800)}</div>,
           <div key="stderr">{response.stderr.slice(0, 800)}</div>,
         ],
-        action: { label: "Dismiss", onClick: () => { } }
+        action: { label: "Dismiss", onClick: () => {} },
       });
     }
     setScriptOutput(scriptOutput);
@@ -348,7 +393,10 @@ const DashboardActions = ({
     return [newOldCode, newNewCode];
   };
 
-  const parseRegexFromOpenAI = (response: string, fileContents: string): [string, string] => {
+  const parseRegexFromOpenAI = (
+    response: string,
+    fileContents: string,
+  ): [string, string] => {
     let errorMessage = "";
     const diffRegex =
       /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs;
@@ -372,7 +420,7 @@ const DashboardActions = ({
       }
       if (oldCode.trim().length === 0) {
         errorMessage += "ORIGINAL code block can not be empty.\n\n";
-        continue
+        continue;
       }
       if (!currentFileContents.includes(oldCode)) {
         const [newOldCode, newNewCode]: [string, string] = softIndentationCheck(
@@ -402,11 +450,18 @@ const DashboardActions = ({
   };
 
   const checkCode = async (sourceCode: string, filePath: string) => {
-    const response = await fetch("/api/files/check?" + new URLSearchParams({ filePath, sourceCode }).toString());
+    const response = await fetch(
+      "/api/files/check?" +
+        new URLSearchParams({ filePath, sourceCode }).toString(),
+    );
     return await response.text();
-  }
+  };
 
-  const checkForErrors = async (filePath: string, oldFile: string, newFile: string) => {
+  const checkForErrors = async (
+    filePath: string,
+    oldFile: string,
+    newFile: string,
+  ) => {
     if (!doValidate) {
       return "";
     }
@@ -415,28 +470,44 @@ const DashboardActions = ({
     if (!parsingErrorMessageOld && parsingErrorMessage) {
       return parsingErrorMessage;
     }
-    var { stdout, stderr, code } = await runScript(repoName, filePath, validationScript, oldFile);
+    var { stdout, stderr, code } = await runScript(
+      repoName,
+      filePath,
+      validationScript,
+      oldFile,
+    );
     if (code !== 0) {
-      toast.error("An error occured while running the validation script. Please disable it or configure it properly (see bottom left).", {
-        description: stdout + "\n" + stderr,
-        action: { label: "Dismiss", onClick: () => { } }
-      });
-      return ""
+      toast.error(
+        "An error occured while running the validation script. Please disable it or configure it properly (see bottom left).",
+        {
+          description: stdout + "\n" + stderr,
+          action: { label: "Dismiss", onClick: () => {} },
+        },
+      );
+      return "";
     }
-    var { stdout, stderr, code } = await runScript(repoName, filePath, validationScript, newFile);
+    var { stdout, stderr, code } = await runScript(
+      repoName,
+      filePath,
+      validationScript,
+      newFile,
+    );
     // TODO: add diff
-    return code !== 0 ? stdout + "\n" + stderr: "";
-  }
+    return code !== 0 ? stdout + "\n" + stderr : "";
+  };
 
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
     var validationOutput = "";
-    const patches = fileChangeRequests.slice(0, index).map((fcr: FileChangeRequest) => {
-      return createPatch(
-        fcr.snippet.file,
-        fcr.snippet.entireFile,
-        fcr.newContents,
-      );
-    }).join("\n\n");
+    const patches = fileChangeRequests
+      .slice(0, index)
+      .map((fcr: FileChangeRequest) => {
+        return createPatch(
+          fcr.snippet.file,
+          fcr.snippet.entireFile,
+          fcr.newContents,
+        );
+      })
+      .join("\n\n");
 
     setIsLoading(true, fcr);
     setOutputToggle("llm");
@@ -447,40 +518,50 @@ const DashboardActions = ({
     };
     const additionalMessages: Message[] = [];
     var currentContents = fcr.snippet.entireFile.replace(/\\n/g, "\\n");
-    let errorMessage = ""
+    let errorMessage = "";
     let userMessage = formatUserMessage(
       fcr.instructions,
       currentContents,
       Object.values(fcr.readOnlySnippets),
-      patches
-    )
+      patches,
+    );
 
-    isRunningRef.current = true
+    isRunningRef.current = true;
     setScriptOutput(validationOutput);
     setStreamData("");
     if (!hideMerge) {
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         setHideMerge(true, fcr);
         setFileForFCR(prev[index].snippet.entireFile, fcr);
-        return prev
-      })
+        return prev;
+      });
     }
 
     for (let i = 0; i < 3; i++) {
       if (!isRunningRef.current) {
         setIsLoading(false, fcr);
-        return
+        return;
       }
       if (i !== 0) {
-        var retryMessage = ""
+        var retryMessage = "";
         if (fcr.snippet.entireFile === currentContents) {
-          retryMessage = retryChangesMadePrompt.replace("{changes_made}", createPatch(fcr.snippet.file, fcr.snippet.entireFile, currentContents))
+          retryMessage = retryChangesMadePrompt.replace(
+            "{changes_made}",
+            createPatch(
+              fcr.snippet.file,
+              fcr.snippet.entireFile,
+              currentContents,
+            ),
+          );
         } else {
-          retryMessage = retryPrompt
+          retryMessage = retryPrompt;
         }
-        retryMessage = retryMessage.replace("{error_message}", errorMessage.trim());
-        console.log("retryMessage", retryMessage)
-        userMessage = retryMessage
+        retryMessage = retryMessage.replace(
+          "{error_message}",
+          errorMessage.trim(),
+        );
+        console.log("retryMessage", retryMessage);
+        userMessage = retryMessage;
       }
       const response = await fetch(url, {
         method: "POST",
@@ -488,17 +569,17 @@ const DashboardActions = ({
           ...body,
           fileContents: currentContents,
           additionalMessages,
-          userMessage
+          userMessage,
         }),
-      })
+      });
       additionalMessages.push({ role: "user", content: userMessage });
-      errorMessage = ""
+      errorMessage = "";
       const updateIfChanged = (newContents: string) => {
         if (newContents !== currentContents) {
           setFileForFCR(newContents, fcr);
           currentContents = newContents;
         }
-      }
+      };
       try {
         const reader = response.body!.getReader();
         const decoder = new TextDecoder("utf-8");
@@ -508,79 +589,95 @@ const DashboardActions = ({
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
           if (done) {
-            const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", currentContents)
+            const [updatedFile, patchingErrors] = parseRegexFromOpenAI(
+              rawText || "",
+              currentContents,
+            );
             // console.log(patchingErrors)
             if (patchingErrors) {
               errorMessage += patchingErrors;
             } else {
-              errorMessage += await checkForErrors(fcr.snippet.file, fcr.snippet.entireFile, updatedFile);
+              errorMessage += await checkForErrors(
+                fcr.snippet.file,
+                fcr.snippet.entireFile,
+                updatedFile,
+              );
             }
             additionalMessages.push({ role: "assistant", content: rawText });
             updateIfChanged(updatedFile);
-            fcr.newContents = updatedFile // set this to get line and char changes
-            rawText += "\n\n"
-            setStreamData(prev => prev + "\n\n")
+            fcr.newContents = updatedFile; // set this to get line and char changes
+            rawText += "\n\n";
+            setStreamData((prev) => prev + "\n\n");
             break;
           }
           const text = decoder.decode(value);
           rawText += text;
           setStreamData((prev: string) => prev + text);
           try {
-            let [updatedFile, _] = parseRegexFromOpenAI(rawText, fcr.snippet.entireFile);
+            let [updatedFile, _] = parseRegexFromOpenAI(
+              rawText,
+              fcr.snippet.entireFile,
+            );
             updateIfChanged(updatedFile);
           } catch (e) {
-            console.error(e)
+            console.error(e);
           }
         }
         if (!isRunningRef.current) {
           setIsLoading(false, fcr);
-          return
+          return;
         }
         setHideMerge(false, fcr);
         const changeLineCount = Math.abs(
-          fcr.snippet.entireFile.split("\n").length - fcr.newContents.split("\n").length
+          fcr.snippet.entireFile.split("\n").length -
+            fcr.newContents.split("\n").length,
         );
         const changeCharCount = Math.abs(
-          fcr.snippet.entireFile.length - fcr.newContents.length
-        )
+          fcr.snippet.entireFile.length - fcr.newContents.length,
+        );
         if (errorMessage.length > 0) {
-          toast.error("An error occured while generating your code." + (i < 2 ? " Retrying...": " Retried 3 times so I will give up."), {
-            description: errorMessage.slice(0, 800),
-            action: { label: "Dismiss", onClick: () => { } }
-          });
+          toast.error(
+            "An error occured while generating your code." +
+              (i < 2 ? " Retrying..." : " Retried 3 times so I will give up."),
+            {
+              description: errorMessage.slice(0, 800),
+              action: { label: "Dismiss", onClick: () => {} },
+            },
+          );
           validationOutput += "\n\n" + errorMessage;
-          setScriptOutput(validationOutput)
-          continue
+          setScriptOutput(validationOutput);
+          continue;
         } else {
           toast.success(`Successfully modified file!`, {
             description: [
               <div key="stdout">{`There were ${changeLineCount} line and ${changeCharCount} character changes made.`}</div>,
             ],
-            action: { label: "Dismiss", onClick: () => {} }
+            action: { label: "Dismiss", onClick: () => {} },
           });
           setIsLoading(false, fcr);
-          isRunningRef.current = false
-          break
+          isRunningRef.current = false;
+          break;
         }
       } catch (e: any) {
         toast.error("An error occured while generating your code.", {
-          description: e, action: { label: "Dismiss", onClick: () => { } }
+          description: e,
+          action: { label: "Dismiss", onClick: () => {} },
         });
         setIsLoading(false, fcr);
-        isRunningRef.current = false
-        break
+        isRunningRef.current = false;
+        break;
       }
     }
     setIsLoading(false, fcr);
-    isRunningRef.current = false
+    isRunningRef.current = false;
   };
 
   // this needs to be async but its sync right now, fix later
   const getAllFileChanges = async (fcrs: FileChangeRequest[]) => {
     for (let index = 0; index < fcrs.length; index++) {
-      await getFileChanges(fcrs[index], index)
+      await getFileChanges(fcrs[index], index);
     }
-  }
+  };
 
   const saveAllFiles = async (fcrs: FileChangeRequest[]) => {
     for await (const [index, fcr] of fcrs.entries()) {
@@ -588,17 +685,21 @@ const DashboardActions = ({
       setHideMerge(true, fcr);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
-    toast.success(`Succesfully saved ${fcrs.length} files!`, { action: { label: "Dismiss", onClick: () => { } } });
-  }
+    toast.success(`Succesfully saved ${fcrs.length} files!`, {
+      action: { label: "Dismiss", onClick: () => {} },
+    });
+  };
 
   const syncAllFiles = async () => {
-    fileChangeRequests.forEach(async (fcr: FileChangeRequest, index: number) => {
-      const response = await getFile(repoName, fcr.snippet.file);
-      setFileForFCR(response.contents, fcr);
-      setOldFileForFCR(response.contents, fcr);
-      setIsLoading(false, fcr);
-    })
-  }
+    fileChangeRequests.forEach(
+      async (fcr: FileChangeRequest, index: number) => {
+        const response = await getFile(repoName, fcr.snippet.file);
+        setFileForFCR(response.contents, fcr);
+        setOldFileForFCR(response.contents, fcr);
+        setIsLoading(false, fcr);
+      },
+    );
+  };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
       <div className="flex flex-col h-full">
@@ -609,6 +710,7 @@ const DashboardActions = ({
         >
           <div className="flex flex-row justify-between items-center mb-2">
             <Label className="mb-0">Repository Settings&nbsp;&nbsp;</Label>
+<<<<<<< HEAD
             <Button
               variant="secondary"
               size="sm"
@@ -618,6 +720,19 @@ const DashboardActions = ({
               <CaretSortIcon className="h-4 w-4" />
               <span className="sr-only">Toggle</span>
             </Button>
+=======
+            <CollapsibleTrigger>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
+              >
+                {!repoNameCollapsibleOpen ? "Expand" : "Collapse"}&nbsp;&nbsp;
+                <CaretSortIcon className="h-4 w-4" />
+                <span className="sr-only">Toggle</span>
+              </Button>
+            </CollapsibleTrigger>
+>>>>>>> origin/main
           </div>
           <CollapsibleContent className="CollapsibleContent">
             <Label className="mb-2">Repository Path</Label>
@@ -635,7 +750,8 @@ const DashboardActions = ({
                     fileLimit,
                   );
                   toast.success(
-                    "Successfully fetched files from the repository!", { action: { label: "Dismiss", onClick: () => { } } }
+                    "Successfully fetched files from the repository!",
+                    { action: { label: "Dismiss", onClick: () => {} } },
                   );
                   setCurrentRepoName((currentRepoName: string) => {
                     setRepoName(currentRepoName);
@@ -645,7 +761,7 @@ const DashboardActions = ({
                   console.error(e);
                   toast.error("An Error Occured", {
                     description: "Please enter a valid repository name.",
-                    action: { label: "Dismiss", onClick: () => { } }
+                    action: { label: "Dismiss", onClick: () => {} },
                   });
                 }
               }}
@@ -688,11 +804,8 @@ const DashboardActions = ({
         <DashboardInstructions
           filePath={filePath}
           repoName={repoName}
-          open={open}
-          setOpen={setOpen}
           files={files}
-          instructions={instructions}
-          setInstructions={setInstructions}
+          directories={directories}
           fileChangeRequests={fileChangeRequests}
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
@@ -708,17 +821,37 @@ const DashboardActions = ({
           isRunningRef={isRunningRef}
         />
 
-        <Collapsible open={validationScriptCollapsibleOpen} className="border-2 rounded p-4">
+        <Collapsible
+          open={validationScriptCollapsibleOpen}
+          className="border-2 rounded p-4"
+        >
           <div className="flex flex-row justify-between items-center mt-2 mb-2">
+<<<<<<< HEAD
             <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
               <AlertDialog open={alertDialogOpen}>
                 <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
                   <FaQuestion style={{fontSize: 12 }} />
                 </Button>
+=======
+            <Label className="mb-0 flex flex-row items-center">
+              Checks&nbsp;
+              <AlertDialog>
+                <AlertDialogTrigger>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-lg ml-1 mr-2"
+                  >
+                    <FaQuestion style={{ fontSize: 12 }} />
+                  </Button>
+                </AlertDialogTrigger>
+>>>>>>> origin/main
                 <Switch
                   checked={doValidate}
                   onClick={() => setDoValidate(!doValidate)}
-                  disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
+                  disabled={fileChangeRequests.some(
+                    (fcr: FileChangeRequest) => fcr.isLoading,
+                  )}
                 />
                 <AlertDialogContent className="p-12">
                   <AlertDialogHeader>
@@ -727,23 +860,29 @@ const DashboardActions = ({
                     </AlertDialogTitle>
                     <AlertDialogDescription className="text-md pt-4">
                       <p>
-                        We highly recommend setting up the validation script to allow Sweep to iterate against static analysis tools to ensure valid code is generated. You can this off by clicking the switch.
+                        We highly recommend setting up the validation script to
+                        allow Sweep to iterate against static analysis tools to
+                        ensure valid code is generated. You can this off by
+                        clicking the switch.
                       </p>
                       <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
                         Validation Script
                       </h2>
                       <p>
-                        Sweep runs validation after every edit, and will try to auto-fix any errors.
-                        <br/>
-                        <br/>
-                        We recommend a syntax checker (a formatter suffices) and a linter. We also recommend using your local environment, to ensure we use your dependencies.
-                        <br/>
-                        <br/>
+                        Sweep runs validation after every edit, and will try to
+                        auto-fix any errors.
+                        <br />
+                        <br />
+                        We recommend a syntax checker (a formatter suffices) and
+                        a linter. We also recommend using your local
+                        environment, to ensure we use your dependencies.
+                        <br />
+                        <br />
                         For example, for Python you can use:
                         <pre className="py-4">
                           <code>
                             python -m py_compile $FILE_PATH
-                            <br/>
+                            <br />
                             pylint $FILE_PATH --error-only
                           </code>
                         </pre>
@@ -751,7 +890,7 @@ const DashboardActions = ({
                         <pre className="py-4">
                           <code>
                             prettier $FILE_PATH
-                            <br/>
+                            <br />
                             eslint $FILE_PATH
                           </code>
                         </pre>
@@ -760,24 +899,25 @@ const DashboardActions = ({
                         Test Script
                       </h2>
                       <p>
-                        You can run tests after all the files have been edited by Sweep.
-                        <br/>
-                        <br/>
+                        You can run tests after all the files have been edited
+                        by Sweep.
+                        <br />
+                        <br />
                         E.g. For example, for Python you can use:
-                        <pre className="py-4">
-                          pytest $FILE_PATH
-                        </pre>
+                        <pre className="py-4">pytest $FILE_PATH</pre>
                         And for JavaScript you can use:
-                        <pre className="py-4">
-                          jest $FILE_PATH
-                        </pre>
+                        <pre className="py-4">jest $FILE_PATH</pre>
                       </p>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
+<<<<<<< HEAD
                     <AlertDialogCancel onClick={() => setAlertDialogOpen(false)}>
                       Close
                     </AlertDialogCancel>
+=======
+                    <AlertDialogCancel>Close</AlertDialogCancel>
+>>>>>>> origin/main
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -786,24 +926,27 @@ const DashboardActions = ({
             <Button
               variant="secondary"
               onClick={async () => {
-                posthog.capture(
-                  "run_tests", {
-                    name: 'Run Tests',
-                    repoName: repoName,
-                    filePath: filePath,
-                    validationScript: validationScript,
-                    testScript: testScript
-                  }
-                );
+                posthog.capture("run_tests", {
+                  name: "Run Tests",
+                  repoName: repoName,
+                  filePath: filePath,
+                  validationScript: validationScript,
+                  testScript: testScript,
+                });
                 await runScriptWrapper(file);
               }}
-              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
+              disabled={
+                fileChangeRequests.some(
+                  (fcr: FileChangeRequest) => fcr.isLoading,
+                ) || !doValidate
+              }
               size="sm"
               className="mr-2"
             >
               <FaPlay />
               &nbsp;&nbsp;Run Tests
             </Button>
+<<<<<<< HEAD
             <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
               { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
               <CaretSortIcon className="h-4 w-4" />
@@ -817,13 +960,36 @@ const DashboardActions = ({
               Validation Script&nbsp;
 
             </Label>
+=======
+            <CollapsibleTrigger>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  setValidationScriptCollapsibleOpen((open: boolean) => !open)
+                }
+              >
+                {!validationScriptCollapsibleOpen ? "Expand" : "Collapse"}
+                &nbsp;&nbsp;
+                <CaretSortIcon className="h-4 w-4" />
+                <span className="sr-only">Toggle</span>
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent className="pt-2 CollapsibleContent">
+            <Label className="mb-0">Validation Script&nbsp;</Label>
+>>>>>>> origin/main
             <Textarea
               id="script-input"
               placeholder={validationScriptPlaceholder}
               className="col-span-4 w-full font-mono height-fit-content"
               value={validationScript}
               onChange={(e) => setValidationScript(e.target.value)}
-              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
+              disabled={
+                fileChangeRequests.some(
+                  (fcr: FileChangeRequest) => fcr.isLoading,
+                ) || !doValidate
+              }
             ></Textarea>
             <Label className="mb-0">Test Script</Label>
             <Textarea
@@ -832,7 +998,11 @@ const DashboardActions = ({
               className="col-span-4 w-full font-mono height-fit-content"
               value={testScript}
               onChange={(e) => setTestScript(e.target.value)}
-              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading) || !doValidate}
+              disabled={
+                fileChangeRequests.some(
+                  (fcr: FileChangeRequest) => fcr.isLoading,
+                ) || !doValidate
+              }
             ></Textarea>
             <p className="text-sm text-muted-foreground mb-4">
               Use $FILE_PATH to refer to the file you selected. E.g. `python
@@ -849,17 +1019,19 @@ const DashboardActions = ({
                 setIsLoadingAll(true);
                 await getAllFileChanges(fileChangeRequests);
               }}
-              disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
+              disabled={fileChangeRequests.some(
+                (fcr: FileChangeRequest) => fcr.isLoading,
+              )}
             >
               <FaPlay />
               &nbsp;&nbsp;Modify All
             </Button>
-          ): (
+          ) : (
             <Button
               className="mt-4 mr-4"
               variant="secondary"
               onClick={(e) => {
-                isRunningRef.current = false
+                isRunningRef.current = false;
               }}
             >
               <FaStop />
@@ -871,10 +1043,14 @@ const DashboardActions = ({
             variant="secondary"
             onClick={async () => {
               syncAllFiles();
-              toast.success("Files synced from storage!", { action: { label: "Dismiss", onClick: () => { } } });
+              toast.success("Files synced from storage!", {
+                action: { label: "Dismiss", onClick: () => {} },
+              });
               setHideMergeAll(true);
             }}
-            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
+            disabled={fileChangeRequests.some(
+              (fcr: FileChangeRequest) => fcr.isLoading,
+            )}
           >
             <FaArrowsRotate />
             &nbsp;&nbsp;Restart All
@@ -884,7 +1060,9 @@ const DashboardActions = ({
             onClick={async () => {
               saveAllFiles(fileChangeRequests);
             }}
-            disabled={fileChangeRequests.some((fcr: FileChangeRequest) => fcr.isLoading)}
+            disabled={fileChangeRequests.some(
+              (fcr: FileChangeRequest) => fcr.isLoading,
+            )}
           >
             <FaCheck />
             &nbsp;&nbsp;Save All
