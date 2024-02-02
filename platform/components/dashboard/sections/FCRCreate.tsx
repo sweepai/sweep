@@ -115,7 +115,7 @@ const FCRCreate = memo(function FCRCreate({
                   }
                   <Input 
                     placeholder="your_file_name.ext" 
-                    value={newFileName} 
+                    value={newFileName}
                     onChange={(e: any) => {
                       setNewFileName(e.target.value);
                     }}
@@ -254,7 +254,7 @@ const FCRCreate = memo(function FCRCreate({
                     size="sm"
                     className="mr-2"
                     onClick={(e: any) => {
-                      console.log("clicked play button!", fcr)
+                      //console.log("clicked play button!", fcr)
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}

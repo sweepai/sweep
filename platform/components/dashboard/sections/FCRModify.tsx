@@ -221,7 +221,7 @@ const FCRModify = memo(function FCRModify({
                     className="mr-2"
                     onClick={(e: any) => {
                       // syncFCRInstructions();
-                      console.log("current fcr", fcr)
+                      //console.log("current fcr", fcr)
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}
