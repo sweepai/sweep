@@ -16,8 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        # Add more browsers later
-        browser: [chrome]
         node: [18, 20, 21]
     steps:
       - uses: actions/checkout@v2
@@ -33,6 +31,7 @@ jobs:
           install: pnpm i
           runTests: false
           build: pnpm build
+          working-directory: platform
         # with:
         #   build: pnpm run build
         #   start: pnpm start
@@ -48,13 +47,13 @@ jobs:
           name: .next
           if-no-files-found: error
           path: .next
+          working-directory: platform
   e2e:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        # Add more browsers later
         browser: [chrome]
         node: [18, 20, 21]
     steps:
