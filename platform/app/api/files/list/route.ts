@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-
+    directories.delete(rootDir);
     return [nonBinaryFiles.sort((a, b) => b.lastModified - a.lastModified), Array.from(directories)];
   }
 
