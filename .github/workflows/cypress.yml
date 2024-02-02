@@ -16,6 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        browser: [chrome, firefox, safari]
         node: [18, 20, 21]
     steps:
       - uses: actions/checkout@v2
@@ -32,13 +33,12 @@ jobs:
         with:
           build: pnpm run build
           start: pnpm start
-          browser: chrome
+          browser: ${{ matrix.browser }}
           wait-on: 'http://localhost:3000' # Waits for above
           record: true
           working-directory: platform
         env:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
-          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 # jobs:
