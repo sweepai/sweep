@@ -77,7 +77,7 @@
     "tree-sitter-javascript": "^0.20.2",
     "tree-sitter-python": "^0.20.4",
     "tree-sitter-rust": "^0.20.4",
-    "tree-sitter-typescript": "^0.20.4",
+    "tree-sitter-typescript": "^0.20.4"
   },
   "devDependencies": {
     "@babel/core": "^7.23.9",
