@@ -10,42 +10,13 @@ on:
       - main
 
 jobs:
-  install:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        node: [18, 20, 21]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Use Node.js ${{ matrix.node }}
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ matrix.node }}
-      - name: Install pnpm
-        run: npm install -g pnpm
-      - name: Cypress install
-        uses: cypress-io/github-action@v6
-        with:
-          install: pnpm i
-          runTests: false
-          build: pnpm build
-          working-directory: platform
-      - name: Save build folder
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-os-${{ matrix.os }}-node-${{ matrix.node }}
-          if-no-files-found: error
-          path: platform/.next
   e2e:
-    needs: install
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        browser: [chrome]
+        browser: [chrome, firefox, safari]
         node: [18, 20, 21]
     steps:
       - uses: actions/checkout@v2
@@ -57,15 +28,11 @@ jobs:
         run: npm install -g pnpm
       - name: Write to .env
         run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
-      - name: Download the build folder
-        uses: actions/download-artifact@v4
-        with:
-          name: build-os-${{ matrix.os }}-node-${{ matrix.node }}
-          path: platform/.next
       - name: Cypress run
         if: ${{ !(matrix.os == 'ubuntu-latest' && matrix.browser == 'safari') }}
         uses: cypress-io/github-action@v6
         with:
+          build: pnpm run build
           start: pnpm start
           browser: ${{ matrix.browser }}
           wait-on: 'http://localhost:3000' # Waits for above
