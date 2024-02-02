@@ -1,9 +1,18 @@
 describe('main platform', () => {
-  it('opens', () => {
+  it('opens', async () => {
     cy.visit('/')
 
     console.log("Setting repo name")
-    cy.get('#name').type('/home/kevin/sweep');
+    const getPwd = new Promise((resolve) => {
+      cy.exec('pwd').then((result) => {
+        resolve(result.stdout);
+      })
+    })
+
+    const cwd = await getPwd as string;
+    const sections = cwd.split('/');
+    cy.log(cwd)
+    cy.get('#name').type(sections.slice(0, sections.length - 1).join("/"));
 
     console.log("Setting branch")
     cy.get('.grow > .p-2').click();

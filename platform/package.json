@@ -9,7 +9,7 @@
     "tsc": "tsc --noEmit",
     "test:unit": "jest",
     "cypress:open": "cypress open",
-    "cypress:run": "cypress run",
+    "cypress:run": "cypress run --browser chrome",
     "test:e2e": "start-server-and-test start 3000 cypress:run"
   },
   "dependencies": {
