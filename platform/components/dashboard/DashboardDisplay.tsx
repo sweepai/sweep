@@ -211,7 +211,7 @@ const DashboardDisplay = () => {
   useEffect(() => {
     (async () => {
       let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
-      newFiles = newFiles.map((file: any) => {
+      newFiles = newFiles.map((file: string) => {
         return { value: file, label: file };
       });
       setFiles(newFiles);
