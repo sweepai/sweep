@@ -360,7 +360,7 @@ const DashboardActions = ({
         didFind = true
         break;
       }
-      if (!oldCode || !newCode) {
+      if (oldCode === undefined || newCode === undefined) {
         throw new Error("oldCode or newCode are undefined");
       }
       if (oldCode.startsWith("\n")) {
