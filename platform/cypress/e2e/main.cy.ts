@@ -18,7 +18,7 @@ describe('main platform', () => {
       cy.get("body > main > div > div.p-6 > div > div:nth-child(1) > div.flex.flex-row.justify-between.items-center.mb-2 > button").click();
 
       console.log("Selecting Dockerfile as file to edit")
-      cy.get('.grow > :nth-child(1) > .flex > .inline-flex').click()
+      cy.get('.grow > :nth-child(1) > .flex > .inline-flex').first().click()
       cy.get('input[role="combobox"]').clear();
       cy.get('input[role="combobox"]').type('dockerfile');
       cy.get('[data-value="dockerfile"]').click();
