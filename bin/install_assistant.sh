@@ -90,7 +90,7 @@ send_event "assistant_install_started"
 if ! command -v npm &> /dev/null
 then
     echo -e "${RED}npm could not be found, please install npm and try again.${NC}"
-    exit
+    exit 1
 fi
 
 NODE_VERSION=$(node -v)
