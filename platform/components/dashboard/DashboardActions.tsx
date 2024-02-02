@@ -418,6 +418,7 @@ const DashboardActions = ({
     if (code !== 0) {
       toast.error("An error occured while running the validation script. Please disable it or configure it properly (see bottom left).", {
         description: stdout + "\n" + stderr,
+        action: { label: "Dismiss", onClick: () => { } }
       });
       return ""
     }
@@ -544,6 +545,7 @@ const DashboardActions = ({
         if (errorMessage.length > 0) {
           toast.error("An error occured while generating your code." + (i < 2 ? " Retrying...": " Retried 3 times so I will give up."), {
             description: errorMessage.slice(0, 800),
+            action: { label: "Dismiss", onClick: () => { } }
           });
           validationOutput += "\n\n" + errorMessage;
           setScriptOutput(validationOutput)
@@ -814,7 +816,9 @@ const DashboardActions = ({
             </CollapsibleTrigger>
           </div>
           <CollapsibleContent className="pt-2 CollapsibleContent">
-            <Label className="mb-0">
+            <Label 
+              className="mb-0"
+            >
               Validation Script&nbsp;
 
             </Label>
