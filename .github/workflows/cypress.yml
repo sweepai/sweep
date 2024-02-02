@@ -22,13 +22,15 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
+      - name: Install pnpm
+        run: npm install -g pnpm
       - name: Write to .env
         run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          build: npm run build
-          start: npm start
+          build: pnpm run build
+          start: pnpm start
           browser: chrome
           working-directory: platform
 
