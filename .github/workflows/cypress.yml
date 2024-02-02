@@ -22,19 +22,57 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
-      # - run: npm install
-      #   working-directory: platform
-      # - run: npm run build
-      #   working-directory: platform
       - name: Write to .env
         run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
-      # - run: npm run test:e2e
-      #   working-directory: platform
-      # - name: Checkout
-      #   uses: actions/checkout@v4
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          build: npm run build
-          start: npm start
+          build: pnpm run build
+          start: pnpm start
           browser: chrome
+          working-directory: platform
+
+# jobs:
+#   install:
+#     runs-on: ubuntu-22.04
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+
+#       - name: Write to .env
+#         run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
+
+#       - name: Cypress install
+#         uses: cypress-io/github-action@v6
+#         with:
+#           # Disable running of tests within install job
+#           runTests: false
+#           build: npm run build
+#           working-directory: platform
+
+#       - name: Save build folder
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: build
+#           if-no-files-found: error
+#           path: build
+#           working-directory: platform
+
+#   cypress-run:
+#     runs-on: ubuntu-22.04
+#     needs: install
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+
+#       - name: Download the build folder
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: build
+#           path: build
+
+#       - name: Cypress run
+#         uses: cypress-io/github-action@v6
+#         with:
+#           start: npm start
+#           browser: chrome
