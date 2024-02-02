@@ -211,7 +211,7 @@ const DashboardDisplay = () => {
   useEffect(() => {
     (async () => {
       let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
-      newFiles = newFiles.map((file: any) => {
+      newFiles = newFiles.map((file: string) => {
         return { value: file, label: file };
       });
       setFiles(newFiles);
@@ -270,6 +270,7 @@ const DashboardDisplay = () => {
           setIsLoadingAll={setIsLoadingAll}
           undefinedCheck={undefinedCheck}
           removeFileChangeRequest={removeFileChangeRequest}
+          setOutputToggle={setOutputToggle}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -289,7 +290,7 @@ const DashboardDisplay = () => {
             <ResizablePanel className="mt-2" defaultSize={25}>
               <Label className="mb-2 mr-2">Toggle outputs:</Label>
               <Button
-                className="mr-2"
+                className={`mr-2 ${outputToggle === "script" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("script");
@@ -298,6 +299,7 @@ const DashboardDisplay = () => {
                 Validation Output
               </Button>
               <Button
+                className={`${outputToggle === "llm" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("llm");

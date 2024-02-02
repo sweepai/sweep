@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs, Dirent } from "fs";
-import { minimatch } from "minimatch";
 import path from "path";
 
 interface Body {
@@ -28,9 +27,9 @@ export async function POST(request: NextRequest) {
   async function listNonBinaryFilesBFS(
     rootDir: string,
     fileLimit: number = limit,
-  ): Promise<string[]> {
+  ): Promise<{ path: string; lastModified: number }[]> {
     let queue: string[] = [rootDir];
-    let nonBinaryFiles: string[] = [];
+    let nonBinaryFiles: { path: string; lastModified: number }[] = [];
 
     while (
       queue.length > 0 &&
@@ -60,7 +59,11 @@ export async function POST(request: NextRequest) {
               fileLimit > 0 &&
               nonBinaryFiles.length < fileLimit
             ) {
-              nonBinaryFiles.push(res.slice(rootDir.length + 1));
+              const { mtimeMs } = await fs.stat(res);
+            nonBinaryFiles.push({
+              path: res.slice(rootDir.length + 1),
+              lastModified: mtimeMs
+            });
             }
           } catch (readError) {
             console.error(`Error reading file ${res}: ${readError}`);
@@ -69,7 +72,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return nonBinaryFiles;
+    return nonBinaryFiles.sort((a, b) => b.lastModified - a.lastModified);
   }
 
   try {
@@ -77,8 +80,9 @@ export async function POST(request: NextRequest) {
     if (!stats.isDirectory()) {
       return new NextResponse("Not a directory", { status: 400 });
     }
-    const nonBinaryFiles = await listNonBinaryFilesBFS(repo);
-    return new NextResponse(JSON.stringify(nonBinaryFiles), { status: 200 });
+    const filesWithMeta = await listNonBinaryFilesBFS(repo);
+    const sortedFiles = filesWithMeta.map(fileMeta => fileMeta.path);
+    return new NextResponse(JSON.stringify(sortedFiles), { status: 200 });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });
   }

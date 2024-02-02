@@ -155,7 +155,8 @@ const DashboardActions = ({
   setIsLoading,
   setIsLoadingAll,
   undefinedCheck,
-  removeFileChangeRequest
+  removeFileChangeRequest,
+  setOutputToggle,
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -186,6 +187,7 @@ const DashboardActions = ({
   setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
+  setOutputToggle: (newOutputToggle: string) => void;
 }) => {
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`
@@ -435,6 +437,7 @@ const DashboardActions = ({
     }).join("\n\n");
 
     setIsLoading(true, fcr);
+    setOutputToggle("llm");
     const url = "/api/openai/edit";
     const body = {
       prompt: fcr.instructions,
@@ -502,7 +505,6 @@ const DashboardActions = ({
         setHideMerge(false, fcr);
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
-          // maybe we can slow this down what do you think?, like give it a second? between updates of the code?
           if (done) {
             const [updatedFile, patchingErrors] = parseRegexFromOpenAI(rawText || "", currentContents)
             // console.log(patchingErrors)
@@ -551,7 +553,7 @@ const DashboardActions = ({
             description: [
               <div key="stdout">{`There were ${changeLineCount} line and ${changeCharCount} character changes made.`}</div>,
             ],
-            action: { label: "Dismiss", onClick: () => { } }
+            action: { label: "Dismiss", onClick: () => {} }
           });
           setIsLoading(false, fcr);
           isRunningRef.current = false
