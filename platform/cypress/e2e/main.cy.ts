@@ -19,6 +19,7 @@ describe('main platform', () => {
     cy.get('[data-value="dockerfile"]').click();
 
     console.log("Editing text box")
+    cy.get('.justify-end').click();
     cy.get('.min-h-\\\[50px\\\]__input').type('change to 8081');
 
     console.log("Clicking modify button")
@@ -26,6 +27,6 @@ describe('main platform', () => {
     cy.get('[style="flex: 68.2 1 0px; overflow: hidden;"] > .h-full > .mt-2').click();
 
     console.log("Checking if the right changes were made")
-    cy.get('.cm-changedLine').should('contain', '8081', { timeout: 10000 });
+    cy.get('.cm-changedLine', { timeout: 20000 }).should('contain', '8081');
   })
 })
