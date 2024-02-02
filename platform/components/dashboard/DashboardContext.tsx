@@ -11,7 +11,7 @@ import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
 const DashboardContext = () => {
   const [branch, setBranch] = useLocalStorage("branch", "");
-  const [searchedSnippets, setSearchedSnippets] = useState([] as Snippet[]);
+  const [searchedSnippets = [], setSearchedSnippets] = useState([] as Snippet[]);
   const [searchIsLoading, setSearchIsLoading] = useState(false);
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
   const [query, setQuery] = useState("");
