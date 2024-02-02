@@ -498,6 +498,11 @@ def run(request_dict, event):
                                 "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
                             }
                         )
+                        if chat_logger.use_faster_model() and not IS_SELF_HOSTED:
+                            return {
+                                "success": False,
+                                "error_message": "Disabled for free users",
+                            }
                         make_pr(
                             title=f"[Sweep GHA Fix] Fix the failing GitHub Actions on {request.check_run.head_sha[:7]} ({repo.default_branch})",
                             repo_description=repo.description,

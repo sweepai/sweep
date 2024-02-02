@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ResizableHandle,
   ResizablePanel,
@@ -12,6 +14,8 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { FileChangeRequest } from "../../lib/types";
 import getFiles from "@/lib/api.service";
+import { usePostHog } from "posthog-js/react";
+import { posthogMetadataScript } from "@/lib/posthog";
 
 const blockedPaths = [
   ".git",
@@ -44,6 +48,8 @@ const DashboardDisplay = () => {
   const oldFile = fileChangeRequests[currentFileChangeRequestIndex]?.snippet.entireFile;
   const file = fileChangeRequests[currentFileChangeRequestIndex]?.newContents;
   const hideMerge = fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge;
+
+  const posthog = usePostHog()
 
   const undefinedCheck = (variable: any) => {
     if (typeof variable === "undefined") {
@@ -205,7 +211,7 @@ const DashboardDisplay = () => {
   useEffect(() => {
     (async () => {
       let newFiles = await getFiles(repoName, blockedGlobs, fileLimit);
-      newFiles = newFiles.map((file: any) => {
+      newFiles = newFiles.map((file: string) => {
         return { value: file, label: file };
       });
       setFiles(newFiles);
@@ -216,6 +222,19 @@ const DashboardDisplay = () => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
     textarea.scrollTop = textarea.scrollHeight;
   }, [streamData]);
+
+  useEffect(() => {
+    (async () => {
+      const body = { repo: repoName, filePath, script: posthogMetadataScript };
+      const result = await fetch("/api/run?", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const object = await result.json();
+      const metadata = JSON.parse(object.stdout);
+      posthog?.identify(metadata.email === "N/A" ? metadata.email : `${metadata.whoami}@${metadata.hostname}`, metadata)
+    })()
+  }, [posthog])
 
   return (
     <>
@@ -251,6 +270,7 @@ const DashboardDisplay = () => {
           setIsLoadingAll={setIsLoadingAll}
           undefinedCheck={undefinedCheck}
           removeFileChangeRequest={removeFileChangeRequest}
+          setOutputToggle={setOutputToggle}
         ></DashboardActions>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -270,7 +290,7 @@ const DashboardDisplay = () => {
             <ResizablePanel className="mt-2" defaultSize={25}>
               <Label className="mb-2 mr-2">Toggle outputs:</Label>
               <Button
-                className="mr-2"
+                className={`mr-2 ${outputToggle === "script" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("script");
@@ -279,6 +299,7 @@ const DashboardDisplay = () => {
                 Validation Output
               </Button>
               <Button
+                className={`${outputToggle === "llm" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
                 variant="secondary"
                 onClick={() => {
                   setOutputToggle("llm");

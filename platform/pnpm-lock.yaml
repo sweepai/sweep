@@ -122,6 +122,9 @@ dependencies:
   openai:
     specifier: ^4.25.0
     version: 4.25.0
+  posthog-js:
+    specifier: ^1.104.3
+    version: 1.104.3
   pyodide:
     specifier: ^0.25.0
     version: 0.25.0
@@ -4810,6 +4813,10 @@ packages:
     dependencies:
       bser: 2.1.1
 
+  /fflate@0.4.8:
+    resolution: {integrity: sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==}
+    dev: false
+
   /file-entry-cache@6.0.1:
     resolution: {integrity: sha512-7Gps/XWymbLk2QLYK4NzpMOrYjMhdIxXuIvy2QBsLE6ljuodKvdkWs/cpyJJ3CVIVpH0Oi1Hvg1ovbMzLdFBBg==}
     engines: {node: ^10.12.0 || >=12.0.0}
@@ -6471,6 +6478,17 @@ packages:
       nanoid: 3.3.7
       picocolors: 1.0.0
       source-map-js: 1.0.2
+
+  /posthog-js@1.104.3:
+    resolution: {integrity: sha512-qywnkANRkAdAgaBuELtiIUchMAW3Hd6WmrZlcsWhMs/4Z75S9yE1yH7LL4ZimqvU/yy/VpSElCAeHU8OVTZdag==}
+    dependencies:
+      fflate: 0.4.8
+      preact: 10.19.3
+    dev: false
+
+  /preact@10.19.3:
+    resolution: {integrity: sha512-nHHTeFVBTHRGxJXKkKu5hT8C/YWBkPso4/Gad6xuj5dbptt9iF9NZr9pHbPhBrnT2klheu7mHTxTZ/LjwJiEiQ==}
+    dev: false
 
   /prebuild-install@7.1.1:
     resolution: {integrity: sha512-jAXscXWMcCK8GgCoHOfIr0ODh5ai8mj63L2nWrjuAgXE6tDyYGnx4/8o/rCgU+B4JSyZBKbeZqzhtwtC3ovxjw==}

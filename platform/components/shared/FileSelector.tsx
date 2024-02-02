@@ -87,9 +87,10 @@ const FileSelector = memo(function FileSelector({
           theme={vscodeDark}
           style={{ overflow: "auto" }}
           placeholder={placeholderText}
+          className="ph-no-capture"
         />
       ) : (
-        <CodeMirrorMerge theme={vscodeDark} style={{ overflow: "auto" }}>
+        <CodeMirrorMerge theme={vscodeDark} style={{ overflow: "auto" }} className="ph-no-capture">
           <Original
             value={oldFile}
             extensions={extensions}
