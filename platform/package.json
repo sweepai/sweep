@@ -8,7 +8,8 @@
     "lint": "next lint",
     "tsc": "tsc --noEmit",
     "test": "jest",
-    "cypress:open": "cypress open"
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run"
   },
   "dependencies": {
     "@babel/runtime": "^7.23.9",
