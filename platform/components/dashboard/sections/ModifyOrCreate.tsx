@@ -14,22 +14,18 @@ import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
 import { FileChangeRequest } from "../../../lib/types";
 
-const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
-
-const capitalize = (s: string) => {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
-
 const ModifyOrCreate = ({
   filePath,
   repoName,
   files,
+  directories,
   fileChangeRequests,
   setFileChangeRequests,
 }: {
   filePath: string;
   repoName: string;
   files: { label: string; name: string }[];
+  directories: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
   setFileChangeRequests: React.Dispatch<
     React.SetStateAction<FileChangeRequest[]>
@@ -39,8 +35,9 @@ const ModifyOrCreate = ({
   const [openCreate, setOpenCreate] = useState(false);
 
   return (
+    <div className="flex flex-row mb-4">
     <Popover open={openModify} onOpenChange={setOpenModify}>
-      <div className="flex flex-row mb-4">
+      <div className="flex flex-row mb-4 overflow-auto">
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -56,7 +53,7 @@ const ModifyOrCreate = ({
       </div>
       <PopoverContent className="w-full p-0 text-left">
         <Command>
-          <CommandInput placeholder="Search file..." className="h-9" />
+          <CommandInput placeholder="Search for a file to modify..." className="h-9" />
           <CommandEmpty>No file found.</CommandEmpty>
           <CommandGroup>
             {files.map((file: any) => (
@@ -113,6 +110,70 @@ const ModifyOrCreate = ({
         </Command>
       </PopoverContent>
     </Popover>
+    {/* <Popover open={openCreate} onOpenChange={setOpenCreate}>
+      <div className="flex flex-row mb-4 overflow-auto">
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={openCreate}
+            className="w-full justify-between overflow-hidden"
+            disabled={files.length === 0}
+          >
+            Get Sweep to Create a File
+            <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+      </div>
+      <PopoverContent className="w-full p-0 text-left">
+        <Command>
+          <CommandInput placeholder="Search for a directory..." className="h-9" />
+          <CommandEmpty>No directory found.</CommandEmpty>
+          <CommandGroup>
+            {directories.map((dir: any) => (
+              <CommandItem
+                key={dir.value}
+                value={dir.value}
+                onSelect={async (currentValue) => {
+                  setFileChangeRequests((prev: FileChangeRequest[]) => {
+                    let snippet = {
+                      file: dir.value,
+                      start: 0,
+                      end: 0,
+                      entireFile: "",
+                      content: "",
+                    } as Snippet;
+                    return [
+                      ...prev,
+                      {
+                        snippet,
+                        changeType: "create",
+                        newContents: "",
+                        hideMerge: true,
+                        instructions: "",
+                        isLoading: false,
+                        openReadOnlyFiles: false,
+                        readOnlySnippets: {},
+                      } as FileChangeRequest,
+                    ];
+                  });
+                  setOpenCreate(false);
+                }}
+              >
+                {dir.label}
+                <CheckIcon
+                  className={cn(
+                    "ml-auto h-4 w-4",
+                    filePath === dir.value ? "opacity-100" : "opacity-0",
+                  )}
+                />
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover> */}
+    </div>
   );
 };
 export default ModifyOrCreate;

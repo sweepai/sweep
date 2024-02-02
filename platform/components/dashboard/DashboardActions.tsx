@@ -158,6 +158,7 @@ const DashboardActions = ({
   setRepoName,
   setStreamData,
   files,
+  directories,
   fileChangeRequests,
   setFileChangeRequests,
   currentFileChangeRequestIndex,
@@ -189,6 +190,7 @@ const DashboardActions = ({
   setRepoName: React.Dispatch<React.SetStateAction<string>>;
   setStreamData: React.Dispatch<React.SetStateAction<string>>;
   files: { label: string; name: string }[];
+  directories: { label: string; name: string }[];
   fileChangeRequests: FileChangeRequest[];
   setFileChangeRequests: React.Dispatch<
     React.SetStateAction<FileChangeRequest[]>
@@ -768,6 +770,7 @@ const DashboardActions = ({
           filePath={filePath}
           repoName={repoName}
           files={files}
+          directories={directories}
           fileChangeRequests={fileChangeRequests}
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}

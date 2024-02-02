@@ -9,14 +9,6 @@ import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
-// const debounce = (func: (...args: any[]) => void, delay: number): (() => void) => {
-//     let debounceTimer: NodeJS.Timeout;
-//     return function(this: any, ...args: any[]) {
-//         clearTimeout(debounceTimer);
-//         debounceTimer = setTimeout(() => func.apply(this, args), delay);
-//     };
-// }
-
 const DashboardContext = () => {
   const [branch, setBranch] = useLocalStorage("branch", "");
   const [searchedSnippets, setSearchedSnippets] = useState([] as Snippet[]);
