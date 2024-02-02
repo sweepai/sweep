@@ -26,5 +26,7 @@ jobs:
         working-directory: platform
       - run: npm run build
         working-directory: platform
+      - name: Write to .env
+        run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
       - run: npm run test:e2e
         working-directory: platform
