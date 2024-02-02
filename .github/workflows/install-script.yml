@@ -43,3 +43,4 @@ jobs:
               echo "Error: 'npm start --prefix' not found in the output." >&2
               exit 1
           fi
+        shell: ${{ matrix.shell }} {0}
