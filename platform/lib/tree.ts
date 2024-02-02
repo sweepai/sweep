@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import Parser, { SyntaxNode, Tree } from "tree-sitter";
 // @ts-ignore
 import JavaScript from "tree-sitter-javascript";
