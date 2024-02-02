@@ -41,6 +41,7 @@ const DashboardDisplay = () => {
   const [fileChangeRequests, setFileChangeRequests] = useState<FileChangeRequest[]>([]);
   const [currentFileChangeRequestIndex, setCurrentFileChangeRequestIndex] =
     useLocalStorage("currentFileChangeRequestIndex", 0);
+  const [versionNumber, setVersionNumber] = useState("");
 
   const [files, setFiles] = useState<{ label: string; name: string }[]>([]);
 
@@ -225,6 +226,20 @@ const DashboardDisplay = () => {
 
   useEffect(() => {
     (async () => {
+      const body = { repo: repoName, filePath, script: `git log -1 --format="%at" | xargs -I{} date -d @{} +%y.%m.%d.%H` };
+      const result = await fetch("/api/run?", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      // console.log("result", await result.text())
+      const object = await result.json();
+      const versionNumberString = object.stdout;
+      setVersionNumber("v" + versionNumberString);
+    })()
+  }, [])
+
+  useEffect(() => {
+    (async () => {
       const body = { repo: repoName, filePath, script: posthogMetadataScript };
       const result = await fetch("/api/run?", {
         method: "POST",
@@ -239,6 +254,7 @@ const DashboardDisplay = () => {
   return (
     <>
       <h1 className="font-bold text-xl">Sweep Assistant</h1>
+      <h3 className="text-zinc-400">{versionNumber}</h3>
       <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
         <DashboardActions
           filePath={filePath}
