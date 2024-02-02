@@ -44,10 +44,9 @@ jobs:
       - name: Save build folder
         uses: actions/upload-artifact@v4
         with:
-          name: .next
+          name: platform/.next
           if-no-files-found: error
-          path: .next
-          working-directory: platform
+          path: platform/.next
   e2e:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -66,6 +65,11 @@ jobs:
         run: npm install -g pnpm
       - name: Write to .env
         run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
+      - name: Download the build folder
+        uses: actions/download-artifact@v4
+        with:
+          name: platform/.next
+          path: platform/.next
       - name: Cypress run
         if: ${{ !(matrix.os == 'ubuntu-latest' && matrix.browser == 'safari') }}
         uses: cypress-io/github-action@v6
