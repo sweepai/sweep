@@ -37,7 +37,8 @@ const DashboardDisplay = () => {
     "scriptOutput",
     "",
   );
-  const [repoName, setRepoName] = useLocalStorage("repoName", process.env.NEXT_PUBLIC_DEFAULT_REPO_PATH || "");
+  // const [repoName, setRepoName] = useLocalStorage("repoName", process.env.NEXT_PUBLIC_DEFAULT_REPO_PATH || "");
+  const [repoName, setRepoName] = useLocalStorage("repoName", "");
   console.log(process.env.NEXT_PUBLIC_DEFAULT_REPO_PATH)
   const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000);
   const [blockedGlobs, setBlockedGlobs] = useLocalStorage(
