@@ -43,7 +43,7 @@ const ModifyOrCreate = ({
             variant="outline"
             role="combobox"
             aria-expanded={openModify}
-            className="w-full justify-between overflow-hidden"
+            className="w-full justify-between overflow-hidden mr-2"
             disabled={files.length === 0}
           >
             Modify a file

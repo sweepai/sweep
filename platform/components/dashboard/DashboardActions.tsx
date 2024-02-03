@@ -805,6 +805,7 @@ const DashboardActions = ({
                     setRepoName(currentRepoName);
                     return currentRepoName;
                   });
+                  setRepoNameCollapsibleOpen(false)
                 } catch (e) {
                   console.error(e);
                   toast.error("An Error Occured", {
@@ -835,6 +836,7 @@ const DashboardActions = ({
                 setBlockedGlobs(e.target.value);
                 // TODO: make this work
               }}
+              onBlur={() => setRepoNameCollapsibleOpen(false)}
               placeholder="node_modules, .log, build"
             />
             <Label className="mb-2">File Limit</Label>
