@@ -219,6 +219,7 @@ const DashboardActions = ({
   );
   const [testScript, setTestScript] = useLocalStorage("testScript", "");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
+  const [currentBlockedGlobs, setCurrentBlockedGlobs] = useState(blockedGlobs);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage(
     "repoNameCollapsibleOpen",
     false,
@@ -792,11 +793,14 @@ const DashboardActions = ({
               onChange={(e) => setCurrentRepoName(e.target.value)}
               onBlur={async () => {
                 try {
-                  let newFiles = await getFiles(
+                  let {directories, sortedFiles} = await getFiles(
                     currentRepoName,
                     blockedGlobs,
                     fileLimit,
                   );
+                  if (sortedFiles.length === 0) {
+                    throw new Error("No files found in the repository");
+                  }
                   toast.success(
                     "Successfully fetched files from the repository!",
                     { action: { label: "Dismiss", onClick: () => {} } },
@@ -831,12 +835,13 @@ const DashboardActions = ({
             <Label className="mb-2">Blocked Keywords</Label>
             <Input
               className="mb-4"
-              value={blockedGlobs}
+              value={currentBlockedGlobs}
               onChange={(e) => {
-                setBlockedGlobs(e.target.value);
-                // TODO: make this work
+                setCurrentBlockedGlobs(e.target.value);
               }}
-              onBlur={() => setRepoNameCollapsibleOpen(false)}
+              onBlur={() => {
+                setBlockedGlobs(currentBlockedGlobs);
+              }}
               placeholder="node_modules, .log, build"
             />
             <Label className="mb-2">File Limit</Label>
