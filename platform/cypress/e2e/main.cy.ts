@@ -5,11 +5,11 @@ describe('main platform', () => {
 
     console.log("Setting repo name")
     cy.exec('pwd').then((result) => {
-      cy.get('.flex-col > :nth-child(1) > .flex-row > .inline-flex').contains('Expand').click({ force: true });
-      // cy.contains('.flex-col > :nth-child(1) > .flex-row > .inline-flex', 'Expand').then($btn => {
-      //   if ($btn.length) {
-      //     cy.wrap($btn).click();
-      //   }
+      cy.get('.flex-col > :nth-child(1) > .flex-row > .inline-flex').then($el => {
+        if ($el && $el.is(':contains("Expand")')) {
+          $el.click();
+        }
+      }).then(() => {
         const cwd = result.stdout;
         const sections = cwd.split('/');
         cy.log(cwd)
@@ -43,7 +43,7 @@ describe('main platform', () => {
 
         console.log("Checking if the right changes were made")
         cy.get('.cm-changedLine', { timeout: 20000 }).should('contain', '8081');
-      // });
-      })
+      });
+    })
     })
 })
