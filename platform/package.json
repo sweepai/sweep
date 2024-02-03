@@ -10,7 +10,7 @@
     "test:unit": "jest",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run --browser chrome",
-    "test:e2e": "start-server-and-test start 3000 cypress:run"
+    "test:e2e": "start-server-and-test start 4000 cypress:run"
   },
   "dependencies": {
     "@babel/runtime": "^7.23.9",
