@@ -2,7 +2,7 @@
   "name": "sweepai",
   "version": "0.1.11",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -- --port 4000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
