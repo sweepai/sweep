@@ -221,7 +221,7 @@ const DashboardActions = ({
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage(
     "repoNameCollapsibleOpen",
-    repoName === "",
+    false,
   );
   const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] =
     useLocalStorage("validationScriptCollapsibleOpen", false);
@@ -242,6 +242,10 @@ const DashboardActions = ({
       });
     });
   }
+
+  useEffect(() => {
+    setRepoNameCollapsibleOpen(repoName === "")
+  }, [repoName])
 
   // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
   const setReadOnlySnippetForFCR = (

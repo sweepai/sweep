@@ -151,7 +151,7 @@ GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --single-branch https://github.com/swe
 cd sweep/platform
 
 echo -e "\n${BLUE}Storing OpenAI API key...${NC}"
-echo "OPENAI_API_KEY=$OPENAI_API_KEY\n" > .env.local
+echo "OPENAI_API_KEY=$OPENAI_API_KEY\nNEXT_PUBLIC_DEFAULT_REPO_PATH=${pwd}\n" > .env.local
 # if [[ $TELEMETRY =~ ^[Nn]$ ]]
 # then
 #     echo "NO_TELEMETRY=true" >> .env.local
