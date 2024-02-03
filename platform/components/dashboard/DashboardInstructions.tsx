@@ -88,7 +88,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
             isRunningRef={isRunningRef}
           />
           {fileChangeRequests.length === 0 && (
-            <div className="p-2 text-zinc-300">No files added yet.</div>
+            <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
           )}
         </div>
       </TabsContent>
