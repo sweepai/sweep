@@ -152,8 +152,6 @@ const DashboardActions = ({
   setBlockedGlobs,
   hideMerge,
   setHideMerge,
-  branch,
-  setBranch,
   oldFile,
   setOldFile,
   repoName,
@@ -184,8 +182,6 @@ const DashboardActions = ({
   setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
   hideMerge: boolean;
   setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
-  branch: string;
-  setBranch: React.Dispatch<React.SetStateAction<string>>;
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
   repoName: string;
@@ -317,12 +313,6 @@ const DashboardActions = ({
   };
 
   useEffect(() => {
-    (async () => {
-      const params = new URLSearchParams({ repo: repoName }).toString();
-      const response = await fetch("/api/branch?" + params);
-      const object = await response.json();
-      setBranch(object.branch);
-    })();
     if (repoName === "") {
       setRepoNameCollapsibleOpen(true);
     }
@@ -822,16 +812,6 @@ const DashboardActions = ({
             <p className="text-sm text-muted-foreground mb-4">
               Absolute path to your repository.
             </p>
-            <Label className="mb-2">Branch</Label>
-            <Input
-              className="mb-4"
-              value={branch}
-              onChange={(e) => {
-                setBranch(e.target.value);
-                // TODO: make this work
-              }}
-              placeholder="your-branch-here"
-            />
             <Label className="mb-2">Blocked Keywords</Label>
             <Input
               className="mb-4"

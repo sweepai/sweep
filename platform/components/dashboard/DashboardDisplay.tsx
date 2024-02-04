@@ -30,7 +30,7 @@ const blockedPaths = [
 ];
 
 const DashboardDisplay = () => {
-  const [branch, setBranch] = useLocalStorage("branch", "");
+  // const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
   const [scriptOutput = "" as string, setScriptOutput] = useLocalStorage(
@@ -307,8 +307,8 @@ const DashboardDisplay = () => {
           setBlockedGlobs={setBlockedGlobs}
           hideMerge={hideMerge}
           setHideMerge={setHideMerge}
-          branch={branch}
-          setBranch={setBranch}
+          // branch={branch}
+          // setBranch={setBranch}
           oldFile={oldFile}
           setOldFile={setOldFile}
           repoName={repoName}
