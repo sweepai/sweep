@@ -38,7 +38,6 @@ export async function POST(request: NextRequest) {
     ) {
       const currentDir = queue.shift()!;
       directories.add(currentDir.slice(rootDir.length));
-      // if (blockedGlobs.some(blockedGlob => minimatch(currentDir, blockedGlob))) {
       if (
         blockedGlobs.some((blockedGlob) => currentDir.includes(blockedGlob))
       ) {

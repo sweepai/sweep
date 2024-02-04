@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/zsh
 
 RED="\033[0;31m"
 GREEN="\033[1;32m"
@@ -151,7 +151,7 @@ cd sweep/platform
 fi
 
 echo -e "\n${BLUE}Storing OpenAI API key...${NC}"
-echo "OPENAI_API_KEY=$OPENAI_API_KEY\n" > .env.local
+echo "OPENAI_API_KEY=$OPENAI_API_KEY\nNEXT_PUBLIC_DEFAULT_REPO_PATH=${pwd}\n" > .env.local
 # if [[ $TELEMETRY =~ ^[Nn]$ ]]
 # then
 #     echo "NO_TELEMETRY=true" >> .env.local

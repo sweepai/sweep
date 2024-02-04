@@ -6,7 +6,7 @@ import FCRCreate from "./FCRCreate";
 import FCRModify from "./FCRModify";
 import { SuggestionDataItem } from "react-mentions";
 
-const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
+const instructionsPlaceholder = `Instructions for what to create. Type "@filename" for Sweep to read another file.`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
