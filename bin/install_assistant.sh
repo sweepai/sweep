@@ -143,12 +143,12 @@ if [ -d "sweep" ]; then
   cd sweep
   GIT_LFS_SKIP_SMUDGE=1 git fetch --depth 1
   git reset --hard @{u}
+  cd platform
 else
   echo -e "\n${BLUE}Cloning the Sweep repository in ${INSTALL_PATH}...${NC}\n"
   GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --single-branch https://github.com/sweepai/sweep
-fi
-
 cd sweep/platform
+fi
 
 echo -e "\n${BLUE}Storing OpenAI API key...${NC}"
 echo "OPENAI_API_KEY=$OPENAI_API_KEY\n" > .env.local
