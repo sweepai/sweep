@@ -1,4 +1,4 @@
-import { Callout } from 'nextra/components'
+import { Callout, Tabs } from 'nextra/components'
 import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
 # Sweep Assistant
@@ -70,20 +70,24 @@ Optimally, you should write a script that runs three things:
 3. A test suite
     - e.g. `pytest` for Python, `jest` for JavaScript
 
-So for example, if you are writing Python code, you can use the following:
+Here are some example scripts we recommend:
 
+<Tabs items={['Python', 'Javascript / Typescript']}>
+  <Tabs.Tab>
 ```sh filename="Validation Script"
 black - < $filename
 pylint $FILE_PATH
 pytest $FILE_PATH
 ```
-
-For JavaScript, you can use the following:
+  </Tabs.Tab>
+  <Tabs.Tab>
 ```sh filename="Validation Script"
 prettier $FILE_PATH
 eslint $FILE_PATH
 jest $FILE_PATH
 ```
+  </Tabs.Tab>
+</Tabs>
 
 Make sure to click the "Run Tests" button to test the script.
 
