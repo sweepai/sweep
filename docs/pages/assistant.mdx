@@ -5,8 +5,7 @@ import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
 This is a locally running dev tool for getting Sweep to code alongside you. All of your code will be executed locally (your code will only be sent to OpenAI).
 
-## Installation
-*5 minutes*
+## Installation (2 min)
 
 <Callout type="warning" emoji={<FaExclamationCircle style={{marginTop: 6, fontSize: 18}} />}>
 **Pre-requisites**
@@ -31,13 +30,13 @@ To update the assistant, run the above script again in the same directory.
 <summary>Disabling Telemetry</summary>
 We collect telemetry to improve the assistant, including what types of tasks you're asking Sweep to handle.
 
-To disable telemetry, add `NO_TELEMETRY=true` to your `.env` in your Sweep Assistant directory.
+To disable telemetry, add `NEXT_PUBLIC_NO_TELEMETRY=true` to your `.env` in your Sweep Assistant directory.
 
 You can find where the Sweep directory is cloned by running `which sweep`. For example, if `which sweep` yields `sweep: aliased to npm start --prefix /home/bob/sweep/platform`, then you would run:
 
 ```sh filename="terminal"
 cd /home/bob/sweep
-echo "NO_TELEMETRY=true" >> platform/.env
+echo "NEXT_PUBLIC_NO_TELEMETRY=true" >> platform/.env
 ```
 </details>
 

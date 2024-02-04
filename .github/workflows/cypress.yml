@@ -27,7 +27,7 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
       - name: Write to .env
-        run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> platform/.env
+        run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}\NEXT_PUBLIC_NO_TELEMETRY=true\nNEXT_PUBLIC_DEFAULT_REPO_PATH=$(pwd)\n" >> platform/.env
       - name: Cypress run
         if: ${{ !(matrix.os == 'ubuntu-latest' && matrix.browser == 'safari') }}
         uses: cypress-io/github-action@v6
@@ -35,7 +35,7 @@ jobs:
           build: pnpm run build
           start: pnpm start
           browser: ${{ matrix.browser }}
-          wait-on: 'http://localhost:3000' # Waits for above
+          wait-on: 'http://localhost:4000' # Waits for above
           record: true
           working-directory: platform
         env:

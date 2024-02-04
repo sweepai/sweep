@@ -219,9 +219,10 @@ const DashboardActions = ({
   );
   const [testScript, setTestScript] = useLocalStorage("testScript", "");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
+  const [currentBlockedGlobs, setCurrentBlockedGlobs] = useState(blockedGlobs);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage(
     "repoNameCollapsibleOpen",
-    repoName === "",
+    false,
   );
   const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] =
     useLocalStorage("validationScriptCollapsibleOpen", false);
@@ -242,6 +243,10 @@ const DashboardActions = ({
       });
     });
   }
+
+  useEffect(() => {
+    setRepoNameCollapsibleOpen(repoName === "")
+  }, [repoName])
 
   // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
   const setReadOnlySnippetForFCR = (
@@ -788,11 +793,14 @@ const DashboardActions = ({
               onChange={(e) => setCurrentRepoName(e.target.value)}
               onBlur={async () => {
                 try {
-                  let newFiles = await getFiles(
+                  let {directories, sortedFiles} = await getFiles(
                     currentRepoName,
                     blockedGlobs,
                     fileLimit,
                   );
+                  if (sortedFiles.length === 0) {
+                    throw new Error("No files found in the repository");
+                  }
                   toast.success(
                     "Successfully fetched files from the repository!",
                     { action: { label: "Dismiss", onClick: () => {} } },
@@ -801,6 +809,7 @@ const DashboardActions = ({
                     setRepoName(currentRepoName);
                     return currentRepoName;
                   });
+                  setRepoNameCollapsibleOpen(false)
                 } catch (e) {
                   console.error(e);
                   toast.error("An Error Occured", {
@@ -826,10 +835,12 @@ const DashboardActions = ({
             <Label className="mb-2">Blocked Keywords</Label>
             <Input
               className="mb-4"
-              value={blockedGlobs}
+              value={currentBlockedGlobs}
               onChange={(e) => {
-                setBlockedGlobs(e.target.value);
-                // TODO: make this work
+                setCurrentBlockedGlobs(e.target.value);
+              }}
+              onBlur={() => {
+                setBlockedGlobs(currentBlockedGlobs);
               }}
               placeholder="node_modules, .log, build"
             />

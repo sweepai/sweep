@@ -10,7 +10,7 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
 
-const instructionsPlaceholder = `Tell Sweep what modifications you want here. Mention another file Sweep should look at with "@filename"`;
+const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
