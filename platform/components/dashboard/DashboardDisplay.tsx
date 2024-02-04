@@ -29,6 +29,10 @@ const blockedPaths = [
   "install_assistant.sh"
 ];
 
+const versionScript = `timestamp=$(git log -1 --format="%at")
+[[ "$OSTYPE" == "linux-gnu"* ]] && date -d @$timestamp +%y.%m.%d.%H || date -r $timestamp +%y.%m.%d.%H
+`;
+
 const DashboardDisplay = () => {
   // const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
@@ -260,7 +264,7 @@ const DashboardDisplay = () => {
       const body = {
         repo: repoName,
         filePath,
-        script: `git log -1 --format="%at" | xargs -I{} date -d @{} +%y.%m.%d.%H`,
+        script: versionScript
       };
       const result = await fetch("/api/run?", {
         method: "POST",
