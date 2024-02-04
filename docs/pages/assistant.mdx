@@ -53,11 +53,16 @@ echo "NEXT_PUBLIC_NO_TELEMETRY=true" >> platform/.env
 5. Click `Generate Code`.
 6. Click "Reload" to reject changes, or the check mark to approve the change.
 
-## Validation Script
+### Checking your Code
 
-We highly recommended that you add a validation script to your assistant.
+We highly recommended that you add a checks to your assistant. There's currently two types of checks:
+
+1. **Validation Script**: runs after every edit. We recommend using a formatter and linter to catch syntax errors and undefined variables.
+2. **Test Suite**: runs after all edits are complete.
 
 <Callout type="info" emoji={<FaInfoCircle style={{marginTop: 6, fontSize: 18}} />}>
+    **Why do we need a validation script?**
+
     Human developers identify syntax errors using visual cues like syntax highlighting and red squiggles, which is unavailable to LLMs. The best way for LLMs to detect such errors is to use a formatter to check the syntax and a linter for catching undefined variables.
 </Callout>
 
@@ -74,8 +79,11 @@ Here are some example scripts we recommend:
 <Tabs items={['Python', 'Javascript / Typescript']}>
   <Tabs.Tab>
 ```sh filename="Validation Script"
-black - < $filename
-pylint $FILE_PATH
+python3 -m py_compile < $FILE_PATH
+pylint $FILE_PATH --errors-only
+```
+
+```sh filename="Test Suite"
 pytest $FILE_PATH
 ```
   </Tabs.Tab>
@@ -83,7 +91,11 @@ pytest $FILE_PATH
 ```sh filename="Validation Script"
 prettier $FILE_PATH
 eslint $FILE_PATH
+```
+
+```sh filename="Test Suite"
 jest $FILE_PATH
+pnpm run build
 ```
   </Tabs.Tab>
 </Tabs>
@@ -91,5 +103,5 @@ jest $FILE_PATH
 Make sure to click the "Run Tests" button to test the script.
 
 <Callout type="info" emoji={<FaInfoCircle style={{marginTop: 6, fontSize: 18}} />}>
-  You may want to provide the full path to the CLI tools (e.g. `/home/kevin/.cache/pypoetry/virtualenvs/sweepai-u_abcdefg-py3.10/bin/black`) if you are using a custom virtual environment.
+  You may want to provide the full path to the CLI tools (e.g. `/home/kevin/.cache/pypoetry/virtualenvs/sweepai-u_abcdefg-py3.10/bin/black`) if you are using a custom virtual environment. You may also want to run `python -m pylint` or `python3 -m pylint` instead of `pylint`.
 </Callout>
