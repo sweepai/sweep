@@ -2,6 +2,9 @@
   "name": "sweepai",
   "version": "0.1.18",
   "preferGlobal": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "bin": {
     "sweepai": "scripts/cli.js"
   },
