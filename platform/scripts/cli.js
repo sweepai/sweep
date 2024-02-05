@@ -4,13 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const readline = require('readline').createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-const envLocalPath = path.join(__dirname, ".env.local");
 const packagePath = path.join(__dirname, "..");
+const envLocalPath = path.join(packagePath, ".env.local");
 
 console.log(packagePath)
 
@@ -53,7 +48,7 @@ if (!fs.existsSync(envLocalPath)) {
 
 import('inquirer').then((inquirer) => {
   const main = () => {
-    const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build --no-lint` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
+    const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build --no-lint` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 4000`;
     console.log(`> ${command}\n`);
     const childProcess = spawn("sh", ["-c", command], { cwd: packagePath, stdio: "inherit" });
 
@@ -67,21 +62,20 @@ import('inquirer').then((inquirer) => {
   }
 
   var envLocal = fs.readFileSync(envLocalPath, "utf8");
-  if (!envLocal.includes("OPENAI_API_KEY")) {
-    inquirer.prompt([
-      {
-        type: 'input',
-        name: 'openai_api_key',
-        message: 'Enter your OpenAI API key (https://platform.openai.com/api-keys):'
-      }
-    ]).then(answers => {
+
+  (async () => {
+    if (!envLocal.includes("OPENAI_API_KEY")) {
+      await inquirer.default.prompt([
+        {
+          type: 'password',
+          mask: true,
+          name: 'openai_api_key',
+          message: 'Enter your OpenAI API key (https://platform.openai.com/api-keys):',
+        }
+      ])
       envLocal += `OPENAI_API_KEY=${answers.openai_api_key}\n`;
       fs.writeFileSync(envLocalPath, envLocal);
-      main();
-    }).catch(error => {
-      console.error("An error occurred:", error);
-    });
-  } else {
+    }
     main()
-  }
+  })()
 })
