@@ -44,28 +44,24 @@ console.log(`
 
 `)
 
+if (!fs.existsSync(envLocalPath)) {
+  fs.writeFileSync(envLocalPath, `NEXT_PUBLIC_DEFAULT_REPO_PATH=${process.cwd()}\n`);
+}
+
 const main = () => {
   const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build --no-lint` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
   console.log(`> ${command}\n`);
   spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
 }
 
-if (fs.existsSync(envLocalPath)) {
-  const envLocal = fs.readFileSync(envLocalPath, "utf8");
-  if (!envLocal.includes("OPENAI_API_KEY")) {
-    readline.question('Enter your OpenAI API key (https://platform.openai.com/api-keys): ', name => {
-      envLocal += `OPENAI_API_KEY=${name}\n`;
-      fs.writeFileSync(envLocalPath, envLocal);
-      readline.close();
-      main()
-    });
-  } else {
-    main()
-  }
-} else {
+const envLocal = fs.readFileSync(envLocalPath, "utf8");
+if (!envLocal.includes("OPENAI_API_KEY")) {
   readline.question('Enter your OpenAI API key (https://platform.openai.com/api-keys): ', name => {
-    fs.writeFileSync(envLocalPath, `OPENAI_API_KEY=${name}\n`);
+    envLocal += `OPENAI_API_KEY=${name}\n`;
+    fs.writeFileSync(envLocalPath, envLocal);
     readline.close();
     main()
   });
+} else {
+  main()
 }
