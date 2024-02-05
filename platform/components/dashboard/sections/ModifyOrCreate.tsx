@@ -48,7 +48,7 @@ const ModifyOrCreate = ({
               variant="outline"
               role="combobox"
               aria-expanded={openModify}
-              className="w-full justify-between overflow-hidden mr-2"
+              className="w-full justify-between overflow-hidden mr-2 bg-blue-800 hover:bg-blue-900"
             >
               Modify file
               <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -121,7 +121,7 @@ const ModifyOrCreate = ({
               variant="outline"
               role="combobox"
               aria-expanded={openCreate}
-              className="w-full justify-between overflow-hidden mr-2"
+              className="w-full justify-between overflow-hidden mr-2 bg-blue-800 hover:bg-blue-900"
             >
               Create file
               <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
