@@ -1,4 +1,4 @@
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs, Steps } from 'nextra/components'
 import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
 # Sweep Assistant
@@ -42,20 +42,27 @@ echo "NEXT_PUBLIC_NO_TELEMETRY=true" >> platform/.env
 
 ## Usage (After Installation)
 
-1. Set `Repository Path`
-    - You can run `pwd` to use your current working directory.
-    - (Optional) Edit the branch name to create a new branch for Sweep.
-2. Select a file for Sweep to edit.
-3. Add meticulous instructions for the code to edit.
-4. (Optional) Insert a validation script, such as `python $FILE_PATH`. $FILE_PATH refers to the current path. Click the "Run Tests" button to test the script.
+<Steps>
+### Set `Repository Path`
+You can run `pwd` to use your current working directory.
+
+### Select a files for Sweep to edit
+Click "Modify file" or "Create file".
+
+### Add Instructions
+Add meticulous instructions for the code to edit. You can type @ to mention a file.
+{/*
+### Check the Code
     - Hint: use the $FILE_PATH parameter to only check the current file to reduce noise.
-    - This step is optional but highly recommended (see below).
-5. Click `Generate Code`.
-6. Click "Reload" to reject changes, or the check mark to approve the change.
+    - This step is optional but highly recommended (see below). */}
 
-### Checking your Code
+### Generate Code
+Click "Generate Code" to run the assistant. Then click the check mark to approve the change or the reload to reject the change.
+</Steps>
 
-We highly recommended that you add a checks to your assistant. There's currently two types of checks:
+## Checking your Code
+
+We highly recommended that you add a checks to your assistant. There are two types of checks:
 
 1. **Validation Script**: runs after every edit. We recommend using a formatter and linter to catch syntax errors and undefined variables.
 2. **Test Suite**: runs after all edits are complete.
@@ -65,14 +72,6 @@ We highly recommended that you add a checks to your assistant. There's currently
 
     Human developers identify syntax errors using visual cues like syntax highlighting and red squiggles, which is unavailable to LLMs. The best way for LLMs to detect such errors is to use a formatter to check the syntax and a linter for catching undefined variables.
 </Callout>
-
-Optimally, you should write a script that runs three things:
-1. A formatter - to catch syntax errors
-    - e.g. `black` for Python, `prettier` for JavaScript
-2. A linter - to catch undefined variables or missing imports
-    - e.g. `pylint` for Python, `eslint` for JavaScript
-3. A test suite
-    - e.g. `pytest` for Python, `jest` for JavaScript
 
 Here are some example scripts we recommend:
 
