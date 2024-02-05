@@ -1,6 +1,10 @@
 {
   "name": "sweepai",
-  "version": "0.1.11",
+  "version": "0.1.17",
+  "preferGlobal": true,
+  "bin": {
+    "sweepai": "cli.js"
+  },
   "scripts": {
     "dev": "next dev -- --port 4000",
     "build": "next build",
@@ -10,7 +14,8 @@
     "test:unit": "jest",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run --browser chrome",
-    "test:e2e": "start-server-and-test start 4000 cypress:run"
+    "test:e2e": "start-server-and-test start 4000 cypress:run",
+    "postinstall": "next build"
   },
   "dependencies": {
     "@babel/runtime": "^7.23.9",
@@ -22,6 +27,13 @@
     "@codemirror/language": "^6.10.0",
     "@codemirror/state": "^6.4.0",
     "@codemirror/view": "^6.23.0",
+    "@types/diff": "^5.0.9",
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18",
+    "@types/react-mentions": "^4.1.13",
+    "@types/react-beautiful-dnd": "^13.1.8",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-collapsible": "^1.0.3",
     "@radix-ui/react-dialog": "^1.0.5",
@@ -55,7 +67,6 @@
     "next-themes": "^0.2.1",
     "openai": "^4.25.0",
     "posthog-js": "^1.104.3",
-    "pyodide": "^0.25.0",
     "react": "18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-codemirror-merge": "^4.21.21",
@@ -68,7 +79,12 @@
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "tsc": "^2.0.4",
-    "usehooks-ts": "^2.9.5"
+    "usehooks-ts": "^2.9.5",
+    "autoprefixer": "^10.0.1",
+    "babel-jest": "^29.7.0",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.2"
   },
   "optionalDependencies": {
     "tree-sitter": "^0.20.6",
@@ -81,20 +97,8 @@
   "devDependencies": {
     "@babel/core": "^7.23.9",
     "@babel/preset-env": "^7.23.9",
-    "@types/diff": "^5.0.9",
-    "@types/jest": "^29.5.11",
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.0.0",
-    "@types/react-beautiful-dnd": "^13.1.8",
-    "@types/react-dom": "^18",
-    "@types/react-mentions": "^4.1.13",
-    "autoprefixer": "^10.0.1",
-    "babel-jest": "^29.7.0",
-    "eslint": "^8",
-    "eslint-config-next": "14.1.0",
-    "postcss": "^8.4.33",
-    "tailwindcss": "^3.3.0",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.0.2"
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0"
   }
 }

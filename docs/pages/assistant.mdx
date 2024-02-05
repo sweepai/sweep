@@ -18,13 +18,28 @@ This is a locally running dev tool for getting Sweep to code alongside you. All 
 
 Install the assistant by running the following command in your terminal:
 
+<Tabs items={["npm (recommended)", "curl"]}>
+  <Tabs.Tab>
+```sh filename="terminal"
+npx sweepai -y
+```
+
+To update the assistant, run
+
+```sh filename="terminal"
+npm upgrade -g sweepai
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
 ```sh filename="terminal"
 curl -LO https://sweep.dev/install.sh && zsh install_assistant.sh
 ```
 
-Run the assistant by running `sweep` in your terminal.
+Run the assistant by running `sweep` in your terminal. To update the assistant, run the above script again in the same directory.
+  </Tabs.Tab>
+</Tabs>
 
-To update the assistant, run the above script again in the same directory.
+---
 
 <details>
 <summary>Disabling Telemetry</summary>

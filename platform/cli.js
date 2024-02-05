@@ -4,29 +4,35 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const currentDir = process.cwd();
-const sweepaiDir = path.join(process.cwd(), "node_modules", "sweepai");
-const envLocalPath = path.join(process.cwd(), ".env.local");
-const targetEnvLocalPath = path.join(sweepaiDir, ".env.local");
+const readline = require('readline').createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
-if (fs.existsSync(envLocalPath)) {
-  fs.copyFileSync(envLocalPath, targetEnvLocalPath);
+const envLocalPath = path.join(__dirname, ".env.local");
+
+const main = () => {
+  const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build --no-lint` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
+  console.log(`> ${command}\n`);
+  spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
 }
 
-const command =
-  process.argv[2] === "build"
-    ? `cd ${sweepaiDir} && npm i && next build --no-lint || ${currentDir}`
-    : `cd ${sweepaiDir} && next start || cd ${currentDir}`;
-const childProcess = spawn("sh", ["-c", command], { cwd: sweepaiDir });
-
-childProcess.stdout.on("data", (data) => {
-  console.log(data.toString());
-});
-
-childProcess.stderr.on("data", (data) => {
-  console.error(data.toString());
-});
-
-childProcess.on("exit", (code) => {
-  console.log(`Child childProcess exited with code ${code}`);
-});
+if (fs.existsSync(envLocalPath)) {
+  const envLocal = fs.readFileSync(envLocalPath, "utf8");
+  if (!envLocal.includes("OPENAI_API_KEY")) {
+    readline.question('Enter your OpenAI API key (https://platform.openai.com/api-keys): ', name => {
+      envLocal += `OPENAI_API_KEY=${name}\n`;
+      fs.writeFileSync(envLocalPath, envLocal);
+      readline.close();
+      main()
+    });
+  } else {
+    main()
+  }
+} else {
+  readline.question('Enter your OpenAI API key (https://platform.openai.com/api-keys): ', name => {
+    fs.writeFileSync(envLocalPath, `OPENAI_API_KEY=${name}\n`);
+    readline.close();
+    main()
+  });
+}

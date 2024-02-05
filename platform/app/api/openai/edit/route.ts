@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { OpenAIStream, StreamingTextResponse } from "ai";
 import { Snippet } from "../../../../lib/search";
-import { Message } from "@/lib/types";
+import { Message } from "../../../../lib/types";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions.mjs";
 
 interface Body {
