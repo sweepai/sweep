@@ -13,9 +13,11 @@ import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { FileChangeRequest } from "../../lib/types";
-import getFiles from "../../lib/api.service";
+import getFiles, { getFile, writeFile } from "../../lib/api.service";
 import { usePostHog } from "posthog-js/react";
 import { posthogMetadataScript } from "../../lib/posthog";
+import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
+import { toast } from "sonner";
 
 const blockedPaths = [
   ".git",
@@ -343,25 +345,72 @@ const DashboardDisplay = () => {
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel className="mt-2" defaultSize={25}>
-              <Label className="mb-2 mr-2">Toggle outputs:</Label>
-              <Button
-                className={`mr-2 ${outputToggle === "script" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
-                variant="secondary"
-                onClick={() => {
-                  setOutputToggle("script");
-                }}
-              >
-                Validation Output
-              </Button>
-              <Button
-                className={`${outputToggle === "llm" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
-                variant="secondary"
-                onClick={() => {
-                  setOutputToggle("llm");
-                }}
-              >
-                Debug Logs
-              </Button>
+              <div className="flex flex-row items-center">
+                <Label className="mr-2">Toggle outputs:</Label>
+                <Button
+                  className={`mr-2 ${outputToggle === "script" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setOutputToggle("script");
+                  }}
+                >
+                  Validation Output
+                </Button>
+                <Button
+                  className={`${outputToggle === "llm" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setOutputToggle("llm");
+                  }}
+                >
+                  Debug Logs
+                </Button>
+                <div className="grow"></div>
+                <Button
+                  className="mr-2"
+                  size="sm"
+                  variant="secondary"
+                  onClick={async () => {
+                    const fcr = fileChangeRequests[currentFileChangeRequestIndex]
+                    const response = await getFile(
+                      repoName,
+                      fcr.snippet.file
+                    );
+                    setFileForFCR(response.contents, fcr);
+                    setOldFileForFCR(response.contents, fcr);
+                    toast.success("File synced from storage!", {
+                      action: { label: "Dismiss", onClick: () => { } },
+                    });
+                    setCurrentFileChangeRequestIndex(currentFileChangeRequestIndex);
+                    setHideMerge(true, fcr);
+                  }}
+                  disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading}
+                >
+                  <FaArrowsRotate />
+                </Button>
+                <Button
+                  size="sm"
+                  className="mr-2 bg-green-600 hover:bg-green-700"
+                  onClick={async () => {
+                    const fcr = fileChangeRequests[currentFileChangeRequestIndex]
+                    setOldFileForFCR(fcr.newContents, fcr);
+                    setHideMerge(true, fcr);
+                    await writeFile(
+                      repoName,
+                      fcr.snippet.file,
+                      fcr.newContents,
+                    );
+                    toast.success("Succesfully saved file!", {
+                      action: { label: "Dismiss", onClick: () => { } },
+                    });
+                  }}
+                  disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading || fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge}
+                >
+                  <FaCheck />
+                </Button>
+              </div>
               <Textarea
                 className={`mt-4 grow font-mono h-4/5 ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
                 value={scriptOutput}

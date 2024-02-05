@@ -130,7 +130,7 @@ const FCRModify = memo(function FCRModify({
               </div>
             </div>
             <MentionsInput
-              className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput"
+              className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput mb-2"
               placeholder={instructionsPlaceholder}
               value={fcrInstructions[fcr.snippet.file as string]}
               onClick={(e: any) => {
@@ -243,7 +243,7 @@ const FCRModify = memo(function FCRModify({
                     &nbsp;Cancel
                   </Button>
                 )}
-                <Button
+                {/* <Button
                   className="mr-2"
                   size="sm"
                   variant="secondary"
@@ -282,7 +282,7 @@ const FCRModify = memo(function FCRModify({
                   disabled={fcr.isLoading || fcr.hideMerge}
                 >
                   <FaCheck />
-                </Button>
+                </Button> */}
               </span>
             </div>
           </div>

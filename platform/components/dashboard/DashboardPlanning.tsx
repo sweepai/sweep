@@ -114,7 +114,8 @@ const DashboardPlanning = ({
         Sweep&apos;s Plan
       </Label>
       <ScrollArea className="rounded border overflow-y-auto min-h-[50px] p-2 font-mono">
-        {rawResponse.replace("\n", "<br/>")}
+        {/* <CodeMirror></CodeMirror> */}
+        {rawResponse.replace(/\n/g, "<br/>")}
       </ScrollArea>
     </>
   );
