@@ -4,29 +4,18 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const currentDir = process.cwd();
-const sweepaiDir = path.join(process.cwd(), "node_modules", "sweepai");
-const envLocalPath = path.join(process.cwd(), ".env.local");
-const targetEnvLocalPath = path.join(sweepaiDir, ".env.local");
+// const currentDir = process.cwd();
+// const envLocalPath = path.join(__dirname, ".env.local");
+// const targetEnvLocalPath = path.join(sweepaiDir, ".env.local");
 
-if (fs.existsSync(envLocalPath)) {
-  fs.copyFileSync(envLocalPath, targetEnvLocalPath);
-}
+// if (fs.existsSync(envLocalPath)) {
+//   fs.copyFileSync(envLocalPath, targetEnvLocalPath);
+// }
 
-const command =
-  process.argv[2] === "build"
-    ? `cd ${sweepaiDir} && npm i && next build --no-lint || ${currentDir}`
-    : `cd ${sweepaiDir} && next start || cd ${currentDir}`;
-const childProcess = spawn("sh", ["-c", command], { cwd: sweepaiDir });
-
-childProcess.stdout.on("data", (data) => {
-  console.log(data.toString());
-});
-
-childProcess.stderr.on("data", (data) => {
-  console.error(data.toString());
-});
-
-childProcess.on("exit", (code) => {
-  console.log(`Child childProcess exited with code ${code}`);
-});
+// const command =
+//   process.argv[2] === "build"
+//     ? `cd ${sweepaiDir} && npm i && next build --no-lint || ${currentDir}`
+//     : `cd ${sweepaiDir} && next start || cd ${currentDir}`;
+// const command = "next start"
+const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
+const childProcess = spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });

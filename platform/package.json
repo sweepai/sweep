@@ -1,6 +1,10 @@
 {
   "name": "sweepai",
   "version": "0.1.11",
+  "preferGlobal": true,
+  "bin": {
+    "sweepai": "cli.js"
+  },
   "scripts": {
     "dev": "next dev -- --port 4000",
     "build": "next build",
