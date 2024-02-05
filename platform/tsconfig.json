@@ -14,8 +14,8 @@
     "incremental": true,
     "plugins": [
       {
-        "name": "next"
-      }
+        "name": "next",
+      },
     ],
     "paths": {
       "@/*": ["./*"],
@@ -25,6 +25,6 @@
     },
     "types": ["node", "jest", "react", "react-dom", "next"],
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "lib/tree.test.ts.unused", "app/api/openai/edit/route.test.ts.unused"],
+  "exclude": ["node_modules"],
 }

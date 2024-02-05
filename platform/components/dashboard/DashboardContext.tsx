@@ -1,12 +1,9 @@
 import { Snippet } from "../../lib/search";
 
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../ui/resizable";
-import { Textarea } from "../ui/textarea";
-import React, { useCallback, useEffect, useState } from "react";
-import FileSelector, { getLanguage } from "../shared/FileSelector";
-import DashboardActions from "./DashboardActions";
-import CodeMirror, { EditorView, gutter, lineNumbers } from "@uiw/react-codemirror";
-import { useDebounce, useLocalStorage } from "usehooks-ts";
+import React, { useEffect, useState } from "react";
+import { getLanguage } from "../shared/FileSelector";
+import CodeMirror, { EditorView, lineNumbers } from "@uiw/react-codemirror";
+import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";

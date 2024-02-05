@@ -1,20 +1,20 @@
 import { mock } from "node:test";
 
-jest.mock('openai', () => {
-    return {
-      OpenAI: jest.fn().mockImplementation(() => ({
-        chat: {
-          completions: {
-            create: jest.fn().mockResolvedValue({
-              choices: [{ message: { content: 'mocked response' } }]
-            })
-          }
-        }
-      }))
-    };
-  });
+jest.mock("openai", () => {
+  return {
+    OpenAI: jest.fn().mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn().mockResolvedValue({
+            choices: [{ message: { content: "mocked response" } }],
+          }),
+        },
+      },
+    })),
+  };
+});
 
-const { parseRegexFromOpenAI } = require('./route.ts');
+const { parseRegexFromOpenAI } = require("./route.ts");
 
 const expectedAnswer = String.raw`import unittest
 from unittest.mock import patch
@@ -110,7 +110,7 @@ class EnhancedDiffTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-`
+`;
 const mockResponse = String.raw`<<<<<<< ORIGINAL
 class TestDiff(unittest.TestCase):
 =======
@@ -180,7 +180,7 @@ class EnhancedDiffTest(unittest.TestCase):
 =======
     def test_is_markdown(self):
         print("Testing is_markdown function for markdown file determination")
->>>>>>> MODIFIED`
+>>>>>>> MODIFIED`;
 const mockFileContents = String.raw`import unittest
 from unittest.mock import patch
 
@@ -266,14 +266,13 @@ class TestDiff(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-`
+`;
 
-describe('parseRegexFromOpenAI', () => {
-    it('given the mock input and response it should return correct answer file', async () => {
-
-        const mockAnswer = parseRegexFromOpenAI(mockResponse, mockFileContents);
-        // Assert that the response is as expected
-        expect(mockAnswer).toEqual(expectedAnswer);
-        expect(1).toEqual(1);
-    });
+describe("parseRegexFromOpenAI", () => {
+  it("given the mock input and response it should return correct answer file", async () => {
+    const mockAnswer = parseRegexFromOpenAI(mockResponse, mockFileContents);
+    // Assert that the response is as expected
+    expect(mockAnswer).toEqual(expectedAnswer);
+    expect(1).toEqual(1);
+  });
 });
