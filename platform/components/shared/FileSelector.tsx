@@ -12,7 +12,7 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
-import { FileChangeRequest } from "@/lib/types";
+import { FileChangeRequest } from "../../lib/types";
 
 const getLanguage = (ext: string) => {
   const languageMap: { [key: string]: any } = {

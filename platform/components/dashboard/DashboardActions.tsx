@@ -33,7 +33,6 @@ import {
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 import { usePostHog } from "posthog-js/react";
-import { posthogMetadataScript } from "@/lib/posthog";
 
 const Diff = require("diff");
 

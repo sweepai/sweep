@@ -13,9 +13,9 @@ import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { FileChangeRequest } from "../../lib/types";
-import getFiles from "@/lib/api.service";
+import getFiles from "../../lib/api.service";
 import { usePostHog } from "posthog-js/react";
-import { posthogMetadataScript } from "@/lib/posthog";
+import { posthogMetadataScript } from "../../lib/posthog";
 
 const blockedPaths = [
   ".git",
