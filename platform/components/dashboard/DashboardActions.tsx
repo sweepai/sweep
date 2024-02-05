@@ -152,8 +152,6 @@ const DashboardActions = ({
   setBlockedGlobs,
   hideMerge,
   setHideMerge,
-  branch,
-  setBranch,
   oldFile,
   setOldFile,
   repoName,
@@ -184,8 +182,6 @@ const DashboardActions = ({
   setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
   hideMerge: boolean;
   setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
-  branch: string;
-  setBranch: React.Dispatch<React.SetStateAction<string>>;
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
   repoName: string;
@@ -242,6 +238,34 @@ const DashboardActions = ({
         return fileChangeRequest;
       });
     });
+  }
+
+  const refreshFiles = async () => {
+    try {
+      let {directories, sortedFiles} = await getFiles(
+        currentRepoName,
+        blockedGlobs,
+        fileLimit,
+      );
+      if (sortedFiles.length === 0) {
+        throw new Error("No files found in the repository");
+      }
+      toast.success(
+        "Successfully fetched files from the repository!",
+        { action: { label: "Dismiss", onClick: () => {} } },
+      );
+      setCurrentRepoName((currentRepoName: string) => {
+        setRepoName(currentRepoName);
+        return currentRepoName;
+      });
+      setRepoNameCollapsibleOpen(false)
+    } catch (e) {
+      console.error(e);
+      toast.error("An Error Occured", {
+        description: "Please enter a valid repository name.",
+        action: { label: "Dismiss", onClick: () => {} },
+      });
+    }
   }
 
   useEffect(() => {
@@ -317,12 +341,6 @@ const DashboardActions = ({
   };
 
   useEffect(() => {
-    (async () => {
-      const params = new URLSearchParams({ repo: repoName }).toString();
-      const response = await fetch("/api/branch?" + params);
-      const object = await response.json();
-      setBranch(object.branch);
-    })();
     if (repoName === "") {
       setRepoNameCollapsibleOpen(true);
     }
@@ -769,10 +787,12 @@ const DashboardActions = ({
         <Collapsible
           defaultOpen={repoName === ""}
           open={repoNameCollapsibleOpen}
-          className="border-2 rounded p-4"
+          className="border-2 rounded p-4 mb-2"
         >
-          <div className="flex flex-row justify-between items-center mb-2">
-            <Label className="mb-0">Repository Settings&nbsp;&nbsp;</Label>
+          <div className="flex flex-row justify-between items-center">
+            <div>
+              <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
+            </div>
             <Button
               variant="secondary"
               size="sm"
@@ -791,47 +811,11 @@ const DashboardActions = ({
               value={currentRepoName}
               className="col-span-4 w-full"
               onChange={(e) => setCurrentRepoName(e.target.value)}
-              onBlur={async () => {
-                try {
-                  let {directories, sortedFiles} = await getFiles(
-                    currentRepoName,
-                    blockedGlobs,
-                    fileLimit,
-                  );
-                  if (sortedFiles.length === 0) {
-                    throw new Error("No files found in the repository");
-                  }
-                  toast.success(
-                    "Successfully fetched files from the repository!",
-                    { action: { label: "Dismiss", onClick: () => {} } },
-                  );
-                  setCurrentRepoName((currentRepoName: string) => {
-                    setRepoName(currentRepoName);
-                    return currentRepoName;
-                  });
-                  setRepoNameCollapsibleOpen(false)
-                } catch (e) {
-                  console.error(e);
-                  toast.error("An Error Occured", {
-                    description: "Please enter a valid repository name.",
-                    action: { label: "Dismiss", onClick: () => {} },
-                  });
-                }
-              }}
+              onBlur={refreshFiles}
             />
             <p className="text-sm text-muted-foreground mb-4">
               Absolute path to your repository.
             </p>
-            <Label className="mb-2">Branch</Label>
-            <Input
-              className="mb-4"
-              value={branch}
-              onChange={(e) => {
-                setBranch(e.target.value);
-                // TODO: make this work
-              }}
-              placeholder="your-branch-here"
-            />
             <Label className="mb-2">Blocked Keywords</Label>
             <Input
               className="mb-4"
@@ -855,32 +839,11 @@ const DashboardActions = ({
             />
           </CollapsibleContent>
         </Collapsible>
-
-        <DashboardInstructions
-          filePath={filePath}
-          repoName={repoName}
-          files={files}
-          directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setHideMerge={setHideMerge}
-          getFileChanges={getFileChanges}
-          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-          removeFileChangeRequest={removeFileChangeRequest}
-          isRunningRef={isRunningRef}
-        />
-
         <Collapsible
           open={validationScriptCollapsibleOpen}
-          className="border-2 rounded p-4"
+          className="border-2 rounded p-4 mb-2"
         >
-          <div className="flex flex-row justify-between items-center mt-2 mb-2">
+          <div className="flex flex-row justify-between items-center">
             <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
               <AlertDialog open={alertDialogOpen}>
                 <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
@@ -1026,7 +989,29 @@ const DashboardActions = ({
             </p>
           </CollapsibleContent>
         </Collapsible>
-        <div className="flex flex-row justify-center">
+        <DashboardInstructions
+          filePath={filePath}
+          repoName={repoName}
+          files={files}
+          directories={directories}
+          fileChangeRequests={fileChangeRequests}
+          setFileChangeRequests={setFileChangeRequests}
+          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
+          setHideMerge={setHideMerge}
+          getFileChanges={getFileChanges}
+          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+          removeFileChangeRequest={removeFileChangeRequest}
+          isRunningRef={isRunningRef}
+          refreshFiles={refreshFiles}
+        />
+
+
+        {/* <div className="flex flex-row justify-center">
           {!isRunningRef.current ? (
             <Button
               className="mt-4 mr-4"
@@ -1083,7 +1068,7 @@ const DashboardActions = ({
             <FaCheck />
             &nbsp;&nbsp;Save All
           </Button>
-        </div>
+        </div> */}
       </div>
     </ResizablePanel>
   );

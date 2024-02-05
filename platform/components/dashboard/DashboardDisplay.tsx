@@ -29,17 +29,18 @@ const blockedPaths = [
   "install_assistant.sh"
 ];
 
+const versionScript = `timestamp=$(git log -1 --format="%at")
+[[ "$OSTYPE" == "linux-gnu"* ]] && date -d @$timestamp +%y.%m.%d.%H || date -r $timestamp +%y.%m.%d.%H
+`;
+
 const DashboardDisplay = () => {
-  const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
   const [scriptOutput = "" as string, setScriptOutput] = useLocalStorage(
     "scriptOutput",
     "",
   );
-  // const [repoName, setRepoName] = useLocalStorage("repoName", process.env.NEXT_PUBLIC_DEFAULT_REPO_PATH || "");
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
-  console.log(process.env.NEXT_PUBLIC_DEFAULT_REPO_PATH)
   const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000);
   const [blockedGlobs, setBlockedGlobs] = useLocalStorage(
     "blockedGlobs",
@@ -260,13 +261,12 @@ const DashboardDisplay = () => {
       const body = {
         repo: repoName,
         filePath,
-        script: `git log -1 --format="%at" | xargs -I{} date -d @{} +%y.%m.%d.%H`,
+        script: versionScript
       };
       const result = await fetch("/api/run?", {
         method: "POST",
         body: JSON.stringify(body),
       });
-      // console.log("result", await result.text())
       const object = await result.json();
       const versionNumberString = object.stdout;
       setVersionNumber("v" + versionNumberString);
@@ -307,8 +307,6 @@ const DashboardDisplay = () => {
           setBlockedGlobs={setBlockedGlobs}
           hideMerge={hideMerge}
           setHideMerge={setHideMerge}
-          branch={branch}
-          setBranch={setBranch}
           oldFile={oldFile}
           setOldFile={setOldFile}
           repoName={repoName}

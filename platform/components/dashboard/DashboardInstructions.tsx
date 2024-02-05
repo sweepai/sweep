@@ -5,7 +5,7 @@ import { FileChangeRequest } from "../../lib/types";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
 
-const DashboardInstructions = memo(function DashboardInstructions({
+const DashboardInstructions = function DashboardInstructions({
   filePath,
   repoName,
   files,
@@ -23,6 +23,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
+  refreshFiles,
 }: {
   filePath: string;
   repoName: string;
@@ -57,6 +58,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
   ) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
+  refreshFiles: () => Promise<void>;
 }) {
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
@@ -69,6 +71,7 @@ const DashboardInstructions = memo(function DashboardInstructions({
             directories={directories}
             fileChangeRequests={fileChangeRequests}
             setFileChangeRequests={setFileChangeRequests}
+            refreshFiles={refreshFiles}
           />
           <FCRList
             repoName={repoName}
@@ -94,5 +97,5 @@ const DashboardInstructions = memo(function DashboardInstructions({
       </TabsContent>
     </Tabs>
   );
-});
+};
 export default DashboardInstructions;
