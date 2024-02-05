@@ -12,10 +12,5 @@ const { spawn } = require("child_process");
 //   fs.copyFileSync(envLocalPath, targetEnvLocalPath);
 // }
 
-// const command =
-//   process.argv[2] === "build"
-//     ? `cd ${sweepaiDir} && npm i && next build --no-lint || ${currentDir}`
-//     : `cd ${sweepaiDir} && next start || cd ${currentDir}`;
-// const command = "next start"
 const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
 const childProcess = spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
