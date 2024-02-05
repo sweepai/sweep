@@ -5,7 +5,7 @@ import { FileChangeRequest } from "../../lib/types";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
 
-const DashboardInstructions = memo(function DashboardInstructions({
+const DashboardInstructions = function DashboardInstructions({
   filePath,
   repoName,
   files,
@@ -94,5 +94,5 @@ const DashboardInstructions = memo(function DashboardInstructions({
       </TabsContent>
     </Tabs>
   );
-});
+};
 export default DashboardInstructions;

@@ -311,8 +311,6 @@ const DashboardDisplay = () => {
           setBlockedGlobs={setBlockedGlobs}
           hideMerge={hideMerge}
           setHideMerge={setHideMerge}
-          // branch={branch}
-          // setBranch={setBranch}
           oldFile={oldFile}
           setOldFile={setOldFile}
           repoName={repoName}
