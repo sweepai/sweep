@@ -141,14 +141,14 @@ cd $INSTALL_PATH
 if [ -d "sweep" ]; then
   echo "Sweep folder exists. Pulling latest changes..."
   cd sweep
-  git pull
+  GIT_LFS_SKIP_SMUDGE=1 git fetch --depth 1
+  git reset --hard @{u}
+  cd platform
 else
-  echo "Sweep folder does not exist."
-fi
-
-echo -e "\n${BLUE}Cloning the Sweep repository in ${INSTALL_PATH}...${NC}\n"
-GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --single-branch https://github.com/sweepai/sweep
+  echo -e "\n${BLUE}Cloning the Sweep repository in ${INSTALL_PATH}...${NC}\n"
+  GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --single-branch https://github.com/sweepai/sweep
 cd sweep/platform
+fi
 
 echo -e "\n${BLUE}Storing OpenAI API key...${NC}"
 echo "OPENAI_API_KEY=$OPENAI_API_KEY\nNEXT_PUBLIC_DEFAULT_REPO_PATH=${pwd}\n" > .env.local
