@@ -1,6 +1,6 @@
 {
   "name": "sweepai",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "preferGlobal": true,
   "bin": {
     "sweepai": "cli.js"
@@ -98,6 +98,6 @@
     "@types/react-mentions": "^4.1.13",
     "ts-jest": "^29.1.2",
     "eslint": "^8",
-    "eslint-config-next": "14.1.0",
+    "eslint-config-next": "14.1.0"
   }
 }
