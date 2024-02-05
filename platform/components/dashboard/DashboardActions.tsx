@@ -443,7 +443,7 @@ const DashboardActions = ({
       // }
     }
     if (!changesMade) {
-      errorMessage += "No diff hunks we're found in the response.\n\n";
+      errorMessage += "No valid diff hunks were found in the response.\n\n";
     }
     return [currentFileContents, errorMessage];
   };
