@@ -116,6 +116,9 @@ dependencies:
   chai:
     specifier: ^5.0.3
     version: 5.0.3
+  chalk:
+    specifier: ^5.3.0
+    version: 5.3.0
   class-variance-authority:
     specifier: ^0.7.0
     version: 0.7.0
@@ -128,6 +131,9 @@ dependencies:
   codemirror:
     specifier: ^6.65.7
     version: 6.65.7
+  consola:
+    specifier: ^3.2.3
+    version: 3.2.3
   cypress:
     specifier: ^13.6.4
     version: 13.6.4
@@ -4422,6 +4428,11 @@ packages:
 
   /concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
+
+  /consola@3.2.3:
+    resolution: {integrity: sha512-I5qxpzLv+sJhTVEoLYNcTW+bThDCPsit0vLNKShZx6rLtpilNpmmeTPaeqJb9ZE9dV3DGaeby6Vuhrw38WjeyQ==}
+    engines: {node: ^14.18.0 || >=16.10.0}
+    dev: false
 
   /convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
