@@ -240,6 +240,34 @@ const DashboardActions = ({
     });
   }
 
+  const resetFiles = async () => {
+    try {
+      let {directories, sortedFiles} = await getFiles(
+        currentRepoName,
+        blockedGlobs,
+        fileLimit,
+      );
+      if (sortedFiles.length === 0) {
+        throw new Error("No files found in the repository");
+      }
+      toast.success(
+        "Successfully fetched files from the repository!",
+        { action: { label: "Dismiss", onClick: () => {} } },
+      );
+      setCurrentRepoName((currentRepoName: string) => {
+        setRepoName(currentRepoName);
+        return currentRepoName;
+      });
+      setRepoNameCollapsibleOpen(false)
+    } catch (e) {
+      console.error(e);
+      toast.error("An Error Occured", {
+        description: "Please enter a valid repository name.",
+        action: { label: "Dismiss", onClick: () => {} },
+      });
+    }
+  }
+
   useEffect(() => {
     setRepoNameCollapsibleOpen(repoName === "")
   }, [repoName])
