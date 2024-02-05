@@ -51,10 +51,10 @@ if (!fs.existsSync(envLocalPath)) {
 const main = () => {
   const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build --no-lint` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
   console.log(`> ${command}\n`);
-  const process = spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
+  const childProcess = spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
 
   // Check the exit code of the process
-  process.on('exit', (code, signal) => {
+  childProcess.on('exit', (code, signal) => {
     if (code) {
       console.error(`If you got a message regarding a missing build, try running \`npx sweepai build\` to rebuild the package.`)
       process.exit(code);
