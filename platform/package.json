@@ -30,6 +30,7 @@
     "@codemirror/language": "^6.10.0",
     "@codemirror/state": "^6.4.0",
     "@codemirror/view": "^6.23.0",
+    "@inquirer/password": "^2.0.0",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-collapsible": "^1.0.3",
     "@radix-ui/react-dialog": "^1.0.5",
