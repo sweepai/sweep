@@ -374,7 +374,7 @@ const DashboardDisplay = () => {
                 className={`mt-4 grow font-mono h-4/5`}
                 id="llm-output"
                 value={streamData}
-                placeholder="GPT will display what it is thinking here."
+                placeholder="ChatGPT's output will be displayed here."
                 readOnly
                 hidden={outputToggle !== "llm"}
               ></Textarea>
