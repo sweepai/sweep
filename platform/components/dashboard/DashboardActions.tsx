@@ -245,6 +245,8 @@ const DashboardActions = ({
     });
   }
 
+  const [currentTab, setCurrentTab] = useLocalStorage("currentTab", "modify");
+
   const refreshFiles = async () => {
     try {
       let {directories, sortedFiles} = await getFiles(
@@ -788,18 +790,21 @@ const DashboardActions = ({
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-
-     <Tabs defaultValue="Planning" className="h-full w-full">
+     <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={setCurrentTab}>
       <TabsList>
-        <TabsTrigger value="Planning">Planning</TabsTrigger>
-        <TabsTrigger value="Coding">Coding</TabsTrigger>
+        <TabsTrigger value="planning">Planning</TabsTrigger>
+        <TabsTrigger value="coding">Coding</TabsTrigger>
       </TabsList>
-      <TabsContent value="Planning" className="rounded-xl border h-full p-4">
+      <TabsContent value="planning" className="rounded-xl border h-full p-4">
         <DashboardPlanning
           repoName={repoName}
+          setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
+            setFileChangeRequests(fileChangeRequests);
+            setCurrentTab("coding");
+          }}
         />
       </TabsContent>
-      <TabsContent value="Coding" className="h-full">
+      <TabsContent value="coding" className="h-full">
         <div className="flex flex-col h-full">
           <Collapsible
             defaultOpen={repoName === ""}

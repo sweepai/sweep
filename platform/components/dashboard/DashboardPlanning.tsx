@@ -1,7 +1,7 @@
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { FileChangeRequest, Snippet } from "@/lib/types";
 import { ScrollArea } from "../ui/scroll-area";
@@ -14,50 +14,48 @@ import { Switch } from "../ui/switch";
 import { getFile } from "@/lib/api.service";
 import Markdown from 'react-markdown'
 
-const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to write code for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
+const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
 
 const userMessagePrompt = `<user_request>
 {userRequest}
 </user_request>
 
 # Task:
-Reference and analyze the snippets, repo, and user request to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
+Analyze the snippets, repo, and user request to break down the requested change and propose a plan to addresses the user's request. Mention all changes required to solve the request.
 
 Provide a plan to solve the issue, following these rules:
 * You may only create new files and modify existing files but may not necessarily need both.
-* Include the full path (e.g. src/main.py and not just main.py), using the snippets and repo_tree for reference.
-* Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
-* Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
+* Include the full path (e.g. src/main.py and not just main.py), using the snippets for reference.
+* Use natural language instructions on what to modify regarding business logic.
+* Be concrete with instructions and do not write "identify x" or "ensure y is done". Instead write "add x" or "change y to z".
+* Refer to the user as "you".
 
 You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
-* If a PR was referenced, outline the structure of the code changes in the PR.
-* Outline the ideal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
-* Describe each <create> and <modify> section in the following plan and why it will be needed.
-...
+Briefly outline the minimal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
 </contextual_request_analysis>
 
 # Plan:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Natural language instructions for creating the new file needed to solve the issue.
+* Concise natural language instructions for creating the new file needed to solve the issue.
 * Reference necessary files, imports and entity names.
 ...
 </create>
 ...
 
 <modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Natural language instructions for the modifications needed to solve the issue.
-* Be concise and reference necessary files, imports and entity names.
+* Concise natural language instructions for the modifications needed to solve the issue.
+* Reference necessary files, imports and entity names.
 ...
 </modify>
 ...
 
 </plan>`
 
-const chainOfThoughtPattern = /<contextual_request_analysis>(?<content>[\s\S]*?)<\/contextual_request_analysis>/;
+const chainOfThoughtPattern = /<contextual_request_analysis>(?<content>[\s\S]*?)($|<\/contextual_request_analysis>)/;
 const fileChangeRequestPattern = /<create file="(?<cFile>.*?)" relevant_files="(?<relevant_files>.*?)">(?<cInstructions>[\s\S]*?)($|<\/create>)|<modify file="(?<mFile>.*?)" start_line="(?<startLine>.*?)" end_line="(?<endLine>.*?)" relevant_files="(.*?)">(?<mInstructions>[\s\S]*?)($|<\/modify>)/sg;
 
 const capitalize = (s: string) => {
@@ -66,15 +64,20 @@ const capitalize = (s: string) => {
 
 const DashboardPlanning = ({
   repoName,
+  setFileChangeRequests,
 }: {
   repoName: string;
+  setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
 }) => {
   const [instructions, setInstructions] = useLocalStorage("globalInstructions", "");
   const [snippets, setSnippets] = useLocalStorage("globalSnippets", [] as Snippet[]);
-  const [rawResponse, setRawResponse] = useState("");
+  const [rawResponse, setRawResponse] = useLocalStorage("planningRawResponse", "");
   const [chainOfThought, setChainOfThought] = useLocalStorage("globalChainOfThought", "");
-  const [fileChangeRequests, setFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
+  const [currentFileChangeRequests, setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
   const [debugLogToggle, setDebugLogToggle] = useState(false);
+
+  const thoughtsRef = useRef<HTMLDivElement>(null);
+  const planRef = useRef<HTMLDivElement>(null);
 
   const extensions = [
     xml(),
@@ -101,6 +104,7 @@ const DashboardPlanning = ({
     const reader = response.body?.getReader();
     const decoder = new TextDecoder("utf-8");
     let rawText = "";
+    setCurrentFileChangeRequests([])
     while (true) {
       const { done, value } = await reader?.read()!
       if (done) {
@@ -111,9 +115,11 @@ const DashboardPlanning = ({
       console.log(rawText)
       setRawResponse(rawText)
       const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
-      console.log(chainOfThoughtMatch)
+      setChainOfThought(chainOfThoughtMatch?.groups?.content || "")
+      if (thoughtsRef.current) {
+        thoughtsRef.current.scrollTop = thoughtsRef.current.scrollHeight || 0;
+      }
       const fileChangeRequestMatches = rawText.matchAll(fileChangeRequestPattern);
-      console.log(fileChangeRequestMatches)
       var fileChangeRequests = [];
       for (const match of fileChangeRequestMatches) {
         const file: string = match.groups?.cFile || match.groups?.mFile;
@@ -140,7 +146,10 @@ const DashboardPlanning = ({
           readOnlySnippets: {},
         } as FileChangeRequest)
         console.log(fileChangeRequests)
-        setFileChangeRequests(fileChangeRequests)
+      }
+      setCurrentFileChangeRequests(fileChangeRequests)
+      if (planRef.current) {
+        planRef.current.scrollTop = planRef.current.scrollHeight || 0;
       }
     }
   }
@@ -156,17 +165,28 @@ const DashboardPlanning = ({
         </Button>
       </div>
       <Textarea
+        className="mb-4"
         placeholder="Describe the changes you want to make here"
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
       />
-      <Button
-        className="mt-2 mb-4"
-        variant="secondary"
-        onClick={generatePlan}
-      >
-        Generate plan
-      </Button>
+      <div className="text-center mb-4">
+        <Button
+          className="mb-4"
+          variant="secondary"
+          onClick={generatePlan}
+        >
+          Generate Plan
+        </Button>
+      </div>
+      <Label className="mb-2">
+        Sweep&apos;s Thoughts
+      </Label>
+      <div className="rounded border p-4 mb-4 overflow-y-auto" ref={thoughtsRef}>
+        <Markdown className="react-markdown max-h-[150px]">
+          {chainOfThought}
+        </Markdown>
+      </div>
       <div className="flex flex-row mb-2 items-center">
         <Label>
           Sweep&apos;s Plan
@@ -180,7 +200,7 @@ const DashboardPlanning = ({
           Debug mode
         </Switch>
       </div>
-      <div className="overflow-y-auto max-h-[550px]">
+      <div className="overflow-y-auto max-h-[300px]" ref={planRef}>
         {debugLogToggle ? (
           <CodeMirror
             value={rawResponse}
@@ -193,7 +213,7 @@ const DashboardPlanning = ({
           />
         ): (
           <>
-            {fileChangeRequests.map((fileChangeRequest, index) => {
+            {currentFileChangeRequests.map((fileChangeRequest, index) => {
               const filePath = fileChangeRequest.snippet.file;
               const path = filePath.split("/");
               const fileName = path.pop();
@@ -226,7 +246,7 @@ const DashboardPlanning = ({
                       {capitalize(fileChangeRequest.changeType)}
                     </span>
                   </div>
-                  <Markdown className="react-markdown">
+                  <Markdown className="react-markdown mb-2">
                     {fileChangeRequest.instructions}
                   </Markdown>
                   {fileChangeRequest.changeType === "modify" && (
@@ -242,9 +262,23 @@ const DashboardPlanning = ({
                 </div>
               )
             })}
+            {currentFileChangeRequests.length === 0 && (
+              <div className="text-zinc-500">
+                No plan generated yet.
+              </div>
+            )}
           </>
         )}
-      {/* </ScrollArea> */}
+      </div>
+      <div className="grow"></div>
+      <div className="text-center">
+        <Button
+          variant="secondary"
+          className="bg-blue-800 hover:bg-blue-900 mt-4"
+          onClick={() => setFileChangeRequests(currentFileChangeRequests)}
+        >
+          Accept Plan
+        </Button>
       </div>
     </div>
   );

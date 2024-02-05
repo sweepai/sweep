@@ -116,6 +116,10 @@
   font-size: 0.875rem !important;
 }
 
+.react-markdown {
+  font-size: 0.75rem;
+}
+
 .react-markdown li {
   list-style-type: disc;
   margin-left: 2rem;
@@ -123,4 +127,17 @@
 
 .react-markdown code {
   color: #e83e8c;
+}
+
+.react-markdown pre {
+  margin-top: 1rem;
+  background-color: #202123;
+  color: #afafaf;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.react-markdown pre code {
+  color: #f4f4f4;
 }
