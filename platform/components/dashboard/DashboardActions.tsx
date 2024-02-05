@@ -240,7 +240,7 @@ const DashboardActions = ({
     });
   }
 
-  const resetFiles = async () => {
+  const refreshFiles = async () => {
     try {
       let {directories, sortedFiles} = await getFiles(
         currentRepoName,
@@ -790,7 +790,15 @@ const DashboardActions = ({
           className="border-2 rounded p-4"
         >
           <div className="flex flex-row justify-between items-center mb-2">
-            <Label className="mb-0">Repository Settings&nbsp;&nbsp;</Label>
+            <div>
+              <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
+              <Button
+                variant="secondary"
+                onClick={refreshFiles}
+              >
+                Refresh files
+              </Button>
+            </div>
             <Button
               variant="secondary"
               size="sm"
@@ -809,33 +817,7 @@ const DashboardActions = ({
               value={currentRepoName}
               className="col-span-4 w-full"
               onChange={(e) => setCurrentRepoName(e.target.value)}
-              onBlur={async () => {
-                try {
-                  let {directories, sortedFiles} = await getFiles(
-                    currentRepoName,
-                    blockedGlobs,
-                    fileLimit,
-                  );
-                  if (sortedFiles.length === 0) {
-                    throw new Error("No files found in the repository");
-                  }
-                  toast.success(
-                    "Successfully fetched files from the repository!",
-                    { action: { label: "Dismiss", onClick: () => {} } },
-                  );
-                  setCurrentRepoName((currentRepoName: string) => {
-                    setRepoName(currentRepoName);
-                    return currentRepoName;
-                  });
-                  setRepoNameCollapsibleOpen(false)
-                } catch (e) {
-                  console.error(e);
-                  toast.error("An Error Occured", {
-                    description: "Please enter a valid repository name.",
-                    action: { label: "Dismiss", onClick: () => {} },
-                  });
-                }
-              }}
+              onBlur={refreshFiles}
             />
             <p className="text-sm text-muted-foreground mb-4">
               Absolute path to your repository.

@@ -46,7 +46,7 @@ const ModifyOrCreate = ({
             className="w-full justify-between overflow-hidden mr-2"
             disabled={files.length === 0}
           >
-            Modify a file
+            Modify file
             <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -120,7 +120,7 @@ const ModifyOrCreate = ({
             className="w-full justify-between overflow-hidden"
             disabled={files.length === 0}
           >
-            Create a file
+            Create file
             <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>

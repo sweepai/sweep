@@ -34,14 +34,12 @@ const versionScript = `timestamp=$(git log -1 --format="%at")
 `;
 
 const DashboardDisplay = () => {
-  // const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
   const [scriptOutput = "" as string, setScriptOutput] = useLocalStorage(
     "scriptOutput",
     "",
   );
-  // const [repoName, setRepoName] = useLocalStorage("repoName", process.env.NEXT_PUBLIC_DEFAULT_REPO_PATH || "");
   const [repoName, setRepoName] = useLocalStorage("repoName", "");
   const [fileLimit, setFileLimit] = useLocalStorage<number>("fileLimit", 10000);
   const [blockedGlobs, setBlockedGlobs] = useLocalStorage(
