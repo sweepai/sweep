@@ -13,4 +13,5 @@ const { spawn } = require("child_process");
 // }
 
 const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
+console.log(`> ${command}`);
 const childProcess = spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
