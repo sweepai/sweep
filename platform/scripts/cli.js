@@ -54,7 +54,7 @@ const main = () => {
   const process = spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
 
   // Check the exit code of the process
-  childProcess.on('exit', (code, signal) => {
+  process.on('exit', (code, signal) => {
     if (code) {
       console.error(`If you got a message regarding a missing build, try running \`npx sweepai build\` to rebuild the package.`)
       process.exit(code);
