@@ -115,3 +115,12 @@
   padding-right: 0.75rem;
   font-size: 0.875rem !important;
 }
+
+.react-markdown li {
+  list-style-type: disc;
+  margin-left: 2rem;
+}
+
+.react-markdown code {
+  color: #e83e8c;
+}

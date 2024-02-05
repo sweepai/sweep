@@ -2,9 +2,17 @@ import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { useEffect, useState } from "react";
-import { Snippet } from "@/lib/types";
+import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
+import { FileChangeRequest, Snippet } from "@/lib/types";
 import { ScrollArea } from "../ui/scroll-area";
 import { Button } from "../ui/button";
+import { indentWithTab } from "@codemirror/commands";
+import { indentUnit } from "@codemirror/language";
+import { xml } from "@codemirror/lang-xml";
+import { vscodeDark } from "@uiw/codemirror-theme-vscode";
+import { Switch } from "../ui/switch";
+import { getFile } from "@/lib/api.service";
+import Markdown from 'react-markdown'
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to write code for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
 
@@ -47,7 +55,14 @@ You MUST follow the following format with XML tags:
 </modify>
 ...
 
-</plan>"""`
+</plan>`
+
+const chainOfThoughtPattern = /<contextual_request_analysis>(?<content>[\s\S]*?)<\/contextual_request_analysis>/;
+const fileChangeRequestPattern = /<create file="(?<cFile>.*?)" relevant_files="(?<relevant_files>.*?)">(?<cInstructions>[\s\S]*?)($|<\/create>)|<modify file="(?<mFile>.*?)" start_line="(?<startLine>.*?)" end_line="(?<endLine>.*?)" relevant_files="(.*?)">(?<mInstructions>[\s\S]*?)($|<\/modify>)/sg;
+
+const capitalize = (s: string) => {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 const DashboardPlanning = ({
   repoName,
@@ -57,6 +72,16 @@ const DashboardPlanning = ({
   const [instructions, setInstructions] = useLocalStorage("globalInstructions", "");
   const [snippets, setSnippets] = useLocalStorage("globalSnippets", [] as Snippet[]);
   const [rawResponse, setRawResponse] = useState("");
+  const [chainOfThought, setChainOfThought] = useLocalStorage("globalChainOfThought", "");
+  const [fileChangeRequests, setFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
+  const [debugLogToggle, setDebugLogToggle] = useState(false);
+
+  const extensions = [
+    xml(),
+    EditorView.lineWrapping,
+    keymap.of([indentWithTab]),
+    indentUnit.of("    "),
+  ];
 
   const generatePlan = async () => {
     console.log("Generating plan...")
@@ -85,11 +110,43 @@ const DashboardPlanning = ({
       rawText += text;
       console.log(rawText)
       setRawResponse(rawText)
+      const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
+      console.log(chainOfThoughtMatch)
+      const fileChangeRequestMatches = rawText.matchAll(fileChangeRequestPattern);
+      console.log(fileChangeRequestMatches)
+      var fileChangeRequests = [];
+      for (const match of fileChangeRequestMatches) {
+        const file: string = match.groups?.cFile || match.groups?.mFile;
+        const relevantFiles = match.groups?.relevant_files;
+        const instructions = match.groups?.cInstructions || match.groups?.mInstructions;
+        const changeType = match.groups?.cInstructions ? "create" : "modify";
+        const startLine = match.groups?.startLine;
+        const endLine = match.groups?.endLine;
+        console.log(changeType, relevantFiles, instructions, startLine, endLine)
+        const contents = (await getFile(repoName, file)).contents || "";
+        fileChangeRequests.push({
+          snippet: {
+            start: startLine || 0,
+            end: endLine || contents.split("\n").length,
+            file: file,
+            content: contents,
+          },
+          newContents: contents,
+          changeType,
+          hideMerge: true,
+          instructions: instructions,
+          isLoading: false,
+          openReadOnlyFiles: false,
+          readOnlySnippets: {},
+        } as FileChangeRequest)
+        console.log(fileChangeRequests)
+        setFileChangeRequests(fileChangeRequests)
+      }
     }
   }
 
   return (
-    <>
+    <div className="flex flex-col">
       <div className="flex flex-row justify-between items-center mb-2">
         <Label className="mr-2">
           Instructions
@@ -104,20 +161,92 @@ const DashboardPlanning = ({
         onChange={(e) => setInstructions(e.target.value)}
       />
       <Button
+        className="mt-2 mb-4"
         variant="secondary"
         onClick={generatePlan}
       >
         Generate plan
       </Button>
-      <br/><br/>
-      <Label>
-        Sweep&apos;s Plan
-      </Label>
-      <ScrollArea className="rounded border overflow-y-auto min-h-[50px] p-2 font-mono">
-        {/* <CodeMirror></CodeMirror> */}
-        {rawResponse.replace(/\n/g, "<br/>")}
-      </ScrollArea>
-    </>
+      <div className="flex flex-row mb-2 items-center">
+        <Label>
+          Sweep&apos;s Plan
+        </Label>
+        <div className="grow"></div>
+        <Switch
+          className="ml-2"
+          checked={debugLogToggle}
+          onClick={() => setDebugLogToggle(debugLogToggle => !debugLogToggle)}
+        >
+          Debug mode
+        </Switch>
+      </div>
+      <div className="overflow-y-auto max-h-[550px]">
+        {debugLogToggle ? (
+          <CodeMirror
+            value={rawResponse}
+            extensions={extensions}
+            // onChange={onChange}
+            theme={vscodeDark}
+            style={{ overflow: "auto" }}
+            placeholder="Empty file"
+            className="ph-no-capture"
+          />
+        ): (
+          <>
+            {fileChangeRequests.map((fileChangeRequest, index) => {
+              const filePath = fileChangeRequest.snippet.file;
+              const path = filePath.split("/");
+              const fileName = path.pop();
+              return (
+                <div className="rounded border p-3 mb-2" key={index}>
+                  <div className="flex flex-row justify-between mb-2 p-2">
+                    {fileChangeRequest.changeType === "create" ? (
+                      <div className="font-mono">
+                        <span className="text-zinc-400">
+                          {path}/
+                        </span>
+                        <span>
+                          {fileName}
+                        </span>
+                      </div>
+                    ): (
+                      <div className="font-mono">
+                        <span className="text-zinc-400">
+                          {path}/
+                        </span>
+                        <span>
+                          {fileName}
+                        </span>
+                        <span className="text-zinc-400">
+                          :{fileChangeRequest.snippet.start}-{fileChangeRequest.snippet.end}
+                        </span>
+                      </div>
+                    )}
+                    <span className="font-mono text-zinc-400">
+                      {capitalize(fileChangeRequest.changeType)}
+                    </span>
+                  </div>
+                  <Markdown className="react-markdown">
+                    {fileChangeRequest.instructions}
+                  </Markdown>
+                  {fileChangeRequest.changeType === "modify" && (
+                    <CodeMirror
+                      value={fileChangeRequest.snippet.content.split("\n").slice(0, 5).join()}
+                      extensions={extensions}
+                      theme={vscodeDark}
+                      style={{ overflow: "auto" }}
+                      placeholder={"No plan generated yet."}
+                      className="ph-no-capture"
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </>
+        )}
+      {/* </ScrollArea> */}
+      </div>
+    </div>
   );
 }
 
