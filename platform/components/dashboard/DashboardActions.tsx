@@ -787,17 +787,11 @@ const DashboardActions = ({
         <Collapsible
           defaultOpen={repoName === ""}
           open={repoNameCollapsibleOpen}
-          className="border-2 rounded p-4"
+          className="border-2 rounded p-4 mb-2"
         >
-          <div className="flex flex-row justify-between items-center mb-2">
+          <div className="flex flex-row justify-between items-center">
             <div>
               <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
-              <Button
-                variant="secondary"
-                onClick={refreshFiles}
-              >
-                Refresh files
-              </Button>
             </div>
             <Button
               variant="secondary"
@@ -845,32 +839,11 @@ const DashboardActions = ({
             />
           </CollapsibleContent>
         </Collapsible>
-
-        <DashboardInstructions
-          filePath={filePath}
-          repoName={repoName}
-          files={files}
-          directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setHideMerge={setHideMerge}
-          getFileChanges={getFileChanges}
-          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-          removeFileChangeRequest={removeFileChangeRequest}
-          isRunningRef={isRunningRef}
-        />
-
         <Collapsible
           open={validationScriptCollapsibleOpen}
-          className="border-2 rounded p-4"
+          className="border-2 rounded p-4 mb-2"
         >
-          <div className="flex flex-row justify-between items-center mt-2 mb-2">
+          <div className="flex flex-row justify-between items-center">
             <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
               <AlertDialog open={alertDialogOpen}>
                 <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
@@ -1016,7 +989,29 @@ const DashboardActions = ({
             </p>
           </CollapsibleContent>
         </Collapsible>
-        <div className="flex flex-row justify-center">
+        <DashboardInstructions
+          filePath={filePath}
+          repoName={repoName}
+          files={files}
+          directories={directories}
+          fileChangeRequests={fileChangeRequests}
+          setFileChangeRequests={setFileChangeRequests}
+          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
+          setHideMerge={setHideMerge}
+          getFileChanges={getFileChanges}
+          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+          removeFileChangeRequest={removeFileChangeRequest}
+          isRunningRef={isRunningRef}
+          refreshFiles={refreshFiles}
+        />
+
+
+        {/* <div className="flex flex-row justify-center">
           {!isRunningRef.current ? (
             <Button
               className="mt-4 mr-4"
@@ -1073,7 +1068,7 @@ const DashboardActions = ({
             <FaCheck />
             &nbsp;&nbsp;Save All
           </Button>
-        </div>
+        </div> */}
       </div>
     </ResizablePanel>
   );

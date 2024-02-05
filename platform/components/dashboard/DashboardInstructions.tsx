@@ -23,6 +23,7 @@ const DashboardInstructions = function DashboardInstructions({
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
+  refreshFiles,
 }: {
   filePath: string;
   repoName: string;
@@ -57,6 +58,7 @@ const DashboardInstructions = function DashboardInstructions({
   ) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
+  refreshFiles: () => Promise<null>;
 }) {
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
@@ -69,6 +71,7 @@ const DashboardInstructions = function DashboardInstructions({
             directories={directories}
             fileChangeRequests={fileChangeRequests}
             setFileChangeRequests={setFileChangeRequests}
+            refreshFiles={refreshFiles}
           />
           <FCRList
             repoName={repoName}
