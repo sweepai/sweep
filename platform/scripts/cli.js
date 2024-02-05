@@ -11,6 +11,39 @@ const readline = require('readline').createInterface({
 
 const envLocalPath = path.join(__dirname, ".env.local");
 
+console.log(`
+
+                    @@@@@@@@@@@@@@@@@@@%*
+                #@@@                    @+
+              @@                       @
+            =@             @@@       @@
+          @@              @  @=   @-
+          @               @@ @*   @
+          @                +@ @%   @
+          %@               *@ @=   @@
+          @@@@@            =% %  @@
+        @@@@@@@@@@@@@@@@@@@  @@@@@
+        @@@@@@@@@@@@@@@@@@@  @@@@@@
+        @@@@@@@@@@@@@@@@@@@@  @@@@@@#            Sweep AI Assistant
+        @@@   %@@@   @@@@@@  @@@@@@@@@
+        @@@    @@%   *@@@@# @@@@@@@@@@@@@@
+        @@@   @@@@   @@@@@ @@@@@@@@@@@@@@
+        @@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@         https://docs.sweep.dev/assistant
+        @@@@@@@@@@@@@@@@  @@@@@@@@@@@@
+          @@@@@@@@@@@@@@  @@@@@@@@@@@@
+          #@@@@@@@@@@@    @@@@@@@@@@
+              @@@@@@@    @@@@@@@@@*
+                @*    @@@@@@@@
+      @%*@@@@@@@       %
+      #@               #@
+        @            @ @@
+        @@         @# @*
+          @@*      @  @
+            %@@@# @@  @
+                %@@@@@
+
+`)
+
 const main = () => {
   const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build --no-lint` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
   console.log(`> ${command}\n`);
