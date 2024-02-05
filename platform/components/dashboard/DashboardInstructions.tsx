@@ -58,7 +58,7 @@ const DashboardInstructions = function DashboardInstructions({
   ) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
-  refreshFiles: () => Promise<null>;
+  refreshFiles: () => Promise<void>;
 }) {
   return (
     <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">

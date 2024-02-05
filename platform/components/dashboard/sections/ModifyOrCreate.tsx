@@ -32,7 +32,7 @@ const ModifyOrCreate = ({
   setFileChangeRequests: React.Dispatch<
     React.SetStateAction<FileChangeRequest[]>
   >;
-  refreshFiles: () => Promise<null>,
+  refreshFiles: () => Promise<void>,
 }) => {
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
