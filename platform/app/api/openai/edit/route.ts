@@ -11,6 +11,7 @@ interface Body {
   snippets: Snippet[];
   userMessage: string;
   additionalMessages?: Message[];
+  systemMessagePrompt?: string;
 }
 
 const openai = new OpenAI({
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     return response;
   }
   const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: systemMessagePrompt },
+    { role: "system", content: body.systemMessagePrompt || systemMessagePrompt },
     ...(body.additionalMessages || []),
     { role: "user", content: body.userMessage },
   ];

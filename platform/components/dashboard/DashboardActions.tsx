@@ -33,6 +33,10 @@ import {
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 import { usePostHog } from "posthog-js/react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Mention, MentionsInput } from "react-mentions";
+import DashboardPlanning from "./DashboardPlanning";
 
 const Diff = require("diff");
 
@@ -139,6 +143,8 @@ const formatUserMessage = (
       );
   return userMessage;
 };
+
+const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
 
 const DashboardActions = ({
   filePath,
@@ -782,293 +788,307 @@ const DashboardActions = ({
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-      <div className="flex flex-col h-full">
-        <Collapsible
-          defaultOpen={repoName === ""}
-          open={repoNameCollapsibleOpen}
-          className="border-2 rounded p-4 mb-2"
-        >
-          <div className="flex flex-row justify-between items-center">
-            <div>
-              <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
-            >
-              {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
-              <CaretSortIcon className="h-4 w-4" />
-              <span className="sr-only">Toggle</span>
-            </Button>
-          </div>
-          <CollapsibleContent className="CollapsibleContent">
-            <Label className="mb-2">Repository Path</Label>
-            <Input
-              id="name"
-              placeholder="/Users/sweep/path/to/repo"
-              value={currentRepoName}
-              className="col-span-4 w-full"
-              onChange={(e) => setCurrentRepoName(e.target.value)}
-              onBlur={refreshFiles}
-            />
-            <p className="text-sm text-muted-foreground mb-4">
-              Absolute path to your repository.
-            </p>
-            <Label className="mb-2">Blocked Keywords</Label>
-            <Input
-              className="mb-4"
-              value={currentBlockedGlobs}
-              onChange={(e) => {
-                setCurrentBlockedGlobs(e.target.value);
-              }}
-              onBlur={() => {
-                setBlockedGlobs(currentBlockedGlobs);
-              }}
-              placeholder="node_modules, .log, build"
-            />
-            <Label className="mb-2">File Limit</Label>
-            <Input
-              value={fileLimit}
-              onChange={(e) => {
-                setFileLimit(parseInt(e.target.value));
-              }}
-              placeholder="10000"
-              type="number"
-            />
-          </CollapsibleContent>
-        </Collapsible>
-        <Collapsible
-          open={validationScriptCollapsibleOpen}
-          className="border-2 rounded p-4 mb-2"
-        >
-          <div className="flex flex-row justify-between items-center">
-            <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
-              <AlertDialog open={alertDialogOpen}>
-                <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
-                  <FaQuestion style={{fontSize: 12 }} />
-                </Button>
-                <Switch
-                  checked={doValidate}
-                  onClick={() => setDoValidate(!doValidate)}
-                  disabled={fileChangeRequests.some(
-                    (fcr: FileChangeRequest) => fcr.isLoading,
-                  )}
-                />
-                <AlertDialogContent className="p-12">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-5xl mb-2">
-                      Test and Validation Scripts
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-md pt-4">
-                      <p>
-                        We highly recommend setting up the validation script to
-                        allow Sweep to iterate against static analysis tools to
-                        ensure valid code is generated. You can this off by
-                        clicking the switch.
-                      </p>
-                      <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
-                        Validation Script
-                      </h2>
-                      <p>
-                        Sweep runs validation after every edit, and will try to
-                        auto-fix any errors.
-                        <br />
-                        <br />
-                        We recommend a syntax checker (a formatter suffices) and
-                        a linter. We also recommend using your local
-                        environment, to ensure we use your dependencies.
-                        <br />
-                        <br />
-                        For example, for Python you can use:
-                        <pre className="py-4">
-                          <code>
-                            python -m py_compile $FILE_PATH
-                            <br />
-                            pylint $FILE_PATH --error-only
-                          </code>
-                        </pre>
-                        And for JavaScript you can use:
-                        <pre className="py-4">
-                          <code>
-                            prettier $FILE_PATH
-                            <br />
-                            eslint $FILE_PATH
-                          </code>
-                        </pre>
-                      </p>
-                      <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
-                        Test Script
-                      </h2>
-                      <p>
-                        You can run tests after all the files have been edited
-                        by Sweep.
-                        <br />
-                        <br />
-                        E.g. For example, for Python you can use:
-                        <pre className="py-4">pytest $FILE_PATH</pre>
-                        And for JavaScript you can use:
-                        <pre className="py-4">jest $FILE_PATH</pre>
-                      </p>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setAlertDialogOpen(false)}>
-                      Close
-                    </AlertDialogCancel>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </Label>
-            <div className="grow"></div>
-            <Button
-              variant="secondary"
-              onClick={async () => {
-                posthog.capture("run_tests", {
-                  name: "Run Tests",
-                  repoName: repoName,
-                  filePath: filePath,
-                  validationScript: validationScript,
-                  testScript: testScript,
-                });
-                await runScriptWrapper(file);
-              }}
-              disabled={
-                fileChangeRequests.some(
-                  (fcr: FileChangeRequest) => fcr.isLoading,
-                ) || !doValidate
-              }
-              size="sm"
-              className="mr-2"
-            >
-              <FaPlay />
-              &nbsp;&nbsp;Run Tests
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
-              { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
-              <CaretSortIcon className="h-4 w-4" />
-              <span className="sr-only">Toggle</span>
-            </Button>
-          </div>
-          <CollapsibleContent className="pt-2 CollapsibleContent">
-            <Label
-              className="mb-0"
-            >
-              Validation Script&nbsp;
-
-            </Label>
-            <Textarea
-              id="script-input"
-              placeholder={validationScriptPlaceholder}
-              className="col-span-4 w-full font-mono height-fit-content"
-              value={validationScript}
-              onChange={(e) => setValidationScript(e.target.value)}
-              disabled={
-                fileChangeRequests.some(
-                  (fcr: FileChangeRequest) => fcr.isLoading,
-                ) || !doValidate
-              }
-            ></Textarea>
-            <Label className="mb-0">Test Script</Label>
-            <Textarea
-              id="script-input"
-              placeholder={testScriptPlaceholder}
-              className="col-span-4 w-full font-mono height-fit-content"
-              value={testScript}
-              onChange={(e) => setTestScript(e.target.value)}
-              disabled={
-                fileChangeRequests.some(
-                  (fcr: FileChangeRequest) => fcr.isLoading,
-                ) || !doValidate
-              }
-            ></Textarea>
-            <p className="text-sm text-muted-foreground mb-4">
-              Use $FILE_PATH to refer to the file you selected. E.g. `python
-              $FILE_PATH`.
-            </p>
-          </CollapsibleContent>
-        </Collapsible>
-        <DashboardInstructions
-          filePath={filePath}
+     <Tabs defaultValue="Planning" className="h-full w-full">
+      <TabsList>
+        <TabsTrigger value="Planning">Planning</TabsTrigger>
+        <TabsTrigger value="Coding">Coding</TabsTrigger>
+      </TabsList>
+      <TabsContent value="Planning" className="rounded-xl border h-full p-4">
+        <DashboardPlanning
           repoName={repoName}
-          files={files}
-          directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setHideMerge={setHideMerge}
-          getFileChanges={getFileChanges}
-          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-          removeFileChangeRequest={removeFileChangeRequest}
-          isRunningRef={isRunningRef}
-          refreshFiles={refreshFiles}
         />
+      </TabsContent>
+      <TabsContent value="Coding" className="h-full">
+        <div className="flex flex-col h-full">
+          <Collapsible
+            defaultOpen={repoName === ""}
+            open={repoNameCollapsibleOpen}
+            className="border-2 rounded p-4 mb-2"
+          >
+            <div className="flex flex-row justify-between items-center">
+              <div>
+                <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
+              >
+                {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
+                <CaretSortIcon className="h-4 w-4" />
+                <span className="sr-only">Toggle</span>
+              </Button>
+            </div>
+            <CollapsibleContent className="CollapsibleContent">
+              <Label className="mb-2">Repository Path</Label>
+              <Input
+                id="name"
+                placeholder="/Users/sweep/path/to/repo"
+                value={currentRepoName}
+                className="col-span-4 w-full"
+                onChange={(e) => setCurrentRepoName(e.target.value)}
+                onBlur={refreshFiles}
+              />
+              <p className="text-sm text-muted-foreground mb-4">
+                Absolute path to your repository.
+              </p>
+              <Label className="mb-2">Blocked Keywords</Label>
+              <Input
+                className="mb-4"
+                value={currentBlockedGlobs}
+                onChange={(e) => {
+                  setCurrentBlockedGlobs(e.target.value);
+                }}
+                onBlur={() => {
+                  setBlockedGlobs(currentBlockedGlobs);
+                }}
+                placeholder="node_modules, .log, build"
+              />
+              <Label className="mb-2">File Limit</Label>
+              <Input
+                value={fileLimit}
+                onChange={(e) => {
+                  setFileLimit(parseInt(e.target.value));
+                }}
+                placeholder="10000"
+                type="number"
+              />
+            </CollapsibleContent>
+          </Collapsible>
+          <Collapsible
+            open={validationScriptCollapsibleOpen}
+            className="border-2 rounded p-4 mb-2"
+          >
+            <div className="flex flex-row justify-between items-center">
+              <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
+                <AlertDialog open={alertDialogOpen}>
+                  <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
+                    <FaQuestion style={{fontSize: 12 }} />
+                  </Button>
+                  <Switch
+                    checked={doValidate}
+                    onClick={() => setDoValidate(!doValidate)}
+                    disabled={fileChangeRequests.some(
+                      (fcr: FileChangeRequest) => fcr.isLoading,
+                    )}
+                  />
+                  <AlertDialogContent className="p-12">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-5xl mb-2">
+                        Test and Validation Scripts
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-md pt-4">
+                        <p>
+                          We highly recommend setting up the validation script to
+                          allow Sweep to iterate against static analysis tools to
+                          ensure valid code is generated. You can this off by
+                          clicking the switch.
+                        </p>
+                        <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
+                          Validation Script
+                        </h2>
+                        <p>
+                          Sweep runs validation after every edit, and will try to
+                          auto-fix any errors.
+                          <br />
+                          <br />
+                          We recommend a syntax checker (a formatter suffices) and
+                          a linter. We also recommend using your local
+                          environment, to ensure we use your dependencies.
+                          <br />
+                          <br />
+                          For example, for Python you can use:
+                          <pre className="py-4">
+                            <code>
+                              python -m py_compile $FILE_PATH
+                              <br />
+                              pylint $FILE_PATH --error-only
+                            </code>
+                          </pre>
+                          And for JavaScript you can use:
+                          <pre className="py-4">
+                            <code>
+                              prettier $FILE_PATH
+                              <br />
+                              eslint $FILE_PATH
+                            </code>
+                          </pre>
+                        </p>
+                        <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
+                          Test Script
+                        </h2>
+                        <p>
+                          You can run tests after all the files have been edited
+                          by Sweep.
+                          <br />
+                          <br />
+                          E.g. For example, for Python you can use:
+                          <pre className="py-4">pytest $FILE_PATH</pre>
+                          And for JavaScript you can use:
+                          <pre className="py-4">jest $FILE_PATH</pre>
+                        </p>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setAlertDialogOpen(false)}>
+                        Close
+                      </AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </Label>
+              <div className="grow"></div>
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  posthog.capture("run_tests", {
+                    name: "Run Tests",
+                    repoName: repoName,
+                    filePath: filePath,
+                    validationScript: validationScript,
+                    testScript: testScript,
+                  });
+                  await runScriptWrapper(file);
+                }}
+                disabled={
+                  fileChangeRequests.some(
+                    (fcr: FileChangeRequest) => fcr.isLoading,
+                  ) || !doValidate
+                }
+                size="sm"
+                className="mr-2"
+              >
+                <FaPlay />
+                &nbsp;&nbsp;Run Tests
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
+                { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
+                <CaretSortIcon className="h-4 w-4" />
+                <span className="sr-only">Toggle</span>
+              </Button>
+            </div>
+            <CollapsibleContent className="pt-2 CollapsibleContent">
+              <Label
+                className="mb-0"
+              >
+                Validation Script&nbsp;
+
+              </Label>
+              <Textarea
+                id="script-input"
+                placeholder={validationScriptPlaceholder}
+                className="col-span-4 w-full font-mono height-fit-content"
+                value={validationScript}
+                onChange={(e) => setValidationScript(e.target.value)}
+                disabled={
+                  fileChangeRequests.some(
+                    (fcr: FileChangeRequest) => fcr.isLoading,
+                  ) || !doValidate
+                }
+              ></Textarea>
+              <Label className="mb-0">Test Script</Label>
+              <Textarea
+                id="script-input"
+                placeholder={testScriptPlaceholder}
+                className="col-span-4 w-full font-mono height-fit-content"
+                value={testScript}
+                onChange={(e) => setTestScript(e.target.value)}
+                disabled={
+                  fileChangeRequests.some(
+                    (fcr: FileChangeRequest) => fcr.isLoading,
+                  ) || !doValidate
+                }
+              ></Textarea>
+              <p className="text-sm text-muted-foreground mb-4">
+                Use $FILE_PATH to refer to the file you selected. E.g. `python
+                $FILE_PATH`.
+              </p>
+            </CollapsibleContent>
+          </Collapsible>
+          <DashboardInstructions
+            filePath={filePath}
+            repoName={repoName}
+            files={files}
+            directories={directories}
+            fileChangeRequests={fileChangeRequests}
+            setFileChangeRequests={setFileChangeRequests}
+            currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+            setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+            setFileForFCR={setFileForFCR}
+            setOldFileForFCR={setOldFileForFCR}
+            setHideMerge={setHideMerge}
+            getFileChanges={getFileChanges}
+            setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+            setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+            removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+            removeFileChangeRequest={removeFileChangeRequest}
+            isRunningRef={isRunningRef}
+            refreshFiles={refreshFiles}
+          />
 
 
-        {/* <div className="flex flex-row justify-center">
-          {!isRunningRef.current ? (
+          {/* <div className="flex flex-row justify-center">
+            {!isRunningRef.current ? (
+              <Button
+                className="mt-4 mr-4"
+                variant="secondary"
+                onClick={async (e) => {
+                  setIsLoadingAll(true);
+                  await getAllFileChanges(fileChangeRequests);
+                }}
+                disabled={fileChangeRequests.some(
+                  (fcr: FileChangeRequest) => fcr.isLoading,
+                )}
+              >
+                <FaPlay />
+                &nbsp;&nbsp;Modify All
+              </Button>
+            ) : (
+              <Button
+                className="mt-4 mr-4"
+                variant="secondary"
+                onClick={(e) => {
+                  isRunningRef.current = false;
+                }}
+              >
+                <FaStop />
+                &nbsp;&nbsp;Cancel
+              </Button>
+            )}
             <Button
               className="mt-4 mr-4"
               variant="secondary"
-              onClick={async (e) => {
-                setIsLoadingAll(true);
-                await getAllFileChanges(fileChangeRequests);
+              onClick={async () => {
+                syncAllFiles();
+                toast.success("Files synced from storage!", {
+                  action: { label: "Dismiss", onClick: () => {} },
+                });
+                setHideMergeAll(true);
               }}
               disabled={fileChangeRequests.some(
                 (fcr: FileChangeRequest) => fcr.isLoading,
               )}
             >
-              <FaPlay />
-              &nbsp;&nbsp;Modify All
+              <FaArrowsRotate />
+              &nbsp;&nbsp;Restart All
             </Button>
-          ) : (
             <Button
-              className="mt-4 mr-4"
-              variant="secondary"
-              onClick={(e) => {
-                isRunningRef.current = false;
+              className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
+              onClick={async () => {
+                saveAllFiles(fileChangeRequests);
               }}
+              disabled={fileChangeRequests.some(
+                (fcr: FileChangeRequest) => fcr.isLoading,
+              )}
             >
-              <FaStop />
-              &nbsp;&nbsp;Cancel
+              <FaCheck />
+              &nbsp;&nbsp;Save All
             </Button>
-          )}
-          <Button
-            className="mt-4 mr-4"
-            variant="secondary"
-            onClick={async () => {
-              syncAllFiles();
-              toast.success("Files synced from storage!", {
-                action: { label: "Dismiss", onClick: () => {} },
-              });
-              setHideMergeAll(true);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaArrowsRotate />
-            &nbsp;&nbsp;Restart All
-          </Button>
-          <Button
-            className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
-            onClick={async () => {
-              saveAllFiles(fileChangeRequests);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaCheck />
-            &nbsp;&nbsp;Save All
-          </Button>
-        </div> */}
-      </div>
+          </div> */}
+        </div>
+      </TabsContent>
+    </Tabs>
+
     </ResizablePanel>
   );
 };
