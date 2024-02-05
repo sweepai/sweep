@@ -15,7 +15,7 @@
     "cypress:open": "cypress open",
     "cypress:run": "cypress run --browser chrome",
     "test:e2e": "start-server-and-test start 4000 cypress:run",
-    "postinstall": "sweepai build"
+    "postinstall": "next build"
   },
   "dependencies": {
     "@babel/runtime": "^7.23.9",
