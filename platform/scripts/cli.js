@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const inquirer = require("inquirer");
 const { spawn } = require("child_process");
 
 const readline = require('readline').createInterface({
@@ -10,6 +11,9 @@ const readline = require('readline').createInterface({
 });
 
 const envLocalPath = path.join(__dirname, ".env.local");
+const packagePath = path.join(__dirname, "..");
+
+console.log(packagePath)
 
 console.log(`
 
@@ -51,7 +55,7 @@ if (!fs.existsSync(envLocalPath)) {
 const main = () => {
   const command = process.argv[2] === "build" ? `${process.execPath} ${require.resolve('next/dist/bin/next')} build --no-lint` : `${process.execPath} ${require.resolve('next/dist/bin/next')} start --port 3000`;
   console.log(`> ${command}\n`);
-  const childProcess = spawn("sh", ["-c", command], { cwd: __dirname, stdio: "inherit" });
+  const childProcess = spawn("sh", ["-c", command], { cwd: packagePath, stdio: "inherit" });
 
   // Check the exit code of the process
   childProcess.on('exit', (code, signal) => {

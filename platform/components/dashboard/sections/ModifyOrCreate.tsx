@@ -36,6 +36,8 @@ const ModifyOrCreate = ({
 }) => {
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
+  console.log("files", files);
+  console.log("files.length", files.length);
 
   return (
     <div className="flex flex-row mb-4">
@@ -47,7 +49,6 @@ const ModifyOrCreate = ({
               role="combobox"
               aria-expanded={openModify}
               className="w-full justify-between overflow-hidden mr-2"
-              disabled={files.length === 0}
             >
               Modify file
               <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -120,8 +121,7 @@ const ModifyOrCreate = ({
               variant="outline"
               role="combobox"
               aria-expanded={openCreate}
-              className="w-full justify-between overflow-hidden"
-              disabled={files.length === 0}
+              className="w-full justify-between overflow-hidden mr-2"
             >
               Create file
               <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
