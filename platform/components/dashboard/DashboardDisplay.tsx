@@ -107,7 +107,7 @@ const DashboardDisplay = () => {
     });
   };
 
-  const setHideMerge = (newHideMerge: boolean, fcr: FileChangeRequest) => {
+  const setHideMerge = useCallback((newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
@@ -127,7 +127,7 @@ const DashboardDisplay = () => {
     } catch (error) {
       console.error("Error in setHideMerge: ", error);
     }
-  };
+  }, [fileChangeRequests]);
 
   const setHideMergeAll = (newHideMerge: boolean) => {
     setFileChangeRequests((newFileChangeRequests) => {
