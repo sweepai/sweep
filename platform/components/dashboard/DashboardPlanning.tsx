@@ -90,7 +90,9 @@ const DashboardPlanning = ({
   const [chainOfThought, setChainOfThought] = useLocalStorage("globalChainOfThought", "");
   const [currentFileChangeRequests, setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
   const [debugLogToggle, setDebugLogToggle] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  const instructionsRef = useRef<HTMLTextAreaElement>(null);
   const thoughtsRef = useRef<HTMLDivElement>(null);
   const planRef = useRef<HTMLDivElement>(null);
 
@@ -101,85 +103,99 @@ const DashboardPlanning = ({
     indentUnit.of("    "),
   ];
 
+  useEffect(() => {
+    if (instructionsRef.current) {
+      console.log(instructionsRef.current)
+      instructionsRef.current.focus();
+    }
+  }, [])
+
   const generatePlan = async () => {
     console.log("Generating plan...")
     console.log(instructions)
-    const response = await fetch("/api/openai/edit", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userMessage: userMessagePrompt
-          .replace("{userRequest}", instructions)
-          .replace(
-            "{readOnlyFiles}",
-            Object.keys(snippets)
-              .map((filePath) =>
-                readOnlyFileFormat
-                  .replace("{file}", snippets[filePath].file)
-                  .replace("{start_line}", snippets[filePath].start.toString())
-                  .replace("{end_line}", snippets[filePath].end.toString())
-                  .replace("{contents}", snippets[filePath].content),
-              )
-              .join("\n"),
-          ),
-        systemMessagePrompt,
-      }),
-    })
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let rawText = "";
-    setChainOfThought("")
-    setCurrentFileChangeRequests([])
-    while (true) {
-      const { done, value } = await reader?.read()!
-      if (done) {
-        break;
+    setIsLoading(true)
+    try {
+      setChainOfThought("")
+      setCurrentFileChangeRequests([])
+      const response = await fetch("/api/openai/edit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userMessage: userMessagePrompt
+            .replace("{userRequest}", instructions)
+            .replace(
+              "{readOnlyFiles}",
+              Object.keys(snippets)
+                .map((filePath) =>
+                  readOnlyFileFormat
+                    .replace("{file}", snippets[filePath].file)
+                    .replace("{start_line}", snippets[filePath].start.toString())
+                    .replace("{end_line}", snippets[filePath].end.toString())
+                    .replace("{contents}", snippets[filePath].content),
+                )
+                .join("\n"),
+            ),
+          systemMessagePrompt,
+        }),
+      })
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let rawText = "";
+      while (true) {
+        const { done, value } = await reader?.read()!
+        if (done) {
+          break;
+        }
+        const text = decoder.decode(value);
+        rawText += text;
+        setRawResponse(rawText)
+        const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
+        setChainOfThought(chainOfThoughtMatch?.groups?.content || "")
+        if (thoughtsRef.current) {
+          thoughtsRef.current.scrollTop = thoughtsRef.current.scrollHeight || 0;
+        }
+        const fileChangeRequestMatches = rawText.matchAll(fileChangeRequestPattern);
+        var fileChangeRequests = [];
+        for (const match of fileChangeRequestMatches) {
+          const file: string = match.groups?.cFile || match.groups?.mFile;
+          const relevantFiles: string = match.groups?.relevant_files;
+          const instructions: string = match.groups?.cInstructions || match.groups?.mInstructions || "";
+          const changeType: "create" | "modify" = match.groups?.cInstructions ? "create" : "modify";
+          const contents: string = (await getFile(repoName, file)).contents || "";
+          const startLine: string | undefined = match.groups?.startLine;
+          const start: number = startLine === undefined ? 0 : parseInt(startLine);
+          const endLine: string | undefined = match.groups?.endLine;
+          const end: number = endLine === undefined ? contents.split("\n").length : parseInt(endLine);
+          console.log(changeType, relevantFiles, instructions, startLine, endLine)
+          fileChangeRequests.push({
+            snippet: {
+              start,
+              end,
+              file: file,
+              entireFile: contents,
+              content: contents.split("\n").slice(start, end).join("\n"),
+            },
+            newContents: contents,
+            changeType,
+            hideMerge: true,
+            instructions: instructions.trim(),
+            isLoading: false,
+            openReadOnlyFiles: false,
+            readOnlySnippets: {},
+          } as FileChangeRequest)
+          console.log(fileChangeRequests)
+        }
+        setCurrentFileChangeRequests(fileChangeRequests)
+        if (planRef.current) {
+          planRef.current.scrollTop = planRef.current.scrollHeight || 0;
+        }
       }
-      const text = decoder.decode(value);
-      rawText += text;
-      setRawResponse(rawText)
-      const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
-      setChainOfThought(chainOfThoughtMatch?.groups?.content || "")
-      if (thoughtsRef.current) {
-        thoughtsRef.current.scrollTop = thoughtsRef.current.scrollHeight || 0;
-      }
-      const fileChangeRequestMatches = rawText.matchAll(fileChangeRequestPattern);
-      var fileChangeRequests = [];
-      for (const match of fileChangeRequestMatches) {
-        const file: string = match.groups?.cFile || match.groups?.mFile;
-        const relevantFiles: string = match.groups?.relevant_files;
-        const instructions: string = match.groups?.cInstructions || match.groups?.mInstructions || "";
-        const changeType: "create" | "modify" = match.groups?.cInstructions ? "create" : "modify";
-        const contents: string = (await getFile(repoName, file)).contents || "";
-        const startLine: string | undefined = match.groups?.startLine;
-        const start: number = startLine === undefined ? 0 : parseInt(startLine);
-        const endLine: string | undefined = match.groups?.endLine;
-        const end: number = endLine === undefined ? contents.split("\n").length : parseInt(endLine);
-        console.log(changeType, relevantFiles, instructions, startLine, endLine)
-        fileChangeRequests.push({
-          snippet: {
-            start,
-            end,
-            file: file,
-            entireFile: contents,
-            content: contents.split("\n").slice(start, end).join("\n"),
-          },
-          newContents: contents,
-          changeType,
-          hideMerge: true,
-          instructions: instructions.trim(),
-          isLoading: false,
-          openReadOnlyFiles: false,
-          readOnlySnippets: {},
-        } as FileChangeRequest)
-        console.log(fileChangeRequests)
-      }
-      setCurrentFileChangeRequests(fileChangeRequests)
-      if (planRef.current) {
-        planRef.current.scrollTop = planRef.current.scrollHeight || 0;
-      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -224,17 +240,18 @@ const DashboardPlanning = ({
       </div>
       <MentionsInput
         className="min-h-[100px] w-full rounded-md border border-input bg-background MentionsInput mb-2"
-        placeholder={"Describe the changes you want to make here."}
+        placeholder="Describe the changes you want to make here."
         value={instructions}
         onChange={(e: any) => setInstructions(e.target.value)}
         onBlur={(e: any) => setInstructions(e.target.value)}
+        inputRef={instructionsRef}
+        autoFocus
       >
         <Mention
           trigger="@"
           data={files.map((file) => ({id: file.label, display: file.label}))}
           renderSuggestion={setUserSuggestion}
           onAdd={async (currentValue) => {
-            console.log("here")
             const contents = (
               await getFile(repoName, currentValue.toString())
             ).contents;
@@ -295,6 +312,7 @@ const DashboardPlanning = ({
           className="mb-2 mt-2"
           variant="secondary"
           onClick={generatePlan}
+          disabled={isLoading}
         >
           Generate Plan
         </Button>
@@ -347,7 +365,7 @@ const DashboardPlanning = ({
               var path = filePath.split("/");
               const fileName = path.pop();
               if (path.length > 2) {
-                path = path.map(segment => segment.slice(0, 1))
+                path = path.slice(0, 1).concat(["..."]).concat(path.slice(path.length - 1))
               }
               return (
                 <div className="rounded border p-3 mb-2" key={index}>
@@ -382,22 +400,27 @@ const DashboardPlanning = ({
                     {fileChangeRequest.instructions}
                   </Markdown>
                   {fileChangeRequest.changeType === "modify" && (
-                    <CodeMirror
-                      value={fileChangeRequest.snippet.content}
-                      extensions={[
-                        ...extensions,
-                        lineNumbers({
-                          formatNumber: (num: number) => {
-                            return (num + fileChangeRequest.snippet.start).toString();
-                          },
-                        }),
-                      ]}
-                      theme={vscodeDark}
-                      style={{ overflow: "auto" }}
-                      placeholder={"No plan generated yet."}
-                      className="ph-no-capture"
-                      maxHeight="150px"
-                    />
+                    <>
+                      <Label>
+                        Snippet Preview
+                      </Label>
+                      <CodeMirror
+                        value={fileChangeRequest.snippet.content}
+                        extensions={[
+                          ...extensions,
+                          lineNumbers({
+                            formatNumber: (num: number) => {
+                              return (num + fileChangeRequest.snippet.start).toString();
+                            },
+                          }),
+                        ]}
+                        theme={vscodeDark}
+                        style={{ overflow: "auto" }}
+                        placeholder={"No plan generated yet."}
+                        className="ph-no-capture"
+                        maxHeight="150px"
+                      />
+                    </>
                   )}
                 </div>
               )
@@ -416,6 +439,7 @@ const DashboardPlanning = ({
           variant="secondary"
           className="bg-blue-800 hover:bg-blue-900 mt-4"
           onClick={() => setFileChangeRequests(currentFileChangeRequests)}
+          disabled={isLoading}
         >
           Accept Plan
         </Button>

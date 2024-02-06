@@ -80,7 +80,18 @@ const FileSelector = memo(function FileSelector({
       {hideMerge || hideMerge === undefined ? (
         <CodeMirror
           value={file}
-          extensions={extensions}
+          extensions={[
+            ...extensions,
+            // showMinimap.compute(['doc'], (state) => {
+            //   return {
+            //     create,
+            //     /* optional */
+            //     displayText: 'blocks',
+            //     showOverlay: 'always',
+            //     gutters: [ { 1: '#00FF00', 2: '#00FF00' } ],
+            //   }
+            // }),
+          ]}
           onChange={onChange}
           theme={vscodeDark}
           style={{ overflow: "auto" }}
