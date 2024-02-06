@@ -654,21 +654,24 @@ const DashboardActions = ({
           if (done) {
             let updatedFile = "";
             let patchingErrors = "";
+            console.log(rawText)
+            console.log(currentContents)
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             }
+            console.log(updatedFile)
             if (patchingErrors) {
               errorMessage += patchingErrors;
             } else {
@@ -678,6 +681,7 @@ const DashboardActions = ({
                 updatedFile,
               );
             }
+            console.log(updatedFile)
             additionalMessages.push({ role: "assistant", content: rawText });
             updateIfChanged(updatedFile);
             fcr.newContents = updatedFile; // set this to get line and char changes
@@ -692,9 +696,9 @@ const DashboardActions = ({
             let updatedFile = "";
             let _ = "";
             if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText,fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, fcr.snippet.entireFile);
             } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText,fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
             }
             updateIfChanged(updatedFile);
           } catch (e) {
