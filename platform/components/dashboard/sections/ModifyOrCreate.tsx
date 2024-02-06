@@ -36,8 +36,6 @@ const ModifyOrCreate = ({
 }) => {
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
-  console.log("files", files);
-  console.log("files.length", files.length);
 
   return (
     <div className="flex flex-row mb-4">
@@ -75,7 +73,7 @@ const ModifyOrCreate = ({
                       return;
                     }
                     const contents = (await getFile(repoName, file.value))
-                      .contents;
+                      .contents || "";
                     setFileChangeRequests((prev: FileChangeRequest[]) => {
                       let snippet = {
                         file: file.value,

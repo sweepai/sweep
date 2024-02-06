@@ -657,14 +657,14 @@ const DashboardActions = ({
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
@@ -692,9 +692,9 @@ const DashboardActions = ({
             let updatedFile = "";
             let _ = "";
             if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText,fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, fcr.snippet.entireFile);
             } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText,fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
             }
             updateIfChanged(updatedFile);
           } catch (e) {

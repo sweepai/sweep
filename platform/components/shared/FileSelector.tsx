@@ -67,6 +67,7 @@ const FileSelector = memo(function FileSelector({
     keymap.of([indentWithTab]),
     indentUnit.of("    "),
   ];
+  console.log("rerednered")
   return (
     <>
       <div className="flex flex-row mb-2">
