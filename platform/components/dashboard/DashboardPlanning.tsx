@@ -2,7 +2,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
+import CodeMirror, { EditorView, keymap, lineNumbers } from "@uiw/react-codemirror";
 import { FileChangeRequest, Snippet } from "@/lib/types";
 import { ScrollArea } from "../ui/scroll-area";
 import { Button } from "../ui/button";
@@ -125,7 +125,6 @@ const DashboardPlanning = ({
               .join("\n"),
           ),
         systemMessagePrompt,
-        snippets
       }),
     })
     const reader = response.body?.getReader();
@@ -140,7 +139,6 @@ const DashboardPlanning = ({
       }
       const text = decoder.decode(value);
       rawText += text;
-      console.log(rawText)
       setRawResponse(rawText)
       const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
       setChainOfThought(chainOfThoughtMatch?.groups?.content || "")
@@ -154,16 +152,19 @@ const DashboardPlanning = ({
         const relevantFiles: string = match.groups?.relevant_files;
         const instructions: string = match.groups?.cInstructions || match.groups?.mInstructions || "";
         const changeType: "create" | "modify" = match.groups?.cInstructions ? "create" : "modify";
+        const contents: string = (await getFile(repoName, file)).contents || "";
         const startLine: string | undefined = match.groups?.startLine;
+        const start: number = startLine === undefined ? 0 : parseInt(startLine);
         const endLine: string | undefined = match.groups?.endLine;
+        const end: number = endLine === undefined ? contents.split("\n").length : parseInt(endLine);
         console.log(changeType, relevantFiles, instructions, startLine, endLine)
-        const contents = (await getFile(repoName, file)).contents || "";
         fileChangeRequests.push({
           snippet: {
-            start: startLine ? parseInt(startLine) : 0,
-            end: endLine ? parseInt(endLine) : contents.split("\n").length,
+            start,
+            end,
             file: file,
-            content: contents,
+            entireFile: contents,
+            content: contents.split("\n").slice(start, end).join("\n"),
           },
           newContents: contents,
           changeType,
@@ -230,7 +231,7 @@ const DashboardPlanning = ({
       >
         <Mention
           trigger="@"
-          data={files.map((file: string) => ({id: file.label, display: file.label}))}
+          data={files.map((file) => ({id: file.label, display: file.label}))}
           renderSuggestion={setUserSuggestion}
           onAdd={async (currentValue) => {
             console.log("here")
@@ -242,7 +243,7 @@ const DashboardPlanning = ({
               start: 0,
               end: contents.split("\n").length,
               entireFile: contents,
-              content: contents, // this is the slice based on start and end, remeber to change this
+              content: contents,
             } as Snippet;
             setSnippets(newSnippets => {
               return {
@@ -263,28 +264,21 @@ const DashboardPlanning = ({
             <Badge
               variant="secondary"
               key={index}
-              className="bg-zinc-800 text-zinc-300"
+              className="bg-zinc-800 text-zinc-300 mr-1"
             >
               {
                 snippetFile.split("/")[
-                snippetFile.split("/").length - 1
+                  snippetFile.split("/").length - 1
                 ]
               }
               <FaTimes
                 key={String(index) + "-remove"}
-                className="bg-zinc-800 cursor-pointer"
+                className="bg-zinc-800 cursor-pointer ml-1"
                 onClick={() => {
-                  console.log(snippetFile)
-                  console.log(snippets)
-                  // setSnippets(newSnippets => newSnippets.filter(snippet => snippet.file !== snippetFile))
-                  // setSnippets((snippets: {[key: string]: Snippet}) => {
-                  //   return Object.keys(snippets).reduce((newSnippets, key) => {
-                  //     if (key !== snippetFile) {
-                  //       newSnippets[key] = snippets[key];
-                  //     }
-                  //     return newSnippets;
-                  //   })
-                  // })
+                  setSnippets((snippets: {[key: string]: Snippet}) => {
+                    const {[snippetFile]: _, ...newSnippets} = snippets;
+                    return newSnippets;
+                  })
                 }}
               />
             </Badge>
@@ -296,9 +290,9 @@ const DashboardPlanning = ({
           No files added yet. Type @ to add a file.
         </div>
       )}
-      <div className="text-right mb-4">
+      <div className="text-right mb-2">
         <Button
-          className="mb-4 mt-4"
+          className="mb-2 mt-2"
           variant="secondary"
           onClick={generatePlan}
         >
@@ -315,7 +309,7 @@ const DashboardPlanning = ({
           </Markdown>
         </div>
       ): (
-        <div className="text-zinc-500">
+        <div className="text-zinc-500 mb-4">
           No thoughts generated yet.
         </div>
       )}
@@ -350,15 +344,18 @@ const DashboardPlanning = ({
           <>
             {currentFileChangeRequests.map((fileChangeRequest, index) => {
               const filePath = fileChangeRequest.snippet.file;
-              const path = filePath.split("/");
+              var path = filePath.split("/");
               const fileName = path.pop();
+              if (path.length > 2) {
+                path = path.map(segment => segment.slice(0, 1))
+              }
               return (
                 <div className="rounded border p-3 mb-2" key={index}>
                   <div className="flex flex-row justify-between mb-2 p-2">
                     {fileChangeRequest.changeType === "create" ? (
                       <div className="font-mono">
                         <span className="text-zinc-400">
-                          {path}/
+                          {path.join("/")}/
                         </span>
                         <span>
                           {fileName}
@@ -367,7 +364,7 @@ const DashboardPlanning = ({
                     ): (
                       <div className="font-mono">
                         <span className="text-zinc-400">
-                          {path}/
+                          {path.join("/")}/
                         </span>
                         <span>
                           {fileName}
@@ -386,12 +383,20 @@ const DashboardPlanning = ({
                   </Markdown>
                   {fileChangeRequest.changeType === "modify" && (
                     <CodeMirror
-                      value={fileChangeRequest.snippet.content.split("\n").slice(0, 5).join()}
-                      extensions={extensions}
+                      value={fileChangeRequest.snippet.content}
+                      extensions={[
+                        ...extensions,
+                        lineNumbers({
+                          formatNumber: (num: number) => {
+                            return (num + fileChangeRequest.snippet.start).toString();
+                          },
+                        }),
+                      ]}
                       theme={vscodeDark}
                       style={{ overflow: "auto" }}
                       placeholder={"No plan generated yet."}
                       className="ph-no-capture"
+                      maxHeight="150px"
                     />
                   )}
                 </div>

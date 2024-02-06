@@ -51,19 +51,6 @@ export async function POST(request: NextRequest) {
   }
   const body = (await request.json()) as Body;
 
-  if (
-    body.snippets.map((snippet) => snippet.content).join("").length >
-    128000 * 3
-  ) {
-    const response = NextResponse.json(
-      {
-        message:
-          "Input is too large, ran out of tokens, remove some read-only files.",
-      },
-      { status: 400 },
-    );
-    return response;
-  }
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: body.systemMessagePrompt || systemMessagePrompt },
     ...(body.additionalMessages || []),

@@ -61,7 +61,7 @@ const DashboardInstructions = function DashboardInstructions({
   refreshFiles: () => Promise<void>;
 }) {
   return (
-    <Tabs defaultValue="plan" className="grow overflow-auto mb-4 h-full">
+    <Tabs defaultValue="plan" className="grow mb-4 h-full">
       <TabsContent value="plan" className="h-full">
         <div className="grow border rounded-md p-4 overflow-auto h-full">
           <ModifyOrCreate
