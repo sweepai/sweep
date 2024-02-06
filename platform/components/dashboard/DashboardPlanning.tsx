@@ -30,7 +30,7 @@ const codeStyle = {
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
 
-const userMessagePrompt = `Here are relevant read-only files:
+const userMessagePromptOld = `Here are relevant read-only files:
 <read_only_files>
 {readOnlyFiles}
 </read_only_files>
@@ -56,6 +56,44 @@ You MUST follow the following format with XML tags:
 <contextual_request_analysis>
 Concisely outline the minimal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
 </contextual_request_analysis>
+
+# Plan:
+<plan>
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
+* Concise natural language instructions for creating the new file needed to solve the issue.
+* Reference necessary files, imports and entity names.
+...
+</create>
+...
+
+<modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Concise natural language instructions for the modifications needed to solve the issue.
+* Reference necessary files, imports and entity names.
+...
+</modify>
+...
+
+</plan>`
+
+const userMessagePrompt = `Here are relevant read-only files:
+<read_only_files>
+{readOnlyFiles}
+</read_only_files>
+
+Here is the user's request:
+<user_request>
+{userRequest}
+</user_request>
+
+# Task:
+Analyze the snippets, repo, and user request to break down the requested change and propose a plan to addresses the user's request. Mention all changes required to solve the request.
+
+Provide a plan to solve the issue, following these rules:
+* You may only create new files and modify existing files but may not necessarily need both.
+* Include the full path (e.g. src/main.py and not just main.py), using the snippets for reference.
+* Use natural language instructions on what to modify regarding business logic.
+* Be concrete with instructions and do not write "identify x" or "ensure y is done". Instead write "add x" or "change y to z".
+* Refer to the user as "you".
 
 # Plan:
 <plan>
@@ -166,6 +204,7 @@ const DashboardPlanning = ({
         const text = decoder.decode(value);
         rawText += text;
         setRawResponse(rawText)
+        console.log(rawText)
         const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
         setChainOfThought(chainOfThoughtMatch?.groups?.content || "")
         if (thoughtsRef.current) {
@@ -246,7 +285,7 @@ const DashboardPlanning = ({
 
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       <div className="flex flex-row justify-between items-center mb-2">
         <Label className="mr-2">
           Instructions
@@ -334,23 +373,6 @@ const DashboardPlanning = ({
           Generate Plan
         </Button>
       </div>
-      <Label className="mb-2">
-        Sweep&apos;s Thoughts
-      </Label>
-      {chainOfThought.length ? (
-        <div className="rounded border p-4 mb-8 overflow-y-auto" ref={thoughtsRef}>
-          <Markdown
-            className="react-markdown max-h-[150px]"
-
-          >
-            {chainOfThought}
-          </Markdown>
-        </div>
-      ): (
-        <div className="text-zinc-500 mb-4">
-          No thoughts generated yet.
-        </div>
-      )}
       <div className="flex flex-row mb-2 items-center">
         <Label className="mb-0">
           Sweep&apos;s Plan
@@ -367,7 +389,7 @@ const DashboardPlanning = ({
           Debug mode
         </Switch>
       </div>
-      <div className="overflow-y-auto max-h-[300px]" ref={planRef}>
+      <div className="overflow-y-auto" ref={planRef}>
         {debugLogToggle ? (
           <CodeMirror
             value={rawResponse}
@@ -385,7 +407,7 @@ const DashboardPlanning = ({
               var path = filePath.split("/");
               const fileName = path.pop();
               if (path.length > 2) {
-                path = path.slice(0, 1).concat(["..."]).concat(path.slice(path.length - 1))
+                path = path.slice(0, 1).concat(["..."])
               }
               return (
                 <div className="rounded border p-3 mb-2" key={index}>

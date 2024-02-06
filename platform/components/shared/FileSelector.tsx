@@ -72,14 +72,14 @@ const FileSelector = memo(function FileSelector({
     EditorView.lineWrapping,
     keymap.of([indentWithTab]),
     indentUnit.of("    "),
-    showMinimap.compute(['doc'], (state) => {
-      return {
-        create,
-        /* optional */
-        displayText: 'characters',
-        showOverlay: 'always',
-      }
-    }),
+    // showMinimap.compute(['doc'], (state) => {
+    //   return {
+    //     create,
+    //     /* optional */
+    //     displayText: 'blocks',
+    //     showOverlay: 'always',
+    //   }
+    // }),
   ];
   return (
     <>
