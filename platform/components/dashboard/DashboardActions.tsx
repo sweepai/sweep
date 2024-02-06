@@ -795,7 +795,7 @@ const DashboardActions = ({
         <TabsTrigger value="planning">Planning</TabsTrigger>
         <TabsTrigger value="coding">Coding</TabsTrigger>
       </TabsList>
-      <TabsContent value="planning" className="rounded-xl border h-full p-4">
+      <TabsContent value="planning" className="rounded-xl border h-full p-4 h-[95%]">
         <DashboardPlanning
           repoName={repoName}
           files={files}

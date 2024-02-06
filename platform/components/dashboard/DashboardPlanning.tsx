@@ -379,7 +379,7 @@ const DashboardPlanning = ({
               var path = filePath.split("/");
               const fileName = path.pop();
               if (path.length > 2) {
-                path = path.slice(0, 1).concat(["..."]).concat(path.slice(path.length - 1))
+                path = path.slice(0, 1).concat(["..."])
               }
               return (
                 <div className="rounded border p-3 mb-2" key={index}>
@@ -415,7 +415,6 @@ const DashboardPlanning = ({
                     components={{
                       code(props) {
                         const {children, className, node, ...rest} = props
-                        console.log(props)
                         const match = /language-(\w+)/.exec(className || '')
                         return match ? (
                           <SyntaxHighlighter
