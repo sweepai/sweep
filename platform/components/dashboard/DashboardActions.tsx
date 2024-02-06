@@ -806,7 +806,7 @@ const DashboardActions = ({
         />
       </TabsContent>
       <TabsContent value="coding" className="h-full">
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-[90%]">
           <Collapsible
             defaultOpen={repoName === ""}
             open={repoNameCollapsibleOpen}
