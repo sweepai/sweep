@@ -176,6 +176,7 @@ const DashboardActions = ({
   undefinedCheck,
   removeFileChangeRequest,
   setOutputToggle,
+  setLoadingMessage,
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -210,6 +211,7 @@ const DashboardActions = ({
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   setOutputToggle: (newOutputToggle: string) => void;
+  setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
 }) => {
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`;
@@ -519,6 +521,7 @@ const DashboardActions = ({
     oldFile: string,
     newFile: string,
   ) => {
+    setLoadingMessage("Validating...")
     if (!doValidate) {
       return "";
     }
@@ -569,6 +572,7 @@ const DashboardActions = ({
 
     setIsLoading(true, fcr);
     setOutputToggle("llm");
+    setLoadingMessage("Queued...")
     const changeType = fcr.changeType;
     // by default we modify file
     let url = "/api/openai/edit";
@@ -633,6 +637,7 @@ const DashboardActions = ({
         );
         userMessage = retryMessage;
       }
+      setLoadingMessage("Queued...")
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
@@ -642,6 +647,7 @@ const DashboardActions = ({
           userMessage,
         }),
       });
+      setLoadingMessage("Generating code...")
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = "";
       const updateIfChanged = (newContents: string) => {
@@ -710,6 +716,7 @@ const DashboardActions = ({
         }
         if (!isRunningRef.current) {
           setIsLoading(false, fcr);
+          setLoadingMessage("")
           return;
         }
         setHideMerge(false, fcr);
@@ -755,6 +762,7 @@ const DashboardActions = ({
     }
     setIsLoading(false, fcr);
     isRunningRef.current = false;
+    setLoadingMessage("")
   };
 
 

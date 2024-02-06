@@ -57,6 +57,7 @@ const DashboardDisplay = () => {
 
   const [files = [], setFiles] = useLocalStorage<{ label: string; name: string }[]>("files",[]);
   const [directories = [], setDirectories] = useLocalStorage<{ label: string; name: string }[]>("directories",[]);
+  const [loadingMessage = "", setLoadingMessage] = useState("" as string)
 
   const filePath =
     fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
@@ -295,6 +296,20 @@ const DashboardDisplay = () => {
 
   return (
     <>
+      {loadingMessage && (
+        <div className="fixed bottom-12 right-12 text-center z-10">
+          <img
+            className="rounded-full border-zinc-800 border"
+            src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif"
+            alt="Sweeping"
+            height={120}
+            width={120}
+          />
+          <p className="mt-2">
+            {loadingMessage}
+          </p>
+        </div>
+      )}
       <h1 className="font-bold text-xl">Sweep Assistant</h1>
       <h3 className="text-zinc-400">{versionNumber}</h3>
       <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
@@ -328,7 +343,8 @@ const DashboardDisplay = () => {
           undefinedCheck={undefinedCheck}
           removeFileChangeRequest={removeFileChangeRequest}
           setOutputToggle={setOutputToggle}
-        ></DashboardActions>
+          setLoadingMessage={setLoadingMessage}
+        />
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
           <ResizablePanelGroup direction="vertical">
