@@ -84,10 +84,10 @@ const DashboardPlanning = ({
   files: {label: string; name: string}[];
   setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
 }) => {
-  const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "");
-  const [snippets = [], setSnippets] = useLocalStorage("globalSnippets", {} as {[key: string]: Snippet});
-  const [rawResponse = "", setRawResponse] = useLocalStorage("planningRawResponse", "");
-  const [chainOfThought = "", setChainOfThought] = useLocalStorage("globalChainOfThought", "");
+  const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "" as string);
+  const [snippets = {}, setSnippets] = useLocalStorage("globalSnippets", {} as {[key: string]: Snippet});
+  const [rawResponse = "", setRawResponse] = useLocalStorage("planningRawResponse", "" as string);
+  const [chainOfThought = "", setChainOfThought] = useLocalStorage("globalChainOfThought", "" as string);
   const [currentFileChangeRequests = [], setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
   const [debugLogToggle = false, setDebugLogToggle] = useState<boolean>(false);
   const [isLoading = false, setIsLoading] = useState<boolean>(false);
