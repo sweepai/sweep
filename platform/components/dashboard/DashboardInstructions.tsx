@@ -61,39 +61,37 @@ const DashboardInstructions = function DashboardInstructions({
   refreshFiles: () => Promise<void>;
 }) {
   return (
-    <Tabs defaultValue="plan" className="grow mb-4 h-full">
-      <TabsContent value="plan" className="h-full">
-        <div className="grow border rounded-md p-4 overflow-auto h-full">
-          <ModifyOrCreate
-            filePath={filePath}
-            repoName={repoName}
-            files={files}
-            directories={directories}
-            fileChangeRequests={fileChangeRequests}
-            setFileChangeRequests={setFileChangeRequests}
-            refreshFiles={refreshFiles}
-          />
-          <FCRList
-            repoName={repoName}
-            files={files}
-            fileChangeRequests={fileChangeRequests}
-            setFileChangeRequests={setFileChangeRequests}
-            currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-            setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-            setFileForFCR={setFileForFCR}
-            setOldFileForFCR={setOldFileForFCR}
-            setHideMerge={setHideMerge}
-            getFileChanges={getFileChanges}
-            setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-            setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-            removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-            removeFileChangeRequest={removeFileChangeRequest}
-            isRunningRef={isRunningRef}
-          />
-          {fileChangeRequests.length === 0 && (
-            <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
-          )}
-        </div>
+    <Tabs defaultValue="plan" className="grow mb-4 h-full min-h-0">
+      <TabsContent value="plan" className="h-full grow border rounded-md p-4 overflow-auto h-full">
+        <ModifyOrCreate
+          filePath={filePath}
+          repoName={repoName}
+          files={files}
+          directories={directories}
+          fileChangeRequests={fileChangeRequests}
+          setFileChangeRequests={setFileChangeRequests}
+          refreshFiles={refreshFiles}
+        />
+        <FCRList
+          repoName={repoName}
+          files={files}
+          fileChangeRequests={fileChangeRequests}
+          setFileChangeRequests={setFileChangeRequests}
+          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
+          setHideMerge={setHideMerge}
+          getFileChanges={getFileChanges}
+          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+          removeFileChangeRequest={removeFileChangeRequest}
+          isRunningRef={isRunningRef}
+        />
+        {fileChangeRequests.length === 0 && (
+          <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
+        )}
       </TabsContent>
     </Tabs>
   );

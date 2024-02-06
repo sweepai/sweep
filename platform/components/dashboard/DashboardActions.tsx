@@ -859,7 +859,7 @@ const DashboardActions = ({
         />
       </TabsContent>
       <TabsContent value="coding" className="h-full">
-        <div className="flex flex-col h-[90%]">
+        <div className="flex flex-col h-[95%]">
           <DashboardInstructions
             filePath={filePath}
             repoName={repoName}
@@ -880,95 +880,6 @@ const DashboardActions = ({
             isRunningRef={isRunningRef}
             refreshFiles={refreshFiles}
           />
-
-
-          {/* <div className="flex flex-row justify-center">
-            {!isRunningRef.current ? (
-              <Button
-                className="mt-4 mr-4"
-                variant="secondary"
-                onClick={async (e) => {
-                  setIsLoadingAll(true);
-                  await getAllFileChanges(fileChangeRequests);
-                }}
-                disabled={fileChangeRequests.some(
-                  (fcr: FileChangeRequest) => fcr.isLoading,
-                )}
-              >
-                <FaPlay />
-                &nbsp;&nbsp;Modify All
-              </Button>
-            ) : (
-              <Button
-                className="mt-4 mr-4"
-                variant="secondary"
-                onClick={(e) => {
-                  isRunningRef.current = false;
-                }}
-              >
-                <FaStop />
-                &nbsp;&nbsp;Cancel
-              </Button>
-            )}
-            <Button
-              className="mt-4 mr-4"
-              variant="secondary"
-              onClick={async () => {
-                syncAllFiles();
-                toast.success("Files synced from storage!", {
-                  action: { label: "Dismiss", onClick: () => {} },
-                });
-                setHideMergeAll(true);
-              }}
-              disabled={fileChangeRequests.some(
-                (fcr: FileChangeRequest) => fcr.isLoading,
-              )}
-            >
-              <FaPlay />
-              &nbsp;&nbsp;Modify All
-            </Button>
-          ) : (
-            <Button
-              className="mt-4 mr-4"
-              variant="secondary"
-              onClick={(e) => {
-                isRunningRef.current = false;
-              }}
-            >
-              <FaStop />
-              &nbsp;&nbsp;Cancel
-            </Button>
-          )}
-          <Button
-            className="mt-4 mr-4"
-            variant="secondary"
-            onClick={async () => {
-              syncAllFiles();
-              toast.success("Files synced from storage!", {
-                action: { label: "Dismiss", onClick: () => {} },
-              });
-              setHideMergeAll(true);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaArrowsRotate />
-            &nbsp;&nbsp;Restart All
-          </Button>
-          <Button
-            className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
-            onClick={async () => {
-              saveAllFiles(fileChangeRequests);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaCheck />
-            &nbsp;&nbsp;Save All
-          </Button>
-        </div> */}
         <Collapsible
           open={validationScriptCollapsibleOpen}
           className="border-2 rounded p-4"
