@@ -16,6 +16,16 @@ import Markdown from 'react-markdown'
 import { Mention, MentionsInput, SuggestionDataItem } from "react-mentions";
 import { Badge } from "../ui/badge";
 import { FaTimes } from "react-icons/fa";
+import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+const codeStyle = {
+  ...vscDarkPlus,
+  'code': {
+    ...vscDarkPlus['code[class*="language-"]'],
+    whiteSpace: 'pre-wrap !important',
+  },
+}
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
 
@@ -43,7 +53,7 @@ You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
-Briefly outline the minimal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
+Concisely outline the minimal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
 </contextual_request_analysis>
 
 # Plan:
@@ -58,6 +68,7 @@ Briefly outline the minimal plan that solves the user request by referencing the
 <modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Concise natural language instructions for the modifications needed to solve the issue.
 * Reference necessary files, imports and entity names.
+* end_line - start_line should be at least 10 lines.
 ...
 </modify>
 ...
@@ -167,7 +178,7 @@ const DashboardPlanning = ({
           const startLine: string | undefined = match.groups?.startLine;
           const start: number = startLine === undefined ? 0 : parseInt(startLine);
           const endLine: string | undefined = match.groups?.endLine;
-          const end: number = endLine === undefined ? contents.split("\n").length : parseInt(endLine);
+          const end: number = Math.max(endLine === undefined ? contents.split("\n").length : parseInt(endLine), start + 10);
           console.log(changeType, relevantFiles, instructions, startLine, endLine)
           fileChangeRequests.push({
             snippet: {
@@ -322,7 +333,10 @@ const DashboardPlanning = ({
       </Label>
       {chainOfThought.length ? (
         <div className="rounded border p-4 mb-8 overflow-y-auto" ref={thoughtsRef}>
-          <Markdown className="react-markdown max-h-[150px]">
+          <Markdown
+            className="react-markdown max-h-[150px]"
+
+          >
             {chainOfThought}
           </Markdown>
         </div>
@@ -396,7 +410,29 @@ const DashboardPlanning = ({
                       {capitalize(fileChangeRequest.changeType)}
                     </span>
                   </div>
-                  <Markdown className="react-markdown mb-2">
+                  <Markdown
+                    className="react-markdown mb-2"
+                    components={{
+                      code(props) {
+                        const {children, className, node, ...rest} = props
+                        console.log(props)
+                        const match = /language-(\w+)/.exec(className || '')
+                        return match ? (
+                          <SyntaxHighlighter
+                            {...rest}
+                            children={String(children).replace(/\n$/, '')}
+                            language={match[1]}
+                            style={codeStyle}
+                            className="SyntaxHighlighter"
+                          />
+                        ) : (
+                          <code {...rest} className={className}>
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
                     {fileChangeRequest.instructions}
                   </Markdown>
                   {fileChangeRequest.changeType === "modify" && (
@@ -404,21 +440,11 @@ const DashboardPlanning = ({
                       <Label>
                         Snippet Preview
                       </Label>
-                      <CodeMirror
-                        value={fileChangeRequest.snippet.content}
-                        extensions={[
-                          ...extensions,
-                          lineNumbers({
-                            formatNumber: (num: number) => {
-                              return (num + fileChangeRequest.snippet.start).toString();
-                            },
-                          }),
-                        ]}
-                        theme={vscodeDark}
-                        style={{ overflow: "auto" }}
-                        placeholder={"No plan generated yet."}
-                        className="ph-no-capture"
-                        maxHeight="150px"
+                      <SyntaxHighlighter
+                        language="javascript"
+                        style={codeStyle}
+                        className="SyntaxHighlighter max-h-[150px]"
+                        children={String(fileChangeRequest.snippet.content).replace(/\n$/, '')}
                       />
                     </>
                   )}
