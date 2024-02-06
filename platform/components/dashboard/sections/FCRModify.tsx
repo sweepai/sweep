@@ -212,6 +212,11 @@ const FCRModify = memo(function FCRModify({
                 ),
               )}
             </div>
+            {Object.keys(fcr.readOnlySnippets).length === 0 && (
+              <div className="text-xs px-2 text-zinc-400">
+                No files added yet. Type @ to add a file.
+              </div>
+            )}
             <div className="flex flex-row justify-end w-full pb-2">
               <span>
                 {!isRunningRef.current ? (
@@ -243,46 +248,6 @@ const FCRModify = memo(function FCRModify({
                     &nbsp;Cancel
                   </Button>
                 )}
-                {/* <Button
-                  className="mr-2"
-                  size="sm"
-                  variant="secondary"
-                  onClick={async () => {
-                    const response = await getFile(
-                      repoName,
-                      fcr.snippet.file,
-                    );
-                    setFileForFCR(response.contents, fcr);
-                    setOldFileForFCR(response.contents, fcr);
-                    toast.success("File synced from storage!", {
-                      action: { label: "Dismiss", onClick: () => { } },
-                    });
-                    setCurrentFileChangeRequestIndex(index);
-                    setHideMerge(true, fcr);
-                  }}
-                  disabled={fcr.isLoading}
-                >
-                  <FaArrowsRotate />
-                </Button>
-                <Button
-                  size="sm"
-                  className="mr-2 bg-green-600 hover:bg-green-700"
-                  onClick={async () => {
-                    setOldFileForFCR(fcr.newContents, fcr);
-                    setHideMerge(true, fcr);
-                    await writeFile(
-                      repoName,
-                      fcr.snippet.file,
-                      fcr.newContents,
-                    );
-                    toast.success("Succesfully saved file!", {
-                      action: { label: "Dismiss", onClick: () => { } },
-                    });
-                  }}
-                  disabled={fcr.isLoading || fcr.hideMerge}
-                >
-                  <FaCheck />
-                </Button> */}
               </span>
             </div>
           </div>

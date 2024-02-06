@@ -160,9 +160,9 @@ const DashboardPlanning = ({
         <Label className="mr-2">
           Instructions
         </Label>
-        <Button variant="secondary">
+        {/* <Button variant="secondary">
           Search
-        </Button>
+        </Button> */}
       </div>
       <Textarea
         className="mb-4"
@@ -182,7 +182,7 @@ const DashboardPlanning = ({
       <Label className="mb-2">
         Sweep&apos;s Thoughts
       </Label>
-      <div className="rounded border p-4 mb-4 overflow-y-auto" ref={thoughtsRef}>
+      <div className="rounded border p-4 mb-8 overflow-y-auto" ref={thoughtsRef}>
         <Markdown className="react-markdown max-h-[150px]">
           {chainOfThought}
         </Markdown>
