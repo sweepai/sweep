@@ -123,24 +123,24 @@ const DashboardPlanning = ({
       var fileChangeRequests = [];
       for (const match of fileChangeRequestMatches) {
         const file: string = match.groups?.cFile || match.groups?.mFile;
-        const relevantFiles = match.groups?.relevant_files;
-        const instructions = match.groups?.cInstructions || match.groups?.mInstructions;
-        const changeType = match.groups?.cInstructions ? "create" : "modify";
-        const startLine = match.groups?.startLine;
-        const endLine = match.groups?.endLine;
+        const relevantFiles: string = match.groups?.relevant_files;
+        const instructions: string = match.groups?.cInstructions || match.groups?.mInstructions || "";
+        const changeType: "create" | "modify" = match.groups?.cInstructions ? "create" : "modify";
+        const startLine: string | undefined = match.groups?.startLine;
+        const endLine: string | undefined = match.groups?.endLine;
         console.log(changeType, relevantFiles, instructions, startLine, endLine)
         const contents = (await getFile(repoName, file)).contents || "";
         fileChangeRequests.push({
           snippet: {
-            start: startLine || 0,
-            end: endLine || contents.split("\n").length,
+            start: startLine ? parseInt(startLine) : 0,
+            end: endLine ? parseInt(endLine) : contents.split("\n").length,
             file: file,
             content: contents,
           },
           newContents: contents,
           changeType,
           hideMerge: true,
-          instructions: instructions,
+          instructions: instructions.trim(),
           isLoading: false,
           openReadOnlyFiles: false,
           readOnlySnippets: {},
