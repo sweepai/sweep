@@ -3,7 +3,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import CodeMirror, { EditorView, keymap, lineNumbers } from "@uiw/react-codemirror";
-import { FileChangeRequest, Snippet } from "@/lib/types";
+import { FileChangeRequest, Snippet } from "../../lib/types";
 import { ScrollArea } from "../ui/scroll-area";
 import { Button } from "../ui/button";
 import { indentWithTab } from "@codemirror/commands";
@@ -11,7 +11,7 @@ import { indentUnit } from "@codemirror/language";
 import { xml } from "@codemirror/lang-xml";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { Switch } from "../ui/switch";
-import { getFile } from "@/lib/api.service";
+import { getFile } from "../../lib/api.service";
 import Markdown from 'react-markdown'
 import { Mention, MentionsInput, SuggestionDataItem } from "react-mentions";
 import { Badge } from "../ui/badge";
