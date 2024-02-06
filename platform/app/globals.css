@@ -116,6 +116,11 @@
   font-size: 0.875rem !important;
 }
 
+.MentionsInput > div:has(ul) {
+  margin-top: 25px !important;
+  border-radius: 5px;
+}
+
 .react-markdown {
   font-size: 0.75rem;
 }

@@ -154,9 +154,12 @@ const FCRList = memo(function FCRList({
           suggestion.display!.length - maxLength,
           suggestion.display!.length,
         );
+    if (index > 10) {
+      return null;
+    }
     return (
       <div
-        className={`user ${focused ? "bg-zinc-500" : ""} bg-zinc-700 text-white`}
+        className={`user ${focused ? "bg-zinc-800" : "bg-zinc-900"} p-2 text-sm hover:text-white`}
       >
         {suggestedFileName}
       </div>

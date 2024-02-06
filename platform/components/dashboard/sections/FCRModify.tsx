@@ -73,7 +73,7 @@ const FCRModify = memo(function FCRModify({
   mentionFiles: {id: any;display: any;}[];
   fcrInstructions: { [key: string]: string; };
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
-  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element;
+  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
 }) {
   return (
     <Draggable
@@ -165,6 +165,7 @@ const FCRModify = memo(function FCRModify({
               }}
             >
               <Mention
+                className="Mention"
                 trigger="@"
                 data={mentionFiles}
                 renderSuggestion={setUserSuggestion}
@@ -183,6 +184,7 @@ const FCRModify = memo(function FCRModify({
                   setReadOnlyFilesOpen(false, fcr);
                 }}
                 appendSpaceOnAdd={true}
+                // shift it down 5px
               />
             </MentionsInput>
             <div

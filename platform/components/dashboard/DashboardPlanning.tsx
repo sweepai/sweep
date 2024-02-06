@@ -1,7 +1,7 @@
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { FileChangeRequest, Snippet } from "@/lib/types";
 import { ScrollArea } from "../ui/scroll-area";
@@ -13,6 +13,9 @@ import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { Switch } from "../ui/switch";
 import { getFile } from "@/lib/api.service";
 import Markdown from 'react-markdown'
+import { Mention, MentionsInput, SuggestionDataItem } from "react-mentions";
+import { Badge } from "../ui/badge";
+import { FaTimes } from "react-icons/fa";
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
 
@@ -64,13 +67,15 @@ const capitalize = (s: string) => {
 
 const DashboardPlanning = ({
   repoName,
+  files,
   setFileChangeRequests,
 }: {
   repoName: string;
+  files: string[];
   setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
 }) => {
   const [instructions, setInstructions] = useLocalStorage("globalInstructions", "");
-  const [snippets, setSnippets] = useLocalStorage("globalSnippets", [] as Snippet[]);
+  const [snippets, setSnippets] = useLocalStorage("globalSnippets", {} as {[key: string]: Snippet});
   const [rawResponse, setRawResponse] = useLocalStorage("planningRawResponse", "");
   const [chainOfThought, setChainOfThought] = useLocalStorage("globalChainOfThought", "");
   const [currentFileChangeRequests, setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
@@ -104,6 +109,7 @@ const DashboardPlanning = ({
     const reader = response.body?.getReader();
     const decoder = new TextDecoder("utf-8");
     let rawText = "";
+    setChainOfThought("")
     setCurrentFileChangeRequests([])
     while (true) {
       const { done, value } = await reader?.read()!
@@ -154,6 +160,31 @@ const DashboardPlanning = ({
     }
   }
 
+  const setUserSuggestion = (
+    suggestion: SuggestionDataItem,
+    search: string,
+    highlightedDisplay: ReactNode,
+    index: number,
+    focused: boolean,
+  ) => {
+    return "test"
+    const maxLength = 50;
+    const suggestedFileName =
+      suggestion.display!.length < maxLength
+        ? suggestion.display
+        : "..." +
+        suggestion.display!.slice(
+          suggestion.display!.length - maxLength,
+          suggestion.display!.length,
+        );
+    return (
+      <div className={`user ${focused ? "bg-zinc-500" : ""} bg-zinc-700 text-white`}>
+        {suggestedFileName}
+      </div>
+    );
+  };
+
+
   return (
     <div className="flex flex-col">
       <div className="flex flex-row justify-between items-center mb-2">
@@ -164,15 +195,76 @@ const DashboardPlanning = ({
           Search
         </Button> */}
       </div>
-      <Textarea
-        className="mb-4"
-        placeholder="Describe the changes you want to make here"
+      <MentionsInput
+        className="min-h-[100px] w-full rounded-md border border-input bg-background MentionsInput mb-2"
+        placeholder={"Describe the changes you want to make here."}
         value={instructions}
-        onChange={(e) => setInstructions(e.target.value)}
-      />
-      <div className="text-center mb-4">
+        onChange={(e: any) => setInstructions(e.target.value)}
+        onBlur={(e: any) => setInstructions(e.target.value)}
+      >
+        <Mention
+          trigger="@"
+          data={files.map((file: string) => ({id: file, display: file}))}
+          renderSuggestion={setUserSuggestion}
+          onAdd={async (currentValue) => {
+            console.log("here")
+            const contents = (
+              await getFile(repoName, currentValue.toString())
+            ).contents;
+            const newSnippet = {
+              file: currentValue,
+              start: 0,
+              end: contents.split("\n").length,
+              entireFile: contents,
+              content: contents, // this is the slice based on start and end, remeber to change this
+            } as Snippet;
+            setSnippets(newSnippets => {
+              return {
+                ...newSnippets,
+                [currentValue]: newSnippet,
+              };
+            })
+          }}
+          appendSpaceOnAdd={true}
+        />
+      </MentionsInput>
+      <div
+        hidden={Object.keys(snippets).length === 0}
+        className="mb-4"
+      >
+        {Object.keys(snippets).map(
+          (snippetFile: string, index: number) => (
+            <Badge
+              variant="secondary"
+              key={index}
+              className="bg-zinc-800 text-zinc-300"
+            >
+              {
+                snippetFile.split("/")[
+                snippetFile.split("/").length - 1
+                ]
+              }
+              <FaTimes
+                key={String(index) + "-remove"}
+                className="bg-zinc-800 cursor-pointer"
+                onClick={() => {
+                  console.log(snippetFile)
+                  console.log(snippets)
+                  setSnippets(newSnippets => newSnippets.filter(snippet => snippet.file !== snippetFile))
+                }}
+              />
+            </Badge>
+          ),
+        )}
+      </div>
+      {Object.keys(snippets).length === 0 && (
+        <div className="text-xs px-2 text-zinc-400">
+          No files added yet. Type @ to add a file.
+        </div>
+      )}
+      <div className="text-right mb-4">
         <Button
-          className="mb-4"
+          className="mb-4 mt-4"
           variant="secondary"
           onClick={generatePlan}
         >
@@ -188,10 +280,13 @@ const DashboardPlanning = ({
         </Markdown>
       </div>
       <div className="flex flex-row mb-2 items-center">
-        <Label>
+        <Label className="mb-0">
           Sweep&apos;s Plan
         </Label>
         <div className="grow"></div>
+        <Label className="text-zinc-400 mb-0">
+          Debug mode
+        </Label>
         <Switch
           className="ml-2"
           checked={debugLogToggle}
@@ -271,7 +366,7 @@ const DashboardPlanning = ({
         )}
       </div>
       <div className="grow"></div>
-      <div className="text-center">
+      <div className="text-right">
         <Button
           variant="secondary"
           className="bg-blue-800 hover:bg-blue-900 mt-4"

@@ -798,6 +798,7 @@ const DashboardActions = ({
       <TabsContent value="planning" className="rounded-xl border h-full p-4">
         <DashboardPlanning
           repoName={repoName}
+          files={files}
           setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
             setFileChangeRequests(fileChangeRequests);
             setCurrentTab("coding");

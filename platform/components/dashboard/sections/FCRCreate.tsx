@@ -74,7 +74,7 @@ const FCRCreate = memo(function FCRCreate({
   mentionFiles: {id: any;display: any;}[];
   fcrInstructions: { [key: string]: string; };
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
-  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element;
+  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
 }) {
   const [newFileName, setNewFileName] = useState("");
 
@@ -199,6 +199,7 @@ const FCRCreate = memo(function FCRCreate({
               }}
             >
               <Mention
+                className="Mention"
                 trigger="@"
                 data={mentionFiles}
                 renderSuggestion={setUserSuggestion}
