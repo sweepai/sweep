@@ -81,7 +81,6 @@ const FileSelector = memo(function FileSelector({
       }
     }),
   ];
-  console.log("rerednered")
   return (
     <>
       <div className="flex flex-row mb-2">
