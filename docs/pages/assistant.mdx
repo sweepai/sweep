@@ -21,13 +21,15 @@ Install the assistant by running the following command in your terminal:
 <Tabs items={["npm (recommended)", "curl"]}>
   <Tabs.Tab>
 ```sh filename="terminal"
-npx sweepai -y
+npm i -g sweepai
+npx sweepai build
+npx sweepai
 ```
 
-To update the assistant, run
+Then run `npx sweepai` for subsequent runs. To update the assistant, run
 
 ```sh filename="terminal"
-npm upgrade -g sweepai
+npm update -g sweepai
 ```
   </Tabs.Tab>
   <Tabs.Tab>
