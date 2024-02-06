@@ -89,8 +89,8 @@ const DashboardPlanning = ({
   const [rawResponse = "", setRawResponse] = useLocalStorage("planningRawResponse", "");
   const [chainOfThought = "", setChainOfThought] = useLocalStorage("globalChainOfThought", "");
   const [currentFileChangeRequests = [], setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
-  const [debugLogToggle = false, setDebugLogToggle] = useState(false);
-  const [isLoading = false, setIsLoading] = useState(false);
+  const [debugLogToggle = false, setDebugLogToggle] = useState<boolean>(false);
+  const [isLoading = false, setIsLoading] = useState<boolean>(false);
 
   const instructionsRef = useRef<HTMLTextAreaElement>(null);
   const thoughtsRef = useRef<HTMLDivElement>(null);
