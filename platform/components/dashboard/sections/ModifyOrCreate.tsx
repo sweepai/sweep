@@ -73,7 +73,7 @@ const ModifyOrCreate = ({
                       return;
                     }
                     const contents = (await getFile(repoName, file.value))
-                      .contents;
+                      .contents || "";
                     setFileChangeRequests((prev: FileChangeRequest[]) => {
                       let snippet = {
                         file: file.value,
