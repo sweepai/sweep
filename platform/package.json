@@ -1,6 +1,6 @@
 {
   "name": "sweepai",
-  "version": "0.2.6",
+  "version": "0.2.9",
   "preferGlobal": true,
   "engines": {
     "node": ">=18.0.0"
@@ -19,7 +19,8 @@
     "cypress:run": "cypress run --browser chrome",
     "test:e2e": "start-server-and-test start 4000 cypress:run",
     "preinstall": "node scripts/preinstall.js",
-    "postinstall": "next build"
+    "postinstall": "next build",
+    "release": "npm version patch && git push --follow-tags"
   },
   "dependencies": {
     "@codemirror/commands": "^6.3.3",
@@ -55,6 +56,7 @@
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-dom": "^18",
     "@types/react-mentions": "^4.1.13",
+    "@types/react-syntax-highlighter": "^15.5.11",
     "@uiw/codemirror-theme-vscode": "^4.21.21",
     "@uiw/react-codemirror": "^4.21.21",
     "ai": "^2.2.31",
@@ -87,6 +89,7 @@
     "react-markdown": "^9.0.1",
     "react-mentions": "^4.4.10",
     "react-resizable-panels": "^1.0.9",
+    "react-syntax-highlighter": "^15.5.0",
     "sonner": "^1.3.1",
     "start-server-and-test": "^2.0.3",
     "tailwind-merge": "^2.2.1",

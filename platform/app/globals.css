@@ -154,13 +154,20 @@
 
 .react-markdown pre {
   margin-top: 1rem;
-  background-color: #202123;
+  background-color: #1e1e1e;
   color: #afafaf;
-  padding: 1rem;
   border-radius: 0.5rem;
   overflow-x: auto;
 }
 
 .react-markdown pre code {
   color: #f4f4f4;
+}
+
+.SyntaxHighlighter {
+  white-space: pre-wrap !important;
+}
+
+.SyntaxHighlighter code {
+  white-space: pre-wrap !important;
 }
