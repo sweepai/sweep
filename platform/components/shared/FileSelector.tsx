@@ -72,7 +72,7 @@ const FileSelector = memo(function FileSelector({
       <div className="flex flex-row mb-2">
         <span className="border rounded grow p-2 mr-2 font-mono">
           {filePath === "" || filePath === undefined
-            ? "Add a file to modify on the left."
+            ? "No files selected"
             : filePath}
         </span>
       </div>

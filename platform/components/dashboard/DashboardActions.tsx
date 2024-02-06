@@ -838,9 +838,90 @@ const DashboardActions = ({
             />
           </CollapsibleContent>
         </Collapsible>
+
+        <DashboardInstructions
+          filePath={filePath}
+          repoName={repoName}
+          files={files}
+          directories={directories}
+          fileChangeRequests={fileChangeRequests}
+          setFileChangeRequests={setFileChangeRequests}
+          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+          setFileForFCR={setFileForFCR}
+          setOldFileForFCR={setOldFileForFCR}
+          setHideMerge={setHideMerge}
+          getFileChanges={getFileChanges}
+          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+          removeFileChangeRequest={removeFileChangeRequest}
+          isRunningRef={isRunningRef}
+          refreshFiles={refreshFiles}
+        />
+
+
+        {/* <div className="flex flex-row justify-center">
+          {!isRunningRef.current ? (
+            <Button
+              className="mt-4 mr-4"
+              variant="secondary"
+              onClick={async (e) => {
+                setIsLoadingAll(true);
+                await getAllFileChanges(fileChangeRequests);
+              }}
+              disabled={fileChangeRequests.some(
+                (fcr: FileChangeRequest) => fcr.isLoading,
+              )}
+            >
+              <FaPlay />
+              &nbsp;&nbsp;Modify All
+            </Button>
+          ) : (
+            <Button
+              className="mt-4 mr-4"
+              variant="secondary"
+              onClick={(e) => {
+                isRunningRef.current = false;
+              }}
+            >
+              <FaStop />
+              &nbsp;&nbsp;Cancel
+            </Button>
+          )}
+          <Button
+            className="mt-4 mr-4"
+            variant="secondary"
+            onClick={async () => {
+              syncAllFiles();
+              toast.success("Files synced from storage!", {
+                action: { label: "Dismiss", onClick: () => {} },
+              });
+              setHideMergeAll(true);
+            }}
+            disabled={fileChangeRequests.some(
+              (fcr: FileChangeRequest) => fcr.isLoading,
+            )}
+          >
+            <FaArrowsRotate />
+            &nbsp;&nbsp;Restart All
+          </Button>
+          <Button
+            className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
+            onClick={async () => {
+              saveAllFiles(fileChangeRequests);
+            }}
+            disabled={fileChangeRequests.some(
+              (fcr: FileChangeRequest) => fcr.isLoading,
+            )}
+          >
+            <FaCheck />
+            &nbsp;&nbsp;Save All
+          </Button>
+        </div> */}
         <Collapsible
           open={validationScriptCollapsibleOpen}
-          className="border-2 rounded p-4 mb-2"
+          className="border-2 rounded p-4"
         >
           <div className="flex flex-row justify-between items-center">
             <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
@@ -988,86 +1069,6 @@ const DashboardActions = ({
             </p>
           </CollapsibleContent>
         </Collapsible>
-        <DashboardInstructions
-          filePath={filePath}
-          repoName={repoName}
-          files={files}
-          directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setHideMerge={setHideMerge}
-          getFileChanges={getFileChanges}
-          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-          removeFileChangeRequest={removeFileChangeRequest}
-          isRunningRef={isRunningRef}
-          refreshFiles={refreshFiles}
-        />
-
-
-        {/* <div className="flex flex-row justify-center">
-          {!isRunningRef.current ? (
-            <Button
-              className="mt-4 mr-4"
-              variant="secondary"
-              onClick={async (e) => {
-                setIsLoadingAll(true);
-                await getAllFileChanges(fileChangeRequests);
-              }}
-              disabled={fileChangeRequests.some(
-                (fcr: FileChangeRequest) => fcr.isLoading,
-              )}
-            >
-              <FaPlay />
-              &nbsp;&nbsp;Modify All
-            </Button>
-          ) : (
-            <Button
-              className="mt-4 mr-4"
-              variant="secondary"
-              onClick={(e) => {
-                isRunningRef.current = false;
-              }}
-            >
-              <FaStop />
-              &nbsp;&nbsp;Cancel
-            </Button>
-          )}
-          <Button
-            className="mt-4 mr-4"
-            variant="secondary"
-            onClick={async () => {
-              syncAllFiles();
-              toast.success("Files synced from storage!", {
-                action: { label: "Dismiss", onClick: () => {} },
-              });
-              setHideMergeAll(true);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaArrowsRotate />
-            &nbsp;&nbsp;Restart All
-          </Button>
-          <Button
-            className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
-            onClick={async () => {
-              saveAllFiles(fileChangeRequests);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaCheck />
-            &nbsp;&nbsp;Save All
-          </Button>
-        </div> */}
       </div>
     </ResizablePanel>
   );
