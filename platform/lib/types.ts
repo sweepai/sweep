@@ -23,6 +23,7 @@ interface FileChangeRequest {
   isLoading: boolean;
   openReadOnlyFiles: boolean;
   readOnlySnippets: { [key: string]: Snippet };
+  diff: string | undefined;
 }
 
 interface Message {
