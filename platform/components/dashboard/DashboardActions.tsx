@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { FaQuestion } from "react-icons/fa";
+import { FaCog, FaCogs, FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 import { usePostHog } from "posthog-js/react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
@@ -265,7 +265,6 @@ const DashboardActions = ({
         setRepoName(currentRepoName);
         return currentRepoName;
       });
-      setRepoNameCollapsibleOpen(false)
     } catch (e) {
       console.error(e);
       toast.error("An Error Occured", {
@@ -791,10 +790,64 @@ const DashboardActions = ({
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
      <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
-      <TabsList>
-        <TabsTrigger value="planning">Planning</TabsTrigger>
-        <TabsTrigger value="coding">Coding</TabsTrigger>
-      </TabsList>
+      <div className="flex flex-row justify-between">
+        <TabsList>
+          <TabsTrigger value="planning">Planning</TabsTrigger>
+          <TabsTrigger value="coding">Coding</TabsTrigger>
+        </TabsList>
+          <Dialog
+            defaultOpen={repoName === ""}
+            open={repoNameCollapsibleOpen}
+            onOpenChange={(open) => setRepoNameCollapsibleOpen(open)}
+          >
+            <Button
+              variant="secondary"
+              className={`${files.length === 0 ? "bg-blue-800 hover:bg-blue-900" : ""}`}
+              size="sm"
+              onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
+            >
+              <FaCog />&nbsp;&nbsp;Repository Settings
+              <span className="sr-only">Toggle</span>
+            </Button>
+            <DialogContent className="CollapsibleContent">
+              <div>
+                <Label className="mb-2">Repository Path</Label>
+                <Input
+                  id="name"
+                  placeholder="/Users/sweep/path/to/repo"
+                  value={currentRepoName}
+                  className="col-span-4 w-full"
+                  onChange={(e) => setCurrentRepoName(e.target.value)}
+                  onBlur={refreshFiles}
+                />
+                <p className="text-sm text-muted-foreground mb-4">
+                  Absolute path to your repository.
+                </p>
+                <Label className="mb-2">Blocked Keywords</Label>
+                <Input
+                  className="mb-4"
+                  value={currentBlockedGlobs}
+                  onChange={(e) => {
+                    setCurrentBlockedGlobs(e.target.value);
+                  }}
+                  onBlur={() => {
+                    setBlockedGlobs(currentBlockedGlobs);
+                  }}
+                  placeholder="node_modules, .log, build"
+                />
+                <Label className="mb-2">File Limit</Label>
+                <Input
+                  value={fileLimit}
+                  onChange={(e) => {
+                    setFileLimit(parseInt(e.target.value));
+                  }}
+                  placeholder="10000"
+                  type="number"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+      </div>
       <TabsContent value="planning" className="rounded-xl border h-full p-4 h-[95%]">
         <DashboardPlanning
           repoName={repoName}
@@ -807,61 +860,6 @@ const DashboardActions = ({
       </TabsContent>
       <TabsContent value="coding" className="h-full">
         <div className="flex flex-col h-[90%]">
-          <Collapsible
-            defaultOpen={repoName === ""}
-            open={repoNameCollapsibleOpen}
-            className="border-2 rounded p-4 mb-2"
-          >
-            <div className="flex flex-row justify-between items-center">
-              <div>
-                <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
-              >
-                {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
-                <CaretSortIcon className="h-4 w-4" />
-                <span className="sr-only">Toggle</span>
-              </Button>
-            </div>
-            <CollapsibleContent className="CollapsibleContent">
-              <Label className="mb-2">Repository Path</Label>
-              <Input
-                id="name"
-                placeholder="/Users/sweep/path/to/repo"
-                value={currentRepoName}
-                className="col-span-4 w-full"
-                onChange={(e) => setCurrentRepoName(e.target.value)}
-                onBlur={refreshFiles}
-              />
-              <p className="text-sm text-muted-foreground mb-4">
-                Absolute path to your repository.
-              </p>
-              <Label className="mb-2">Blocked Keywords</Label>
-              <Input
-                className="mb-4"
-                value={currentBlockedGlobs}
-                onChange={(e) => {
-                  setCurrentBlockedGlobs(e.target.value);
-                }}
-                onBlur={() => {
-                  setBlockedGlobs(currentBlockedGlobs);
-                }}
-                placeholder="node_modules, .log, build"
-              />
-              <Label className="mb-2">File Limit</Label>
-              <Input
-                value={fileLimit}
-                onChange={(e) => {
-                  setFileLimit(parseInt(e.target.value));
-                }}
-                placeholder="10000"
-                type="number"
-              />
-            </CollapsibleContent>
-          </Collapsible>
           <DashboardInstructions
             filePath={filePath}
             repoName={repoName}
