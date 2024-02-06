@@ -47,6 +47,7 @@
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",
     "@replit/codemirror-minimap": "^0.5.2",
+    "@types/codemirror": "^5.60.15",
     "@types/diff": "^5.0.9",
     "@types/jest": "^29.5.11",
     "@types/node": "^20.0.0",

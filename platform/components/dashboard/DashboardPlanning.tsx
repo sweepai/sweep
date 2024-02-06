@@ -81,7 +81,7 @@ const DashboardPlanning = ({
   setFileChangeRequests,
 }: {
   repoName: string;
-  files: {label: string; value: string}[];
+  files: {label: string; name: string}[];
   setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
 }) => {
   const [instructions, setInstructions] = useLocalStorage("globalInstructions", "");
@@ -159,8 +159,8 @@ const DashboardPlanning = ({
         const fileChangeRequestMatches = rawText.matchAll(fileChangeRequestPattern);
         var fileChangeRequests = [];
         for (const match of fileChangeRequestMatches) {
-          const file: string = match.groups?.cFile || match.groups?.mFile;
-          const relevantFiles: string = match.groups?.relevant_files;
+          const file: string = match.groups?.cFile || match.groups?.mFile || "";
+          const relevantFiles: string = match.groups?.relevant_files || "";
           const instructions: string = match.groups?.cInstructions || match.groups?.mInstructions || "";
           const changeType: "create" | "modify" = match.groups?.cInstructions ? "create" : "modify";
           const contents: string = (await getFile(repoName, file)).contents || "";

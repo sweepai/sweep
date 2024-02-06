@@ -108,6 +108,24 @@
   }
 }
 
+.cm-mergeViewEditor::-webkit-scrollbar {
+  display: none;
+}
+
+.cm-mergeViewEditor {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.cm-editor::-webkit-scrollbar {
+  display: none;
+}
+
+.cm-editor {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .MentionsInput > div > textarea {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;

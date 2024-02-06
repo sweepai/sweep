@@ -245,7 +245,7 @@ const DashboardActions = ({
     });
   }
 
-  const [currentTab = "planning", setCurrentTab] = useLocalStorage("currentTab", "planning");
+  const [currentTab = "planning", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
 
   const refreshFiles = async () => {
     try {
@@ -665,14 +665,14 @@ const DashboardActions = ({
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
@@ -790,7 +790,7 @@ const DashboardActions = ({
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-     <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={setCurrentTab}>
+     <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
       <TabsList>
         <TabsTrigger value="planning">Planning</TabsTrigger>
         <TabsTrigger value="coding">Coding</TabsTrigger>
