@@ -860,6 +860,7 @@ const DashboardActions = ({
         <DashboardPlanning
           repoName={repoName}
           files={files}
+          setLoadingMessage={setLoadingMessage}
           setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
             setFileChangeRequests(fileChangeRequests);
             setCurrentTab("coding");

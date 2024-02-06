@@ -154,10 +154,13 @@
 
 .react-markdown pre {
   margin-top: 1rem;
+  margin-bottom: 1rem;
   background-color: #1e1e1e;
   color: #afafaf;
   border-radius: 0.5rem;
   overflow-x: auto;
+  padding: 1rem;
+  white-space: pre-wrap;
 }
 
 .react-markdown pre code {

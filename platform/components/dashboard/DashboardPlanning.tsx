@@ -18,6 +18,7 @@ import { Badge } from "../ui/badge";
 import { FaTimes } from "react-icons/fa";
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { toast } from "sonner";
 
 const codeStyle = {
   ...vscDarkPlus,
@@ -88,10 +89,12 @@ const capitalize = (s: string) => {
 const DashboardPlanning = ({
   repoName,
   files,
+  setLoadingMessage,
   setFileChangeRequests,
 }: {
   repoName: string;
   files: {label: string; name: string}[];
+  setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
   setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
 }) => {
   const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "" as string);
@@ -124,6 +127,7 @@ const DashboardPlanning = ({
     console.log("Generating plan...")
     console.log(instructions)
     setIsLoading(true)
+    setLoadingMessage("Queued...")
     try {
       setChainOfThought("")
       setCurrentFileChangeRequests([])
@@ -150,6 +154,7 @@ const DashboardPlanning = ({
           systemMessagePrompt,
         }),
       })
+      setLoadingMessage("Planning...")
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
       let rawText = "";
@@ -204,8 +209,10 @@ const DashboardPlanning = ({
       }
     } catch (e) {
       console.error(e)
+      toast.error("An error occurred while generating the plan.")
     } finally {
       setIsLoading(false)
+      setLoadingMessage("")
     }
   }
 
@@ -414,7 +421,6 @@ const DashboardPlanning = ({
                     components={{
                       code(props) {
                         const {children, className, node, ...rest} = props
-                        console.log(props)
                         const match = /language-(\w+)/.exec(className || '')
                         return match ? (
                           // @ts-ignore
@@ -475,7 +481,9 @@ const DashboardPlanning = ({
         <Button
           variant="secondary"
           className="bg-blue-800 hover:bg-blue-900 mt-4"
-          onClick={() => setFileChangeRequests(currentFileChangeRequests)}
+          onClick={() => {
+            setFileChangeRequests(currentFileChangeRequests)
+          }}
           disabled={isLoading}
         >
           Accept Plan
