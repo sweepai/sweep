@@ -1,6 +1,6 @@
 {
   "name": "sweepai",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "preferGlobal": true,
   "engines": {
     "node": ">=18.0.0"
