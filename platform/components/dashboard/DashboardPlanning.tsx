@@ -19,7 +19,13 @@ import { FaTimes } from "react-icons/fa";
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
 
-const userMessagePrompt = `<user_request>
+const userMessagePrompt = `Here are relevant read-only files:
+<read_only_files>
+{readOnlyFiles}
+</read_only_files>
+
+Here is the user's request:
+<user_request>
 {userRequest}
 </user_request>
 
@@ -58,6 +64,10 @@ Briefly outline the minimal plan that solves the user request by referencing the
 
 </plan>`
 
+const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_line}" end_line="{end_line}">
+{contents}
+</read_only_file>`;
+
 const chainOfThoughtPattern = /<contextual_request_analysis>(?<content>[\s\S]*?)($|<\/contextual_request_analysis>)/;
 const fileChangeRequestPattern = /<create file="(?<cFile>.*?)" relevant_files="(?<relevant_files>.*?)">(?<cInstructions>[\s\S]*?)($|<\/create>)|<modify file="(?<mFile>.*?)" start_line="(?<startLine>.*?)" end_line="(?<endLine>.*?)" relevant_files="(.*?)">(?<mInstructions>[\s\S]*?)($|<\/modify>)/sg;
 
@@ -71,7 +81,7 @@ const DashboardPlanning = ({
   setFileChangeRequests,
 }: {
   repoName: string;
-  files: string[];
+  files: {label: string; value: string}[];
   setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
 }) => {
   const [instructions, setInstructions] = useLocalStorage("globalInstructions", "");
@@ -101,7 +111,19 @@ const DashboardPlanning = ({
       },
       body: JSON.stringify({
         userMessage: userMessagePrompt
-          .replace("{userRequest}", instructions),
+          .replace("{userRequest}", instructions)
+          .replace(
+            "{readOnlyFiles}",
+            Object.keys(snippets)
+              .map((filePath) =>
+                readOnlyFileFormat
+                  .replace("{file}", snippets[filePath].file)
+                  .replace("{start_line}", snippets[filePath].start.toString())
+                  .replace("{end_line}", snippets[filePath].end.toString())
+                  .replace("{contents}", snippets[filePath].content),
+              )
+              .join("\n"),
+          ),
         systemMessagePrompt,
         snippets
       }),
@@ -167,7 +189,6 @@ const DashboardPlanning = ({
     index: number,
     focused: boolean,
   ) => {
-    return "test"
     const maxLength = 50;
     const suggestedFileName =
       suggestion.display!.length < maxLength
@@ -177,8 +198,13 @@ const DashboardPlanning = ({
           suggestion.display!.length - maxLength,
           suggestion.display!.length,
         );
+    if (index > 10) {
+      return null;
+    }
     return (
-      <div className={`user ${focused ? "bg-zinc-500" : ""} bg-zinc-700 text-white`}>
+      <div
+        className={`user ${focused ? "bg-zinc-800" : "bg-zinc-900"} p-2 text-sm hover:text-white`}
+      >
         {suggestedFileName}
       </div>
     );
@@ -204,7 +230,7 @@ const DashboardPlanning = ({
       >
         <Mention
           trigger="@"
-          data={files.map((file: string) => ({id: file, display: file}))}
+          data={files.map((file: string) => ({id: file.label, display: file.label}))}
           renderSuggestion={setUserSuggestion}
           onAdd={async (currentValue) => {
             console.log("here")
@@ -250,7 +276,15 @@ const DashboardPlanning = ({
                 onClick={() => {
                   console.log(snippetFile)
                   console.log(snippets)
-                  setSnippets(newSnippets => newSnippets.filter(snippet => snippet.file !== snippetFile))
+                  // setSnippets(newSnippets => newSnippets.filter(snippet => snippet.file !== snippetFile))
+                  // setSnippets((snippets: {[key: string]: Snippet}) => {
+                  //   return Object.keys(snippets).reduce((newSnippets, key) => {
+                  //     if (key !== snippetFile) {
+                  //       newSnippets[key] = snippets[key];
+                  //     }
+                  //     return newSnippets;
+                  //   })
+                  // })
                 }}
               />
             </Badge>
