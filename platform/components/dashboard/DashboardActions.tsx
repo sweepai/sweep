@@ -654,8 +654,6 @@ const DashboardActions = ({
           if (done) {
             let updatedFile = "";
             let patchingErrors = "";
-            console.log(rawText)
-            console.log(currentContents)
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
@@ -671,7 +669,6 @@ const DashboardActions = ({
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             }
-            console.log(updatedFile)
             if (patchingErrors) {
               errorMessage += patchingErrors;
             } else {
@@ -681,7 +678,6 @@ const DashboardActions = ({
                 updatedFile,
               );
             }
-            console.log(updatedFile)
             additionalMessages.push({ role: "assistant", content: rawText });
             updateIfChanged(updatedFile);
             fcr.newContents = updatedFile; // set this to get line and char changes
