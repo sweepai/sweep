@@ -3,6 +3,9 @@ describe('main platform', () => {
     cy.viewport("macbook-15")
     cy.visit('/')
 
+    console.log("Clicking on the 'Coding' button")
+    cy.contains('button', /^Coding$/).click();
+
     console.log("Setting repo name")
     cy.exec('pwd').then((result) => {
       cy.get('.flex-col > :nth-child(1) > .flex-row > .inline-flex').then($el => {
@@ -43,7 +46,7 @@ describe('main platform', () => {
 
         console.log("Checking if the right changes were made")
         console.warn("This test is not working as expected. It should be checking if the changes were made to the file, but it's not.")
-        // cy.get('.cm-changedLine', { timeout: 20000 }).should('contain', '8081');
+        // cy.get('.cm-changedLine', { timeout: 30000 }).should('contain', '8081');
       });
     })
     })
