@@ -21,9 +21,9 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 const codeStyle = {
   ...vscDarkPlus,
-  'code': {
+  'code[class*="language-"]': {
     ...vscDarkPlus['code[class*="language-"]'],
-    whiteSpace: 'pre-wrap !important',
+    whiteSpace: 'pre-wrap',
   },
 }
 
@@ -68,7 +68,6 @@ Concisely outline the minimal plan that solves the user request by referencing t
 <modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Concise natural language instructions for the modifications needed to solve the issue.
 * Reference necessary files, imports and entity names.
-* end_line - start_line should be at least 10 lines.
 ...
 </modify>
 ...
@@ -379,7 +378,7 @@ const DashboardPlanning = ({
               var path = filePath.split("/");
               const fileName = path.pop();
               if (path.length > 2) {
-                path = path.slice(0, 1).concat(["..."])
+                path = path.slice(0, 1).concat(["..."]).concat(path.slice(path.length - 1))
               }
               return (
                 <div className="rounded border p-3 mb-2" key={index}>
@@ -415,15 +414,18 @@ const DashboardPlanning = ({
                     components={{
                       code(props) {
                         const {children, className, node, ...rest} = props
+                        console.log(props)
                         const match = /language-(\w+)/.exec(className || '')
                         return match ? (
+                          // @ts-ignore
                           <SyntaxHighlighter
                             {...rest}
-                            children={String(children).replace(/\n$/, '')}
+                            PreTag="div"
                             language={match[1]}
                             style={codeStyle}
-                            className="SyntaxHighlighter"
-                          />
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
                         ) : (
                           <code {...rest} className={className}>
                             {children}
@@ -439,11 +441,21 @@ const DashboardPlanning = ({
                       <Label>
                         Snippet Preview
                       </Label>
-                      <SyntaxHighlighter
-                        language="javascript"
-                        style={codeStyle}
-                        className="SyntaxHighlighter max-h-[150px]"
-                        children={String(fileChangeRequest.snippet.content).replace(/\n$/, '')}
+                      <CodeMirror
+                        value={fileChangeRequest.snippet.content}
+                        extensions={[
+                          ...extensions,
+                          lineNumbers({
+                            formatNumber: (num: number) => {
+                              return (num + fileChangeRequest.snippet.start).toString();
+                            },
+                          }),
+                        ]}
+                        theme={vscodeDark}
+                        style={{ overflow: "auto" }}
+                        placeholder={"No plan generated yet."}
+                        className="ph-no-capture"
+                        maxHeight="150px"
                       />
                     </>
                   )}

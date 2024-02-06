@@ -17,6 +17,7 @@ describe('main platform', () => {
         const sections = cwd.split('/');
         cy.log(cwd)
         cy.log(sections.slice(0, sections.length - 1).join("/"))
+        cy.get('[placeholder="/Users/sweep/path/to/repo"]').clear().type(sections.slice(0, sections.length - 1).join("/"));
         cy.get('[placeholder="node_modules, .log, build"]').clear().type(".git, node_modules, venv, __pycache__, .next, cache, logs")
         cy.get('#name').clear().type(sections.slice(0, sections.length - 1).join("/"));
 
@@ -46,7 +47,7 @@ describe('main platform', () => {
 
         console.log("Checking if the right changes were made")
         console.warn("This test is not working as expected. It should be checking if the changes were made to the file, but it's not.")
-        // cy.get('.cm-changedLine', { timeout: 30000 }).should('contain', '8081');
+        cy.get('.cm-changedLine', { timeout: 30000 }).should('contain', '8081');
       });
     })
     })
