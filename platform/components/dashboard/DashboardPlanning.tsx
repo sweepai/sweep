@@ -308,11 +308,17 @@ const DashboardPlanning = ({
       <Label className="mb-2">
         Sweep&apos;s Thoughts
       </Label>
-      <div className="rounded border p-4 mb-8 overflow-y-auto" ref={thoughtsRef}>
-        <Markdown className="react-markdown max-h-[150px]">
-          {chainOfThought}
-        </Markdown>
-      </div>
+      {chainOfThought.length ? (
+        <div className="rounded border p-4 mb-8 overflow-y-auto" ref={thoughtsRef}>
+          <Markdown className="react-markdown max-h-[150px]">
+            {chainOfThought}
+          </Markdown>
+        </div>
+      ): (
+        <div className="text-zinc-500">
+          No thoughts generated yet.
+        </div>
+      )}
       <div className="flex flex-row mb-2 items-center">
         <Label className="mb-0">
           Sweep&apos;s Plan

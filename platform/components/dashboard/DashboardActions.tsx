@@ -245,7 +245,7 @@ const DashboardActions = ({
     });
   }
 
-  const [currentTab, setCurrentTab] = useLocalStorage("currentTab", "modify");
+  const [currentTab = "planning", setCurrentTab] = useLocalStorage("currentTab", "planning");
 
   const refreshFiles = async () => {
     try {
