@@ -33,6 +33,10 @@ import {
 import { FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 import { usePostHog } from "posthog-js/react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Mention, MentionsInput } from "react-mentions";
+import DashboardPlanning from "./DashboardPlanning";
 
 const Diff = require("diff");
 
@@ -140,6 +144,8 @@ const formatUserMessage = (
   return userMessage;
 };
 
+const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
+
 const DashboardActions = ({
   filePath,
   setScriptOutput,
@@ -238,6 +244,8 @@ const DashboardActions = ({
       });
     });
   }
+
+  const [currentTab = "planning", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
 
   const refreshFiles = async () => {
     try {
@@ -782,93 +790,137 @@ const DashboardActions = ({
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-      <div className="flex flex-col h-full">
-        <Collapsible
-          defaultOpen={repoName === ""}
-          open={repoNameCollapsibleOpen}
-          className="border-2 rounded p-4 mb-2"
-        >
-          <div className="flex flex-row justify-between items-center">
-            <div>
-              <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
-            >
-              {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
-              <CaretSortIcon className="h-4 w-4" />
-              <span className="sr-only">Toggle</span>
-            </Button>
-          </div>
-          <CollapsibleContent className="CollapsibleContent">
-            <Label className="mb-2">Repository Path</Label>
-            <Input
-              id="name"
-              placeholder="/Users/sweep/path/to/repo"
-              value={currentRepoName}
-              className="col-span-4 w-full"
-              onChange={(e) => setCurrentRepoName(e.target.value)}
-              onBlur={refreshFiles}
-            />
-            <p className="text-sm text-muted-foreground mb-4">
-              Absolute path to your repository.
-            </p>
-            <Label className="mb-2">Blocked Keywords</Label>
-            <Input
-              className="mb-4"
-              value={currentBlockedGlobs}
-              onChange={(e) => {
-                setCurrentBlockedGlobs(e.target.value);
-              }}
-              onBlur={() => {
-                setBlockedGlobs(currentBlockedGlobs);
-              }}
-              placeholder="node_modules, .log, build"
-            />
-            <Label className="mb-2">File Limit</Label>
-            <Input
-              value={fileLimit}
-              onChange={(e) => {
-                setFileLimit(parseInt(e.target.value));
-              }}
-              placeholder="10000"
-              type="number"
-            />
-          </CollapsibleContent>
-        </Collapsible>
-
-        <DashboardInstructions
-          filePath={filePath}
+     <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
+      <TabsList>
+        <TabsTrigger value="planning">Planning</TabsTrigger>
+        <TabsTrigger value="coding">Coding</TabsTrigger>
+      </TabsList>
+      <TabsContent value="planning" className="rounded-xl border h-full p-4">
+        <DashboardPlanning
           repoName={repoName}
           files={files}
-          directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setHideMerge={setHideMerge}
-          getFileChanges={getFileChanges}
-          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-          removeFileChangeRequest={removeFileChangeRequest}
-          isRunningRef={isRunningRef}
-          refreshFiles={refreshFiles}
+          setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
+            setFileChangeRequests(fileChangeRequests);
+            setCurrentTab("coding");
+          }}
         />
+      </TabsContent>
+      <TabsContent value="coding" className="h-full">
+        <div className="flex flex-col h-full">
+          <Collapsible
+            defaultOpen={repoName === ""}
+            open={repoNameCollapsibleOpen}
+            className="border-2 rounded p-4 mb-2"
+          >
+            <div className="flex flex-row justify-between items-center">
+              <div>
+                <Label className="mb-0 mr-2">Repository Settings&nbsp;&nbsp;</Label>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
+              >
+                {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
+                <CaretSortIcon className="h-4 w-4" />
+                <span className="sr-only">Toggle</span>
+              </Button>
+            </div>
+            <CollapsibleContent className="CollapsibleContent">
+              <Label className="mb-2">Repository Path</Label>
+              <Input
+                id="name"
+                placeholder="/Users/sweep/path/to/repo"
+                value={currentRepoName}
+                className="col-span-4 w-full"
+                onChange={(e) => setCurrentRepoName(e.target.value)}
+                onBlur={refreshFiles}
+              />
+              <p className="text-sm text-muted-foreground mb-4">
+                Absolute path to your repository.
+              </p>
+              <Label className="mb-2">Blocked Keywords</Label>
+              <Input
+                className="mb-4"
+                value={currentBlockedGlobs}
+                onChange={(e) => {
+                  setCurrentBlockedGlobs(e.target.value);
+                }}
+                onBlur={() => {
+                  setBlockedGlobs(currentBlockedGlobs);
+                }}
+                placeholder="node_modules, .log, build"
+              />
+              <Label className="mb-2">File Limit</Label>
+              <Input
+                value={fileLimit}
+                onChange={(e) => {
+                  setFileLimit(parseInt(e.target.value));
+                }}
+                placeholder="10000"
+                type="number"
+              />
+            </CollapsibleContent>
+          </Collapsible>
+          <DashboardInstructions
+            filePath={filePath}
+            repoName={repoName}
+            files={files}
+            directories={directories}
+            fileChangeRequests={fileChangeRequests}
+            setFileChangeRequests={setFileChangeRequests}
+            currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+            setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+            setFileForFCR={setFileForFCR}
+            setOldFileForFCR={setOldFileForFCR}
+            setHideMerge={setHideMerge}
+            getFileChanges={getFileChanges}
+            setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+            setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+            removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+            removeFileChangeRequest={removeFileChangeRequest}
+            isRunningRef={isRunningRef}
+            refreshFiles={refreshFiles}
+          />
 
 
-        {/* <div className="flex flex-row justify-center">
-          {!isRunningRef.current ? (
+          {/* <div className="flex flex-row justify-center">
+            {!isRunningRef.current ? (
+              <Button
+                className="mt-4 mr-4"
+                variant="secondary"
+                onClick={async (e) => {
+                  setIsLoadingAll(true);
+                  await getAllFileChanges(fileChangeRequests);
+                }}
+                disabled={fileChangeRequests.some(
+                  (fcr: FileChangeRequest) => fcr.isLoading,
+                )}
+              >
+                <FaPlay />
+                &nbsp;&nbsp;Modify All
+              </Button>
+            ) : (
+              <Button
+                className="mt-4 mr-4"
+                variant="secondary"
+                onClick={(e) => {
+                  isRunningRef.current = false;
+                }}
+              >
+                <FaStop />
+                &nbsp;&nbsp;Cancel
+              </Button>
+            )}
             <Button
               className="mt-4 mr-4"
               variant="secondary"
-              onClick={async (e) => {
-                setIsLoadingAll(true);
-                await getAllFileChanges(fileChangeRequests);
+              onClick={async () => {
+                syncAllFiles();
+                toast.success("Files synced from storage!", {
+                  action: { label: "Dismiss", onClick: () => {} },
+                });
+                setHideMergeAll(true);
               }}
               disabled={fileChangeRequests.some(
                 (fcr: FileChangeRequest) => fcr.isLoading,
@@ -1070,6 +1122,8 @@ const DashboardActions = ({
           </CollapsibleContent>
         </Collapsible>
       </div>
+      </TabsContent>
+    </Tabs>
     </ResizablePanel>
   );
 };

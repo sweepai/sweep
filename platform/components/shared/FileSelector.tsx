@@ -10,6 +10,7 @@ import { html } from "@codemirror/lang-html";
 
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
+import { showMinimap } from "@replit/codemirror-minimap";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { FileChangeRequest } from "../../lib/types";
@@ -31,6 +32,11 @@ const getLanguage = (ext: string) => {
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
+
+const create = ((v: EditorView) => {
+  const dom = document.createElement('div');
+  return { dom }
+})
 
 const FileSelector = memo(function FileSelector({
   filePath,
@@ -66,6 +72,14 @@ const FileSelector = memo(function FileSelector({
     EditorView.lineWrapping,
     keymap.of([indentWithTab]),
     indentUnit.of("    "),
+    showMinimap.compute(['doc'], (state) => {
+      return {
+        create,
+        /* optional */
+        displayText: 'characters',
+        showOverlay: 'always',
+      }
+    }),
   ];
   console.log("rerednered")
   return (
