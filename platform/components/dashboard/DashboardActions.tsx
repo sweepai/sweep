@@ -413,8 +413,8 @@ const DashboardActions = ({
           .map((line) => " ".repeat(i) + line)
           .join("\n");
       var newOldCodeLines = newOldCode.split("\n")
-      if (newOldCodeLines[0] === "") {
-        newOldCode = newOldCode.slice(1);
+      if (newOldCodeLines[0].length === 0) {
+        newOldCodeLines = newOldCodeLines.slice(1);
       }
       if (isSublist(lines, newOldCodeLines)) {
         newNewCode =
@@ -482,6 +482,7 @@ const DashboardActions = ({
     if (!changesMade) {
       errorMessage += "No valid diff hunks were found in the response.\n\n";
     }
+    console.error(errorMessage)
     return [currentFileContents, errorMessage];
   };
 
@@ -490,7 +491,7 @@ const DashboardActions = ({
     fileContents: string,
   ): [string, string] => {
     let errorMessage = "";
-    const diffRegexCreate = /<new_file(.*?)>(?<newFile>.*)<\/new_file>/gs;
+    const diffRegexCreate = /<new_file(.*?)>(?<newFile>.*?)($|<\/new_file>)/gs;
     const diffMatches: any = response.matchAll(diffRegexCreate)!;
     if (!diffMatches) {
       return ["", ""];
@@ -516,6 +517,7 @@ const DashboardActions = ({
     if (!changesMade) {
       errorMessage += "No new file was created.\n\n";
     }
+    console.error(errorMessage)
     return [currentFileContents, errorMessage];
   };
 
@@ -539,6 +541,7 @@ const DashboardActions = ({
     const parsingErrorMessageOld = checkCode(oldFile, filePath);
     const parsingErrorMessage = checkCode(newFile, filePath);
     if (!parsingErrorMessageOld && parsingErrorMessage) {
+      console.error(parsingErrorMessage)
       return parsingErrorMessage;
     }
     var { stdout, stderr, code } = await runScript(
@@ -547,16 +550,16 @@ const DashboardActions = ({
       validationScript,
       oldFile,
     );
-    if (code !== 0) {
-      toast.error(
-        "An error occured while running the validation script. Please disable it or configure it properly (see bottom left).",
-        {
-          description: stdout + "\n" + stderr,
-          action: { label: "Dismiss", onClick: () => {} },
-        },
-      );
-      return "";
-    }
+    // if (code !== 0) {
+    //   toast.error(
+    //     "An error occured while running the validation script. Please disable it or configure it properly (see bottom left).",
+    //     {
+    //       description: stdout + "\n" + stderr,
+    //       action: { label: "Dismiss", onClick: () => {} },
+    //     },
+    //   );
+    //   return "";
+    // }
     var { stdout, stderr, code } = await runScript(
       repoName,
       filePath,
@@ -564,6 +567,7 @@ const DashboardActions = ({
       newFile,
     );
     // TODO: add diff
+    console.error(code, stdout + stderr)
     return code !== 0 ? stdout + "\n" + stderr : "";
   };
 
@@ -599,7 +603,7 @@ const DashboardActions = ({
       snippets: Object.values(fcr.readOnlySnippets),
     };
     const additionalMessages: Message[] = [];
-    var currentContents = fcr.snippet.entireFile.replace(/\\n/g, "\\n");
+    var currentContents = (fcr.snippet.entireFile || "").replace(/\\n/g, "\\n");
     let errorMessage = "";
     let userMessage = formatUserMessage(
       fcr.instructions,
@@ -744,6 +748,7 @@ const DashboardActions = ({
           fcr.snippet.entireFile.length - fcr.newContents.length,
         );
         if (errorMessage.length > 0) {
+          console.error("errorMessage in loop", errorMessage)
           toast.error(
             "An error occured while generating your code." +
               (i < 2 ? " Retrying..." : " Retried 3 times so I will give up."),
@@ -756,9 +761,7 @@ const DashboardActions = ({
           setScriptOutput(validationOutput);
           setIsLoading(false, fcr);
           setStatusForFCR("error", fcr);
-          isRunningRef.current = false;
-          setLoadingMessage("")
-          return;
+          setLoadingMessage("Retrying...")
         } else {
           toast.success(`Successfully modified file!`, {
             description: [
@@ -771,6 +774,7 @@ const DashboardActions = ({
           break;
         }
       } catch (e: any) {
+        console.error("errorMessage in except block", errorMessage)
         toast.error("An error occured while generating your code.", {
           description: e,
           action: { label: "Dismiss", onClick: () => {} },
