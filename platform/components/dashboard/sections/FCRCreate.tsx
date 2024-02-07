@@ -265,6 +265,7 @@ const FCRCreate = memo(function FCRCreate({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
+                      setStatusForFCR("idle", fcr);
                     }}
                   >
                     <FaStop />

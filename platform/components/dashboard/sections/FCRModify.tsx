@@ -232,6 +232,7 @@ const FCRModify = memo(function FCRModify({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
+                      setStatusForFCR("idle", fcr);
                     }}
                   >
                     <FaStop />
