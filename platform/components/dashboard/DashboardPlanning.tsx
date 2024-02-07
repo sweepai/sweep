@@ -368,7 +368,7 @@ const DashboardPlanning = ({
           className="mb-2 mt-2"
           variant="secondary"
           onClick={generatePlan}
-          disabled={isLoading}
+          disabled={isLoading || instructions === "" || Object.keys(snippets).length === 0}
         >
           Generate Plan
         </Button>
