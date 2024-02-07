@@ -7,7 +7,7 @@ import {
 } from "../ui/resizable";
 import { Textarea } from "../ui/textarea";
 import React, { useCallback, useEffect, useState } from "react";
-import FileSelector from "../shared/FileSelector";
+import FileSelector from "./FileSelector";
 import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
@@ -94,17 +94,6 @@ const DashboardDisplay = () => {
     } catch (error) {
       console.error("Error in setIsLoading: ", error);
     }
-  };
-
-  const setIsLoadingAll = (newIsLoading: boolean) => {
-    setFileChangeRequests((newFileChangeRequests) => {
-      return newFileChangeRequests.map((fileChangeRequest) => {
-        return {
-          ...fileChangeRequest,
-          isLoading: newIsLoading,
-        };
-      });
-    });
   };
 
   const setStatusForFCR = (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => {
