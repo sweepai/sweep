@@ -680,6 +680,7 @@ const DashboardActions = ({
         let rawText = String.raw``;
 
         setHideMerge(false, fcr);
+        var j = 0;
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
           if (done) {
@@ -727,7 +728,10 @@ const DashboardActions = ({
             } else if (changeType == "create") {
               [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
             }
-            updateIfChanged(updatedFile);
+            if (j % 3 == 0) {
+              updateIfChanged(updatedFile);
+            }
+            j += 1;
           } catch (e) {
             console.error(e);
           }

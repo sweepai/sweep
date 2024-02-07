@@ -33,11 +33,6 @@ const getLanguage = (ext: string) => {
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
-const create = ((v: EditorView) => {
-  const dom = document.createElement('div');
-  return { dom }
-})
-
 const FileSelector = memo(function FileSelector({
   filePath,
   file,
@@ -50,7 +45,6 @@ const FileSelector = memo(function FileSelector({
   file: string;
   setFile: (newFile: string) => void;
   hideMerge: boolean;
-  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
 }) {
@@ -72,15 +66,9 @@ const FileSelector = memo(function FileSelector({
     EditorView.lineWrapping,
     keymap.of([indentWithTab]),
     indentUnit.of("    "),
-    // showMinimap.compute(['doc'], (state) => {
-    //   return {
-    //     create,
-    //     /* optional */
-    //     displayText: 'characters',
-    //     showOverlay: 'always',
-    //   }
-    // }),
   ];
+
+  console.log()
   return (
     <>
       <div className="flex flex-row mb-2">
