@@ -66,7 +66,6 @@ const FileSelector = memo(function FileSelector({
     indentUnit.of("    "),
   ];
 
-  console.log()
   return (
     <>
       <div className="flex flex-row mb-2">

@@ -116,7 +116,6 @@ const formatUserMessage = (
     patches.trim().length > 0
       ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n"
       : "";
-  console.log("pathcesSection:\n", patchesSection, patches)
   let basePrompt = userMessagePrompt
   if (changeType == "create") {
     basePrompt = userMessagePromptCreate
@@ -138,7 +137,6 @@ const formatUserMessage = (
           )
           .join("\n"),
       );
-  console.log("usermessage:\n", userMessage)
   return userMessage;
 };
 
@@ -555,7 +553,6 @@ const DashboardActions = ({
         return fcr.diff
       })
       .join("\n\n");
-    console.log("patches:\n", patches)
 
     setIsLoading(true, fcr);
     setStatusForFCR("in-progress", fcr);
