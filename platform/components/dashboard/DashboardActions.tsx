@@ -19,7 +19,7 @@ import {
 } from "../ui/collapsible";
 import { Snippet } from "../../lib/search";
 import DashboardInstructions from "./DashboardInstructions";
-import { FileChangeRequest, Message } from "../../lib/types";
+import { FileChangeRequest, Message, fcrEqual } from "../../lib/types";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -30,10 +30,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { FaQuestion } from "react-icons/fa";
+import { FaCog, FaCogs, FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 import { usePostHog } from "posthog-js/react";
-import { posthogMetadataScript } from "@/lib/posthog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Mention, MentionsInput } from "react-mentions";
+import DashboardPlanning from "./DashboardPlanning";
 
 const Diff = require("diff");
 
@@ -141,6 +144,8 @@ const formatUserMessage = (
   return userMessage;
 };
 
+const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
+
 const DashboardActions = ({
   filePath,
   setScriptOutput,
@@ -152,8 +157,6 @@ const DashboardActions = ({
   setBlockedGlobs,
   hideMerge,
   setHideMerge,
-  branch,
-  setBranch,
   oldFile,
   setOldFile,
   repoName,
@@ -173,6 +176,7 @@ const DashboardActions = ({
   undefinedCheck,
   removeFileChangeRequest,
   setOutputToggle,
+  setLoadingMessage,
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -184,8 +188,6 @@ const DashboardActions = ({
   setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
   hideMerge: boolean;
   setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
-  branch: string;
-  setBranch: React.Dispatch<React.SetStateAction<string>>;
   oldFile: string;
   setOldFile: (newOldFile: string) => void;
   repoName: string;
@@ -209,6 +211,7 @@ const DashboardActions = ({
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   setOutputToggle: (newOutputToggle: string) => void;
+  setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
 }) => {
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`;
@@ -219,9 +222,10 @@ const DashboardActions = ({
   );
   const [testScript, setTestScript] = useLocalStorage("testScript", "");
   const [currentRepoName, setCurrentRepoName] = useState(repoName);
+  const [currentBlockedGlobs, setCurrentBlockedGlobs] = useState(blockedGlobs);
   const [repoNameCollapsibleOpen, setRepoNameCollapsibleOpen] = useLocalStorage(
     "repoNameCollapsibleOpen",
-    repoName === "",
+    false,
   );
   const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] =
     useLocalStorage("validationScriptCollapsibleOpen", false);
@@ -243,6 +247,39 @@ const DashboardActions = ({
     });
   }
 
+  const [currentTab = "planning", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
+
+  const refreshFiles = async () => {
+    try {
+      let {directories, sortedFiles} = await getFiles(
+        currentRepoName,
+        blockedGlobs,
+        fileLimit,
+      );
+      if (sortedFiles.length === 0) {
+        throw new Error("No files found in the repository");
+      }
+      toast.success(
+        "Successfully fetched files from the repository!",
+        { action: { label: "Dismiss", onClick: () => {} } },
+      );
+      setCurrentRepoName((currentRepoName: string) => {
+        setRepoName(currentRepoName);
+        return currentRepoName;
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("An Error Occured", {
+        description: "Please enter a valid repository name.",
+        action: { label: "Dismiss", onClick: () => {} },
+      });
+    }
+  }
+
+  useEffect(() => {
+    setRepoNameCollapsibleOpen(repoName === "")
+  }, [repoName])
+
   // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
   const setReadOnlySnippetForFCR = (
     fcr: FileChangeRequest,
@@ -252,7 +289,7 @@ const DashboardActions = ({
       fcr.readOnlySnippets[readOnlySnippet.file] = readOnlySnippet;
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr),
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -271,7 +308,7 @@ const DashboardActions = ({
       delete fcr.readOnlySnippets[snippetFile];
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr),
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -292,7 +329,7 @@ const DashboardActions = ({
       if (typeof index === "undefined") {
         fcrIndex = fileChangeRequests.findIndex(
           (fileChangeRequest: FileChangeRequest) =>
-            fileChangeRequest.snippet.file === fcr.snippet.file,
+            fcrEqual(fileChangeRequest, fcr),
         );
       }
       undefinedCheck(fcrIndex);
@@ -312,12 +349,6 @@ const DashboardActions = ({
   };
 
   useEffect(() => {
-    (async () => {
-      const params = new URLSearchParams({ repo: repoName }).toString();
-      const response = await fetch("/api/branch?" + params);
-      const object = await response.json();
-      setBranch(object.branch);
-    })();
     if (repoName === "") {
       setRepoNameCollapsibleOpen(true);
     }
@@ -338,9 +369,9 @@ const DashboardActions = ({
     if (response.code != 0) {
       toast.error("An Error Occured", {
         description: [
-          <div key="stdout">{response.stdout.slice(0, 800)}</div>,
+          <div key="stdout">{(response.stdout || "").slice(0, 800)}</div>,
           <div className="text-red-500" key="stderr">
-            {response.stderr.slice(0, 800)}
+            {(response.stderr || "").slice(0, 800)}
           </div>,
         ],
         action: { label: "Dismiss", onClick: () => {} },
@@ -348,8 +379,8 @@ const DashboardActions = ({
     } else {
       toast.success("The script ran successfully", {
         description: [
-          <div key="stdout">{response.stdout.slice(0, 800)}</div>,
-          <div key="stderr">{response.stderr.slice(0, 800)}</div>,
+          <div key="stdout">{(response.stdout || "").slice(0, 800)}</div>,
+          <div key="stderr">{(response.stderr || "").slice(0, 800)}</div>,
         ],
         action: { label: "Dismiss", onClick: () => {} },
       });
@@ -438,7 +469,7 @@ const DashboardActions = ({
       // }
     }
     if (!changesMade) {
-      errorMessage += "No diff hunks we're found in the response.\n\n";
+      errorMessage += "No valid diff hunks were found in the response.\n\n";
     }
     return [currentFileContents, errorMessage];
   };
@@ -490,6 +521,7 @@ const DashboardActions = ({
     oldFile: string,
     newFile: string,
   ) => {
+    setLoadingMessage("Validating...")
     if (!doValidate) {
       return "";
     }
@@ -540,6 +572,7 @@ const DashboardActions = ({
 
     setIsLoading(true, fcr);
     setOutputToggle("llm");
+    setLoadingMessage("Queued...")
     const changeType = fcr.changeType;
     // by default we modify file
     let url = "/api/openai/edit";
@@ -579,7 +612,7 @@ const DashboardActions = ({
       });
     }
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       if (!isRunningRef.current) {
         setIsLoading(false, fcr);
         return;
@@ -604,6 +637,7 @@ const DashboardActions = ({
         );
         userMessage = retryMessage;
       }
+      setLoadingMessage("Queued...")
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
@@ -613,6 +647,7 @@ const DashboardActions = ({
           userMessage,
         }),
       });
+      setLoadingMessage("Generating code...")
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = "";
       const updateIfChanged = (newContents: string) => {
@@ -635,14 +670,14 @@ const DashboardActions = ({
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
                 rawText || "",
-                currentContents,
+                fcr.snippet.entireFile,
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
@@ -670,9 +705,9 @@ const DashboardActions = ({
             let updatedFile = "";
             let _ = "";
             if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText,fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, fcr.snippet.entireFile);
             } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText,fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
             }
             updateIfChanged(updatedFile);
           } catch (e) {
@@ -681,6 +716,7 @@ const DashboardActions = ({
         }
         if (!isRunningRef.current) {
           setIsLoading(false, fcr);
+          setLoadingMessage("")
           return;
         }
         setHideMerge(false, fcr);
@@ -726,6 +762,7 @@ const DashboardActions = ({
     }
     setIsLoading(false, fcr);
     isRunningRef.current = false;
+    setLoadingMessage("")
   };
 
 
@@ -760,116 +797,109 @@ const DashboardActions = ({
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-      <div className="flex flex-col h-full">
-        <Collapsible
-          defaultOpen={repoName === ""}
-          open={repoNameCollapsibleOpen}
-          className="border-2 rounded p-4"
-        >
-          <div className="flex flex-row justify-between items-center mb-2">
-            <Label className="mb-0">Repository Settings&nbsp;&nbsp;</Label>
+     <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
+      <div className="flex flex-row justify-between">
+        <div className="flex flex-row">
+          <TabsList>
+            <TabsTrigger value="planning">Planning</TabsTrigger>
+            <TabsTrigger value="coding">Coding</TabsTrigger>
+          </TabsList>
+
+        </div>
+        <div>
+          <Dialog
+            defaultOpen={repoName === ""}
+            open={repoNameCollapsibleOpen}
+            onOpenChange={(open) => setRepoNameCollapsibleOpen(open)}
+          >
             <Button
               variant="secondary"
+              className={`${repoName === "" ? "bg-blue-800 hover:bg-blue-900" : ""} h-full`}
               size="sm"
               onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
             >
-              {!repoNameCollapsibleOpen ? 'Expand' : 'Collapse'}&nbsp;&nbsp;
-              <CaretSortIcon className="h-4 w-4" />
+              <FaCog />&nbsp;&nbsp;Repository Settings
               <span className="sr-only">Toggle</span>
             </Button>
-          </div>
-          <CollapsibleContent className="CollapsibleContent">
-            <Label className="mb-2">Repository Path</Label>
-            <Input
-              id="name"
-              placeholder="/Users/sweep/path/to/repo"
-              value={currentRepoName}
-              className="col-span-4 w-full"
-              onChange={(e) => setCurrentRepoName(e.target.value)}
-              onBlur={async () => {
-                try {
-                  let newFiles = await getFiles(
-                    currentRepoName,
-                    blockedGlobs,
-                    fileLimit,
-                  );
-                  toast.success(
-                    "Successfully fetched files from the repository!",
-                    { action: { label: "Dismiss", onClick: () => {} } },
-                  );
-                  setCurrentRepoName((currentRepoName: string) => {
-                    setRepoName(currentRepoName);
-                    return currentRepoName;
-                  });
-                } catch (e) {
-                  console.error(e);
-                  toast.error("An Error Occured", {
-                    description: "Please enter a valid repository name.",
-                    action: { label: "Dismiss", onClick: () => {} },
-                  });
-                }
-              }}
-            />
-            <p className="text-sm text-muted-foreground mb-4">
-              Absolute path to your repository.
-            </p>
-            <Label className="mb-2">Branch</Label>
-            <Input
-              className="mb-4"
-              value={branch}
-              onChange={(e) => {
-                setBranch(e.target.value);
-                // TODO: make this work
-              }}
-              placeholder="your-branch-here"
-            />
-            <Label className="mb-2">Blocked Keywords</Label>
-            <Input
-              className="mb-4"
-              value={blockedGlobs}
-              onChange={(e) => {
-                setBlockedGlobs(e.target.value);
-                // TODO: make this work
-              }}
-              placeholder="node_modules, .log, build"
-            />
-            <Label className="mb-2">File Limit</Label>
-            <Input
-              value={fileLimit}
-              onChange={(e) => {
-                setFileLimit(parseInt(e.target.value));
-              }}
-              placeholder="10000"
-              type="number"
-            />
-          </CollapsibleContent>
-        </Collapsible>
-
-        <DashboardInstructions
-          filePath={filePath}
+            <DialogContent className="CollapsibleContent">
+              <div>
+                <Label className="mb-2">Repository Path</Label>
+                <Input
+                  id="name"
+                  placeholder="/Users/sweep/path/to/repo"
+                  value={currentRepoName}
+                  className="col-span-4 w-full"
+                  onChange={(e) => setCurrentRepoName(e.target.value)}
+                  onBlur={refreshFiles}
+                />
+                <p className="text-sm text-muted-foreground mb-4">
+                  Absolute path to your repository.
+                </p>
+                <Label className="mb-2">Blocked Keywords</Label>
+                <Input
+                  className="mb-4"
+                  value={currentBlockedGlobs}
+                  onChange={(e) => {
+                    setCurrentBlockedGlobs(e.target.value);
+                  }}
+                  onBlur={() => {
+                    setBlockedGlobs(currentBlockedGlobs);
+                  }}
+                  placeholder="node_modules, .log, build"
+                />
+                <Label className="mb-2">File Limit</Label>
+                <Input
+                  value={fileLimit}
+                  onChange={(e) => {
+                    setFileLimit(parseInt(e.target.value));
+                  }}
+                  placeholder="10000"
+                  type="number"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+      <TabsContent value="planning" className="rounded-xl border h-full p-4 h-[95%]">
+        <DashboardPlanning
           repoName={repoName}
           files={files}
-          directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setHideMerge={setHideMerge}
-          getFileChanges={getFileChanges}
-          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-          removeFileChangeRequest={removeFileChangeRequest}
-          isRunningRef={isRunningRef}
+          setLoadingMessage={setLoadingMessage}
+          setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
+            setFileChangeRequests(fileChangeRequests);
+            setCurrentTab("coding");
+          }}
         />
-
+      </TabsContent>
+      <TabsContent value="coding" className="h-full">
+        <div className="flex flex-col h-[95%]">
+          <DashboardInstructions
+            filePath={filePath}
+            repoName={repoName}
+            files={files}
+            directories={directories}
+            fileChangeRequests={fileChangeRequests}
+            setFileChangeRequests={setFileChangeRequests}
+            currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+            setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+            setFileForFCR={setFileForFCR}
+            setOldFileForFCR={setOldFileForFCR}
+            setHideMerge={setHideMerge}
+            getFileChanges={getFileChanges}
+            setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+            setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+            removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+            removeFileChangeRequest={removeFileChangeRequest}
+            isRunningRef={isRunningRef}
+            refreshFiles={refreshFiles}
+            getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
+          />
         <Collapsible
           open={validationScriptCollapsibleOpen}
           className="border-2 rounded p-4"
         >
-          <div className="flex flex-row justify-between items-center mt-2 mb-2">
+          <div className="flex flex-row justify-between items-center">
             <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
               <AlertDialog open={alertDialogOpen}>
                 <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
@@ -1015,65 +1045,9 @@ const DashboardActions = ({
             </p>
           </CollapsibleContent>
         </Collapsible>
-        <div className="flex flex-row justify-center">
-          {!isRunningRef.current ? (
-            <Button
-              className="mt-4 mr-4"
-              variant="secondary"
-              onClick={async (e) => {
-                setIsLoadingAll(true);
-                await getAllFileChanges(fileChangeRequests);
-              }}
-              disabled={fileChangeRequests.some(
-                (fcr: FileChangeRequest) => fcr.isLoading,
-              )}
-            >
-              <FaPlay />
-              &nbsp;&nbsp;Modify All
-            </Button>
-          ) : (
-            <Button
-              className="mt-4 mr-4"
-              variant="secondary"
-              onClick={(e) => {
-                isRunningRef.current = false;
-              }}
-            >
-              <FaStop />
-              &nbsp;&nbsp;Cancel
-            </Button>
-          )}
-          <Button
-            className="mt-4 mr-4"
-            variant="secondary"
-            onClick={async () => {
-              syncAllFiles();
-              toast.success("Files synced from storage!", {
-                action: { label: "Dismiss", onClick: () => {} },
-              });
-              setHideMergeAll(true);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaArrowsRotate />
-            &nbsp;&nbsp;Restart All
-          </Button>
-          <Button
-            className="mt-4 mr-2 bg-green-600 hover:bg-green-700"
-            onClick={async () => {
-              saveAllFiles(fileChangeRequests);
-            }}
-            disabled={fileChangeRequests.some(
-              (fcr: FileChangeRequest) => fcr.isLoading,
-            )}
-          >
-            <FaCheck />
-            &nbsp;&nbsp;Save All
-          </Button>
-        </div>
       </div>
+      </TabsContent>
+    </Tabs>
     </ResizablePanel>
   );
 };

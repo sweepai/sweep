@@ -22,7 +22,10 @@ const blockedPaths = [
 export async function POST(request: NextRequest) {
   // Body -> { stdout: string, stderr: string, code: number}
   const body = (await request.json()) as Body;
-  const { repo, blockedGlobs = [], limit = 10000 } = body;
+  let { repo, blockedGlobs = [], limit = 10000 } = body;
+  if (repo.endsWith("/")) {
+    repo = repo.slice(0, -1);
+  }
 
   async function listNonBinaryFilesBFS(
     rootDir: string,
@@ -38,7 +41,6 @@ export async function POST(request: NextRequest) {
     ) {
       const currentDir = queue.shift()!;
       directories.add(currentDir.slice(rootDir.length));
-      // if (blockedGlobs.some(blockedGlob => minimatch(currentDir, blockedGlob))) {
       if (
         blockedGlobs.some((blockedGlob) => currentDir.includes(blockedGlob))
       ) {

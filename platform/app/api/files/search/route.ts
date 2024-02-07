@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchFiles } from "@/lib/search";
+import { searchFiles } from "../../../../lib/search";
 
 interface Body {
   repo: string;

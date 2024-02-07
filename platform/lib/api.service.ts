@@ -73,10 +73,19 @@ export const runScript = async (
     return runSingleScript(repo, filePath, script);
   }
   const { contents: oldContents } = await getFile(repo, filePath);
-  await writeFile(repo, filePath, file);
-  const object = await runSingleScript(repo, filePath, script);
-  await writeFile(repo, filePath, oldContents);
-  return object;
+  try {
+    await writeFile(repo, filePath, file);
+    const object = await runSingleScript(repo, filePath, script);
+    await writeFile(repo, filePath, oldContents);
+    return object;
+  } catch (e) {
+    await writeFile(repo, filePath, oldContents);
+    return {
+      code: 1,
+      stdout: "",
+      stderr: "File not found",
+    };
+  }
 };
 
 export default getFiles;

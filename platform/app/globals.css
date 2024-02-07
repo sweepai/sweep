@@ -108,10 +108,69 @@
   }
 }
 
+.cm-mergeViewEditor::-webkit-scrollbar {
+  display: none;
+}
+
+.cm-mergeViewEditor {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.cm-editor::-webkit-scrollbar {
+  display: none;
+}
+
+.cm-editor {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .MentionsInput > div > textarea {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   padding-left: 0.75rem;
   padding-right: 0.75rem;
   font-size: 0.875rem !important;
+}
+
+.MentionsInput > div:has(ul) {
+  margin-top: 25px !important;
+  border-radius: 5px;
+}
+
+.react-markdown {
+  font-size: 0.75rem;
+}
+
+.react-markdown li {
+  list-style-type: disc;
+  margin-left: 2rem;
+}
+
+.react-markdown code {
+  color: #e83e8c;
+}
+
+.react-markdown pre {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background-color: #1e1e1e;
+  color: #afafaf;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  padding: 1rem;
+  white-space: pre-wrap;
+}
+
+.react-markdown pre code {
+  color: #f4f4f4;
+}
+
+.SyntaxHighlighter {
+  white-space: pre-wrap !important;
+}
+
+.SyntaxHighlighter code {
+  white-space: pre-wrap !important;
 }

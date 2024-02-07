@@ -23,6 +23,20 @@ interface FileChangeRequest {
   isLoading: boolean;
   openReadOnlyFiles: boolean;
   readOnlySnippets: { [key: string]: Snippet };
+  diff: string | undefined;
+  // status: "queued" | "in-progress" | "done" | "error";
+}
+
+const fcrEqual = (a: FileChangeRequest, b: FileChangeRequest) => {
+  return (
+    a.snippet.file === b.snippet.file &&
+    a.snippet.start === b.snippet.start &&
+    a.snippet.end === b.snippet.end
+  );
+}
+
+const snippetKey = (snippet: Snippet) => {
+  return `${snippet.file}:${snippet.start || 0}-${snippet.end || 0}`;
 }
 
 interface Message {
@@ -30,4 +44,5 @@ interface Message {
   content: string;
 }
 
+export { fcrEqual, snippetKey };
 export type { File, Snippet, FileChangeRequest, Message };

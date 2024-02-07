@@ -1,7 +1,7 @@
 import React, { ReactNode, memo, useEffect, useState } from "react";
 import { getFile, writeFile } from "../../../lib/api.service";
 import { Snippet } from "../../../lib/search";
-import { FileChangeRequest } from "../../../lib/types";
+import { FileChangeRequest, snippetKey } from "../../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
@@ -74,18 +74,18 @@ const FCRCreate = memo(function FCRCreate({
   mentionFiles: {id: any;display: any;}[];
   fcrInstructions: { [key: string]: string; };
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
-  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element;
+  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
 }) {
   const [newFileName, setNewFileName] = useState("");
 
   useEffect(() => {
     setNewFileName(fcr.snippet.file.split("/")[fcr.snippet.file.split("/").length - 1]);
-  }, 
+  },
   [fcr]);
   return (
     <Draggable
-      key={fcr.snippet.file}
-      draggableId={fcr.snippet.file}
+      key={snippetKey(fcr.snippet)}
+      draggableId={snippetKey(fcr.snippet)}
       index={index}
     >
       {(provided: any, snapshot: any) => (
@@ -113,8 +113,8 @@ const FCRCreate = memo(function FCRCreate({
                   {
                     fcr.snippet.file.split("/").slice(0, fcr.snippet.file.split("/").length - 1).join("/") + "/"
                   }
-                  <Input 
-                    placeholder="your_file_name.ext" 
+                  <Input
+                    placeholder="your_file_name.ext"
                     value={newFileName}
                     onChange={(e: any) => {
                       setNewFileName(e.target.value);
@@ -152,7 +152,7 @@ const FCRCreate = memo(function FCRCreate({
                     setFCRInstructions((prev: any) => {
                       return {
                         ...prev,
-                        [fcr.snippet.file]: "",
+                        [snippetKey(fcr.snippet)]: "",
                       };
                     });
                   }}
@@ -163,10 +163,10 @@ const FCRCreate = memo(function FCRCreate({
               </div>
             </div>
             <MentionsInput
-              className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput"
+              className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput mb-2"
               disabled={!newFileName}
               placeholder={instructionsPlaceholder}
-              value={fcrInstructions[fcr.snippet.file as string]}
+              value={fcrInstructions[snippetKey(fcr.snippet)] || ""}
               onClick={(e: any) => {
                 setCurrentFileChangeRequestIndex(index);
               }}
@@ -182,7 +182,7 @@ const FCRCreate = memo(function FCRCreate({
                 setFCRInstructions((prev: any) => {
                   return {
                     ...prev,
-                    [fcr.snippet.file]: e.target.value,
+                    [snippetKey(fcr.snippet)]: e.target.value,
                   };
                 });
               }}
@@ -199,6 +199,7 @@ const FCRCreate = memo(function FCRCreate({
               }}
             >
               <Mention
+                className="Mention"
                 trigger="@"
                 data={mentionFiles}
                 renderSuggestion={setUserSuggestion}
@@ -246,6 +247,11 @@ const FCRCreate = memo(function FCRCreate({
                 ),
               )}
             </div>
+            {Object.keys(fcr.readOnlySnippets).length === 0 && (
+              <div className="text-xs px-2 text-zinc-400">
+                No files added yet. Type @ to add a file.
+              </div>
+            )}
             <div className="flex flex-row justify-end w-full pb-2">
               <span>
                 {!isRunningRef.current ? (
@@ -276,42 +282,6 @@ const FCRCreate = memo(function FCRCreate({
                     &nbsp;Cancel
                   </Button>
                 )}
-                <Button
-                  className="mr-2"
-                  size="sm"
-                  variant="secondary"
-                  onClick={async () => {
-                    setFileForFCR("", fcr);
-                    setOldFileForFCR("", fcr);
-                    toast.success("Reset new File", {
-                      action: { label: "Dismiss", onClick: () => { } },
-                    });
-                    setCurrentFileChangeRequestIndex(index);
-                    setHideMerge(true, fcr);
-                  }}
-                  disabled={fcr.isLoading}
-                >
-                  <FaArrowsRotate />
-                </Button>
-                <Button
-                  size="sm"
-                  className="mr-2 bg-green-600 hover:bg-green-700"
-                  onClick={async () => {
-                    setOldFileForFCR(fcr.newContents, fcr);
-                    setHideMerge(true, fcr);
-                    await writeFile(
-                      repoName,
-                      fcr.snippet.file,
-                      fcr.newContents,
-                    );
-                    toast.success("Succesfully saved file!", {
-                      action: { label: "Dismiss", onClick: () => { } },
-                    });
-                  }}
-                  disabled={fcr.isLoading || fcr.hideMerge}
-                >
-                  <FaCheck />
-                </Button>
               </span>
             </div>
           </div>

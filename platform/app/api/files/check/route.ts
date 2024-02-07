@@ -1,6 +1,4 @@
 import { NextRequest } from "next/server";
-// @ts-ignore
-// import { checkCode } from "@/lib/tree";
 
 interface Body {
   sourceCode: string;

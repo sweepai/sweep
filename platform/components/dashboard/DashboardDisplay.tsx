@@ -12,10 +12,12 @@ import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
-import { FileChangeRequest } from "../../lib/types";
-import getFiles from "@/lib/api.service";
+import { FileChangeRequest, fcrEqual } from "../../lib/types";
+import getFiles, { getFile, writeFile } from "../../lib/api.service";
 import { usePostHog } from "posthog-js/react";
-import { posthogMetadataScript } from "@/lib/posthog";
+import { posthogMetadataScript } from "../../lib/posthog";
+import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
+import { toast } from "sonner";
 
 const blockedPaths = [
   ".git",
@@ -25,10 +27,15 @@ const blockedPaths = [
   ".next",
   "cache",
   "logs",
+  "sweep",
+  "install_assistant.sh"
 ];
 
+const versionScript = `timestamp=$(git log -1 --format="%at")
+[[ "$OSTYPE" == "linux-gnu"* ]] && date -d @$timestamp +%y.%m.%d.%H || date -r $timestamp +%y.%m.%d.%H
+`;
+
 const DashboardDisplay = () => {
-  const [branch, setBranch] = useLocalStorage("branch", "");
   const [streamData, setStreamData] = useState("");
   const [outputToggle, setOutputToggle] = useState("script");
   const [scriptOutput = "" as string, setScriptOutput] = useLocalStorage(
@@ -50,6 +57,7 @@ const DashboardDisplay = () => {
 
   const [files = [], setFiles] = useLocalStorage<{ label: string; name: string }[]>("files",[]);
   const [directories = [], setDirectories] = useLocalStorage<{ label: string; name: string }[]>("directories",[]);
+  const [loadingMessage = "", setLoadingMessage] = useState("" as string)
 
   const filePath =
     fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
@@ -69,9 +77,8 @@ const DashboardDisplay = () => {
 
   const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -100,11 +107,10 @@ const DashboardDisplay = () => {
     });
   };
 
-  const setHideMerge = (newHideMerge: boolean, fcr: FileChangeRequest) => {
+  const setHideMerge = useCallback((newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -120,7 +126,7 @@ const DashboardDisplay = () => {
     } catch (error) {
       console.error("Error in setHideMerge: ", error);
     }
-  };
+  }, [fileChangeRequests]);
 
   const setHideMergeAll = (newHideMerge: boolean) => {
     setFileChangeRequests((newFileChangeRequests) => {
@@ -154,9 +160,8 @@ const DashboardDisplay = () => {
 
   const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -197,7 +202,7 @@ const DashboardDisplay = () => {
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -219,7 +224,7 @@ const DashboardDisplay = () => {
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -256,13 +261,12 @@ const DashboardDisplay = () => {
       const body = {
         repo: repoName,
         filePath,
-        script: `git log -1 --format="%at" | xargs -I{} date -d @{} +%y.%m.%d.%H`,
+        script: versionScript
       };
       const result = await fetch("/api/run?", {
         method: "POST",
         body: JSON.stringify(body),
       });
-      // console.log("result", await result.text())
       const object = await result.json();
       const versionNumberString = object.stdout;
       setVersionNumber("v" + versionNumberString);
@@ -289,6 +293,20 @@ const DashboardDisplay = () => {
 
   return (
     <>
+      {loadingMessage && (
+        <div className="p-2 fixed bottom-12 right-12 text-center z-10 flex flex-col items-center" style={{ borderRadius: '50%', background: 'radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)' }}>
+          <img
+            className="rounded-full border-zinc-800 border"
+            src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif"
+            alt="Sweeping"
+            height={75}
+            width={75}
+          />
+          <p className="mt-2">
+            {loadingMessage}
+          </p>
+        </div>
+      )}
       <h1 className="font-bold text-xl">Sweep Assistant</h1>
       <h3 className="text-zinc-400">{versionNumber}</h3>
       <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
@@ -303,8 +321,6 @@ const DashboardDisplay = () => {
           setBlockedGlobs={setBlockedGlobs}
           hideMerge={hideMerge}
           setHideMerge={setHideMerge}
-          branch={branch}
-          setBranch={setBranch}
           oldFile={oldFile}
           setOldFile={setOldFile}
           repoName={repoName}
@@ -324,7 +340,8 @@ const DashboardDisplay = () => {
           undefinedCheck={undefinedCheck}
           removeFileChangeRequest={removeFileChangeRequest}
           setOutputToggle={setOutputToggle}
-        ></DashboardActions>
+          setLoadingMessage={setLoadingMessage}
+        />
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
           <ResizablePanelGroup direction="vertical">
@@ -341,25 +358,72 @@ const DashboardDisplay = () => {
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel className="mt-2" defaultSize={25}>
-              <Label className="mb-2 mr-2">Toggle outputs:</Label>
-              <Button
-                className={`mr-2 ${outputToggle === "script" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
-                variant="secondary"
-                onClick={() => {
-                  setOutputToggle("script");
-                }}
-              >
-                Validation Output
-              </Button>
-              <Button
-                className={`${outputToggle === "llm" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
-                variant="secondary"
-                onClick={() => {
-                  setOutputToggle("llm");
-                }}
-              >
-                Debug Logs
-              </Button>
+              <div className="flex flex-row items-center">
+                <Label className="mr-2">Toggle outputs:</Label>
+                <Button
+                  className={`mr-2 ${outputToggle === "script" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setOutputToggle("script");
+                  }}
+                >
+                  Validation Output
+                </Button>
+                <Button
+                  className={`${outputToggle === "llm" ? "bg-blue-800 hover:bg-blue-900 text-white" : ""}`}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setOutputToggle("llm");
+                  }}
+                >
+                  Debug Logs
+                </Button>
+                <div className="grow"></div>
+                <Button
+                  className="mr-2"
+                  size="sm"
+                  variant="secondary"
+                  onClick={async () => {
+                    const fcr = fileChangeRequests[currentFileChangeRequestIndex]
+                    const response = await getFile(
+                      repoName,
+                      fcr.snippet.file
+                    );
+                    setFileForFCR(response.contents, fcr);
+                    setOldFileForFCR(response.contents, fcr);
+                    toast.success("File synced from storage!", {
+                      action: { label: "Dismiss", onClick: () => { } },
+                    });
+                    setCurrentFileChangeRequestIndex(currentFileChangeRequestIndex);
+                    setHideMerge(true, fcr);
+                  }}
+                  disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading}
+                >
+                  <FaArrowsRotate />
+                </Button>
+                <Button
+                  size="sm"
+                  className="mr-2 bg-green-600 hover:bg-green-700"
+                  onClick={async () => {
+                    const fcr = fileChangeRequests[currentFileChangeRequestIndex]
+                    setOldFileForFCR(fcr.newContents, fcr);
+                    setHideMerge(true, fcr);
+                    await writeFile(
+                      repoName,
+                      fcr.snippet.file,
+                      fcr.newContents,
+                    );
+                    toast.success("Succesfully saved file!", {
+                      action: { label: "Dismiss", onClick: () => { } },
+                    });
+                  }}
+                  disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading || fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge}
+                >
+                  <FaCheck />
+                </Button>
+              </div>
               <Textarea
                 className={`mt-4 grow font-mono h-4/5 ${scriptOutput.trim().startsWith("Error") ? "text-red-600" : "text-green-600"}`}
                 value={scriptOutput}
@@ -372,7 +436,7 @@ const DashboardDisplay = () => {
                 className={`mt-4 grow font-mono h-4/5`}
                 id="llm-output"
                 value={streamData}
-                placeholder="GPT will display what it is thinking here."
+                placeholder="ChatGPT's output will be displayed here."
                 readOnly
                 hidden={outputToggle !== "llm"}
               ></Textarea>

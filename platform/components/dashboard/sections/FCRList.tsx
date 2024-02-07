@@ -1,12 +1,12 @@
 import React, { ReactNode, memo, useState } from "react";
 import { Snippet } from "../../../lib/search";
-import { FileChangeRequest } from "../../../lib/types";
+import { FileChangeRequest, snippetKey } from "../../../lib/types";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import FCRCreate from "./FCRCreate";
 import FCRModify from "./FCRModify";
 import { SuggestionDataItem } from "react-mentions";
 
-const instructionsPlaceholder = `Tell Sweep what modifications you want here. To mention another file Sweep should look at type "@filename"`;
+const instructionsPlaceholder = `Instructions for what to create. Type "@filename" for Sweep to read another file.`;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -133,7 +133,7 @@ const FCRList = memo(function FCRList({
   const [fcrInstructions, setFCRInstructions] = useState(() => {
     let newMap: { [key: string]: string } = {};
     fileChangeRequests.forEach((fcr: FileChangeRequest) => {
-      newMap[fcr.snippet.file] = fcr.instructions;
+      newMap[snippetKey(fcr.snippet)] = fcr.instructions;
     });
     return newMap;
   });
@@ -154,9 +154,12 @@ const FCRList = memo(function FCRList({
           suggestion.display!.length - maxLength,
           suggestion.display!.length,
         );
+    if (index > 10) {
+      return null;
+    }
     return (
       <div
-        className={`user ${focused ? "bg-zinc-500" : ""} bg-zinc-700 text-white`}
+        className={`user ${focused ? "bg-zinc-800" : "bg-zinc-900"} p-2 text-sm hover:text-white`}
       >
         {suggestedFileName}
       </div>
