@@ -293,8 +293,8 @@ const DashboardDisplay = () => {
 
   return (
     <>
-      {loadingMessage && (
-        <div className="p-2 fixed bottom-12 right-12 text-center z-10" style={{ borderRadius: '50%', background: 'radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)' }}>
+      {!loadingMessage && (
+        <div className="p-2 fixed bottom-12 right-12 text-center z-10 flex flex-col items-center" style={{ borderRadius: '50%', background: 'radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)' }}>
           <img
             className="rounded-full border-zinc-800 border"
             src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif"
