@@ -369,9 +369,9 @@ const DashboardActions = ({
     if (response.code != 0) {
       toast.error("An Error Occured", {
         description: [
-          <div key="stdout">{response.stdout.slice(0, 800)}</div>,
+          <div key="stdout">{(response.stdout || "").slice(0, 800)}</div>,
           <div className="text-red-500" key="stderr">
-            {response.stderr.slice(0, 800)}
+            {(response.stderr || "").slice(0, 800)}
           </div>,
         ],
         action: { label: "Dismiss", onClick: () => {} },
@@ -379,8 +379,8 @@ const DashboardActions = ({
     } else {
       toast.success("The script ran successfully", {
         description: [
-          <div key="stdout">{response.stdout.slice(0, 800)}</div>,
-          <div key="stderr">{response.stderr.slice(0, 800)}</div>,
+          <div key="stdout">{(response.stdout || "").slice(0, 800)}</div>,
+          <div key="stderr">{(response.stderr || "").slice(0, 800)}</div>,
         ],
         action: { label: "Dismiss", onClick: () => {} },
       });
