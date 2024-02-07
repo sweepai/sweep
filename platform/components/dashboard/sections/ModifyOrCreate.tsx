@@ -93,7 +93,6 @@ const ModifyOrCreate = ({
                           hideMerge: true,
                           instructions: "",
                           isLoading: false,
-                          openReadOnlyFiles: false,
                           readOnlySnippets: {},
                           status: "idle"
                         } as FileChangeRequest,
@@ -156,7 +155,6 @@ const ModifyOrCreate = ({
                           hideMerge: true,
                           instructions: "",
                           isLoading: false,
-                          openReadOnlyFiles: false,
                           readOnlySnippets: {},
                           status: "idle"
                         } as FileChangeRequest,

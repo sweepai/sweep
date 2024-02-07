@@ -6,12 +6,6 @@ import FCRCreate from "./FCRCreate";
 import FCRModify from "./FCRModify";
 import { SuggestionDataItem } from "react-mentions";
 
-const instructionsPlaceholder = `Instructions for what to create. Type "@filename" for Sweep to read another file.`;
-
-const capitalize = (s: string) => {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
-
 const FCRList = memo(function FCRList({
   repoName,
   files,
@@ -19,12 +13,8 @@ const FCRList = memo(function FCRList({
   setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
-  setFileForFCR,
-  setOldFileForFCR,
-  setHideMerge,
   getFileChanges,
   setReadOnlySnippetForFCR,
-  setReadOnlyFilesOpen,
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
@@ -40,9 +30,6 @@ const FCRList = memo(function FCRList({
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
-  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
-  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
-  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   getFileChanges: (
     fileChangeRequest: FileChangeRequest,
     index: number,
@@ -50,10 +37,6 @@ const FCRList = memo(function FCRList({
   setReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
     snippet: Snippet,
-  ) => void;
-  setReadOnlyFilesOpen: (
-    open: boolean,
-    fileChangeRequest: FileChangeRequest,
   ) => void;
   removeReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
@@ -188,7 +171,6 @@ const FCRList = memo(function FCRList({
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
                   getFileChanges={getFileChanges}
                   setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-                  setReadOnlyFilesOpen={setReadOnlyFilesOpen}
                   removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
                   removeFileChangeRequest={removeFileChangeRequest}
                   isRunningRef={isRunningRef}
@@ -211,7 +193,6 @@ const FCRList = memo(function FCRList({
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
                   getFileChanges={getFileChanges}
                   setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-                  setReadOnlyFilesOpen={setReadOnlyFilesOpen}
                   removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
                   removeFileChangeRequest={removeFileChangeRequest}
                   isRunningRef={isRunningRef}
