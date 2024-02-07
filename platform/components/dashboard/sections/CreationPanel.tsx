@@ -1,4 +1,4 @@
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
+import { CheckIcon } from "@radix-ui/react-icons";
 import { Popover, PopoverTrigger, PopoverContent } from "../../ui/popover";
 import {
   Command,
@@ -13,7 +13,7 @@ import { Snippet } from "../../../lib/search";
 import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
 import { FileChangeRequest } from "../../../lib/types";
-import { FaArrowRotateLeft, FaPlus } from "react-icons/fa6";
+import { FaPlus } from "react-icons/fa6";
 
 const CreationPanel = ({
   filePath,
@@ -106,9 +106,8 @@ const CreationPanel = ({
                             hideMerge: true,
                             instructions: "",
                             isLoading: false,
-                            openReadOnlyFiles: false,
                             readOnlySnippets: {},
-                            diff: undefined,
+                            diff: "",
                             status: "idle",
                           } as FileChangeRequest,
                         ];
@@ -169,9 +168,8 @@ const CreationPanel = ({
                             hideMerge: true,
                             instructions: "",
                             isLoading: false,
-                            openReadOnlyFiles: false,
                             readOnlySnippets: {},
-                            diff: undefined,
+                            diff: "",
                             status: "idle",
                           } as FileChangeRequest,
                         ];

@@ -21,9 +21,8 @@ interface FileChangeRequest {
   changeType: "create" | "modify";
   hideMerge: boolean;
   isLoading: boolean;
-  openReadOnlyFiles: boolean;
   readOnlySnippets: { [key: string]: Snippet };
-  diff: string | undefined;
+  diff: string;
   status: "queued" | "in-progress" | "done" | "error" | "idle";
 }
 

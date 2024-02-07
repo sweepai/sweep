@@ -21,7 +21,6 @@ const FCRModify = memo(function FCRModify({
   setCurrentFileChangeRequestIndex,
   getFileChanges,
   setReadOnlySnippetForFCR,
-  setReadOnlyFilesOpen,
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
@@ -49,10 +48,6 @@ const FCRModify = memo(function FCRModify({
   setReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
     snippet: Snippet,
-  ) => void;
-  setReadOnlyFilesOpen: (
-    open: boolean,
-    fileChangeRequest: FileChangeRequest,
   ) => void;
   removeReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
@@ -176,7 +171,6 @@ const FCRModify = memo(function FCRModify({
                     content: contents, // this is the slice based on start and end, remeber to change this
                   } as Snippet;
                   setReadOnlySnippetForFCR(fcr, newSnippet);
-                  setReadOnlyFilesOpen(false, fcr);
                 }}
                 appendSpaceOnAdd={true}
                 // shift it down 5px
@@ -222,8 +216,7 @@ const FCRModify = memo(function FCRModify({
                     size="sm"
                     className="mr-2"
                     onClick={(e: any) => {
-                      // syncFCRInstructions();
-                      //console.log("current fcr", fcr)
+                      console.log("current fcr", fcr)
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}
