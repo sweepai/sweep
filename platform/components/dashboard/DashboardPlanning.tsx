@@ -235,7 +235,6 @@ const DashboardPlanning = ({
             hideMerge: true,
             instructions: instructions.trim(),
             isLoading: false,
-            openReadOnlyFiles: false,
             readOnlySnippets: {},
             status: "idle"
           } as FileChangeRequest)
