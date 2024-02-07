@@ -44,6 +44,7 @@ jobs:
         tag-prefix: ''
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      working-directory: ./platform
     - name: Publish to NPM
       run: pnpm publish
       working-directory: ./platform
