@@ -28,6 +28,7 @@ const FCRList = memo(function FCRList({
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
+  setStatusForFCR
 }: {
   repoName: string;
   files: { label: string; name: string }[];
@@ -60,6 +61,7 @@ const FCRList = memo(function FCRList({
   ) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
+  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
 }) {
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
@@ -70,13 +72,16 @@ const FCRList = memo(function FCRList({
       classNames += " text-zinc-300 ";
     }
     // background highlighting
-    if (fcr.isLoading) {
+    if (fcr.status === "in-progress") {
       // is being generated
       classNames += " bg-orange-900 ";
-    } else if (!fcr.hideMerge && !fcr.isLoading) {
+    } else if (fcr.status === "done") {
       // has completed generation
       classNames += " bg-green-900 ";
-    } else {
+    } else if (fcr.status === "error") {
+      classNames += " bg-red-900 ";
+    }
+    else if (fcr.status === "idle") {
       // default
       classNames += " bg-zinc-900 ";
     }
@@ -199,6 +204,7 @@ const FCRList = memo(function FCRList({
                   setFCRInstructions={setFCRInstructions}
                   setUserSuggestion={setUserSuggestion}
                   key={index}
+                  setStatusForFCR={setStatusForFCR}
                 />
               ) : (
                 <FCRModify
@@ -206,9 +212,6 @@ const FCRList = memo(function FCRList({
                   repoName={repoName}
                   setFileChangeRequests={setFileChangeRequests}
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-                  setFileForFCR={setFileForFCR}
-                  setOldFileForFCR={setOldFileForFCR}
-                  setHideMerge={setHideMerge}
                   getFileChanges={getFileChanges}
                   setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
                   setReadOnlyFilesOpen={setReadOnlyFilesOpen}
@@ -223,6 +226,7 @@ const FCRList = memo(function FCRList({
                   fcrInstructions={fcrInstructions}
                   setFCRInstructions={setFCRInstructions}
                   setUserSuggestion={setUserSuggestion}
+                  setStatusForFCR={setStatusForFCR}
                 />
               )
             ))}

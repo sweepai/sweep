@@ -22,7 +22,8 @@ const ModifyOrCreate = ({
   directories,
   fileChangeRequests,
   setFileChangeRequests,
-  refreshFiles,
+  syncAllFiles,
+  setStatusForAll
 }: {
   filePath: string;
   repoName: string;
@@ -32,7 +33,8 @@ const ModifyOrCreate = ({
   setFileChangeRequests: React.Dispatch<
     React.SetStateAction<FileChangeRequest[]>
   >;
-  refreshFiles: () => Promise<void>,
+  syncAllFiles: () => Promise<void>,
+  setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void
 }) => {
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
@@ -93,6 +95,7 @@ const ModifyOrCreate = ({
                           isLoading: false,
                           openReadOnlyFiles: false,
                           readOnlySnippets: {},
+                          status: "idle"
                         } as FileChangeRequest,
                       ];
                     });
@@ -155,6 +158,7 @@ const ModifyOrCreate = ({
                           isLoading: false,
                           openReadOnlyFiles: false,
                           readOnlySnippets: {},
+                          status: "idle"
                         } as FileChangeRequest,
                       ];
                     });
@@ -175,7 +179,7 @@ const ModifyOrCreate = ({
         </PopoverContent>
       </Popover>
       <div className="grow"></div>
-      <Button onClick={refreshFiles} variant="secondary">
+      <Button onClick={() => {syncAllFiles(); setStatusForAll("idle")}} variant="secondary">
         <FaArrowRotateLeft style={{marginTop: -3, fontSize: 12}} />
         &nbsp;&nbsp;Refresh files
       </Button>
