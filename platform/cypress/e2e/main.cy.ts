@@ -4,7 +4,7 @@ describe('main platform', () => {
     cy.visit('/')
 
     console.log("Clicking on the 'Coding' button")
-    cy.contains('button', /^Coding$/).click();
+    cy.contains('button', /^Coding$/).click({force: true});
 
     console.log("Setting repo name")
     cy.exec('pwd').then((result) => {
