@@ -12,7 +12,7 @@ import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
-import { FileChangeRequest } from "../../lib/types";
+import { FileChangeRequest, fcrEqual } from "../../lib/types";
 import getFiles, { getFile, writeFile } from "../../lib/api.service";
 import { usePostHog } from "posthog-js/react";
 import { posthogMetadataScript } from "../../lib/posthog";
@@ -77,9 +77,8 @@ const DashboardDisplay = () => {
 
   const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -110,9 +109,8 @@ const DashboardDisplay = () => {
 
   const setHideMerge = useCallback((newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -162,9 +160,8 @@ const DashboardDisplay = () => {
 
   const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -205,7 +202,7 @@ const DashboardDisplay = () => {
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -227,7 +224,7 @@ const DashboardDisplay = () => {
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -297,7 +294,7 @@ const DashboardDisplay = () => {
   return (
     <>
       {loadingMessage && (
-        <div className="p-8 fixed bottom-12 right-12 text-center z-10" style={{ borderRadius: '50%', background: 'radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)' }}>
+        <div className="p-2 fixed bottom-12 right-12 text-center z-10" style={{ borderRadius: '50%', background: 'radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)' }}>
           <img
             className="rounded-full border-zinc-800 border"
             src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif"

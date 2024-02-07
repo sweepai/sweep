@@ -19,7 +19,7 @@ import {
 } from "../ui/collapsible";
 import { Snippet } from "../../lib/search";
 import DashboardInstructions from "./DashboardInstructions";
-import { FileChangeRequest, Message } from "../../lib/types";
+import { FileChangeRequest, Message, fcrEqual } from "../../lib/types";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -289,7 +289,7 @@ const DashboardActions = ({
       fcr.readOnlySnippets[readOnlySnippet.file] = readOnlySnippet;
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr),
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -308,7 +308,7 @@ const DashboardActions = ({
       delete fcr.readOnlySnippets[snippetFile];
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr),
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -329,7 +329,7 @@ const DashboardActions = ({
       if (typeof index === "undefined") {
         fcrIndex = fileChangeRequests.findIndex(
           (fileChangeRequest: FileChangeRequest) =>
-            fileChangeRequest.snippet.file === fcr.snippet.file,
+            fcrEqual(fileChangeRequest, fcr),
         );
       }
       undefinedCheck(fcrIndex);

@@ -1,7 +1,7 @@
 import React, { ReactNode, memo, useEffect, useState } from "react";
 import { getFile, writeFile } from "../../../lib/api.service";
 import { Snippet } from "../../../lib/search";
-import { FileChangeRequest } from "../../../lib/types";
+import { FileChangeRequest, snippetKey } from "../../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
 import { toast } from "sonner";
@@ -84,8 +84,8 @@ const FCRCreate = memo(function FCRCreate({
   [fcr]);
   return (
     <Draggable
-      key={fcr.snippet.file}
-      draggableId={fcr.snippet.file}
+      key={snippetKey(fcr.snippet)}
+      draggableId={snippetKey(fcr.snippet)}
       index={index}
     >
       {(provided: any, snapshot: any) => (
@@ -152,7 +152,7 @@ const FCRCreate = memo(function FCRCreate({
                     setFCRInstructions((prev: any) => {
                       return {
                         ...prev,
-                        [fcr.snippet.file]: "",
+                        [snippetKey(fcr.snippet)]: "",
                       };
                     });
                   }}
@@ -166,7 +166,7 @@ const FCRCreate = memo(function FCRCreate({
               className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput mb-2"
               disabled={!newFileName}
               placeholder={instructionsPlaceholder}
-              value={fcrInstructions[fcr.snippet.file as string]}
+              value={fcrInstructions[snippetKey(fcr.snippet)] || ""}
               onClick={(e: any) => {
                 setCurrentFileChangeRequestIndex(index);
               }}
@@ -182,7 +182,7 @@ const FCRCreate = memo(function FCRCreate({
                 setFCRInstructions((prev: any) => {
                   return {
                     ...prev,
-                    [fcr.snippet.file]: e.target.value,
+                    [snippetKey(fcr.snippet)]: e.target.value,
                   };
                 });
               }}

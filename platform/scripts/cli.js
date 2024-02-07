@@ -72,7 +72,7 @@ consola.box(`
           mask: '*',
           name: 'openai_api_key',
           message: 'Enter your OpenAI API key (https://platform.openai.com/api-keys):',
-          validate: input => input ? true : 'API key cannot be empty. Please enter your OpenAI API key.',
+          validate: input => input.startsWith("sk-") && input.length > 5 ? true : 'API key must start with "sk-". Please enter your OpenAI API key.',
         }
       ]);
     } while (!answers.openai_api_key);

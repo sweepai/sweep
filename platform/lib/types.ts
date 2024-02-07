@@ -26,9 +26,22 @@ interface FileChangeRequest {
   diff: string | undefined;
 }
 
+const fcrEqual = (a: FileChangeRequest, b: FileChangeRequest) => {
+  return (
+    a.snippet.file === b.snippet.file &&
+    a.snippet.start === b.snippet.start &&
+    a.snippet.end === b.snippet.end
+  );
+}
+
+const snippetKey = (snippet: Snippet) => {
+  return `${snippet.file}:${snippet.start || 0}-${snippet.end || 0}`;
+}
+
 interface Message {
   role: "user" | "system" | "assistant";
   content: string;
 }
 
+export { fcrEqual, snippetKey };
 export type { File, Snippet, FileChangeRequest, Message };

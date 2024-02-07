@@ -76,7 +76,7 @@ const FileSelector = memo(function FileSelector({
     //   return {
     //     create,
     //     /* optional */
-    //     displayText: 'blocks',
+    //     displayText: 'characters',
     //     showOverlay: 'always',
     //   }
     // }),
