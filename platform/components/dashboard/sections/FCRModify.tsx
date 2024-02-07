@@ -1,12 +1,11 @@
-import React, { ReactNode, memo, useState } from "react";
-import { getFile, writeFile } from "../../../lib/api.service";
+import React, { ReactNode, memo } from "react";
+import { getFile } from "../../../lib/api.service";
 import { Snippet } from "../../../lib/search";
 import { FileChangeRequest, snippetKey } from "../../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
-import { toast } from "sonner";
+import { FaStop, FaTrash } from "react-icons/fa6";
 import { Badge } from "../../ui/badge";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
 
@@ -20,9 +19,6 @@ const FCRModify = memo(function FCRModify({
   repoName,
   setFileChangeRequests,
   setCurrentFileChangeRequestIndex,
-  setFileForFCR,
-  setOldFileForFCR,
-  setHideMerge,
   getFileChanges,
   setReadOnlySnippetForFCR,
   setReadOnlyFilesOpen,
@@ -37,6 +33,7 @@ const FCRModify = memo(function FCRModify({
   fcrInstructions,
   setFCRInstructions,
   setUserSuggestion,
+  setStatusForFCR,
 }: {
   repoName: string;
   setFileChangeRequests: React.Dispatch<
@@ -45,9 +42,6 @@ const FCRModify = memo(function FCRModify({
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
-  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
-  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
-  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   getFileChanges: (
     fileChangeRequest: FileChangeRequest,
     index: number,
@@ -74,6 +68,7 @@ const FCRModify = memo(function FCRModify({
   fcrInstructions: { [key: string]: string; };
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
   setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
+  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void
 }) {
   return (
     <Draggable
