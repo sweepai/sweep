@@ -115,7 +115,6 @@ const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_lin
 {contents}
 </read_only_file>`;
 
-const chainOfThoughtPattern = /<contextual_request_analysis>(?<content>[\s\S]*?)($|<\/contextual_request_analysis>)/;
 const fileChangeRequestPattern = /<create file="(?<cFile>.*?)" relevant_files="(?<relevant_files>.*?)">(?<cInstructions>[\s\S]*?)($|<\/create>)|<modify file="(?<mFile>.*?)" start_line="(?<startLine>.*?)" end_line="(?<endLine>.*?)" relevant_files="(.*?)">(?<mInstructions>[\s\S]*?)($|<\/modify>)/sg;
 
 const capitalize = (s: string) => {
@@ -136,7 +135,6 @@ const DashboardPlanning = ({
   const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "" as string);
   const [snippets = {}, setSnippets] = useLocalStorage("globalSnippets", {} as {[key: string]: Snippet});
   const [rawResponse = "", setRawResponse] = useLocalStorage("planningRawResponse", "" as string);
-  const [chainOfThought = "", setChainOfThought] = useLocalStorage("globalChainOfThought", "" as string);
   const [currentFileChangeRequests = [], setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
   const [debugLogToggle = false, setDebugLogToggle] = useState<boolean>(false);
   const [isLoading = false, setIsLoading] = useState<boolean>(false);
@@ -165,7 +163,6 @@ const DashboardPlanning = ({
     setIsLoading(true)
     setLoadingMessage("Queued...")
     try {
-      setChainOfThought("")
       setCurrentFileChangeRequests([])
       const response = await fetch("/api/openai/edit", {
         method: "POST",
@@ -203,8 +200,6 @@ const DashboardPlanning = ({
         rawText += text;
         setRawResponse(rawText)
         console.log(rawText)
-        const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
-        setChainOfThought(chainOfThoughtMatch?.groups?.content || "")
         if (thoughtsRef.current) {
           thoughtsRef.current.scrollTop = thoughtsRef.current.scrollHeight || 0;
         }
@@ -367,7 +362,7 @@ const DashboardPlanning = ({
           className="mb-2 mt-2"
           variant="secondary"
           onClick={generatePlan}
-          disabled={isLoading}
+          disabled={isLoading || instructions === "" || Object.keys(snippets).length === 0}
         >
           Generate Plan
         </Button>
