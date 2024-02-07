@@ -6,7 +6,7 @@ import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
 import { Button } from "../ui/button";
 
-const DashboardInstructions = forwardRef(({
+const DashboardInstructions = forwardRef(function DashboardInstructions({
   filePath,
   repoName,
   files,
@@ -62,7 +62,7 @@ const DashboardInstructions = forwardRef(({
   isRunningRef: React.MutableRefObject<boolean>;
   refreshFiles: () => Promise<void>;
   getAllFileChanges: () => Promise<void>;
-}, ref: Ref<HTMLDivElement>) => {
+}, ref: Ref<HTMLDivElement>) {
   return (
     <div className="grow mb-4 h-full min-h-0 rounded-md p-4 overflow-auto border" ref={ref}>
       <ModifyOrCreate
