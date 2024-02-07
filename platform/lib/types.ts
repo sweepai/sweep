@@ -24,7 +24,7 @@ interface FileChangeRequest {
   openReadOnlyFiles: boolean;
   readOnlySnippets: { [key: string]: Snippet };
   diff: string | undefined;
-  // status: "queued" | "in-progress" | "done" | "error";
+  status: "queued" | "in-progress" | "done" | "error" | "idle";
 }
 
 const fcrEqual = (a: FileChangeRequest, b: FileChangeRequest) => {

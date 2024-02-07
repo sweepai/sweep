@@ -38,6 +38,7 @@ const FCRCreate = memo(function FCRCreate({
   fcrInstructions,
   setFCRInstructions,
   setUserSuggestion,
+  setStatusForFCR
 }: {
   repoName: string;
   setFileChangeRequests: React.Dispatch<
@@ -75,6 +76,7 @@ const FCRCreate = memo(function FCRCreate({
   fcrInstructions: { [key: string]: string; };
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
   setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
+  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void
 }) {
   const [newFileName, setNewFileName] = useState("");
 

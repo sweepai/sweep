@@ -1,10 +1,8 @@
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import CodeMirror, { EditorView, keymap, lineNumbers } from "@uiw/react-codemirror";
 import { FileChangeRequest, Snippet } from "../../lib/types";
-import { ScrollArea } from "../ui/scroll-area";
 import { Button } from "../ui/button";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
@@ -238,6 +236,7 @@ const DashboardPlanning = ({
             isLoading: false,
             openReadOnlyFiles: false,
             readOnlySnippets: {},
+            status: "idle"
           } as FileChangeRequest)
           console.log(fileChangeRequests)
         }

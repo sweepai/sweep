@@ -7,15 +7,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import getFiles, { getFile, runScript, writeFile } from "../../lib/api.service";
 import { toast } from "sonner";
-import { FaCheck, FaPause, FaPlay, FaStop } from "react-icons/fa6";
+import { FaPlay } from "react-icons/fa6";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
-import { FaArrowsRotate } from "react-icons/fa6";
 import { CaretSortIcon } from "@radix-ui/react-icons";
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "../ui/collapsible";
 import { Snippet } from "../../lib/search";
 import DashboardInstructions from "./DashboardInstructions";
@@ -28,14 +26,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { FaCog, FaCogs, FaQuestion } from "react-icons/fa";
+import { FaCog, FaQuestion } from "react-icons/fa";
 import { Switch } from "../ui/switch";
 import { usePostHog } from "posthog-js/react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Dialog, DialogContent } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Mention, MentionsInput } from "react-mentions";
 import DashboardPlanning from "./DashboardPlanning";
 
 const Diff = require("diff");
@@ -150,15 +146,12 @@ const DashboardActions = ({
   filePath,
   setScriptOutput,
   file,
-  setFile,
   fileLimit,
   setFileLimit,
   blockedGlobs,
   setBlockedGlobs,
   hideMerge,
   setHideMerge,
-  oldFile,
-  setOldFile,
   repoName,
   setRepoName,
   setStreamData,
@@ -168,28 +161,25 @@ const DashboardActions = ({
   setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
-  setHideMergeAll,
   setFileForFCR,
   setOldFileForFCR,
   setIsLoading,
-  setIsLoadingAll,
   undefinedCheck,
   removeFileChangeRequest,
   setOutputToggle,
   setLoadingMessage,
+  setStatusForFCR,
+  setStatusForAll
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
   file: string;
-  setFile: (newFile: string) => void;
   fileLimit: number;
   setFileLimit: React.Dispatch<React.SetStateAction<number>>;
   blockedGlobs: string;
   setBlockedGlobs: React.Dispatch<React.SetStateAction<string>>;
   hideMerge: boolean;
   setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
-  oldFile: string;
-  setOldFile: (newOldFile: string) => void;
   repoName: string;
   setRepoName: React.Dispatch<React.SetStateAction<string>>;
   setStreamData: React.Dispatch<React.SetStateAction<string>>;
@@ -203,15 +193,15 @@ const DashboardActions = ({
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
-  setHideMergeAll: (newHideMerge: boolean) => void;
   setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
   setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
   setIsLoading: (newIsLoading: boolean, fcr: FileChangeRequest) => void;
-  setIsLoadingAll: (newIsLoading: boolean) => void;
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   setOutputToggle: (newOutputToggle: string) => void;
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
+  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
+  setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void;
 }) => {
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`;
@@ -571,6 +561,7 @@ const DashboardActions = ({
       .join("\n\n");
 
     setIsLoading(true, fcr);
+    setStatusForFCR("in-progress", fcr);
     setOutputToggle("llm");
     setLoadingMessage("Queued...")
     const changeType = fcr.changeType;
@@ -738,7 +729,11 @@ const DashboardActions = ({
           );
           validationOutput += "\n\n" + errorMessage;
           setScriptOutput(validationOutput);
-          continue;
+          setIsLoading(false, fcr);
+          setStatusForFCR("error", fcr);
+          isRunningRef.current = false;
+          setLoadingMessage("")
+          return;
         } else {
           toast.success(`Successfully modified file!`, {
             description: [
@@ -756,13 +751,17 @@ const DashboardActions = ({
           action: { label: "Dismiss", onClick: () => {} },
         });
         setIsLoading(false, fcr);
+        setStatusForFCR("error", fcr);
         isRunningRef.current = false;
-        break;
+        setLoadingMessage("");
+        return;
       }
     }
     setIsLoading(false, fcr);
+    setStatusForFCR("done", fcr);
     isRunningRef.current = false;
     setLoadingMessage("")
+    return;
   };
 
 
@@ -892,8 +891,10 @@ const DashboardActions = ({
             removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
             removeFileChangeRequest={removeFileChangeRequest}
             isRunningRef={isRunningRef}
-            refreshFiles={refreshFiles}
+            syncAllFiles={syncAllFiles}
             getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
+            setStatusForFCR={setStatusForFCR}
+            setStatusForAll={setStatusForAll}
           />
         <Collapsible
           open={validationScriptCollapsibleOpen}
