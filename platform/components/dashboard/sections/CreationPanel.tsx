@@ -22,8 +22,7 @@ const CreationPanel = ({
   directories,
   fileChangeRequests,
   setFileChangeRequests,
-  syncAllFiles,
-  setStatusForAll
+  setCurrentTab,
 }: {
   filePath: string;
   repoName: string;
@@ -33,8 +32,7 @@ const CreationPanel = ({
   setFileChangeRequests: React.Dispatch<
     React.SetStateAction<FileChangeRequest[]>
   >;
-  syncAllFiles: () => Promise<void>,
-  setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void
+  setCurrentTab: React.Dispatch<React.SetStateAction<"planning" | "coding">>;
 }) => {
   const [hidePanel, setHidePanel] = useState(true);
   const [openModify, setOpenModify] = useState(false);
@@ -64,7 +62,7 @@ const CreationPanel = ({
                 variant="outline"
                 role="combobox"
                 aria-expanded={openModify}
-                className="border rounded-none w-full h-full bg-zinc-800 hover:bg-zinc-900"
+                className="border rounded-none w-full h-full bg-zinc-800 hover:bg-zinc-900 text-lg"
               >
                 Modify file
               </Button>
@@ -110,7 +108,8 @@ const CreationPanel = ({
                             isLoading: false,
                             openReadOnlyFiles: false,
                             readOnlySnippets: {},
-                            status: "idle"
+                            diff: undefined,
+                            status: "idle",
                           } as FileChangeRequest,
                         ];
                       });
@@ -137,7 +136,7 @@ const CreationPanel = ({
                 variant="outline"
                 role="combobox"
                 aria-expanded={openCreate}
-                className="border-2 border-black-900 rounded-none w-full h-full bg-zinc-800 hover:bg-zinc-900"
+                className="border-2 border-black-900 rounded-none w-full h-full bg-zinc-800 hover:bg-zinc-900 text-lg"
               >
                 Create file
               </Button>
@@ -172,7 +171,8 @@ const CreationPanel = ({
                             isLoading: false,
                             openReadOnlyFiles: false,
                             readOnlySnippets: {},
-                            status: "idle"
+                            diff: undefined,
+                            status: "idle",
                           } as FileChangeRequest,
                         ];
                       });
@@ -192,15 +192,18 @@ const CreationPanel = ({
             </Command>
           </PopoverContent>
         </Popover>
-        {/* <div className="w-full h-full overflow-auto">
+        <div className="w-full h-full overflow-auto">
           <Button
             variant="outline"
             role="combobox"
-            className="border rounded-none w-full h-full bg-zinc-800 hover:bg-zinc-900"
+            className="border rounded-none w-full h-full bg-zinc-800 hover:bg-zinc-900 text-lg"
+            onClick={() => {
+              setCurrentTab("planning");
+            }}
           >
             Create plan
           </Button>
-        </div> */}
+        </div>
       </div>
     </div>
     </div>

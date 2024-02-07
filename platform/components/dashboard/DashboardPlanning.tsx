@@ -126,11 +126,17 @@ const DashboardPlanning = ({
   files,
   setLoadingMessage,
   setFileChangeRequests,
+  setCurrentTab,
 }: {
   repoName: string;
   files: {label: string; name: string}[];
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
-  setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
+  setFileChangeRequests: React.Dispatch<
+    React.SetStateAction<FileChangeRequest[]>
+  >;
+  setCurrentTab: React.Dispatch<
+    React.SetStateAction<"planning" | "coding">
+  >;
 }) => {
   const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "" as string);
   const [snippets = {}, setSnippets] = useLocalStorage("globalSnippets", {} as {[key: string]: Snippet});
@@ -497,8 +503,11 @@ const DashboardPlanning = ({
         <Button
           variant="secondary"
           className="bg-blue-800 hover:bg-blue-900 mt-4"
-          onClick={() => {
-            setFileChangeRequests(currentFileChangeRequests)
+          onClick={async (e) => {
+            setFileChangeRequests((prev: FileChangeRequest[]) => {
+              return [...prev, ...currentFileChangeRequests];
+            });
+            setCurrentTab("coding");
           }}
           disabled={isLoading}
         >

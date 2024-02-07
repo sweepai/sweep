@@ -27,7 +27,8 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
   syncAllFiles,
   getAllFileChanges,
   setStatusForFCR,
-  setStatusForAll
+  setStatusForAll,
+  setCurrentTab,
 }: {
   filePath: string;
   repoName: string;
@@ -66,6 +67,7 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
   getAllFileChanges: () => Promise<void>;
   setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
   setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void;
+  setCurrentTab: React.Dispatch<React.SetStateAction<"planning" | "coding">>;
 }, ref: Ref<HTMLDivElement>) {
   return (
     <div className="grow mb-4 h-full min-h-0 rounded-md p-4 overflow-auto border" ref={ref}>
@@ -104,8 +106,7 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
         directories={directories}
         fileChangeRequests={fileChangeRequests}
         setFileChangeRequests={setFileChangeRequests}
-        syncAllFiles={syncAllFiles}
-        setStatusForAll={setStatusForAll}
+        setCurrentTab={setCurrentTab}
       />
       {fileChangeRequests.length === 0 ? (
         <div className="p-2 text-zinc-300">No File Change Requests added yet.</div>
