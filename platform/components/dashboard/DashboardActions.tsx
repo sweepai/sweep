@@ -603,11 +603,11 @@ const DashboardActions = ({
       snippets: Object.values(fcr.readOnlySnippets),
     };
     const additionalMessages: Message[] = [];
-    var currentContents = (fcr.snippet.entireFile || "").replace(/\\n/g, "\\n");
+    var currentIterationContents = (fcr.snippet.entireFile || "").replace(/\\n/g, "\\n");
     let errorMessage = "";
     let userMessage = formatUserMessage(
       fcr.instructions,
-      currentContents,
+      currentIterationContents,
       Object.values(fcr.readOnlySnippets),
       patches,
       changeType
@@ -635,13 +635,13 @@ const DashboardActions = ({
       }
       if (i !== 0) {
         var retryMessage = "";
-        if (fcr.snippet.entireFile === currentContents) {
+        if (fcr.snippet.entireFile === currentIterationContents) {
           retryMessage = retryChangesMadePrompt.replace(
             "{changes_made}",
             createPatch(
               fcr.snippet.file,
               fcr.snippet.entireFile,
-              currentContents,
+              currentIterationContents,
             ),
           );
         } else {
@@ -658,7 +658,7 @@ const DashboardActions = ({
         method: "POST",
         body: JSON.stringify({
           ...body,
-          fileContents: currentContents,
+          fileContents: currentIterationContents,
           additionalMessages,
           userMessage,
         }),
@@ -666,10 +666,11 @@ const DashboardActions = ({
       setLoadingMessage("Generating code...")
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = "";
+      var currentContents = currentIterationContents;
       const updateIfChanged = (newContents: string) => {
-        if (newContents !== currentContents) {
+        if (newContents !== currentIterationContents) {
           setFileForFCR(newContents, fcr);
-          currentContents = newContents;
+          currentContents = newContents
         }
       };
       try {
@@ -687,14 +688,14 @@ const DashboardActions = ({
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
-                fcr.snippet.entireFile,
+                currentIterationContents
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
                 rawText || "",
-                fcr.snippet.entireFile,
+                currentIterationContents
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
@@ -722,9 +723,9 @@ const DashboardActions = ({
             let updatedFile = "";
             let _ = "";
             if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
             } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
             }
             if (j % 3 == 0) {
               updateIfChanged(updatedFile);
