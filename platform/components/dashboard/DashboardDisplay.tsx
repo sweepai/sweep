@@ -107,6 +107,38 @@ const DashboardDisplay = () => {
     });
   };
 
+  const setStatusForFCR = (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => {
+    try {
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
+      );
+      undefinedCheck(fcrIndex);
+      setFileChangeRequests((prev) => {
+        return [
+          ...prev.slice(0, fcrIndex),
+          {
+            ...prev[fcrIndex],
+            status: newStatus,
+          },
+          ...prev.slice(fcrIndex + 1),
+        ];
+      });
+    } catch (error) {
+      console.error("Error in setStatus: ", error);
+    }
+  };
+
+  const setStatusForAll = (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => {
+    setFileChangeRequests((newFileChangeRequests) => {
+      return newFileChangeRequests.map((fileChangeRequest) => {
+        return {
+          ...fileChangeRequest,
+          status: newStatus,
+        };
+      });
+    });
+  }
+
   const setHideMerge = useCallback((newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
       const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
@@ -314,15 +346,12 @@ const DashboardDisplay = () => {
           filePath={filePath}
           setScriptOutput={setScriptOutput}
           file={file}
-          setFile={setFile}
           fileLimit={fileLimit}
           setFileLimit={setFileLimit}
           blockedGlobs={blockedGlobs}
           setBlockedGlobs={setBlockedGlobs}
           hideMerge={hideMerge}
           setHideMerge={setHideMerge}
-          oldFile={oldFile}
-          setOldFile={setOldFile}
           repoName={repoName}
           setRepoName={setRepoName}
           setStreamData={setStreamData}
@@ -332,15 +361,15 @@ const DashboardDisplay = () => {
           setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setHideMergeAll={setHideMergeAll}
           setFileForFCR={setFileForFCR}
           setOldFileForFCR={setOldFileForFCR}
           setIsLoading={setIsLoading}
-          setIsLoadingAll={setIsLoadingAll}
           undefinedCheck={undefinedCheck}
           removeFileChangeRequest={removeFileChangeRequest}
           setOutputToggle={setOutputToggle}
           setLoadingMessage={setLoadingMessage}
+          setStatusForFCR={setStatusForFCR}
+          setStatusForAll={setStatusForAll}
         />
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -397,6 +426,7 @@ const DashboardDisplay = () => {
                     });
                     setCurrentFileChangeRequestIndex(currentFileChangeRequestIndex);
                     setHideMerge(true, fcr);
+                    setStatusForFCR("idle", fcr);
                   }}
                   disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading}
                 >
