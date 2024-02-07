@@ -140,6 +140,20 @@ const formatUserMessage = (
   return userMessage;
 };
 
+const isSublist = (lines: string[], subList: string[]): boolean => {
+  for (let i = 0; i <= lines.length - subList.length; i++) {
+    let match = true;
+    for (let j = 0; j < subList.length; j++) {
+      if (lines[i + j] !== subList[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return true;
+  }
+  return false;
+};
+
 const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
 
 const DashboardActions = ({
@@ -383,10 +397,13 @@ const DashboardActions = ({
     newCode: string,
     fileContents: string,
   ): [string, string] => {
+    // TODO: Unit test this
     let newOldCode = oldCode;
     let newNewCode = newCode;
     // expect there to be a newline at the beginning of oldCode
     // find correct indentaton - try up to 16 spaces (8 indentations worth)
+
+    const lines = fileContents.split("\n")
     for (let i of [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]) {
       // split new code by \n and add the same indentation to each line, then rejoin with new lines
       newOldCode =
@@ -395,7 +412,11 @@ const DashboardActions = ({
           .split("\n")
           .map((line) => " ".repeat(i) + line)
           .join("\n");
-      if (fileContents.includes(newOldCode)) {
+      var newOldCodeLines = newOldCode.split("\n")
+      if (newOldCodeLines[0] === "") {
+        newOldCode = newOldCode.slice(1);
+      }
+      if (isSublist(lines, newOldCodeLines)) {
         newNewCode =
           "\n" +
           newCode
@@ -414,7 +435,7 @@ const DashboardActions = ({
   ): [string, string] => {
     let errorMessage = "";
     const diffRegexModify =
-      /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)>>>>>>> MODIFIED/gs;
+      /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)($|>>>>>>> MODIFIED)/gs;
     const diffMatches: any = response.matchAll(diffRegexModify)!;
     if (!diffMatches) {
       return ["", ""];
@@ -437,7 +458,7 @@ const DashboardActions = ({
         errorMessage += "ORIGINAL code block can not be empty.\n\n";
         continue;
       }
-      if (!currentFileContents.includes(oldCode)) {
+      if (!isSublist(currentFileContents.split("\n"), oldCode.split("\n"))) {
         const [newOldCode, newNewCode]: [string, string] = softIndentationCheck(
           oldCode,
           newCode,
@@ -653,6 +674,7 @@ const DashboardActions = ({
         let rawText = String.raw``;
 
         setHideMerge(false, fcr);
+        var j = 0;
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
           if (done) {
@@ -700,7 +722,10 @@ const DashboardActions = ({
             } else if (changeType == "create") {
               [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
             }
-            updateIfChanged(updatedFile);
+            if (j % 3 == 0) {
+              updateIfChanged(updatedFile);
+            }
+            j += 1;
           } catch (e) {
             console.error(e);
           }
