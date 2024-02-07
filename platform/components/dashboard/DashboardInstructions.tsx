@@ -4,6 +4,7 @@ import { FileChangeRequest } from "../../lib/types";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
 import { Button } from "../ui/button";
+import CreationPanel from "./sections/CreationPanel";
 
 const DashboardInstructions = forwardRef(function DashboardInstructions({
   filePath,
@@ -96,8 +97,18 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
         isRunningRef={isRunningRef}
         setStatusForFCR={setStatusForFCR}
       />
+      <CreationPanel
+        filePath={filePath}
+        repoName={repoName}
+        files={files}
+        directories={directories}
+        fileChangeRequests={fileChangeRequests}
+        setFileChangeRequests={setFileChangeRequests}
+        syncAllFiles={syncAllFiles}
+        setStatusForAll={setStatusForAll}
+      />
       {fileChangeRequests.length === 0 ? (
-        <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
+        <div className="p-2 text-zinc-300">No File Change Requests added yet.</div>
       ): (
         <div className="text-right mt-2">
           <Button
