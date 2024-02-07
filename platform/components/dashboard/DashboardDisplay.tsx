@@ -12,7 +12,7 @@ import DashboardActions from "./DashboardActions";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
-import { FileChangeRequest } from "../../lib/types";
+import { FileChangeRequest, fcrEqual } from "../../lib/types";
 import getFiles, { getFile, writeFile } from "../../lib/api.service";
 import { usePostHog } from "posthog-js/react";
 import { posthogMetadataScript } from "../../lib/posthog";
@@ -57,6 +57,7 @@ const DashboardDisplay = () => {
 
   const [files = [], setFiles] = useLocalStorage<{ label: string; name: string }[]>("files",[]);
   const [directories = [], setDirectories] = useLocalStorage<{ label: string; name: string }[]>("directories",[]);
+  const [loadingMessage = "", setLoadingMessage] = useState("" as string)
 
   const filePath =
     fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
@@ -76,9 +77,8 @@ const DashboardDisplay = () => {
 
   const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -109,9 +109,8 @@ const DashboardDisplay = () => {
 
   const setHideMerge = useCallback((newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -161,9 +160,8 @@ const DashboardDisplay = () => {
 
   const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest) => {
     try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
+        fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -204,7 +202,7 @@ const DashboardDisplay = () => {
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev) => {
@@ -226,7 +224,7 @@ const DashboardDisplay = () => {
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr)
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -295,6 +293,20 @@ const DashboardDisplay = () => {
 
   return (
     <>
+      {loadingMessage && (
+        <div className="p-2 fixed bottom-12 right-12 text-center z-10 flex flex-col items-center" style={{ borderRadius: '50%', background: 'radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)' }}>
+          <img
+            className="rounded-full border-zinc-800 border"
+            src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif"
+            alt="Sweeping"
+            height={75}
+            width={75}
+          />
+          <p className="mt-2">
+            {loadingMessage}
+          </p>
+        </div>
+      )}
       <h1 className="font-bold text-xl">Sweep Assistant</h1>
       <h3 className="text-zinc-400">{versionNumber}</h3>
       <ResizablePanelGroup className="min-h-[80vh] pt-0" direction="horizontal">
@@ -328,7 +340,8 @@ const DashboardDisplay = () => {
           undefinedCheck={undefinedCheck}
           removeFileChangeRequest={removeFileChangeRequest}
           setOutputToggle={setOutputToggle}
-        ></DashboardActions>
+          setLoadingMessage={setLoadingMessage}
+        />
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
           <ResizablePanelGroup direction="vertical">

@@ -19,7 +19,7 @@ import {
 } from "../ui/collapsible";
 import { Snippet } from "../../lib/search";
 import DashboardInstructions from "./DashboardInstructions";
-import { FileChangeRequest, Message } from "../../lib/types";
+import { FileChangeRequest, Message, fcrEqual } from "../../lib/types";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -176,6 +176,7 @@ const DashboardActions = ({
   undefinedCheck,
   removeFileChangeRequest,
   setOutputToggle,
+  setLoadingMessage,
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -210,6 +211,7 @@ const DashboardActions = ({
   undefinedCheck: (variable: any) => void;
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   setOutputToggle: (newOutputToggle: string) => void;
+  setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
 }) => {
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`;
@@ -287,7 +289,7 @@ const DashboardActions = ({
       fcr.readOnlySnippets[readOnlySnippet.file] = readOnlySnippet;
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr),
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -306,7 +308,7 @@ const DashboardActions = ({
       delete fcr.readOnlySnippets[snippetFile];
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
-          fileChangeRequest.snippet.file === fcr.snippet.file,
+          fcrEqual(fileChangeRequest, fcr),
       );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
@@ -327,7 +329,7 @@ const DashboardActions = ({
       if (typeof index === "undefined") {
         fcrIndex = fileChangeRequests.findIndex(
           (fileChangeRequest: FileChangeRequest) =>
-            fileChangeRequest.snippet.file === fcr.snippet.file,
+            fcrEqual(fileChangeRequest, fcr),
         );
       }
       undefinedCheck(fcrIndex);
@@ -367,9 +369,9 @@ const DashboardActions = ({
     if (response.code != 0) {
       toast.error("An Error Occured", {
         description: [
-          <div key="stdout">{response.stdout.slice(0, 800)}</div>,
+          <div key="stdout">{(response.stdout || "").slice(0, 800)}</div>,
           <div className="text-red-500" key="stderr">
-            {response.stderr.slice(0, 800)}
+            {(response.stderr || "").slice(0, 800)}
           </div>,
         ],
         action: { label: "Dismiss", onClick: () => {} },
@@ -377,8 +379,8 @@ const DashboardActions = ({
     } else {
       toast.success("The script ran successfully", {
         description: [
-          <div key="stdout">{response.stdout.slice(0, 800)}</div>,
-          <div key="stderr">{response.stderr.slice(0, 800)}</div>,
+          <div key="stdout">{(response.stdout || "").slice(0, 800)}</div>,
+          <div key="stderr">{(response.stderr || "").slice(0, 800)}</div>,
         ],
         action: { label: "Dismiss", onClick: () => {} },
       });
@@ -519,6 +521,7 @@ const DashboardActions = ({
     oldFile: string,
     newFile: string,
   ) => {
+    setLoadingMessage("Validating...")
     if (!doValidate) {
       return "";
     }
@@ -569,6 +572,7 @@ const DashboardActions = ({
 
     setIsLoading(true, fcr);
     setOutputToggle("llm");
+    setLoadingMessage("Queued...")
     const changeType = fcr.changeType;
     // by default we modify file
     let url = "/api/openai/edit";
@@ -608,7 +612,7 @@ const DashboardActions = ({
       });
     }
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       if (!isRunningRef.current) {
         setIsLoading(false, fcr);
         return;
@@ -633,6 +637,7 @@ const DashboardActions = ({
         );
         userMessage = retryMessage;
       }
+      setLoadingMessage("Queued...")
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
@@ -642,6 +647,7 @@ const DashboardActions = ({
           userMessage,
         }),
       });
+      setLoadingMessage("Generating code...")
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = "";
       const updateIfChanged = (newContents: string) => {
@@ -710,6 +716,7 @@ const DashboardActions = ({
         }
         if (!isRunningRef.current) {
           setIsLoading(false, fcr);
+          setLoadingMessage("")
           return;
         }
         setHideMerge(false, fcr);
@@ -755,6 +762,7 @@ const DashboardActions = ({
     }
     setIsLoading(false, fcr);
     isRunningRef.current = false;
+    setLoadingMessage("")
   };
 
 
@@ -791,10 +799,14 @@ const DashboardActions = ({
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
      <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
       <div className="flex flex-row justify-between">
-        <TabsList>
-          <TabsTrigger value="planning">Planning</TabsTrigger>
-          <TabsTrigger value="coding">Coding</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-row">
+          <TabsList>
+            <TabsTrigger value="planning">Planning</TabsTrigger>
+            <TabsTrigger value="coding">Coding</TabsTrigger>
+          </TabsList>
+
+        </div>
+        <div>
           <Dialog
             defaultOpen={repoName === ""}
             open={repoNameCollapsibleOpen}
@@ -802,7 +814,7 @@ const DashboardActions = ({
           >
             <Button
               variant="secondary"
-              className={`${files.length === 0 ? "bg-blue-800 hover:bg-blue-900" : ""}`}
+              className={`${repoName === "" ? "bg-blue-800 hover:bg-blue-900" : ""} h-full`}
               size="sm"
               onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
             >
@@ -847,11 +859,13 @@ const DashboardActions = ({
               </div>
             </DialogContent>
           </Dialog>
+        </div>
       </div>
       <TabsContent value="planning" className="rounded-xl border h-full p-4 h-[95%]">
         <DashboardPlanning
           repoName={repoName}
           files={files}
+          setLoadingMessage={setLoadingMessage}
           setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
             setFileChangeRequests(fileChangeRequests);
             setCurrentTab("coding");
@@ -879,6 +893,7 @@ const DashboardActions = ({
             removeFileChangeRequest={removeFileChangeRequest}
             isRunningRef={isRunningRef}
             refreshFiles={refreshFiles}
+            getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
           />
         <Collapsible
           open={validationScriptCollapsibleOpen}

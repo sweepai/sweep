@@ -1,6 +1,6 @@
 {
   "name": "sweepai",
-  "version": "0.2.9",
+  "version": "0.2.1",
   "preferGlobal": true,
   "engines": {
     "node": ">=18.0.0"
@@ -20,7 +20,7 @@
     "test:e2e": "start-server-and-test start 4000 cypress:run",
     "preinstall": "node scripts/preinstall.js",
     "postinstall": "next build",
-    "release": "npm version patch && git push --follow-tags"
+    "release": "npm version patch && git add package.json && git commit -m 'Bumped version' && git push"
   },
   "dependencies": {
     "@codemirror/commands": "^6.3.3",

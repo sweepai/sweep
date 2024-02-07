@@ -1,6 +1,6 @@
 import React, { ReactNode, memo, useState } from "react";
 import { Snippet } from "../../../lib/search";
-import { FileChangeRequest } from "../../../lib/types";
+import { FileChangeRequest, snippetKey } from "../../../lib/types";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import FCRCreate from "./FCRCreate";
 import FCRModify from "./FCRModify";
@@ -133,7 +133,7 @@ const FCRList = memo(function FCRList({
   const [fcrInstructions, setFCRInstructions] = useState(() => {
     let newMap: { [key: string]: string } = {};
     fileChangeRequests.forEach((fcr: FileChangeRequest) => {
-      newMap[fcr.snippet.file] = fcr.instructions;
+      newMap[snippetKey(fcr.snippet)] = fcr.instructions;
     });
     return newMap;
   });

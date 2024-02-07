@@ -29,7 +29,7 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     - name: Bump version and push tag
-      uses: phips28/gh-action-bump-version@v7.x
+      uses: phips28/gh-action-bump-version@master
       with:
         tag-prefix: ''
       env:

@@ -3,7 +3,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import CodeMirror, { EditorView, keymap, lineNumbers } from "@uiw/react-codemirror";
-import { FileChangeRequest, Snippet } from "@/lib/types";
+import { FileChangeRequest, Snippet } from "../../lib/types";
 import { ScrollArea } from "../ui/scroll-area";
 import { Button } from "../ui/button";
 import { indentWithTab } from "@codemirror/commands";
@@ -11,13 +11,14 @@ import { indentUnit } from "@codemirror/language";
 import { xml } from "@codemirror/lang-xml";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { Switch } from "../ui/switch";
-import { getFile } from "@/lib/api.service";
+import { getFile } from "../../lib/api.service";
 import Markdown from 'react-markdown'
 import { Mention, MentionsInput, SuggestionDataItem } from "react-mentions";
 import { Badge } from "../ui/badge";
 import { FaTimes } from "react-icons/fa";
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { toast } from "sonner";
 
 const codeStyle = {
   ...vscDarkPlus,
@@ -29,7 +30,7 @@ const codeStyle = {
 
 const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
 
-const userMessagePrompt = `Here are relevant read-only files:
+const userMessagePromptOld = `Here are relevant read-only files:
 <read_only_files>
 {readOnlyFiles}
 </read_only_files>
@@ -74,6 +75,44 @@ Concisely outline the minimal plan that solves the user request by referencing t
 
 </plan>`
 
+const userMessagePrompt = `Here are relevant read-only files:
+<read_only_files>
+{readOnlyFiles}
+</read_only_files>
+
+Here is the user's request:
+<user_request>
+{userRequest}
+</user_request>
+
+# Task:
+Analyze the snippets, repo, and user request to break down the requested change and propose a plan to addresses the user's request. Mention all changes required to solve the request.
+
+Provide a plan to solve the issue, following these rules:
+* You may only create new files and modify existing files but may not necessarily need both.
+* Include the full path (e.g. src/main.py and not just main.py), using the snippets for reference.
+* Use natural language instructions on what to modify regarding business logic.
+* Be concrete with instructions and do not write "identify x" or "ensure y is done". Instead write "add x" or "change y to z".
+* Refer to the user as "you".
+
+# Plan:
+<plan>
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
+* Concise natural language instructions for creating the new file needed to solve the issue.
+* Reference necessary files, imports and entity names.
+...
+</create>
+...
+
+<modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Concise natural language instructions for the modifications needed to solve the issue.
+* Reference necessary files, imports and entity names.
+...
+</modify>
+...
+
+</plan>`
+
 const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_line}" end_line="{end_line}">
 {contents}
 </read_only_file>`;
@@ -88,10 +127,12 @@ const capitalize = (s: string) => {
 const DashboardPlanning = ({
   repoName,
   files,
+  setLoadingMessage,
   setFileChangeRequests,
 }: {
   repoName: string;
   files: {label: string; name: string}[];
+  setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
   setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
 }) => {
   const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "" as string);
@@ -124,6 +165,7 @@ const DashboardPlanning = ({
     console.log("Generating plan...")
     console.log(instructions)
     setIsLoading(true)
+    setLoadingMessage("Queued...")
     try {
       setChainOfThought("")
       setCurrentFileChangeRequests([])
@@ -150,6 +192,7 @@ const DashboardPlanning = ({
           systemMessagePrompt,
         }),
       })
+      setLoadingMessage("Planning...")
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
       let rawText = "";
@@ -161,6 +204,7 @@ const DashboardPlanning = ({
         const text = decoder.decode(value);
         rawText += text;
         setRawResponse(rawText)
+        console.log(rawText)
         const chainOfThoughtMatch = rawText.match(chainOfThoughtPattern);
         setChainOfThought(chainOfThoughtMatch?.groups?.content || "")
         if (thoughtsRef.current) {
@@ -204,8 +248,10 @@ const DashboardPlanning = ({
       }
     } catch (e) {
       console.error(e)
+      toast.error("An error occurred while generating the plan.")
     } finally {
       setIsLoading(false)
+      setLoadingMessage("")
     }
   }
 
@@ -239,7 +285,7 @@ const DashboardPlanning = ({
 
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       <div className="flex flex-row justify-between items-center mb-2">
         <Label className="mr-2">
           Instructions
@@ -327,23 +373,6 @@ const DashboardPlanning = ({
           Generate Plan
         </Button>
       </div>
-      <Label className="mb-2">
-        Sweep&apos;s Thoughts
-      </Label>
-      {chainOfThought.length ? (
-        <div className="rounded border p-4 mb-8 overflow-y-auto" ref={thoughtsRef}>
-          <Markdown
-            className="react-markdown max-h-[150px]"
-
-          >
-            {chainOfThought}
-          </Markdown>
-        </div>
-      ): (
-        <div className="text-zinc-500 mb-4">
-          No thoughts generated yet.
-        </div>
-      )}
       <div className="flex flex-row mb-2 items-center">
         <Label className="mb-0">
           Sweep&apos;s Plan
@@ -360,7 +389,7 @@ const DashboardPlanning = ({
           Debug mode
         </Switch>
       </div>
-      <div className="overflow-y-auto max-h-[300px]" ref={planRef}>
+      <div className="overflow-y-auto" ref={planRef}>
         {debugLogToggle ? (
           <CodeMirror
             value={rawResponse}
@@ -378,7 +407,7 @@ const DashboardPlanning = ({
               var path = filePath.split("/");
               const fileName = path.pop();
               if (path.length > 2) {
-                path = path.slice(0, 1).concat(["..."]).concat(path.slice(path.length - 1))
+                path = path.slice(0, 1).concat(["..."])
               }
               return (
                 <div className="rounded border p-3 mb-2" key={index}>
@@ -414,7 +443,6 @@ const DashboardPlanning = ({
                     components={{
                       code(props) {
                         const {children, className, node, ...rest} = props
-                        console.log(props)
                         const match = /language-(\w+)/.exec(className || '')
                         return match ? (
                           // @ts-ignore
@@ -475,7 +503,9 @@ const DashboardPlanning = ({
         <Button
           variant="secondary"
           className="bg-blue-800 hover:bg-blue-900 mt-4"
-          onClick={() => setFileChangeRequests(currentFileChangeRequests)}
+          onClick={() => {
+            setFileChangeRequests(currentFileChangeRequests)
+          }}
           disabled={isLoading}
         >
           Accept Plan

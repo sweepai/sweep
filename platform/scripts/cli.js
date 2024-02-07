@@ -64,14 +64,18 @@ consola.box(`
   }
   var envLocal = fs.readFileSync(envLocalPath, "utf8");
   if (!envLocal.includes("OPENAI_API_KEY")) {
-    const answers = await inquirer.prompt([
-      {
-        type: 'password',
-        mask: true,
-        name: 'openai_api_key',
-        message: 'Enter your OpenAI API key (https://platform.openai.com/api-keys):',
-      }
-    ])
+    let answers;
+    do {
+      answers = await inquirer.prompt([
+        {
+          type: 'password',
+          mask: '*',
+          name: 'openai_api_key',
+          message: 'Enter your OpenAI API key (https://platform.openai.com/api-keys):',
+          validate: input => input.startsWith("sk-") && input.length > 5 ? true : 'API key must start with "sk-". Please enter your OpenAI API key.',
+        }
+      ]);
+    } while (!answers.openai_api_key);
     envLocal += `OPENAI_API_KEY=${answers.openai_api_key}\n`;
     fs.writeFileSync(envLocalPath, envLocal);
   }
