@@ -22,7 +22,6 @@ const FCRCreate = memo(function FCRCreate({
   setCurrentFileChangeRequestIndex,
   getFileChanges,
   setReadOnlySnippetForFCR,
-  setReadOnlyFilesOpen,
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
@@ -50,10 +49,6 @@ const FCRCreate = memo(function FCRCreate({
   setReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
     snippet: Snippet,
-  ) => void;
-  setReadOnlyFilesOpen: (
-    open: boolean,
-    fileChangeRequest: FileChangeRequest,
   ) => void;
   removeReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
@@ -210,7 +205,6 @@ const FCRCreate = memo(function FCRCreate({
                     content: contents, // this is the slice based on start and end, remeber to change this
                   } as Snippet;
                   setReadOnlySnippetForFCR(fcr, newSnippet);
-                  setReadOnlyFilesOpen(false, fcr);
                 }}
                 appendSpaceOnAdd={true}
               />
@@ -271,6 +265,7 @@ const FCRCreate = memo(function FCRCreate({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
+                      setStatusForFCR("idle", fcr);
                     }}
                   >
                     <FaStop />

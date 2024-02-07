@@ -307,34 +307,27 @@ const DashboardActions = ({
     }
   };
 
-  const setReadOnlyFilesOpen = (
-    newOpen: boolean,
-    fcr: FileChangeRequest,
-    index: number | undefined = undefined,
-  ) => {
+  const setDiffForFCR = (newDiff: string, fcr: FileChangeRequest) => {
     try {
-      let fcrIndex = index;
-      if (typeof index === "undefined") {
-        fcrIndex = fileChangeRequests.findIndex(
-          (fileChangeRequest: FileChangeRequest) =>
-            fcrEqual(fileChangeRequest, fcr),
-        );
-      }
+      const fcrIndex = fileChangeRequests.findIndex(
+        (fileChangeRequest: FileChangeRequest) =>
+          fcrEqual(fileChangeRequest, fcr),
+      );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex!],
-            openReadOnlyFiles: newOpen,
+          { 
+            ...prev[fcrIndex], 
+            diff: newDiff 
           },
-          ...prev.slice(fcrIndex! + 1),
+          ...prev.slice(fcrIndex + 1),
         ];
       });
     } catch (error) {
-      console.error("Error in setReadOnlyFilesOpen: ", error);
+      console.error("Error in setDiffForFCR: ", error);
     }
-  };
+  }
 
   useEffect(() => {
     if (repoName === "") {
@@ -557,11 +550,7 @@ const DashboardActions = ({
     const patches = fileChangeRequests
       .slice(0, index)
       .map((fcr: FileChangeRequest) => {
-        return createPatch(
-          fcr.snippet.file,
-          fcr.snippet.entireFile,
-          fcr.newContents,
-        );
+        return fcr.diff
       })
       .join("\n\n");
 
@@ -750,7 +739,9 @@ const DashboardActions = ({
             ],
             action: { label: "Dismiss", onClick: () => {} },
           });
+          const newDiff = Diff.createPatch(filePath, fcr.snippet.entireFile, fcr.newContents);
           setIsLoading(false, fcr);
+          setDiffForFCR(newDiff, fcr);
           isRunningRef.current = false;
           break;
         }
@@ -889,12 +880,8 @@ const DashboardActions = ({
             setFileChangeRequests={setFileChangeRequests}
             currentFileChangeRequestIndex={currentFileChangeRequestIndex}
             setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-            setFileForFCR={setFileForFCR}
-            setOldFileForFCR={setOldFileForFCR}
-            setHideMerge={setHideMerge}
             getFileChanges={getFileChanges}
             setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-            setReadOnlyFilesOpen={setReadOnlyFilesOpen}
             removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
             removeFileChangeRequest={removeFileChangeRequest}
             isRunningRef={isRunningRef}
