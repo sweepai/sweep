@@ -422,8 +422,11 @@ const DashboardActions = ({
           .split("\n")
           .map((line) => " ".repeat(i) + line)
           .join("\n");
-      console.log(newOldCode)
-      if (isSublist(lines, newOldCode.split("\n"))) {
+      var newOldCodeLines = newOldCode.split("\n")
+      if (newOldCodeLines[0] === "") {
+        newOldCode = newOldCode.slice(1);
+      }
+      if (isSublist(lines, newOldCodeLines)) {
         newNewCode =
           "\n" +
           newCode
