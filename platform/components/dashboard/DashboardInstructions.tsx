@@ -1,4 +1,4 @@
-import React, { memo, forwardRef } from "react";
+import React, { memo, forwardRef, Ref } from "react";
 import { Snippet } from "../../lib/search";
 import { Tabs, TabsContent } from "../ui/tabs";
 import { FileChangeRequest } from "../../lib/types";
@@ -6,7 +6,7 @@ import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
 import { Button } from "../ui/button";
 
-const DashboardInstructions = ({
+const DashboardInstructions = forwardRef(({
   filePath,
   repoName,
   files,
@@ -62,9 +62,9 @@ const DashboardInstructions = ({
   isRunningRef: React.MutableRefObject<boolean>;
   refreshFiles: () => Promise<void>;
   getAllFileChanges: () => Promise<void>;
-}) => {
+}, ref: Ref<HTMLDivElement>) => {
   return (
-    <div className="grow mb-4 h-full min-h-0 rounded-md p-4 overflow-auto border">
+    <div className="grow mb-4 h-full min-h-0 rounded-md p-4 overflow-auto border" ref={ref}>
       <ModifyOrCreate
         filePath={filePath}
         repoName={repoName}
@@ -91,19 +91,20 @@ const DashboardInstructions = ({
         removeFileChangeRequest={removeFileChangeRequest}
         isRunningRef={isRunningRef}
       />
-      {fileChangeRequests.length === 0 && (
+      {fileChangeRequests.length === 0 ? (
         <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
+      ): (
+        <div className="text-right mt-2">
+          <Button
+            variant={"secondary"}
+            className="bg-blue-800 hover:bg-blue-900"
+            onClick={() => getAllFileChanges()}
+          >
+            Run all
+          </Button>
+        </div>
       )}
-      <div className="text-right">
-        <Button
-          variant={"secondary"}
-          className="bg-blue-800 hover:bg-blue-900"
-          onClick={() => getAllFileChanges()}
-        >
-          Run all
-        </Button>
-      </div>
     </div>
   );
-};
+});
 export default memo(DashboardInstructions);
