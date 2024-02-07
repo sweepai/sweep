@@ -3,20 +3,21 @@ import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
 # Sweep Assistant
 
-This is a locally running dev tool for getting Sweep to code alongside you. All of your code will be executed locally (your code will only be sent to OpenAI).
+Sweep is a locally running dev tool that codes alongside you. To preserve your security, Sweep will only send code to your OpenAI endpoint. If you use Azure OpenAI, all of your code will stay within your network.
+
+<img src="/assistant/sweep_modify_gif_small.gif" alt="Sweep Assistant" style={{maxWidth: "100%", borderRadius: 10}} />
 
 ## Installation (2 min)
 
-<Callout type="warning" emoji={<FaExclamationCircle style={{marginTop: 6, fontSize: 18}} />}>
-**Pre-requisites**
+<Callout type="error" emoji={<FaExclamationCircle style={{marginTop: 6, fontSize: 18}} />}>
+**Prerequisites**
 <ol style={{marginTop: 5}}>
-1. [OpenAI API key](https://platform.openai.com)
-2. [Node.js v18+](https://nodejs.org/en/download/) should be installed. If you are using a different version, you can use `npm install -g n && n 18`
- to upgrade your Node.js version.
+1. OpenAI API key(https://platform.openai.com)
+2. Node.js **v18+**(https://nodejs.org/en/download/). Use `npm install -g n && n 18` to use Node.js v18.
 </ol>
 </Callout>
 
-Install the assistant by running the following command in your terminal:
+Install Sweep by running the following command in your terminal:
 
 <Tabs items={["npm (recommended)", "curl"]}>
   <Tabs.Tab>
@@ -25,7 +26,20 @@ npm i -g sweepai && npx sweepai build
 npx sweepai
 ```
 
-Then run `npx sweepai` for subsequent runs. To update the assistant, run
+<details>
+<summary>Having Trouble❓</summary>
+1. If you see a build error, you may be on version 16 of Node.js. You can upgrade to version 18 by running the following command:
+```sh filename="terminal"
+npm install -g n && n 18
+```
+
+2. If you see a permissions issue, you can fix it by running the following command:
+```sh filename="terminal"
+sudo (npm i -g sweepai && npx sweepai build)
+```
+</details>
+
+You can run `npx sweepai` to start Sweep in the future. To update the assistant, run
 
 ```sh filename="terminal"
 npm update -g sweepai && npx sweepai build
@@ -40,11 +54,9 @@ Run the assistant by running `sweep` in your terminal. To update the assistant, 
   </Tabs.Tab>
 </Tabs>
 
----
-
 <details>
 <summary>Disabling Telemetry</summary>
-We collect telemetry to improve the assistant, including what types of tasks you're asking Sweep to handle.
+We collect telemetry (not code) to improve the assistant, such as the types of tasks you're asking Sweep to handle.
 
 To disable telemetry, add `NEXT_PUBLIC_NO_TELEMETRY=true` to your `.env` in your Sweep Assistant directory.
 
