@@ -24,7 +24,8 @@ describe('main platform', () => {
       cy.get('.grow > .p-2').click()
 
       console.log("Selecting Dockerfile as file to edit")
-      cy.contains(".bg-blue-800", "Modify file").click();
+      cy.get('#creation-panel-plus-sign-wraper > .flex > .inline-flex').trigger('mouseover')
+      cy.contains("button", "Modify file").click();
       cy.get('input[role="combobox"]').type("dockerfile");
       cy.get('[data-value="dockerfile"]').click();
 

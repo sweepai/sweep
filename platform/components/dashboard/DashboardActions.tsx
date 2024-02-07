@@ -154,8 +154,6 @@ const isSublist = (lines: string[], subList: string[]): boolean => {
   return false;
 };
 
-const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
-
 const DashboardActions = ({
   filePath,
   setScriptOutput,
@@ -236,22 +234,8 @@ const DashboardActions = ({
   const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
   const isRunningRef = useRef(false)
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
-  const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
-  const setInstructions = (instructions: string) => {
-    setFileChangeRequests((prev: FileChangeRequest[]) => {
-      return prev.map((fileChangeRequest: FileChangeRequest, index: number) => {
-        if (index === currentFileChangeRequestIndex) {
-          return {
-            ...fileChangeRequest,
-            instructions: instructions,
-          };
-        }
-        return fileChangeRequest;
-      });
-    });
-  }
 
-  const [currentTab = "planning", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
+  const [currentTab = "coding", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
 
   const refreshFiles = async () => {
     try {
@@ -821,7 +805,7 @@ const DashboardActions = ({
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-     <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
+     <Tabs defaultValue="coding" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
       <div className="flex flex-row justify-between">
         <div className="flex flex-row">
           <TabsList>
@@ -890,10 +874,8 @@ const DashboardActions = ({
           repoName={repoName}
           files={files}
           setLoadingMessage={setLoadingMessage}
-          setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
-            setFileChangeRequests(fileChangeRequests);
-            setCurrentTab("coding");
-          }}
+          setFileChangeRequests={setFileChangeRequests}
+          setCurrentTab={setCurrentTab}
         />
       </TabsContent>
       <TabsContent value="coding" className="h-full">
@@ -920,6 +902,7 @@ const DashboardActions = ({
             getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
             setStatusForFCR={setStatusForFCR}
             setStatusForAll={setStatusForAll}
+            setCurrentTab={setCurrentTab}
           />
         <Collapsible
           open={validationScriptCollapsibleOpen}

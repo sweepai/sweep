@@ -1,10 +1,9 @@
 import React, { ReactNode, memo, useEffect, useState } from "react";
-import { getFile, writeFile } from "../../../lib/api.service";
+import { getFile } from "../../../lib/api.service";
 import { Snippet } from "../../../lib/search";
 import { FileChangeRequest, snippetKey } from "../../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
-import { toast } from "sonner";
+import { FaStop, FaTrash } from "react-icons/fa6";
 import { Badge } from "../../ui/badge";
 import { Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
@@ -21,9 +20,6 @@ const FCRCreate = memo(function FCRCreate({
   repoName,
   setFileChangeRequests,
   setCurrentFileChangeRequestIndex,
-  setFileForFCR,
-  setOldFileForFCR,
-  setHideMerge,
   getFileChanges,
   setReadOnlySnippetForFCR,
   setReadOnlyFilesOpen,
@@ -47,9 +43,6 @@ const FCRCreate = memo(function FCRCreate({
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
-  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
-  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
-  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   getFileChanges: (
     fileChangeRequest: FileChangeRequest,
     index: number,

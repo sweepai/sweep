@@ -4,6 +4,7 @@ import { FileChangeRequest } from "../../lib/types";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
 import { Button } from "../ui/button";
+import CreationPanel from "./sections/CreationPanel";
 
 const DashboardInstructions = forwardRef(function DashboardInstructions({
   filePath,
@@ -26,7 +27,8 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
   syncAllFiles,
   getAllFileChanges,
   setStatusForFCR,
-  setStatusForAll
+  setStatusForAll,
+  setCurrentTab,
 }: {
   filePath: string;
   repoName: string;
@@ -65,6 +67,7 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
   getAllFileChanges: () => Promise<void>;
   setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
   setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void;
+  setCurrentTab: React.Dispatch<React.SetStateAction<"planning" | "coding">>;
 }, ref: Ref<HTMLDivElement>) {
   return (
     <div className="grow mb-4 h-full min-h-0 rounded-md p-4 overflow-auto border" ref={ref}>
@@ -96,8 +99,17 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
         isRunningRef={isRunningRef}
         setStatusForFCR={setStatusForFCR}
       />
+      <CreationPanel
+        filePath={filePath}
+        repoName={repoName}
+        files={files}
+        directories={directories}
+        fileChangeRequests={fileChangeRequests}
+        setFileChangeRequests={setFileChangeRequests}
+        setCurrentTab={setCurrentTab}
+      />
       {fileChangeRequests.length === 0 ? (
-        <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
+        <div className="p-2 text-zinc-300">No File Change Requests added yet.</div>
       ): (
         <div className="text-right mt-2">
           <Button
