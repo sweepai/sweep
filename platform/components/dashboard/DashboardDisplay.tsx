@@ -299,8 +299,8 @@ const DashboardDisplay = () => {
             className="rounded-full border-zinc-800 border"
             src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif"
             alt="Sweeping"
-            height={100}
-            width={100}
+            height={75}
+            width={75}
           />
           <p className="mt-2">
             {loadingMessage}
