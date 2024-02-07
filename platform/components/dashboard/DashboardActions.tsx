@@ -799,10 +799,14 @@ const DashboardActions = ({
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
      <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
       <div className="flex flex-row justify-between">
-        <TabsList>
-          <TabsTrigger value="planning">Planning</TabsTrigger>
-          <TabsTrigger value="coding">Coding</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-row">
+          <TabsList>
+            <TabsTrigger value="planning">Planning</TabsTrigger>
+            <TabsTrigger value="coding">Coding</TabsTrigger>
+          </TabsList>
+
+        </div>
+        <div>
           <Dialog
             defaultOpen={repoName === ""}
             open={repoNameCollapsibleOpen}
@@ -810,7 +814,7 @@ const DashboardActions = ({
           >
             <Button
               variant="secondary"
-              className={`${files.length === 0 ? "bg-blue-800 hover:bg-blue-900" : ""}`}
+              className={`${repoName === "" ? "bg-blue-800 hover:bg-blue-900" : ""} h-full`}
               size="sm"
               onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
             >
@@ -855,6 +859,7 @@ const DashboardActions = ({
               </div>
             </DialogContent>
           </Dialog>
+        </div>
       </div>
       <TabsContent value="planning" className="rounded-xl border h-full p-4 h-[95%]">
         <DashboardPlanning
@@ -888,6 +893,7 @@ const DashboardActions = ({
             removeFileChangeRequest={removeFileChangeRequest}
             isRunningRef={isRunningRef}
             refreshFiles={refreshFiles}
+            getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
           />
         <Collapsible
           open={validationScriptCollapsibleOpen}

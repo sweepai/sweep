@@ -1,11 +1,12 @@
-import React, { memo } from "react";
+import React, { memo, forwardRef } from "react";
 import { Snippet } from "../../lib/search";
 import { Tabs, TabsContent } from "../ui/tabs";
 import { FileChangeRequest } from "../../lib/types";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
+import { Button } from "../ui/button";
 
-const DashboardInstructions = function DashboardInstructions({
+const DashboardInstructions = ({
   filePath,
   repoName,
   files,
@@ -24,6 +25,7 @@ const DashboardInstructions = function DashboardInstructions({
   removeFileChangeRequest,
   isRunningRef,
   refreshFiles,
+  getAllFileChanges,
 }: {
   filePath: string;
   repoName: string;
@@ -59,41 +61,49 @@ const DashboardInstructions = function DashboardInstructions({
   removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
   refreshFiles: () => Promise<void>;
-}) {
+  getAllFileChanges: () => Promise<void>;
+}) => {
   return (
-    <Tabs defaultValue="plan" className="grow mb-4 h-full min-h-0">
-      <TabsContent value="plan" className="h-full grow border rounded-md p-4 overflow-auto h-full">
-        <ModifyOrCreate
-          filePath={filePath}
-          repoName={repoName}
-          files={files}
-          directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          refreshFiles={refreshFiles}
-        />
-        <FCRList
-          repoName={repoName}
-          files={files}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
-          currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-          setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setHideMerge={setHideMerge}
-          getFileChanges={getFileChanges}
-          setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-          setReadOnlyFilesOpen={setReadOnlyFilesOpen}
-          removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-          removeFileChangeRequest={removeFileChangeRequest}
-          isRunningRef={isRunningRef}
-        />
-        {fileChangeRequests.length === 0 && (
-          <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
-        )}
-      </TabsContent>
-    </Tabs>
+    <div className="grow mb-4 h-full min-h-0 rounded-md p-4 overflow-auto border">
+      <ModifyOrCreate
+        filePath={filePath}
+        repoName={repoName}
+        files={files}
+        directories={directories}
+        fileChangeRequests={fileChangeRequests}
+        setFileChangeRequests={setFileChangeRequests}
+        refreshFiles={refreshFiles}
+      />
+      <FCRList
+        repoName={repoName}
+        files={files}
+        fileChangeRequests={fileChangeRequests}
+        setFileChangeRequests={setFileChangeRequests}
+        currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+        setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+        setFileForFCR={setFileForFCR}
+        setOldFileForFCR={setOldFileForFCR}
+        setHideMerge={setHideMerge}
+        getFileChanges={getFileChanges}
+        setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
+        setReadOnlyFilesOpen={setReadOnlyFilesOpen}
+        removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
+        removeFileChangeRequest={removeFileChangeRequest}
+        isRunningRef={isRunningRef}
+      />
+      {fileChangeRequests.length === 0 && (
+        <div className="p-2 text-zinc-300">No files added yet. Please click &quot;Modify a file&quot; or &quot;Create a file&quot; to add a file.</div>
+      )}
+      <div className="text-right">
+        <Button
+          variant={"secondary"}
+          className="bg-blue-800 hover:bg-blue-900"
+          onClick={() => getAllFileChanges()}
+        >
+          Run all
+        </Button>
+      </div>
+    </div>
   );
 };
-export default DashboardInstructions;
+export default memo(DashboardInstructions);
