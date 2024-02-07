@@ -14,12 +14,16 @@ jobs:
     steps:
     - name: Check out repository
       uses: actions/checkout@v2
+      with:
+        working-directory: ./platform
     - name: Use Node.js
       uses: actions/setup-node@v2
       with:
         node-version: '18'
+        working-directory: ./platform
     - name: Install pnpm
       run: npm install -g pnpm
+      working-directory: ./platform
     - name: Cache node modules
       uses: actions/cache@v2
       env:
@@ -33,6 +37,7 @@ jobs:
           ${{ runner.os }}-
     - name: Install dependencies
       run: pnpm install
+      working-directory: ./platform
     - name: Bump version and push tag
       uses: phips28/gh-action-bump-version@master
       with:
@@ -41,5 +46,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Publish to NPM
       run: pnpm publish
+      working-directory: ./platform
       env:
         NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
