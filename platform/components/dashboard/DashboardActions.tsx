@@ -517,6 +517,22 @@ const DashboardActions = ({
         var j = 0;
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
+          const text = decoder.decode(value);
+          rawText += text;
+          setStreamData((prev: string) => prev + text);
+          try {
+            let updatedFile = "";
+            let _ = "";
+            if (changeType == "modify") {
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
+            } else if (changeType == "create") {
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
+            }
+            updateIfChanged(updatedFile);
+            j += 1;
+          } catch (e) {
+            console.error(e);
+          }
           if (done) {
             let updatedFile = "";
             let patchingErrors = "";
@@ -550,24 +566,6 @@ const DashboardActions = ({
             rawText += "\n\n";
             setStreamData((prev) => prev + "\n\n");
             break;
-          }
-          const text = decoder.decode(value);
-          rawText += text;
-          setStreamData((prev: string) => prev + text);
-          try {
-            let updatedFile = "";
-            let _ = "";
-            if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
-            } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
-            }
-            if (j % 3 == 0) {
-              updateIfChanged(updatedFile);
-            }
-            j += 1;
-          } catch (e) {
-            console.error(e);
           }
         }
         if (!isRunningRef.current) {
