@@ -5,7 +5,6 @@ from loguru import logger
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
-from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
@@ -16,7 +15,6 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
-from sweepai.utils.str_utils import total_number_of_snippet_tokens
 
 
 @file_cache()
@@ -156,51 +154,6 @@ def fetch_relevant_files(
 
 SLOW_MODE = False
 SLOW_MODE = True
-
-
-def post_process_snippets(
-    snippets: list[Snippet],
-    max_num_of_snippets: int = 5,
-    exclude_snippets: list[str] = [],
-):
-    snippets = [
-        snippet
-        for snippet in snippets
-        if not any(
-            snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts
-        )
-    ]
-    snippets = [
-        snippet
-        for snippet in snippets
-        if not any(
-            snippet.file_path.startswith(exclude_snippet)
-            for exclude_snippet in exclude_snippets
-        )
-    ]
-
-    snippets = snippets[: min(len(snippets), max_num_of_snippets * 10)]
-    # snippet fusing
-    i = 0
-    while i < len(snippets):
-        j = i + 1
-        while j < len(snippets):
-            if snippets[i] ^ snippets[j]:  # this checks for overlap
-                snippets[i] = snippets[i] | snippets[j]  # merging
-                snippets.pop(j)
-            else:
-                j += 1
-        i += 1
-
-    # truncating snippets based on character length
-    result_snippets = []
-    total_length = 0
-    for snippet in snippets:
-        total_length += len(snippet.get_snippet())
-        if total_length > total_number_of_snippet_tokens * 5:
-            break
-        result_snippets.append(snippet)
-    return result_snippets[:max_num_of_snippets]
 
 
 def log_error(

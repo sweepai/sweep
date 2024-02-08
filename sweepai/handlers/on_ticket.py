@@ -988,16 +988,10 @@ def on_ticket(
                         )
                     raise Exception("No files to modify.")
 
-                (
-                    initial_sandbox_response,
-                    initial_sandbox_response_file,
-                ) = sweep_bot.validate_sandbox(file_change_requests)
-
                 file_change_requests: list[
                     FileChangeRequest
                 ] = sweep_bot.validate_file_change_requests(
                     file_change_requests,
-                    initial_sandbox_response=initial_sandbox_response,
                 )
                 ticket_progress.planning_progress.file_change_requests = (
                     file_change_requests

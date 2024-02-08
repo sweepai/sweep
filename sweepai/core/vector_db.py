@@ -25,11 +25,8 @@ from sweepai.config.server import (
     SENTENCE_TRANSFORMERS_MODEL,
     VECTOR_EMBEDDING_SOURCE,
 )
-from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
+from sweepai.core.lexical_search import prepare_index_from_snippets
 from sweepai.core.repo_parsing_utils import repo_to_chunks
-from sweepai.logn.cache import file_cache
-from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.progress import TicketProgress
@@ -368,83 +365,6 @@ def compute_embeddings(documents):
 
         embeddings = convert_to_numpy_array(embeddings, documents)
     return embeddings, documents_to_compute, computed_embeddings, embedding
-
-
-@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
-def get_relevant_snippets(
-    cloned_repo: ClonedRepo,
-    query: str,
-    username: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
-    lexical=True,
-):
-    repo_name = cloned_repo.repo_full_name
-    installation_id = cloned_repo.installation_id
-    logger.info("Getting query embedding...")
-    query_embedding = embedding_function([query])  # pylint: disable=no-member
-    logger.info("Starting search by getting vector store...")
-    deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
-        cloned_repo, sweep_config=sweep_config
-    )
-    content_to_lexical_score = search_index(query, lexical_index)
-    logger.info(f"Found {len(content_to_lexical_score)} lexical results")
-    logger.info(f"Searching for relevant snippets... with {num_docs} docs")
-    results = {"metadata": [], "text": []}
-    try:
-        results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        logger.exception("Exception occurred while fetching relevant snippets")
-    logger.info("Fetched relevant snippets...")
-    if len(results["text"]) == 0:
-        logger.info(f"Results query {query} was empty")
-        logger.info(f"Results: {results}")
-        if username is None:
-            username = "anonymous"
-        posthog.capture(
-            username,
-            "failed",
-            {
-                "reason": "Results query was empty",
-                "repo_name": repo_name,
-                "installation_id": installation_id,
-                "query": query,
-            },
-        )
-        return []
-    metadatas = results["metadata"]
-    code_scores = [metadata["score"] for metadata in metadatas]
-    lexical_scores = []
-    for metadata in metadatas:
-        key = f"{metadata['file_path']}:{str(metadata['start'])}:{str(metadata['end'])}"
-        if key in content_to_lexical_score:
-            lexical_scores.append(content_to_lexical_score[key])
-        else:
-            lexical_scores.append(0.3)
-    vector_scores = results["score"]
-    combined_scores = [
-        code_score * 4
-        + vector_score
-        + lexical_score * 2.5  # increase weight of lexical search
-        for code_score, vector_score, lexical_score in zip(
-            code_scores, vector_scores, lexical_scores
-        )
-    ]
-    combined_list = list(zip(combined_scores, metadatas))
-    sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
-    sorted_metadatas = [metadata for _, metadata in sorted_list]
-    relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
-    logger.info("Relevant paths: {}".format(relevant_paths[:5]))
-    return [
-        Snippet(
-            content="",
-            start=metadata["start"],
-            end=metadata["end"],
-            file_path=file_path,
-        )
-        for metadata, file_path in zip(sorted_metadatas, relevant_paths)
-    ][:num_docs]
 
 
 def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:

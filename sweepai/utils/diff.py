@@ -2,7 +2,6 @@ import difflib
 import re
 
 from sweepai.logn import logger
-from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.search_and_replace import Match, find_best_match
 
 
@@ -236,66 +235,6 @@ def get_matches(modify_file_response):
         r"<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>", modify_file_response, re.DOTALL
     )
     return matches
-
-
-def generate_new_file_from_patch(
-    modify_file_response: str,
-    old_file_content: str,
-    chunk_offset: int = 0,
-):
-    old_file_lines = old_file_content.split("\n")
-
-    # Extract content between <new_file> tags
-    matches = get_matches(modify_file_response)
-    errors = []
-
-    if not old_file_content.strip():
-        # If old file is empty, just return the first match
-        logger.print(matches)
-        search_and_replace, *_ = matches
-        return search_and_replace[1]
-
-    for search, replace in matches:
-        # Remove trailing tags
-        if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith(
-            "<old_file>"
-        ):
-            search = search.lstrip()[len("<old_file>") :]
-            replace = replace.lstrip()[len("<old_file>") :]
-        # Remove trailing tags
-        if search.rstrip().endswith("</old_file>") and replace.rstrip().endswith(
-            "</old_file>"
-        ):
-            search = search.rstrip()[: -len("</old_file>")]
-            replace = replace.rstrip()[: -len("</old_file>")]
-        if replace.lstrip().startswith("<new_file>"):
-            replace = replace.lstrip()[len("<new_file>") :]
-        elif replace.lstrip().startswith("<updated_file>"):
-            replace = replace.lstrip()[len("<updated_file>") :]
-        if replace.rstrip().endswith("</new_file>"):
-            replace = replace.rstrip()[: -len("</new_file>")]
-        elif replace.rstrip().endswith("</updated_file>"):
-            replace = replace.rstrip()[: -len("</updated_file>")]
-        if replace.endswith("===="):
-            replace = replace[: -len("====")]
-        old_file_lines, best_match, status = sliding_window_replacement(
-            old_file_lines, search.split("\n"), replace.split("\n")
-        )
-
-        if status is not None:
-            s = search.replace("`", "\\`")
-            r = replace.replace("`", "\\`")
-            errors.append(f"- {status}\n```\n{s}\n```\n\n```\n{r}\n```")
-
-    if len(errors) > 0:
-        log = "\n\n".join(errors)
-        discord_log_error(
-            f"Modify Parsing Errors gpt3.5: \n" + log,
-            priority=2,
-        )
-
-    result = "\n".join(old_file_lines)
-    return result, errors
 
 
 def join_contents_k(first, second, k):
