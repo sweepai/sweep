@@ -248,7 +248,7 @@ const DashboardActions = ({
         throw new Error("No files found in the repository");
       }
       toast.success(
-        "Successfully fetched files from the repository!",
+        `Successfully fetched ${sortedFiles.length} files from the repository!`,
         { action: { label: "Dismiss", onClick: () => {} } },
       );
       setCurrentRepoName((currentRepoName: string) => {
@@ -317,9 +317,9 @@ const DashboardActions = ({
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
-          { 
-            ...prev[fcrIndex], 
-            diff: newDiff 
+          {
+            ...prev[fcrIndex],
+            diff: newDiff
           },
           ...prev.slice(fcrIndex + 1),
         ];
