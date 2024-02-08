@@ -33,7 +33,7 @@ jobs:
             ${{ runner.os }}-pnpm-
       - name: Install pnpm
         run: npm install -g pnpm
-      - run: pnpm ci --frozen-lockfile
+      - run: pnpm ci
         working-directory: platform
       - run: pnpm run test:unit
         working-directory: platform
