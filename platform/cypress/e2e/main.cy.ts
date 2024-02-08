@@ -18,7 +18,7 @@ describe('main platform', () => {
 
       cy.contains("span", "Close").click({force: true});
 
-      cy.contains("div", "Successfully fetched files from the repository!")
+      cy.contains("div", "Successfully fetched ")
 
       console.log("Collapsing dropdown")
       cy.get('.grow > .p-2').click()

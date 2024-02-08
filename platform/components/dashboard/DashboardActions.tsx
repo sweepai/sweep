@@ -248,7 +248,7 @@ const DashboardActions = ({
         throw new Error("No files found in the repository");
       }
       toast.success(
-        "Successfully fetched files from the repository!",
+        `Successfully fetched ${sortedFiles.length} files from the repository!`,
         { action: { label: "Dismiss", onClick: () => {} } },
       );
       setCurrentRepoName((currentRepoName: string) => {
@@ -317,9 +317,9 @@ const DashboardActions = ({
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
-          { 
-            ...prev[fcrIndex], 
-            diff: newDiff 
+          {
+            ...prev[fcrIndex],
+            diff: newDiff
           },
           ...prev.slice(fcrIndex + 1),
         ];
@@ -390,8 +390,8 @@ const DashboardActions = ({
           .map((line) => " ".repeat(i) + line)
           .join("\n");
       var newOldCodeLines = newOldCode.split("\n")
-      if (newOldCodeLines[0] === "") {
-        newOldCode = newOldCode.slice(1);
+      if (newOldCodeLines[0].length === 0) {
+        newOldCodeLines = newOldCodeLines.slice(1);
       }
       if (isSublist(lines, newOldCodeLines)) {
         newNewCode =
@@ -459,6 +459,7 @@ const DashboardActions = ({
     if (!changesMade) {
       errorMessage += "No valid diff hunks were found in the response.\n\n";
     }
+    console.error(errorMessage)
     return [currentFileContents, errorMessage];
   };
 
@@ -467,7 +468,7 @@ const DashboardActions = ({
     fileContents: string,
   ): [string, string] => {
     let errorMessage = "";
-    const diffRegexCreate = /<new_file(.*?)>(?<newFile>.*)<\/new_file>/gs;
+    const diffRegexCreate = /<new_file(.*?)>(?<newFile>.*?)($|<\/new_file>)/gs;
     const diffMatches: any = response.matchAll(diffRegexCreate)!;
     if (!diffMatches) {
       return ["", ""];
@@ -493,6 +494,7 @@ const DashboardActions = ({
     if (!changesMade) {
       errorMessage += "No new file was created.\n\n";
     }
+    console.error(errorMessage)
     return [currentFileContents, errorMessage];
   };
 
@@ -516,6 +518,7 @@ const DashboardActions = ({
     const parsingErrorMessageOld = checkCode(oldFile, filePath);
     const parsingErrorMessage = checkCode(newFile, filePath);
     if (!parsingErrorMessageOld && parsingErrorMessage) {
+      console.error(parsingErrorMessage)
       return parsingErrorMessage;
     }
     var { stdout, stderr, code } = await runScript(
@@ -524,16 +527,16 @@ const DashboardActions = ({
       validationScript,
       oldFile,
     );
-    if (code !== 0) {
-      toast.error(
-        "An error occured while running the validation script. Please disable it or configure it properly (see bottom left).",
-        {
-          description: stdout + "\n" + stderr,
-          action: { label: "Dismiss", onClick: () => {} },
-        },
-      );
-      return "";
-    }
+    // if (code !== 0) {
+    //   toast.error(
+    //     "An error occured while running the validation script. Please disable it or configure it properly (see bottom left).",
+    //     {
+    //       description: stdout + "\n" + stderr,
+    //       action: { label: "Dismiss", onClick: () => {} },
+    //     },
+    //   );
+    //   return "";
+    // }
     var { stdout, stderr, code } = await runScript(
       repoName,
       filePath,
@@ -541,6 +544,7 @@ const DashboardActions = ({
       newFile,
     );
     // TODO: add diff
+    console.error(code, stdout + stderr)
     return code !== 0 ? stdout + "\n" + stderr : "";
   };
 
@@ -572,11 +576,11 @@ const DashboardActions = ({
       snippets: Object.values(fcr.readOnlySnippets),
     };
     const additionalMessages: Message[] = [];
-    var currentContents = fcr.snippet.entireFile.replace(/\\n/g, "\\n");
+    var currentIterationContents = (fcr.snippet.entireFile || "").replace(/\\n/g, "\\n");
     let errorMessage = "";
     let userMessage = formatUserMessage(
       fcr.instructions,
-      currentContents,
+      currentIterationContents,
       Object.values(fcr.readOnlySnippets),
       patches,
       changeType
@@ -604,13 +608,13 @@ const DashboardActions = ({
       }
       if (i !== 0) {
         var retryMessage = "";
-        if (fcr.snippet.entireFile === currentContents) {
+        if (fcr.snippet.entireFile === currentIterationContents) {
           retryMessage = retryChangesMadePrompt.replace(
             "{changes_made}",
             createPatch(
               fcr.snippet.file,
               fcr.snippet.entireFile,
-              currentContents,
+              currentIterationContents,
             ),
           );
         } else {
@@ -627,7 +631,7 @@ const DashboardActions = ({
         method: "POST",
         body: JSON.stringify({
           ...body,
-          fileContents: currentContents,
+          fileContents: currentIterationContents,
           additionalMessages,
           userMessage,
         }),
@@ -635,10 +639,11 @@ const DashboardActions = ({
       setLoadingMessage("Generating code...")
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = "";
+      var currentContents = currentIterationContents;
       const updateIfChanged = (newContents: string) => {
-        if (newContents !== currentContents) {
+        if (newContents !== currentIterationContents) {
           setFileForFCR(newContents, fcr);
-          currentContents = newContents;
+          currentContents = newContents
         }
       };
       try {
@@ -656,14 +661,14 @@ const DashboardActions = ({
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
-                fcr.snippet.entireFile,
+                currentIterationContents
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
                 rawText || "",
-                fcr.snippet.entireFile,
+                currentIterationContents
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
@@ -691,9 +696,9 @@ const DashboardActions = ({
             let updatedFile = "";
             let _ = "";
             if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
             } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
             }
             if (j % 3 == 0) {
               updateIfChanged(updatedFile);
@@ -717,6 +722,7 @@ const DashboardActions = ({
           fcr.snippet.entireFile.length - fcr.newContents.length,
         );
         if (errorMessage.length > 0) {
+          console.error("errorMessage in loop", errorMessage)
           toast.error(
             "An error occured while generating your code." +
               (i < 2 ? " Retrying..." : " Retried 3 times so I will give up."),
@@ -729,9 +735,7 @@ const DashboardActions = ({
           setScriptOutput(validationOutput);
           setIsLoading(false, fcr);
           setStatusForFCR("error", fcr);
-          isRunningRef.current = false;
-          setLoadingMessage("")
-          return;
+          setLoadingMessage("Retrying...")
         } else {
           toast.success(`Successfully modified file!`, {
             description: [
@@ -746,6 +750,7 @@ const DashboardActions = ({
           break;
         }
       } catch (e: any) {
+        console.error("errorMessage in except block", errorMessage)
         toast.error("An error occured while generating your code.", {
           description: e,
           action: { label: "Dismiss", onClick: () => {} },
