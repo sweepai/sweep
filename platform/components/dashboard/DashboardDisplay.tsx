@@ -20,6 +20,7 @@ import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
 import { toast } from "sonner";
 import { FileChangeRequestsState } from "../../state/fcrAtoms";
 import { useRecoilState } from "recoil";
+import { setIsLoading, setStatusForFCR, setFileForFCR, setOldFileForFCR, removeFileChangeRequest, setStatusForAll, setHideMergeAll } from "../../state/fcrStateHelpers";
 
 const blockedPaths = [
   ".git",
@@ -75,59 +76,6 @@ const DashboardDisplay = () => {
     }
   };
 
-  const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest) => {
-    try {
-      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr)
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex],
-            isLoading: newIsLoading,
-          },
-          ...prev.slice(fcrIndex + 1),
-        ];
-      });
-    } catch (error) {
-      console.error("Error in setIsLoading: ", error);
-    }
-  };
-
-  const setStatusForFCR = (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => {
-    try {
-      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr)
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex],
-            status: newStatus,
-          },
-          ...prev.slice(fcrIndex + 1),
-        ];
-      });
-    } catch (error) {
-      console.error("Error in setStatus: ", error);
-    }
-  };
-
-  const setStatusForAll = (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => {
-    setFileChangeRequests((newFileChangeRequests) => {
-      return newFileChangeRequests.map((fileChangeRequest) => {
-        return {
-          ...fileChangeRequest,
-          status: newStatus,
-        };
-      });
-    });
-  }
-
   const setHideMerge = useCallback((newHideMerge: boolean, fcr: FileChangeRequest) => {
     try {
       const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
@@ -149,16 +97,7 @@ const DashboardDisplay = () => {
     }
   }, [fileChangeRequests]);
 
-  const setHideMergeAll = (newHideMerge: boolean) => {
-    setFileChangeRequests((newFileChangeRequests) => {
-      return newFileChangeRequests.map((fileChangeRequest) => {
-        return {
-          ...fileChangeRequest,
-          hideMerge: newHideMerge,
-        };
-      });
-    });
-  };
+
 
   const setOldFile = useCallback((newOldFile: string) => {
     setCurrentFileChangeRequestIndex((index) => {
@@ -179,30 +118,6 @@ const DashboardDisplay = () => {
     });
   }, []);
 
-  const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest) => {
-    try {
-      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr)
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex],
-            snippet: {
-              ...prev[fcrIndex].snippet,
-              entireFile: newOldFile,
-            },
-          },
-          ...prev.slice(fcrIndex + 1),
-        ];
-      });
-    } catch (error) {
-      console.error("Error in setOldFileForFCR: ", error);
-    }
-  };
-
   const setFile = useCallback((newFile: string) => {
     setCurrentFileChangeRequestIndex((index) => {
       setFileChangeRequests((newFileChangeRequests) => {
@@ -218,44 +133,6 @@ const DashboardDisplay = () => {
       return index;
     });
   }, []);
-
-  const setFileForFCR = (newFile: string, fcr: FileChangeRequest) => {
-    console.log("setting file for fcr", newFile, fcr)
-    try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fcrEqual(fileChangeRequest, fcr)
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex],
-            newContents: newFile,
-          },
-          ...prev.slice(fcrIndex + 1),
-        ];
-      });
-    } catch (error) {
-      console.error("Error in setFileForFCR: ", error);
-    }
-  };
-
-  const removeFileChangeRequest = (fcr: FileChangeRequest) => {
-    try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fcrEqual(fileChangeRequest, fcr)
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev: FileChangeRequest[]) => {
-        return [...prev.slice(0, fcrIndex), ...prev.slice(fcrIndex! + 1)];
-      });
-    } catch (error) {
-      console.error("Error in removeFileChangeRequest: ", error);
-    }
-  };
 
   useEffect(() => {
     (async () => {
