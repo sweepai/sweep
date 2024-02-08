@@ -596,7 +596,7 @@ const DashboardActions = ({
           validationOutput += "\n\n" + errorMessage;
           setScriptOutput(validationOutput);
           setIsLoading(false, fcr);
-          setStatusForFCR("error", fcr);
+          setStatusForFCR("in-progress", fcr);
           setLoadingMessage("Retrying...")
         } else {
           toast.success(`Successfully modified file!`, {
