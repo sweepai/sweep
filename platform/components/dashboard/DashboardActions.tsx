@@ -428,6 +428,24 @@ const DashboardActions = ({
         let globalUpdatedFile = ""; // this is really jank and bad but a quick fix because of the async nature of setters in react
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
+          const text = decoder.decode(value);
+          rawText += text;
+          setStreamData((prev: string) => prev + text);
+          try {
+            let updatedFile = "";
+            let _ = "";
+            if (changeType == "modify") {
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
+            } else if (changeType == "create") {
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
+            }
+            if (j % 3 == 0) {
+              updateIfChanged(updatedFile);
+            }
+            j += 1;
+          } catch (e) {
+            console.error(e);
+          }
           if (done) {
             let updatedFile = "";
             let patchingErrors = "";
@@ -461,24 +479,6 @@ const DashboardActions = ({
             rawText += "\n\n";
             setStreamData((prev) => prev + "\n\n");
             break;
-          }
-          const text = decoder.decode(value);
-          rawText += text;
-          setStreamData((prev: string) => prev + text);
-          try {
-            let updatedFile = "";
-            let _ = "";
-            if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
-            } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
-            }
-            if (j % 3 == 0) {
-              updateIfChanged(updatedFile);
-            }
-            j += 1;
-          } catch (e) {
-            console.error(e);
           }
         }
         if (!isRunningRef.current) {
@@ -666,122 +666,95 @@ const DashboardActions = ({
           />
         <Collapsible
           open={validationScriptCollapsibleOpen}
-          className="border-2 rounded p-4"
+          className="border-2 rounded hover:cursor-pointer"
         >
-          <div className="flex flex-row justify-between items-center">
-            <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
-              <AlertDialog open={alertDialogOpen}>
-                <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
-                  <FaQuestion style={{fontSize: 12 }} />
-                </Button>
-                <Switch
-                  checked={doValidate}
-                  onClick={() => setDoValidate(!doValidate)}
-                  disabled={fileChangeRequests.some(
-                    (fcr: FileChangeRequest) => fcr.isLoading,
-                  )}
-                />
-                <AlertDialogContent className="p-12">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-5xl mb-2">
-                      Test and Validation Scripts
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-md pt-4">
-                      <p>
-                        We highly recommend setting up the validation script to
-                        allow Sweep to iterate against static analysis tools to
-                        ensure valid code is generated. You can this off by
-                        clicking the switch.
-                      </p>
-                      <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
-                        Validation Script
-                      </h2>
-                      <p>
-                        Sweep runs validation after every edit, and will try to
-                        auto-fix any errors.
-                        <br />
-                        <br />
-                        We recommend a syntax checker (a formatter suffices) and
-                        a linter. We also recommend using your local
-                        environment, to ensure we use your dependencies.
-                        <br />
-                        <br />
-                        For example, for Python you can use:
-                        <pre className="py-4">
-                          <code>
-                            python -m py_compile $FILE_PATH
-                            <br />
-                            pylint $FILE_PATH --error-only
-                          </code>
-                        </pre>
-                        And for JavaScript you can use:
-                        <pre className="py-4">
-                          <code>
-                            prettier $FILE_PATH
-                            <br />
-                            eslint $FILE_PATH
-                          </code>
-                        </pre>
-                      </p>
-                      <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
-                        Test Script
-                      </h2>
-                      <p>
-                        You can run tests after all the files have been edited
-                        by Sweep.
-                        <br />
-                        <br />
-                        E.g. For example, for Python you can use:
-                        <pre className="py-4">pytest $FILE_PATH</pre>
-                        And for JavaScript you can use:
-                        <pre className="py-4">jest $FILE_PATH</pre>
-                      </p>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setAlertDialogOpen(false)}>
-                      Close
-                    </AlertDialogCancel>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </Label>
+          <div
+            onClick={() => {
+              setValidationScriptCollapsibleOpen(open => !open)
+            }}
+            className="flex flex-row justify-between items-center p-4 hover:bg-zinc-900"
+          >
+            Checks&nbsp;
             <div className="grow"></div>
-            <Button
-              variant="secondary"
-              onClick={async () => {
-                posthog.capture("run_tests", {
-                  name: "Run Tests",
-                  repoName: repoName,
-                  filePath: filePath,
-                  validationScript: validationScript,
-                  testScript: testScript,
-                });
-                await runScriptWrapper(file);
-              }}
-              disabled={
-                fileChangeRequests.some(
+            <AlertDialog open={alertDialogOpen}>
+              <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
+                <FaQuestion style={{fontSize: 12 }} />
+              </Button>
+              <Switch
+                checked={doValidate}
+                onClick={() => setDoValidate(!doValidate)}
+                disabled={fileChangeRequests.some(
                   (fcr: FileChangeRequest) => fcr.isLoading,
-                ) || !doValidate
-              }
-              size="sm"
-              className="mr-2"
-            >
-              <FaPlay />
-              &nbsp;&nbsp;Run Tests
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
-              { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
-              <CaretSortIcon className="h-4 w-4" />
-              <span className="sr-only">Toggle</span>
-            </Button>
+                )}
+              />
+              <AlertDialogContent className="p-12">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-5xl mb-2">
+                    Test and Validation Scripts
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-md pt-4">
+                    <p>
+                      We highly recommend setting up the validation script to
+                      allow Sweep to iterate against static analysis tools to
+                      ensure valid code is generated. You can this off by
+                      clicking the switch.
+                    </p>
+                    <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
+                      Validation Script
+                    </h2>
+                    <p>
+                      Sweep runs validation after every edit, and will try to
+                      auto-fix any errors.
+                      <br />
+                      <br />
+                      We recommend a syntax checker (a formatter suffices) and
+                      a linter. We also recommend using your local
+                      environment, to ensure we use your dependencies.
+                      <br />
+                      <br />
+                      For example, for Python you can use:
+                      <pre className="py-4">
+                        <code>
+                          python -m py_compile $FILE_PATH
+                          <br />
+                          pylint $FILE_PATH --error-only
+                        </code>
+                      </pre>
+                      And for JavaScript you can use:
+                      <pre className="py-4">
+                        <code>
+                          prettier $FILE_PATH
+                          <br />
+                          eslint $FILE_PATH
+                        </code>
+                      </pre>
+                    </p>
+                    <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
+                      Test Script
+                    </h2>
+                    <p>
+                      You can run tests after all the files have been edited
+                      by Sweep.
+                      <br />
+                      <br />
+                      E.g. For example, for Python you can use:
+                      <pre className="py-4">pytest $FILE_PATH</pre>
+                      And for JavaScript you can use:
+                      <pre className="py-4">jest $FILE_PATH</pre>
+                    </p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setAlertDialogOpen(false)}>
+                    Close
+                  </AlertDialogCancel>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
-          <CollapsibleContent className="pt-2 CollapsibleContent">
-            <Label
-              className="mb-0"
-            >
+          <CollapsibleContent className="CollapsibleContent hover:cursor-default p-4 pt-2">
+            <Label className="mb-0">
               Validation Script&nbsp;
-
             </Label>
             <Textarea
               id="script-input"
@@ -812,6 +785,29 @@ const DashboardActions = ({
               Use $FILE_PATH to refer to the file you selected. E.g. `python
               $FILE_PATH`.
             </p>
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                posthog.capture("run_tests", {
+                  name: "Run Tests",
+                  repoName: repoName,
+                  filePath: filePath,
+                  validationScript: validationScript,
+                  testScript: testScript,
+                });
+                await runScriptWrapper(file);
+              }}
+              disabled={
+                fileChangeRequests.some(
+                  (fcr: FileChangeRequest) => fcr.isLoading,
+                ) || !doValidate
+              }
+              size="sm"
+              className="mr-2 bg-blue-800 hover:bg-blue-900"
+            >
+              <FaPlay />
+              &nbsp;&nbsp;Run Tests
+            </Button>
           </CollapsibleContent>
         </Collapsible>
       </div>
