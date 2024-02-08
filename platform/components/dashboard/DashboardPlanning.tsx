@@ -236,7 +236,10 @@ const DashboardPlanning = ({
         }
         setCurrentFileChangeRequests(fileChangeRequests)
         if (planRef.current) {
-          planRef.current.scrollTop = planRef.current.scrollHeight || 0;
+          const delta = 50; // Define a delta for the inequality check
+          if (Math.abs(planRef.current.scrollHeight - planRef.current.scrollTop - planRef.current.clientHeight) < delta) {
+            planRef.current.scrollTop = planRef.current.scrollHeight || 0;
+          }
         }
       }
     } catch (e) {
