@@ -331,7 +331,7 @@ const DashboardActions = ({
 
   // modify an existing file or create a new file
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
-    console.log("getting file changes");
+    console.log("getting file changes")
     var validationOutput = "";
     const patches = fileChangeRequests
       .slice(0, index)
