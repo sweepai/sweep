@@ -73,6 +73,7 @@
     "diff": "^5.1.0",
     "fuse.js": "^7.0.0",
     "inquirer": "^9.2.14",
+    "jest-environment-jsdom": "^29.7.0",
     "lucide-react": "^0.314.0",
     "next": "14.1.0",
     "next-themes": "^0.2.1",
@@ -93,6 +94,7 @@
     "tailwind-merge": "^2.2.1",
     "tailwindcss": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "ts-node": "^10.9.2",
     "tsc": "^2.0.4",
     "typescript": "^5.0.2",
     "usehooks-ts": "^2.9.5"

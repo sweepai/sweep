@@ -33,7 +33,7 @@ jobs:
             ${{ runner.os }}-pnpm-
       - name: Install pnpm
         run: npm install -g pnpm
-      - run: pnpm i -D --ignore-scripts && pnpm add ts-node jest-environment-jsdom
+      - run: pnpm i -D --ignore-scripts && pnpm add jest-environment-jsdom
         working-directory: platform
       - run: pnpm run test:unit
         working-directory: platform
