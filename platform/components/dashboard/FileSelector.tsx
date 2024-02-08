@@ -95,7 +95,7 @@ const FileSelector = memo(function FileSelector({
           revertControls="b-to-a"
           collapseUnchanged={{
             margin: 3,
-            minSize: 4
+            minSize: 6
           }}
         >
           <Original
