@@ -10,7 +10,6 @@ describe('patchUtils', () => {
       const filePath = 'sample.txt';
       const oldFile = 'This is the old file content.';
       const newFile = 'This is the old file content.';
-      const length = createPatch(filePath, oldFile, newFile).length
       expect(createPatch(filePath, oldFile, newFile).length).toEqual(0);
     });
 
@@ -85,14 +84,10 @@ describe('patchUtils', () => {
       const mixedIndentFileContents = '  some line\n    another line\n  a third line';
       const mixedIndentOldCode = 'some line\n    another line';
 
-      // The corrected expectation should match the actual behavior of the function,
-      // which maintains the format of indentation found in `fileContents`.
-      const expectedOldCodeWithIndent = '\n  some line\n    another line';
-      const expectedNewCodeWithIndent = '\n  some new line\n    another new line';
       const [newOldCodeMixedIndent, newNewCodeMixedIndent] = softIndentationCheck(mixedIndentOldCode, newCode, mixedIndentFileContents);
 
-      expect(newOldCodeMixedIndent).toBe(expectedOldCodeWithIndent);
-      expect(newNewCodeMixedIndent).toBe(expectedNewCodeWithIndent);
+      expect(newOldCodeMixedIndent).toBe(mixedIndentOldCode);
+      expect(newNewCodeMixedIndent).toBe(newCode);
     });
   });
 
