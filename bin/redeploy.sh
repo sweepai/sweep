@@ -30,6 +30,7 @@ cd ~/sweep
 docker build -t sweepai/sweep:latest -f Dockerfile.hosted .
 container_id=$(docker run -v $(pwd)/logn_logs:/app/logn_logs -v $(pwd)/sweep_docs:/app/sweep_docs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest)
 docker exec -it $container_id python tests/rerun_issue_direct.py --no-debug https://github.com/wwzeng1/landing-page/issues/114
+
 echo "Running test on https://github.com/wwzeng1/landing-page/issues/114"
 
 # Wait until webhook is available before rerouting traffic to it
@@ -45,20 +46,9 @@ while true; do
     fi
 done
 
-# Update the ngrok proxy to point to the new port
-screen -list | grep -q "\bngrok\b"
-SESSION_EXISTS=$?
 
-if [ $SESSION_EXISTS -ne 0 ]; then
-    screen -S ngrok -d -m
-    echo creating new session
-    sleep 1
-fi
-
-# Kill the ngrok process if it's already running
-screen -S ngrok -X stuff $'\003'
-sleep 1
-screen -S ngrok -X stuff $'ngrok http --domain=sweep-prod.ngrok.dev '$PORT$'\n'
+sudo iptables -t nat -L PREROUTING --line-numbers | grep 'REDIRECT' | tail -n1 | awk '{print $1}' | xargs -I {} sudo iptables -t nat -D PREROUTING {}
+sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port $PORT
 
 echo "Command sent to screen session on port: $PORT"
-echo "To view the ngrok logs, run: screen -r ngrok"
+echo "Success!"
