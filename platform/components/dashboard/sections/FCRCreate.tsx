@@ -157,6 +157,11 @@ const FCRCreate = memo(function FCRCreate({
               disabled={!newFileName}
               placeholder={instructionsPlaceholder}
               value={fcrInstructions[snippetKey(fcr.snippet)] || ""}
+              onKeyUp={(e: any) => {
+                if (e.key === "Enter" && e.ctrlKey && !isRunningRef.current) {
+                  getFileChanges(fcr, index);
+                }
+              }}
               onClick={(e: any) => {
                 setCurrentFileChangeRequestIndex(index);
               }}
@@ -249,7 +254,6 @@ const FCRCreate = memo(function FCRCreate({
                     size="sm"
                     className="mr-2"
                     onClick={(e: any) => {
-                      //console.log("clicked play button!", fcr)
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}

@@ -123,6 +123,11 @@ const FCRModify = memo(function FCRModify({
               className="min-h-[50px] w-full rounded-md border border-input bg-background MentionsInput mb-2"
               placeholder={instructionsPlaceholder}
               value={fcrInstructions[snippetKey(fcr.snippet)] || ""}
+              onKeyUp={(e: any) => {
+                if (e.key === "Enter" && e.ctrlKey && !isRunningRef.current) {
+                  getFileChanges(fcr, index);
+                }
+              }}
               onClick={(e: any) => {
                 setCurrentFileChangeRequestIndex(index);
               }}
