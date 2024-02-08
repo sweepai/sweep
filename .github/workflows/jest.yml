@@ -33,7 +33,7 @@ jobs:
             ${{ runner.os }}-pnpm-
       - name: Install pnpm
         run: npm install -g pnpm
-      - run: pnpm i
+      - run: pnpm i -D
         working-directory: platform
       - run: pnpm run test:unit
         working-directory: platform
