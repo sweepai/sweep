@@ -1,4 +1,4 @@
-import Diff from "diff";
+const Diff = require("diff")
 
 export const createPatch = (filePath: string, oldFile: string, newFile: string) => {
   if (oldFile === newFile) {
@@ -26,19 +26,24 @@ export const softIndentationCheck = (
   newCode: string,
   fileContents: string,
 ): [string, string] => {
+  // TODO: Unit test this
   let newOldCode = oldCode;
   let newNewCode = newCode;
-  const lines = fileContents.split("\n");
+  // expect there to be a newline at the beginning of oldCode
+  // find correct indentaton - try up to 16 spaces (8 indentations worth)
+
+  const lines = fileContents.split("\n")
   for (let i of [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]) {
+    // split new code by \n and add the same indentation to each line, then rejoin with new lines
     newOldCode =
       "\n" +
       oldCode
         .split("\n")
         .map((line) => " ".repeat(i) + line)
         .join("\n");
-    var newOldCodeLines = newOldCode.split("\n");
-    if (newOldCodeLines[0] === "") {
-      newOldCode = newOldCode.slice(1);
+    var newOldCodeLines = newOldCode.split("\n")
+    if (newOldCodeLines[0].length === 0) {
+      newOldCodeLines = newOldCodeLines.slice(1);
     }
     if (isSublist(lines, newOldCodeLines)) {
       newNewCode =
@@ -47,10 +52,10 @@ export const softIndentationCheck = (
           .split("\n")
           .map((line) => " ".repeat(i) + line)
           .join("\n");
-      break;
+      return [newOldCode, newNewCode];
     }
   }
-  return [newOldCode, newNewCode];
+  return [oldCode, newCode];
 };
 
 export const parseRegexFromOpenAIModify = (
