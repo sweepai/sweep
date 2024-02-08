@@ -16,7 +16,7 @@ class TestExtractLeftoverCommentsExtractLeftoverComments(unittest.TestCase):
         mock_from_string.return_value = MagicMock()
         mock_from_string.return_value.leftover_comments = []
 
-        extract_leftover_comments = ExtractLeftoverComments()
+        extract_leftover_comments = ExtractLeftoverComments(chat_logger=None)
         result = extract_leftover_comments.extract_leftover_comments(
             "new_code", "file_path", "request"
         )
@@ -30,7 +30,7 @@ class TestExtractLeftoverCommentsExtractLeftoverComments(unittest.TestCase):
     ):
         mock_check_comments_presence.return_value = False
 
-        extract_leftover_comments = ExtractLeftoverComments()
+        extract_leftover_comments = ExtractLeftoverComments(chat_logger=None)
         result = extract_leftover_comments.extract_leftover_comments(
             "new_code", "file_path", "request"
         )
