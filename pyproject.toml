@@ -45,7 +45,7 @@ python-Levenshtein = "0.21.1"
 logtail-python = "^0.2.6"
 
 # Backend dependencies
-fastapi = "^0.94.1"
+fastapi = "^0.109.1"
 uvicorn = "^0.21.0"
 pymongo = "^4.4.0"
 tiktoken = "^0.3.2"
