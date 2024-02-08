@@ -528,7 +528,9 @@ const DashboardActions = ({
             } else if (changeType == "create") {
               [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
             }
-            updateIfChanged(updatedFile);
+            if (j % 3 == 0) {
+              updateIfChanged(updatedFile);
+            }
             j += 1;
           } catch (e) {
             console.error(e);
