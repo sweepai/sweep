@@ -10,7 +10,12 @@ import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
 import { useRecoilState } from "recoil";
 import { FileChangeRequestsState } from "../../../state/fcrAtoms";
-import { setStatusForFCR, removeFileChangeRequest, setReadOnlySnippetForFCR, removeReadOnlySnippetForFCR } from "../../../state/fcrStateHelpers";
+import {
+  setStatusForFCR,
+  removeFileChangeRequest,
+  setReadOnlySnippetForFCR,
+  removeReadOnlySnippetForFCR,
+} from "../../../state/fcrStateHelpers";
 
 const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
 
@@ -45,12 +50,22 @@ const FCRModify = memo(function FCRModify({
   index: number;
   getDynamicClassNames: (fcr: FileChangeRequest, index: number) => string;
   getItemStyle: (isDragging: boolean, draggableStyle: any) => any;
-  mentionFiles: {id: any;display: any;}[];
-  fcrInstructions: { [key: string]: string; };
-  setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
-  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
+  mentionFiles: { id: any; display: any }[];
+  fcrInstructions: { [key: string]: string };
+  setFCRInstructions: React.Dispatch<
+    React.SetStateAction<{ [key: string]: string }>
+  >;
+  setUserSuggestion: (
+    suggestion: SuggestionDataItem,
+    search: string,
+    highlightedDisplay: ReactNode,
+    index: number,
+    focused: boolean,
+  ) => JSX.Element | null;
 }) {
-  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(
+    FileChangeRequestsState,
+  );
   return (
     <Draggable
       key={snippetKey(fcr.snippet)}
@@ -81,7 +96,7 @@ const FCRModify = memo(function FCRModify({
                 <span>
                   {
                     fcr.snippet.file.split("/")[
-                    fcr.snippet.file.split("/").length - 1
+                      fcr.snippet.file.split("/").length - 1
                     ]
                   }
                   :{fcr.snippet.start}-{fcr.snippet.end}
@@ -91,7 +106,11 @@ const FCRModify = memo(function FCRModify({
                   variant="secondary"
                   className="mr-2 ml-auto"
                   onClick={async () => {
-                    removeFileChangeRequest(fcr, fileChangeRequests, setFileChangeRequests);
+                    removeFileChangeRequest(
+                      fcr,
+                      fileChangeRequests,
+                      setFileChangeRequests,
+                    );
                     setFCRInstructions((prev: any) => {
                       return {
                         ...prev,
@@ -129,7 +148,7 @@ const FCRModify = memo(function FCRModify({
                 setFCRInstructions((prev: any) => {
                   return {
                     ...prev,
-                    [snippetKey(fcr.snippet)]: e.target.value
+                    [snippetKey(fcr.snippet)]: e.target.value,
                   };
                 });
               }}
@@ -161,7 +180,12 @@ const FCRModify = memo(function FCRModify({
                     entireFile: contents,
                     content: contents, // this is the slice based on start and end, remeber to change this
                   } as Snippet;
-                  setReadOnlySnippetForFCR(fcr, newSnippet, fileChangeRequests, setFileChangeRequests);
+                  setReadOnlySnippetForFCR(
+                    fcr,
+                    newSnippet,
+                    fileChangeRequests,
+                    setFileChangeRequests,
+                  );
                 }}
                 appendSpaceOnAdd={true}
                 // shift it down 5px
@@ -178,16 +202,17 @@ const FCRModify = memo(function FCRModify({
                     key={index}
                     className="bg-zinc-800 text-zinc-300"
                   >
-                    {
-                      snippetFile.split("/")[
-                      snippetFile.split("/").length - 1
-                      ]
-                    }
+                    {snippetFile.split("/")[snippetFile.split("/").length - 1]}
                     <FaTimes
                       key={String(index) + "-remove"}
                       className="bg-zinc-800 cursor-pointer"
                       onClick={() => {
-                        removeReadOnlySnippetForFCR(fcr, snippetFile, fileChangeRequests, setFileChangeRequests);
+                        removeReadOnlySnippetForFCR(
+                          fcr,
+                          snippetFile,
+                          fileChangeRequests,
+                          setFileChangeRequests,
+                        );
                       }}
                     />
                   </Badge>
@@ -207,7 +232,7 @@ const FCRModify = memo(function FCRModify({
                     size="sm"
                     className="mr-2"
                     onClick={(e: any) => {
-                      console.log("fcr:", fcr)
+                      console.log("fcr:", fcr);
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}
@@ -223,7 +248,12 @@ const FCRModify = memo(function FCRModify({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
-                      setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
+                      setStatusForFCR(
+                        "idle",
+                        fcr,
+                        fileChangeRequests,
+                        setFileChangeRequests,
+                      );
                     }}
                   >
                     <FaStop />

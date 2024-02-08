@@ -76,7 +76,10 @@ export async function POST(request: NextRequest) {
       }
     }
     directories.delete(rootDir);
-    return [nonBinaryFiles.sort((a, b) => b.lastModified - a.lastModified), Array.from(directories)];
+    return [
+      nonBinaryFiles.sort((a, b) => b.lastModified - a.lastModified),
+      Array.from(directories),
+    ];
   }
 
   try {
@@ -84,9 +87,11 @@ export async function POST(request: NextRequest) {
     if (!stats.isDirectory()) {
       return new NextResponse("Not a directory", { status: 400 });
     }
-    const [filesWithMeta, directories ] = await listNonBinaryFilesBFS(repo);
+    const [filesWithMeta, directories] = await listNonBinaryFilesBFS(repo);
     const sortedFiles = filesWithMeta.map((fileMeta) => fileMeta.path);
-    return new NextResponse(JSON.stringify({ sortedFiles, directories }), { status: 200 });
+    return new NextResponse(JSON.stringify({ sortedFiles, directories }), {
+      status: 200,
+    });
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });
   }

@@ -16,11 +16,13 @@ const ModifyOrCreate = ({
   repoName: string;
   files: { label: string; name: string }[];
   directories: { label: string; name: string }[];
-  syncAllFiles: () => Promise<void>,
+  syncAllFiles: () => Promise<void>;
 }) => {
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
-  const [ fileChangeRequests, setFileChangeRequests ] = useRecoilState(FileChangeRequestsState);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(
+    FileChangeRequestsState,
+  );
 
   return (
     <div className="flex flex-row mb-4">
@@ -160,8 +162,14 @@ const ModifyOrCreate = ({
         </PopoverContent>
       </Popover> */}
       <div className="grow"></div>
-      <Button onClick={() => {syncAllFiles(); setStatusForAll("idle", setFileChangeRequests)}} variant="secondary">
-        <FaArrowRotateLeft style={{marginTop: -3, fontSize: 12}} />
+      <Button
+        onClick={() => {
+          syncAllFiles();
+          setStatusForAll("idle", setFileChangeRequests);
+        }}
+        variant="secondary"
+      >
+        <FaArrowRotateLeft style={{ marginTop: -3, fontSize: 12 }} />
         &nbsp;&nbsp;Refresh files
       </Button>
     </div>

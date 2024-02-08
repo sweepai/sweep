@@ -8,7 +8,11 @@ import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { html } from "@codemirror/lang-html";
 
-import CodeMirror, { EditorState, EditorView, keymap } from "@uiw/react-codemirror";
+import CodeMirror, {
+  EditorState,
+  EditorView,
+  keymap,
+} from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
@@ -95,15 +99,12 @@ const FileSelector = memo(function FileSelector({
           revertControls="b-to-a"
           collapseUnchanged={{
             margin: 3,
-            minSize: 6
+            minSize: 6,
           }}
         >
           <Original
             value={oldFile}
-            extensions={[
-              ...extensions,
-              EditorState.readOnly.of(true)
-            ]}
+            extensions={[...extensions, EditorState.readOnly.of(true)]}
             onChange={onOldChange}
             placeholder={placeholderText}
           />

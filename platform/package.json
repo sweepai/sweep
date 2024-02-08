@@ -80,6 +80,7 @@
     "openai": "^4.25.0",
     "postcss": "^8.4.33",
     "posthog-js": "^1.104.3",
+    "prettier": "^3.2.5",
     "react": "18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-codemirror-merge": "^4.21.21",

@@ -28,7 +28,9 @@ const FCRList = memo(function FCRList({
   ) => Promise<void>;
   isRunningRef: React.MutableRefObject<boolean>;
 }) {
-  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(
+    FileChangeRequestsState,
+  );
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
     if (index === currentFileChangeRequestIndex) {
@@ -46,8 +48,7 @@ const FCRList = memo(function FCRList({
       classNames += " bg-green-900 ";
     } else if (fcr.status === "error") {
       classNames += " bg-red-900 ";
-    }
-    else if (fcr.status === "idle") {
+    } else if (fcr.status === "idle") {
       // default
       classNames += " bg-zinc-900 ";
     }
@@ -121,10 +122,10 @@ const FCRList = memo(function FCRList({
       suggestion.display!.length < maxLength
         ? suggestion.display
         : "..." +
-        suggestion.display!.slice(
-          suggestion.display!.length - maxLength,
-          suggestion.display!.length,
-        );
+          suggestion.display!.slice(
+            suggestion.display!.length - maxLength,
+            suggestion.display!.length,
+          );
     if (index > 10) {
       return null;
     }
@@ -146,11 +147,13 @@ const FCRList = memo(function FCRList({
             ref={provided.innerRef}
             style={getListStyle(snapshot.isDraggingOver)}
           >
-            {fileChangeRequests.map((fcr: FileChangeRequest, index: number) => (
-              (fcr.changeType == "create") ? (
+            {fileChangeRequests.map((fcr: FileChangeRequest, index: number) =>
+              fcr.changeType == "create" ? (
                 <FCRCreate
                   repoName={repoName}
-                  setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+                  setCurrentFileChangeRequestIndex={
+                    setCurrentFileChangeRequestIndex
+                  }
                   getFileChanges={getFileChanges}
                   isRunningRef={isRunningRef}
                   fcr={fcr}
@@ -167,7 +170,9 @@ const FCRList = memo(function FCRList({
                 <FCRModify
                   key={index}
                   repoName={repoName}
-                  setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
+                  setCurrentFileChangeRequestIndex={
+                    setCurrentFileChangeRequestIndex
+                  }
                   getFileChanges={getFileChanges}
                   isRunningRef={isRunningRef}
                   fcr={fcr}
@@ -179,8 +184,8 @@ const FCRList = memo(function FCRList({
                   setFCRInstructions={setFCRInstructions}
                   setUserSuggestion={setUserSuggestion}
                 />
-              )
-            ))}
+              ),
+            )}
             {provided.placeholder}
           </div>
         )}

@@ -11,7 +11,12 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { useRecoilState } from "recoil";
 import { FileChangeRequestsState } from "../../../state/fcrAtoms";
-import { setStatusForFCR, setReadOnlySnippetForFCR, removeFileChangeRequest, removeReadOnlySnippetForFCR } from "../../../state/fcrStateHelpers";
+import {
+  setStatusForFCR,
+  setReadOnlySnippetForFCR,
+  removeFileChangeRequest,
+  removeReadOnlySnippetForFCR,
+} from "../../../state/fcrStateHelpers";
 
 const instructionsPlaceholder = `Give this new file a name and tell Sweep what this new file should do. Mention another file Sweep should look at with "@filename"`;
 
@@ -46,18 +51,29 @@ const FCRCreate = memo(function FCRCreate({
   index: number;
   getDynamicClassNames: (fcr: FileChangeRequest, index: number) => string;
   getItemStyle: (isDragging: boolean, draggableStyle: any) => any;
-  mentionFiles: {id: any;display: any;}[];
-  fcrInstructions: { [key: string]: string; };
-  setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
-  setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
+  mentionFiles: { id: any; display: any }[];
+  fcrInstructions: { [key: string]: string };
+  setFCRInstructions: React.Dispatch<
+    React.SetStateAction<{ [key: string]: string }>
+  >;
+  setUserSuggestion: (
+    suggestion: SuggestionDataItem,
+    search: string,
+    highlightedDisplay: ReactNode,
+    index: number,
+    focused: boolean,
+  ) => JSX.Element | null;
 }) {
   const [newFileName, setNewFileName] = useState("");
-  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(
+    FileChangeRequestsState,
+  );
 
   useEffect(() => {
-    setNewFileName(fcr.snippet.file.split("/")[fcr.snippet.file.split("/").length - 1]);
-  },
-  [fcr]);
+    setNewFileName(
+      fcr.snippet.file.split("/")[fcr.snippet.file.split("/").length - 1],
+    );
+  }, [fcr]);
   return (
     <Draggable
       key={snippetKey(fcr.snippet)}
@@ -86,9 +102,10 @@ const FCRCreate = memo(function FCRCreate({
             >
               <div className="flex flex-row w-full items-center">
                 <span className="flex flex-row items-center">
-                  {
-                    fcr.snippet.file.split("/").slice(0, fcr.snippet.file.split("/").length - 1).join("/") + "/"
-                  }
+                  {fcr.snippet.file
+                    .split("/")
+                    .slice(0, fcr.snippet.file.split("/").length - 1)
+                    .join("/") + "/"}
                   <Input
                     placeholder="your_file_name.ext"
                     value={newFileName}
@@ -97,7 +114,8 @@ const FCRCreate = memo(function FCRCreate({
                     }}
                     onBlur={(e: any) => {
                       let currentFilePath = fcr.snippet.file.split("/");
-                      currentFilePath[currentFilePath.length - 1] = e.target.value;
+                      currentFilePath[currentFilePath.length - 1] =
+                        e.target.value;
                       let newFilePath = currentFilePath.join("/");
                       setFCRInstructions((prev: any) => {
                         return {
@@ -124,7 +142,11 @@ const FCRCreate = memo(function FCRCreate({
                   variant="secondary"
                   className="mr-2 ml-auto"
                   onClick={async () => {
-                    removeFileChangeRequest(fcr, fileChangeRequests, setFileChangeRequests);
+                    removeFileChangeRequest(
+                      fcr,
+                      fileChangeRequests,
+                      setFileChangeRequests,
+                    );
                     setFCRInstructions((prev: any) => {
                       return {
                         ...prev,
@@ -195,7 +217,12 @@ const FCRCreate = memo(function FCRCreate({
                     entireFile: contents,
                     content: contents, // this is the slice based on start and end, remeber to change this
                   } as Snippet;
-                  setReadOnlySnippetForFCR(fcr, newSnippet, fileChangeRequests, setFileChangeRequests);
+                  setReadOnlySnippetForFCR(
+                    fcr,
+                    newSnippet,
+                    fileChangeRequests,
+                    setFileChangeRequests,
+                  );
                 }}
                 appendSpaceOnAdd={true}
               />
@@ -211,16 +238,17 @@ const FCRCreate = memo(function FCRCreate({
                     key={index}
                     className="bg-zinc-800 text-zinc-300"
                   >
-                    {
-                      snippetFile.split("/")[
-                      snippetFile.split("/").length - 1
-                      ]
-                    }
+                    {snippetFile.split("/")[snippetFile.split("/").length - 1]}
                     <FaTimes
                       key={String(index) + "-remove"}
                       className="bg-zinc-800 cursor-pointer"
                       onClick={() => {
-                        removeReadOnlySnippetForFCR(fcr, snippetFile, fileChangeRequests, setFileChangeRequests);
+                        removeReadOnlySnippetForFCR(
+                          fcr,
+                          snippetFile,
+                          fileChangeRequests,
+                          setFileChangeRequests,
+                        );
                       }}
                     />
                   </Badge>
@@ -255,7 +283,12 @@ const FCRCreate = memo(function FCRCreate({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
-                      setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
+                      setStatusForFCR(
+                        "idle",
+                        fcr,
+                        fileChangeRequests,
+                        setFileChangeRequests,
+                      );
                     }}
                   >
                     <FaStop />

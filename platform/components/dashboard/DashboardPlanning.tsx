@@ -1,7 +1,11 @@
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import CodeMirror, { EditorView, keymap, lineNumbers } from "@uiw/react-codemirror";
+import CodeMirror, {
+  EditorView,
+  keymap,
+  lineNumbers,
+} from "@uiw/react-codemirror";
 import { FileChangeRequest, Snippet } from "../../lib/types";
 import { Button } from "../ui/button";
 import { indentWithTab } from "@codemirror/commands";
@@ -10,12 +14,12 @@ import { xml } from "@codemirror/lang-xml";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { Switch } from "../ui/switch";
 import { getFile } from "../../lib/api.service";
-import Markdown from 'react-markdown'
+import Markdown from "react-markdown";
 import { Mention, MentionsInput, SuggestionDataItem } from "react-mentions";
 import { Badge } from "../ui/badge";
 import { FaTimes } from "react-icons/fa";
-import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
 import { useRecoilState } from "recoil";
 import { FileChangeRequestsState } from "../../state/fcrAtoms";
@@ -24,11 +28,11 @@ const codeStyle = {
   ...vscDarkPlus,
   'code[class*="language-"]': {
     ...vscDarkPlus['code[class*="language-"]'],
-    whiteSpace: 'pre-wrap',
+    whiteSpace: "pre-wrap",
   },
-}
+};
 
-const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`
+const systemMessagePrompt = `You are a brilliant and meticulous engineer assigned to plan code changes for the following user's concerns. Take into account the current repository's language, frameworks, and dependencies.`;
 
 const userMessagePromptOld = `Here are relevant read-only files:
 <read_only_files>
@@ -73,7 +77,7 @@ Concisely outline the minimal plan that solves the user request by referencing t
 </modify>
 ...
 
-</plan>`
+</plan>`;
 
 const userMessagePrompt = `Here are relevant read-only files:
 <read_only_files>
@@ -111,17 +115,18 @@ Provide a plan to solve the issue, following these rules:
 </modify>
 ...
 
-</plan>`
+</plan>`;
 
 const readOnlyFileFormat = `<read_only_file file="{file}" start_line="{start_line}" end_line="{end_line}">
 {contents}
 </read_only_file>`;
 
-const fileChangeRequestPattern = /<create file="(?<cFile>.*?)" relevant_files="(?<relevant_files>.*?)">(?<cInstructions>[\s\S]*?)($|<\/create>)|<modify file="(?<mFile>.*?)" start_line="(?<startLine>.*?)" end_line="(?<endLine>.*?)" relevant_files="(.*?)">(?<mInstructions>[\s\S]*?)($|<\/modify>)/sg;
+const fileChangeRequestPattern =
+  /<create file="(?<cFile>.*?)" relevant_files="(?<relevant_files>.*?)">(?<cInstructions>[\s\S]*?)($|<\/create>)|<modify file="(?<mFile>.*?)" start_line="(?<startLine>.*?)" end_line="(?<endLine>.*?)" relevant_files="(.*?)">(?<mInstructions>[\s\S]*?)($|<\/modify>)/gs;
 
 const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
+};
 
 const DashboardPlanning = ({
   repoName,
@@ -130,19 +135,29 @@ const DashboardPlanning = ({
   setCurrentTab,
 }: {
   repoName: string;
-  files: {label: string; name: string}[];
+  files: { label: string; name: string }[];
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
-  setCurrentTab: React.Dispatch<
-    React.SetStateAction<"planning" | "coding">
-  >;
+  setCurrentTab: React.Dispatch<React.SetStateAction<"planning" | "coding">>;
 }) => {
-  const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "" as string);
-  const [snippets = {}, setSnippets] = useLocalStorage("globalSnippets", {} as {[key: string]: Snippet});
-  const [rawResponse = "", setRawResponse] = useLocalStorage("planningRawResponse", "" as string);
-  const [currentFileChangeRequests = [], setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
+  const [instructions = "", setInstructions] = useLocalStorage(
+    "globalInstructions",
+    "" as string,
+  );
+  const [snippets = {}, setSnippets] = useLocalStorage(
+    "globalSnippets",
+    {} as { [key: string]: Snippet },
+  );
+  const [rawResponse = "", setRawResponse] = useLocalStorage(
+    "planningRawResponse",
+    "" as string,
+  );
+  const [currentFileChangeRequests = [], setCurrentFileChangeRequests] =
+    useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
   const [debugLogToggle = false, setDebugLogToggle] = useState<boolean>(false);
   const [isLoading = false, setIsLoading] = useState<boolean>(false);
-  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(
+    FileChangeRequestsState,
+  );
 
   const instructionsRef = useRef<HTMLTextAreaElement>(null);
   const thoughtsRef = useRef<HTMLDivElement>(null);
@@ -159,13 +174,13 @@ const DashboardPlanning = ({
     if (instructionsRef.current) {
       instructionsRef.current.focus();
     }
-  }, [])
+  }, []);
 
   const generatePlan = async () => {
-    setIsLoading(true)
-    setLoadingMessage("Queued...")
+    setIsLoading(true);
+    setLoadingMessage("Queued...");
     try {
-      setCurrentFileChangeRequests([])
+      setCurrentFileChangeRequests([]);
       const response = await fetch("/api/openai/edit", {
         method: "POST",
         headers: {
@@ -180,7 +195,10 @@ const DashboardPlanning = ({
                 .map((filePath) =>
                   readOnlyFileFormat
                     .replace("{file}", snippets[filePath].file)
-                    .replace("{start_line}", snippets[filePath].start.toString())
+                    .replace(
+                      "{start_line}",
+                      snippets[filePath].start.toString(),
+                    )
                     .replace("{end_line}", snippets[filePath].end.toString())
                     .replace("{contents}", snippets[filePath].content),
                 )
@@ -188,34 +206,46 @@ const DashboardPlanning = ({
             ),
           systemMessagePrompt,
         }),
-      })
-      setLoadingMessage("Planning...")
+      });
+      setLoadingMessage("Planning...");
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
       let rawText = "";
       while (true) {
-        const { done, value } = await reader?.read()!
+        const { done, value } = await reader?.read()!;
         if (done) {
           break;
         }
         const text = decoder.decode(value);
         rawText += text;
-        setRawResponse(rawText)
+        setRawResponse(rawText);
         if (thoughtsRef.current) {
           thoughtsRef.current.scrollTop = thoughtsRef.current.scrollHeight || 0;
         }
-        const fileChangeRequestMatches = rawText.matchAll(fileChangeRequestPattern);
+        const fileChangeRequestMatches = rawText.matchAll(
+          fileChangeRequestPattern,
+        );
         var fileChangeRequests = [];
         for (const match of fileChangeRequestMatches) {
           const file: string = match.groups?.cFile || match.groups?.mFile || "";
           const relevantFiles: string = match.groups?.relevant_files || "";
-          const instructions: string = match.groups?.cInstructions || match.groups?.mInstructions || "";
-          const changeType: "create" | "modify" = match.groups?.cInstructions ? "create" : "modify";
-          const contents: string = (await getFile(repoName, file)).contents || "";
+          const instructions: string =
+            match.groups?.cInstructions || match.groups?.mInstructions || "";
+          const changeType: "create" | "modify" = match.groups?.cInstructions
+            ? "create"
+            : "modify";
+          const contents: string =
+            (await getFile(repoName, file)).contents || "";
           const startLine: string | undefined = match.groups?.startLine;
-          const start: number = startLine === undefined ? 0 : parseInt(startLine);
+          const start: number =
+            startLine === undefined ? 0 : parseInt(startLine);
           const endLine: string | undefined = match.groups?.endLine;
-          const end: number = Math.max(endLine === undefined ? contents.split("\n").length : parseInt(endLine), start + 10);
+          const end: number = Math.max(
+            endLine === undefined
+              ? contents.split("\n").length
+              : parseInt(endLine),
+            start + 10,
+          );
           fileChangeRequests.push({
             snippet: {
               start,
@@ -230,25 +260,31 @@ const DashboardPlanning = ({
             instructions: instructions.trim(),
             isLoading: false,
             readOnlySnippets: {},
-            status: "idle"
-          } as FileChangeRequest)
+            status: "idle",
+          } as FileChangeRequest);
         }
-        setCurrentFileChangeRequests(fileChangeRequests)
+        setCurrentFileChangeRequests(fileChangeRequests);
         if (planRef.current) {
           const delta = 50; // Define a delta for the inequality check
-          if (Math.abs(planRef.current.scrollHeight - planRef.current.scrollTop - planRef.current.clientHeight) < delta) {
+          if (
+            Math.abs(
+              planRef.current.scrollHeight -
+                planRef.current.scrollTop -
+                planRef.current.clientHeight,
+            ) < delta
+          ) {
             planRef.current.scrollTop = planRef.current.scrollHeight || 0;
           }
         }
       }
     } catch (e) {
-      console.error(e)
-      toast.error("An error occurred while generating the plan.")
+      console.error(e);
+      toast.error("An error occurred while generating the plan.");
     } finally {
-      setIsLoading(false)
-      setLoadingMessage("")
+      setIsLoading(false);
+      setLoadingMessage("");
     }
-  }
+  };
 
   const setUserSuggestion = (
     suggestion: SuggestionDataItem,
@@ -262,10 +298,10 @@ const DashboardPlanning = ({
       suggestion.display!.length < maxLength
         ? suggestion.display
         : "..." +
-        suggestion.display!.slice(
-          suggestion.display!.length - maxLength,
-          suggestion.display!.length,
-        );
+          suggestion.display!.slice(
+            suggestion.display!.length - maxLength,
+            suggestion.display!.length,
+          );
     if (index > 10) {
       return null;
     }
@@ -278,13 +314,10 @@ const DashboardPlanning = ({
     );
   };
 
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-row justify-between items-center mb-2">
-        <Label className="mr-2">
-          Instructions
-        </Label>
+        <Label className="mr-2">Instructions</Label>
         {/* <Button variant="secondary">
           Search
         </Button> */}
@@ -306,12 +339,11 @@ const DashboardPlanning = ({
       >
         <Mention
           trigger="@"
-          data={files.map((file) => ({id: file.label, display: file.label}))}
+          data={files.map((file) => ({ id: file.label, display: file.label }))}
           renderSuggestion={setUserSuggestion}
           onAdd={async (currentValue) => {
-            const contents = (
-              await getFile(repoName, currentValue.toString())
-            ).contents;
+            const contents = (await getFile(repoName, currentValue.toString()))
+              .contents;
             const newSnippet = {
               file: currentValue,
               start: 0,
@@ -319,45 +351,36 @@ const DashboardPlanning = ({
               entireFile: contents,
               content: contents,
             } as Snippet;
-            setSnippets(newSnippets => {
+            setSnippets((newSnippets) => {
               return {
                 ...newSnippets,
                 [currentValue]: newSnippet,
               };
-            })
+            });
           }}
           appendSpaceOnAdd={true}
         />
       </MentionsInput>
-      <div
-        hidden={Object.keys(snippets).length === 0}
-        className="mb-4"
-      >
-        {Object.keys(snippets).map(
-          (snippetFile: string, index: number) => (
-            <Badge
-              variant="secondary"
-              key={index}
-              className="bg-zinc-800 text-zinc-300 mr-1"
-            >
-              {
-                snippetFile.split("/")[
-                  snippetFile.split("/").length - 1
-                ]
-              }
-              <FaTimes
-                key={String(index) + "-remove"}
-                className="bg-zinc-800 cursor-pointer ml-1"
-                onClick={() => {
-                  setSnippets((snippets: {[key: string]: Snippet}) => {
-                    const {[snippetFile]: _, ...newSnippets} = snippets;
-                    return newSnippets;
-                  })
-                }}
-              />
-            </Badge>
-          ),
-        )}
+      <div hidden={Object.keys(snippets).length === 0} className="mb-4">
+        {Object.keys(snippets).map((snippetFile: string, index: number) => (
+          <Badge
+            variant="secondary"
+            key={index}
+            className="bg-zinc-800 text-zinc-300 mr-1"
+          >
+            {snippetFile.split("/")[snippetFile.split("/").length - 1]}
+            <FaTimes
+              key={String(index) + "-remove"}
+              className="bg-zinc-800 cursor-pointer ml-1"
+              onClick={() => {
+                setSnippets((snippets: { [key: string]: Snippet }) => {
+                  const { [snippetFile]: _, ...newSnippets } = snippets;
+                  return newSnippets;
+                });
+              }}
+            />
+          </Badge>
+        ))}
       </div>
       {Object.keys(snippets).length === 0 && (
         <div className="text-xs px-2 text-zinc-400">
@@ -369,23 +392,23 @@ const DashboardPlanning = ({
           className="mb-2 mt-2"
           variant="secondary"
           onClick={generatePlan}
-          disabled={isLoading || instructions === "" || Object.keys(snippets).length === 0}
+          disabled={
+            isLoading ||
+            instructions === "" ||
+            Object.keys(snippets).length === 0
+          }
         >
           Generate Plan
         </Button>
       </div>
       <div className="flex flex-row mb-2 items-center">
-        <Label className="mb-0">
-          Sweep&apos;s Plan
-        </Label>
+        <Label className="mb-0">Sweep&apos;s Plan</Label>
         <div className="grow"></div>
-        <Label className="text-zinc-400 mb-0">
-          Debug mode
-        </Label>
+        <Label className="text-zinc-400 mb-0">Debug mode</Label>
         <Switch
           className="ml-2"
           checked={debugLogToggle}
-          onClick={() => setDebugLogToggle(debugLogToggle => !debugLogToggle)}
+          onClick={() => setDebugLogToggle((debugLogToggle) => !debugLogToggle)}
         >
           Debug mode
         </Switch>
@@ -401,37 +424,30 @@ const DashboardPlanning = ({
             placeholder="Empty file"
             className="ph-no-capture"
           />
-        ): (
+        ) : (
           <>
             {currentFileChangeRequests.map((fileChangeRequest, index) => {
               const filePath = fileChangeRequest.snippet.file;
               var path = filePath.split("/");
               const fileName = path.pop();
               if (path.length > 2) {
-                path = path.slice(0, 1).concat(["..."])
+                path = path.slice(0, 1).concat(["..."]);
               }
               return (
                 <div className="rounded border p-3 mb-2" key={index}>
                   <div className="flex flex-row justify-between mb-2 p-2">
                     {fileChangeRequest.changeType === "create" ? (
                       <div className="font-mono">
-                        <span className="text-zinc-400">
-                          {path.join("/")}/
-                        </span>
-                        <span>
-                          {fileName}
-                        </span>
+                        <span className="text-zinc-400">{path.join("/")}/</span>
+                        <span>{fileName}</span>
                       </div>
-                    ): (
+                    ) : (
                       <div className="font-mono">
+                        <span className="text-zinc-400">{path.join("/")}/</span>
+                        <span>{fileName}</span>
                         <span className="text-zinc-400">
-                          {path.join("/")}/
-                        </span>
-                        <span>
-                          {fileName}
-                        </span>
-                        <span className="text-zinc-400">
-                          :{fileChangeRequest.snippet.start}-{fileChangeRequest.snippet.end}
+                          :{fileChangeRequest.snippet.start}-
+                          {fileChangeRequest.snippet.end}
                         </span>
                       </div>
                     )}
@@ -443,8 +459,8 @@ const DashboardPlanning = ({
                     className="react-markdown mb-2"
                     components={{
                       code(props) {
-                        const {children, className, node, ...rest} = props
-                        const match = /language-(\w+)/.exec(className || '')
+                        const { children, className, node, ...rest } = props;
+                        const match = /language-(\w+)/.exec(className || "");
                         return match ? (
                           // @ts-ignore
                           <SyntaxHighlighter
@@ -453,30 +469,30 @@ const DashboardPlanning = ({
                             language={match[1]}
                             style={codeStyle}
                           >
-                            {String(children).replace(/\n$/, '')}
+                            {String(children).replace(/\n$/, "")}
                           </SyntaxHighlighter>
                         ) : (
                           <code {...rest} className={className}>
                             {children}
                           </code>
-                        )
-                      }
+                        );
+                      },
                     }}
                   >
                     {fileChangeRequest.instructions}
                   </Markdown>
                   {fileChangeRequest.changeType === "modify" && (
                     <>
-                      <Label>
-                        Snippet Preview
-                      </Label>
+                      <Label>Snippet Preview</Label>
                       <CodeMirror
                         value={fileChangeRequest.snippet.content}
                         extensions={[
                           ...extensions,
                           lineNumbers({
                             formatNumber: (num: number) => {
-                              return (num + fileChangeRequest.snippet.start).toString();
+                              return (
+                                num + fileChangeRequest.snippet.start
+                              ).toString();
                             },
                           }),
                         ]}
@@ -489,12 +505,10 @@ const DashboardPlanning = ({
                     </>
                   )}
                 </div>
-              )
+              );
             })}
             {currentFileChangeRequests.length === 0 && (
-              <div className="text-zinc-500">
-                No plan generated yet.
-              </div>
+              <div className="text-zinc-500">No plan generated yet.</div>
             )}
           </>
         )}
@@ -517,6 +531,6 @@ const DashboardPlanning = ({
       </div>
     </div>
   );
-}
+};
 
 export default DashboardPlanning;

@@ -32,11 +32,11 @@ const fcrEqual = (a: FileChangeRequest, b: FileChangeRequest) => {
     a.snippet.start === b.snippet.start &&
     a.snippet.end === b.snippet.end
   );
-}
+};
 
 const snippetKey = (snippet: Snippet) => {
   return `${snippet.file}:${snippet.start || 0}-${snippet.end || 0}`;
-}
+};
 
 interface Message {
   role: "user" | "system" | "assistant";

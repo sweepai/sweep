@@ -11,10 +11,7 @@ import { FaPlay } from "react-icons/fa6";
 import { useLocalStorage } from "usehooks-ts";
 import { Label } from "../ui/label";
 import { CaretSortIcon } from "@radix-ui/react-icons";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "../ui/collapsible";
+import { Collapsible, CollapsibleContent } from "../ui/collapsible";
 import { Snippet } from "../../lib/search";
 import DashboardInstructions from "./DashboardInstructions";
 import { FileChangeRequest, Message, fcrEqual } from "../../lib/types";
@@ -35,8 +32,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import DashboardPlanning from "./DashboardPlanning";
 import { useRecoilState } from "recoil";
 import { FileChangeRequestsState } from "../../state/fcrAtoms";
-import { parseRegexFromOpenAICreate, parseRegexFromOpenAIModify } from "../../lib/patchUtils";
-import { setIsLoading, setFileForFCR, setOldFileForFCR, setStatusForFCR, setDiffForFCR } from "../../state/fcrStateHelpers"
+import {
+  parseRegexFromOpenAICreate,
+  parseRegexFromOpenAIModify,
+} from "../../lib/patchUtils";
+import {
+  setIsLoading,
+  setFileForFCR,
+  setOldFileForFCR,
+  setStatusForFCR,
+  setDiffForFCR,
+} from "../../state/fcrStateHelpers";
 
 const Diff = require("diff");
 
@@ -114,15 +120,15 @@ const formatUserMessage = (
   fileContents: string,
   snippets: Snippet[],
   patches: string,
-  changeType: string
+  changeType: string,
 ) => {
   const patchesSection =
     patches.trim().length > 0
       ? changesMadePrompt.replace("{changesMade}", patches.trimEnd()) + "\n\n"
       : "";
-  let basePrompt = userMessagePrompt
+  let basePrompt = userMessagePrompt;
   if (changeType == "create") {
-    basePrompt = userMessagePromptCreate
+    basePrompt = userMessagePromptCreate;
   }
   const userMessage =
     patchesSection +
@@ -185,7 +191,9 @@ const DashboardActions = ({
   setOutputToggle: (newOutputToggle: string) => void;
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
 }) => {
-  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(
+    FileChangeRequestsState,
+  );
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`;
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`;
@@ -203,14 +211,17 @@ const DashboardActions = ({
   const [validationScriptCollapsibleOpen, setValidationScriptCollapsibleOpen] =
     useLocalStorage("validationScriptCollapsibleOpen", false);
   const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
-  const isRunningRef = useRef(false)
+  const isRunningRef = useRef(false);
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
 
-  const [currentTab = "coding", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
+  const [currentTab = "coding", setCurrentTab] = useLocalStorage(
+    "currentTab",
+    "planning" as "planning" | "coding",
+  );
 
   const refreshFiles = async () => {
     try {
-      let {directories, sortedFiles} = await getFiles(
+      let { directories, sortedFiles } = await getFiles(
         currentRepoName,
         blockedGlobs,
         fileLimit,
@@ -233,11 +244,11 @@ const DashboardActions = ({
         action: { label: "Dismiss", onClick: () => {} },
       });
     }
-  }
+  };
 
   useEffect(() => {
-    setRepoNameCollapsibleOpen(repoName === "")
-  }, [repoName])
+    setRepoNameCollapsibleOpen(repoName === "");
+  }, [repoName]);
 
   useEffect(() => {
     if (repoName === "") {
@@ -279,7 +290,6 @@ const DashboardActions = ({
     setScriptOutput(scriptOutput);
   };
 
-
   const checkCode = async (sourceCode: string, filePath: string) => {
     const response = await fetch(
       "/api/files/check?" +
@@ -293,7 +303,7 @@ const DashboardActions = ({
     oldFile: string,
     newFile: string,
   ) => {
-    setLoadingMessage("Validating...")
+    setLoadingMessage("Validating...");
     if (!doValidate) {
       return "";
     }
@@ -321,26 +331,33 @@ const DashboardActions = ({
 
   // modify an existing file or create a new file
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
-    console.log("getting file changes")
+    console.log("getting file changes");
     var validationOutput = "";
     const patches = fileChangeRequests
       .slice(0, index)
       .map((fcr: FileChangeRequest) => {
-        return fcr.diff
+        return fcr.diff;
       })
       .join("\n\n");
 
     setIsLoading(true, fcr, fileChangeRequests, setFileChangeRequests);
-    setStatusForFCR("in-progress", fcr, fileChangeRequests, setFileChangeRequests);
+    setStatusForFCR(
+      "in-progress",
+      fcr,
+      fileChangeRequests,
+      setFileChangeRequests,
+    );
     setOutputToggle("llm");
-    setLoadingMessage("Queued...")
+    setLoadingMessage("Queued...");
     const changeType = fcr.changeType;
     // by default we modify file
     let url = "/api/openai/edit";
-    let prompt = fcr.instructions
+    let prompt = fcr.instructions;
     if (changeType === "create") {
-      url = "/api/openai/create"
-      prompt = systemMessagePromptCreate.replace('{instructions}', fcr.instructions).replace('{filename}', fcr.snippet.file)
+      url = "/api/openai/create";
+      prompt = systemMessagePromptCreate
+        .replace("{instructions}", fcr.instructions)
+        .replace("{filename}", fcr.snippet.file);
     }
 
     const body = {
@@ -348,18 +365,24 @@ const DashboardActions = ({
       snippets: Object.values(fcr.readOnlySnippets),
     };
     const additionalMessages: Message[] = [];
-    var currentIterationContents = (fcr.snippet.entireFile || "").replace(/\\n/g, "\\n");
+    var currentIterationContents = (fcr.snippet.entireFile || "").replace(
+      /\\n/g,
+      "\\n",
+    );
     let errorMessage = "";
     let userMessage = formatUserMessage(
       fcr.instructions,
       currentIterationContents,
       Object.values(fcr.readOnlySnippets),
       patches,
-      changeType
+      changeType,
     );
 
     if (changeType === "create") {
-      userMessage = systemMessagePromptCreate.replace('{instructions}', fcr.instructions).replace('{filename}', fcr.snippet.file) + userMessage
+      userMessage =
+        systemMessagePromptCreate
+          .replace("{instructions}", fcr.instructions)
+          .replace("{filename}", fcr.snippet.file) + userMessage;
     }
 
     isRunningRef.current = true;
@@ -368,7 +391,12 @@ const DashboardActions = ({
     if (!hideMerge) {
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         setHideMerge(true, fcr);
-        setFileForFCR(prev[index].snippet.entireFile, fcr, fileChangeRequests, setFileChangeRequests);
+        setFileForFCR(
+          prev[index].snippet.entireFile,
+          fcr,
+          fileChangeRequests,
+          setFileChangeRequests,
+        );
         return prev;
       });
     }
@@ -398,7 +426,7 @@ const DashboardActions = ({
         );
         userMessage = retryMessage;
       }
-      setLoadingMessage("Queued...")
+      setLoadingMessage("Queued...");
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
@@ -408,14 +436,19 @@ const DashboardActions = ({
           userMessage,
         }),
       });
-      setLoadingMessage("Generating code...")
+      setLoadingMessage("Generating code...");
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = "";
       var currentContents = currentIterationContents;
       const updateIfChanged = (newContents: string) => {
         if (newContents !== currentIterationContents) {
-          setFileForFCR(newContents, fcr, fileChangeRequests, setFileChangeRequests);
-          currentContents = newContents
+          setFileForFCR(
+            newContents,
+            fcr,
+            fileChangeRequests,
+            setFileChangeRequests,
+          );
+          currentContents = newContents;
         }
       };
       try {
@@ -432,17 +465,19 @@ const DashboardActions = ({
             let updatedFile = "";
             let patchingErrors = "";
             if (changeType == "modify") {
-              let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
-                rawText || "",
-                currentIterationContents
-              );
+              let [newUpdatedFile, newPatchingErrors] =
+                parseRegexFromOpenAIModify(
+                  rawText || "",
+                  currentIterationContents,
+                );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
-              let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
-                rawText || "",
-                currentIterationContents
-              );
+              let [newUpdatedFile, newPatchingErrors] =
+                parseRegexFromOpenAICreate(
+                  rawText || "",
+                  currentIterationContents,
+                );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             }
@@ -469,9 +504,15 @@ const DashboardActions = ({
             let updatedFile = "";
             let _ = "";
             if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
+              [updatedFile, _] = parseRegexFromOpenAIModify(
+                rawText,
+                currentIterationContents,
+              );
             } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
+              [updatedFile, _] = parseRegexFromOpenAICreate(
+                rawText,
+                currentIterationContents,
+              );
             }
             if (j % 3 == 0) {
               updateIfChanged(updatedFile);
@@ -483,8 +524,13 @@ const DashboardActions = ({
         }
         if (!isRunningRef.current) {
           setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
-          setLoadingMessage("")
-          setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
+          setLoadingMessage("");
+          setStatusForFCR(
+            "idle",
+            fcr,
+            fileChangeRequests,
+            setFileChangeRequests,
+          );
           return;
         }
         setHideMerge(false, fcr);
@@ -496,7 +542,7 @@ const DashboardActions = ({
           fcr.snippet.entireFile.length - globalUpdatedFile.length,
         );
         if (errorMessage.length > 0) {
-          console.error("errorMessage in loop", errorMessage)
+          console.error("errorMessage in loop", errorMessage);
           toast.error(
             "An error occured while generating your code." +
               (i < 3 ? " Retrying..." : " Retried 4 times so I will give up."),
@@ -508,8 +554,13 @@ const DashboardActions = ({
           validationOutput += "\n\n" + errorMessage;
           setScriptOutput(validationOutput);
           setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
-          setStatusForFCR("in-progress", fcr, fileChangeRequests, setFileChangeRequests);
-          setLoadingMessage("Retrying...")
+          setStatusForFCR(
+            "in-progress",
+            fcr,
+            fileChangeRequests,
+            setFileChangeRequests,
+          );
+          setLoadingMessage("Retrying...");
         } else {
           toast.success(`Successfully modified file!`, {
             description: [
@@ -517,21 +568,35 @@ const DashboardActions = ({
             ],
             action: { label: "Dismiss", onClick: () => {} },
           });
-          const newDiff = Diff.createPatch(filePath, fcr.snippet.entireFile, fcr.newContents);
+          const newDiff = Diff.createPatch(
+            filePath,
+            fcr.snippet.entireFile,
+            fcr.newContents,
+          );
           setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
-          setDiffForFCR(newDiff, fcr, fileChangeRequests, setFileChangeRequests);
+          setDiffForFCR(
+            newDiff,
+            fcr,
+            fileChangeRequests,
+            setFileChangeRequests,
+          );
           isRunningRef.current = false;
           break;
         }
       } catch (e: any) {
-        console.error("errorMessage in except block", errorMessage)
+        console.error("errorMessage in except block", errorMessage);
         toast.error("An error occured while generating your code.", {
           description: e,
           action: { label: "Dismiss", onClick: () => {} },
         });
         if (i === maxIterations) {
           setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
-          setStatusForFCR("error", fcr, fileChangeRequests, setFileChangeRequests);
+          setStatusForFCR(
+            "error",
+            fcr,
+            fileChangeRequests,
+            setFileChangeRequests,
+          );
           isRunningRef.current = false;
           setLoadingMessage("");
           return;
@@ -541,22 +606,26 @@ const DashboardActions = ({
     setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
     setStatusForFCR("done", fcr, fileChangeRequests, setFileChangeRequests);
     isRunningRef.current = false;
-    setLoadingMessage("")
+    setLoadingMessage("");
     return;
   };
-
 
   // syncronously modify/create all files
   const getAllFileChanges = async (fcrs: FileChangeRequest[]) => {
     for (let index = 0; index < fcrs.length; index++) {
-      const fcr = fcrs[index]
+      const fcr = fcrs[index];
       await getFileChanges(fcr, index);
     }
   };
 
   const saveAllFiles = async (fcrs: FileChangeRequest[]) => {
     for await (const [index, fcr] of fcrs.entries()) {
-      setOldFileForFCR(fcr.newContents, fcr, fileChangeRequests, setFileChangeRequests);
+      setOldFileForFCR(
+        fcr.newContents,
+        fcr,
+        fileChangeRequests,
+        setFileChangeRequests,
+      );
       setHideMerge(true, fcr);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
@@ -569,254 +638,284 @@ const DashboardActions = ({
     fileChangeRequests.forEach(
       async (fcr: FileChangeRequest, index: number) => {
         const response = await getFile(repoName, fcr.snippet.file);
-        setFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
-        setOldFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
+        setFileForFCR(
+          response.contents,
+          fcr,
+          fileChangeRequests,
+          setFileChangeRequests,
+        );
+        setOldFileForFCR(
+          response.contents,
+          fcr,
+          fileChangeRequests,
+          setFileChangeRequests,
+        );
         setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
       },
     );
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-     <Tabs defaultValue="coding" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
-      <div className="flex flex-row justify-between">
-        <div className="flex flex-row">
-          <TabsList>
-            <TabsTrigger value="planning">Planning</TabsTrigger>
-            <TabsTrigger value="coding">Coding</TabsTrigger>
-          </TabsList>
-
-        </div>
-        <div>
-          <Dialog
-            defaultOpen={repoName === ""}
-            open={repoNameCollapsibleOpen}
-            onOpenChange={(open) => setRepoNameCollapsibleOpen(open)}
-          >
-            <Button
-              variant="secondary"
-              className={`${repoName === "" ? "bg-blue-800 hover:bg-blue-900" : ""} h-full`}
-              size="sm"
-              onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
+      <Tabs
+        defaultValue="coding"
+        className="h-full w-full"
+        value={currentTab}
+        onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}
+      >
+        <div className="flex flex-row justify-between">
+          <div className="flex flex-row">
+            <TabsList>
+              <TabsTrigger value="planning">Planning</TabsTrigger>
+              <TabsTrigger value="coding">Coding</TabsTrigger>
+            </TabsList>
+          </div>
+          <div>
+            <Dialog
+              defaultOpen={repoName === ""}
+              open={repoNameCollapsibleOpen}
+              onOpenChange={(open) => setRepoNameCollapsibleOpen(open)}
             >
-              <FaCog />&nbsp;&nbsp;Repository Settings
-              <span className="sr-only">Toggle</span>
-            </Button>
-            <DialogContent className="CollapsibleContent">
-              <div>
-                <Label className="mb-2">Repository Path</Label>
-                <Input
-                  id="name"
-                  placeholder="/Users/sweep/path/to/repo"
-                  value={currentRepoName}
-                  className="col-span-4 w-full"
-                  onChange={(e) => setCurrentRepoName(e.target.value)}
-                  onBlur={refreshFiles}
-                />
-                <p className="text-sm text-muted-foreground mb-4">
-                  Absolute path to your repository.
-                </p>
-                <Label className="mb-2">Blocked Keywords</Label>
-                <Input
-                  className="mb-4"
-                  value={currentBlockedGlobs}
-                  onChange={(e) => {
-                    setCurrentBlockedGlobs(e.target.value);
-                  }}
-                  onBlur={() => {
-                    setBlockedGlobs(currentBlockedGlobs);
-                  }}
-                  placeholder="node_modules, .log, build"
-                />
-                <Label className="mb-2">File Limit</Label>
-                <Input
-                  value={fileLimit}
-                  onChange={(e) => {
-                    setFileLimit(parseInt(e.target.value));
-                  }}
-                  placeholder="10000"
-                  type="number"
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+              <Button
+                variant="secondary"
+                className={`${repoName === "" ? "bg-blue-800 hover:bg-blue-900" : ""} h-full`}
+                size="sm"
+                onClick={() => setRepoNameCollapsibleOpen((open) => !open)}
+              >
+                <FaCog />
+                &nbsp;&nbsp;Repository Settings
+                <span className="sr-only">Toggle</span>
+              </Button>
+              <DialogContent className="CollapsibleContent">
+                <div>
+                  <Label className="mb-2">Repository Path</Label>
+                  <Input
+                    id="name"
+                    placeholder="/Users/sweep/path/to/repo"
+                    value={currentRepoName}
+                    className="col-span-4 w-full"
+                    onChange={(e) => setCurrentRepoName(e.target.value)}
+                    onBlur={refreshFiles}
+                  />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Absolute path to your repository.
+                  </p>
+                  <Label className="mb-2">Blocked Keywords</Label>
+                  <Input
+                    className="mb-4"
+                    value={currentBlockedGlobs}
+                    onChange={(e) => {
+                      setCurrentBlockedGlobs(e.target.value);
+                    }}
+                    onBlur={() => {
+                      setBlockedGlobs(currentBlockedGlobs);
+                    }}
+                    placeholder="node_modules, .log, build"
+                  />
+                  <Label className="mb-2">File Limit</Label>
+                  <Input
+                    value={fileLimit}
+                    onChange={(e) => {
+                      setFileLimit(parseInt(e.target.value));
+                    }}
+                    placeholder="10000"
+                    type="number"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </div>
-      <TabsContent value="planning" className="rounded-xl border h-full p-4 h-[95%]">
-        <DashboardPlanning
-          repoName={repoName}
-          files={files}
-          setLoadingMessage={setLoadingMessage}
-          setCurrentTab={setCurrentTab}
-        />
-      </TabsContent>
-      <TabsContent value="coding" className="h-full">
-        <div className="flex flex-col h-[95%]">
-          <DashboardInstructions
-            filePath={filePath}
+        <TabsContent
+          value="planning"
+          className="rounded-xl border h-full p-4 h-[95%]"
+        >
+          <DashboardPlanning
             repoName={repoName}
             files={files}
-            directories={directories}
-            currentFileChangeRequestIndex={currentFileChangeRequestIndex}
-            setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-            getFileChanges={getFileChanges}
-            isRunningRef={isRunningRef}
-            syncAllFiles={syncAllFiles}
-            getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
+            setLoadingMessage={setLoadingMessage}
             setCurrentTab={setCurrentTab}
           />
-        <Collapsible
-          open={validationScriptCollapsibleOpen}
-          className="border-2 rounded p-4"
-        >
-          <div className="flex flex-row justify-between items-center">
-            <Label className="mb-0 flex flex-row items-center">Checks&nbsp;
-              <AlertDialog open={alertDialogOpen}>
-                <Button variant="secondary" size="sm" className="rounded-lg ml-1 mr-2" onClick={() => setAlertDialogOpen(true)}>
-                  <FaQuestion style={{fontSize: 12 }} />
+        </TabsContent>
+        <TabsContent value="coding" className="h-full">
+          <div className="flex flex-col h-[95%]">
+            <DashboardInstructions
+              filePath={filePath}
+              repoName={repoName}
+              files={files}
+              directories={directories}
+              currentFileChangeRequestIndex={currentFileChangeRequestIndex}
+              setCurrentFileChangeRequestIndex={
+                setCurrentFileChangeRequestIndex
+              }
+              getFileChanges={getFileChanges}
+              isRunningRef={isRunningRef}
+              syncAllFiles={syncAllFiles}
+              getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
+              setCurrentTab={setCurrentTab}
+            />
+            <Collapsible
+              open={validationScriptCollapsibleOpen}
+              className="border-2 rounded p-4"
+            >
+              <div className="flex flex-row justify-between items-center">
+                <Label className="mb-0 flex flex-row items-center">
+                  Checks&nbsp;
+                  <AlertDialog open={alertDialogOpen}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="rounded-lg ml-1 mr-2"
+                      onClick={() => setAlertDialogOpen(true)}
+                    >
+                      <FaQuestion style={{ fontSize: 12 }} />
+                    </Button>
+                    <Switch
+                      checked={doValidate}
+                      onClick={() => setDoValidate(!doValidate)}
+                      disabled={fileChangeRequests.some(
+                        (fcr: FileChangeRequest) => fcr.isLoading,
+                      )}
+                    />
+                    <AlertDialogContent className="p-12">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-5xl mb-2">
+                          Test and Validation Scripts
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-md pt-4">
+                          <p>
+                            We highly recommend setting up the validation script
+                            to allow Sweep to iterate against static analysis
+                            tools to ensure valid code is generated. You can
+                            this off by clicking the switch.
+                          </p>
+                          <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
+                            Validation Script
+                          </h2>
+                          <p>
+                            Sweep runs validation after every edit, and will try
+                            to auto-fix any errors.
+                            <br />
+                            <br />
+                            We recommend a syntax checker (a formatter suffices)
+                            and a linter. We also recommend using your local
+                            environment, to ensure we use your dependencies.
+                            <br />
+                            <br />
+                            For example, for Python you can use:
+                            <pre className="py-4">
+                              <code>
+                                python -m py_compile $FILE_PATH
+                                <br />
+                                pylint $FILE_PATH --error-only
+                              </code>
+                            </pre>
+                            And for JavaScript you can use:
+                            <pre className="py-4">
+                              <code>
+                                prettier $FILE_PATH
+                                <br />
+                                eslint $FILE_PATH
+                              </code>
+                            </pre>
+                          </p>
+                          <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
+                            Test Script
+                          </h2>
+                          <p>
+                            You can run tests after all the files have been
+                            edited by Sweep.
+                            <br />
+                            <br />
+                            E.g. For example, for Python you can use:
+                            <pre className="py-4">pytest $FILE_PATH</pre>
+                            And for JavaScript you can use:
+                            <pre className="py-4">jest $FILE_PATH</pre>
+                          </p>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel
+                          onClick={() => setAlertDialogOpen(false)}
+                        >
+                          Close
+                        </AlertDialogCancel>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </Label>
+                <div className="grow"></div>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    posthog.capture("run_tests", {
+                      name: "Run Tests",
+                      repoName: repoName,
+                      filePath: filePath,
+                      validationScript: validationScript,
+                      testScript: testScript,
+                    });
+                    await runScriptWrapper(file);
+                  }}
+                  disabled={
+                    fileChangeRequests.some(
+                      (fcr: FileChangeRequest) => fcr.isLoading,
+                    ) || !doValidate
+                  }
+                  size="sm"
+                  className="mr-2"
+                >
+                  <FaPlay />
+                  &nbsp;&nbsp;Run Tests
                 </Button>
-                <Switch
-                  checked={doValidate}
-                  onClick={() => setDoValidate(!doValidate)}
-                  disabled={fileChangeRequests.some(
-                    (fcr: FileChangeRequest) => fcr.isLoading,
-                  )}
-                />
-                <AlertDialogContent className="p-12">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-5xl mb-2">
-                      Test and Validation Scripts
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-md pt-4">
-                      <p>
-                        We highly recommend setting up the validation script to
-                        allow Sweep to iterate against static analysis tools to
-                        ensure valid code is generated. You can this off by
-                        clicking the switch.
-                      </p>
-                      <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
-                        Validation Script
-                      </h2>
-                      <p>
-                        Sweep runs validation after every edit, and will try to
-                        auto-fix any errors.
-                        <br />
-                        <br />
-                        We recommend a syntax checker (a formatter suffices) and
-                        a linter. We also recommend using your local
-                        environment, to ensure we use your dependencies.
-                        <br />
-                        <br />
-                        For example, for Python you can use:
-                        <pre className="py-4">
-                          <code>
-                            python -m py_compile $FILE_PATH
-                            <br />
-                            pylint $FILE_PATH --error-only
-                          </code>
-                        </pre>
-                        And for JavaScript you can use:
-                        <pre className="py-4">
-                          <code>
-                            prettier $FILE_PATH
-                            <br />
-                            eslint $FILE_PATH
-                          </code>
-                        </pre>
-                      </p>
-                      <h2 className="text-2xl mt-4 mb-2 text-zinc-100">
-                        Test Script
-                      </h2>
-                      <p>
-                        You can run tests after all the files have been edited
-                        by Sweep.
-                        <br />
-                        <br />
-                        E.g. For example, for Python you can use:
-                        <pre className="py-4">pytest $FILE_PATH</pre>
-                        And for JavaScript you can use:
-                        <pre className="py-4">jest $FILE_PATH</pre>
-                      </p>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setAlertDialogOpen(false)}>
-                      Close
-                    </AlertDialogCancel>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </Label>
-            <div className="grow"></div>
-            <Button
-              variant="secondary"
-              onClick={async () => {
-                posthog.capture("run_tests", {
-                  name: "Run Tests",
-                  repoName: repoName,
-                  filePath: filePath,
-                  validationScript: validationScript,
-                  testScript: testScript,
-                });
-                await runScriptWrapper(file);
-              }}
-              disabled={
-                fileChangeRequests.some(
-                  (fcr: FileChangeRequest) => fcr.isLoading,
-                ) || !doValidate
-              }
-              size="sm"
-              className="mr-2"
-            >
-              <FaPlay />
-              &nbsp;&nbsp;Run Tests
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setValidationScriptCollapsibleOpen((open: boolean) => !open)}>
-              { !validationScriptCollapsibleOpen ? 'Expand' : 'Collapse' }&nbsp;&nbsp;
-              <CaretSortIcon className="h-4 w-4" />
-              <span className="sr-only">Toggle</span>
-            </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setValidationScriptCollapsibleOpen((open: boolean) => !open)
+                  }
+                >
+                  {!validationScriptCollapsibleOpen ? "Expand" : "Collapse"}
+                  &nbsp;&nbsp;
+                  <CaretSortIcon className="h-4 w-4" />
+                  <span className="sr-only">Toggle</span>
+                </Button>
+              </div>
+              <CollapsibleContent className="pt-2 CollapsibleContent">
+                <Label className="mb-0">Validation Script&nbsp;</Label>
+                <Textarea
+                  id="script-input"
+                  placeholder={validationScriptPlaceholder}
+                  className="col-span-4 w-full font-mono height-fit-content"
+                  value={validationScript}
+                  onChange={(e) => setValidationScript(e.target.value)}
+                  disabled={
+                    fileChangeRequests.some(
+                      (fcr: FileChangeRequest) => fcr.isLoading,
+                    ) || !doValidate
+                  }
+                ></Textarea>
+                <Label className="mb-0">Test Script</Label>
+                <Textarea
+                  id="script-input"
+                  placeholder={testScriptPlaceholder}
+                  className="col-span-4 w-full font-mono height-fit-content"
+                  value={testScript}
+                  onChange={(e) => setTestScript(e.target.value)}
+                  disabled={
+                    fileChangeRequests.some(
+                      (fcr: FileChangeRequest) => fcr.isLoading,
+                    ) || !doValidate
+                  }
+                ></Textarea>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Use $FILE_PATH to refer to the file you selected. E.g. `python
+                  $FILE_PATH`.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
-          <CollapsibleContent className="pt-2 CollapsibleContent">
-            <Label
-              className="mb-0"
-            >
-              Validation Script&nbsp;
-
-            </Label>
-            <Textarea
-              id="script-input"
-              placeholder={validationScriptPlaceholder}
-              className="col-span-4 w-full font-mono height-fit-content"
-              value={validationScript}
-              onChange={(e) => setValidationScript(e.target.value)}
-              disabled={
-                fileChangeRequests.some(
-                  (fcr: FileChangeRequest) => fcr.isLoading,
-                ) || !doValidate
-              }
-            ></Textarea>
-            <Label className="mb-0">Test Script</Label>
-            <Textarea
-              id="script-input"
-              placeholder={testScriptPlaceholder}
-              className="col-span-4 w-full font-mono height-fit-content"
-              value={testScript}
-              onChange={(e) => setTestScript(e.target.value)}
-              disabled={
-                fileChangeRequests.some(
-                  (fcr: FileChangeRequest) => fcr.isLoading,
-                ) || !doValidate
-              }
-            ></Textarea>
-            <p className="text-sm text-muted-foreground mb-4">
-              Use $FILE_PATH to refer to the file you selected. E.g. `python
-              $FILE_PATH`.
-            </p>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-      </TabsContent>
-    </Tabs>
+        </TabsContent>
+      </Tabs>
     </ResizablePanel>
   );
 };

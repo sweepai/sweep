@@ -20,7 +20,14 @@ import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
 import { toast } from "sonner";
 import { FileChangeRequestsState } from "../../state/fcrAtoms";
 import { useRecoilState } from "recoil";
-import { setStatusForFCR, setFileForFCR, setOldFileForFCR, removeFileChangeRequest, setStatusForAll, setHideMergeAll } from "../../state/fcrStateHelpers";
+import {
+  setStatusForFCR,
+  setFileForFCR,
+  setOldFileForFCR,
+  removeFileChangeRequest,
+  setStatusForAll,
+  setHideMergeAll,
+} from "../../state/fcrStateHelpers";
 
 const blockedPaths = [
   ".git",
@@ -31,7 +38,7 @@ const blockedPaths = [
   "cache",
   "logs",
   "sweep",
-  "install_assistant.sh"
+  "install_assistant.sh",
 ];
 
 const versionScript = `timestamp=$(git log -1 --format="%at")
@@ -51,14 +58,20 @@ const DashboardDisplay = () => {
     "blockedGlobs",
     blockedPaths.join(", "),
   );
-  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(
+    FileChangeRequestsState,
+  );
   const [currentFileChangeRequestIndex, setCurrentFileChangeRequestIndex] =
     useLocalStorage("currentFileChangeRequestIndex", 0);
   const [versionNumber, setVersionNumber] = useState("");
 
-  const [files = [], setFiles] = useLocalStorage<{ label: string; name: string }[]>("files",[]);
-  const [directories = [], setDirectories] = useLocalStorage<{ label: string; name: string }[]>("directories",[]);
-  const [loadingMessage = "", setLoadingMessage] = useState("" as string)
+  const [files = [], setFiles] = useLocalStorage<
+    { label: string; name: string }[]
+  >("files", []);
+  const [directories = [], setDirectories] = useLocalStorage<
+    { label: string; name: string }[]
+  >("directories", []);
+  const [loadingMessage = "", setLoadingMessage] = useState("" as string);
 
   const filePath =
     fileChangeRequests[currentFileChangeRequestIndex]?.snippet.file;
@@ -76,28 +89,30 @@ const DashboardDisplay = () => {
     }
   };
 
-  const setHideMerge = useCallback((newHideMerge: boolean, fcr: FileChangeRequest) => {
-    try {
-      const fcrIndex = fileChangeRequests.findIndex((fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr)
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex],
-            hideMerge: newHideMerge,
-          },
-          ...prev.slice(fcrIndex + 1),
-        ];
-      });
-    } catch (error) {
-      console.error("Error in setHideMerge: ", error);
-    }
-  }, [fileChangeRequests]);
-
-
+  const setHideMerge = useCallback(
+    (newHideMerge: boolean, fcr: FileChangeRequest) => {
+      try {
+        const fcrIndex = fileChangeRequests.findIndex(
+          (fileChangeRequest: FileChangeRequest) =>
+            fcrEqual(fileChangeRequest, fcr),
+        );
+        undefinedCheck(fcrIndex);
+        setFileChangeRequests((prev) => {
+          return [
+            ...prev.slice(0, fcrIndex),
+            {
+              ...prev[fcrIndex],
+              hideMerge: newHideMerge,
+            },
+            ...prev.slice(fcrIndex + 1),
+          ];
+        });
+      } catch (error) {
+        console.error("Error in setHideMerge: ", error);
+      }
+    },
+    [fileChangeRequests],
+  );
 
   const setOldFile = useCallback((newOldFile: string) => {
     setCurrentFileChangeRequestIndex((index) => {
@@ -136,7 +151,11 @@ const DashboardDisplay = () => {
 
   useEffect(() => {
     (async () => {
-      const filesAndDirectories = await getFiles(repoName, blockedGlobs, fileLimit);
+      const filesAndDirectories = await getFiles(
+        repoName,
+        blockedGlobs,
+        fileLimit,
+      );
       let newFiles = filesAndDirectories.sortedFiles;
       let directories = filesAndDirectories.directories;
       newFiles = newFiles.map((file: string) => {
@@ -144,16 +163,20 @@ const DashboardDisplay = () => {
       });
       directories = directories.map((directory: string) => {
         return { value: directory + "/", label: directory + "/" };
-      })
+      });
       setFiles(newFiles);
-      setDirectories(directories)
+      setDirectories(directories);
     })();
   }, [repoName, blockedGlobs, fileLimit]);
 
   useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
     const delta = 50; // Define a delta for the inequality check
-    if (Math.abs(textarea.scrollHeight - textarea.scrollTop - textarea.clientHeight) < delta) {
+    if (
+      Math.abs(
+        textarea.scrollHeight - textarea.scrollTop - textarea.clientHeight,
+      ) < delta
+    ) {
       textarea.scrollTop = textarea.scrollHeight;
     }
   }, [streamData]);
@@ -163,7 +186,7 @@ const DashboardDisplay = () => {
       const body = {
         repo: repoName,
         filePath,
-        script: versionScript
+        script: versionScript,
       };
       const result = await fetch("/api/run?", {
         method: "POST",
@@ -196,7 +219,14 @@ const DashboardDisplay = () => {
   return (
     <>
       {loadingMessage && (
-        <div className="p-2 fixed bottom-12 right-12 text-center z-10 flex flex-col items-center" style={{ borderRadius: '50%', background: 'radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)' }}>
+        <div
+          className="p-2 fixed bottom-12 right-12 text-center z-10 flex flex-col items-center"
+          style={{
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgb(40, 40, 40) 0%, rgba(0, 0, 0, 0) 75%)",
+          }}
+        >
           <img
             className="rounded-full border-zinc-800 border"
             src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif"
@@ -204,9 +234,7 @@ const DashboardDisplay = () => {
             height={75}
             width={75}
           />
-          <p className="mt-2">
-            {loadingMessage}
-          </p>
+          <p className="mt-2">{loadingMessage}</p>
         </div>
       )}
       <h1 className="font-bold text-xl">Sweep Assistant</h1>
@@ -275,21 +303,39 @@ const DashboardDisplay = () => {
                   size="sm"
                   variant="secondary"
                   onClick={async () => {
-                    const fcr = fileChangeRequests[currentFileChangeRequestIndex]
-                    const response = await getFile(
-                      repoName,
-                      fcr.snippet.file
+                    const fcr =
+                      fileChangeRequests[currentFileChangeRequestIndex];
+                    const response = await getFile(repoName, fcr.snippet.file);
+                    setFileForFCR(
+                      response.contents,
+                      fcr,
+                      fileChangeRequests,
+                      setFileChangeRequests,
                     );
-                    setFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
-                    setOldFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
+                    setOldFileForFCR(
+                      response.contents,
+                      fcr,
+                      fileChangeRequests,
+                      setFileChangeRequests,
+                    );
                     toast.success("File synced from storage!", {
-                      action: { label: "Dismiss", onClick: () => { } },
+                      action: { label: "Dismiss", onClick: () => {} },
                     });
-                    setCurrentFileChangeRequestIndex(currentFileChangeRequestIndex);
+                    setCurrentFileChangeRequestIndex(
+                      currentFileChangeRequestIndex,
+                    );
                     setHideMerge(true, fcr);
-                    setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
+                    setStatusForFCR(
+                      "idle",
+                      fcr,
+                      fileChangeRequests,
+                      setFileChangeRequests,
+                    );
                   }}
-                  disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading}
+                  disabled={
+                    fileChangeRequests.length === 0 ||
+                    fileChangeRequests[currentFileChangeRequestIndex]?.isLoading
+                  }
                 >
                   <FaArrowsRotate />
                 </Button>
@@ -297,8 +343,14 @@ const DashboardDisplay = () => {
                   size="sm"
                   className="mr-2 bg-green-600 hover:bg-green-700"
                   onClick={async () => {
-                    const fcr = fileChangeRequests[currentFileChangeRequestIndex]
-                    setOldFileForFCR(fcr.newContents, fcr, fileChangeRequests, setFileChangeRequests);
+                    const fcr =
+                      fileChangeRequests[currentFileChangeRequestIndex];
+                    setOldFileForFCR(
+                      fcr.newContents,
+                      fcr,
+                      fileChangeRequests,
+                      setFileChangeRequests,
+                    );
                     setHideMerge(true, fcr);
                     await writeFile(
                       repoName,
@@ -306,10 +358,15 @@ const DashboardDisplay = () => {
                       fcr.newContents,
                     );
                     toast.success("Succesfully saved file!", {
-                      action: { label: "Dismiss", onClick: () => { } },
+                      action: { label: "Dismiss", onClick: () => {} },
                     });
                   }}
-                  disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading || fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge}
+                  disabled={
+                    fileChangeRequests.length === 0 ||
+                    fileChangeRequests[currentFileChangeRequestIndex]
+                      ?.isLoading ||
+                    fileChangeRequests[currentFileChangeRequestIndex]?.hideMerge
+                  }
                 >
                   <FaCheck />
                 </Button>

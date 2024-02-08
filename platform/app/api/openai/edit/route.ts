@@ -52,7 +52,10 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as Body;
 
   const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: body.systemMessagePrompt || systemMessagePrompt },
+    {
+      role: "system",
+      content: body.systemMessagePrompt || systemMessagePrompt,
+    },
     ...(body.additionalMessages || []),
     { role: "user", content: body.userMessage },
   ];
