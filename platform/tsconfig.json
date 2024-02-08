@@ -20,6 +20,6 @@
     ],
     "types": ["node", "jest", "react", "react-dom", "next"],
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "lib/tree.test.ts.unused", "app/api/openai/edit/route.test.ts.unused"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "lib/tree.test.ts.unused", "app/api/openai/edit/route.test.ts.unused", "lib/patchUtils.test.ts"],
   "exclude": ["node_modules"],
 }
