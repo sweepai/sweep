@@ -459,7 +459,6 @@ const DashboardActions = ({
     if (!changesMade) {
       errorMessage += "No valid diff hunks were found in the response.\n\n";
     }
-    console.error(errorMessage)
     return [currentFileContents, errorMessage];
   };
 
@@ -494,7 +493,6 @@ const DashboardActions = ({
     if (!changesMade) {
       errorMessage += "No new file was created.\n\n";
     }
-    console.error(errorMessage)
     return [currentFileContents, errorMessage];
   };
 
@@ -518,7 +516,6 @@ const DashboardActions = ({
     const parsingErrorMessageOld = checkCode(oldFile, filePath);
     const parsingErrorMessage = checkCode(newFile, filePath);
     if (!parsingErrorMessageOld && parsingErrorMessage) {
-      console.error(parsingErrorMessage)
       return parsingErrorMessage;
     }
     var { stdout, stderr, code } = await runScript(
@@ -544,7 +541,7 @@ const DashboardActions = ({
       newFile,
     );
     // TODO: add diff
-    console.error(code, stdout + stderr)
+    // console.error(code, stdout + stderr)
     return code !== 0 ? stdout + "\n" + stderr : "";
   };
 
