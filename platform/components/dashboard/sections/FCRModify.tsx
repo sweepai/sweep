@@ -8,6 +8,9 @@ import { Badge } from "../../ui/badge";
 import { Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
+import { useRecoilState } from "recoil";
+import { FileChangeRequestsState } from "../../../state/fcrAtoms";
+import { setStatusForFCR, removeFileChangeRequest, setReadOnlySnippetForFCR, removeReadOnlySnippetForFCR } from "../../../state/fcrStateHelpers";
 
 const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
 
@@ -17,12 +20,8 @@ const capitalize = (s: string) => {
 
 const FCRModify = memo(function FCRModify({
   repoName,
-  setFileChangeRequests,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
-  setReadOnlySnippetForFCR,
-  removeReadOnlySnippetForFCR,
-  removeFileChangeRequest,
   isRunningRef,
   fcr,
   index,
@@ -32,12 +31,8 @@ const FCRModify = memo(function FCRModify({
   fcrInstructions,
   setFCRInstructions,
   setUserSuggestion,
-  setStatusForFCR,
 }: {
   repoName: string;
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
@@ -45,15 +40,6 @@ const FCRModify = memo(function FCRModify({
     fileChangeRequest: FileChangeRequest,
     index: number,
   ) => Promise<void>;
-  setReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippet: Snippet,
-  ) => void;
-  removeReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippetFile: string,
-  ) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
   fcr: FileChangeRequest;
   index: number;
@@ -63,8 +49,8 @@ const FCRModify = memo(function FCRModify({
   fcrInstructions: { [key: string]: string; };
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
   setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
-  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void
 }) {
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   return (
     <Draggable
       key={snippetKey(fcr.snippet)}
@@ -105,7 +91,7 @@ const FCRModify = memo(function FCRModify({
                   variant="secondary"
                   className="mr-2 ml-auto"
                   onClick={async () => {
-                    removeFileChangeRequest(fcr);
+                    removeFileChangeRequest(fcr, fileChangeRequests, setFileChangeRequests);
                     setFCRInstructions((prev: any) => {
                       return {
                         ...prev,
@@ -175,7 +161,7 @@ const FCRModify = memo(function FCRModify({
                     entireFile: contents,
                     content: contents, // this is the slice based on start and end, remeber to change this
                   } as Snippet;
-                  setReadOnlySnippetForFCR(fcr, newSnippet);
+                  setReadOnlySnippetForFCR(fcr, newSnippet, fileChangeRequests, setFileChangeRequests);
                 }}
                 appendSpaceOnAdd={true}
                 // shift it down 5px
@@ -201,7 +187,7 @@ const FCRModify = memo(function FCRModify({
                       key={String(index) + "-remove"}
                       className="bg-zinc-800 cursor-pointer"
                       onClick={() => {
-                        removeReadOnlySnippetForFCR(fcr, snippetFile);
+                        removeReadOnlySnippetForFCR(fcr, snippetFile, fileChangeRequests, setFileChangeRequests);
                       }}
                     />
                   </Badge>
@@ -221,6 +207,7 @@ const FCRModify = memo(function FCRModify({
                     size="sm"
                     className="mr-2"
                     onClick={(e: any) => {
+                      console.log("fcr:", fcr)
                       setCurrentFileChangeRequestIndex(index);
                       getFileChanges(fcr, index);
                     }}
@@ -236,7 +223,7 @@ const FCRModify = memo(function FCRModify({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
-                      setStatusForFCR("idle", fcr);
+                      setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
                     }}
                   >
                     <FaStop />
