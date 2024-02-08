@@ -406,6 +406,7 @@ const DashboardActions = ({
       newFile,
     );
     // TODO: add diff
+    setScriptOutput(stdout + "\n" + stderr);
     return code !== 0 ? stdout + "\n" + stderr : "";
   };
 
@@ -537,7 +538,7 @@ const DashboardActions = ({
             if (patchingErrors) {
               errorMessage += patchingErrors;
             } else {
-              errorMessage += await checkForErrors(
+              errorMessage = await checkForErrors(
                 fcr.snippet.file,
                 fcr.snippet.entireFile,
                 updatedFile,
