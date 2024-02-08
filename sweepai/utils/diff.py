@@ -5,35 +5,6 @@ from sweepai.logn import logger
 from sweepai.utils.search_and_replace import Match, find_best_match
 
 
-def diff_contains_dups_or_removals(diff, new_code):
-    # The regex pattern for lines removed or added in the actual code
-    removed_line_pattern = r"^-.*"
-    added_line_pattern = r"^\+.*"
-
-    lines_removed = False
-    duplicate_lines_added = False
-
-    # Split the diff and new_code into separate lines
-    diff_lines = diff.split("\n")[3:]  # Start from the third line
-    new_code_lines = [line.strip() for line in new_code.split("\n")]
-
-    # Check if there are removed lines
-    for line in diff_lines:
-        if re.match(removed_line_pattern, line):
-            lines_removed = True
-
-    # Check if there are duplicate lines added
-    added_lines = [
-        line[1:].strip() for line in diff_lines if re.match(added_line_pattern, line)
-    ]
-    for line in added_lines:
-        if new_code_lines.count(line) > 1:
-            duplicate_lines_added = True
-            break
-
-    return lines_removed or duplicate_lines_added
-
-
 def generate_diff(old_code, new_code):
     if old_code == new_code:
         return ""

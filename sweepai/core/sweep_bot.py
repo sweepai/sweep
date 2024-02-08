@@ -15,7 +15,6 @@ from pydantic import BaseModel
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.modify_bot import ModifyBot
 from sweepai.agents.move_bot import MoveBot
-from sweepai.agents.test_bot import TestBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
@@ -1062,55 +1061,6 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request,
                                 changed_file,
                                 sandbox_response,
-                                commit,
-                                file_change_requests,
-                            )
-                        case "test":
-                            # Only test creation for now, not updates
-                            test_bot = TestBot(chat_logger=self.chat_logger)
-                            additional_messages = [
-                                Message(
-                                    role="user",
-                                    content=self.human_message.get_issue_metadata(),
-                                    key="issue_metadata",
-                                )
-                            ]
-                            new_test = test_bot.write_test(
-                                file_change_request=file_change_request,
-                                additional_messages=additional_messages,
-                                file_path=file_change_request.source_file,
-                                cloned_repo=self.cloned_repo,
-                                changed_files=changed_files,
-                                check_sandbox=self.check_sandbox,
-                            )
-                            try:
-                                contents = self.repo.get_contents(
-                                    file_change_request.filename, ref=branch
-                                )
-                            except Exception:
-                                contents = None
-                            if contents is not None:
-                                response = self.repo.update_file(
-                                    file_change_request.filename,
-                                    f"test: Add test for {file_change_request.filename}",
-                                    new_test,
-                                    sha=contents.sha,
-                                    branch=branch,
-                                )
-                            else:
-                                response = self.repo.create_file(
-                                    file_change_request.filename,
-                                    f"test: Add test for {file_change_request.filename}",
-                                    new_test,
-                                    branch=branch,
-                                )
-                            commit = response["commit"]
-                            file_change_request.commit_hash_url = commit.html_url
-                            file_change_request.status = "succeeded"
-                            yield (
-                                file_change_request,
-                                bool(new_test),
-                                None,
                                 commit,
                                 file_change_requests,
                             )

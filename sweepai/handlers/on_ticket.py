@@ -1122,25 +1122,6 @@ def on_ticket(
                         else ""
                     )
 
-                def update_progress(
-                    entity_display: str,
-                    header: str,
-                    error_logs: str,
-                    status: str = "X",
-                ):
-                    nonlocal checkboxes_progress
-                    for i, (entity_display_, instructions, status_) in enumerate(
-                        checkboxes_progress
-                    ):
-                        if entity_display in entity_display_:
-                            checkboxes_progress[i] = (
-                                header,
-                                instructions + error_logs,
-                                status,
-                            )
-                            return True
-                    return False
-
                 changed_files = []
                 for item in generator:
                     if isinstance(item, dict):

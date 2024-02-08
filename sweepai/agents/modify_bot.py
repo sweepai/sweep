@@ -10,7 +10,6 @@ from sweepai.agents.assistant_function_modify import (
     int_to_excel_col,
 )
 from sweepai.agents.complete_code import ExtractLeftoverComments
-from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.config.server import DEBUG
 from sweepai.core.chat import ChatGPT

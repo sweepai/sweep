@@ -16,16 +16,11 @@ import rapidfuzz
 import requests
 from github import Github
 from jwt import encode
-from redis import Redis
-from redis.backoff import ExponentialBackoff
-from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
-from redis.retry import Retry
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
+from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.logn import logger
 from sweepai.utils.ctags import CTags
-from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.tree_utils import DirectoryTree
 
 MAX_FILE_COUNT = 50
@@ -308,46 +303,6 @@ class ClonedRepo:
         dfs_helper(root_directory)
         files = [file[len(root_directory) + 1 :] for file in files]
         return files
-
-    def get_tree_and_file_list(
-        self,
-        snippet_paths: list[str],
-        excluded_directories: list[str] = None,
-    ) -> tuple[str, DirectoryTree]:
-        prefixes = []
-        for snippet_path in snippet_paths:
-            file_list = ""
-            snippet_depth = len(snippet_path.split("/"))
-            for directory in snippet_path.split("/")[
-                snippet_depth // 2 : -1
-            ]:  # heuristic
-                file_list += directory + "/"
-                prefixes.append(file_list.rstrip("/"))
-            file_list += snippet_path.split("/")[-1]
-            prefixes.append(snippet_path)
-
-        retry = Retry(ExponentialBackoff(), 3)
-        cache_inst = (
-            Redis.from_url(
-                REDIS_URL,
-                retry=retry,
-                retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-            )
-            if REDIS_URL
-            else None
-        )
-        ctags = CTags(redis_instance=cache_inst)
-        all_names = []
-        for file in snippet_paths:
-            _, names = get_ctags_for_file(ctags, os.path.join("repo", file))
-            all_names.extend(names)
-        tree, dir_obj = self.list_directory_tree(
-            included_directories=prefixes,
-            included_files=snippet_paths,
-            excluded_directories=excluded_directories,
-            ctags=ctags,
-        )
-        return tree, dir_obj
 
     def get_file_contents(self, file_path, ref=None):
         local_path = (
