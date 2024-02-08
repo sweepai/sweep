@@ -18,6 +18,8 @@ import { usePostHog } from "posthog-js/react";
 import { posthogMetadataScript } from "../../lib/posthog";
 import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
 import { toast } from "sonner";
+import { FileChangeRequestsState } from "../../state/fcrAtoms";
+import { useRecoilState } from "recoil";
 
 const blockedPaths = [
   ".git",
@@ -48,9 +50,7 @@ const DashboardDisplay = () => {
     "blockedGlobs",
     blockedPaths.join(", "),
   );
-  const [fileChangeRequests = [], setFileChangeRequests] = useState<
-    FileChangeRequest[]
-  >([]);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   const [currentFileChangeRequestIndex, setCurrentFileChangeRequestIndex] =
     useLocalStorage("currentFileChangeRequestIndex", 0);
   const [versionNumber, setVersionNumber] = useState("");
@@ -220,6 +220,7 @@ const DashboardDisplay = () => {
   }, []);
 
   const setFileForFCR = (newFile: string, fcr: FileChangeRequest) => {
+    console.log("setting file for fcr", newFile, fcr)
     try {
       const fcrIndex = fileChangeRequests.findIndex(
         (fileChangeRequest: FileChangeRequest) =>
@@ -346,8 +347,6 @@ const DashboardDisplay = () => {
           setStreamData={setStreamData}
           files={files}
           directories={directories}
-          fileChangeRequests={fileChangeRequests}
-          setFileChangeRequests={setFileChangeRequests}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
           setFileForFCR={setFileForFCR}

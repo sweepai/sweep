@@ -5,14 +5,14 @@ import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
 import { Button } from "../ui/button";
 import CreationPanel from "./sections/CreationPanel";
+import { useRecoilState } from "recoil";
+import { FileChangeRequestsState } from "../../state/fcrAtoms";
 
 const DashboardInstructions = forwardRef(function DashboardInstructions({
   filePath,
   repoName,
   files,
   directories,
-  fileChangeRequests,
-  setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
@@ -30,10 +30,6 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
   repoName: string;
   files: { label: string; name: string }[];
   directories: { label: string; name: string }[];
-  fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   currentFileChangeRequestIndex: number;
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
@@ -58,6 +54,7 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
   setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void;
   setCurrentTab: React.Dispatch<React.SetStateAction<"planning" | "coding">>;
 }, ref: Ref<HTMLDivElement>) {
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   return (
     <div className="grow mb-4 h-full min-h-0 rounded-md p-4 overflow-auto border" ref={ref}>
       <ModifyOrCreate
@@ -65,16 +62,12 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
         repoName={repoName}
         files={files}
         directories={directories}
-        fileChangeRequests={fileChangeRequests}
-        setFileChangeRequests={setFileChangeRequests}
         syncAllFiles={syncAllFiles}
         setStatusForAll={setStatusForAll}
       />
       <FCRList
         repoName={repoName}
         files={files}
-        fileChangeRequests={fileChangeRequests}
-        setFileChangeRequests={setFileChangeRequests}
         currentFileChangeRequestIndex={currentFileChangeRequestIndex}
         setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
         getFileChanges={getFileChanges}
@@ -89,8 +82,6 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
         repoName={repoName}
         files={files}
         directories={directories}
-        fileChangeRequests={fileChangeRequests}
-        setFileChangeRequests={setFileChangeRequests}
         setCurrentTab={setCurrentTab}
       />
       {fileChangeRequests.length === 0 ? (

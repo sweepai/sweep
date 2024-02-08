@@ -9,6 +9,8 @@ import { Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { useRecoilState } from "recoil";
+import { FileChangeRequestsState } from "../../../state/fcrAtoms";
 
 const instructionsPlaceholder = `Give this new file a name and tell Sweep what this new file should do. Mention another file Sweep should look at with "@filename"`;
 
@@ -18,7 +20,6 @@ const capitalize = (s: string) => {
 
 const FCRCreate = memo(function FCRCreate({
   repoName,
-  setFileChangeRequests,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
   setReadOnlySnippetForFCR,
@@ -36,9 +37,6 @@ const FCRCreate = memo(function FCRCreate({
   setStatusForFCR
 }: {
   repoName: string;
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
@@ -67,6 +65,7 @@ const FCRCreate = memo(function FCRCreate({
   setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void
 }) {
   const [newFileName, setNewFileName] = useState("");
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
 
   useEffect(() => {
     setNewFileName(fcr.snippet.file.split("/")[fcr.snippet.file.split("/").length - 1]);

@@ -20,8 +20,6 @@ const ModifyOrCreate = ({
   repoName,
   files,
   directories,
-  fileChangeRequests,
-  setFileChangeRequests,
   syncAllFiles,
   setStatusForAll
 }: {
@@ -29,10 +27,6 @@ const ModifyOrCreate = ({
   repoName: string;
   files: { label: string; name: string }[];
   directories: { label: string; name: string }[];
-  fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   syncAllFiles: () => Promise<void>,
   setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void
 }) => {

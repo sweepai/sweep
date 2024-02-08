@@ -5,12 +5,12 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import FCRCreate from "./FCRCreate";
 import FCRModify from "./FCRModify";
 import { SuggestionDataItem } from "react-mentions";
+import { useRecoilState } from "recoil";
+import { FileChangeRequestsState } from "../../../state/fcrAtoms";
 
 const FCRList = memo(function FCRList({
   repoName,
   files,
-  fileChangeRequests,
-  setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
@@ -22,10 +22,6 @@ const FCRList = memo(function FCRList({
 }: {
   repoName: string;
   files: { label: string; name: string }[];
-  fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   currentFileChangeRequestIndex: number;
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
@@ -46,6 +42,7 @@ const FCRList = memo(function FCRList({
   isRunningRef: React.MutableRefObject<boolean>;
   setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
 }) {
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
     let classNames = "";
     if (index === currentFileChangeRequestIndex) {
@@ -167,7 +164,6 @@ const FCRList = memo(function FCRList({
               (fcr.changeType == "create") ? (
                 <FCRCreate
                   repoName={repoName}
-                  setFileChangeRequests={setFileChangeRequests}
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
                   getFileChanges={getFileChanges}
                   setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
@@ -189,7 +185,6 @@ const FCRList = memo(function FCRList({
                 <FCRModify
                   key={index}
                   repoName={repoName}
-                  setFileChangeRequests={setFileChangeRequests}
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
                   getFileChanges={getFileChanges}
                   setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}

@@ -8,6 +8,8 @@ import { Badge } from "../../ui/badge";
 import { Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
 import { Button } from "../../ui/button";
+import { useRecoilState } from "recoil";
+import { FileChangeRequestsState } from "../../../state/fcrAtoms";
 
 const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
 
@@ -17,7 +19,6 @@ const capitalize = (s: string) => {
 
 const FCRModify = memo(function FCRModify({
   repoName,
-  setFileChangeRequests,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
   setReadOnlySnippetForFCR,
@@ -35,9 +36,6 @@ const FCRModify = memo(function FCRModify({
   setStatusForFCR,
 }: {
   repoName: string;
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
@@ -65,6 +63,7 @@ const FCRModify = memo(function FCRModify({
   setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
   setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void
 }) {
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   return (
     <Draggable
       key={snippetKey(fcr.snippet)}

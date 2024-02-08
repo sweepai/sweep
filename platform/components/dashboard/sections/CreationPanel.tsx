@@ -14,29 +14,26 @@ import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
 import { FileChangeRequest } from "../../../lib/types";
 import { FaPlus } from "react-icons/fa6";
+import { FileChangeRequestsState } from "../../../state/fcrAtoms";
+import { useRecoilState } from "recoil";
 
 const CreationPanel = ({
   filePath,
   repoName,
   files,
   directories,
-  fileChangeRequests,
-  setFileChangeRequests,
   setCurrentTab,
 }: {
   filePath: string;
   repoName: string;
   files: { label: string; name: string }[];
   directories: { label: string; name: string }[];
-  fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   setCurrentTab: React.Dispatch<React.SetStateAction<"planning" | "coding">>;
 }) => {
   const [hidePanel, setHidePanel] = useState(true);
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
 
   return (
     <div id="creation-panel-wrapper"

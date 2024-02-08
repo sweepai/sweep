@@ -17,6 +17,8 @@ import { FaTimes } from "react-icons/fa";
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { toast } from "sonner";
+import { useRecoilState } from "recoil";
+import { FileChangeRequestsState } from "../../state/fcrAtoms";
 
 const codeStyle = {
   ...vscDarkPlus,
@@ -125,15 +127,11 @@ const DashboardPlanning = ({
   repoName,
   files,
   setLoadingMessage,
-  setFileChangeRequests,
   setCurrentTab,
 }: {
   repoName: string;
   files: {label: string; name: string}[];
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   setCurrentTab: React.Dispatch<
     React.SetStateAction<"planning" | "coding">
   >;
@@ -144,6 +142,7 @@ const DashboardPlanning = ({
   const [currentFileChangeRequests = [], setCurrentFileChangeRequests] = useLocalStorage("globalFileChangeRequests", [] as FileChangeRequest[]);
   const [debugLogToggle = false, setDebugLogToggle] = useState<boolean>(false);
   const [isLoading = false, setIsLoading] = useState<boolean>(false);
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
 
   const instructionsRef = useRef<HTMLTextAreaElement>(null);
   const thoughtsRef = useRef<HTMLDivElement>(null);

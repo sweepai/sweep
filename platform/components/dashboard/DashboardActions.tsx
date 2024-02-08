@@ -33,6 +33,8 @@ import { usePostHog } from "posthog-js/react";
 import { Dialog, DialogContent } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import DashboardPlanning from "./DashboardPlanning";
+import { useRecoilState } from "recoil";
+import { FileChangeRequestsState } from "../../state/fcrAtoms";
 
 const Diff = require("diff");
 
@@ -169,8 +171,6 @@ const DashboardActions = ({
   setStreamData,
   files,
   directories,
-  fileChangeRequests,
-  setFileChangeRequests,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
   setFileForFCR,
@@ -197,10 +197,6 @@ const DashboardActions = ({
   setStreamData: React.Dispatch<React.SetStateAction<string>>;
   files: { label: string; name: string }[];
   directories: { label: string; name: string }[];
-  fileChangeRequests: FileChangeRequest[];
-  setFileChangeRequests: React.Dispatch<
-    React.SetStateAction<FileChangeRequest[]>
-  >;
   currentFileChangeRequestIndex: number;
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
@@ -215,6 +211,7 @@ const DashboardActions = ({
   setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
   setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void;
 }) => {
+  const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   const posthog = usePostHog();
   const validationScriptPlaceholder = `Example: python3 -m py_compile $FILE_PATH\npython3 -m pylint $FILE_PATH --error-only`;
   const testScriptPlaceholder = `Example: python3 -m pytest $FILE_PATH`;
@@ -546,6 +543,7 @@ const DashboardActions = ({
 
   // modify an existing file or create a new file
   const getFileChanges = async (fcr: FileChangeRequest, index: number) => {
+    console.log("getting file changes")
     var validationOutput = "";
     const patches = fileChangeRequests
       .slice(0, index)
@@ -596,8 +594,8 @@ const DashboardActions = ({
         return prev;
       });
     }
-
-    for (let i = 0; i < 4; i++) {
+    const maxIterations = 3;
+    for (let i = 0; i <= maxIterations; i++) {
       if (!isRunningRef.current) {
         setIsLoading(false, fcr);
         return;
@@ -648,6 +646,7 @@ const DashboardActions = ({
 
         setHideMerge(false, fcr);
         var j = 0;
+        let globalUpdatedFile = ""; // this is really jank and bad but a quick fix because of the async nature of setters in react
         while (isRunningRef.current) {
           var { done, value } = await reader?.read();
           if (done) {
@@ -679,7 +678,7 @@ const DashboardActions = ({
             }
             additionalMessages.push({ role: "assistant", content: rawText });
             updateIfChanged(updatedFile);
-            fcr.newContents = updatedFile; // set this to get line and char changes
+            globalUpdatedFile = updatedFile;
             rawText += "\n\n";
             setStreamData((prev) => prev + "\n\n");
             break;
@@ -706,15 +705,16 @@ const DashboardActions = ({
         if (!isRunningRef.current) {
           setIsLoading(false, fcr);
           setLoadingMessage("")
+          setStatusForFCR("idle", fcr);
           return;
         }
         setHideMerge(false, fcr);
         const changeLineCount = Math.abs(
           fcr.snippet.entireFile.split("\n").length -
-            fcr.newContents.split("\n").length,
+            globalUpdatedFile.split("\n").length,
         );
         const changeCharCount = Math.abs(
-          fcr.snippet.entireFile.length - fcr.newContents.length,
+          fcr.snippet.entireFile.length - globalUpdatedFile.length,
         );
         if (errorMessage.length > 0) {
           toast.error(
@@ -727,11 +727,7 @@ const DashboardActions = ({
           );
           validationOutput += "\n\n" + errorMessage;
           setScriptOutput(validationOutput);
-          setIsLoading(false, fcr);
-          setStatusForFCR("error", fcr);
-          isRunningRef.current = false;
           setLoadingMessage("")
-          return;
         } else {
           toast.success(`Successfully modified file!`, {
             description: [
@@ -746,15 +742,18 @@ const DashboardActions = ({
           break;
         }
       } catch (e: any) {
+        console.log("error", e)
         toast.error("An error occured while generating your code.", {
           description: e,
           action: { label: "Dismiss", onClick: () => {} },
         });
-        setIsLoading(false, fcr);
-        setStatusForFCR("error", fcr);
-        isRunningRef.current = false;
-        setLoadingMessage("");
-        return;
+        if (i === maxIterations) {
+          setIsLoading(false, fcr);
+          setStatusForFCR("error", fcr);
+          isRunningRef.current = false;
+          setLoadingMessage("");
+          return;
+        }
       }
     }
     setIsLoading(false, fcr);
@@ -865,7 +864,6 @@ const DashboardActions = ({
           repoName={repoName}
           files={files}
           setLoadingMessage={setLoadingMessage}
-          setFileChangeRequests={setFileChangeRequests}
           setCurrentTab={setCurrentTab}
         />
       </TabsContent>
@@ -876,8 +874,6 @@ const DashboardActions = ({
             repoName={repoName}
             files={files}
             directories={directories}
-            fileChangeRequests={fileChangeRequests}
-            setFileChangeRequests={setFileChangeRequests}
             currentFileChangeRequestIndex={currentFileChangeRequestIndex}
             setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
             getFileChanges={getFileChanges}
