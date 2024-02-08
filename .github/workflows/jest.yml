@@ -31,6 +31,8 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
+      - name: Install pnpm
+        run: npm install -g pnpm
       - run: pnpm ci --frozen-lockfile
         working-directory: platform
       - run: pnpm run test:unit
