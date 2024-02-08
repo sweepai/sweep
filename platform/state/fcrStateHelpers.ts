@@ -6,7 +6,7 @@ const fcrEqual = (a: FileChangeRequest, b: FileChangeRequest) => {
     a.snippet.start === b.snippet.start &&
     a.snippet.end === b.snippet.end
   );
-}
+};
 
 const undefinedCheck = (variable: any) => {
   if (typeof variable === "undefined") {
@@ -14,10 +14,15 @@ const undefinedCheck = (variable: any) => {
   }
 };
 
-export const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest, fcrs: FileChangeRequest[], setFCRs: any) => {
+export const setIsLoading = (
+  newIsLoading: boolean,
+  fcr: FileChangeRequest,
+  fcrs: FileChangeRequest[],
+  setFCRs: any,
+) => {
   try {
     const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
-      fcrEqual(fileChangeRequest, fcr)
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
@@ -35,10 +40,15 @@ export const setIsLoading = (newIsLoading: boolean, fcr: FileChangeRequest, fcrs
   }
 };
 
-export const setStatusForFCR = (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest, fcrs: FileChangeRequest[], setFCRs: any) => {
+export const setStatusForFCR = (
+  newStatus: "queued" | "in-progress" | "done" | "error" | "idle",
+  fcr: FileChangeRequest,
+  fcrs: FileChangeRequest[],
+  setFCRs: any,
+) => {
   try {
     const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
-      fcrEqual(fileChangeRequest, fcr)
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
@@ -56,7 +66,10 @@ export const setStatusForFCR = (newStatus: "queued" | "in-progress" | "done" | "
   }
 };
 
-export const setStatusForAll = (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", setFCRs: any) => {
+export const setStatusForAll = (
+  newStatus: "queued" | "in-progress" | "done" | "error" | "idle",
+  setFCRs: any,
+) => {
   setFCRs((prev: FileChangeRequest[]) => {
     return prev.map((fileChangeRequest) => {
       return {
@@ -65,13 +78,17 @@ export const setStatusForAll = (newStatus: "queued" | "in-progress" | "done" | "
       };
     });
   });
-}
+};
 
-export const setFileForFCR = (newFile: string, fcr: FileChangeRequest, fcrs: FileChangeRequest[], setFCRs: any) => {
+export const setFileForFCR = (
+  newFile: string,
+  fcr: FileChangeRequest,
+  fcrs: FileChangeRequest[],
+  setFCRs: any,
+) => {
   try {
-    const fcrIndex = fcrs.findIndex(
-      (fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr)
+    const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
@@ -89,10 +106,15 @@ export const setFileForFCR = (newFile: string, fcr: FileChangeRequest, fcrs: Fil
   }
 };
 
-export const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest, fcrs: FileChangeRequest[], setFCRs: any) => {
+export const setOldFileForFCR = (
+  newOldFile: string,
+  fcr: FileChangeRequest,
+  fcrs: FileChangeRequest[],
+  setFCRs: any,
+) => {
   try {
     const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
-      fcrEqual(fileChangeRequest, fcr)
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
@@ -113,11 +135,14 @@ export const setOldFileForFCR = (newOldFile: string, fcr: FileChangeRequest, fcr
   }
 };
 
-export const removeFileChangeRequest = (fcr: FileChangeRequest, fcrs: FileChangeRequest[], setFCRs: any) => {
+export const removeFileChangeRequest = (
+  fcr: FileChangeRequest,
+  fcrs: FileChangeRequest[],
+  setFCRs: any,
+) => {
   try {
-    const fcrIndex = fcrs.findIndex(
-      (fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr)
+    const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
@@ -144,12 +169,11 @@ export const setReadOnlySnippetForFCR = (
   fcr: FileChangeRequest,
   readOnlySnippet: Snippet,
   fcrs: FileChangeRequest[],
-  setFCRs: any
+  setFCRs: any,
 ) => {
   try {
-    const fcrIndex = fcrs.findIndex(
-      (fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr),
+    const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
@@ -160,9 +184,11 @@ export const setReadOnlySnippetForFCR = (
           [readOnlySnippet.file]: readOnlySnippet,
         },
       };
-      return [...prev.slice(0, fcrIndex), 
+      return [
+        ...prev.slice(0, fcrIndex),
         updatedFcr,
-        ...prev.slice(fcrIndex + 1)];
+        ...prev.slice(fcrIndex + 1),
+      ];
     });
   } catch (error) {
     console.error("Error in setReadOnlySnippetForFCR: ", error);
@@ -173,32 +199,40 @@ export const removeReadOnlySnippetForFCR = (
   fcr: FileChangeRequest,
   snippetFile: string,
   fcrs: FileChangeRequest[],
-  setFCRs: any
+  setFCRs: any,
 ) => {
   try {
-    const fcrIndex = fcrs.findIndex(
-      (fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr),
+    const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
-      const { [snippetFile]: _, ...restOfSnippets } = prev[fcrIndex].readOnlySnippets;
+      const { [snippetFile]: _, ...restOfSnippets } =
+        prev[fcrIndex].readOnlySnippets;
       const updatedFCR = {
         ...prev[fcrIndex],
-        readOnlySnippets: restOfSnippets
-      }
-      return [...prev.slice(0, fcrIndex), updatedFCR, ...prev.slice(fcrIndex + 1)];
+        readOnlySnippets: restOfSnippets,
+      };
+      return [
+        ...prev.slice(0, fcrIndex),
+        updatedFCR,
+        ...prev.slice(fcrIndex + 1),
+      ];
     });
   } catch (error) {
     console.error("Error in removeReadOnlySnippetForFCR: ", error);
   }
 };
 
-export const setDiffForFCR = (newDiff: string, fcr: FileChangeRequest, fcrs: FileChangeRequest[], setFCRs: any) => {
+export const setDiffForFCR = (
+  newDiff: string,
+  fcr: FileChangeRequest,
+  fcrs: FileChangeRequest[],
+  setFCRs: any,
+) => {
   try {
-    const fcrIndex = fcrs.findIndex(
-      (fileChangeRequest: FileChangeRequest) =>
-        fcrEqual(fileChangeRequest, fcr),
+    const fcrIndex = fcrs.findIndex((fileChangeRequest: FileChangeRequest) =>
+      fcrEqual(fileChangeRequest, fcr),
     );
     undefinedCheck(fcrIndex);
     setFCRs((prev: FileChangeRequest[]) => {
@@ -206,7 +240,7 @@ export const setDiffForFCR = (newDiff: string, fcr: FileChangeRequest, fcrs: Fil
         ...prev.slice(0, fcrIndex),
         {
           ...prev[fcrIndex],
-          diff: newDiff
+          diff: newDiff,
         },
         ...prev.slice(fcrIndex + 1),
       ];
@@ -214,4 +248,4 @@ export const setDiffForFCR = (newDiff: string, fcr: FileChangeRequest, fcrs: Fil
   } catch (error) {
     console.error("Error in setDiffForFCR: ", error);
   }
-}
+};

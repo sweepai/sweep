@@ -20,10 +20,10 @@ const posthogMetadataScript = String.raw`echo '{
 if (typeof window !== "undefined") {
   posthog.init("phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n");
 
-    if (process.env.NEXT_PUBLIC_NO_TELEMETRY || false) {
-        posthog.opt_out_capturing()
-    }
-    posthog.debug(false)
+  if (process.env.NEXT_PUBLIC_NO_TELEMETRY || false) {
+    posthog.opt_out_capturing();
+  }
+  posthog.debug(false);
 }
 
 export default posthog;

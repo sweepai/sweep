@@ -9,7 +9,7 @@ export default defineConfig({
       // implement node event listeners here
     },
     experimentalStudio: true,
-    baseUrl: 'http://localhost:4000',
+    baseUrl: "http://localhost:4000",
     // mbp 15
     viewportHeight: 900,
     viewportWidth: 1440,

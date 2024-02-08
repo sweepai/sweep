@@ -1,6 +1,10 @@
-const Diff = require("diff")
+const Diff = require("diff");
 
-export const createPatch = (filePath: string, oldFile: string, newFile: string) => {
+export const createPatch = (
+  filePath: string,
+  oldFile: string,
+  newFile: string,
+) => {
   if (oldFile === newFile) {
     return "";
   }
@@ -32,7 +36,7 @@ export const softIndentationCheck = (
   // expect there to be a newline at the beginning of oldCode
   // find correct indentaton - try up to 16 spaces (8 indentations worth)
 
-  const lines = fileContents.split("\n")
+  const lines = fileContents.split("\n");
   for (let i of [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]) {
     // split new code by \n and add the same indentation to each line, then rejoin with new lines
     newOldCode =
@@ -41,7 +45,7 @@ export const softIndentationCheck = (
         .split("\n")
         .map((line) => " ".repeat(i) + line)
         .join("\n");
-    var newOldCodeLines = newOldCode.split("\n")
+    var newOldCodeLines = newOldCode.split("\n");
     if (newOldCodeLines[0].length === 0) {
       newOldCodeLines = newOldCodeLines.slice(1);
     }
@@ -90,10 +94,7 @@ export const parseRegexFromOpenAIModify = (
       if (currentFileContents.includes(newOldCode)) {
         didFind = true;
       }
-      currentFileContents = currentFileContents.replace(
-        newOldCode,
-        newNewCode,
-      );
+      currentFileContents = currentFileContents.replace(newOldCode, newNewCode);
     } else {
       didFind = true;
       currentFileContents = currentFileContents.replace(oldCode, newCode);

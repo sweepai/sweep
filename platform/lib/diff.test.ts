@@ -1,5 +1,5 @@
 // import Diff from 'diff';
-import { expect } from '@jest/globals';
+import { expect } from "@jest/globals";
 const Diff = require("diff");
 
 const one = `a
@@ -24,7 +24,9 @@ c`;
 b
 c`;
       const patch = Diff.createPatch("filename", sameText1, sameText2);
-      expect(patch).toBe(`Index: filename\n===================================================================\n--- filename\n+++ filename\n`);
+      expect(patch).toBe(
+        `Index: filename\n===================================================================\n--- filename\n+++ filename\n`,
+      );
     });
 
     it("creates a patch for strings with different new lines", () => {
@@ -35,8 +37,12 @@ c
       const textWithoutNewLine = `a
 b
 c`;
-      const patch = Diff.createPatch("filename", textWithNewLine, textWithoutNewLine);
-      expect(patch).toContain('@@');
+      const patch = Diff.createPatch(
+        "filename",
+        textWithNewLine,
+        textWithoutNewLine,
+      );
+      expect(patch).toContain("@@");
     });
 
     it("creates a patch for complex multiline strings", () => {
@@ -44,8 +50,12 @@ c`;
 jumps over the lazy dog.`;
       const multilineString2 = `The swift brown fox
 hops over the lazy dog.`;
-      const patch = Diff.createPatch("filename", multilineString1, multilineString2);
-      expect(patch).toContain('@@');
+      const patch = Diff.createPatch(
+        "filename",
+        multilineString1,
+        multilineString2,
+      );
+      expect(patch).toContain("@@");
     });
   });
 });
