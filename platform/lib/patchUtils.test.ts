@@ -1,4 +1,4 @@
-import { createPatch, isSublist, softIndentationCheck, parseRegexFromOpenAIModify } from './patchUtils';
+import { createPatch, isSublist, softIndentationCheck, parseRegexFromOpenAIModify, parseRegexFromOpenAICreate } from './patchUtils';
 import { expect } from '@jest/globals';
 
 const Diff = require("diff")
@@ -10,7 +10,6 @@ describe('patchUtils', () => {
       const filePath = 'sample.txt';
       const oldFile = 'This is the old file content.';
       const newFile = 'This is the old file content.';
-      const length = createPatch(filePath, oldFile, newFile).length
       expect(createPatch(filePath, oldFile, newFile).length).toEqual(0);
     });
 
@@ -73,6 +72,23 @@ describe('patchUtils', () => {
       expect(newOldCode).toBe(oldCode);
       expect(newNewCode).toBe(newCode);
     });
+
+    test('should return original code blocks if new code is indented but old code is not found', () => {
+      const fileContentsWithIndent = '    some line\n    another line\n    a third line';
+      const [newOldCode, newNewCode] = softIndentationCheck('wrong indentation\nanother line', newCode, fileContentsWithIndent);
+      expect(newOldCode).toBe('wrong indentation\nanother line');
+      expect(newNewCode).toBe(newCode);
+    });
+
+    test('should handle old code with mixed indentation levels', () => {
+      const mixedIndentFileContents = '  some line\n    another line\n  a third line';
+      const mixedIndentOldCode = 'some line\n    another line';
+
+      const [newOldCodeMixedIndent, newNewCodeMixedIndent] = softIndentationCheck(mixedIndentOldCode, newCode, mixedIndentFileContents);
+
+      expect(newOldCodeMixedIndent).toBe(mixedIndentOldCode);
+      expect(newNewCodeMixedIndent).toBe(newCode);
+    });
   });
 
   describe('parseRegexFromOpenAIModify', () => {
@@ -127,6 +143,61 @@ new content
       const [updatedFileContents, errorMessage] = parseRegexFromOpenAIModify('', fileContents);
       expect(updatedFileContents).toBe(fileContents);
       expect(errorMessage).toContain('No valid diff hunks were found');
+    });
+  });
+
+  describe('parseRegexFromOpenAICreate', () => {
+    const response = `
+<new_file>
+This is the new file content.
+</new_file>
+`;
+    const fileContents = 'Old file content should be replaced';
+
+    test('should handle escaped characters in new file contents', () => {
+      const responseWithEscapedChars = `
+<new_file>
+This is the new file content with \\n new line and \\t tab characters.
+</new_file>
+`;
+      const [newFileContentsWithEscapedChars, errorMessageWithEscapedChars] = parseRegexFromOpenAICreate(responseWithEscapedChars, fileContents);
+      expect(newFileContentsWithEscapedChars).toEqual('This is the new file content with \\n new line and \\t tab characters.\n');
+      expect(errorMessageWithEscapedChars).toBe("");
+    });
+
+    test('should correctly replace the entire file contents when the new file creation hunk is valid', () => {
+      const responseReplaceEntireContent = `
+<new_file>
+Complete new file content.
+</new_file>
+`;
+      const fileContentsToBeReplaced = 'All of this will be replaced.\nEvery single line.';
+      const [newFileContentsReplaced, errorMessageReplaced] = parseRegexFromOpenAICreate(responseReplaceEntireContent, fileContentsToBeReplaced);
+      expect(newFileContentsReplaced).toEqual('Complete new file content.\n');
+      expect(errorMessageReplaced).toBe("");
+    });
+
+    test('should return new file contents when a new file creation hunk is provided', () => {
+      const [newFileContents, errorMessage] = parseRegexFromOpenAICreate(response, fileContents);
+      expect(newFileContents).toEqual('This is the new file content.\n');
+      expect(errorMessage).toBe("");
+    });
+
+    test('should return an error message when new file content cannot be parsed', () => {
+      const responseInvalid = `
+<new_file>
+</new_file>
+`;
+      const [newFileContents, errorMessage] = parseRegexFromOpenAICreate(responseInvalid, fileContents);
+      expect(newFileContents).toBe(fileContents);
+      expect(errorMessage).toContain('NEWFILE can not be empty');
+    });
+
+    test('should return same file contents and error message when no new file hunk is present', () => {
+      const responseEmpty = `No new file hunk here.`;
+      const [newFileContents, errorMessage] = parseRegexFromOpenAICreate(responseEmpty, fileContents);
+      expect(newFileContents).toBe(fileContents);
+      expect(errorMessage).toContain('No new file was created');
     });
   });
 });

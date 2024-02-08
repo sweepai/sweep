@@ -104,3 +104,37 @@ export const parseRegexFromOpenAIModify = (
   }
   return [currentFileContents, errorMessage];
 };
+
+export const parseRegexFromOpenAICreate = (
+  response: string,
+  fileContents: string,
+): [string, string] => {
+  let errorMessage = "";
+  const diffRegexCreate = /<new_file(.*?)>(?<newFile>.*?)($|<\/new_file>)/gs;
+  const diffMatches: any = response.matchAll(diffRegexCreate)!;
+  if (!diffMatches) {
+    return ["", ""];
+  }
+  var currentFileContents = fileContents;
+  var changesMade = false;
+  for (const diffMatch of diffMatches) {
+    changesMade = true;
+    let newFile = diffMatch.groups!.newFile ?? "";
+
+    if (newFile === undefined) {
+      throw new Error("oldCode or newCode are undefined");
+    }
+    if (newFile.startsWith("\n")) {
+      newFile = newFile.slice(1);
+    }
+    if (newFile.trim().length === 0) {
+      errorMessage += "NEWFILE can not be empty.\n\n";
+      continue;
+    }
+    currentFileContents = newFile;
+  }
+  if (!changesMade) {
+    errorMessage += "No new file was created.\n\n";
+  }
+  return [currentFileContents, errorMessage];
+};
