@@ -24,7 +24,7 @@ class TestSerializeMethodName(unittest.TestCase):
 # Corrected test case for NameBot with mock response
 class TestNameBotNameFunctions(unittest.TestCase):
     def setUp(self):
-        self.name_bot = NameBot()  # Instance of NameBot
+        self.name_bot = NameBot(chat_logger=None)  # Instance of NameBot
 
     @patch.object(
         NameBot,
