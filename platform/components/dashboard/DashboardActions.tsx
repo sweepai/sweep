@@ -36,6 +36,7 @@ import DashboardPlanning from "./DashboardPlanning";
 import { useRecoilState } from "recoil";
 import { FileChangeRequestsState } from "../../state/fcrAtoms";
 import { parseRegexFromOpenAICreate, parseRegexFromOpenAIModify } from "../../lib/patchUtils";
+import { setIsLoading, setFileForFCR, setOldFileForFCR, setStatusForFCR, setDiffForFCR } from "../../state/fcrStateHelpers"
 
 const Diff = require("diff");
 
@@ -143,20 +144,6 @@ const formatUserMessage = (
   return userMessage;
 };
 
-const isSublist = (lines: string[], subList: string[]): boolean => {
-  for (let i = 0; i <= lines.length - subList.length; i++) {
-    let match = true;
-    for (let j = 0; j < subList.length; j++) {
-      if (lines[i + j] !== subList[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) return true;
-  }
-  return false;
-};
-
 const DashboardActions = ({
   filePath,
   setScriptOutput,
@@ -174,15 +161,8 @@ const DashboardActions = ({
   directories,
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
-  setFileForFCR,
-  setOldFileForFCR,
-  setIsLoading,
-  undefinedCheck,
-  removeFileChangeRequest,
   setOutputToggle,
   setLoadingMessage,
-  setStatusForFCR,
-  setStatusForAll
 }: {
   filePath: string;
   setScriptOutput: React.Dispatch<React.SetStateAction<string>>;
@@ -202,15 +182,8 @@ const DashboardActions = ({
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
-  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
-  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
-  setIsLoading: (newIsLoading: boolean, fcr: FileChangeRequest) => void;
-  undefinedCheck: (variable: any) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   setOutputToggle: (newOutputToggle: string) => void;
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
-  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
-  setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void;
 }) => {
   const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   const posthog = usePostHog();
@@ -265,67 +238,6 @@ const DashboardActions = ({
   useEffect(() => {
     setRepoNameCollapsibleOpen(repoName === "")
   }, [repoName])
-
-  // updates readOnlySnippets for a certain fcr then updates entire fileChangeRequests array
-  const setReadOnlySnippetForFCR = (
-    fcr: FileChangeRequest,
-    readOnlySnippet: Snippet,
-  ) => {
-    try {
-      fcr.readOnlySnippets[readOnlySnippet.file] = readOnlySnippet;
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fcrEqual(fileChangeRequest, fcr),
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev: FileChangeRequest[]) => {
-        return [...prev.slice(0, fcrIndex), fcr, ...prev.slice(fcrIndex + 1)];
-      });
-    } catch (error) {
-      console.error("Error in setReadOnlySnippetForFCR: ", error);
-    }
-  };
-
-  const removeReadOnlySnippetForFCR = (
-    fcr: FileChangeRequest,
-    snippetFile: string,
-  ) => {
-    try {
-      delete fcr.readOnlySnippets[snippetFile];
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fcrEqual(fileChangeRequest, fcr),
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev: FileChangeRequest[]) => {
-        return [...prev.slice(0, fcrIndex), fcr, ...prev.slice(fcrIndex + 1)];
-      });
-    } catch (error) {
-      console.error("Error in removeReadOnlySnippetForFCR: ", error);
-    }
-  };
-
-  const setDiffForFCR = (newDiff: string, fcr: FileChangeRequest) => {
-    try {
-      const fcrIndex = fileChangeRequests.findIndex(
-        (fileChangeRequest: FileChangeRequest) =>
-          fcrEqual(fileChangeRequest, fcr),
-      );
-      undefinedCheck(fcrIndex);
-      setFileChangeRequests((prev: FileChangeRequest[]) => {
-        return [
-          ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex],
-            diff: newDiff
-          },
-          ...prev.slice(fcrIndex + 1),
-        ];
-      });
-    } catch (error) {
-      console.error("Error in setDiffForFCR: ", error);
-    }
-  }
 
   useEffect(() => {
     if (repoName === "") {
@@ -418,8 +330,8 @@ const DashboardActions = ({
       })
       .join("\n\n");
 
-    setIsLoading(true, fcr);
-    setStatusForFCR("in-progress", fcr);
+    setIsLoading(true, fcr, fileChangeRequests, setFileChangeRequests);
+    setStatusForFCR("in-progress", fcr, fileChangeRequests, setFileChangeRequests);
     setOutputToggle("llm");
     setLoadingMessage("Queued...")
     const changeType = fcr.changeType;
@@ -456,14 +368,14 @@ const DashboardActions = ({
     if (!hideMerge) {
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         setHideMerge(true, fcr);
-        setFileForFCR(prev[index].snippet.entireFile, fcr);
+        setFileForFCR(prev[index].snippet.entireFile, fcr, fileChangeRequests, setFileChangeRequests);
         return prev;
       });
     }
     const maxIterations = 3;
     for (let i = 0; i <= maxIterations; i++) {
       if (!isRunningRef.current) {
-        setIsLoading(false, fcr);
+        setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
         return;
       }
       if (i !== 0) {
@@ -502,7 +414,7 @@ const DashboardActions = ({
       var currentContents = currentIterationContents;
       const updateIfChanged = (newContents: string) => {
         if (newContents !== currentIterationContents) {
-          setFileForFCR(newContents, fcr);
+          setFileForFCR(newContents, fcr, fileChangeRequests, setFileChangeRequests);
           currentContents = newContents
         }
       };
@@ -570,9 +482,9 @@ const DashboardActions = ({
           }
         }
         if (!isRunningRef.current) {
-          setIsLoading(false, fcr);
+          setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
           setLoadingMessage("")
-          setStatusForFCR("idle", fcr);
+          setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
           return;
         }
         setHideMerge(false, fcr);
@@ -595,8 +507,8 @@ const DashboardActions = ({
           );
           validationOutput += "\n\n" + errorMessage;
           setScriptOutput(validationOutput);
-          setIsLoading(false, fcr);
-          setStatusForFCR("in-progress", fcr);
+          setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
+          setStatusForFCR("in-progress", fcr, fileChangeRequests, setFileChangeRequests);
           setLoadingMessage("Retrying...")
         } else {
           toast.success(`Successfully modified file!`, {
@@ -606,8 +518,8 @@ const DashboardActions = ({
             action: { label: "Dismiss", onClick: () => {} },
           });
           const newDiff = Diff.createPatch(filePath, fcr.snippet.entireFile, fcr.newContents);
-          setIsLoading(false, fcr);
-          setDiffForFCR(newDiff, fcr);
+          setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
+          setDiffForFCR(newDiff, fcr, fileChangeRequests, setFileChangeRequests);
           isRunningRef.current = false;
           break;
         }
@@ -618,16 +530,16 @@ const DashboardActions = ({
           action: { label: "Dismiss", onClick: () => {} },
         });
         if (i === maxIterations) {
-          setIsLoading(false, fcr);
-          setStatusForFCR("error", fcr);
+          setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
+          setStatusForFCR("error", fcr, fileChangeRequests, setFileChangeRequests);
           isRunningRef.current = false;
           setLoadingMessage("");
           return;
         }
       }
     }
-    setIsLoading(false, fcr);
-    setStatusForFCR("done", fcr);
+    setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
+    setStatusForFCR("done", fcr, fileChangeRequests, setFileChangeRequests);
     isRunningRef.current = false;
     setLoadingMessage("")
     return;
@@ -644,7 +556,7 @@ const DashboardActions = ({
 
   const saveAllFiles = async (fcrs: FileChangeRequest[]) => {
     for await (const [index, fcr] of fcrs.entries()) {
-      setOldFileForFCR(fcr.newContents, fcr);
+      setOldFileForFCR(fcr.newContents, fcr, fileChangeRequests, setFileChangeRequests);
       setHideMerge(true, fcr);
       await writeFile(repoName, fcr.snippet.file, fcr.newContents);
     }
@@ -657,9 +569,9 @@ const DashboardActions = ({
     fileChangeRequests.forEach(
       async (fcr: FileChangeRequest, index: number) => {
         const response = await getFile(repoName, fcr.snippet.file);
-        setFileForFCR(response.contents, fcr);
-        setOldFileForFCR(response.contents, fcr);
-        setIsLoading(false, fcr);
+        setFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
+        setOldFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
+        setIsLoading(false, fcr, fileChangeRequests, setFileChangeRequests);
       },
     );
   };
@@ -747,14 +659,9 @@ const DashboardActions = ({
             currentFileChangeRequestIndex={currentFileChangeRequestIndex}
             setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
             getFileChanges={getFileChanges}
-            setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-            removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-            removeFileChangeRequest={removeFileChangeRequest}
             isRunningRef={isRunningRef}
             syncAllFiles={syncAllFiles}
             getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
-            setStatusForFCR={setStatusForFCR}
-            setStatusForAll={setStatusForAll}
             setCurrentTab={setCurrentTab}
           />
         <Collapsible

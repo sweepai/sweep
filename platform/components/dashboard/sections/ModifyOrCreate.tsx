@@ -1,19 +1,9 @@
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
-import { Popover, PopoverTrigger, PopoverContent } from "../../ui/popover";
-import {
-  Command,
-  CommandInput,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from "../../ui/command";
 import React, { useState } from "react";
-import { getFile } from "../../../lib/api.service";
-import { Snippet } from "../../../lib/search";
-import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
-import { FileChangeRequest } from "../../../lib/types";
 import { FaArrowRotateLeft } from "react-icons/fa6";
+import { setStatusForAll } from "../../../state/fcrStateHelpers";
+import { FileChangeRequestsState } from "../../../state/fcrAtoms";
+import { useRecoilState } from "recoil";
 
 const ModifyOrCreate = ({
   filePath,
@@ -21,17 +11,16 @@ const ModifyOrCreate = ({
   files,
   directories,
   syncAllFiles,
-  setStatusForAll
 }: {
   filePath: string;
   repoName: string;
   files: { label: string; name: string }[];
   directories: { label: string; name: string }[];
   syncAllFiles: () => Promise<void>,
-  setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void
 }) => {
   const [openModify, setOpenModify] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
+  const [ fileChangeRequests, setFileChangeRequests ] = useRecoilState(FileChangeRequestsState);
 
   return (
     <div className="flex flex-row mb-4">
@@ -171,7 +160,7 @@ const ModifyOrCreate = ({
         </PopoverContent>
       </Popover> */}
       <div className="grow"></div>
-      <Button onClick={() => {syncAllFiles(); setStatusForAll("idle")}} variant="secondary">
+      <Button onClick={() => {syncAllFiles(); setStatusForAll("idle", setFileChangeRequests)}} variant="secondary">
         <FaArrowRotateLeft style={{marginTop: -3, fontSize: 12}} />
         &nbsp;&nbsp;Refresh files
       </Button>

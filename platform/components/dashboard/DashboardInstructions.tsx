@@ -1,5 +1,4 @@
 import React, { memo, forwardRef, Ref } from "react";
-import { Snippet } from "../../lib/search";
 import { FileChangeRequest } from "../../lib/types";
 import ModifyOrCreate from "./sections/ModifyOrCreate";
 import FCRList from "./sections/FCRList";
@@ -16,14 +15,9 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
-  setReadOnlySnippetForFCR,
-  removeReadOnlySnippetForFCR,
-  removeFileChangeRequest,
   isRunningRef,
   syncAllFiles,
   getAllFileChanges,
-  setStatusForFCR,
-  setStatusForAll,
   setCurrentTab,
 }: {
   filePath: string;
@@ -38,20 +32,9 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
     fileChangeRequest: FileChangeRequest,
     index: number,
   ) => Promise<void>;
-  setReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippet: Snippet,
-  ) => void;
-  removeReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippetFile: string,
-  ) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
   syncAllFiles: () => Promise<void>;
   getAllFileChanges: () => Promise<void>;
-  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
-  setStatusForAll: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle") => void;
   setCurrentTab: React.Dispatch<React.SetStateAction<"planning" | "coding">>;
 }, ref: Ref<HTMLDivElement>) {
   const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
@@ -63,7 +46,6 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
         files={files}
         directories={directories}
         syncAllFiles={syncAllFiles}
-        setStatusForAll={setStatusForAll}
       />
       <FCRList
         repoName={repoName}
@@ -71,11 +53,7 @@ const DashboardInstructions = forwardRef(function DashboardInstructions({
         currentFileChangeRequestIndex={currentFileChangeRequestIndex}
         setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
         getFileChanges={getFileChanges}
-        setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-        removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-        removeFileChangeRequest={removeFileChangeRequest}
         isRunningRef={isRunningRef}
-        setStatusForFCR={setStatusForFCR}
       />
       <CreationPanel
         filePath={filePath}

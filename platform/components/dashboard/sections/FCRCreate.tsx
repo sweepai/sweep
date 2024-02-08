@@ -11,6 +11,7 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { useRecoilState } from "recoil";
 import { FileChangeRequestsState } from "../../../state/fcrAtoms";
+import { setStatusForFCR, setReadOnlySnippetForFCR, removeFileChangeRequest, removeReadOnlySnippetForFCR } from "../../../state/fcrStateHelpers";
 
 const instructionsPlaceholder = `Give this new file a name and tell Sweep what this new file should do. Mention another file Sweep should look at with "@filename"`;
 
@@ -22,9 +23,6 @@ const FCRCreate = memo(function FCRCreate({
   repoName,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
-  setReadOnlySnippetForFCR,
-  removeReadOnlySnippetForFCR,
-  removeFileChangeRequest,
   isRunningRef,
   fcr,
   index,
@@ -34,7 +32,6 @@ const FCRCreate = memo(function FCRCreate({
   fcrInstructions,
   setFCRInstructions,
   setUserSuggestion,
-  setStatusForFCR
 }: {
   repoName: string;
   setCurrentFileChangeRequestIndex: React.Dispatch<
@@ -44,15 +41,6 @@ const FCRCreate = memo(function FCRCreate({
     fileChangeRequest: FileChangeRequest,
     index: number,
   ) => Promise<void>;
-  setReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippet: Snippet,
-  ) => void;
-  removeReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippetFile: string,
-  ) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
   fcr: FileChangeRequest;
   index: number;
@@ -62,7 +50,6 @@ const FCRCreate = memo(function FCRCreate({
   fcrInstructions: { [key: string]: string; };
   setFCRInstructions: React.Dispatch<React.SetStateAction<{ [key: string]: string; }>>;
   setUserSuggestion: (suggestion: SuggestionDataItem, search: string, highlightedDisplay: ReactNode, index: number, focused: boolean) => JSX.Element | null;
-  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void
 }) {
   const [newFileName, setNewFileName] = useState("");
   const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
@@ -137,7 +124,7 @@ const FCRCreate = memo(function FCRCreate({
                   variant="secondary"
                   className="mr-2 ml-auto"
                   onClick={async () => {
-                    removeFileChangeRequest(fcr);
+                    removeFileChangeRequest(fcr, fileChangeRequests, setFileChangeRequests);
                     setFCRInstructions((prev: any) => {
                       return {
                         ...prev,
@@ -208,7 +195,7 @@ const FCRCreate = memo(function FCRCreate({
                     entireFile: contents,
                     content: contents, // this is the slice based on start and end, remeber to change this
                   } as Snippet;
-                  setReadOnlySnippetForFCR(fcr, newSnippet);
+                  setReadOnlySnippetForFCR(fcr, newSnippet, fileChangeRequests, setFileChangeRequests);
                 }}
                 appendSpaceOnAdd={true}
               />
@@ -233,7 +220,7 @@ const FCRCreate = memo(function FCRCreate({
                       key={String(index) + "-remove"}
                       className="bg-zinc-800 cursor-pointer"
                       onClick={() => {
-                        removeReadOnlySnippetForFCR(fcr, snippetFile);
+                        removeReadOnlySnippetForFCR(fcr, snippetFile, fileChangeRequests, setFileChangeRequests);
                       }}
                     />
                   </Badge>
@@ -268,7 +255,7 @@ const FCRCreate = memo(function FCRCreate({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
-                      setStatusForFCR("idle", fcr);
+                      setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
                     }}
                   >
                     <FaStop />

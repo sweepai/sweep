@@ -20,7 +20,7 @@ import { FaArrowsRotate, FaCheck } from "react-icons/fa6";
 import { toast } from "sonner";
 import { FileChangeRequestsState } from "../../state/fcrAtoms";
 import { useRecoilState } from "recoil";
-import { setIsLoading, setStatusForFCR, setFileForFCR, setOldFileForFCR, removeFileChangeRequest, setStatusForAll, setHideMergeAll } from "../../state/fcrStateHelpers";
+import { setStatusForFCR, setFileForFCR, setOldFileForFCR, removeFileChangeRequest, setStatusForAll, setHideMergeAll } from "../../state/fcrStateHelpers";
 
 const blockedPaths = [
   ".git",
@@ -229,15 +229,8 @@ const DashboardDisplay = () => {
           directories={directories}
           currentFileChangeRequestIndex={currentFileChangeRequestIndex}
           setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-          setFileForFCR={setFileForFCR}
-          setOldFileForFCR={setOldFileForFCR}
-          setIsLoading={setIsLoading}
-          undefinedCheck={undefinedCheck}
-          removeFileChangeRequest={removeFileChangeRequest}
           setOutputToggle={setOutputToggle}
           setLoadingMessage={setLoadingMessage}
-          setStatusForFCR={setStatusForFCR}
-          setStatusForAll={setStatusForAll}
         />
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
@@ -287,14 +280,14 @@ const DashboardDisplay = () => {
                       repoName,
                       fcr.snippet.file
                     );
-                    setFileForFCR(response.contents, fcr);
-                    setOldFileForFCR(response.contents, fcr);
+                    setFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
+                    setOldFileForFCR(response.contents, fcr, fileChangeRequests, setFileChangeRequests);
                     toast.success("File synced from storage!", {
                       action: { label: "Dismiss", onClick: () => { } },
                     });
                     setCurrentFileChangeRequestIndex(currentFileChangeRequestIndex);
                     setHideMerge(true, fcr);
-                    setStatusForFCR("idle", fcr);
+                    setStatusForFCR("idle", fcr, fileChangeRequests, setFileChangeRequests);
                   }}
                   disabled={fileChangeRequests.length === 0 || fileChangeRequests[currentFileChangeRequestIndex]?.isLoading}
                 >
@@ -305,7 +298,7 @@ const DashboardDisplay = () => {
                   className="mr-2 bg-green-600 hover:bg-green-700"
                   onClick={async () => {
                     const fcr = fileChangeRequests[currentFileChangeRequestIndex]
-                    setOldFileForFCR(fcr.newContents, fcr);
+                    setOldFileForFCR(fcr.newContents, fcr, fileChangeRequests, setFileChangeRequests);
                     setHideMerge(true, fcr);
                     await writeFile(
                       repoName,

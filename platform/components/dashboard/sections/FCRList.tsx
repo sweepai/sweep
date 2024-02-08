@@ -14,11 +14,7 @@ const FCRList = memo(function FCRList({
   currentFileChangeRequestIndex,
   setCurrentFileChangeRequestIndex,
   getFileChanges,
-  setReadOnlySnippetForFCR,
-  removeReadOnlySnippetForFCR,
-  removeFileChangeRequest,
   isRunningRef,
-  setStatusForFCR
 }: {
   repoName: string;
   files: { label: string; name: string }[];
@@ -30,17 +26,7 @@ const FCRList = memo(function FCRList({
     fileChangeRequest: FileChangeRequest,
     index: number,
   ) => Promise<void>;
-  setReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippet: Snippet,
-  ) => void;
-  removeReadOnlySnippetForFCR: (
-    fileChangeRequest: FileChangeRequest,
-    snippetFile: string,
-  ) => void;
-  removeFileChangeRequest: (fcr: FileChangeRequest) => void;
   isRunningRef: React.MutableRefObject<boolean>;
-  setStatusForFCR: (newStatus: "queued" | "in-progress" | "done" | "error" | "idle", fcr: FileChangeRequest) => void;
 }) {
   const [fileChangeRequests, setFileChangeRequests] = useRecoilState(FileChangeRequestsState);
   const getDynamicClassNames = (fcr: FileChangeRequest, index: number) => {
@@ -166,9 +152,6 @@ const FCRList = memo(function FCRList({
                   repoName={repoName}
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
                   getFileChanges={getFileChanges}
-                  setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-                  removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-                  removeFileChangeRequest={removeFileChangeRequest}
                   isRunningRef={isRunningRef}
                   fcr={fcr}
                   index={index}
@@ -179,7 +162,6 @@ const FCRList = memo(function FCRList({
                   setFCRInstructions={setFCRInstructions}
                   setUserSuggestion={setUserSuggestion}
                   key={index}
-                  setStatusForFCR={setStatusForFCR}
                 />
               ) : (
                 <FCRModify
@@ -187,9 +169,6 @@ const FCRList = memo(function FCRList({
                   repoName={repoName}
                   setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
                   getFileChanges={getFileChanges}
-                  setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-                  removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
-                  removeFileChangeRequest={removeFileChangeRequest}
                   isRunningRef={isRunningRef}
                   fcr={fcr}
                   index={index}
@@ -199,7 +178,6 @@ const FCRList = memo(function FCRList({
                   fcrInstructions={fcrInstructions}
                   setFCRInstructions={setFCRInstructions}
                   setUserSuggestion={setUserSuggestion}
-                  setStatusForFCR={setStatusForFCR}
                 />
               )
             ))}
