@@ -275,7 +275,10 @@ const DashboardDisplay = () => {
 
   useEffect(() => {
     let textarea = document.getElementById("llm-output") as HTMLTextAreaElement;
-    textarea.scrollTop = textarea.scrollHeight;
+    const delta = 50; // Define a delta for the inequality check
+    if (Math.abs(textarea.scrollHeight - textarea.scrollTop - textarea.clientHeight) < delta) {
+      textarea.scrollTop = textarea.scrollHeight;
+    }
   }, [streamData]);
 
   useEffect(() => {

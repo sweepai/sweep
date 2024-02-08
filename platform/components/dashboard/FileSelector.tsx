@@ -8,10 +8,11 @@ import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { html } from "@codemirror/lang-html";
 
-import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
+import CodeMirror, { EditorState, EditorView, keymap } from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
+import { FaArrowLeft } from "react-icons/fa6";
 
 const getLanguage = (ext: string) => {
   const languageMap: { [key: string]: any } = {
@@ -91,10 +92,18 @@ const FileSelector = memo(function FileSelector({
           theme={vscodeDark}
           style={{ overflow: "auto" }}
           className="ph-no-capture"
+          revertControls="b-to-a"
+          collapseUnchanged={{
+            margin: 3,
+            minSize: 6
+          }}
         >
           <Original
             value={oldFile}
-            extensions={extensions}
+            extensions={[
+              ...extensions,
+              EditorState.readOnly.of(true)
+            ]}
             onChange={onOldChange}
             placeholder={placeholderText}
           />

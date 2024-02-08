@@ -235,7 +235,10 @@ const DashboardPlanning = ({
         }
         setCurrentFileChangeRequests(fileChangeRequests)
         if (planRef.current) {
-          planRef.current.scrollTop = planRef.current.scrollHeight || 0;
+          const delta = 50; // Define a delta for the inequality check
+          if (Math.abs(planRef.current.scrollHeight - planRef.current.scrollTop - planRef.current.clientHeight) < delta) {
+            planRef.current.scrollTop = planRef.current.scrollHeight || 0;
+          }
         }
       }
     } catch (e) {
@@ -290,6 +293,12 @@ const DashboardPlanning = ({
         className="min-h-[100px] w-full rounded-md border border-input bg-background MentionsInput mb-2"
         placeholder="Describe the changes you want to make here."
         value={instructions}
+        onKeyDown={(e: any) => {
+          if (e.key === "Enter" && e.ctrlKey) {
+            e.preventDefault();
+            generatePlan();
+          }
+        }}
         onChange={(e: any) => setInstructions(e.target.value)}
         onBlur={(e: any) => setInstructions(e.target.value)}
         inputRef={instructionsRef}

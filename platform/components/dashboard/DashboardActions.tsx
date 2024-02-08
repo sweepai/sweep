@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import DashboardPlanning from "./DashboardPlanning";
 import { useRecoilState } from "recoil";
 import { FileChangeRequestsState } from "../../state/fcrAtoms";
+import { parseRegexFromOpenAICreate, parseRegexFromOpenAIModify } from "../../lib/patchUtils";
 
 const Diff = require("diff");
 
@@ -245,7 +246,7 @@ const DashboardActions = ({
         throw new Error("No files found in the repository");
       }
       toast.success(
-        "Successfully fetched files from the repository!",
+        `Successfully fetched ${sortedFiles.length} files from the repository!`,
         { action: { label: "Dismiss", onClick: () => {} } },
       );
       setCurrentRepoName((currentRepoName: string) => {
@@ -314,9 +315,9 @@ const DashboardActions = ({
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
-          { 
-            ...prev[fcrIndex], 
-            diff: newDiff 
+          {
+            ...prev[fcrIndex],
+            diff: newDiff
           },
           ...prev.slice(fcrIndex + 1),
         ];
@@ -366,132 +367,6 @@ const DashboardActions = ({
     setScriptOutput(scriptOutput);
   };
 
-  const softIndentationCheck = (
-    oldCode: string,
-    newCode: string,
-    fileContents: string,
-  ): [string, string] => {
-    // TODO: Unit test this
-    let newOldCode = oldCode;
-    let newNewCode = newCode;
-    // expect there to be a newline at the beginning of oldCode
-    // find correct indentaton - try up to 16 spaces (8 indentations worth)
-
-    const lines = fileContents.split("\n")
-    for (let i of [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]) {
-      // split new code by \n and add the same indentation to each line, then rejoin with new lines
-      newOldCode =
-        "\n" +
-        oldCode
-          .split("\n")
-          .map((line) => " ".repeat(i) + line)
-          .join("\n");
-      var newOldCodeLines = newOldCode.split("\n")
-      if (newOldCodeLines[0] === "") {
-        newOldCode = newOldCode.slice(1);
-      }
-      if (isSublist(lines, newOldCodeLines)) {
-        newNewCode =
-          "\n" +
-          newCode
-            .split("\n")
-            .map((line) => " ".repeat(i) + line)
-            .join("\n");
-        break;
-      }
-    }
-    return [newOldCode, newNewCode];
-  };
-
-  const parseRegexFromOpenAIModify = (
-    response: string,
-    fileContents: string,
-  ): [string, string] => {
-    let errorMessage = "";
-    const diffRegexModify =
-      /<<<<<<< ORIGINAL(\n+?)(?<oldCode>.*?)(\n*?)=======(\n+?)(?<newCode>.*?)(\n*?)($|>>>>>>> MODIFIED)/gs;
-    const diffMatches: any = response.matchAll(diffRegexModify)!;
-    if (!diffMatches) {
-      return ["", ""];
-    }
-    var currentFileContents = fileContents;
-    var changesMade = false;
-    for (const diffMatch of diffMatches) {
-      changesMade = true;
-      let oldCode = diffMatch.groups!.oldCode ?? "";
-      let newCode = diffMatch.groups!.newCode ?? "";
-
-      if (oldCode === undefined || newCode === undefined) {
-        throw new Error("oldCode or newCode are undefined");
-      }
-      let didFind = false;
-      if (oldCode.startsWith("\n")) {
-        oldCode = oldCode.slice(1);
-      }
-      if (oldCode.trim().length === 0) {
-        errorMessage += "ORIGINAL code block can not be empty.\n\n";
-        continue;
-      }
-      if (!isSublist(currentFileContents.split("\n"), oldCode.split("\n"))) {
-        const [newOldCode, newNewCode]: [string, string] = softIndentationCheck(
-          oldCode,
-          newCode,
-          currentFileContents,
-        );
-        if (currentFileContents.includes(newOldCode)) {
-          didFind = true;
-        }
-        currentFileContents = currentFileContents.replace(
-          newOldCode,
-          newNewCode,
-        );
-      } else {
-        didFind = true;
-        currentFileContents = currentFileContents.replace(oldCode, newCode);
-      }
-      // if (!didFind) {
-      //   errorMessage += `ORIGINAL code block not found in file:\n\`\`\`\n${oldCode}\n\`\`\`\n\n`;
-      // }
-    }
-    if (!changesMade) {
-      errorMessage += "No valid diff hunks were found in the response.\n\n";
-    }
-    return [currentFileContents, errorMessage];
-  };
-
-  const parseRegexFromOpenAICreate = (
-    response: string,
-    fileContents: string,
-  ): [string, string] => {
-    let errorMessage = "";
-    const diffRegexCreate = /<new_file(.*?)>(?<newFile>.*)<\/new_file>/gs;
-    const diffMatches: any = response.matchAll(diffRegexCreate)!;
-    if (!diffMatches) {
-      return ["", ""];
-    }
-    var currentFileContents = fileContents;
-    var changesMade = false;
-    for (const diffMatch of diffMatches) {
-      changesMade = true;
-      let newFile = diffMatch.groups!.newFile ?? "";
-
-      if (newFile === undefined) {
-        throw new Error("oldCode or newCode are undefined");
-      }
-      if (newFile.startsWith("\n")) {
-        newFile = newFile.slice(1);
-      }
-      if (newFile.trim().length === 0) {
-        errorMessage += "NEWFILE can not be empty.\n\n";
-        continue;
-      }
-      currentFileContents = newFile;
-    }
-    if (!changesMade) {
-      errorMessage += "No new file was created.\n\n";
-    }
-    return [currentFileContents, errorMessage];
-  };
 
   const checkCode = async (sourceCode: string, filePath: string) => {
     const response = await fetch(
@@ -521,16 +396,6 @@ const DashboardActions = ({
       validationScript,
       oldFile,
     );
-    if (code !== 0) {
-      toast.error(
-        "An error occured while running the validation script. Please disable it or configure it properly (see bottom left).",
-        {
-          description: stdout + "\n" + stderr,
-          action: { label: "Dismiss", onClick: () => {} },
-        },
-      );
-      return "";
-    }
     var { stdout, stderr, code } = await runScript(
       repoName,
       filePath,
@@ -538,6 +403,7 @@ const DashboardActions = ({
       newFile,
     );
     // TODO: add diff
+    setScriptOutput(stdout + "\n" + stderr);
     return code !== 0 ? stdout + "\n" + stderr : "";
   };
 
@@ -570,11 +436,11 @@ const DashboardActions = ({
       snippets: Object.values(fcr.readOnlySnippets),
     };
     const additionalMessages: Message[] = [];
-    var currentContents = fcr.snippet.entireFile.replace(/\\n/g, "\\n");
+    var currentIterationContents = (fcr.snippet.entireFile || "").replace(/\\n/g, "\\n");
     let errorMessage = "";
     let userMessage = formatUserMessage(
       fcr.instructions,
-      currentContents,
+      currentIterationContents,
       Object.values(fcr.readOnlySnippets),
       patches,
       changeType
@@ -602,13 +468,13 @@ const DashboardActions = ({
       }
       if (i !== 0) {
         var retryMessage = "";
-        if (fcr.snippet.entireFile === currentContents) {
+        if (fcr.snippet.entireFile === currentIterationContents) {
           retryMessage = retryChangesMadePrompt.replace(
             "{changes_made}",
             createPatch(
               fcr.snippet.file,
               fcr.snippet.entireFile,
-              currentContents,
+              currentIterationContents,
             ),
           );
         } else {
@@ -625,7 +491,7 @@ const DashboardActions = ({
         method: "POST",
         body: JSON.stringify({
           ...body,
-          fileContents: currentContents,
+          fileContents: currentIterationContents,
           additionalMessages,
           userMessage,
         }),
@@ -633,10 +499,11 @@ const DashboardActions = ({
       setLoadingMessage("Generating code...")
       additionalMessages.push({ role: "user", content: userMessage });
       errorMessage = "";
+      var currentContents = currentIterationContents;
       const updateIfChanged = (newContents: string) => {
-        if (newContents !== currentContents) {
+        if (newContents !== currentIterationContents) {
           setFileForFCR(newContents, fcr);
-          currentContents = newContents;
+          currentContents = newContents
         }
       };
       try {
@@ -655,14 +522,14 @@ const DashboardActions = ({
             if (changeType == "modify") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAIModify(
                 rawText || "",
-                fcr.snippet.entireFile,
+                currentIterationContents
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
             } else if (changeType == "create") {
               let [newUpdatedFile, newPatchingErrors] = parseRegexFromOpenAICreate(
                 rawText || "",
-                fcr.snippet.entireFile,
+                currentIterationContents
               );
               updatedFile = newUpdatedFile;
               patchingErrors = newPatchingErrors;
@@ -670,7 +537,7 @@ const DashboardActions = ({
             if (patchingErrors) {
               errorMessage += patchingErrors;
             } else {
-              errorMessage += await checkForErrors(
+              errorMessage = await checkForErrors(
                 fcr.snippet.file,
                 fcr.snippet.entireFile,
                 updatedFile,
@@ -690,9 +557,9 @@ const DashboardActions = ({
             let updatedFile = "";
             let _ = "";
             if (changeType == "modify") {
-              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAIModify(rawText, currentIterationContents);
             } else if (changeType == "create") {
-              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, fcr.snippet.entireFile);
+              [updatedFile, _] = parseRegexFromOpenAICreate(rawText, currentIterationContents);
             }
             if (j % 3 == 0) {
               updateIfChanged(updatedFile);
@@ -717,9 +584,10 @@ const DashboardActions = ({
           fcr.snippet.entireFile.length - globalUpdatedFile.length,
         );
         if (errorMessage.length > 0) {
+          console.error("errorMessage in loop", errorMessage)
           toast.error(
             "An error occured while generating your code." +
-              (i < 2 ? " Retrying..." : " Retried 3 times so I will give up."),
+              (i < 3 ? " Retrying..." : " Retried 4 times so I will give up."),
             {
               description: errorMessage.slice(0, 800),
               action: { label: "Dismiss", onClick: () => {} },
@@ -727,7 +595,9 @@ const DashboardActions = ({
           );
           validationOutput += "\n\n" + errorMessage;
           setScriptOutput(validationOutput);
-          setLoadingMessage("")
+          setIsLoading(false, fcr);
+          setStatusForFCR("error", fcr);
+          setLoadingMessage("Retrying...")
         } else {
           toast.success(`Successfully modified file!`, {
             description: [
@@ -742,7 +612,7 @@ const DashboardActions = ({
           break;
         }
       } catch (e: any) {
-        console.log("error", e)
+        console.error("errorMessage in except block", errorMessage)
         toast.error("An error occured while generating your code.", {
           description: e,
           action: { label: "Dismiss", onClick: () => {} },
