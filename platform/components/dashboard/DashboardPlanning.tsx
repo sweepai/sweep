@@ -126,11 +126,17 @@ const DashboardPlanning = ({
   files,
   setLoadingMessage,
   setFileChangeRequests,
+  setCurrentTab,
 }: {
   repoName: string;
   files: {label: string; name: string}[];
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>;
-  setFileChangeRequests: (fileChangeRequests: FileChangeRequest[]) => void;
+  setFileChangeRequests: React.Dispatch<
+    React.SetStateAction<FileChangeRequest[]>
+  >;
+  setCurrentTab: React.Dispatch<
+    React.SetStateAction<"planning" | "coding">
+  >;
 }) => {
   const [instructions = "", setInstructions] = useLocalStorage("globalInstructions", "" as string);
   const [snippets = {}, setSnippets] = useLocalStorage("globalSnippets", {} as {[key: string]: Snippet});
@@ -152,14 +158,11 @@ const DashboardPlanning = ({
 
   useEffect(() => {
     if (instructionsRef.current) {
-      console.log(instructionsRef.current)
       instructionsRef.current.focus();
     }
   }, [])
 
   const generatePlan = async () => {
-    console.log("Generating plan...")
-    console.log(instructions)
     setIsLoading(true)
     setLoadingMessage("Queued...")
     try {
@@ -199,7 +202,6 @@ const DashboardPlanning = ({
         const text = decoder.decode(value);
         rawText += text;
         setRawResponse(rawText)
-        console.log(rawText)
         if (thoughtsRef.current) {
           thoughtsRef.current.scrollTop = thoughtsRef.current.scrollHeight || 0;
         }
@@ -215,7 +217,6 @@ const DashboardPlanning = ({
           const start: number = startLine === undefined ? 0 : parseInt(startLine);
           const endLine: string | undefined = match.groups?.endLine;
           const end: number = Math.max(endLine === undefined ? contents.split("\n").length : parseInt(endLine), start + 10);
-          console.log(changeType, relevantFiles, instructions, startLine, endLine)
           fileChangeRequests.push({
             snippet: {
               start,
@@ -229,11 +230,9 @@ const DashboardPlanning = ({
             hideMerge: true,
             instructions: instructions.trim(),
             isLoading: false,
-            openReadOnlyFiles: false,
             readOnlySnippets: {},
             status: "idle"
           } as FileChangeRequest)
-          console.log(fileChangeRequests)
         }
         setCurrentFileChangeRequests(fileChangeRequests)
         if (planRef.current) {
@@ -497,8 +496,11 @@ const DashboardPlanning = ({
         <Button
           variant="secondary"
           className="bg-blue-800 hover:bg-blue-900 mt-4"
-          onClick={() => {
-            setFileChangeRequests(currentFileChangeRequests)
+          onClick={async (e) => {
+            setFileChangeRequests((prev: FileChangeRequest[]) => {
+              return [...prev, ...currentFileChangeRequests];
+            });
+            setCurrentTab("coding");
           }}
           disabled={isLoading}
         >

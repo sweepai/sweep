@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
     model: "gpt-4-1106-preview",
     stream: true,
   };
-  console.log("params", params);
   const response = await openai.chat.completions.create(params);
   const stream = OpenAIStream(response);
   return new StreamingTextResponse(stream);

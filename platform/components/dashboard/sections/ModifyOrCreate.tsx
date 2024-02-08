@@ -41,7 +41,7 @@ const ModifyOrCreate = ({
 
   return (
     <div className="flex flex-row mb-4">
-      <Popover open={openModify} onOpenChange={setOpenModify}>
+      {/* <Popover open={openModify} onOpenChange={setOpenModify}>
         <div className="flex flex-row mb-4 overflow-auto">
           <PopoverTrigger asChild>
             <Button
@@ -93,7 +93,6 @@ const ModifyOrCreate = ({
                           hideMerge: true,
                           instructions: "",
                           isLoading: false,
-                          openReadOnlyFiles: false,
                           readOnlySnippets: {},
                           status: "idle"
                         } as FileChangeRequest,
@@ -156,7 +155,6 @@ const ModifyOrCreate = ({
                           hideMerge: true,
                           instructions: "",
                           isLoading: false,
-                          openReadOnlyFiles: false,
                           readOnlySnippets: {},
                           status: "idle"
                         } as FileChangeRequest,
@@ -177,7 +175,7 @@ const ModifyOrCreate = ({
             </CommandGroup>
           </Command>
         </PopoverContent>
-      </Popover>
+      </Popover> */}
       <div className="grow"></div>
       <Button onClick={() => {syncAllFiles(); setStatusForAll("idle")}} variant="secondary">
         <FaArrowRotateLeft style={{marginTop: -3, fontSize: 12}} />

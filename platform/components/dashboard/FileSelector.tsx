@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback } from "react";
 
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 
@@ -10,10 +10,8 @@ import { html } from "@codemirror/lang-html";
 
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
-import { showMinimap } from "@replit/codemirror-minimap";
 import { indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
-import { FileChangeRequest } from "../../lib/types";
 
 const getLanguage = (ext: string) => {
   const languageMap: { [key: string]: any } = {
@@ -68,7 +66,6 @@ const FileSelector = memo(function FileSelector({
     indentUnit.of("    "),
   ];
 
-  console.log()
   return (
     <>
       <div className="flex flex-row mb-2">

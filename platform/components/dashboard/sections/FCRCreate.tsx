@@ -1,10 +1,9 @@
 import React, { ReactNode, memo, useEffect, useState } from "react";
-import { getFile, writeFile } from "../../../lib/api.service";
+import { getFile } from "../../../lib/api.service";
 import { Snippet } from "../../../lib/search";
 import { FileChangeRequest, snippetKey } from "../../../lib/types";
 import { FaPlay, FaTimes } from "react-icons/fa";
-import { FaArrowsRotate, FaCheck, FaStop, FaTrash } from "react-icons/fa6";
-import { toast } from "sonner";
+import { FaStop, FaTrash } from "react-icons/fa6";
 import { Badge } from "../../ui/badge";
 import { Draggable } from "react-beautiful-dnd";
 import { MentionsInput, Mention, SuggestionDataItem } from "react-mentions";
@@ -21,12 +20,8 @@ const FCRCreate = memo(function FCRCreate({
   repoName,
   setFileChangeRequests,
   setCurrentFileChangeRequestIndex,
-  setFileForFCR,
-  setOldFileForFCR,
-  setHideMerge,
   getFileChanges,
   setReadOnlySnippetForFCR,
-  setReadOnlyFilesOpen,
   removeReadOnlySnippetForFCR,
   removeFileChangeRequest,
   isRunningRef,
@@ -47,9 +42,6 @@ const FCRCreate = memo(function FCRCreate({
   setCurrentFileChangeRequestIndex: React.Dispatch<
     React.SetStateAction<number>
   >;
-  setFileForFCR: (newFile: string, fcr: FileChangeRequest) => void;
-  setOldFileForFCR: (newOldFile: string, fcr: FileChangeRequest) => void;
-  setHideMerge: (newHideMerge: boolean, fcr: FileChangeRequest) => void;
   getFileChanges: (
     fileChangeRequest: FileChangeRequest,
     index: number,
@@ -57,10 +49,6 @@ const FCRCreate = memo(function FCRCreate({
   setReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
     snippet: Snippet,
-  ) => void;
-  setReadOnlyFilesOpen: (
-    open: boolean,
-    fileChangeRequest: FileChangeRequest,
   ) => void;
   removeReadOnlySnippetForFCR: (
     fileChangeRequest: FileChangeRequest,
@@ -217,7 +205,6 @@ const FCRCreate = memo(function FCRCreate({
                     content: contents, // this is the slice based on start and end, remeber to change this
                   } as Snippet;
                   setReadOnlySnippetForFCR(fcr, newSnippet);
-                  setReadOnlyFilesOpen(false, fcr);
                 }}
                 appendSpaceOnAdd={true}
               />
@@ -278,6 +265,7 @@ const FCRCreate = memo(function FCRCreate({
                     className="mr-2"
                     onClick={(e: any) => {
                       isRunningRef.current = false;
+                      setStatusForFCR("idle", fcr);
                     }}
                   >
                     <FaStop />

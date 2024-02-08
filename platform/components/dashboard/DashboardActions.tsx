@@ -154,8 +154,6 @@ const isSublist = (lines: string[], subList: string[]): boolean => {
   return false;
 };
 
-const instructionsPlaceholder = `Instructions for what to modify. Type "@filename" for Sweep to read another file.`;
-
 const DashboardActions = ({
   filePath,
   setScriptOutput,
@@ -236,22 +234,8 @@ const DashboardActions = ({
   const [doValidate, setDoValidate] = useLocalStorage("doValidation", true);
   const isRunningRef = useRef(false)
   const [alertDialogOpen, setAlertDialogOpen] = useState(false);
-  const instructions = (fileChangeRequests[currentFileChangeRequestIndex] as FileChangeRequest)?.instructions;
-  const setInstructions = (instructions: string) => {
-    setFileChangeRequests((prev: FileChangeRequest[]) => {
-      return prev.map((fileChangeRequest: FileChangeRequest, index: number) => {
-        if (index === currentFileChangeRequestIndex) {
-          return {
-            ...fileChangeRequest,
-            instructions: instructions,
-          };
-        }
-        return fileChangeRequest;
-      });
-    });
-  }
 
-  const [currentTab = "planning", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
+  const [currentTab = "coding", setCurrentTab] = useLocalStorage("currentTab", "planning" as "planning" | "coding");
 
   const refreshFiles = async () => {
     try {
@@ -323,34 +307,27 @@ const DashboardActions = ({
     }
   };
 
-  const setReadOnlyFilesOpen = (
-    newOpen: boolean,
-    fcr: FileChangeRequest,
-    index: number | undefined = undefined,
-  ) => {
+  const setDiffForFCR = (newDiff: string, fcr: FileChangeRequest) => {
     try {
-      let fcrIndex = index;
-      if (typeof index === "undefined") {
-        fcrIndex = fileChangeRequests.findIndex(
-          (fileChangeRequest: FileChangeRequest) =>
-            fcrEqual(fileChangeRequest, fcr),
-        );
-      }
+      const fcrIndex = fileChangeRequests.findIndex(
+        (fileChangeRequest: FileChangeRequest) =>
+          fcrEqual(fileChangeRequest, fcr),
+      );
       undefinedCheck(fcrIndex);
       setFileChangeRequests((prev: FileChangeRequest[]) => {
         return [
           ...prev.slice(0, fcrIndex),
-          {
-            ...prev[fcrIndex!],
-            openReadOnlyFiles: newOpen,
+          { 
+            ...prev[fcrIndex], 
+            diff: newDiff 
           },
-          ...prev.slice(fcrIndex! + 1),
+          ...prev.slice(fcrIndex + 1),
         ];
       });
     } catch (error) {
-      console.error("Error in setReadOnlyFilesOpen: ", error);
+      console.error("Error in setDiffForFCR: ", error);
     }
-  };
+  }
 
   useEffect(() => {
     if (repoName === "") {
@@ -577,11 +554,7 @@ const DashboardActions = ({
     const patches = fileChangeRequests
       .slice(0, index)
       .map((fcr: FileChangeRequest) => {
-        return createPatch(
-          fcr.snippet.file,
-          fcr.snippet.entireFile,
-          fcr.newContents,
-        );
+        return fcr.diff
       })
       .join("\n\n");
 
@@ -770,7 +743,9 @@ const DashboardActions = ({
             ],
             action: { label: "Dismiss", onClick: () => {} },
           });
+          const newDiff = Diff.createPatch(filePath, fcr.snippet.entireFile, fcr.newContents);
           setIsLoading(false, fcr);
+          setDiffForFCR(newDiff, fcr);
           isRunningRef.current = false;
           break;
         }
@@ -826,7 +801,7 @@ const DashboardActions = ({
   };
   return (
     <ResizablePanel defaultSize={35} className="p-6 h-[90vh]">
-     <Tabs defaultValue="planning" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
+     <Tabs defaultValue="coding" className="h-full w-full" value={currentTab} onValueChange={(value) => setCurrentTab(value as "planning" | "coding")}>
       <div className="flex flex-row justify-between">
         <div className="flex flex-row">
           <TabsList>
@@ -895,10 +870,8 @@ const DashboardActions = ({
           repoName={repoName}
           files={files}
           setLoadingMessage={setLoadingMessage}
-          setFileChangeRequests={(fileChangeRequests: FileChangeRequest[]) => {
-            setFileChangeRequests(fileChangeRequests);
-            setCurrentTab("coding");
-          }}
+          setFileChangeRequests={setFileChangeRequests}
+          setCurrentTab={setCurrentTab}
         />
       </TabsContent>
       <TabsContent value="coding" className="h-full">
@@ -912,12 +885,8 @@ const DashboardActions = ({
             setFileChangeRequests={setFileChangeRequests}
             currentFileChangeRequestIndex={currentFileChangeRequestIndex}
             setCurrentFileChangeRequestIndex={setCurrentFileChangeRequestIndex}
-            setFileForFCR={setFileForFCR}
-            setOldFileForFCR={setOldFileForFCR}
-            setHideMerge={setHideMerge}
             getFileChanges={getFileChanges}
             setReadOnlySnippetForFCR={setReadOnlySnippetForFCR}
-            setReadOnlyFilesOpen={setReadOnlyFilesOpen}
             removeReadOnlySnippetForFCR={removeReadOnlySnippetForFCR}
             removeFileChangeRequest={removeFileChangeRequest}
             isRunningRef={isRunningRef}
@@ -925,6 +894,7 @@ const DashboardActions = ({
             getAllFileChanges={() => getAllFileChanges(fileChangeRequests)}
             setStatusForFCR={setStatusForFCR}
             setStatusForAll={setStatusForAll}
+            setCurrentTab={setCurrentTab}
           />
         <Collapsible
           open={validationScriptCollapsibleOpen}
