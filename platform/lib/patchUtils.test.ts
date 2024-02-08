@@ -154,6 +154,29 @@ This is the new file content.
 `;
     const fileContents = 'Old file content should be replaced';
 
+    test('should handle escaped characters in new file contents', () => {
+      const responseWithEscapedChars = `
+<new_file>
+This is the new file content with \\n new line and \\t tab characters.
+</new_file>
+`;
+      const [newFileContentsWithEscapedChars, errorMessageWithEscapedChars] = parseRegexFromOpenAICreate(responseWithEscapedChars, fileContents);
+      expect(newFileContentsWithEscapedChars).toEqual('This is the new file content with \\n new line and \\t tab characters.\n');
+      expect(errorMessageWithEscapedChars).toBe("");
+    });
+
+    test('should correctly replace the entire file contents when the new file creation hunk is valid', () => {
+      const responseReplaceEntireContent = `
+<new_file>
+Complete new file content.
+</new_file>
+`;
+      const fileContentsToBeReplaced = 'All of this will be replaced.\nEvery single line.';
+      const [newFileContentsReplaced, errorMessageReplaced] = parseRegexFromOpenAICreate(responseReplaceEntireContent, fileContentsToBeReplaced);
+      expect(newFileContentsReplaced).toEqual('Complete new file content.\n');
+      expect(errorMessageReplaced).toBe("");
+    });
+
     test('should return new file contents when a new file creation hunk is provided', () => {
       const [newFileContents, errorMessage] = parseRegexFromOpenAICreate(response, fileContents);
       expect(newFileContents).toEqual('This is the new file content.\n');
