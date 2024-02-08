@@ -14,7 +14,6 @@ from pydantic import BaseModel
 
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.modify_bot import ModifyBot
-from sweepai.agents.move_bot import MoveBot
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
@@ -926,147 +925,159 @@ class SweepBot(CodeGenBot, GithubBot):
                     : min(60, len(first_chars_in_instructions))
                 ]
 
-                if file_change_request.change_type == "move":  # TODO(add this)
-                    move_bot = MoveBot(chat_logger=self.chat_logger)
-                    additional_messages = copy.deepcopy(self.messages)
-                    file_ = self.repo.get_contents(
-                        file_change_request.filename, ref=branch
-                    )
-                    file_contents = file_.decoded_content.decode()
-                    new_changes, change_sets = move_bot.move_entity(
-                        additional_messages=additional_messages,
-                        file_path=file_change_request.filename,
-                        contents=file_contents,
-                        request=file_change_request.instructions,
-                        changes_made="",
-                        cloned_repo=self.cloned_repo,
-                    )
-                    file_change_request.status = "succeeded"
-                    response = None
-                    commit = None
-                    for change_set in change_sets:
-                        for change in change_set.changes:
-                            file_ = self.repo.get_contents(
-                                change.resource.path, ref=branch
+                match file_change_request.change_type:
+                    case "create":
+                        (
+                            changed_file,
+                            sandbox_response,
+                            commit,
+                            changed_files,
+                        ) = self.handle_create_file_main(
+                            file_change_request,
+                            branch,
+                            changed_files=changed_files,
+                        )
+                        file_change_requests[i].status = "succeeded"
+                        file_change_requests[i].commit_hash_url = commit.html_url
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
+                        yield (
+                            file_change_request,
+                            changed_file,
+                            sandbox_response,
+                            commit,
+                            file_change_requests,
+                        )
+                    case "modify" | "rewrite":
+                        # Remove snippets from this file if they exist
+                        snippet_msgs = [
+                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
+                        ]
+                        if len(snippet_msgs) > 0:  # Should always be true
+                            snippet_msg = snippet_msgs[0]
+                            file = re.escape(file_change_request.filename)
+                            regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                            snippet_msg.content = re.sub(
+                                regex,
+                                "",
+                                snippet_msg.content,
+                                flags=re.DOTALL,
                             )
-                            response = self.repo.update_file(
-                                path=change.resource.path,
-                                message=f"Moved entity out of {change.resource.path}",
-                                sha=file_.sha,
-                                branch=branch,
-                                content=change.new_contents,
-                            )
-                            changed_files.append(
-                                (
-                                    change.resource.path,
-                                    (
-                                        change.old_contents,
-                                        change.new_contents,
-                                    ),
+                        if self.ticket_progress is not None:
+                            for _ in range(
+                                len(
+                                    self.ticket_progress.coding_progress.assistant_conversations
+                                ),
+                                i + 1,
+                            ):
+                                self.ticket_progress.coding_progress.assistant_conversations.append(
+                                    AssistantConversation()
                                 )
-                            )
-                    if response is None:
-                        file_change_request.status = "failed"
-                    else:
-                        commit = response["commit"]
-                        file_change_request.commit_hash_url = commit.html_url
-                        file_change_request.status = "succeeded"
-                        changed_file = True
-                    yield (
-                        file_change_request,
-                        changed_file,
-                        sandbox_response,
-                        commit,
-                        file_change_requests,
-                    )
-                else:
-                    match file_change_request.change_type:
-                        case "create":
-                            (
-                                changed_file,
-                                sandbox_response,
-                                commit,
-                                changed_files,
-                            ) = self.handle_create_file_main(
-                                file_change_request,
-                                branch,
-                                changed_files=changed_files,
-                            )
-                            file_change_requests[i].status = "succeeded"
-                            file_change_requests[i].commit_hash_url = commit.html_url
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
-                            yield (
-                                file_change_request,
-                                changed_file,
-                                sandbox_response,
-                                commit,
-                                file_change_requests,
-                            )
-                        case "modify" | "rewrite":
-                            # Remove snippets from this file if they exist
-                            snippet_msgs = [
-                                m
-                                for m in self.messages
-                                if m.key == BOT_ANALYSIS_SUMMARY
+                        (
+                            changed_file,
+                            sandbox_response,
+                            commit,
+                            changed_files,
+                        ) = self.handle_modify_file_main(
+                            file_change_request=file_change_request,
+                            branch=branch,
+                            changed_files=changed_files,
+                            assistant_conversation=self.ticket_progress.coding_progress.assistant_conversations[
+                                i
                             ]
-                            if len(snippet_msgs) > 0:  # Should always be true
-                                snippet_msg = snippet_msgs[0]
-                                file = re.escape(file_change_request.filename)
-                                regex = (
-                                    rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
-                                )
-                                snippet_msg.content = re.sub(
-                                    regex,
-                                    "",
-                                    snippet_msg.content,
-                                    flags=re.DOTALL,
-                                )
-                            if self.ticket_progress is not None:
-                                for _ in range(
-                                    len(
-                                        self.ticket_progress.coding_progress.assistant_conversations
-                                    ),
-                                    i + 1,
-                                ):
-                                    self.ticket_progress.coding_progress.assistant_conversations.append(
-                                        AssistantConversation()
-                                    )
-                            (
-                                changed_file,
-                                sandbox_response,
-                                commit,
-                                changed_files,
-                            ) = self.handle_modify_file_main(
-                                file_change_request=file_change_request,
-                                branch=branch,
-                                changed_files=changed_files,
-                                assistant_conversation=self.ticket_progress.coding_progress.assistant_conversations[
-                                    i
-                                ]
-                                if self.ticket_progress
-                                else None,
-                            )
-                            file_change_requests[i].status = (
-                                "succeeded" if changed_file else "failed"
-                            )
-                            file_change_requests[i].commit_hash_url = (
-                                commit.html_url
-                                if commit and not isinstance(commit, str)
-                                else None  # fix later
-                            )
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
+                            if self.ticket_progress
+                            else None,
+                        )
+                        file_change_requests[i].status = (
+                            "succeeded" if changed_file else "failed"
+                        )
+                        file_change_requests[i].commit_hash_url = (
+                            commit.html_url
+                            if commit and not isinstance(commit, str)
+                            else None  # fix later
+                        )
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
+                        yield (
+                            file_change_request,
+                            changed_file,
+                            sandbox_response,
+                            commit,
+                            file_change_requests,
+                        )
+                    case "check":
+                        if file_change_requests[i - 1].status == "failed":
+                            file_change_request.status = "failed"
                             yield (
                                 file_change_request,
-                                changed_file,
-                                sandbox_response,
-                                commit,
+                                False,
+                                None,
+                                None,
                                 file_change_requests,
                             )
-                        case "check":
-                            if file_change_requests[i - 1].status == "failed":
-                                file_change_request.status = "failed"
+                        else:
+                            commit_hash = self.repo.get_branch(branch=branch).commit.sha
+                            check_runs = list(
+                                self.repo.get_commit(commit_hash).get_check_runs()
+                            )
+                            completed = True
+                            total_wait_time = 3600
+                            sleep_time = 5
+                            for j in range(total_wait_time // sleep_time):
+                                if j % 4 == 0:
+                                    commit_hash_url = f'<a href="https://github.com/{self.repo.full_name}/commit/{commit_hash}">{commit_hash}</a>'
+                                    additional_instructions = ""
+                                    conclusions = []
+                                    check_runs = list(
+                                        self.repo.get_commit(
+                                            commit_hash
+                                        ).get_check_runs()
+                                    )
+                                    for check_run in check_runs:
+                                        conclusions.append(check_run.conclusion)
+                                        conclusion_str = (
+                                            "✓"
+                                            if check_run.conclusion == "success"
+                                            else "✗"
+                                            if check_run.conclusion == "failure"
+                                            else "⋯"
+                                        )
+                                        additional_instructions += f'• {check_run.name}: <a href="{check_run.html_url}">{conclusion_str}</a>\n'
+                                    # these are distinct, it's None if it's not done so succeeded and failed can both be false
+                                    succeeded = all(
+                                        conclusion == "success"
+                                        for conclusion in conclusions
+                                    )
+                                    failed = any(
+                                        conclusion == "failure"
+                                        for conclusion in conclusions
+                                    )
+                                    waiting = any(
+                                        conclusion == None for conclusion in conclusions
+                                    )
+                                    if succeeded:
+                                        file_change_request.status = "succeeded"
+                                    elif failed:
+                                        file_change_request.status = "failed"
+                                    file_change_request.instructions = f"\nRan GitHub Actions for {commit_hash_url}:\n{additional_instructions}"
+                                    yield (
+                                        file_change_request,
+                                        True,
+                                        None,
+                                        None,
+                                        file_change_requests,
+                                    )
+                                    if not waiting or failed or succeeded:
+                                        break
+                                time.sleep(sleep_time)
+                                logger.info("Waiting for check runs to complete")
+                            else:
+                                logger.error("Check runs did not complete in time")
+                                completed = False
+
+                            if not completed:
+                                file_change_request.status = "succeeded"
+                                file_change_request.instructions += "\n\nCheck runs did not complete in 60 minutes, skipping the rest."
                                 yield (
                                     file_change_request,
                                     False,
@@ -1074,123 +1085,50 @@ class SweepBot(CodeGenBot, GithubBot):
                                     None,
                                     file_change_requests,
                                 )
-                            else:
-                                commit_hash = self.repo.get_branch(
-                                    branch=branch
-                                ).commit.sha
-                                check_runs = list(
-                                    self.repo.get_commit(commit_hash).get_check_runs()
-                                )
-                                completed = True
-                                total_wait_time = 3600
-                                sleep_time = 5
-                                for j in range(total_wait_time // sleep_time):
-                                    if j % 4 == 0:
-                                        commit_hash_url = f'<a href="https://github.com/{self.repo.full_name}/commit/{commit_hash}">{commit_hash}</a>'
-                                        additional_instructions = ""
-                                        conclusions = []
-                                        check_runs = list(
-                                            self.repo.get_commit(
-                                                commit_hash
-                                            ).get_check_runs()
-                                        )
-                                        for check_run in check_runs:
-                                            conclusions.append(check_run.conclusion)
-                                            conclusion_str = (
-                                                "✓"
-                                                if check_run.conclusion == "success"
-                                                else "✗"
-                                                if check_run.conclusion == "failure"
-                                                else "⋯"
-                                            )
-                                            additional_instructions += f'• {check_run.name}: <a href="{check_run.html_url}">{conclusion_str}</a>\n'
-                                        # these are distinct, it's None if it's not done so succeeded and failed can both be false
-                                        succeeded = all(
-                                            conclusion == "success"
-                                            for conclusion in conclusions
-                                        )
-                                        failed = any(
-                                            conclusion == "failure"
-                                            for conclusion in conclusions
-                                        )
-                                        waiting = any(
-                                            conclusion == None
-                                            for conclusion in conclusions
-                                        )
-                                        if succeeded:
-                                            file_change_request.status = "succeeded"
-                                        elif failed:
-                                            file_change_request.status = "failed"
-                                        file_change_request.instructions = f"\nRan GitHub Actions for {commit_hash_url}:\n{additional_instructions}"
-                                        yield (
-                                            file_change_request,
-                                            True,
-                                            None,
-                                            None,
-                                            file_change_requests,
-                                        )
-                                        if not waiting or failed or succeeded:
-                                            break
-                                    time.sleep(sleep_time)
-                                    logger.info("Waiting for check runs to complete")
-                                else:
-                                    logger.error("Check runs did not complete in time")
-                                    completed = False
-
-                                if not completed:
-                                    file_change_request.status = "succeeded"
-                                    file_change_request.instructions += "\n\nCheck runs did not complete in 60 minutes, skipping the rest."
-                                    yield (
-                                        file_change_request,
-                                        False,
-                                        None,
-                                        None,
-                                        file_change_requests,
-                                    )
-                        case "delete":
-                            contents = self.repo.get_contents(
-                                file_change_request.filename, ref=branch
-                            )
-                            self.repo.delete_file(
-                                file_change_request.filename,
-                                f"Deleted {file_change_request.filename}",
-                                sha=contents.sha,
-                                branch=branch,
-                            )
-                            changed_file = True
-                            file_change_requests[i].status = "succeeded"
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
-                            yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
-                        case "rename":
-                            contents = self.repo.get_contents(
-                                file_change_request.filename, ref=branch
-                            )
-                            self.repo.create_file(
-                                file_change_request.instructions,
-                                (
-                                    f"Renamed {file_change_request.filename} to"
-                                    f" {file_change_request.instructions}"
-                                ),
-                                contents.decoded_content,
-                                branch=branch,
-                            )
-                            self.repo.delete_file(
-                                file_change_request.filename,
-                                f"Deleted {file_change_request.filename}",
-                                sha=contents.sha,
-                                branch=branch,
-                            )
-                            changed_file = True
-                            file_change_requests[i].status = "succeeded"
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
-                            yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
-                        case _:
-                            raise Exception(
-                                f"Unknown change type {file_change_request.change_type}"
-                            )
-                    logger.print(f"Done processing {file_change_request.filename}.")
+                    case "delete":
+                        contents = self.repo.get_contents(
+                            file_change_request.filename, ref=branch
+                        )
+                        self.repo.delete_file(
+                            file_change_request.filename,
+                            f"Deleted {file_change_request.filename}",
+                            sha=contents.sha,
+                            branch=branch,
+                        )
+                        changed_file = True
+                        file_change_requests[i].status = "succeeded"
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
+                        yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
+                    case "rename":
+                        contents = self.repo.get_contents(
+                            file_change_request.filename, ref=branch
+                        )
+                        self.repo.create_file(
+                            file_change_request.instructions,
+                            (
+                                f"Renamed {file_change_request.filename} to"
+                                f" {file_change_request.instructions}"
+                            ),
+                            contents.decoded_content,
+                            branch=branch,
+                        )
+                        self.repo.delete_file(
+                            file_change_request.filename,
+                            f"Deleted {file_change_request.filename}",
+                            sha=contents.sha,
+                            branch=branch,
+                        )
+                        changed_file = True
+                        file_change_requests[i].status = "succeeded"
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
+                        yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
+                    case _:
+                        raise Exception(
+                            f"Unknown change type {file_change_request.change_type}"
+                        )
+                logger.print(f"Done processing {file_change_request.filename}.")
             except AssistantRaisedException as e:
                 raise e
             except Exception as e:
