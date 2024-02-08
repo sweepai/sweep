@@ -22,9 +22,16 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install
+      - name: Cache pnpm modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.pnpm-store
+            platform/node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+      - run: pnpm ci --frozen-lockfile
         working-directory: platform
-      - run: npm run build
-        working-directory: platform
-      - run: npm run test:unit
+      - run: pnpm run test:unit
         working-directory: platform
