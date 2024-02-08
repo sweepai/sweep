@@ -1,4 +1,4 @@
-import { createPatch, isSublist, softIndentationCheck, parseRegexFromOpenAIModify } from './patchUtils';
+import { createPatch, isSublist, softIndentationCheck, parseRegexFromOpenAIModify, parseRegexFromOpenAICreate } from './patchUtils';
 import { expect } from '@jest/globals';
 
 const Diff = require("diff")
@@ -143,6 +143,38 @@ new content
       const [updatedFileContents, errorMessage] = parseRegexFromOpenAIModify('', fileContents);
       expect(updatedFileContents).toBe(fileContents);
       expect(errorMessage).toContain('No valid diff hunks were found');
+    });
+  });
+
+  describe('parseRegexFromOpenAICreate', () => {
+    const response = `
+<new_file>
+This is the new file content.
+</new_file>
+`;
+    const fileContents = 'Old file content should be replaced';
+
+    test('should return new file contents when a new file creation hunk is provided', () => {
+      const [newFileContents, errorMessage] = parseRegexFromOpenAICreate(response, fileContents);
+      expect(newFileContents).toEqual('This is the new file content.\n');
+      expect(errorMessage).toBe("");
+    });
+
+    test('should return an error message when new file content cannot be parsed', () => {
+      const responseInvalid = `
+<new_file>
+</new_file>
+`;
+      const [newFileContents, errorMessage] = parseRegexFromOpenAICreate(responseInvalid, fileContents);
+      expect(newFileContents).toBe(fileContents);
+      expect(errorMessage).toContain('NEWFILE can not be empty');
+    });
+
+    test('should return same file contents and error message when no new file hunk is present', () => {
+      const responseEmpty = `No new file hunk here.`;
+      const [newFileContents, errorMessage] = parseRegexFromOpenAICreate(responseEmpty, fileContents);
+      expect(newFileContents).toBe(fileContents);
+      expect(errorMessage).toContain('No new file was created');
     });
   });
 });
