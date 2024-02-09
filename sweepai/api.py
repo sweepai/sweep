@@ -764,6 +764,7 @@ def run(request_dict, event):
                         comment_id=None,
                     )
             case "issue_comment", "created":
+                # import pdb; pdb.set_trace()
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
@@ -773,7 +774,7 @@ def run(request_dict, event):
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
                     )
-                    and not (BOT_SUFFIX in request.comment.body)
+                    # and not (BOT_SUFFIX in request.comment.body)
                 ):
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
@@ -805,7 +806,7 @@ def run(request_dict, event):
                 elif (
                     request.issue.pull_request
                     and request.comment.user.type == "User"
-                    and not (BOT_SUFFIX in request.comment.body)
+                    # and not (BOT_SUFFIX in request.comment.body)
                 ):  # TODO(sweep): set a limit
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
@@ -815,7 +816,7 @@ def run(request_dict, event):
                     if (
                         comment.lower().startswith("sweep:")
                         or any(label.name.lower() == "sweep" for label in labels)
-                        and not BOT_SUFFIX in comment
+                        # and not BOT_SUFFIX in comment
                     ):
                         pr_change_request = PRChangeRequest(
                             params={
