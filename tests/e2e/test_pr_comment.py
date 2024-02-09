@@ -1,19 +1,23 @@
 import json
 import time
 import os
+import comm
 from github import Github
 import datetime
 
 from fastapi.testclient import TestClient
+from tomlkit import comment
 
-from sweepai.api import app, global_threads
+from sweepai.api import app, global_threads, events
+import threading
 
 g = Github(os.environ["GITHUB_PAT"])
 repo_name = "sweepai/e2e" # for e2e test this is hardcoded
 repo = g.get_repo(repo_name)
 
 local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-
+# PR NUMBER is hardcoded for e2e test
+pr_number = 19
 
 def e2e_pr_comment():
     client = TestClient(app)
@@ -32,28 +36,29 @@ def e2e_pr_comment():
         response_text = json.loads(response.text)
         assert(response.status_code == 200)
         assert('success' in response_text)
-        # # poll github 5 times, waiting 1 minute between each poll, check if the pr has been created successfully or not
-        # for i in range(5):
-        #     pulls = repo.get_pulls(state='open', sort='created', direction='desc')
-        #     # iterate through the top 5 pull requests and check if the title matches the expected title
-        #     for pr in pulls[:min(5, pulls.totalCount)]:
-        #         current_date = time.time() - 60 * (i + 1)
-        #         current_date = datetime.datetime.fromtimestamp(current_date)
-        #         creation_date = pr.created_at.replace(
-        #             tzinfo=datetime.timezone.utc
-        #         ).astimezone(local_tz)
-        #         # success if a new pr was made within i+1 minutes ago
-        #         if issue_title in pr.title and creation_date.timestamp() > current_date.timestamp():
-        #             for thread in global_threads:
-        #                 thread.join()
-        #             print(f"PR created successfully: {pr.title}")
-        #             print(f"PR object is: {pr}")
-        #             return            
-        #     time.sleep(60)
-        for thread in global_threads:
-            thread.join()
-        print("PR successfully updated!")
-        return
+        pr = repo.get_pull(pr_number)
+        # poll github 5 times, waiting 1 minute between each poll, check if the pr has been updated or not
+        for i in range(5):
+            pr = repo.get_pull(pr_number)
+            # iterate through the comments of the pr and check if a new comment got created the title Wrote Changes
+            # get last 5 comments
+            comments = pr.get_issue_comments()
+            slicer = max(0, comments.totalCount - 5)
+            for comment in comments[slicer:]:
+                current_date = time.time() - 60 * (i + 1)
+                current_date = datetime.datetime.fromtimestamp(current_date)
+                creation_date = comment.created_at.replace(
+                    tzinfo=datetime.timezone.utc
+                ).astimezone(local_tz)
+                # success if a new pr was made within i+1 minutes ago
+                if "Wrote Changes" in comment.body and creation_date.timestamp() > current_date.timestamp():
+                    for thread in global_threads:
+                        thread.join()
+                    print(f"PR successfully updated: {pr.title}")
+                    print(f"PR object is: {pr}")
+                    return            
+            time.sleep(60)
+        raise AssertionError("PR was not updated!")
     except AssertionError as e:
         for thread in global_threads:
             thread.join()
@@ -65,3 +70,4 @@ def e2e_pr_comment():
 
 if __name__ == "__main__":
     e2e_pr_comment()
+

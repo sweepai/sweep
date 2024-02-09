@@ -3,7 +3,7 @@ import traceback
 from datetime import datetime, timedelta
 from threading import Thread
 from typing import Any
-
+from sweepai.global_threads import global_threads
 import requests
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
@@ -82,6 +82,7 @@ class ChatLogger(BaseModel):
     def add_chat(self, additional_data):
         thread = Thread(target=self._add_chat, args=(additional_data,))
         thread.start()
+        global_threads.append(thread)
 
     def _add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
@@ -114,6 +115,8 @@ class ChatLogger(BaseModel):
     def add_successful_ticket(self, gpt3=False):
         thread = Thread(target=self._add_successful_ticket, args=(gpt3,))
         thread.start()
+        global_threads.append(thread)
+
 
     def _cache_key(self, username, field, metadata=""):
         return f"{username}_{field}_{metadata}"

@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
 from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
-
+from sweepai.global_threads import global_threads
 
 class AssistantAPIMessageRole(Enum):
     SYSTEM = "system"
@@ -298,6 +298,7 @@ class TicketProgress(BaseModel):
         if do_async:
             thread = Thread(target=self._save)
             thread.start()
+            global_threads.append(thread)
         else:
             self._save()
 
