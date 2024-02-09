@@ -39,11 +39,13 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
+    GHA_AUTOFIX_ENABLED,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
+    MERGE_CONFLICT_ENABLED,
 )
 from sweepai.core.entities import PRChangeRequest
 from sweepai.handlers.create_pr import (  # type: ignore
@@ -100,6 +102,7 @@ security = HTTPBearer()
 logger.bind(application="webhook")
 
 global_threads = []
+
 
 def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security)):
     if credentials.scheme != "Bearer":
@@ -443,6 +446,7 @@ def run(request_dict, event):
                             ]
                         )
                         < 2
+                        and GHA_AUTOFIX_ENABLED
                     ):
                         # check if the base branch is passing
                         commits = repo.get_commits(sha=pr.base.ref)
@@ -493,6 +497,7 @@ def run(request_dict, event):
                 elif (
                     request.check_run.check_suite.head_branch == repo.default_branch
                     and get_gha_enabled(repo)
+                    and GHA_AUTOFIX_ENABLED
                 ):
                     if request.check_run.conclusion == "failure":
                         commit = repo.get_commit(request.check_run.head_sha)
@@ -562,7 +567,7 @@ def run(request_dict, event):
                     )
                     pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
 
-                if pr.mergeable == False:
+                if pr.mergeable == False and MERGE_CONFLICT_ENABLED:
                     attributor = pr.user.login
                     if attributor.endswith("[bot]"):
                         attributor = pr.assignee.login
@@ -1098,7 +1103,7 @@ def run(request_dict, event):
                             logger.info(
                                 f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
                             )
-                            if pr.mergeable == False:
+                            if pr.mergeable == False and MERGE_CONFLICT_ENABLED:
                                 attributor = pr.user.login
                                 if attributor.endswith("[bot]"):
                                     attributor = pr.assignee.login

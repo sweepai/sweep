@@ -6,9 +6,8 @@ from fastapi.testclient import TestClient
 from github import Github
 
 from sweepai.api import app
-from sweepai.events import Account, Installation, IssueRequest
 from sweepai.utils.github_utils import get_github_client, get_installation_id
-import json
+from sweepai.web.events import Account, Installation, IssueRequest
 
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
