@@ -16,7 +16,7 @@ jobs:
           command: ls
       - run:
           name: Run tests
-          command: python sweepai/sweep/test/e2e/test_sweep_issue.py
+          command: python sweepai/sweep/tests/e2e/test_sweep_issue.py
       - store_test_results:
           path: junit.xml
 
