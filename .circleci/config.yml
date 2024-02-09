@@ -87,27 +87,21 @@ jobs:
           command: poetry run pytest --junitxml=junit.xml || ((($? == 5)) && echo 'Did not find any tests to run.')
       - store_test_results:
           path: junit.xml
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
+  test-job:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.10-node
     steps:
-      # Replace this with steps to deploy to users
+      - checkout
+      - python/install-packages:
+          pkg-manager: poetry
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
-      - run:
-          name: found github actions config
-          command: ':'
+          name: Run tests
+          command: python test/e2e/test_sweep_issue.py
+      - store_test_results:
+          path: junit.xml
+
+
 workflows:
   build-and-test:
     jobs:
-      - test-node
-      - build-node:
-          requires:
-            - test-node
-            - test-python
-      - test-python
-    # - deploy:
-    #     requires:
-    #       - build-node
+      - test-job
