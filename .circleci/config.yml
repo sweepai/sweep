@@ -15,11 +15,8 @@ jobs:
           name: ls
           command: ls
       - run:
-          name: activate poetry
-          command: poetry shell
-      - run:
           name: Run tests
-          command: python tests/e2e/test_sweep_issue.py
+          command: poetry run python tests/e2e/test_sweep_issue.py
       - store_test_results:
           path: junit.xml
 
