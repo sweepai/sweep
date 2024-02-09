@@ -16,3 +16,21 @@ services:
     stdin_open: true
     tty: true
     restart: unless-stopped
+  hosted:
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile.hosted
+      target: base
+    image: sweepai/sweep.hosted
+    container_name: github_app
+    # network_mode: "host"
+    volumes:
+      - .:/app
+    command: >
+      sh -c ". bin/startup.hosted.sh"
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    scale: 0
