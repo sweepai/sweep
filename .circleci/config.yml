@@ -1,0 +1,20 @@
+# CircleCI configuration file
+version: 2.1
+
+orbs:
+  python: circleci/python@2.0.3
+
+jobs:
+  build_and_test: # this can be any name you choose
+    executor: python/default # use the default executor defined within the orb
+    steps:
+      - checkout # checkout source code
+      - python/install-packages:
+          pkg-manager: poetry
+      - run:
+          name: Run tests
+          command: poetry run python -m unittest sweepai/**/*_test.py
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - .
