@@ -33,16 +33,19 @@ docker exec -it $container_id python tests/rerun_issue_direct.py --no-debug http
 
 echo "Running test on https://github.com/wwzeng1/landing-page/issues/114"
 
+sleep 5
+
 # Wait until webhook is available before rerouting traffic to it
 echo "Waiting for server to start..."
 while true; do
-    curl --output /dev/null --silent --fail http://localhost:$PORT/health
-    if [ $? -eq 0 ]; then
+    curl --output /dev/null --silent --head --fail http://localhost:$PORT/health
+    result=$?
+    if [[ $result -eq 0 || $result -eq 22 ]]; then
         echo "Received a good response!"
         break
     else
         printf '.'
-        sleep 1
+        sleep 5
     fi
 done
 
