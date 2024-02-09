@@ -34,6 +34,7 @@ OpenAIModel = (
     | Literal["gpt-3.5-turbo-16k-0613"]
     | Literal["gpt-4-32k"]
     | Literal["gpt-4-32k-0613"]
+    | Literal["gpt-4-0125-preview"]
 )
 
 ChatModel = OpenAIModel
