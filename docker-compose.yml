@@ -33,4 +33,6 @@ services:
     stdin_open: true
     tty: true
     restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
     scale: 0
