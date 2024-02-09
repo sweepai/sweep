@@ -15,7 +15,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.11"]
-        # os: [ubuntu-latest, macos-latest]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -26,19 +25,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # - name: Cache Python dependencies
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: ~/.cache/pypoetry
-      #     key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/pyproject.toml') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-poetry-
-
-
       - name: Install dependencies
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           poetry install
+
+      - name: Setting env vars
+        run: |
+          echo "GITHUB_PAT=${{ secrets.GH_PAT }}\n" >> .env
+          echo "GITHUB_APP_ID=${{ secrets.GH_APP_ID }}\n" >> .env
+          echo "GITHUB_APP_PEM=${{ secrets.GH_APP_PEM }}\n" >> .env
 
       - name: Run e2e test
         run: poetry run python tests/e2e/test_sweep_issue.py
