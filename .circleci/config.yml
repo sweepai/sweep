@@ -15,14 +15,8 @@ jobs:
           name: ls
           command: ls
       - run:
-          name: cd to directory
-          command: cd sweepai
-      - run:
-          name: ls again
-          command: ls
-      - run:
           name: Run tests
-          command: python test/e2e/test_sweep.py
+          command: python sweepai/sweep/test/e2e/test_sweep.py
       - store_test_results:
           path: junit.xml
 
