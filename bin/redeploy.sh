@@ -1,4 +1,4 @@
-#!/bin/bash
+# !/bin/bash
 
 # Remove old docker images only after 2 runs to allow for rollbacks.
 # Docker images also need to finish processing their requests before they can be removed.
