@@ -10,7 +10,6 @@ from sweepai.agents.assistant_function_modify import (
     int_to_excel_col,
 )
 from sweepai.agents.complete_code import ExtractLeftoverComments
-from sweepai.agents.graph_child import extract_python_span
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.config.server import DEBUG
 from sweepai.core.chat import ChatGPT
@@ -24,6 +23,7 @@ from sweepai.core.update_prompts import (
 )
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code
@@ -274,9 +274,31 @@ class ModifyBot:
             seed=seed,
         )
         if new_file is not None:
+            posthog.capture(
+                self.chat_logger.data["username"]
+                if self.chat_logger is not None
+                else "anonymous",
+                "function_modify_succeeded",
+                {
+                    "file_path": file_path,
+                    "instructions": file_change_request.instructions,
+                    "repo_full_name": cloned_repo.repo_full_name,
+                },
+            )
             return add_auto_imports(
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
+        posthog.capture(
+            self.chat_logger.data["username"]
+            if self.chat_logger is not None
+            else "anonymous",
+            "function_modify_succeeded",
+            {
+                "file_path": file_path,
+                "instructions": file_change_request.instructions,
+                "repo_full_name": cloned_repo.repo_full_name,
+            },
+        )
         (
             snippet_queries,
             extraction_terms,

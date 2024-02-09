@@ -21,7 +21,7 @@ from sweepai.config.server import (
     MONGODB_URI,
 )
 from sweepai.core.context_pruning import get_relevant_context
-from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException, Snippet
+from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -38,33 +38,6 @@ num_full_files = 2
 num_extended_snippets = 2
 
 ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/sweep) to report this issue."
-
-
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
-    for snippet in snippets[:num_full_files]:
-        snippet = snippet.expand()
-
-    # snippet fusing
-    i = 0
-    while i < len(snippets):
-        j = i + 1
-        while j < len(snippets):
-            if snippets[i] ^ snippets[j]:  # this checks for overlap
-                snippets[i] = snippets[i] | snippets[j]  # merging
-                snippets.pop(j)
-            else:
-                j += 1
-        i += 1
-
-    # truncating snippets based on character length
-    result_snippets = []
-    total_length = 0
-    for snippet in snippets:
-        total_length += len(snippet.get_snippet())
-        if total_length > total_number_of_snippet_tokens * 5:
-            break
-        result_snippets.append(snippet)
-    return result_snippets[:max_num_of_snippets]
 
 
 def on_comment(

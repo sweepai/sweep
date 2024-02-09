@@ -3,7 +3,7 @@
 # Remove old docker images only after 2 runs to allow for rollbacks.
 # Docker images also need to finish processing their requests before they can be removed.
 echo `docker ps`
-containers_to_remove=$(docker ps -q | awk 'NR>2')
+containers_to_remove=$(docker ps -q | awk 'NR>3')
 
 if [ ! -z "$containers_to_remove" ]; then
     echo "Removing old docker runs"
@@ -30,7 +30,6 @@ cd ~/sweep
 docker build -t sweepai/sweep:latest -f Dockerfile.hosted .
 container_id=$(docker run -v $(pwd)/logn_logs:/app/logn_logs -v $(pwd)/sweep_docs:/app/sweep_docs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest)
 docker exec -it $container_id python tests/rerun_issue_direct.py --no-debug https://github.com/wwzeng1/landing-page/issues/114
-
 echo "Running test on https://github.com/wwzeng1/landing-page/issues/114"
 
 # Wait until webhook is available before rerouting traffic to it

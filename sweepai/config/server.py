@@ -203,3 +203,6 @@ LOKI_URL = os.environ.get("LOKI_URL", None)
 
 DEBUG: bool = True
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
+
+GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
+MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)

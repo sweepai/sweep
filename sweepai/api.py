@@ -24,7 +24,6 @@ from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from sweepai import health
 from sweepai.config.client import (
     DEFAULT_RULES,
     RESTART_SWEEP_BUTTON,
@@ -40,23 +39,15 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
+    GHA_AUTOFIX_ENABLED,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
+    MERGE_CONFLICT_ENABLED,
 )
 from sweepai.core.entities import PRChangeRequest
-from sweepai.events import (
-    CheckRunCompleted,
-    CommentCreatedRequest,
-    InstallationCreatedRequest,
-    IssueCommentRequest,
-    IssueRequest,
-    PREdited,
-    PRRequest,
-    ReposAddedRequest,
-)
 from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos,
     create_gha_pr,
@@ -85,6 +76,17 @@ from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
+from sweepai.web.events import (
+    CheckRunCompleted,
+    CommentCreatedRequest,
+    InstallationCreatedRequest,
+    IssueCommentRequest,
+    IssueRequest,
+    PREdited,
+    PRRequest,
+    ReposAddedRequest,
+)
+from sweepai.web.health import health_check
 
 app = FastAPI()
 
@@ -100,6 +102,7 @@ security = HTTPBearer()
 logger.bind(application="webhook")
 
 global_threads = []
+
 
 def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security)):
     if credentials.scheme != "Bearer":
@@ -254,7 +257,7 @@ def call_on_merge(*args, **kwargs):
 
 @app.get("/health")
 def redirect_to_health():
-    return health.health_check()
+    return health_check()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -443,6 +446,7 @@ def run(request_dict, event):
                             ]
                         )
                         < 2
+                        and GHA_AUTOFIX_ENABLED
                     ):
                         # check if the base branch is passing
                         commits = repo.get_commits(sha=pr.base.ref)
@@ -493,6 +497,7 @@ def run(request_dict, event):
                 elif (
                     request.check_run.check_suite.head_branch == repo.default_branch
                     and get_gha_enabled(repo)
+                    and GHA_AUTOFIX_ENABLED
                 ):
                     if request.check_run.conclusion == "failure":
                         commit = repo.get_commit(request.check_run.head_sha)
@@ -562,7 +567,7 @@ def run(request_dict, event):
                     )
                     pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
 
-                if pr.mergeable == False:
+                if pr.mergeable == False and MERGE_CONFLICT_ENABLED:
                     attributor = pr.user.login
                     if attributor.endswith("[bot]"):
                         attributor = pr.assignee.login
@@ -1099,7 +1104,7 @@ def run(request_dict, event):
                             logger.info(
                                 f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
                             )
-                            if pr.mergeable == False:
+                            if pr.mergeable == False and MERGE_CONFLICT_ENABLED:
                                 attributor = pr.user.login
                                 if attributor.endswith("[bot]"):
                                     attributor = pr.assignee.login
