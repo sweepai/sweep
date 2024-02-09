@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from sweepai.events import Changes
+from sweepai.web.events import Changes
 
 
 def create_button(label: str, selected: bool = False) -> str:
