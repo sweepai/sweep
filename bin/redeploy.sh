@@ -1,4 +1,4 @@
-#!/bin/bash
+# !/bin/bash
 
 # Remove old docker images only after 2 runs to allow for rollbacks.
 # Docker images also need to finish processing their requests before they can be removed.
@@ -27,11 +27,7 @@ echo "Found open port: $PORT"
 
 # Start new docker container on the next available port
 cd ~/sweep
-docker build -t sweepai/sweep:latest -f Dockerfile.hosted .
-container_id=$(docker run -v $(pwd)/logn_logs:/app/logn_logs -v $(pwd)/sweep_docs:/app/sweep_docs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest)
-docker exec -it $container_id python tests/rerun_issue_direct.py --no-debug https://github.com/wwzeng1/landing-page/issues/114
-
-echo "Running test on https://github.com/wwzeng1/landing-page/issues/114"
+docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 
 sleep 5
 
