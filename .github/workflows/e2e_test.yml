@@ -11,7 +11,8 @@ on:
 
 jobs:
   pylint:
-    runs-on: ${{ matrix.os }}
+    # runs-on: ${{ matrix.os }}
+    runs-on: warp-ubuntu-latest-x64-4x
     strategy:
       matrix:
         python-version: ["3.10", "3.11"]
