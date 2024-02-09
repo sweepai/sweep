@@ -2,19 +2,30 @@ import json
 
 import requests
 from loguru import logger
-from posthog import Posthog
+# from posthog import Posthog
 
 from sweepai.config.server import ENV, LOKI_URL, POSTHOG_API_KEY
 
-if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
-    posthog = Posthog(
-        project_api_key="none", disabled=True, host="https://app.posthog.com"
-    )
-    logger.warning(
-        "Initialized an empty Posthog instance as POSTHOG_API_KEY is not present."
-    )
-else:
-    posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
+# there is some weird error with the logger where it prevents the main thread from exiting
+# for the mean time we will be mocking the posthog to do nothing
+
+class NoOpPosthog:
+    def __init__(self) -> None:
+        pass
+
+    def capture(self, *args, **kwargs):
+        pass
+
+# if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
+#     posthog = Posthog(
+#         project_api_key="none", disabled=True, host="https://app.posthog.com"
+#     )
+#     logger.warning(
+#         "Initialized an empty Posthog instance as POSTHOG_API_KEY is not present."
+#     )
+# else:
+#     posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
+posthog = NoOpPosthog()
 
 
 def loki_sink(message):

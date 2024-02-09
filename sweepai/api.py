@@ -23,6 +23,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
+from sweepai.global_threads import global_threads
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -100,8 +101,6 @@ on_ticket_events = {}
 security = HTTPBearer()
 
 logger.bind(application="webhook")
-
-global_threads = []
 
 
 def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security)):
@@ -769,6 +768,7 @@ def run(request_dict, event):
                         comment_id=None,
                     )
             case "issue_comment", "created":
+                # import pdb; pdb.set_trace()
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
