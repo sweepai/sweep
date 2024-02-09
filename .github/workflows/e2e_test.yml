@@ -1,4 +1,4 @@
-name: Pylint
+name: E2E Test
 
 on:
   pull_request:
@@ -40,5 +40,5 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           poetry install
 
-      - name: Run integration test
+      - name: Run e2e test
         run: poetry run python tests/e2e/test_sweep_issue.py
