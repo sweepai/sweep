@@ -275,6 +275,9 @@ class ModifyBot:
         )
         if new_file is not None:
             posthog.capture(
+                self.chat_logger.data["username"]
+                if self.chat_logger is not None
+                else "anonymous",
                 "function_modify_succeeded",
                 {
                     "file_path": file_path,
@@ -286,6 +289,9 @@ class ModifyBot:
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
         posthog.capture(
+            self.chat_logger.data["username"]
+            if self.chat_logger is not None
+            else "anonymous",
             "function_modify_succeeded",
             {
                 "file_path": file_path,
