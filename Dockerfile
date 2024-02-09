@@ -55,8 +55,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN apt-get update && apt-get install -y screen redis-server npm
 RUN npm install -g prettier @types/react @types/react-dom typescript
 
-FROM base as final
-
 COPY sweepai /app/sweepai
 COPY sdk /app/sdk
 COPY tests /app/tests
