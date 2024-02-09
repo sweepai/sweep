@@ -299,16 +299,20 @@ class ModifyBot:
                 "repo_full_name": cloned_repo.repo_full_name,
             },
         )
-        (
-            snippet_queries,
-            extraction_terms,
-            analysis_and_identification,
-        ) = self.get_snippets_to_modify(
-            file_path=file_path,
-            file_contents=file_contents,
-            file_change_request=file_change_request,
-            chunking=chunking,
-        )
+        try:
+            (
+                snippet_queries,
+                extraction_terms,
+                analysis_and_identification,
+            ) = self.get_snippets_to_modify(
+                file_path=file_path,
+                file_contents=file_contents,
+                file_change_request=file_change_request,
+                chunking=chunking,
+            )
+        except Exception as e:
+            print("an exception occured!", e)
+            raise e
 
         new_file, leftover_comments = self.update_file(
             file_path=file_path,
@@ -330,16 +334,20 @@ class ModifyBot:
                 self.prune_modify_snippets_bot.messages = (
                     self.prune_modify_snippets_bot.messages[:-2]
                 )
-                (
-                    snippet_queries,
-                    extraction_terms,
-                    analysis_and_identification,
-                ) = self.get_snippets_to_modify(
-                    file_path=file_path,
-                    file_contents=new_file,
-                    file_change_request=new_file_change_request,
-                    chunking=chunking,
-                )
+                try:
+                    (
+                        snippet_queries,
+                        extraction_terms,
+                        analysis_and_identification,
+                    ) = self.get_snippets_to_modify(
+                        file_path=file_path,
+                        file_contents=new_file,
+                        file_change_request=new_file_change_request,
+                        chunking=chunking,
+                    )
+                except Exception as e:
+                    print("an exception occured!", e)
+                    raise e
                 self.update_snippets_bot.messages = self.update_snippets_bot.messages[
                     :-2
                 ]
