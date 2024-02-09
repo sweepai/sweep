@@ -65,7 +65,7 @@ class ChatGPT(BaseModel):
     ]
     prev_message_states: list[list[Message]] = []
     model: ChatModel = "gpt-4-0125-preview"
-    chat_logger: ChatLogger | None
+    chat_logger: ChatLogger | None = None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
     cloned_repo: ClonedRepo | None = None
