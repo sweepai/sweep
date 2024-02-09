@@ -23,6 +23,7 @@ from sweepai.core.update_prompts import (
 )
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.diff import generate_diff, sliding_window_replacement
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code
@@ -273,9 +274,25 @@ class ModifyBot:
             seed=seed,
         )
         if new_file is not None:
+            posthog.capture(
+                "function_modify_succeeded",
+                {
+                    "file_path": file_path,
+                    "instructions": file_change_request.instructions,
+                    "repo_full_name": cloned_repo.repo_full_name,
+                },
+            )
             return add_auto_imports(
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
+        posthog.capture(
+            "function_modify_succeeded",
+            {
+                "file_path": file_path,
+                "instructions": file_change_request.instructions,
+                "repo_full_name": cloned_repo.repo_full_name,
+            },
+        )
         (
             snippet_queries,
             extraction_terms,
