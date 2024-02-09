@@ -5,8 +5,8 @@ import requests
 import typer
 from github import Github
 
-from sweepai.events import Account, Installation, IssueRequest
 from sweepai.utils.github_utils import get_github_client, get_installation_id
+from sweepai.web.events import Account, Installation, IssueRequest
 
 
 def wait_for_server(host: str):

@@ -1,7 +1,4 @@
 from datetime import datetime
-from itertools import cycle
-
-from sweepai.core.entities import Snippet
 
 
 def compute_score(relative_file_path, git_repo):
@@ -58,31 +55,3 @@ def get_scores(score_factors):
         )
     ]
     return convert_to_percentiles(scores, 0.25)
-
-
-def merge_and_dedup_snippets(snippet_lists: list[list[Snippet]]) -> list[Snippet]:
-    merged_snippets = []
-    seen_files = set()
-
-    snippet_iterators = [iter(lst) for lst in snippet_lists]
-    snippet_iter_cycle = cycle(snippet_iterators)
-
-    while True:
-        iterator_exhausted = False
-        for snippet_iter in snippet_iter_cycle:
-            try:
-                while True:  # Keep looking for a unique snippet from this iterator
-                    snippet = next(snippet_iter)
-                    if snippet.file_path not in seen_files:
-                        merged_snippets.append(snippet)
-                        seen_files.add(snippet.file_path)
-                        break
-            except StopIteration:
-                snippet_iterators.remove(snippet_iter)
-                if not snippet_iterators:  # All iterators are exhausted
-                    iterator_exhausted = True
-                snippet_iter_cycle = cycle(snippet_iterators)
-                break
-        if iterator_exhausted:
-            break
-    return merged_snippets

@@ -24,7 +24,6 @@ from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from sweepai import health
 from sweepai.config.client import (
     DEFAULT_RULES,
     RESTART_SWEEP_BUTTON,
@@ -47,16 +46,6 @@ from sweepai.config.server import (
     IS_SELF_HOSTED,
 )
 from sweepai.core.entities import PRChangeRequest
-from sweepai.events import (
-    CheckRunCompleted,
-    CommentCreatedRequest,
-    InstallationCreatedRequest,
-    IssueCommentRequest,
-    IssueRequest,
-    PREdited,
-    PRRequest,
-    ReposAddedRequest,
-)
 from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos,
     create_gha_pr,
@@ -85,6 +74,17 @@ from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
+from sweepai.web.events import (
+    CheckRunCompleted,
+    CommentCreatedRequest,
+    InstallationCreatedRequest,
+    IssueCommentRequest,
+    IssueRequest,
+    PREdited,
+    PRRequest,
+    ReposAddedRequest,
+)
+from sweepai.web.health import health_check
 
 app = FastAPI()
 
@@ -254,7 +254,7 @@ def call_on_merge(*args, **kwargs):
 
 @app.get("/health")
 def redirect_to_health():
-    return health.health_check()
+    return health_check()
 
 
 @app.get("/", response_class=HTMLResponse)

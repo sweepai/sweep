@@ -291,32 +291,6 @@ def prepare_index_from_docs(docs: list[tuple[str, str]]) -> CustomIndex | None:
     return index
 
 
-def search_docs(query: str, index: CustomIndex) -> dict[str, float]:
-    """Search the documents based on a query and an index.
-
-    This function takes a query and an index as input and returns a dictionary of document IDs
-    and their corresponding scores.
-    """
-    """Title, score, content"""
-    if index == None:
-        return {}
-    results_with_metadata = index.search_index(query)
-    # Search the index
-    res = {}
-    for doc_id, score, _ in results_with_metadata:
-        if doc_id not in res:
-            res[doc_id] = score
-    # min max normalize scores from 0.5 to 1
-    if len(res) == 0:
-        max_score = 1
-        min_score = 0
-    else:
-        max_score = max(res.values())
-        min_score = min(res.values()) if min(res.values()) < max_score else 0
-    res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
-    return res
-
-
 def search_index(query, index: CustomIndex):
     """Search the index based on a query.
 

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from sweepai.health import (
+from sweepai.web.health import (
     app,
     check_mongodb_health,
     check_redis_health,
