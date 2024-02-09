@@ -12,8 +12,14 @@ jobs:
       - python/install-packages:
           pkg-manager: poetry
       - run:
+          name: ls
+          command: ls
+      - run:
           name: cd to directory
-          command: cd sweepai/sweep
+          command: cd sweepai
+      - run:
+          name: ls again
+          command: ls
       - run:
           name: Run tests
           command: python test/e2e/test_sweep.py
