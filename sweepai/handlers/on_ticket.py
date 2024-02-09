@@ -240,7 +240,7 @@ def on_ticket(
                 repo_full_name=repo_full_name,
                 issue_number=issue_number,
                 is_public=repo.private is False,
-                start_time=time(),
+                start_time=int(time()),
             ),
         )
 

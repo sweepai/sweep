@@ -99,6 +99,7 @@ security = HTTPBearer()
 
 logger.bind(application="webhook")
 
+global_threads = []
 
 def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security)):
     if credentials.scheme != "Bearer":
@@ -147,6 +148,7 @@ def run_on_comment(*args, **kwargs):
 def run_on_button_click(*args, **kwargs):
     thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
     thread.start()
+    global_threads.append(thread)
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -200,6 +202,7 @@ def call_on_ticket(*args, **kwargs):
     thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
     on_ticket_events[key] = thread
     thread.start()
+    global_threads.append(thread)
 
     # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
     # delayed_kill_thread.start()
@@ -210,6 +213,7 @@ def call_on_check_suite(*args, **kwargs):
     kwargs["request"].check_run.pull_requests[0].number
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
+    global_threads.append(thread)
 
 
 def call_on_comment(
@@ -239,11 +243,13 @@ def call_on_comment(
     ):
         thread = threading.Thread(target=worker, name=key)
         thread.start()
+        global_threads.append(thread)
 
 
 def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
     thread.start()
+    global_threads.append(thread)
 
 
 @app.get("/health")
@@ -287,6 +293,7 @@ def init_hatchet() -> Hatchet | None:
         # start worker in the background
         thread = threading.Thread(target=worker.start)
         thread.start()
+        global_threads.append(thread)
 
         return hatchet
     except Exception as e:
