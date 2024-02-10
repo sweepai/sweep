@@ -1,7 +1,7 @@
 from datetime import datetime
 from itertools import cycle
-
 from sweepai.core.entities import Snippet
+import pytest
 
 
 def compute_score(relative_file_path, git_repo):
@@ -87,3 +87,20 @@ def merge_and_dedup_snippets(snippet_lists: list[list[Snippet]]) -> list[Snippet
         if iterator_exhausted:
             break
     return merged_snippets
+
+
+# New section for pytest unit tests.
+
+import pytest
+
+def test_recently_modified_file_gets_higher_score():
+    """Verify a more recently modified file has a higher score than one modified earlier."""
+    # Given various scenarios of commit count and days_since_last_modified
+    score_factors = [
+        (10, 5, 1),  # More recent
+        (10, 5, 10)  # Less recent
+    ]
+    # When calculated by get_scores
+    scores = get_scores(score_factors)
+    # Then the more recently modified file should have a higher score
+    assert scores[0] > scores[1], 'More recently modified file did not receive a higher score'
