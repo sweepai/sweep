@@ -1,5 +1,3 @@
-# This config was automatically generated from your source code
-# Stacks detected: cicd:github-actions:.github/workflows,deps:node:platform,deps:python:.,package_manager:poetry:.,test:jest:
 version: 2.1
 orbs:
   python: circleci/python@2
