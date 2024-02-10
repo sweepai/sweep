@@ -10,7 +10,7 @@ jobs:
       - python/install-packages:
           pkg-manager: poetry
       - run:
-          name: create env vars
+          name: create env vars.
           command: |
             echo "GITHUB_PAT=${GITHUB_PAT}" >> .env
             echo "GITHUB_APP_ID=${GITHUB_APP_ID}" >> .env
