@@ -12,12 +12,6 @@ jobs:
       - python/install-packages:
           pkg-manager: poetry
       - run:
-          name: ls
-          command: ls
-      - run:
-          name: env vars
-          command: echo ${GITHUB_PAT}
-      - run:
           name: create env var
           command: |
             echo "GITHUB_PAT=${GITHUB_PAT}" >> .env
@@ -25,11 +19,8 @@ jobs:
             echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> .env
             echo "GITHUB_APP_PEM=${GITHUB_APP_PEM}" >> .env
       - run:
-          name: cat env
-          command: cat .env
-      - run:
-          name: Run tests
-          command: poetry run python tests/e2e/test_sweep_issue.py
+          name: Run create pr from issue
+          command: poetry run pytest tests/e2e
       - store_test_results:
           path: junit.xml
 

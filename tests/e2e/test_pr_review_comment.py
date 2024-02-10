@@ -20,7 +20,7 @@ local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 # PR NUMBER is hardcoded for e2e test
 pr_number = 25
 
-def e2e_pr_comment():
+def test_e2e_pr_comment():
     client = TestClient(app)
     try:
         issue_json = json.load(open("tests/jsons/e2e_pr_review_comment.json", "r"))
@@ -69,7 +69,4 @@ def e2e_pr_comment():
             thread.join()
         print(f"Failed with error: {e}")
         sys.exit(1)
-
-if __name__ == "__main__":
-    e2e_pr_comment()
 

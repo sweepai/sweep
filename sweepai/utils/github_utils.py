@@ -39,14 +39,11 @@ def get_jwt():
 
 
 def get_token(installation_id: int):
-    print("getting toekn", installation_id)
     if int(installation_id) < 0:
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
-        print("trying with timneout", timeout)
         try:
             jwt = get_jwt()
-            print("jwt is", jwt)
             headers = {
                 "Accept": "application/vnd.github+json",
                 "Authorization": "Bearer " + jwt,
@@ -57,7 +54,6 @@ def get_token(installation_id: int):
                 headers=headers,
             )
             obj = response.json()
-            print("response object", obj)
             if "token" not in obj:
                 logger.error(obj)
                 raise Exception("Could not get token")
@@ -65,7 +61,6 @@ def get_token(installation_id: int):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            print("error getting token", e)
             time.sleep(timeout)
     raise Exception(
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."

@@ -16,7 +16,7 @@ repo = g.get_repo(repo_name)
 local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
 
-def e2e_test_change_button_color():
+def test_e2e_test_change_button_color():
     client = TestClient(app)
     try:
         issue_json = json.load(open("tests/jsons/e2e_button_to_green.json", "r"))
@@ -62,6 +62,3 @@ def e2e_test_change_button_color():
             thread.join()
         print(f"Failed with error: {e}")
         sys.exit(1)
-
-if __name__ == "__main__":
-    e2e_test_change_button_color()
