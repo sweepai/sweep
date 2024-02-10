@@ -2,7 +2,7 @@ version: 2.1
 orbs:
   python: circleci/python@2
 jobs:
-  test-job:
+  ci-job:
     docker:
       - image: cimg/python:3.10-node
     steps:
@@ -28,4 +28,4 @@ jobs:
 workflows:
   build-and-test:
     jobs:
-      - test-job
+      - ci-job
