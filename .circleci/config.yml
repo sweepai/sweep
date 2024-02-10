@@ -18,6 +18,12 @@ jobs:
           name: env vars
           command: echo ${GITHUB_PAT}
       - run:
+          name: create env var
+          command: |
+            echo "GITHUB_PAT=${GITHUB_PAT}" >> .env
+            echo "GITHUB_APP_ID=${GITHUB_APP_ID}" >> .env
+            echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> .env
+      - run:
           name: Run tests
           command: poetry run python tests/e2e/test_sweep_issue.py
       - store_test_results:
