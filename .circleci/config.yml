@@ -6,6 +6,9 @@ jobs:
     docker:
       - image: cimg/python:3.10-node
     steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:GCNj5OQsmvYMZjCmbwU/Znq/J/pOoTImcwmAXSzb4ME"
       - checkout
       - python/install-packages:
           pkg-manager: poetry
