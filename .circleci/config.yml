@@ -23,6 +23,7 @@ jobs:
             echo "GITHUB_PAT=${GITHUB_PAT}" >> .env
             echo "GITHUB_APP_ID=${GITHUB_APP_ID}" >> .env
             echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> .env
+            echo "GITHUB_APP_PEM=${GITHUB_APP_PEM}" >> .env
       - run:
           name: cat env
           command: cat .env

@@ -46,6 +46,7 @@ def get_token(installation_id: int):
         print("trying with timneout", timeout)
         try:
             jwt = get_jwt()
+            print("jwt is", jwt)
             headers = {
                 "Accept": "application/vnd.github+json",
                 "Authorization": "Bearer " + jwt,
