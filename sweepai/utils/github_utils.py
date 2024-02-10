@@ -39,9 +39,11 @@ def get_jwt():
 
 
 def get_token(installation_id: int):
+    print("getting toekn", installation_id)
     if int(installation_id) < 0:
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
+        print("trying with timneout", timeout)
         try:
             jwt = get_jwt()
             headers = {
@@ -54,6 +56,7 @@ def get_token(installation_id: int):
                 headers=headers,
             )
             obj = response.json()
+            print("response object", obj)
             if "token" not in obj:
                 logger.error(obj)
                 raise Exception("Could not get token")
