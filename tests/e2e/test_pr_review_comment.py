@@ -4,6 +4,7 @@ import os
 import comm
 from github import Github
 import datetime
+import sys
 
 from fastapi.testclient import TestClient
 from tomlkit import comment
@@ -62,10 +63,12 @@ def e2e_pr_comment():
         for thread in global_threads:
             thread.join()
         print(f"Assertions failed with error: {e}")
+        sys.exit(1)
     except Exception as e:
         for thread in global_threads:
             thread.join()
         print(f"Failed with error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     e2e_pr_comment()
