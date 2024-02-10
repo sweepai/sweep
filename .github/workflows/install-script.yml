@@ -5,9 +5,13 @@ on:
     branches:
       - main
       - dev
+    paths:
+      - 'platform/**'
   push:
     branches:
       - main
+    paths:
+      - 'platform/**'
 
 jobs:
   install:
