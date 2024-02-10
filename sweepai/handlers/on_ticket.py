@@ -243,11 +243,11 @@ def on_ticket(
                 start_time=int(time()),
             ),
         )
-
-        branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
-        if branch_match:
-            branch_name = branch_match.group(1)
-            fire_and_forget_wrapper(SweepConfig.get_branch)(repo, branch_name)
+        branch_match = re.search(r"([B|b]ranch:) *(?P<branch_name>.+?)(\n|$)", summary)
+        overrided_branch_name = None
+        if branch_match and "branch_name" in branch_match.groupdict():
+            overrided_branch_name = branch_match.groupdict()["branch_name"].strip()
+            SweepConfig.get_branch(repo, overrided_branch_name)
 
         chat_logger = (
             ChatLogger(
@@ -510,12 +510,12 @@ def on_ticket(
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
                 )
-
             cloned_repo = ClonedRepo(
                 repo_full_name,
                 installation_id=installation_id,
                 token=user_token,
                 repo=repo,
+                branch=overrided_branch_name,
             )
             # check that repo's directory is non-empty
             if os.listdir(cloned_repo.cached_dir) == []:
@@ -949,19 +949,6 @@ def on_ticket(
                 ticket_progress.coding_progress.assistant_conversations = [
                     AssistantConversation() for fcr in file_change_requests
                 ]
-                # ticket_progress.save()
-                # ticket_progress.wait()
-                # ticket_progress.refresh()
-                # file_change_requests = (
-                #     ticket_progress.planning_progress.file_change_requests
-                # )
-                # file_change_requests = sweep_bot.validate_file_change_requests(
-                #     file_change_requests
-                # )
-                # ticket_progress.planning_progress.file_change_requests = (
-                #     file_change_requests
-                # )
-                # ticket_progress.coding_progress.file_change_requests = file_change_requests
                 ticket_progress.status = TicketProgressStatus.CODING
                 ticket_progress.save()
 
@@ -1014,10 +1001,9 @@ def on_ticket(
                 )
 
                 logger.info("Generating PR...")
-
                 pull_request = PullRequest(
                     title="Sweep: " + title,
-                    branch_name="sweep/" + to_branch_name(title),
+                    branch_name="sweep/" + (overrided_branch_name if overrided_branch_name else to_branch_name(title)),
                     content="",
                 )
                 logger.info("Making PR...")
@@ -1083,6 +1069,7 @@ def on_ticket(
                     installation_id,
                     issue_number,
                     chat_logger=chat_logger,
+                    base_branch=overrided_branch_name,
                 )
                 edit_sweep_comment(checkboxes_contents, 2)
                 response = {"error": NoFilesException()}
@@ -1357,7 +1344,7 @@ def on_ticket(
                     title=pr_changes.title,
                     body=pr_actions_message + pr_changes.body,
                     head=pr_changes.pr_head,
-                    base=SweepConfig.get_branch(repo),
+                    base=overrided_branch_name or SweepConfig.get_branch(repo),
                 )
 
                 pr.add_to_assignees(username)
