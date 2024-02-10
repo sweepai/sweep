@@ -320,10 +320,11 @@ def chunk_code(
         chunks = naive_chunker(code, line_count, overlap)
         snippets = []
         for idx, chunk in enumerate(chunks):
+            end = min((idx + 1) * (line_count - overlap), len(code.split("\n")))
             new_snippet = Snippet(
                 content=code,
                 start=idx * (line_count - overlap),
-                end=(idx + 1) * (line_count - overlap),
+                end=end,
                 file_path=path,
             )
             snippets.append(new_snippet)
