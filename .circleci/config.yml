@@ -8,7 +8,7 @@ jobs:
     steps:
       - add_ssh_keys:
           fingerprints:
-            - "SHA256:GCNj5OQsmvYMZjCmbwU/Znq/J/pOoTImcwmAXSzb4ME"
+            - "SHA256:j8/ASe/WK/Ho3+xUyy/MUUKbWQmn18/d7I6xGW+yX9I"
       - checkout
       - python/install-packages:
           pkg-manager: poetry
