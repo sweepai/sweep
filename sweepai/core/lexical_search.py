@@ -11,8 +11,9 @@ from whoosh.analysis import Token, Tokenizer
 
 from sweepai.config.server import REDIS_URL
 from sweepai.core.entities import Snippet
-from sweepai.core.repo_parsing_utils import repo_to_chunks
+from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.logn import logger
+from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.scorer import compute_score, get_scores
@@ -20,7 +21,7 @@ from sweepai.utils.scorer import compute_score, get_scores
 CACHE_VERSION = "v1.0.14"
 redis_client = Redis.from_url(REDIS_URL)
 
-
+@file_cache()
 def compute_document_tokens(
     content: str,
 ) -> list[str]:  # method that offloads the computation to a separate process
@@ -241,15 +242,7 @@ def prepare_index_from_snippets(
         ticket_progress.save()
     all_tokens = []
     try:
-        # with multiprocessing.Pool(processes=2) as p:
-        #     for i, document_tokens in enumerate(
-        #         p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-        #     ):
-        #         all_tokens.append(document_tokens)
-        #         if ticket_progress and i % 200 == 0:
-        #             ticket_progress.search_progress.indexing_progress = i
-        #             ticket_progress.save()
-        for i, doc in enumerate(all_docs):
+        for i, doc in tqdm(enumerate(all_docs)):
             document_tokens = compute_document_tokens(doc.content)
             all_tokens.append(document_tokens)
             if ticket_progress and i % 200 == 0:
@@ -359,17 +352,14 @@ def compute_vector_search_scores(file_list, cloned_repo):
 
 
 def prepare_lexical_search_index(
-    cloned_repo,
+    repo_directory,
     sweep_config,
-    repo_full_name,
     ticket_progress: TicketProgress | None = None,
 ):
-    snippets, file_list = repo_to_chunks(cloned_repo.cached_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
-    # prepare lexical search
+    snippets, file_list = directory_to_chunks(repo_directory, sweep_config)
     index = prepare_index_from_snippets(
         snippets,
-        len_repo_cache_dir=len(cloned_repo.cached_dir) + 1,
+        len_repo_cache_dir=len(repo_directory) + 1,
         ticket_progress=ticket_progress,
     )
     return file_list, snippets, index

@@ -48,6 +48,7 @@ def get_scores(score_factors):
     days_since_last_modified_scores = convert_to_percentiles(
         days_since_last_modified_scores, 1
     )
+    days_since_last_modified_scores = [1 - score for score in days_since_last_modified_scores]
     scores = [
         sum(x)
         for x in zip(
@@ -55,3 +56,24 @@ def get_scores(score_factors):
         )
     ]
     return convert_to_percentiles(scores, 0.25)
+
+
+# Unit Tests
+import pytest
+
+def test_get_scores_recent_modification_higher_score():
+    # Scenario: File modified more recently should receive a higher score
+    score_factors_recent = [(1, 5, 1)] # Line count, commit count, days since last modified
+    score_factors_older = [(1, 5, 10)] # Line count, commit count, days since last modified
+    scores_recent = get_scores([score_factors_recent])
+    scores_older = get_scores([score_factors_older])
+    assert scores_recent[0] > scores_older[0], "Recently modified file should score higher"
+
+
+def test_get_scores_commit_count_effect():
+    # Scenario: Higher commit count results in higher score
+    score_factors_few_commits = [(1, 2, 5)] # Line count, commit count, days since last modified
+    score_factors_many_commits = [(1, 10, 5)] # Line count, commit count, days since last modified
+    scores_few = get_scores([score_factors_few_commits])
+    scores_many = get_scores([score_factors_many_commits])
+    assert scores_many[0] > scores_few[0], "File with more commits should score higher"
