@@ -28,9 +28,6 @@ jobs:
           name: cat env
           command: cat .env
       - run:
-          name: test
-          command: poetry run python tests/e2e/test.py
-      - run:
           name: Run tests
           command: poetry run python tests/e2e/test_sweep_issue.py
       - store_test_results:

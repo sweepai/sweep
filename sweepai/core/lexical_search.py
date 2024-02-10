@@ -18,7 +18,7 @@ from sweepai.utils.progress import TicketProgress
 from sweepai.utils.scorer import compute_score, get_scores
 
 CACHE_VERSION = "v1.0.14"
-redis_client = Redis.from_url(REDIS_URL)
+redis_client = None
 
 
 def compute_document_tokens(
