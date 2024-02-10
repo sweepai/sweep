@@ -5,9 +5,15 @@ on:
     branches:
       - main
       - dev
+    paths:
+      - 'platform/**'
+      - bin/install_assistant.sh
   push:
     branches:
       - main
+    paths:
+      - 'platform/**'
+      - bin/install_assistant.sh
 
 jobs:
   install:
