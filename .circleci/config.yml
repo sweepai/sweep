@@ -15,6 +15,9 @@ jobs:
           name: ls
           command: ls
       - run:
+          name: env vars
+          command: echo ${GITHUB_PAT}
+      - run:
           name: Run tests
           command: poetry run python tests/e2e/test_sweep_issue.py
       - store_test_results:
