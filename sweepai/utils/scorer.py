@@ -56,3 +56,33 @@ def get_scores(score_factors):
         )
     ]
     return convert_to_percentiles(scores, 0.25)
+
+
+# section id="unit_tests"
+import pytest
+
+
+def test_days_since_last_modified_scores():
+    # Given: Two file score factors
+    factors_recent = [(1, 10, 1), (1, 10, 1)]  # Recently modified
+    factors_older = [(1, 10, 30), (1, 10, 30)]  # Older modification
+
+    # When: We calculate scores
+    scores_recent = get_scores(factors_recent)
+    scores_older = get_scores(factors_older)
+
+    # Then: Verify the recent modification has a higher score
+    assert scores_recent[0] > scores_older[0]
+
+
+def test_commit_count_effect_on_scores():
+    # Given: Two file score factors with different commit counts but same modified days
+    factors_high_commit = [(1, 20, 10), (1, 20, 10)]  # Higher commit count
+    factors_low_commit = [(1, 5, 10), (1, 5, 10)]  # Lower commit count
+
+    # When: We calculate scores
+    scores_high_commit = get_scores(factors_high_commit)
+    scores_low_commit = get_scores(factors_low_commit)
+
+    # Then: Verify the file with higher commit count has a higher score
+    assert scores_high_commit[0] > scores_low_commit[0]
