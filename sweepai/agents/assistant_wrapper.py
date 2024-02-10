@@ -87,6 +87,7 @@ allowed_exts = [
     "xlsx",
     "xml",
     "zip",
+    "elm",
 ]
 
 
