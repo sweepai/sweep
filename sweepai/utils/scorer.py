@@ -81,6 +81,7 @@ def merge_and_dedup_snippets(snippet_lists: list[list[Snippet]]) -> list[Snippet
                 snippet_iterators.remove(snippet_iter)
                 if not snippet_iterators:  # All iterators are exhausted
                     iterator_exhausted = True
+    days_since_last_modified_scores = [1 - score for score in days_since_last_modified_scores]
                 snippet_iter_cycle = cycle(snippet_iterators)
                 break
         if iterator_exhausted:
