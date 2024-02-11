@@ -7,6 +7,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { html } from "@codemirror/lang-html";
+import { elm } from "@codemirror/legacy-modes/mode/elm";
 
 import CodeMirror, {
   EditorState,
@@ -15,7 +16,7 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { indentWithTab } from "@codemirror/commands";
-import { indentUnit } from "@codemirror/language";
+import { indentUnit, LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { FaArrowLeft } from "react-icons/fa6";
 
 const getLanguage = (ext: string) => {
@@ -29,6 +30,7 @@ const getLanguage = (ext: string) => {
     erb: html(),
     py: python(),
     kt: java(),
+    elm: new LanguageSupport(StreamLanguage.define(elm)),
   };
   return languageMap[ext] || javascript();
 };

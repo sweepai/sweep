@@ -187,6 +187,7 @@ extension_to_language = {
     "html": "html",
     "vue": "html",
     "php": "php",
+    "elm": "elm",
 }
 
 
