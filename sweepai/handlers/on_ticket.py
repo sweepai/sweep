@@ -510,6 +510,7 @@ def on_ticket(
                     + f"\n\n---\n{actions_message}"
                     + sandbox_execution_message
                 )
+
             cloned_repo = ClonedRepo(
                 repo_full_name,
                 installation_id=installation_id,
@@ -1003,7 +1004,7 @@ def on_ticket(
                 logger.info("Generating PR...")
                 pull_request = PullRequest(
                     title="Sweep: " + title,
-                    branch_name="sweep/" + (overrided_branch_name if overrided_branch_name else to_branch_name(title)),
+                    branch_name="sweep/" + to_branch_name(title),
                     content="",
                 )
                 logger.info("Making PR...")
