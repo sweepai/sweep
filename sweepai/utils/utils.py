@@ -17,6 +17,7 @@ from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
 from sweepai.logn import logger
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 
 
@@ -69,11 +70,13 @@ class Span:
         return self.end - self.start
 
 
+AVG_CHAR_IN_LINE = 60
+
 def chunk_tree(
     tree,
     source_code: bytes,
-    MAX_CHARS=512 * 3,
-    coalesce=50,  # Any chunk less than 50 characters long gets coalesced with the next chunk
+    MAX_CHARS=AVG_CHAR_IN_LINE * 200, # 200 lines of code
+    coalesce=AVG_CHAR_IN_LINE * 50, # 50 lines of code
 ) -> list[Span]:
     from tree_sitter import Node
 
@@ -121,16 +124,31 @@ def chunk_tree(
         new_chunks.append(current_chunk)
 
     # 4. Changing line numbers
+    first_chunk = new_chunks[0]
     line_chunks = [
         Span(
-            get_line_number(chunk.start, source_code),
-            get_line_number(chunk.end, source_code),
+            0, 
+            get_line_number(first_chunk.end, source_code)
         )
-        for chunk in new_chunks
-    ]
+        ]
+    for chunk in new_chunks[1:]:
+        start_line = get_line_number(chunk.start, source_code) + 1
+        end_line = get_line_number(chunk.end, source_code)
+        line_chunks.append(
+            Span(
+                start_line,
+                max(start_line, end_line)
+            )
+        )
 
     # 5. Eliminating empty chunks
-    line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
+    new_line_chunks = []
+    for chunk in line_chunks:
+        try:
+            if len(chunk) > 0:
+                new_line_chunks.append(chunk)
+        except Exception as e:
+            import pdb; pdb.set_trace()
 
     # 6. Coalescing last chunk if it's too small
     if len(line_chunks) > 1 and len(line_chunks[-1]) < coalesce:
@@ -286,24 +304,28 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
             discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
     return True, ""
 
-
+@file_cache()
 def chunk_code(
-    code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100
+    code: str,
+    path: str,
+    MAX_CHARS=AVG_CHAR_IN_LINE * 200, # 200 lines of code
+    coalesce=AVG_CHAR_IN_LINE * 50, # 50 lines of code
 ) -> list[Snippet]:
     ext = path.split(".")[-1]
     if ext in extension_to_language:
         language = extension_to_language[ext]
     else:
         # Fallback to naive chunking if tree_sitter fails
-        line_count = 30
-        overlap = 15
+        line_count = 50
+        overlap = 0
         chunks = naive_chunker(code, line_count, overlap)
         snippets = []
         for idx, chunk in enumerate(chunks):
+            end = min((idx + 1) * (line_count - overlap), len(code.split("\n")))
             new_snippet = Snippet(
                 content=code,
                 start=idx * (line_count - overlap),
-                end=(idx + 1) * (line_count - overlap),
+                end=end,
                 file_path=path,
             )
             snippets.append(new_snippet)

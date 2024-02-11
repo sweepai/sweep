@@ -26,7 +26,7 @@ def prep_snippets(
     sweep_config: SweepConfig = SweepConfig()
 
     file_list, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
+        cloned_repo.cached_dir, sweep_config, ticket_progress
     )
     if ticket_progress:
         ticket_progress.search_progress.indexing_progress = (

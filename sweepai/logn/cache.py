@@ -45,7 +45,7 @@ def hash_code(code):
     return hashlib.md5(code.encode()).hexdigest()
 
 
-def file_cache(ignore_params=[]):
+def file_cache(ignore_params=[], verbose=False):
     """Decorator to cache function output based on its inputs, ignoring specified parameters."""
 
     def decorator(func):
@@ -80,7 +80,8 @@ def file_cache(ignore_params=[]):
             try:
                 # If cache exists, load and return it
                 if os.path.exists(cache_file):
-                    print("Used cache for function: " + func.__name__)
+                    if verbose:
+                        print("Used cache for function: " + func.__name__)
                     with open(cache_file, "rb") as f:
                         return pickle.load(f)
             except Exception:
