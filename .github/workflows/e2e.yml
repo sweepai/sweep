@@ -6,12 +6,12 @@ on:
       - main
       - dev
     paths:
-      - 'sweepai/**'
+      - 'sweepai/**/*'
   push:
     branches:
       - main
     paths:
-      - 'sweepai/**'
+      - 'sweepai/**/*'
 
 
 jobs:
