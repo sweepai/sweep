@@ -9,7 +9,7 @@ from redis import Redis
 from tqdm import tqdm
 from whoosh.analysis import Token, Tokenizer
 
-from sweepai.config.server import REDIS_URL
+from sweepai.config.server import REDIS_URL, DEBUG
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.logn import logger
@@ -19,7 +19,11 @@ from sweepai.utils.progress import TicketProgress
 from sweepai.utils.scorer import compute_score, get_scores
 
 CACHE_VERSION = "v1.0.14"
-redis_client = None
+
+if DEBUG:
+    redis_client = Redis.from_url(REDIS_URL)
+else:
+    redis_client = None
 
 @file_cache()
 def compute_document_tokens(
@@ -319,6 +323,7 @@ def search_index(query, index: CustomIndex):
 
 def compute_vector_search_scores(file_list, cloned_repo):
     files_to_scores = {}
+    return files_to_scores
     score_factors = []
     for file_path in tqdm(file_list):
         if not redis_client:
@@ -350,7 +355,7 @@ def compute_vector_search_scores(file_list, cloned_repo):
     }
     return files_to_scores
 
-
+@file_cache()
 def prepare_lexical_search_index(
     repo_directory,
     sweep_config,
