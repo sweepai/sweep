@@ -5,9 +5,14 @@ on:
     branches:
       - main
       - dev
+    paths:
+      - 'sweepai/**'
   push:
     branches:
       - main
+    paths:
+      - 'sweepai/**'
+
 
 jobs:
   unittest:
