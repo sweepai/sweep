@@ -3,6 +3,7 @@ import time
 import os
 from github import Github
 import datetime
+import sys
 
 from fastapi.testclient import TestClient
 
@@ -55,20 +56,27 @@ def e2e_test_base(issue_json):
         for thread in global_threads:
             thread.join()
         print(f"Assertions failed with error: {e}")
+        sys.exit(1)
     except Exception as e:
         for thread in global_threads:
             thread.join()
         print(f"Failed with error: {e}")
+        sys.exit(1)
 
-def e2e_test_change_button_color():
+
+def test_e2e_change_button_color():
     issue_json = json.load(open("tests/jsons/e2e_button_to_green.json", "r"))
     pr = e2e_test_base(issue_json)
 
-def e2e_test_branch_change():
+def test_e2e_branch_change():
     issue_json = json.load(open("tests/jsons/e2e_branch_change.json", "r"))
     pr = e2e_test_base(issue_json)
-    assert pr.base.ref == "dev" # check hardcoded value
+    try:
+        assert pr.base.ref == "dev" # check hardcoded value
+    except AssertionError as e:
+        print(f"Assertaion that pr.base.ref == dev failed with: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    e2e_test_change_button_color()
-    e2e_test_branch_change()
+    test_e2e_change_button_color()
+    test_e2e_branch_change()
