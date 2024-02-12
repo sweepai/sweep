@@ -22,6 +22,7 @@ def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
+    k: int = 7,
 ):
     sweep_config: SweepConfig = SweepConfig()
 
@@ -60,7 +61,7 @@ def prep_snippets(
         key=lambda snippet: content_to_lexical_score[snippet_to_key(snippet)],
         reverse=True,
     )
-    ranked_snippets = ranked_snippets[:7]
+    ranked_snippets = ranked_snippets[:k]
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()

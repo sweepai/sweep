@@ -389,6 +389,24 @@ class ClonedRepo:
 @dataclass
 class MockClonedRepo(ClonedRepo):
     _repo_dir: str = ""
+    git_repo: git.Repo | None = None
+
+    def __init__(
+            self,
+            _repo_dir: str,
+            repo_full_name: str,
+            installation_id: str = "",
+            branch: str | None = None,
+            token: str | None = None,
+            repo: Any | None = None,
+            git_repo: git.Repo | None = None,
+        ):
+        self._repo_dir = _repo_dir
+        self.repo_full_name = repo_full_name
+        self.installation_id = installation_id
+        self.branch = branch
+        self.token = token
+        self.repo = repo
 
     @classmethod
     def from_dir(cls, repo_dir: str, **kwargs):
@@ -405,10 +423,15 @@ class MockClonedRepo(ClonedRepo):
     @property
     def git_repo(self):
         return git.Repo(self.repo_dir)
+    
+    def clone(self):
+        return git.Repo(self.repo_dir)
 
     def __post_init__(self):
         return self
 
+    def __del__(self):
+        return True
 
 def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r"\b[\w\-\.\/]*\w+\.\w{1,6}\b", query)
