@@ -61,6 +61,8 @@ def e2e_test_base(issue_json):
         for thread in global_threads:
             thread.join()
         print(f"Failed with error: {e}")
+        sys.exit(1)
+
 
 def e2e_test_change_button_color():
     issue_json = json.load(open("tests/jsons/e2e_button_to_green.json", "r"))
