@@ -34,7 +34,8 @@ class PosthogClient:
             "timestamp": datetime.utcnow().isoformat()
             + "Z",  # Adding 'Z' to indicate UTC time
         }
-        return requests.post(url, headers=headers, data=json.dumps(payload))
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        return response
 
 
 posthog = PosthogClient(API_KEY=POSTHOG_API_KEY)
