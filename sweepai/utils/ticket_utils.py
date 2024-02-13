@@ -16,8 +16,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 
-
-@file_cache()
+# @file_cache()
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
@@ -43,17 +42,19 @@ def prep_snippets(
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
 
-    files_to_scores = compute_vector_search_scores(file_list, cloned_repo)
+    files_to_scores = compute_vector_search_scores(query, snippets)
     for snippet in snippets:
-        codebase_score = files_to_scores.get(snippet.file_path, 0.08)
-        snippet_score = 0.1
+        vector_score = files_to_scores.get(snippet.denotation, 0.04)
+        snippet_score = 0.02
         if snippet_to_key(snippet) in content_to_lexical_score:
+            # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
             snippet_score = (
-                content_to_lexical_score[snippet_to_key(snippet)] * codebase_score
+                content_to_lexical_score[snippet_to_key(snippet)] + (vector_score * 3.5)
             )
+            content_to_lexical_score[snippet_to_key(snippet)] = snippet_score
         else:
             content_to_lexical_score[snippet_to_key(snippet)] = (
-                snippet_score * codebase_score
+                snippet_score * vector_score
             )
 
     ranked_snippets = sorted(
