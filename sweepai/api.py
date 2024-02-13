@@ -23,7 +23,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
-from sweepai.global_threads import global_threads
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -49,6 +48,7 @@ from sweepai.config.server import (
     MERGE_CONFLICT_ENABLED,
 )
 from sweepai.core.entities import PRChangeRequest
+from sweepai.global_threads import global_threads
 from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos,
     create_gha_pr,
@@ -768,7 +768,6 @@ def run(request_dict, event):
                         comment_id=None,
                     )
             case "issue_comment", "created":
-                # import pdb; pdb.set_trace()
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
@@ -817,10 +816,8 @@ def run(request_dict, event):
                     pr = repo.get_pull(request.issue.number)
                     labels = pr.get_labels()
                     comment = request.comment.body
-                    if (
-                        comment.lower().startswith("sweep:")
-                        or any(label.name.lower() == "sweep" for label in labels)
-                        and not BOT_SUFFIX in comment
+                    if comment.lower().startswith("sweep:") or any(
+                        label.name.lower() == "sweep" for label in labels
                     ):
                         pr_change_request = PRChangeRequest(
                             params={
