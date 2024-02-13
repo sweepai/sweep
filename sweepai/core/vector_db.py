@@ -5,14 +5,14 @@ import backoff
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
-from sweepai.config.server import BATCH_SIZE, DEBUG, REDIS_URL, VECTOR_EMBEDDING_SOURCE
+from sweepai.config.server import BATCH_SIZE, REDIS_URL, OPENAI_API_KEY
 from sweepai.logn.cache import file_cache
 from openai import OpenAI
 import numpy as np
 from sweepai.utils.utils import Tiktoken
 
 from sweepai.utils.hash import hash_sha256
-client = OpenAI()
+client = OpenAI(api_key=OPENAI_API_KEY)
 CACHE_VERSION = "v1.0.14"
 # if DEBUG:
 redis_client = Redis.from_url(REDIS_URL)
