@@ -12,7 +12,7 @@ import numpy as np
 from sweepai.utils.utils import Tiktoken
 
 from sweepai.utils.hash import hash_sha256
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI()
 CACHE_VERSION = "v1.0.14"
 # if DEBUG:
 redis_client = Redis.from_url(REDIS_URL)
