@@ -321,7 +321,7 @@ def search_index(query, index: CustomIndex):
         logger.exception(e)
         return {}
 
-
+@file_cache(ignore_params=["snippets"])
 def compute_vector_search_scores(query, snippets: list[Snippet]):
     # get get dict of snippet to score
     snippet_str_to_contents = {snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False) for snippet in snippets}

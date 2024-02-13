@@ -16,7 +16,6 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 
-
 # @file_cache()
 def prep_snippets(
     cloned_repo: ClonedRepo,
@@ -48,9 +47,11 @@ def prep_snippets(
         vector_score = files_to_scores.get(snippet.denotation, 0.04)
         snippet_score = 0.02
         if snippet_to_key(snippet) in content_to_lexical_score:
+            # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
             snippet_score = (
-                content_to_lexical_score[snippet_to_key(snippet)] + (vector_score * 4)
+                content_to_lexical_score[snippet_to_key(snippet)] + (vector_score * 3.5)
             )
+            content_to_lexical_score[snippet_to_key(snippet)] = snippet_score
         else:
             content_to_lexical_score[snippet_to_key(snippet)] = (
                 snippet_score * vector_score

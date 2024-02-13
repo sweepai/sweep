@@ -46,7 +46,10 @@ def hash_code(code):
 
 
 def file_cache(ignore_params=[], verbose=False):
-    """Decorator to cache function output based on its inputs, ignoring specified parameters."""
+    """Decorator to cache function output based on its inputs, ignoring specified parameters.
+    Ignore parameters are used to avoid caching on non-deterministic inputs, such as timestamps.
+    We can also ignore parameters that are slow to serialize/constant across runs, such as large objects.
+    """
 
     def decorator(func):
         if GITHUB_BOT_USERNAME != TEST_BOT_NAME:

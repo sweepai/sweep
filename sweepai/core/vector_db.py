@@ -34,7 +34,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
     for i in range(0, len(texts), batch_size):
         yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
 
-@file_cache()
+@file_cache(ignore_params=["texts"])
 def get_query_texts_similarity(query: str, texts: str) -> float:
     embeddings = embed_texts(texts)
     embeddings = np.concatenate(embeddings)
@@ -57,29 +57,23 @@ def normalize_l2(x):
 lru_cache(maxsize=20)
 def embed_texts(texts: tuple[str]):
     logger.info(
-        f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
+        f"Computing embeddings for {len(texts)} texts using openai..."
     )
     tik_token_client = Tiktoken()
-    match VECTOR_EMBEDDING_SOURCE:
-        case "openai":
-            embeddings = []
-            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"):
-                try:
-                    # truncate string
-                    batch = [tik_token_client.truncate_string(text) for text in batch]
-                    norm_dim = openai_with_expo_backoff(batch)
-                    embeddings.append(norm_dim)
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    import pdb; pdb.set_trace()
-                    logger.exception("Failed to get embeddings for batch")
-                    raise e
-            return embeddings
-        case "none":
-            return [[0.5]] * len(texts)
-        case _:
-            raise Exception("Invalid vector embedding mode")
+    embeddings = []
+    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"):
+        try:
+            # truncate string
+            batch = [tik_token_client.truncate_string(text) for text in batch]
+            norm_dim = openai_with_expo_backoff(batch)
+            embeddings.append(norm_dim)
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            import pdb; pdb.set_trace()
+            logger.exception("Failed to get embeddings for batch")
+            raise e
+    return embeddings
         
 @backoff.on_exception(
             backoff.expo,
