@@ -12,6 +12,7 @@ from whoosh.analysis import Token, Tokenizer
 from sweepai.config.server import REDIS_URL, DEBUG
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
+from sweepai.core.vector_db import get_query_texts_similarity
 from sweepai.logn import logger
 from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
@@ -321,39 +322,14 @@ def search_index(query, index: CustomIndex):
         return {}
 
 
-def compute_vector_search_scores(file_list, cloned_repo):
-    files_to_scores = {}
-    return files_to_scores
-    score_factors = []
-    for file_path in tqdm(file_list):
-        if not redis_client:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            continue
-        cache_key = hash_sha256(file_path) + CACHE_VERSION
-        try:
-            cache_value = redis_client.get(cache_key)
-        except Exception as e:
-            logger.exception(e)
-            cache_value = None
-        if cache_value is not None:
-            score_factor = json.loads(cache_value)
-            score_factors.append(score_factor)
-        else:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            redis_client.set(cache_key, json.dumps(score_factor))
-    # compute all scores
-    all_scores = get_scores(score_factors)
-    files_to_scores = {
-        file_path[len(cloned_repo.cached_dir) + 1 :]: score
-        for file_path, score in zip(file_list, all_scores)
-    }
-    return files_to_scores
+def compute_vector_search_scores(query, snippets: list[Snippet]):
+    # get get dict of snippet to score
+    snippet_str_to_contents = {snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False) for snippet in snippets}
+    snippet_contents_array = list(snippet_str_to_contents.values())
+    query_snippet_similarities = get_query_texts_similarity(query, snippet_contents_array)
+    snippet_denotations = [snippet.denotation for snippet in snippets]
+    snippet_denotation_to_scores = {snippet_denotations[i]: score for i, score in enumerate(query_snippet_similarities)}
+    return snippet_denotation_to_scores
 
 @file_cache()
 def prepare_lexical_search_index(
