@@ -288,6 +288,7 @@ class ModifyBot:
             return add_auto_imports(
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
+        exit()
         posthog.capture(
             self.chat_logger.data["username"]
             if self.chat_logger is not None
