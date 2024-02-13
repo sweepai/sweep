@@ -1348,7 +1348,12 @@ def on_ticket(
                     base=overrided_branch_name or SweepConfig.get_branch(repo),
                 )
 
-                pr.add_to_assignees(username)
+                try:
+                    pr.add_to_assignees(username)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to add assignee {username}: {e}, probably a bot."
+                    )
 
                 ticket_progress.status = TicketProgressStatus.COMPLETE
                 ticket_progress.context.done_time = time()
