@@ -40,9 +40,10 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           poetry install
 
-      - name: Run Redis
+      - name: Set up Redis
         run: |
           sudo apt-get update; sudo apt-get install redis-server;
+          echo -e "port 6379\nmaxmemory 40gb\nmaxmemory-policy allkeys-lru" > /app/redis.conf
           redis-server /app/redis.conf --bind 0.0.0.0 --port 6379;
 
       - name: Run e2e test
