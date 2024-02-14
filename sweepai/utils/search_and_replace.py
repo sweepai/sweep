@@ -1,14 +1,14 @@
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 
-from numba import jit
 from rapidfuzz import fuzz
+from tqdm import tqdm
 
-from sweepai.logn import logger
+from sweepai.logn import file_cache, logger
 
 
-# @lru_cache()
-@jit(forceobj=True, looplift=True)
+@lru_cache()
 def score_line(str1: str, str2: str) -> float:
     if str1 == str2:
         return 100
@@ -29,12 +29,10 @@ def score_line(str1: str, str2: str) -> float:
     return max(score, 0)
 
 
-@jit(forceobj=True, looplift=True)
 def match_without_whitespace(str1: str, str2: str) -> bool:
     return str1.strip() == str2.strip()
 
 
-@jit(forceobj=True, looplift=True)
 def line_cost(line: str) -> float:
     if line.strip() == "":
         return 50
@@ -43,7 +41,6 @@ def line_cost(line: str) -> float:
     return len(line) / (len(line) + 1) * 100
 
 
-@jit(forceobj=True, looplift=True)
 def score_multiline(query: list[str], target: list[str]) -> float:
     # TODO: add weighting on first and last lines
 
@@ -155,8 +152,7 @@ def get_max_indent(content: str, indent_type: str):
     )
 
 
-# @file_cache()
-@jit(forceobj=True, looplift=True)
+@file_cache()
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)
 
@@ -196,13 +192,12 @@ def find_best_match(query: str, code_file: str):
         start_pairs = start_pairs[:truncate]
         start_indices = [i for i, _ in start_pairs]
 
-        for i in start_indices:
-            # for i in tqdm(
-            #     start_indices,
-            #     position=0,
-            #     desc=f"Indent {num_indents}/{max_indents}",
-            #     leave=False,
-            # ):
+        for i in tqdm(
+            start_indices,
+            position=0,
+            desc=f"Indent {num_indents}/{max_indents}",
+            leave=False,
+        ):
             end_pairs = [
                 (j, score_line(line, indented_query_lines[-1]))
                 for j, line in enumerate(code_file_lines[i:], start=i)
@@ -211,10 +206,9 @@ def find_best_match(query: str, code_file: str):
             end_pairs = end_pairs[:truncate]
             end_indices = [j for j, _ in end_pairs]
 
-            # for j in tqdm(
-            #     end_indices, position=1, leave=False, desc=f"Starting line {i}"
-            # ):
-            for j in end_indices:
+            for j in tqdm(
+                end_indices, position=1, leave=False, desc=f"Starting line {i}"
+            ):
                 candidate = code_file_lines[i : j + 1]
                 raw_score = score_multiline(indented_query_lines, candidate)
 
@@ -404,6 +398,6 @@ def handle_button_click(request_dict):
     )
 
     # Find the best match
-    best_span = find_best_match(target, code_file)
-    # best_span = find_best_match("a\nb", "a\nb")
+    # best_span = find_best_match(target, code_file)
+    best_span = find_best_match("a\nb", "a\nb")
     print(best_span)
