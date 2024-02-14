@@ -40,10 +40,13 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           poetry install
 
+      - name: Run Redis
+        run: redis-server /app/redis.conf --bind 0.0.0.0 --port 6379
+
       - name: Run e2e test
         env:
           GITHUB_PAT: ${{ secrets.GH_PAT }}
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
-        run: poetry run python tests/e2e/test_sweep_issue.py
+        run: poetry run pytest -n 4 tests/e2e
