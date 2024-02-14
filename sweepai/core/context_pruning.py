@@ -239,9 +239,11 @@ class RepoContextManager:
             return None
         highest_scoring_snippet = max(
             filtered_snippets,
-            key=lambda snippet: self.snippet_scores[snippet_key(snippet)]
-            if snippet_key(snippet) in self.snippet_scores
-            else 0,
+            key=lambda snippet: (
+                self.snippet_scores[snippet_key(snippet)]
+                if snippet_key(snippet) in self.snippet_scores
+                else 0
+            ),
         )
         return highest_scoring_snippet
 
@@ -263,7 +265,8 @@ def get_relevant_context(
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
         and not IS_SELF_HOSTED
-        else "gpt-4-0125-preview"
+        # else "gpt-4-0125-preview"
+        else "gpt-4-1106-preview"
     )
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
@@ -340,7 +343,8 @@ def modify_context(
     run: Run,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
-    model: str = "gpt-4-0125-preview",
+    # model: str = "gpt-4-0125-preview",
+    model: str = "gpt-4-1106-preview",
 ) -> bool | None:
     max_iterations = 90
     directories_to_expand = []
