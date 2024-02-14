@@ -255,7 +255,7 @@ def prepare_index_from_snippets(
                 ticket_progress.save()
         for doc, document_tokens in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
             index.add_document(
-                title=f"{doc.title}:{doc.start}:{doc.end}", tokens=document_tokens
+                title=f"{doc.title}:{doc.start}-{doc.end}", tokens=document_tokens # snippet.denotation
             )
     except FileNotFoundError as e:
         logger.exception(e)
@@ -331,7 +331,7 @@ def compute_vector_search_scores(query, snippets: list[Snippet]):
     snippet_denotation_to_scores = {snippet_denotations[i]: score for i, score in enumerate(query_snippet_similarities)}
     return snippet_denotation_to_scores
 
-@file_cache()
+@file_cache(ignore_params=["sweep_config"])
 def prepare_lexical_search_index(
     repo_directory,
     sweep_config,

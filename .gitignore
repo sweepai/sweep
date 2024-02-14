@@ -200,3 +200,4 @@ certs
 *.cert
 
 docker-compose
+.pdbrc.py

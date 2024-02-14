@@ -227,7 +227,7 @@ class RepoContextManager:
 
     def get_highest_scoring_snippet(self, file_path: str) -> Snippet:
         snippet_key = (
-            lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+            lambda snippet: snippet.denotation
         )
         filtered_snippets = [
             snippet
