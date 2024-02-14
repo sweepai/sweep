@@ -32,7 +32,7 @@ def prep_snippets(
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
     content_to_lexical_score = search_index(query, lexical_index)
     snippet_to_key = (
-        lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
+        lambda snippet: snippet.denotation
     )
 
     snippet_scores = []
