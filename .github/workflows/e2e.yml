@@ -32,12 +32,10 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           poetry install
 
-      # redis wont actually be used we just need it we write to it
+      # apparently installing redis-server runs it automatically
       - name: Set up Redis
         run: |
           sudo apt-get update; sudo apt-get install redis-server;
-          echo -e "port 6379\nmaxmemory 40gb\nmaxmemory-policy allkeys-lru" > redis.conf
-          cat redis.conf
           sudo lsof -i :6379 || true
       #     redis-server redis.conf --bind 0.0.0.0 --port 6379; 
 
@@ -47,4 +45,4 @@ jobs:
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
-        run: poetry run python tests/e2e/test_sweep_issue.py
+        run: poetry run pytest -n 4 tests/e2e -s
