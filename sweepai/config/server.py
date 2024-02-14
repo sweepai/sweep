@@ -159,7 +159,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
 
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
-    "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
+    "VECTOR_EMBEDDING_SOURCE", "openai"
 )  # Alternate option is openai or huggingface and set the corresponding env vars
 
 BASERUN_API_KEY = os.environ.get("BASERUN_API_KEY", None)
@@ -203,3 +203,7 @@ LOKI_URL = os.environ.get("LOKI_URL", None)
 
 DEBUG: bool = True
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
+
+GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
+MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)
+INSTALLATION_ID = os.environ.get("INSTALLATION_ID", None)

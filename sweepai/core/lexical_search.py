@@ -9,18 +9,24 @@ from redis import Redis
 from tqdm import tqdm
 from whoosh.analysis import Token, Tokenizer
 
-from sweepai.config.server import REDIS_URL
+from sweepai.config.server import REDIS_URL, DEBUG
 from sweepai.core.entities import Snippet
-from sweepai.core.repo_parsing_utils import repo_to_chunks
+from sweepai.core.repo_parsing_utils import directory_to_chunks
+from sweepai.core.vector_db import get_query_texts_similarity
 from sweepai.logn import logger
+from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.scorer import compute_score, get_scores
 
 CACHE_VERSION = "v1.0.14"
-redis_client = Redis.from_url(REDIS_URL)
 
+if DEBUG:
+    redis_client = Redis.from_url(REDIS_URL)
+else:
+    redis_client = None
 
+@file_cache()
 def compute_document_tokens(
     content: str,
 ) -> list[str]:  # method that offloads the computation to a separate process
@@ -241,15 +247,7 @@ def prepare_index_from_snippets(
         ticket_progress.save()
     all_tokens = []
     try:
-        # with multiprocessing.Pool(processes=2) as p:
-        #     for i, document_tokens in enumerate(
-        #         p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-        #     ):
-        #         all_tokens.append(document_tokens)
-        #         if ticket_progress and i % 200 == 0:
-        #             ticket_progress.search_progress.indexing_progress = i
-        #             ticket_progress.save()
-        for i, doc in enumerate(all_docs):
+        for i, doc in tqdm(enumerate(all_docs)):
             document_tokens = compute_document_tokens(doc.content)
             all_tokens.append(document_tokens)
             if ticket_progress and i % 200 == 0:
@@ -291,32 +289,6 @@ def prepare_index_from_docs(docs: list[tuple[str, str]]) -> CustomIndex | None:
     return index
 
 
-def search_docs(query: str, index: CustomIndex) -> dict[str, float]:
-    """Search the documents based on a query and an index.
-
-    This function takes a query and an index as input and returns a dictionary of document IDs
-    and their corresponding scores.
-    """
-    """Title, score, content"""
-    if index == None:
-        return {}
-    results_with_metadata = index.search_index(query)
-    # Search the index
-    res = {}
-    for doc_id, score, _ in results_with_metadata:
-        if doc_id not in res:
-            res[doc_id] = score
-    # min max normalize scores from 0.5 to 1
-    if len(res) == 0:
-        max_score = 1
-        min_score = 0
-    else:
-        max_score = max(res.values())
-        min_score = min(res.values()) if min(res.values()) < max_score else 0
-    res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
-    return res
-
-
 def search_index(query, index: CustomIndex):
     """Search the index based on a query.
 
@@ -349,53 +321,26 @@ def search_index(query, index: CustomIndex):
         logger.exception(e)
         return {}
 
+@file_cache(ignore_params=["snippets"])
+def compute_vector_search_scores(query, snippets: list[Snippet]):
+    # get get dict of snippet to score
+    snippet_str_to_contents = {snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False) for snippet in snippets}
+    snippet_contents_array = list(snippet_str_to_contents.values())
+    query_snippet_similarities = get_query_texts_similarity(query, snippet_contents_array)
+    snippet_denotations = [snippet.denotation for snippet in snippets]
+    snippet_denotation_to_scores = {snippet_denotations[i]: score for i, score in enumerate(query_snippet_similarities)}
+    return snippet_denotation_to_scores
 
-def compute_vector_search_scores(file_list, cloned_repo):
-    files_to_scores = {}
-    score_factors = []
-    for file_path in tqdm(file_list):
-        if not redis_client:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            continue
-        cache_key = hash_sha256(file_path) + CACHE_VERSION
-        try:
-            cache_value = redis_client.get(cache_key)
-        except Exception as e:
-            logger.exception(e)
-            cache_value = None
-        if cache_value is not None:
-            score_factor = json.loads(cache_value)
-            score_factors.append(score_factor)
-        else:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cached_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            redis_client.set(cache_key, json.dumps(score_factor))
-    # compute all scores
-    all_scores = get_scores(score_factors)
-    files_to_scores = {
-        file_path[len(cloned_repo.cached_dir) + 1 :]: score
-        for file_path, score in zip(file_list, all_scores)
-    }
-    return files_to_scores
-
-
+@file_cache()
 def prepare_lexical_search_index(
-    cloned_repo,
+    repo_directory,
     sweep_config,
-    repo_full_name,
     ticket_progress: TicketProgress | None = None,
 ):
-    snippets, file_list = repo_to_chunks(cloned_repo.cached_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
-    # prepare lexical search
+    snippets, file_list = directory_to_chunks(repo_directory, sweep_config)
     index = prepare_index_from_snippets(
         snippets,
-        len_repo_cache_dir=len(cloned_repo.cached_dir) + 1,
+        len_repo_cache_dir=len(repo_directory) + 1,
         ticket_progress=ticket_progress,
     )
     return file_list, snippets, index

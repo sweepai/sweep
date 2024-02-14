@@ -1,0 +1,43 @@
+name: Jest Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'platform/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'platform/**'
+
+jobs:
+  jest_unittests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 19, 20, 21]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Cache pnpm modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.pnpm-store
+            platform/node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - run: pnpm i -D --ignore-scripts && pnpm add jest-environment-jsdom
+        working-directory: platform
+      - run: pnpm run test:unit
+        working-directory: platform

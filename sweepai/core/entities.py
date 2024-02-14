@@ -80,26 +80,6 @@ class RegexMatchableBaseModel(BaseModel):
         )
 
 
-class ExpandedPlan(RegexMatchableBaseModel):
-    queries: str
-    additional_instructions: str
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        query_pattern = r"""<queries>(\n)?(?P<queries>.*)</queries>"""
-        query_match = re.search(query_pattern, string, re.DOTALL)
-        instructions_pattern = r"""<additional_instructions>(\n)?(?P<additional_instructions>.*)</additional_instructions>"""
-        instructions_match = re.search(instructions_pattern, string, re.DOTALL)
-        return cls(
-            queries=query_match.groupdict()["queries"] if query_match else None,
-            additional_instructions=instructions_match.groupdict()[
-                "additional_instructions"
-            ].strip()
-            if instructions_match
-            else "",
-        )
-
-
 # todo (fix double colon regex): Update the split from "file_tree.py : desc" to "file_tree.py\tdesc"
 # tab supremacy
 def clean_filename(file_name: str):

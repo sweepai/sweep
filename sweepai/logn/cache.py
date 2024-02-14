@@ -45,8 +45,11 @@ def hash_code(code):
     return hashlib.md5(code.encode()).hexdigest()
 
 
-def file_cache(ignore_params=[]):
-    """Decorator to cache function output based on its inputs, ignoring specified parameters."""
+def file_cache(ignore_params=[], verbose=False):
+    """Decorator to cache function output based on its inputs, ignoring specified parameters.
+    Ignore parameters are used to avoid caching on non-deterministic inputs, such as timestamps.
+    We can also ignore parameters that are slow to serialize/constant across runs, such as large objects.
+    """
 
     def decorator(func):
         if GITHUB_BOT_USERNAME != TEST_BOT_NAME:
@@ -80,7 +83,8 @@ def file_cache(ignore_params=[]):
             try:
                 # If cache exists, load and return it
                 if os.path.exists(cache_file):
-                    print("Used cache for function: " + func.__name__)
+                    if verbose:
+                        print("Used cache for function: " + func.__name__)
                     with open(cache_file, "rb") as f:
                         return pickle.load(f)
             except Exception:

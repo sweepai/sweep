@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "target": "es2015",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -17,14 +18,16 @@
         "name": "next"
       }
     ],
-    "paths": {
-      "@/*": ["./*"],
-      "@/components/*": ["./components/*"],
-      "@/pages/*": ["./pages/*"],
-      "@/lib/*": ["./lib/*"],
-    },
-    "types": ["node", "jest", "react", "react-dom", "next"],
+    "types": ["node", "jest", "react", "react-dom", "next"]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "lib/tree.test.ts.unused",
+    "app/api/openai/edit/route.test.ts.unused",
+    "lib/patchUtils.test.ts"
+  ],
   "exclude": ["node_modules"]
 }

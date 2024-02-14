@@ -1,14 +1,19 @@
-"use client"
+"use client";
 
-// import DashboardContext from "@/components/dashboard/DashboardContext";
-import DashboardDisplay from "@/components/dashboard/DashboardDisplay";
-
+import posthog from "../lib/posthog";
+import DashboardDisplay from "../components/dashboard/DashboardDisplay";
+import { PostHogProvider } from "posthog-js/react";
+import React from "react";
+import { RecoilRoot } from "recoil";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-12">
-      <DashboardDisplay></DashboardDisplay>
-      {/* <DashboardContext></DashboardContext> */}
-    </main>
+    <PostHogProvider client={posthog}>
+      <RecoilRoot>
+        <main className="flex min-h-screen flex-col items-center justify-center p-4">
+          <DashboardDisplay />
+        </main>
+      </RecoilRoot>
+    </PostHogProvider>
   );
 }

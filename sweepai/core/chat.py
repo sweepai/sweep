@@ -15,6 +15,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
 from sweepai.logn import logger
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -34,6 +35,7 @@ OpenAIModel = (
     | Literal["gpt-3.5-turbo-16k-0613"]
     | Literal["gpt-4-32k"]
     | Literal["gpt-4-32k-0613"]
+    | Literal["gpt-4-0125-preview"]
 )
 
 ChatModel = OpenAIModel
@@ -65,7 +67,7 @@ class ChatGPT(BaseModel):
     ]
     prev_message_states: list[list[Message]] = []
     model: ChatModel = "gpt-4-0125-preview"
-    chat_logger: ChatLogger | None
+    chat_logger: ChatLogger | None = None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
     cloned_repo: ClonedRepo | None = None

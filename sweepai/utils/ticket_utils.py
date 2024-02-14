@@ -5,7 +5,6 @@ from loguru import logger
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
-from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
@@ -16,19 +15,18 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
-from sweepai.utils.str_utils import total_number_of_snippet_tokens
 
-
-@file_cache()
+# @file_cache()
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
+    k: int = 7,
 ):
     sweep_config: SweepConfig = SweepConfig()
 
     file_list, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo, sweep_config, cloned_repo.repo_full_name, ticket_progress
+        cloned_repo.cached_dir, sweep_config, ticket_progress
     )
     if ticket_progress:
         ticket_progress.search_progress.indexing_progress = (
@@ -44,17 +42,19 @@ def prep_snippets(
         lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
     )
 
-    files_to_scores = compute_vector_search_scores(file_list, cloned_repo)
+    files_to_scores = compute_vector_search_scores(query, snippets)
     for snippet in snippets:
-        codebase_score = files_to_scores.get(snippet.file_path, 0.08)
-        snippet_score = 0.1
+        vector_score = files_to_scores.get(snippet.denotation, 0.04)
+        snippet_score = 0.02
         if snippet_to_key(snippet) in content_to_lexical_score:
+            # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
             snippet_score = (
-                content_to_lexical_score[snippet_to_key(snippet)] * codebase_score
+                content_to_lexical_score[snippet_to_key(snippet)] + (vector_score * 3.5)
             )
+            content_to_lexical_score[snippet_to_key(snippet)] = snippet_score
         else:
             content_to_lexical_score[snippet_to_key(snippet)] = (
-                snippet_score * codebase_score
+                snippet_score * vector_score
             )
 
     ranked_snippets = sorted(
@@ -62,7 +62,7 @@ def prep_snippets(
         key=lambda snippet: content_to_lexical_score[snippet_to_key(snippet)],
         reverse=True,
     )
-    ranked_snippets = ranked_snippets[:7]
+    ranked_snippets = ranked_snippets[:k]
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
@@ -156,51 +156,6 @@ def fetch_relevant_files(
 
 SLOW_MODE = False
 SLOW_MODE = True
-
-
-def post_process_snippets(
-    snippets: list[Snippet],
-    max_num_of_snippets: int = 5,
-    exclude_snippets: list[str] = [],
-):
-    snippets = [
-        snippet
-        for snippet in snippets
-        if not any(
-            snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts
-        )
-    ]
-    snippets = [
-        snippet
-        for snippet in snippets
-        if not any(
-            snippet.file_path.startswith(exclude_snippet)
-            for exclude_snippet in exclude_snippets
-        )
-    ]
-
-    snippets = snippets[: min(len(snippets), max_num_of_snippets * 10)]
-    # snippet fusing
-    i = 0
-    while i < len(snippets):
-        j = i + 1
-        while j < len(snippets):
-            if snippets[i] ^ snippets[j]:  # this checks for overlap
-                snippets[i] = snippets[i] | snippets[j]  # merging
-                snippets.pop(j)
-            else:
-                j += 1
-        i += 1
-
-    # truncating snippets based on character length
-    result_snippets = []
-    total_length = 0
-    for snippet in snippets:
-        total_length += len(snippet.get_snippet())
-        if total_length > total_number_of_snippet_tokens * 5:
-            break
-        result_snippets.append(snippet)
-    return result_snippets[:max_num_of_snippets]
 
 
 def log_error(

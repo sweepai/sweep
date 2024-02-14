@@ -1,69 +1,98 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server";
 import { promises as fs, Dirent } from "fs";
 import path from "path";
 
-
 interface Body {
-    repo: string
-    limit: number
+  repo: string;
+  limit: number;
+  blockedGlobs: string[];
 }
 
 const blockedPaths = [
-    ".git",
-    "node_modules",
-    "venv",
-    "__pycache__",
-    ".next",
-    "cache",
-    "benchmark",
-    "logn_logs"
-]
-
+  ".git",
+  "node_modules",
+  "venv",
+  "__pycache__",
+  ".next",
+  "cache",
+  "benchmark",
+  "logn_logs",
+];
 
 export async function POST(request: NextRequest) {
-    // Body -> { stdout: string, stderr: string, code: number}
-    const body = await request.json() as Body;
-    const { repo, limit = 1000 } = body;
+  // Body -> { stdout: string, stderr: string, code: number}
+  const body = (await request.json()) as Body;
+  let { repo, blockedGlobs = [], limit = 10000 } = body;
+  if (repo.endsWith("/")) {
+    repo = repo.slice(0, -1);
+  }
 
-    async function listNonBinaryFilesBFS(rootDir: string, fileLimit: number = limit): Promise<string[]> {
-        let queue: string[] = [rootDir];
-        let nonBinaryFiles: string[] = [];
+  async function listNonBinaryFilesBFS(
+    rootDir: string,
+    fileLimit: number = limit,
+  ): Promise<[{ path: string; lastModified: number }[], string[]]> {
+    let queue: string[] = [rootDir];
+    let nonBinaryFiles: { path: string; lastModified: number }[] = [];
+    let directories: Set<string> = new Set([rootDir]);
+    while (
+      queue.length > 0 &&
+      fileLimit > 0 &&
+      nonBinaryFiles.length < fileLimit
+    ) {
+      const currentDir = queue.shift()!;
+      directories.add(currentDir.slice(rootDir.length));
+      if (
+        blockedGlobs.some((blockedGlob) => currentDir.includes(blockedGlob))
+      ) {
+        continue;
+      }
+      const items: Dirent[] = await fs.readdir(currentDir, {
+        withFileTypes: true,
+      });
 
-        while (queue.length > 0 && nonBinaryFiles.length < fileLimit) {
-            const currentDir = queue.shift()!;
-            if (blockedPaths.some(blockedPath => currentDir.includes(blockedPath))) {
-                continue;
+      for (const item of items) {
+        const res: string = path.resolve(currentDir, item.name);
+        if (item.isDirectory()) {
+          queue.push(res);
+          directories.add(res.slice(rootDir.length));
+        } else if (item.isFile()) {
+          try {
+            const content: Buffer = await fs.readFile(res);
+            if (
+              !content.includes(0) &&
+              fileLimit > 0 &&
+              nonBinaryFiles.length < fileLimit
+            ) {
+              const { mtimeMs } = await fs.stat(res);
+              nonBinaryFiles.push({
+                path: res.slice(rootDir.length + 1),
+                lastModified: mtimeMs,
+              });
             }
-            const items: Dirent[] = await fs.readdir(currentDir, { withFileTypes: true });
-
-            for (const item of items) {
-                const res: string = path.resolve(currentDir, item.name);
-                if (item.isDirectory()) {
-                    queue.push(res);
-                } else if (item.isFile()) {
-                    try {
-                        const content: Buffer = await fs.readFile(res);
-                        if (!content.includes(0) && nonBinaryFiles.length < fileLimit) {
-                            nonBinaryFiles.push(res.slice(rootDir.length + 1));
-                        }
-                    } catch (readError) {
-                        console.error(`Error reading file ${res}: ${readError}`);
-                    }
-                }
-            }
+          } catch (readError) {
+            console.error(`Error reading file ${res}: ${readError}`);
+          }
         }
-
-        return nonBinaryFiles;
+      }
     }
+    directories.delete(rootDir);
+    return [
+      nonBinaryFiles.sort((a, b) => b.lastModified - a.lastModified),
+      Array.from(directories),
+    ];
+  }
 
-    try {
-        const stats = await fs.stat(repo)
-        if (!stats.isDirectory()) {
-            return new NextResponse("Not a directory", { status: 400 });
-        }
-        const nonBinaryFiles = await listNonBinaryFilesBFS(repo);
-        return new NextResponse(JSON.stringify(nonBinaryFiles), { status: 200 });
-    } catch (error: any) {
-        return new NextResponse(error.message, { status: 500 });
+  try {
+    const stats = await fs.stat(repo);
+    if (!stats.isDirectory()) {
+      return new NextResponse("Not a directory", { status: 400 });
     }
+    const [filesWithMeta, directories] = await listNonBinaryFilesBFS(repo);
+    const sortedFiles = filesWithMeta.map((fileMeta) => fileMeta.path);
+    return new NextResponse(JSON.stringify({ sortedFiles, directories }), {
+      status: 200,
+    });
+  } catch (error: any) {
+    return new NextResponse(error.message, { status: 500 });
+  }
 }

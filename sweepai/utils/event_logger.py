@@ -1,20 +1,44 @@
 import json
+from dataclasses import dataclass
+from datetime import datetime  # Correctly import the datetime class
 
 import requests
 from loguru import logger
-from posthog import Posthog
 
 from sweepai.config.server import ENV, LOKI_URL, POSTHOG_API_KEY
 
-if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
-    posthog = Posthog(
-        project_api_key="none", disabled=True, host="https://app.posthog.com"
-    )
-    logger.warning(
-        "Initialized an empty Posthog instance as POSTHOG_API_KEY is not present."
-    )
-else:
-    posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
+
+@dataclass
+class PosthogClient:
+    """
+    Official Posthog API client has a thread leakage, so we are using a custom client.
+    """
+
+    API_KEY: str | None = None
+
+    def capture(
+        self,
+        distinct_id: str | None = None,
+        event: str | None = None,
+        properties: dict[str, str] | None = None,
+        **kwargs,
+    ):
+        if self.API_KEY is None:
+            return
+        url = "https://app.posthog.com/capture/"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "api_key": self.API_KEY,
+            "event": event,
+            "properties": {"distinct_id": distinct_id, **properties},
+            "timestamp": datetime.utcnow().isoformat()
+            + "Z",  # Adding 'Z' to indicate UTC time
+        }
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        return response
+
+
+posthog = PosthogClient(API_KEY=POSTHOG_API_KEY)
 
 
 def loki_sink(message):

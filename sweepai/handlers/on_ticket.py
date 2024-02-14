@@ -65,8 +65,6 @@ from sweepai.handlers.create_pr import (
     create_pr_changes,
     safe_delete_sweep_branch,
 )
-from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -93,7 +91,6 @@ from sweepai.utils.str_utils import (
     discord_suffix,
     format_sandbox_success,
     get_hash,
-    ordinal,
     sep,
     stars_suffix,
     strip_sweep,
@@ -243,14 +240,14 @@ def on_ticket(
                 repo_full_name=repo_full_name,
                 issue_number=issue_number,
                 is_public=repo.private is False,
-                start_time=time(),
+                start_time=int(time()),
             ),
         )
-
-        branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
-        if branch_match:
-            branch_name = branch_match.group(1)
-            fire_and_forget_wrapper(SweepConfig.get_branch)(repo, branch_name)
+        branch_match = re.search(r"([B|b]ranch:) *(?P<branch_name>.+?)(\n|$)", summary)
+        overrided_branch_name = None
+        if branch_match and "branch_name" in branch_match.groupdict():
+            overrided_branch_name = branch_match.groupdict()["branch_name"].strip()
+            SweepConfig.get_branch(repo, overrided_branch_name)
 
         chat_logger = (
             ChatLogger(
@@ -519,6 +516,7 @@ def on_ticket(
                 installation_id=installation_id,
                 token=user_token,
                 repo=repo,
+                branch=overrided_branch_name,
             )
             # check that repo's directory is non-empty
             if os.listdir(cloned_repo.cached_dir) == []:
@@ -952,19 +950,6 @@ def on_ticket(
                 ticket_progress.coding_progress.assistant_conversations = [
                     AssistantConversation() for fcr in file_change_requests
                 ]
-                # ticket_progress.save()
-                # ticket_progress.wait()
-                # ticket_progress.refresh()
-                # file_change_requests = (
-                #     ticket_progress.planning_progress.file_change_requests
-                # )
-                # file_change_requests = sweep_bot.validate_file_change_requests(
-                #     file_change_requests
-                # )
-                # ticket_progress.planning_progress.file_change_requests = (
-                #     file_change_requests
-                # )
-                # ticket_progress.coding_progress.file_change_requests = file_change_requests
                 ticket_progress.status = TicketProgressStatus.CODING
                 ticket_progress.save()
 
@@ -988,16 +973,10 @@ def on_ticket(
                         )
                     raise Exception("No files to modify.")
 
-                (
-                    initial_sandbox_response,
-                    initial_sandbox_response_file,
-                ) = sweep_bot.validate_sandbox(file_change_requests)
-
                 file_change_requests: list[
                     FileChangeRequest
                 ] = sweep_bot.validate_file_change_requests(
                     file_change_requests,
-                    initial_sandbox_response=initial_sandbox_response,
                 )
                 ticket_progress.planning_progress.file_change_requests = (
                     file_change_requests
@@ -1023,7 +1002,6 @@ def on_ticket(
                 )
 
                 logger.info("Generating PR...")
-
                 pull_request = PullRequest(
                     title="Sweep: " + title,
                     branch_name="sweep/" + to_branch_name(title),
@@ -1092,6 +1070,7 @@ def on_ticket(
                     installation_id,
                     issue_number,
                     chat_logger=chat_logger,
+                    base_branch=overrided_branch_name,
                 )
                 edit_sweep_comment(checkboxes_contents, 2)
                 response = {"error": NoFilesException()}
@@ -1127,25 +1106,6 @@ def on_ticket(
                         if sandbox_response
                         else ""
                     )
-
-                def update_progress(
-                    entity_display: str,
-                    header: str,
-                    error_logs: str,
-                    status: str = "X",
-                ):
-                    nonlocal checkboxes_progress
-                    for i, (entity_display_, instructions, status_) in enumerate(
-                        checkboxes_progress
-                    ):
-                        if entity_display in entity_display_:
-                            checkboxes_progress[i] = (
-                                header,
-                                instructions + error_logs,
-                                status,
-                            )
-                            return True
-                    return False
 
                 changed_files = []
                 for item in generator:
@@ -1313,26 +1273,6 @@ def on_ticket(
                     pass
 
                 changes_required, review_message = False, ""
-                if False:
-                    changes_required, review_message = review_code(
-                        repo,
-                        pr_changes,
-                        issue_url,
-                        username,
-                        repo_description,
-                        title,
-                        summary,
-                        replies_text,
-                        tree,
-                        lint_output,
-                        plan,
-                        chat_logger,
-                        review_message,
-                        edit_sweep_comment,
-                        repo_full_name,
-                        installation_id,
-                    )
-
                 if changes_required:
                     edit_sweep_comment(
                         review_message + "\n\nI finished incorporating these changes.",
@@ -1405,10 +1345,15 @@ def on_ticket(
                     title=pr_changes.title,
                     body=pr_actions_message + pr_changes.body,
                     head=pr_changes.pr_head,
-                    base=SweepConfig.get_branch(repo),
+                    base=overrided_branch_name or SweepConfig.get_branch(repo),
                 )
 
-                pr.add_to_assignees(username)
+                try:
+                    pr.add_to_assignees(username)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to add assignee {username}: {e}, probably a bot."
+                    )
 
                 ticket_progress.status = TicketProgressStatus.COMPLETE
                 ticket_progress.context.done_time = time()
@@ -1745,72 +1690,6 @@ def handle_sandbox_mode(
     )
     edit_sweep_comment("N/A", 3)
     logger.info("Sandbox comments updated")
-
-
-def review_code(
-    repo,
-    pr_changes,
-    issue_url,
-    username,
-    repo_description,
-    title,
-    summary,
-    replies_text,
-    tree,
-    lint_output,
-    plan,
-    chat_logger,
-    review_message,
-    edit_sweep_comment,
-    repo_full_name,
-    installation_id,
-):
-    try:
-        # CODE REVIEW
-        changes_required = False
-        changes_required, review_comment = review_pr(
-            repo=repo,
-            pr=pr_changes,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=summary,
-            replies_text=replies_text,
-            tree=tree,
-            lint_output=lint_output,
-            plan=plan,  # plan for the PR
-            chat_logger=chat_logger,
-        )
-        lint_output = None
-        review_message += (
-            f"Here is the {ordinal(1)} review\n" + blockquote(review_comment) + "\n\n"
-        )
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI'm currently addressing these suggestions.",
-                3,
-            )
-            logger.info(f"Addressing review comment {review_comment}")
-            on_comment(
-                repo_full_name=repo_full_name,
-                repo_description=repo_description,
-                comment=review_comment,
-                username=username,
-                installation_id=installation_id,
-                pr_path=None,
-                pr_line_position=None,
-                pr_number=None,
-                pr=pr_changes,
-                chat_logger=chat_logger,
-                repo=repo,
-            )
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        logger.error(e)
-    return changes_required, review_message
 
 
 def get_branch_diff_text(repo, branch, base_branch=None):
