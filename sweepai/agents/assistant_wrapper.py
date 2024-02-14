@@ -207,7 +207,7 @@ def run_until_complete(
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(f"Run completed with {run.status}")
                 raise Exception(
-                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id}"
+                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status}"
                 )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
