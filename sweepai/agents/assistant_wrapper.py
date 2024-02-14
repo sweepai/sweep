@@ -268,7 +268,8 @@ def run_until_complete(
                 thread_id=thread_id,
             )
             current_message_strings = [
-                message.content[0].text.value for message in messages.data
+                message.content[0].text.value if message.content else ""
+                for message in messages.data
             ]
             if message_strings != current_message_strings and current_message_strings:
                 logger.info(run.status)
@@ -417,9 +418,11 @@ def openai_assistant_call(
         {
             "query": request,
             "model": model,
-            "username": chat_logger.data.get("username", "anonymous")
-            if chat_logger is not None
-            else "anonymous",
+            "username": (
+                chat_logger.data.get("username", "anonymous")
+                if chat_logger is not None
+                else "anonymous"
+            ),
             "is_self_hosted": IS_SELF_HOSTED,
             "trace": "".join(traceback.format_list(traceback.extract_stack())),
         },
