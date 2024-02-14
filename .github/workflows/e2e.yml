@@ -38,6 +38,7 @@ jobs:
           sudo apt-get update; sudo apt-get install redis-server;
           echo -e "port 6379\nmaxmemory 40gb\nmaxmemory-policy allkeys-lru" > redis.conf
           cat redis.conf
+          sudo lsof -i :6379 || true
           redis-server redis.conf --bind 0.0.0.0 --port 6379; 
 
       - name: Run e2e test
