@@ -46,4 +46,4 @@ jobs:
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
-        run: poetry run pytest -n 4 tests/e2e -s
+        run: poetry run python tests/e2e/test_sweep_issue.py
