@@ -41,7 +41,9 @@ jobs:
           poetry install
 
       - name: Run Redis
-        run: redis-server /app/redis.conf --bind 0.0.0.0 --port 6379
+        run: |
+          sudo apt-get update; sudo apt-get install redis-server;
+          redis-server /app/redis.conf --bind 0.0.0.0 --port 6379;
 
       - name: Run e2e test
         env:
