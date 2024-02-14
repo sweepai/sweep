@@ -144,11 +144,8 @@ def chunk_tree(
     # 5. Eliminating empty chunks
     new_line_chunks = []
     for chunk in line_chunks:
-        try:
-            if len(chunk) > 0:
-                new_line_chunks.append(chunk)
-        except Exception as e:
-            import pdb; pdb.set_trace()
+        if len(chunk) > 0:
+            new_line_chunks.append(chunk)
 
     # 6. Coalescing last chunk if it's too small
     if len(line_chunks) > 1 and len(line_chunks[-1]) < coalesce:

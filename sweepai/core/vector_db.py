@@ -70,7 +70,6 @@ def embed_texts(texts: tuple[str]):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            import pdb; pdb.set_trace()
             logger.exception("Failed to get embeddings for batch")
             raise e
     return embeddings
