@@ -10,7 +10,7 @@ from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_function_modify import MAX_CHARS
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
-from sweepai.config.server import IS_SELF_HOSTED
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED
 from sweepai.core.entities import AssistantRaisedException, Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -265,8 +265,7 @@ def get_relevant_context(
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
         and not IS_SELF_HOSTED
-        # else "gpt-4-0125-preview"
-        else "gpt-4-1106-preview"
+        else DEFAULT_GPT4_32K_MODEL
     )
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
@@ -343,8 +342,7 @@ def modify_context(
     run: Run,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
-    # model: str = "gpt-4-0125-preview",
-    model: str = "gpt-4-1106-preview",
+    model: str = "gpt-4-0125-preview",
 ) -> bool | None:
     max_iterations = 90
     directories_to_expand = []
