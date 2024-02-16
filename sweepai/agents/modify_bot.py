@@ -275,9 +275,11 @@ class ModifyBot:
         )
         if new_file is not None:
             posthog.capture(
-                self.chat_logger.data["username"]
-                if self.chat_logger is not None
-                else "anonymous",
+                (
+                    self.chat_logger.data["username"]
+                    if self.chat_logger is not None
+                    else "anonymous"
+                ),
                 "function_modify_succeeded",
                 {
                     "file_path": file_path,
@@ -288,10 +290,13 @@ class ModifyBot:
             return add_auto_imports(
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
+        raise UnneededEditError("No snippets edited")
         posthog.capture(
-            self.chat_logger.data["username"]
-            if self.chat_logger is not None
-            else "anonymous",
+            (
+                self.chat_logger.data["username"]
+                if self.chat_logger is not None
+                else "anonymous"
+            ),
             "function_modify_succeeded",
             {
                 "file_path": file_path,
@@ -391,9 +396,9 @@ class ModifyBot:
                 changes_made=self.get_diffs_message(file_contents),
                 file_path=file_path,
                 request=file_change_request.instructions,
-                chunking_message=use_chunking_message
-                if chunking
-                else dont_use_chunking_message,
+                chunking_message=(
+                    use_chunking_message if chunking else dont_use_chunking_message
+                ),
             )
         )
         analysis_and_identification_pattern = r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"

@@ -13,7 +13,7 @@ from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
 from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import IS_SELF_HOSTED, OPENAI_API_KEY
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, OPENAI_API_KEY
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -185,7 +185,7 @@ def run_until_complete(
     thread_id: str,
     run_id: str,
     assistant_id: str,
-    model: str = "gpt-4-0125-preview",
+    model: str = DEFAULT_GPT4_32K_MODEL,
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
     max_iterations: int = 200,
@@ -207,7 +207,7 @@ def run_until_complete(
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(f"Run completed with {run.status}")
                 raise Exception(
-                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id}"
+                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status}"
                 )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
@@ -268,7 +268,8 @@ def run_until_complete(
                 thread_id=thread_id,
             )
             current_message_strings = [
-                message.content[0].text.value for message in messages.data
+                message.content[0].text.value if message.content else ""
+                for message in messages.data
             ]
             if message_strings != current_message_strings and current_message_strings:
                 logger.info(run.status)
@@ -319,7 +320,7 @@ def openai_assistant_call_helper(
     file_paths: list[str] = [],  # use either file_paths or file_ids
     uploaded_file_ids: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
-    model: str = "gpt-4-0125-preview",
+    model: str = DEFAULT_GPT4_32K_MODEL,
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
@@ -398,7 +399,7 @@ def openai_assistant_call(
     file_paths: list[str] = [],
     uploaded_file_ids: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
-    model: str = "gpt-4-0125-preview",
+    model: str = DEFAULT_GPT4_32K_MODEL,
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
@@ -409,7 +410,7 @@ def openai_assistant_call(
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
         and not IS_SELF_HOSTED
-        else "gpt-4-0125-preview"
+        else DEFAULT_GPT4_32K_MODEL
     )
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
@@ -417,9 +418,11 @@ def openai_assistant_call(
         {
             "query": request,
             "model": model,
-            "username": chat_logger.data.get("username", "anonymous")
-            if chat_logger is not None
-            else "anonymous",
+            "username": (
+                chat_logger.data.get("username", "anonymous")
+                if chat_logger is not None
+                else "anonymous"
+            ),
             "is_self_hosted": IS_SELF_HOSTED,
             "trace": "".join(traceback.format_list(traceback.extract_stack())),
         },
