@@ -46,6 +46,7 @@ def excel_col_to_int(s):
 
 
 MAX_CHARS = 32000
+TOOLS_MAX_CHARS = 20000
 
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
@@ -117,9 +118,9 @@ def function_modify(
             additional_messages=additional_messages,
             chat_logger=chat_logger,
             assistant_id=assistant_id,
-            save_ticket_progress=save_ticket_progress
-            if ticket_progress is not None
-            else None,
+            save_ticket_progress=(
+                save_ticket_progress if ticket_progress is not None else None
+            ),
             assistant_name="Code Modification Function Assistant",
             tools=[
                 {"type": "code_interpreter"},
@@ -229,6 +230,12 @@ def function_modify(
                                     current_code_section += "\n" + section_display
                             code_sections.append(current_code_section)
                             new_current_code = f"\n\n{code_sections[0]}"
+                            max_allowed_chars = TOOLS_MAX_CHARS - 1000 - len(diff)
+                            if len(new_current_code) > max_allowed_chars:
+                                new_current_code = (
+                                    new_current_code[:max_allowed_chars]
+                                    + "\n\n... (truncated)"
+                                )
                             success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}\n\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)

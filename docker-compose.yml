@@ -3,6 +3,9 @@ services:
     env_file:
       - .env
     build:
+      platforms:
+      - 'linux/amd64'
+      - 'linux/arm64'
       context: .
       dockerfile: Dockerfile
       target: base
@@ -20,6 +23,9 @@ services:
     env_file:
       - .env
     build:
+      platforms:
+      - 'linux/amd64'
+      - 'linux/arm64'
       context: .
       dockerfile: Dockerfile.hosted
       target: base
