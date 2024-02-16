@@ -177,10 +177,12 @@ REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
 
 # Azure settings, only checked if OPENAI_API_TYPE == "azure"
+OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+
 AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
-OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
+AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT", None)
 
 OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)

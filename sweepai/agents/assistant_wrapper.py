@@ -7,18 +7,37 @@ from pathlib import Path
 from typing import Callable
 
 from loguru import logger
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
 from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, OPENAI_API_KEY
+from sweepai.config.server import (
+    AZURE_API_KEY,
+    AZURE_OPENAI_DEPLOYMENT,
+    DEFAULT_GPT4_32K_MODEL,
+    IS_SELF_HOSTED,
+    OPENAI_API_BASE,
+    OPENAI_API_KEY,
+    OPENAI_API_TYPE,
+    OPENAI_API_VERSION,
+)
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 
-client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+if OPENAI_API_TYPE == "openai":
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+elif OPENAI_API_TYPE == "azure":
+    client = AzureOpenAI(
+        azure_endpoint=OPENAI_API_BASE,
+        api_key=AZURE_API_KEY,
+        api_version=OPENAI_API_VERSION,
+    )
+    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT
+else:
+    raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
 
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
