@@ -45,7 +45,11 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
                 break
         if is_binary:
             return False
-
+    # if the average character count is > 200, skip the file
+    file_contents = read_file(file)
+    average_character_count = len(file_contents) / (file_contents.count("\n") + 1)
+    if average_character_count > 200:
+        return False
     return True
 
 
