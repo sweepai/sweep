@@ -298,7 +298,7 @@ def chunk_code(
     code: str,
     path: str,
     MAX_CHARS=AVG_CHAR_IN_LINE * 200,  # 200 lines of code
-    coalesce=AVG_CHAR_IN_LINE * 50,  # 50 lines of code
+    coalesce=80,
 ) -> list[Snippet]:
     ext = path.split(".")[-1]
     if ext in extension_to_language:
