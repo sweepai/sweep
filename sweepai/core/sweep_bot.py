@@ -634,6 +634,7 @@ class SweepBot(CodeGenBot, GithubBot):
         temperature: float = 0.1,
         assistant_conversation: AssistantConversation | None = None,
     ):
+        old_system_message = self.messages[0].content
         key = f"file_change_modified_{file_change_request.filename}"
         new_file = None
         sandbox_execution = None
