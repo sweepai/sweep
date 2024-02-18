@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    DEFAULT_GPT4_32K_MODEL,
     DEFAULT_GPT35_MODEL,
     OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
@@ -15,7 +16,6 @@ from sweepai.config.server import (
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
 from sweepai.logn import logger
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -66,7 +66,8 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = "gpt-4-0125-preview"
+    # model: ChatModel = "gpt-4-0125-preview"
+    model: ChatModel = DEFAULT_GPT4_32K_MODEL
     chat_logger: ChatLogger | None = None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
