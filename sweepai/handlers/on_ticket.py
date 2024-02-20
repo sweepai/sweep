@@ -46,7 +46,6 @@ from sweepai.config.server import (
     MONGODB_URI,
     OPENAI_USE_3_5_MODEL_ONLY,
     PROGRESS_BASE_URL,
-    WHITELISTED_REPOS,
 )
 from sweepai.core.entities import (
     AssistantRaisedException,
@@ -684,31 +683,6 @@ def on_ticket(
                     },
                 )
                 return {"success": True}
-
-            if (
-                repo_name.lower() not in WHITELISTED_REPOS
-                and not is_paying_user
-                and not is_consumer_tier
-            ):
-                if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                    logger.info("Test repository detected")
-                    edit_sweep_comment(
-                        (
-                            f"Sweep does not work on test repositories. Please create an issue"
-                            f" on a real repository. If you think this is a mistake, please"
-                            f" report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
-                        ),
-                        -1,
-                    )
-                    posthog.capture(
-                        username,
-                        "test_repo",
-                        properties={
-                            **metadata,
-                            "duration": round(time() - on_ticket_start_time),
-                        },
-                    )
-                    return {"success": False}
 
             prs_extracted = PRReader.extract_prs(repo, summary)
             message_summary = summary
