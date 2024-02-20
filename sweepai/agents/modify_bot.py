@@ -272,6 +272,8 @@ class ModifyBot:
             ticket_progress=self.ticket_progress,
             assistant_conversation=assistant_conversation,
             seed=seed,
+            start_line=file_change_request.start_line,
+            end_line=file_change_request.end_line,
         )
         if new_file is not None:
             posthog.capture(
