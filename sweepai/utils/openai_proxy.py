@@ -118,7 +118,6 @@ class OpenAIProxy:
         client = AzureOpenAI(
             api_key=api_key,
             azure_endpoint=base_url,
-            engine="sweep-gpt-4-turbo",
             api_version=OPENAI_API_VERSION,
         )
         response = client.chat.completions.create(
