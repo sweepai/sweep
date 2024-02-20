@@ -128,19 +128,14 @@ OPENAI_USE_3_5_MODEL_ONLY = (
 )
 
 
-# goes under Modal 'mongodb' secret name
 MONGODB_URI = os.environ.get("MONGODB_URI", None)
+IS_SELF_HOSTED = bool(os.environ.get("IS_SELF_HOSTED", MONGODB_URI is None))
 
-IS_SELF_HOSTED = MONGODB_URI is None
-
-# goes under Modal 'redis_url' secret name (optional, can leave env var blank)
 REDIS_URL = os.environ.get("REDIS_URL")
-# deprecated: old logic transfer so upstream can use this
 if not REDIS_URL:
     REDIS_URL = os.environ.get("redis_url", "redis://0.0.0.0:6379/0")
 
 ORG_ID = os.environ.get("ORG_ID", None)
-# goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
 )
