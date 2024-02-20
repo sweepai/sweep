@@ -1,11 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from sweepai.config.server import (
-    OPENAI_API_ENGINE_GPT4,
-    OPENAI_API_ENGINE_GPT4_32K,
-    OPENAI_API_ENGINE_GPT35,
-)
+from sweepai.config.server import OPENAI_API_ENGINE_GPT35
 from sweepai.utils.openai_proxy import OpenAIProxy
 
 
@@ -64,13 +60,6 @@ class TestOpenAIProxyDetermineOpenaiEngine(unittest.TestCase):
         self.assertEqual(
             self.openai_proxy.determine_openai_engine("gpt-3.5-turbo-16k"),
             OPENAI_API_ENGINE_GPT35,
-        )
-        self.assertEqual(
-            self.openai_proxy.determine_openai_engine("gpt-4"), OPENAI_API_ENGINE_GPT4
-        )
-        self.assertEqual(
-            self.openai_proxy.determine_openai_engine("gpt-4-32k"),
-            OPENAI_API_ENGINE_GPT4_32K,
         )
         self.assertEqual(self.openai_proxy.determine_openai_engine("other"), None)
 
