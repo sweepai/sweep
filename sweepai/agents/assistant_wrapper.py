@@ -221,12 +221,16 @@ def run_until_complete(
                 run_id=run_id,
             )
             if run.status == "completed":
-                logger.info(f"Run completed with {run.status}")
+                logger.info(
+                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                )
                 break
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
-                logger.info(f"Run completed with {run.status}")
+                logger.info(
+                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                )
                 raise Exception(
-                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status}"
+                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
                 )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
@@ -255,7 +259,7 @@ def run_until_complete(
                         function_input: dict = json.loads(tool_call_arguments)
                     except:
                         logger.warning(
-                            f"Could not parse function arguments: {tool_call_arguments}"
+                            f"Could not parse function arguments (i={num_tool_calls_made}): {tool_call_arguments}"
                         )
                         tool_outputs.append(
                             {
@@ -317,7 +321,7 @@ def run_until_complete(
             time.sleep(sleep_time)
     except (KeyboardInterrupt, SystemExit):
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
-        logger.warning(f"Run cancelled: {run_id}")
+        logger.warning(f"Run cancelled: {run_id} (i={num_tool_calls_made})")
         raise SystemExit
     if save_ticket_progress is not None:
         save_ticket_progress(
@@ -326,7 +330,7 @@ def run_until_complete(
             run_id=run_id,
         )
     for json_message in json_messages:
-        logger.info(json_message["content"])
+        logger.info(f'(i={num_tool_calls_made}) {json_message["content"]}')
     return client.beta.threads.messages.list(
         thread_id=thread_id,
     )
