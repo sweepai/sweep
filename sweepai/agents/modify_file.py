@@ -1,14 +1,9 @@
 import traceback
 from collections import OrderedDict
 
-from sweepai.agents.modify_bot import ModifyBot
+from sweepai.agents.assistant_function_modify import function_modify
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import (
-    FileChangeRequest,
-    MaxTokensExceeded,
-    Message,
-    UnneededEditError,
-)
+from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
 from sweepai.core.prompts import system_message_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -22,6 +17,98 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
         if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
             return {"success": True, "path": blocked_dir}
     return {"success": False}
+
+
+def create_additional_messages(
+    metadata: str,
+    file_change_request: FileChangeRequest,
+    changed_files: list[tuple[str, str]],
+    comment_pr_diff_str: str,
+    cloned_repo: ClonedRepo,
+):
+    additional_messages = [
+        Message(
+            role="user",
+            content=metadata,
+            key="issue_metadata",
+        )
+    ]
+    if comment_pr_diff_str and comment_pr_diff_str.strip():
+        additional_messages = [
+            Message(
+                role="user",
+                content="These changes have already been made:\n" + comment_pr_diff_str,
+                key="pr_diffs",
+            )
+        ]
+    file_path_to_contents = OrderedDict()
+    # use only the latest change for each file
+    # go forward to find the earliest version of each file in the array
+    earliest_version_per_file = {}
+    for file_path, (old_contents, new_contents) in changed_files:
+        if file_path not in earliest_version_per_file:
+            earliest_version_per_file[file_path] = old_contents
+    latest_version_per_file = {}
+    for file_path, (old_contents, new_contents) in reversed(changed_files):
+        if file_path not in latest_version_per_file:
+            latest_version_per_file[file_path] = new_contents
+    for file_path, _ in changed_files:
+        if not latest_version_per_file[file_path].strip():
+            continue
+        earliest_file_version = earliest_version_per_file[file_path]
+        latest_file_version = latest_version_per_file[file_path]
+        diffs = generate_diff(earliest_file_version, latest_file_version)
+        if file_path not in file_path_to_contents:
+            file_path_to_contents[file_path] = diffs
+    changed_files_summary = "You have previously changed these files:\n" + "\n".join(
+        [
+            f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
+            for file_path, diffs in file_path_to_contents.items()
+        ]
+    )
+    if changed_files:
+        additional_messages += [
+            Message(
+                content=changed_files_summary,
+                role="user",
+                key="changed_files_summary",
+            )
+        ]
+    if file_change_request.relevant_files:
+        relevant_files_contents = []
+        for file_path in file_change_request.relevant_files:
+            try:
+                relevant_files_contents.append(cloned_repo.get_file_contents(file_path))
+            except Exception:
+                for file_path, (old_contents, new_contents) in changed_files:
+                    if file_path == file_path:
+                        relevant_files_contents.append(new_contents)
+                        break
+                else:
+                    relevant_files_contents.append("File not found")
+        if relevant_files_contents:
+            relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
+                [
+                    f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
+                    for file_path, file_contents in zip(
+                        file_change_request.relevant_files,
+                        relevant_files_contents,
+                    )
+                ]
+            )
+            additional_messages.append(
+                Message(
+                    content=relevant_files_summary,
+                    role="user",
+                    key="relevant_files_summary",
+                )
+            )
+    current_file_diff = ""
+    if changed_files:
+        for file_path, (old_contents, new_contents) in changed_files:
+            if file_path == file_change_request.filename:
+                current_file_diff += generate_diff(old_contents, new_contents) + "\n"
+    return additional_messages
 
 
 def modify_file(
@@ -43,117 +130,25 @@ def modify_file(
     new_file = None
     sandbox_execution = None
     try:
-        additional_messages = [
-            Message(
-                role="user",
-                content=metadata,
-                key="issue_metadata",
-            )
-        ]
-        if comment_pr_diff_str and comment_pr_diff_str.strip():
-            additional_messages = [
-                Message(
-                    role="user",
-                    content="These changes have already been made:\n"
-                    + comment_pr_diff_str,
-                    key="pr_diffs",
-                )
-            ]
-        file_path_to_contents = OrderedDict()
-        # use only the latest change for each file
-        # go forward to find the earliest version of each file in the array
-        earliest_version_per_file = {}
-        for file_path, (old_contents, new_contents) in changed_files:
-            if file_path not in earliest_version_per_file:
-                earliest_version_per_file[file_path] = old_contents
-        latest_version_per_file = {}
-        for file_path, (old_contents, new_contents) in reversed(changed_files):
-            if file_path not in latest_version_per_file:
-                latest_version_per_file[file_path] = new_contents
-        for file_path, _ in changed_files:
-            if not latest_version_per_file[file_path].strip():
-                continue
-            earliest_file_version = earliest_version_per_file[file_path]
-            latest_file_version = latest_version_per_file[file_path]
-            diffs = generate_diff(earliest_file_version, latest_file_version)
-            if file_path not in file_path_to_contents:
-                file_path_to_contents[file_path] = diffs
-        changed_files_summary = (
-            "You have previously changed these files:\n"
-            + "\n".join(
-                [
-                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                    for file_path, diffs in file_path_to_contents.items()
-                ]
-            )
+        additional_messages = create_additional_messages(
+            metadata,
+            file_change_request,
+            changed_files,
+            comment_pr_diff_str,
+            cloned_repo,
         )
-        if changed_files:
-            additional_messages += [
-                Message(
-                    content=changed_files_summary,
-                    role="user",
-                    key="changed_files_summary",
-                )
-            ]
-        if file_change_request.relevant_files:
-            relevant_files_contents = []
-            for file_path in file_change_request.relevant_files:
-                try:
-                    relevant_files_contents.append(
-                        cloned_repo.get_file_contents(file_path)
-                    )
-                except Exception:
-                    for file_path, (old_contents, new_contents) in changed_files:
-                        if file_path == file_path:
-                            relevant_files_contents.append(new_contents)
-                            break
-                    else:
-                        relevant_files_contents.append("File not found")
-            if relevant_files_contents:
-                relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
-                    [
-                        f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
-                        for file_path, file_contents in zip(
-                            file_change_request.relevant_files,
-                            relevant_files_contents,
-                        )
-                    ]
-                )
-                additional_messages.append(
-                    Message(
-                        content=relevant_files_summary,
-                        role="user",
-                        key="relevant_files_summary",
-                    )
-                )
-        current_file_diff = ""
-        if changed_files:
-            for file_path, (old_contents, new_contents) in changed_files:
-                if file_path == file_change_request.filename:
-                    current_file_diff += (
-                        generate_diff(old_contents, new_contents) + "\n"
-                    )
-        modify_file_bot = ModifyBot(
+        function_modify(
+            file_change_request.instructions,
+            file_change_request.filename,
+            contents or cloned_repo.get_file_contents(file_change_request.filename),
             additional_messages,
-            parent_bot=chatgpt,
-            chat_logger=chat_logger,
-            old_file_contents=contents,
-            current_file_diff=current_file_diff,
-            is_pr=bool(comment_pr_diff_str),
+            chat_logger,
+            start_line=file_change_request.start_line,
+            end_line=file_change_request.end_line,
             ticket_progress=ticket_progress,
+            assistant_conversation=assistant_conversation,
         )
-        try:
-            new_file = modify_file_bot.try_update_file(
-                file_path=file_change_request.filename,
-                file_contents=contents,
-                file_change_request=file_change_request,
-                cloned_repo=cloned_repo,
-                assistant_conversation=assistant_conversation,
-            )
-        except UnneededEditError as e:
-            raise e
-        except Exception as e:
-            raise e
+
     except Exception as e:  # Check for max tokens error
         if "max tokens" in str(e).lower():
             logger.error(f"Max tokens exceeded for {file_change_request.filename}")
@@ -194,7 +189,7 @@ if __name__ == "__main__":
         metadata="This repo is Sweep.",
         file_change_request=FileChangeRequest(
             filename="push_image.sh",
-            instructions="Add a print hello world statement.",
+            instructions="Add a print hello world statement before running anything.",
             change_type="modify",
         ),
     )
