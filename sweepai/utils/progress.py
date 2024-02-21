@@ -111,7 +111,7 @@ class AssistantConversation(BaseModel):
                             .content[0]
                             .text.value
                         )
-                    except:
+                    except Exception:
                         return None
                     messages.append(
                         AssistantAPIMessage(

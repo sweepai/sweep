@@ -35,7 +35,7 @@ elif OPENAI_API_TYPE == "azure":
         api_key=AZURE_API_KEY,
         api_version=OPENAI_API_VERSION,
     )
-    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT
+    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
 else:
     raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
 
