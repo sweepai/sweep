@@ -110,7 +110,7 @@ class ChatGPT(BaseModel):
 
     @classmethod
     def from_system_message_string(
-        cls, prompt_string: str, chat_logger: ChatLogger, **kwargs
+        cls, prompt_string: str, chat_logger: ChatLogger | None = None, **kwargs
     ) -> Any:
         return cls(
             messages=[Message(role="system", content=prompt_string, key="system")],
