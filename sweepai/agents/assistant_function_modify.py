@@ -454,6 +454,9 @@ def function_modify(
                                 if key not in replace_to_make:
                                     error_message = f"Missing {key} in replace_to_make."
                                     break
+                                if not isinstance(replace_to_make[key], str):
+                                    error_message = f"{key} should be a string."
+                                    break
 
                             if error_message:
                                 break
