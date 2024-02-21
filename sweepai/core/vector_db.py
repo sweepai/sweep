@@ -1,5 +1,6 @@
 from functools import lru_cache
 import json
+import multiprocessing
 from typing import Generator
 import backoff
 from loguru import logger
@@ -14,10 +15,7 @@ from sweepai.utils.utils import Tiktoken
 from sweepai.utils.hash import hash_sha256
 client = OpenAI()
 CACHE_VERSION = "v1.0.14"
-# if DEBUG:
 redis_client = Redis.from_url(REDIS_URL)
-# else:
-#     redis_client = None
 
 def cosine_similarity(a, B):
     dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nx1, resulting in Mx1
@@ -27,18 +25,14 @@ def cosine_similarity(a, B):
 
 
 def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]:
-    texts = [text[:4096] if text else " " for text in texts]
-    for text in texts:
-        assert isinstance(text, str), f"Expected str, got {type(text)}"
-        assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
     for i in range(0, len(texts), batch_size):
         yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
 
 @file_cache(ignore_params=["texts"])
 def get_query_texts_similarity(query: str, texts: str) -> float:
-    embeddings = embed_texts(texts)
+    embeddings = embed_text_array(texts)
     embeddings = np.concatenate(embeddings)
-    query_embedding = embed_texts([query])[0]
+    query_embedding = embed_text_array([query])[0]
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
@@ -54,24 +48,31 @@ def normalize_l2(x):
         norm = np.linalg.norm(x, 2, axis=1, keepdims=True)
         return np.where(norm == 0, x, x / norm)
 
-lru_cache(maxsize=20)
-def embed_texts(texts: tuple[str]):
+def string_to_embedding(batch: list[str]):
+    tik_token_client = Tiktoken()
+    batch = [tik_token_client.truncate_string(text) for text in batch] # truncate string
+    return openai_with_expo_backoff(batch)
+
+# lru_cache(maxsize=20)
+def embed_text_array(texts: tuple[str]):
     logger.info(
         f"Computing embeddings for {len(texts)} texts using openai..."
     )
-    tik_token_client = Tiktoken()
     embeddings = []
-    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"):
-        try:
-            # truncate string
-            batch = [tik_token_client.truncate_string(text) for text in batch]
-            norm_dim = openai_with_expo_backoff(batch)
-            embeddings.append(norm_dim)
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.exception("Failed to get embeddings for batch")
-            raise e
+    with multiprocessing.Pool(processes=8) as p:
+        for embedding in tqdm(
+            p.imap(string_to_embedding, 
+            [batch for batch in chunk(texts, batch_size=BATCH_SIZE)]), 
+            disable=False, 
+            desc="openai embedding"
+        ):
+            try:
+                embeddings.append(embedding)
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.exception("Failed to get embeddings for batch")
+                raise e
     return embeddings
         
 @backoff.on_exception(
@@ -105,3 +106,7 @@ def openai_with_expo_backoff(batch: tuple[str]):
         return normalized_dim
     except Exception as e:
         raise e
+    
+if __name__ == "__main__":
+    texts = ["sample text " * 10000 for i in range(BATCH_SIZE * 2)]
+    embeddings = embed_text_array(texts)
