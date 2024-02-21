@@ -2,7 +2,6 @@ import traceback
 from collections import OrderedDict
 
 from sweepai.agents.assistant_function_modify import function_modify
-from sweepai.core.chat import MessageList
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -114,7 +113,6 @@ def modify_file(
     cloned_repo: ClonedRepo,
     metadata: str,
     file_change_request: FileChangeRequest,
-    message_list: MessageList = MessageList(),
     contents: str = "",
     branch: str = None,
     # context related
@@ -125,7 +123,6 @@ def modify_file(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger | None = None,
 ):
-    key = f"file_change_modified_{file_change_request.filename}"
     new_file = None
     try:
         additional_messages = create_additional_messages(
@@ -135,7 +132,7 @@ def modify_file(
             comment_pr_diff_str,
             cloned_repo,
         )
-        function_modify(
+        new_file = function_modify(
             file_change_request.instructions,
             file_change_request.filename,
             contents or cloned_repo.get_file_contents(file_change_request.filename),
@@ -154,7 +151,6 @@ def modify_file(
         else:
             logger.error(f"Error: {e}")
             logger.error(traceback.format_exc())
-            message_list.delete_messages_from_chat(key)
             raise e
     return new_file
 

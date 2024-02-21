@@ -637,7 +637,6 @@ class SweepBot(CodeGenBot, GithubBot):
             self.cloned_repo,
             self.human_message.get_issue_metadata(),
             file_change_request,
-            self,
             contents,
             branch,
             changed_files,
