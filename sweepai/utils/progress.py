@@ -12,8 +12,9 @@ from pydantic import BaseModel, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
-from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
 from sweepai.global_threads import global_threads
+from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
+
 
 class AssistantAPIMessageRole(Enum):
     SYSTEM = "system"

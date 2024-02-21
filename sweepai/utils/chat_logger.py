@@ -194,6 +194,7 @@ def discord_log_error(content, priority=0):
     """
     priority: 0 (high), 1 (medium), 2 (low)
     """
+    logger.error(content)
     if GITHUB_BOT_USERNAME != "sweep-ai[bot]":  # disable for dev
         return
     try:

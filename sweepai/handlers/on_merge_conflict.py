@@ -5,7 +5,7 @@ from git import GitCommandError
 from github.PullRequest import PullRequest
 from loguru import logger
 
-from sweepai.config.server import OPENAI_USE_3_5_MODEL_ONLY
+from sweepai.config.server import OPENAI_USE_3_5_MODEL_ONLY, PROGRESS_BASE_URL
 from sweepai.core import entities
 from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
@@ -62,7 +62,7 @@ def on_merge_conflict(
 
     status_message = center(
         f"{sweeping_gif}\n\n"
-        + f'Resolving merge conflicts: track the progress <a href="https://progress.sweep.dev/issues/{tracking_id}">here</a>.'
+        + f'Resolving merge conflicts: track the progress <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">here</a>.'
     )
     header = f"{status_message}\n---\n\nI'm currently resolving the merge conflicts in this PR. I will stack a new PR once I'm done."
 
@@ -133,12 +133,14 @@ def on_merge_conflict(
                 payment_context=PaymentContext(
                     use_faster_model=use_faster_model,
                     pro_user=is_paying_user,
-                    daily_tickets_used=chat_logger.get_ticket_count(use_date=True)
-                    if chat_logger
-                    else 0,
-                    monthly_tickets_used=chat_logger.get_ticket_count()
-                    if chat_logger
-                    else 0,
+                    daily_tickets_used=(
+                        chat_logger.get_ticket_count(use_date=True)
+                        if chat_logger
+                        else 0
+                    ),
+                    monthly_tickets_used=(
+                        chat_logger.get_ticket_count() if chat_logger else 0
+                    ),
                 ),
             ),
         )
