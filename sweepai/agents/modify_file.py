@@ -116,7 +116,7 @@ def modify_file(
     contents: str = "",
     branch: str = None,
     # context related
-    changed_files: list[tuple[str, str]] = [],
+    changed_files: list[tuple[str, tuple[str, str]]] = [],
     comment_pr_diff_str: str = "",
     # o11y related
     assistant_conversation: AssistantConversation | None = None,
