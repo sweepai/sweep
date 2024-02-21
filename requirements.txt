@@ -69,8 +69,6 @@ markdown-it-py==3.0.0
 markdownify==0.11.6
 mccabe==0.7.0
 mdurl==0.1.2
-modal==0.51.3360
-modal-client==0.51.3360
 monotonic==1.6
 msgpack==1.0.7
 multidict==6.0.4
