@@ -633,11 +633,11 @@ class SweepBot(CodeGenBot, GithubBot):
         temperature: float = 0.1,
         assistant_conversation: AssistantConversation | None = None,
     ):
-        return modify_file(
-            self,
+        new_file = modify_file(
             self.cloned_repo,
             self.human_message.get_issue_metadata(),
             file_change_request,
+            self,
             contents,
             branch,
             changed_files,
@@ -646,6 +646,9 @@ class SweepBot(CodeGenBot, GithubBot):
             self.ticket_progress,
             self.chat_logger,
         )
+        commit_message = f"feat: Updated {file_change_request.filename}"[:50]
+        changed_files.append((file_change_request.filename, (contents, new_file)))
+        return new_file, commit_message, None, changed_files
 
     def get_files_to_change_from_sandbox(
         self,

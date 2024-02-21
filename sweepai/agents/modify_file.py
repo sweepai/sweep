@@ -2,9 +2,8 @@ import traceback
 from collections import OrderedDict
 
 from sweepai.agents.assistant_function_modify import function_modify
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import MessageList
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
-from sweepai.core.prompts import system_message_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import logger
@@ -112,10 +111,10 @@ def create_additional_messages(
 
 
 def modify_file(
-    chatgpt: ChatGPT,
     cloned_repo: ClonedRepo,
     metadata: str,
     file_change_request: FileChangeRequest,
+    message_list: MessageList = MessageList(),
     contents: str = "",
     branch: str = None,
     # context related
@@ -128,7 +127,6 @@ def modify_file(
 ):
     key = f"file_change_modified_{file_change_request.filename}"
     new_file = None
-    sandbox_execution = None
     try:
         additional_messages = create_additional_messages(
             metadata,
@@ -156,35 +154,15 @@ def modify_file(
         else:
             logger.error(f"Error: {e}")
             logger.error(traceback.format_exc())
-            chatgpt.delete_messages_from_chat(key)
+            message_list.delete_messages_from_chat(key)
             raise e
-    try:
-        commit_message = f"feat: Updated {file_change_request.filename}"
-        commit_message = commit_message[: min(len(commit_message), 50)]
-        changed_files.append(
-            (
-                file_change_request.filename,
-                (
-                    contents,
-                    new_file,
-                ),
-            )
-        )
-        return new_file, commit_message, sandbox_execution, changed_files
-    except Exception as e:
-        tb = traceback.format_exc()
-        logger.warning(f"Failed to parse." f" {e}\n{tb}")
-        chatgpt.delete_messages_from_chat(key)
-    raise Exception(f"Failed to parse response after 1 attempt.")
+    return new_file
 
 
 if __name__ == "__main__":
     cloned_repo = MockClonedRepo("/tmp/sweep", "sweepai/sweep")
 
-    new_file, commit_message, sandbox_execution, changed_files = modify_file(
-        chatgpt=ChatGPT.from_system_message_string(
-            system_message_prompt,
-        ),
+    new_file = modify_file(
         cloned_repo=cloned_repo,
         metadata="This repo is Sweep.",
         file_change_request=FileChangeRequest(
@@ -193,4 +171,4 @@ if __name__ == "__main__":
             change_type="modify",
         ),
     )
-    print(new_file, commit_message, sandbox_execution, changed_files)
+    print(new_file)
