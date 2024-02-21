@@ -133,10 +133,7 @@ def chunk_tree(
         line_chunks.append(Span(start_line, max(start_line, end_line)))
 
     # 5. Eliminating empty chunks
-    new_line_chunks = []
-    for chunk in line_chunks:
-        if len(chunk) > 0:
-            new_line_chunks.append(chunk)
+    line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
 
     # 6. Coalescing last chunk if it's too small
     if len(line_chunks) > 1 and len(line_chunks[-1]) < coalesce:
