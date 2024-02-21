@@ -228,8 +228,6 @@ def on_merge_conflict(
 
         human_message = HumanMessagePrompt(
             repo_name=repo_full_name,
-            issue_url=issue_url,
-            username=username,
             repo_description=(repo.description or "").strip(),
             title=request,
             summary=request,

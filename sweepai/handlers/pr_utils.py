@@ -63,7 +63,6 @@ def make_pr(
     get_documentation_dict(cloned_repo.repo)
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
-        username=username,
         repo_description=repo_description.strip(),
         title=title,
         summary=message_summary,

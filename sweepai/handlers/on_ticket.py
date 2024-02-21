@@ -769,8 +769,6 @@ def on_ticket(
             docs_results = ""
             human_message = HumanMessagePrompt(
                 repo_name=repo_name,
-                issue_url=issue_url,
-                username=username,
                 repo_description=repo_description.strip(),
                 title=title,
                 summary=message_summary,
