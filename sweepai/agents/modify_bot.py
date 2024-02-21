@@ -259,7 +259,6 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         cloned_repo: ClonedRepo,
-        chunking: bool = False,
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
     ):
