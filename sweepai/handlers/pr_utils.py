@@ -121,9 +121,6 @@ def make_pr(
         if changed_file:
             changed_files.append(file_change_request.filename)
         sandbox_response: SandboxResponse | None = sandbox_response
-        format_sandbox_success = (
-            lambda success: "✓" if success else f"❌ (`Sandbox Failed`)"
-        )
     pr_changes = response["pull_request"]
     pr_actions_message = (
         create_action_buttons(

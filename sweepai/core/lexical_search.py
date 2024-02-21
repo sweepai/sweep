@@ -1,5 +1,4 @@
 # import multiprocessing
-import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -9,15 +8,13 @@ from redis import Redis
 from tqdm import tqdm
 from whoosh.analysis import Token, Tokenizer
 
-from sweepai.config.server import REDIS_URL, DEBUG
+from sweepai.config.server import DEBUG, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import get_query_texts_similarity
 from sweepai.logn import logger
 from sweepai.logn.cache import file_cache
-from sweepai.utils.hash import hash_sha256
 from sweepai.utils.progress import TicketProgress
-from sweepai.utils.scorer import compute_score, get_scores
 
 CACHE_VERSION = "v1.0.14"
 
@@ -25,6 +22,7 @@ if DEBUG:
     redis_client = Redis.from_url(REDIS_URL)
 else:
     redis_client = None
+
 
 @file_cache()
 def compute_document_tokens(
@@ -255,7 +253,8 @@ def prepare_index_from_snippets(
                 ticket_progress.save()
         for doc, document_tokens in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
             index.add_document(
-                title=f"{doc.title}:{doc.start}-{doc.end}", tokens=document_tokens # snippet.denotation
+                title=f"{doc.title}:{doc.start}-{doc.end}",
+                tokens=document_tokens,  # snippet.denotation
             )
     except FileNotFoundError as e:
         logger.exception(e)
@@ -296,7 +295,7 @@ def search_index(query, index: CustomIndex):
     and their corresponding scores.
     """
     """Title, score, content"""
-    if index == None:
+    if index is None:
         return {}
     try:
         # Create a query parser for the "content" field of the index
@@ -321,15 +320,25 @@ def search_index(query, index: CustomIndex):
         logger.exception(e)
         return {}
 
+
 @file_cache(ignore_params=["snippets"])
 def compute_vector_search_scores(query, snippets: list[Snippet]):
     # get get dict of snippet to score
-    snippet_str_to_contents = {snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False) for snippet in snippets}
+    snippet_str_to_contents = {
+        snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False)
+        for snippet in snippets
+    }
     snippet_contents_array = list(snippet_str_to_contents.values())
-    query_snippet_similarities = get_query_texts_similarity(query, snippet_contents_array)
+    query_snippet_similarities = get_query_texts_similarity(
+        query, snippet_contents_array
+    )
     snippet_denotations = [snippet.denotation for snippet in snippets]
-    snippet_denotation_to_scores = {snippet_denotations[i]: score for i, score in enumerate(query_snippet_similarities)}
+    snippet_denotation_to_scores = {
+        snippet_denotations[i]: score
+        for i, score in enumerate(query_snippet_similarities)
+    }
     return snippet_denotation_to_scores
+
 
 @file_cache(ignore_params=["sweep_config"])
 def prepare_lexical_search_index(

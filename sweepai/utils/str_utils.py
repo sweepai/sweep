@@ -43,10 +43,15 @@ num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 
-ordinal = lambda n: str(n) + (
-    "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-)
-format_sandbox_success = lambda success: "✓" if success else f"❌ (`Sandbox Failed`)"
+
+def ordinal(n):
+    return str(n) + (
+        "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    )
+
+
+def format_sandbox_success(success):
+    return "✓" if success else "❌ (`Sandbox Failed`)"
 
 
 def create_collapsible(summary: str, body: str, opened: bool = False):

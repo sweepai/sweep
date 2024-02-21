@@ -559,7 +559,7 @@ class ModifyBot:
 
         problematic_message = None
         for _ in range(3):
-            if problematic_message != None:  # this means the last match failed
+            if problematic_message is not None:  # this means the last match failed
                 update_snippets_response = self.update_snippets_bot.chat(
                     problematic_message
                 )
@@ -695,7 +695,7 @@ class ModifyBot:
 
             if problematic_matches:
                 problematic_message = (
-                    f"The following replacement diffs that you generated are invalid:\n"
+                    "The following replacement diffs that you generated are invalid:\n"
                 )
                 for idx, original_code, updated_code in problematic_matches:
                     problematic_message += f"<<<<<<< REPLACE (index = {idx})\n{original_code}\n=======\n{updated_code}\n>>>>>>>\n"

@@ -204,7 +204,7 @@ class _Task:
         if self.create_file:
             log_path = _find_available_path(os.path.join(LOG_PATH, name))
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            with open(log_path, "w") as f:
+            with open(log_path, "w"):
                 pass
 
         # Write metadata file
@@ -214,7 +214,7 @@ class _Task:
                 os.path.join(META_PATH, name), extension=".json"
             )
             os.makedirs(os.path.dirname(meta_path), exist_ok=True)
-            with open(meta_path, "w") as f:
+            with open(meta_path, "w"):
                 pass
 
         return name, log_path, meta_path
@@ -328,7 +328,7 @@ class _Logger:
             task.write_log(0, *args, **kwargs)
 
     def init(self, metadata, create_file):
-        task = _Task.set_metadata(metadata=metadata, create_file=create_file)
+        _Task.set_metadata(metadata=metadata, create_file=create_file)
         return self
 
 

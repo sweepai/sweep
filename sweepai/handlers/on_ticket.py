@@ -148,7 +148,7 @@ Cheers,
 Sweep
 <br/>"""
 
-FASTER_MODEL_MESSAGE = f"""\
+FASTER_MODEL_MESSAGE = """\
 You ran out of the free tier GPT-4 tickets! We no longer support running Sweep with GPT-3.5 as it is too unreliable. Here are your options:
 - You can get a free trial of Sweep Pro to get unlimited GPT-4 tickets [here](https://buy.stripe.com/00g5npeT71H2gzCfZ8) or purchase a individual GPT-4 tickets [here](https://buy.stripe.com/00g3fh7qF85q0AE14d).
 - You can self-host Sweep with your own GPT-4 API key. You can find instructions [here](https://docs.sweep.dev/deployment).
@@ -382,7 +382,7 @@ def on_ticket(
                         pr.user.login == CURRENT_USERNAME
                         and f"Fixes #{issue_number}.\n" in pr.body
                     ):
-                        success = safe_delete_sweep_branch(pr, repo)
+                        safe_delete_sweep_branch(pr, repo)
                         break
 
             fire_and_forget_wrapper(delete_old_prs)()
@@ -466,7 +466,7 @@ def on_ticket(
                     if success:
                         sandbox_execution_message += f"\n\nSandbox passed on the latest `{repo.default_branch}`, so sandbox checks will be enabled for this issue."
                     else:
-                        sandbox_execution_message += f"\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
+                        sandbox_execution_message += "\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
 
                 if index < 0:
                     index = 0
@@ -740,7 +740,7 @@ def on_ticket(
             if external_results:
                 message_summary += "\n\n" + external_results
 
-            user_dict = get_documentation_dict(repo)
+            get_documentation_dict(repo)
             docs_results = ""
             human_message = HumanMessagePrompt(
                 repo_name=repo_name,
@@ -853,7 +853,7 @@ def on_ticket(
                 if do_map:
                     subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
                     edit_sweep_comment(
-                        f"I'm creating the following subissues:\n\n"
+                        "I'm creating the following subissues:\n\n"
                         + "\n\n".join(
                             [
                                 f"#{subissue.title}:\n" + blockquote(subissue.body)
@@ -879,15 +879,15 @@ def on_ticket(
                         body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist
                     )
                     edit_sweep_comment(
-                        f"I finished creating the subissues! Track them at:\n\n"
+                        "I finished creating the subissues! Track them at:\n\n"
                         + "\n".join(
                             f"* #{subissue.issue_id}" for subissue in subissues
                         ),
                         3,
                         done=True,
                     )
-                    edit_sweep_comment(f"N/A", 4)
-                    edit_sweep_comment(f"I finished creating all the subissues.", 5)
+                    edit_sweep_comment("N/A", 4)
+                    edit_sweep_comment("I finished creating all the subissues.", 5)
                     posthog.capture(
                         username,
                         "subissues_created",
@@ -1014,9 +1014,7 @@ def on_ticket(
                         for filename, instructions, check in checkboxes_progress
                     ]
                 )
-                checkboxes_collapsible = create_collapsible(
-                    "Checklist", checkboxes_contents, opened=True
-                )
+                create_collapsible("Checklist", checkboxes_contents, opened=True)
 
                 file_change_requests[0].status = "running"
 
@@ -1112,7 +1110,7 @@ def on_ticket(
                     commit_url_display = (
                         f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
                     )
-                    error_logs: str = create_error_logs(
+                    create_error_logs(
                         commit_url_display,
                         sandbox_response,
                         status=(
@@ -1149,7 +1147,7 @@ def on_ticket(
                             for filename, instructions, check in checkboxes_progress
                         ]
                     )
-                    checkboxes_collapsible = collapsible_template.format(
+                    collapsible_template.format(
                         summary="Checklist",
                         body=checkboxes_contents,
                         opened="open",
@@ -1243,7 +1241,6 @@ def on_ticket(
                     "Here are my self-reviews of my changes at" + change_location
                 )
 
-                lint_output = None
                 try:
                     fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
                 except SystemExit:
@@ -1305,7 +1302,7 @@ def on_ticket(
                         elif sandbox_passed is None:
                             sandbox_passed = True
 
-                if sandbox_passed == True:
+                if sandbox_passed is True:
                     pr_changes.title = f"{pr_changes.title} (✓ Sandbox Passed)"
 
                 # delete failing sweep yaml if applicable
@@ -1618,7 +1615,7 @@ def handle_sandbox_mode(
         ext = file_name.split(".")[-1]
     except:
         ext = ""
-    displayed_contents = file_contents.replace("```", "\`\`\`")
+    file_contents.replace("```", "\`\`\`")
     sha = repo.get_branch(repo.default_branch).commit.sha
     permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
     logger.info("Running sandbox")
@@ -1634,7 +1631,7 @@ def handle_sandbox_mode(
         (
             "<br/>"
             + create_collapsible(
-                f"Sandbox logs",
+                "Sandbox logs",
                 blockquote(
                     "\n\n".join(
                         [
@@ -1726,7 +1723,6 @@ def get_payment_messages(chat_logger: ChatLogger):
     )
 
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-    payment_link = "https://sweep.dev/pricing"
     single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
     pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
     daily_message = (

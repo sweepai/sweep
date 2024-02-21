@@ -71,7 +71,7 @@ class PrunedSnippets(RegexMatchableBaseModel):
         ):
             index = match_.group("index").strip("\n")
             index = int(index)
-            if index != None:
+            if index is not None:
                 snippet_indices.add(index)
         if len(snippet_indices) > 0:
             snippet_indices.add(0)

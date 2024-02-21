@@ -226,9 +226,9 @@ class RepoContextManager:
         return user_prompt
 
     def get_highest_scoring_snippet(self, file_path: str) -> Snippet:
-        snippet_key = (
-            lambda snippet: snippet.denotation
-        )
+        def snippet_key(snippet):
+            return snippet.denotation
+
         filtered_snippets = [
             snippet
             for snippet in self.snippets
@@ -260,7 +260,6 @@ def get_relevant_context(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
-    modify_iterations: int = 2
     model = (
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())

@@ -79,8 +79,6 @@ def chunk_tree(
     MAX_CHARS=AVG_CHAR_IN_LINE * 200,  # 200 lines of code
     coalesce=AVG_CHAR_IN_LINE * 50,  # 50 lines of code
 ) -> list[Span]:
-    from tree_sitter import Node
-
     # 1. Recursively form chunks based on the last post (https://docs.sweep.dev/blogs/chunking-2m-files)
     def chunk_node(node: Node) -> list[Span]:
         chunks: list[Span] = []

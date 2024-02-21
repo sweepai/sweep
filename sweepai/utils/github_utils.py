@@ -60,7 +60,7 @@ def get_token(installation_id: int):
             return obj["token"]
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             time.sleep(timeout)
     raise Exception(
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
@@ -88,7 +88,7 @@ def get_installation_id(username: str) -> str:
         )
         obj = response.json()
         return obj["id"]
-    except Exception as e:
+    except Exception:
         # Try org
         response = requests.get(
             f"https://api.github.com/orgs/{username}/installation",
@@ -339,7 +339,7 @@ class ClonedRepo:
                 if time_limited and commit.authored_datetime.replace(
                     tzinfo=None
                 ) <= cut_off_date.replace(tzinfo=None):
-                    logger.info(f"Exceeded cut off date, stopping...")
+                    logger.info("Exceeded cut off date, stopping...")
                     break
                 repo = get_github_client(self.installation_id)[1].get_repo(
                     self.repo_full_name
@@ -392,15 +392,15 @@ class MockClonedRepo(ClonedRepo):
     git_repo: git.Repo | None = None
 
     def __init__(
-            self,
-            _repo_dir: str,
-            repo_full_name: str,
-            installation_id: str = "",
-            branch: str | None = None,
-            token: str | None = None,
-            repo: Any | None = None,
-            git_repo: git.Repo | None = None,
-        ):
+        self,
+        _repo_dir: str,
+        repo_full_name: str,
+        installation_id: str = "",
+        branch: str | None = None,
+        token: str | None = None,
+        repo: Any | None = None,
+        git_repo: git.Repo | None = None,
+    ):
         self._repo_dir = _repo_dir
         self.repo_full_name = repo_full_name
         self.installation_id = installation_id
@@ -423,7 +423,7 @@ class MockClonedRepo(ClonedRepo):
     @property
     def git_repo(self):
         return git.Repo(self.repo_dir)
-    
+
     def clone(self):
         return git.Repo(self.repo_dir)
 
@@ -432,6 +432,7 @@ class MockClonedRepo(ClonedRepo):
 
     def __del__(self):
         return True
+
 
 def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r"\b[\w\-\.\/]*\w+\.\w{1,6}\b", query)

@@ -277,7 +277,7 @@ def create_config_pr(
             logger.error(e)
     else:
         # Create branch based on default branch
-        branch = repo.create_git_ref(
+        repo.create_git_ref(
             ref=f"refs/heads/{branch_name}",
             sha=repo.get_branch(repo.default_branch).commit.sha,
         )
@@ -402,7 +402,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
 def create_gha_pr(g, repo):
     # Create a new branch
     branch_name = "sweep/gha-enable"
-    branch = repo.create_git_ref(
+    repo.create_git_ref(
         ref=f"refs/heads/{branch_name}",
         sha=repo.get_branch(repo.default_branch).commit.sha,
     )

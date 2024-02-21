@@ -49,7 +49,11 @@ from sweepai.utils.str_utils import get_hash
 from sweepai.utils.utils import check_syntax, chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
+
+
+def to_raw_string(s):
+    return repr(s).lstrip("u")[1:-1]
+
 
 sandbox_error_prompt = """The following error logs were returned from `{command}`. Make changes to the current file so that it passes this CI/CD command.
 
@@ -323,7 +327,7 @@ class GithubBot(BaseModel):
                 snippet.end = min(len(snippet.content.split("\n")), snippet.end)
             except SystemExit:
                 raise SystemExit
-            except Exception as e:
+            except Exception:
                 logger.error(snippet)
 
     def validate_file_change_requests(
@@ -520,7 +524,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             file_path, branch=self.cloned_repo.branch
                         ).decoded_content.decode("utf-8")
                     )
-                except Exception as e:
+                except Exception:
                     for file_path, (old_contents, new_contents) in changed_files:
                         if file_path == file_path:
                             relevant_files_contents.append(new_contents)
@@ -603,7 +607,7 @@ class SweepBot(CodeGenBot, GithubBot):
         self.delete_messages_from_chat(key_to_delete=key)
 
         try:
-            implemented = self.check_completion(  # use async
+            self.check_completion(  # use async
                 file_change_request.filename, file_change.code
             )
         except SystemExit:
@@ -754,7 +758,6 @@ class SweepBot(CodeGenBot, GithubBot):
         i = 0
 
         file_change_requests[i].status = "running"
-        error_messages = []
 
         while i < min(len(file_change_requests), 20):
             file_change_request = file_change_requests[i]
@@ -920,7 +923,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                         for conclusion in conclusions
                                     )
                                     waiting = any(
-                                        conclusion == None for conclusion in conclusions
+                                        conclusion is None for conclusion in conclusions
                                     )
                                     if succeeded:
                                         file_change_request.status = "succeeded"
@@ -1229,7 +1232,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return True, sandbox_execution, result["commit"], changed_files
         except (MaxTokensExceeded, AssistantRaisedException) as e:
             raise e
-        except Exception as e:
+        except Exception:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
             return False, sandbox_execution, None, changed_files

@@ -188,7 +188,6 @@ def stack_pr(
 
         for item in generator:
             if isinstance(item, dict):
-                response = item
                 break
             (
                 file_change_request,

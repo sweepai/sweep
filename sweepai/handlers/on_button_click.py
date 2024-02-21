@@ -142,7 +142,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
         ).check_for_issues(rule=rule, diff=commits_diff)
         tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
         if changes_required:
-            new_pr = stack_pr(
+            stack_pr(
                 request=issue_description
                 + "\n\nThis issue was created to address the following rule:\n"
                 + rule,

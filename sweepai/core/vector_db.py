@@ -1,23 +1,26 @@
-from functools import lru_cache
 import json
+from functools import lru_cache
 from typing import Generator
+
 import backoff
+import numpy as np
 from loguru import logger
+from openai import OpenAI
 from redis import Redis
 from tqdm import tqdm
-from sweepai.config.server import BATCH_SIZE, REDIS_URL, OPENAI_API_KEY
+
+from sweepai.config.server import BATCH_SIZE, REDIS_URL
 from sweepai.logn.cache import file_cache
-from openai import OpenAI
-import numpy as np
+from sweepai.utils.hash import hash_sha256
 from sweepai.utils.utils import Tiktoken
 
-from sweepai.utils.hash import hash_sha256
 client = OpenAI()
 CACHE_VERSION = "v1.0.14"
 # if DEBUG:
 redis_client = Redis.from_url(REDIS_URL)
 # else:
 #     redis_client = None
+
 
 def cosine_similarity(a, B):
     dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nx1, resulting in Mx1
@@ -34,6 +37,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
     for i in range(0, len(texts), batch_size):
         yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
 
+
 @file_cache(ignore_params=["texts"])
 def get_query_texts_similarity(query: str, texts: str) -> float:
     embeddings = embed_texts(texts)
@@ -42,6 +46,7 @@ def get_query_texts_similarity(query: str, texts: str) -> float:
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
+
 
 def normalize_l2(x):
     x = np.array(x)
@@ -54,14 +59,17 @@ def normalize_l2(x):
         norm = np.linalg.norm(x, 2, axis=1, keepdims=True)
         return np.where(norm == 0, x, x / norm)
 
+
 lru_cache(maxsize=20)
+
+
 def embed_texts(texts: tuple[str]):
-    logger.info(
-        f"Computing embeddings for {len(texts)} texts using openai..."
-    )
+    logger.info(f"Computing embeddings for {len(texts)} texts using openai...")
     tik_token_client = Tiktoken()
     embeddings = []
-    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"):
+    for batch in tqdm(
+        chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"
+    ):
         try:
             # truncate string
             batch = [tik_token_client.truncate_string(text) for text in batch]
@@ -73,12 +81,13 @@ def embed_texts(texts: tuple[str]):
             logger.exception("Failed to get embeddings for batch")
             raise e
     return embeddings
-        
+
+
 @backoff.on_exception(
-            backoff.expo,
-            Exception,
-            max_tries=16,
-        )
+    backoff.expo,
+    Exception,
+    max_tries=16,
+)
 def openai_with_expo_backoff(batch: tuple[str]):
     # check cache first
     if redis_client:
@@ -95,8 +104,8 @@ def openai_with_expo_backoff(batch: tuple[str]):
     # not stored in cache call openai
     try:
         response = client.embeddings.create(
-                        input=batch, model="text-embedding-3-small", encoding_format="float"
-                    )
+            input=batch, model="text-embedding-3-small", encoding_format="float"
+        )
         cut_dim = np.array([data.embedding for data in response.data])[:, :512]
         normalized_dim = normalize_l2(cut_dim)
         if redis_client:
