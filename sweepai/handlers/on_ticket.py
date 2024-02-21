@@ -45,7 +45,7 @@ from sweepai.config.server import (
     LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
     OPENAI_USE_3_5_MODEL_ONLY,
-    WHITELISTED_REPOS,
+    PROGRESS_BASE_URL,
 )
 from sweepai.core.entities import (
     AssistantRaisedException,
@@ -257,9 +257,9 @@ def on_ticket(
                     "summary": summary,
                     "issue_number": issue_number,
                     "issue_url": issue_url,
-                    "username": username
-                    if not username.startswith("sweep")
-                    else assignee,
+                    "username": (
+                        username if not username.startswith("sweep") else assignee
+                    ),
                     "repo_full_name": repo_full_name,
                     "repo_description": repo_description,
                     "installation_id": installation_id,
@@ -407,12 +407,12 @@ def on_ticket(
             ticket_progress.context.payment_context = PaymentContext(
                 use_faster_model=use_faster_model,
                 pro_user=is_paying_user,
-                daily_tickets_used=chat_logger.get_ticket_count(use_date=True)
-                if chat_logger
-                else 0,
-                monthly_tickets_used=chat_logger.get_ticket_count()
-                if chat_logger
-                else 0,
+                daily_tickets_used=(
+                    chat_logger.get_ticket_count(use_date=True) if chat_logger else 0
+                ),
+                monthly_tickets_used=(
+                    chat_logger.get_ticket_count() if chat_logger else 0
+                ),
             )
             ticket_progress.save()
 
@@ -496,9 +496,9 @@ def on_ticket(
                     f"{center(sweeping_gif)}"
                     + (
                         center(
-                            f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="https://progress.sweep.dev/issues/{tracking_id}">progress dashboard</a>!</h2>'
+                            f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">progress dashboard</a>!</h2>'
                         )
-                        if not IS_SELF_HOSTED
+                        if MONGODB_URI is not None
                         else ""
                     )
                     + f"<br/>{center(pbar)}"
@@ -683,31 +683,6 @@ def on_ticket(
                     },
                 )
                 return {"success": True}
-
-            if (
-                repo_name.lower() not in WHITELISTED_REPOS
-                and not is_paying_user
-                and not is_consumer_tier
-            ):
-                if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                    logger.info("Test repository detected")
-                    edit_sweep_comment(
-                        (
-                            f"Sweep does not work on test repositories. Please create an issue"
-                            f" on a real repository. If you think this is a mistake, please"
-                            f" report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
-                        ),
-                        -1,
-                    )
-                    posthog.capture(
-                        username,
-                        "test_repo",
-                        properties={
-                            **metadata,
-                            "duration": round(time() - on_ticket_start_time),
-                        },
-                    )
-                    return {"success": False}
 
             prs_extracted = PRReader.extract_prs(repo, summary)
             message_summary = summary
@@ -1140,9 +1115,11 @@ def on_ticket(
                     error_logs: str = create_error_logs(
                         commit_url_display,
                         sandbox_response,
-                        status="✓"
-                        if (sandbox_response is None or sandbox_response.success)
-                        else "❌",
+                        status=(
+                            "✓"
+                            if (sandbox_response is None or sandbox_response.success)
+                            else "❌"
+                        ),
                     )
                     checkboxes_progress = [
                         (
@@ -1154,9 +1131,11 @@ def on_ticket(
                             + f" [Edit]({file_change_request.get_edit_url(repo.full_name, pull_request.branch_name)})",
                             file_change_request.instructions_ticket_display
                             + f"\n\n{file_change_request.diff_display}",
-                            "X"
-                            if file_change_request.status in ("succeeded", "failed")
-                            else " ",
+                            (
+                                "X"
+                                if file_change_request.status in ("succeeded", "failed")
+                                else " "
+                            ),
                         )
                         for file_change_request in file_change_requests
                     ]
@@ -1371,7 +1350,7 @@ def on_ticket(
                 pr.add_to_labels(GITHUB_LABEL_NAME)
                 current_issue.create_reaction("rocket")
                 heres_pr_message = f'<h1 align="center">🚀 Here\'s the PR! <a href="{pr.html_url}">#{pr.number}</a></h1>'
-                progress_message = f'<div align="center"><b>See Sweep\'s progress at <a href="https://progress.sweep.dev/issues/{tracking_id}">the progress dashboard</a>!</b></div>'
+                progress_message = f'<div align="center"><b>See Sweep\'s progress at <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">the progress dashboard</a>!</b></div>'
                 edit_sweep_comment(
                     review_message + "\n\nSuccess! 🚀",
                     4,
@@ -1416,7 +1395,7 @@ def on_ticket(
                         issue_number=issue_number,
                         repo_full_name=repo_full_name,
                         pr_number=pr.number,
-                        progress_url=f"https://progress.sweep.dev/issues/{tracking_id}",
+                        progress_url=f"{PROGRESS_BASE_URL}/issues/{tracking_id}",
                         summary=markdown.markdown(pr_changes.body),
                         files_changed="\n".join(
                             [f"<li>{item}</li>" for item in files_changed]
@@ -1723,7 +1702,7 @@ def get_payment_messages(chat_logger: ChatLogger):
         is_consumer_tier = False
         use_faster_model = False
 
-    tracking_id = chat_logger.data["tracking_id"] if chat_logger else None
+    tracking_id = chat_logger.data["tracking_id"] if MONGODB_URI is not None else None
 
     # Find the first comment made by the bot
     tickets_allocated = 5

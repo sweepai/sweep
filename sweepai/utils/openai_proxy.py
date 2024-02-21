@@ -8,9 +8,6 @@ from sweepai.config.server import (
     BASERUN_API_KEY,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
-    OPENAI_API_ENGINE_GPT4,
-    OPENAI_API_ENGINE_GPT4_32K,
-    OPENAI_API_ENGINE_GPT35,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
@@ -23,7 +20,6 @@ if BASERUN_API_KEY is not None:
 OPENAI_TIMEOUT = 60  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
-    "gpt-4-1106-preview",
     "gpt-4-0125-preview",
     "gpt-3.5-turbo-1106",
 ]
@@ -106,25 +102,14 @@ class OpenAIProxy:
         if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
             logger.info(f"Calling OpenAI exclusive model. {model}")
         elif (
-            model == "gpt-3.5-turbo-16k"
-            or model == "gpt-3.5-turbo-16k-0613"
-            and OPENAI_API_ENGINE_GPT35 is not None
-        ):
-            engine = OPENAI_API_ENGINE_GPT35
-        elif (
             model == "gpt-4"
             or model == "gpt-4-0613"
             or model == "gpt-4-1106-preview"
             or model == "gpt-4-0125-preview"
-            and OPENAI_API_ENGINE_GPT4 is not None
         ):
-            engine = OPENAI_API_ENGINE_GPT4
-        elif (
-            model == "gpt-4-32k"
-            or model == "gpt-4-32k-0613"
-            and OPENAI_API_ENGINE_GPT4_32K is not None
-        ):
-            engine = OPENAI_API_ENGINE_GPT4_32K
+            engine = model
+        elif model == "gpt-4-32k" or model == "gpt-4-32k-0613":
+            engine = model
         return engine
 
     def create_openai_chat_completion(
