@@ -95,6 +95,7 @@ def openai_with_expo_backoff(batch: tuple[str]):
     count_cache_miss = 0
     for i, cache_key in enumerate(cache_keys):
         if count_cache_miss > 5 and i > 5:
+            logger.info("Too many cache misses, calling openai for the rest of the batch")
             break
         try:
             cache_value = redis_client.get(cache_key)
