@@ -87,8 +87,6 @@ def function_modify(
         code_sections = []  # TODO: do this for the new sections after modifications
         current_code_section = ""
         for i, chunk in enumerate(chunks):
-            int_to_excel_col(i + 1)
-            # section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
             section_display = chunk
             if len(current_code_section) + len(section_display) > MAX_CHARS - 1000:
                 code_sections_string = f"# Code\nFile path:{file_path}\n<code>\n```\n{current_code_section}\n```\n</code>\n"

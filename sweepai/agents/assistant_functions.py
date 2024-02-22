@@ -24,7 +24,7 @@ search_and_replace_schema = {
             },
             "replaces_to_make": {
                 "type": "array",
-                "description": "Array of sections to modify",
+                "description": "Array of sections of code to modify",
                 "items": {
                     "type": "object",
                     "properties": {
@@ -41,7 +41,7 @@ search_and_replace_schema = {
                             "description": "The new code to replace the old code.",
                         },
                     },
-                    "required": ["section_id", "new_code"],
+                    "required": ["old_code", "new_code"],
                 },
             },
         },
