@@ -228,7 +228,7 @@ def on_ticket(
 
         try:
             CURRENT_USERNAME = g.get_user().login
-        except:
+        except Exception:
             CURRENT_USERNAME = GITHUB_BOT_USERNAME
 
         ticket_progress = TicketProgress(
@@ -714,7 +714,7 @@ def on_ticket(
                     chat_logger,
                     ticket_progress,
                 )
-            except:
+            except Exception:
                 edit_sweep_comment(
                     (
                         "It looks like an issue has occurred around fetching the files."
@@ -776,7 +776,7 @@ def on_ticket(
                     sweep_yaml_dict = {}
                     try:
                         sweep_yaml_dict = yaml.safe_load(yaml_content)
-                    except:
+                    except Exception:
                         logger.error(f"Failed to load YAML file: {yaml_content}")
                     if len(sweep_yaml_dict) > 0:
                         break
@@ -1212,7 +1212,7 @@ def on_ticket(
                             body=summary + "\n\n" + condensed_checkboxes_collapsible
                         )
                         break
-                    except:
+                    except Exception:
                         from time import sleep
 
                         sleep(1)
@@ -1245,7 +1245,7 @@ def on_ticket(
                     fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
                 except SystemExit:
                     raise SystemExit
-                except:
+                except Exception:
                     pass
 
                 changes_required, review_message = False, ""
@@ -1314,7 +1314,7 @@ def on_ticket(
                             branch=pr_changes.pr_head,
                             sha=repo.get_contents("sweep.yaml").sha,
                         )
-                    except:
+                    except Exception:
                         pass
 
                 pr: GithubPullRequest = repo.create_pull(
@@ -1613,7 +1613,7 @@ def handle_sandbox_mode(
     file_contents = sweep_bot.get_contents(file_name).decoded_content.decode("utf-8")
     try:
         ext = file_name.split(".")[-1]
-    except:
+    except Exception:
         ext = ""
     file_contents.replace("```", "\`\`\`")
     sha = repo.get_branch(repo.default_branch).commit.sha

@@ -5,6 +5,7 @@ import ctypes
 import json
 import threading
 import time
+import tracemalloc
 from typing import Optional
 
 import requests
@@ -90,8 +91,6 @@ from sweepai.web.events import (
 from sweepai.web.health import health_check
 
 app = FastAPI()
-
-import tracemalloc
 
 tracemalloc.start()
 
@@ -404,7 +403,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                 logger.warning(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
-    except:
+    except Exception:
         logger.warning("Failed to update sweep PRs")
 
 

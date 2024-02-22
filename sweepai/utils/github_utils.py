@@ -215,7 +215,7 @@ class ClonedRepo:
             shutil.rmtree(self.repo_dir)
             os.remove(self.zip_path)
             return True
-        except:
+        except Exception:
             return False
 
     def list_directory_tree(
@@ -357,7 +357,7 @@ class ClonedRepo:
                     f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>"
                 )
                 line_count += lines
-        except:
+        except Exception:
             logger.error(f"An error occurred: {traceback.print_exc()}")
         return commit_history
 

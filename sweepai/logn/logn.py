@@ -86,7 +86,7 @@ try:
     logging_parsers[loguru_logger.warning] = LogParser(
         level=3, parse_args=lambda *args, **kwargs: print2(args[0], level="WARNING")
     )
-except:
+except Exception:
     print("Failed to import loguru")
 
 

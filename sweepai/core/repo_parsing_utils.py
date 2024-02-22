@@ -55,11 +55,12 @@ def read_file(file_name: str) -> str:
             return f.read()
     except SystemExit:
         raise SystemExit
-    except:
+    except Exception:
         return ""
 
 
 FILE_THRESHOLD = 100
+
 
 def file_path_to_chunks(file_path: str) -> list[str]:
     file_contents = read_file(file_path)

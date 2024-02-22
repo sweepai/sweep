@@ -379,7 +379,7 @@ def modify_context(
             try:
                 tool_call_arguments = re.sub(r"\\+'", "", tool_call.function.arguments)
                 function_input = json.loads(tool_call_arguments)
-            except:
+            except Exception:
                 logger.warning(
                     f"Could not parse function arguments: {tool_call_arguments}"
                 )
@@ -414,7 +414,7 @@ def modify_context(
                         ]
                     )
                     valid_path = True
-                except:
+                except Exception:
                     similar_file_paths = ""
                     error_message = "FAILURE: This file path does not exist."
                 if error_message:
@@ -440,7 +440,7 @@ def modify_context(
                         function_path_or_dir
                     )
                     valid_path = True
-                except:
+                except Exception:
                     file_contents = ""
                     similar_file_paths = "\n".join(
                         [
@@ -499,7 +499,7 @@ def modify_context(
                         function_path_or_dir
                     )
                     valid_path = True
-                except:
+                except Exception:
                     file_contents = ""
                     similar_file_paths = "\n".join(
                         [
@@ -548,7 +548,7 @@ def modify_context(
                         function_path_or_dir
                     )
                     valid_path = True
-                except:
+                except Exception:
                     code = ""
                     similar_file_paths = "\n".join(
                         [

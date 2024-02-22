@@ -257,7 +257,7 @@ def run_until_complete(
                             r"\\+'", "", tool_call.function.arguments
                         )
                         function_input: dict = json.loads(tool_call_arguments)
-                    except:
+                    except Exception:
                         logger.warning(
                             f"Could not parse function arguments (i={num_tool_calls_made}): {tool_call_arguments}"
                         )
