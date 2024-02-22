@@ -33,6 +33,8 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     try:
         if os.stat(file).st_size > 240000:
             return False
+        if os.stat(file).st_size < 10:
+            return False
     except FileNotFoundError as e:
         logging.error(f"File not found: {file}. Error: {e}")
         return False
@@ -46,7 +48,6 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
                 break
         if is_binary:
             return False
-
     return True
 
 
