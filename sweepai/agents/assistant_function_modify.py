@@ -223,16 +223,17 @@ def function_modify(
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             success_message = (
-                                "The keyword was found in the following lines:\n\n"
+                                "The keyword was found on the following lines:\n\n"
                             )
                         for line_number in matches:
                             line = lines[line_number]
-                            line_number = line.split("\n")
-                            col_of_keyword = max(line.index(keyword) - 1, 0)
+                            col_of_keyword = max(
+                                line.index(keyword) + len(str(line_number)) + 1, 0
+                            )
                             match_display = (
                                 f"{line_number}: {line}\n {' ' * col_of_keyword}^\n"
                             )
-                            success_message += f"{match_display}\n"
+                            success_message += f"{match_display}"
 
                     if error_message:
                         logger.debug(error_message)
