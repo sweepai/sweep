@@ -13,7 +13,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.agents.complete_code import ExtractLeftoverComments
-from sweepai.agents.modify_bot import ModifyBot
+from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
@@ -29,7 +29,6 @@ from sweepai.core.entities import (
     RegexMatchError,
     SandboxResponse,
     Snippet,
-    UnneededEditError,
 )
 from sweepai.core.prompts import (
     create_file_prompt,
@@ -634,157 +633,19 @@ class SweepBot(CodeGenBot, GithubBot):
         temperature: float = 0.1,
         assistant_conversation: AssistantConversation | None = None,
     ):
-        key = f"file_change_modified_{file_change_request.filename}"
-        new_file = None
-        sandbox_execution = None
-        try:
-            additional_messages = [
-                Message(
-                    role="user",
-                    content=self.human_message.get_issue_metadata(),
-                    key="issue_metadata",
-                )
-            ]
-            if self.comment_pr_diff_str and self.comment_pr_diff_str.strip():
-                additional_messages = [
-                    Message(
-                        role="user",
-                        content="These changes have already been made:\n"
-                        + self.comment_pr_diff_str,
-                        key="pr_diffs",
-                    )
-                ]
-            file_path_to_contents = OrderedDict()
-            # use only the latest change for each file
-            # go forward to find the earliest version of each file in the array
-            earliest_version_per_file = {}
-            for file_path, (old_contents, new_contents) in changed_files:
-                if file_path not in earliest_version_per_file:
-                    earliest_version_per_file[file_path] = old_contents
-            latest_version_per_file = {}
-            for file_path, (old_contents, new_contents) in reversed(changed_files):
-                if file_path not in latest_version_per_file:
-                    latest_version_per_file[file_path] = new_contents
-            for file_path, _ in changed_files:
-                if not latest_version_per_file[file_path].strip():
-                    continue
-                earliest_file_version = earliest_version_per_file[file_path]
-                latest_file_version = latest_version_per_file[file_path]
-                diffs = generate_diff(earliest_file_version, latest_file_version)
-                if file_path not in file_path_to_contents:
-                    file_path_to_contents[file_path] = diffs
-            changed_files_summary = "You have previously changed these files:\n" + "\n".join(
-                [
-                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                    for file_path, diffs in file_path_to_contents.items()
-                ]
-            )
-            if changed_files:
-                additional_messages += [
-                    Message(
-                        content=changed_files_summary,
-                        role="user",
-                        key="changed_files_summary",
-                    )
-                ]
-            if file_change_request.relevant_files:
-                relevant_files_contents = []
-                blocked_dirs = get_blocked_dirs(self.repo)
-                for file_path in file_change_request.relevant_files:
-                    if is_blocked(file_path, blocked_dirs)["success"]:
-                        continue
-                    try:
-                        relevant_files_contents.append(
-                            self.get_contents(file_path).decoded_content.decode("utf-8")
-                        )
-                    except Exception as e:
-                        for file_path, (old_contents, new_contents) in changed_files:
-                            if file_path == file_path:
-                                relevant_files_contents.append(new_contents)
-                                break
-                        else:
-                            relevant_files_contents.append("File not found")
-                if relevant_files_contents:
-                    relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
-                        [
-                            f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
-                            for file_path, file_contents in zip(
-                                file_change_request.relevant_files,
-                                relevant_files_contents,
-                            )
-                        ]
-                    )
-                    additional_messages.append(
-                        Message(
-                            content=relevant_files_summary,
-                            role="user",
-                            key="relevant_files_summary",
-                        )
-                    )
-            current_file_diff = ""
-            if changed_files:
-                for file_path, (old_contents, new_contents) in changed_files:
-                    if file_path == file_change_request.filename:
-                        current_file_diff += (
-                            generate_diff(old_contents, new_contents) + "\n"
-                        )
-            modify_file_bot = ModifyBot(
-                additional_messages,
-                parent_bot=self,
-                chat_logger=self.chat_logger,
-                old_file_contents=contents,
-                current_file_diff=current_file_diff,
-                is_pr=bool(self.comment_pr_diff_str),
-                temperature=temperature,
-                ticket_progress=self.ticket_progress,
-            )
-            try:
-                new_file = modify_file_bot.try_update_file(
-                    file_path=file_change_request.filename,
-                    file_contents=contents,
-                    file_change_request=file_change_request,
-                    chunking=chunking,
-                    cloned_repo=self.cloned_repo,
-                    assistant_conversation=assistant_conversation,
-                )
-            except UnneededEditError as e:
-                if chunking:
-                    return (
-                        contents,
-                        f"feat: Updated {file_change_request.filename}",
-                        None,
-                        changed_files,
-                    )
-                raise e
-            except Exception as e:
-                raise e
-        except Exception as e:  # Check for max tokens error
-            if "max tokens" in str(e).lower():
-                logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                raise MaxTokensExceeded(file_change_request.filename)
-            else:
-                logger.error(f"Error: {e}")
-                logger.error(traceback.format_exc())
-                self.delete_messages_from_chat(key)
-                raise e
-        try:
-            commit_message = f"feat: Updated {file_change_request.filename}"
-            commit_message = commit_message[: min(len(commit_message), 50)]
-            changed_files.append(
-                (
-                    file_change_request.filename,
-                    (
-                        contents,
-                        new_file,
-                    ),
-                )
-            )
-            return new_file, commit_message, sandbox_execution, changed_files
-        except Exception as e:
-            tb = traceback.format_exc()
-            logger.warning(f"Failed to parse." f" {e}\n{tb}")
-            self.delete_messages_from_chat(key)
-        raise Exception(f"Failed to parse response after 1 attempt.")
+        return modify_file(
+            self,
+            self.cloned_repo,
+            self.human_message.get_issue_metadata(),
+            file_change_request,
+            contents,
+            branch,
+            changed_files,
+            self.comment_pr_diff_str,
+            assistant_conversation,
+            self.ticket_progress,
+            self.chat_logger,
+        )
 
     def get_files_to_change_from_sandbox(
         self,
@@ -982,11 +843,13 @@ class SweepBot(CodeGenBot, GithubBot):
                             file_change_request=file_change_request,
                             branch=branch,
                             changed_files=changed_files,
-                            assistant_conversation=self.ticket_progress.coding_progress.assistant_conversations[
-                                i
-                            ]
-                            if self.ticket_progress
-                            else None,
+                            assistant_conversation=(
+                                self.ticket_progress.coding_progress.assistant_conversations[
+                                    i
+                                ]
+                                if self.ticket_progress
+                                else None
+                            ),
                         )
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
@@ -1038,9 +901,11 @@ class SweepBot(CodeGenBot, GithubBot):
                                         conclusion_str = (
                                             "✓"
                                             if check_run.conclusion == "success"
-                                            else "✗"
-                                            if check_run.conclusion == "failure"
-                                            else "⋯"
+                                            else (
+                                                "✗"
+                                                if check_run.conclusion == "failure"
+                                                else "⋯"
+                                            )
                                         )
                                         additional_instructions += f'• {check_run.name}: <a href="{check_run.html_url}">{conclusion_str}</a>\n'
                                     # these are distinct, it's None if it's not done so succeeded and failed can both be false
