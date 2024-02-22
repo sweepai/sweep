@@ -21,7 +21,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.logn import logger
 from sweepai.utils.ctags import CTags
-from sweepai.utils.tree_utils import DirectoryTree
+from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
 MAX_FILE_COUNT = 50
 
@@ -184,7 +184,7 @@ class ClonedRepo:
         else:
             try:
                 repo = git.Repo(self.cached_dir)
-                repo.remotes.origin.pull()
+                repo.remotes.origin.pull(kill_after_timeout=60, progress=git.RemoteProgress())
             except Exception:
                 logger.error("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
@@ -282,7 +282,7 @@ class ClonedRepo:
         directory_tree = list_directory_contents(root_directory, ctags=ctags)
         dir_obj.parse(directory_tree)
         if included_directories:
-            dir_obj.remove_all_not_included(included_directories)
+            dir_obj = remove_all_not_included(dir_obj, included_directories)
         return directory_tree, dir_obj
 
     def get_file_list(self) -> str:

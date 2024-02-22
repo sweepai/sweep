@@ -259,7 +259,6 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         cloned_repo: ClonedRepo,
-        chunking: bool = False,
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
     ):
@@ -272,6 +271,8 @@ class ModifyBot:
             ticket_progress=self.ticket_progress,
             assistant_conversation=assistant_conversation,
             seed=seed,
+            start_line=file_change_request.start_line,
+            end_line=file_change_request.end_line,
         )
         if new_file is not None:
             posthog.capture(

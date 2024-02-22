@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.10"]
         # os: [ubuntu-latest, macos-latest]
         os: [ubuntu-latest]
     steps:
@@ -27,18 +27,17 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # - name: Cache Python dependencies
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: ~/.cache/pypoetry
-      #     key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/pyproject.toml') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-poetry-
-
       - name: Install dependencies
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           poetry install
+
+      # apparently installing redis-server runs it automatically
+      - name: Set up Redis
+        run: |
+          sudo apt-get update; sudo apt-get install redis-server;
+          sudo lsof -i :6379 || true
+      #     redis-server redis.conf --bind 0.0.0.0 --port 6379;
 
       - name: Run e2e test
         env:
@@ -46,4 +45,5 @@ jobs:
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
-        run: poetry run pytest -n 4 tests/e2e
+        run: poetry run pytest -n 4 tests/e2e -s
+        timeout-minutes: 10

@@ -72,11 +72,12 @@ class Span:
 
 AVG_CHAR_IN_LINE = 60
 
+
 def chunk_tree(
     tree,
     source_code: bytes,
-    MAX_CHARS=AVG_CHAR_IN_LINE * 200, # 200 lines of code
-    coalesce=AVG_CHAR_IN_LINE * 50, # 50 lines of code
+    MAX_CHARS=AVG_CHAR_IN_LINE * 200,  # 200 lines of code
+    coalesce=AVG_CHAR_IN_LINE * 50,  # 50 lines of code
 ) -> list[Span]:
     from tree_sitter import Node
 
@@ -125,30 +126,14 @@ def chunk_tree(
 
     # 4. Changing line numbers
     first_chunk = new_chunks[0]
-    line_chunks = [
-        Span(
-            0, 
-            get_line_number(first_chunk.end, source_code)
-        )
-        ]
+    line_chunks = [Span(0, get_line_number(first_chunk.end, source_code))]
     for chunk in new_chunks[1:]:
         start_line = get_line_number(chunk.start, source_code) + 1
         end_line = get_line_number(chunk.end, source_code)
-        line_chunks.append(
-            Span(
-                start_line,
-                max(start_line, end_line)
-            )
-        )
+        line_chunks.append(Span(start_line, max(start_line, end_line)))
 
     # 5. Eliminating empty chunks
-    new_line_chunks = []
-    for chunk in line_chunks:
-        try:
-            if len(chunk) > 0:
-                new_line_chunks.append(chunk)
-        except Exception as e:
-            import pdb; pdb.set_trace()
+    line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
 
     # 6. Coalescing last chunk if it's too small
     if len(line_chunks) > 1 and len(line_chunks[-1]) < coalesce:
@@ -304,12 +289,13 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
             discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
     return True, ""
 
+
 @file_cache()
 def chunk_code(
     code: str,
     path: str,
-    MAX_CHARS=AVG_CHAR_IN_LINE * 200, # 200 lines of code
-    coalesce=AVG_CHAR_IN_LINE * 50, # 50 lines of code
+    MAX_CHARS=AVG_CHAR_IN_LINE * 200,  # 200 lines of code
+    coalesce=80,
 ) -> list[Snippet]:
     ext = path.split(".")[-1]
     if ext in extension_to_language:
@@ -357,7 +343,8 @@ TIKTOKEN_CACHE_DIR = "/tmp/cache/tiktoken"
 
 
 class Tiktoken:
-    openai_models = [
+    def __init__(self):
+        openai_models = [
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-1106",
         "gpt-4",
@@ -365,19 +352,18 @@ class Tiktoken:
         "gpt-4-32k-0613",
         "gpt-4-1106-preview",
         "gpt-4-0125-preview",
-    ]
-    models = openai_models
-
-    def __init__(self):
+        ]
         self.openai_models = {
             model: tiktoken.encoding_for_model(model)
-            for model in Tiktoken.openai_models
+            for model in openai_models
         }
 
     def count(self, text: str, model: str = "gpt-4") -> int:
         return len(self.openai_models[model].encode(text, disallowed_special=()))
 
-    def truncate_string(self, text: str, model: str = "gpt-4", max_tokens: int = 8192) -> str:
+    def truncate_string(
+        self, text: str, model: str = "gpt-4", max_tokens: int = 8192
+    ) -> str:
         tokens = self.openai_models[model].encode(text)[:max_tokens]
         return self.openai_models[model].decode(tokens)
 

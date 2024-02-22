@@ -7,18 +7,37 @@ from pathlib import Path
 from typing import Callable
 
 from loguru import logger
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
 from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import IS_SELF_HOSTED, OPENAI_API_KEY
+from sweepai.config.server import (
+    AZURE_API_KEY,
+    AZURE_OPENAI_DEPLOYMENT,
+    DEFAULT_GPT4_32K_MODEL,
+    IS_SELF_HOSTED,
+    OPENAI_API_BASE,
+    OPENAI_API_KEY,
+    OPENAI_API_TYPE,
+    OPENAI_API_VERSION,
+)
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 
-client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+if OPENAI_API_TYPE == "openai":
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+elif OPENAI_API_TYPE == "azure":
+    client = AzureOpenAI(
+        azure_endpoint=OPENAI_API_BASE,
+        api_key=AZURE_API_KEY,
+        api_version=OPENAI_API_VERSION,
+    )
+    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT
+else:
+    raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
 
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
@@ -185,7 +204,7 @@ def run_until_complete(
     thread_id: str,
     run_id: str,
     assistant_id: str,
-    model: str = "gpt-4-0125-preview",
+    model: str = DEFAULT_GPT4_32K_MODEL,
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
     max_iterations: int = 200,
@@ -202,12 +221,16 @@ def run_until_complete(
                 run_id=run_id,
             )
             if run.status == "completed":
-                logger.info(f"Run completed with {run.status}")
+                logger.info(
+                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                )
                 break
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
-                logger.info(f"Run completed with {run.status}")
+                logger.info(
+                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                )
                 raise Exception(
-                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id}"
+                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
                 )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
@@ -236,7 +259,7 @@ def run_until_complete(
                         function_input: dict = json.loads(tool_call_arguments)
                     except:
                         logger.warning(
-                            f"Could not parse function arguments: {tool_call_arguments}"
+                            f"Could not parse function arguments (i={num_tool_calls_made}): {tool_call_arguments}"
                         )
                         tool_outputs.append(
                             {
@@ -268,7 +291,8 @@ def run_until_complete(
                 thread_id=thread_id,
             )
             current_message_strings = [
-                message.content[0].text.value for message in messages.data
+                message.content[0].text.value if message.content else ""
+                for message in messages.data
             ]
             if message_strings != current_message_strings and current_message_strings:
                 logger.info(run.status)
@@ -297,7 +321,7 @@ def run_until_complete(
             time.sleep(sleep_time)
     except (KeyboardInterrupt, SystemExit):
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
-        logger.warning(f"Run cancelled: {run_id}")
+        logger.warning(f"Run cancelled: {run_id} (i={num_tool_calls_made})")
         raise SystemExit
     if save_ticket_progress is not None:
         save_ticket_progress(
@@ -306,7 +330,7 @@ def run_until_complete(
             run_id=run_id,
         )
     for json_message in json_messages:
-        logger.info(json_message["content"])
+        logger.info(f'(i={num_tool_calls_made}) {json_message["content"]}')
     return client.beta.threads.messages.list(
         thread_id=thread_id,
     )
@@ -319,7 +343,7 @@ def openai_assistant_call_helper(
     file_paths: list[str] = [],  # use either file_paths or file_ids
     uploaded_file_ids: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
-    model: str = "gpt-4-0125-preview",
+    model: str = DEFAULT_GPT4_32K_MODEL,
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
@@ -398,7 +422,7 @@ def openai_assistant_call(
     file_paths: list[str] = [],
     uploaded_file_ids: list[str] = [],
     tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
-    model: str = "gpt-4-0125-preview",
+    model: str = DEFAULT_GPT4_32K_MODEL,
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
     assistant_id: str | None = None,
@@ -409,7 +433,7 @@ def openai_assistant_call(
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
         and not IS_SELF_HOSTED
-        else "gpt-4-0125-preview"
+        else DEFAULT_GPT4_32K_MODEL
     )
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
@@ -417,9 +441,11 @@ def openai_assistant_call(
         {
             "query": request,
             "model": model,
-            "username": chat_logger.data.get("username", "anonymous")
-            if chat_logger is not None
-            else "anonymous",
+            "username": (
+                chat_logger.data.get("username", "anonymous")
+                if chat_logger is not None
+                else "anonymous"
+            ),
             "is_self_hosted": IS_SELF_HOSTED,
             "trace": "".join(traceback.format_list(traceback.extract_stack())),
         },

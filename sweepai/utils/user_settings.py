@@ -9,6 +9,7 @@ from sweepai.config.server import (
     GITHUB_APP_ID,
     GITHUB_APP_PEM,
     IS_SELF_HOSTED,
+    PROGRESS_BASE_URL,
     RESEND_API_KEY,
 )
 from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
@@ -23,7 +24,9 @@ class UserSettings(BaseModel):
     do_email: bool = True
 
     @classmethod
-    def from_username(cls, username: str, installation_id: int = None) -> 'UserSettings':
+    def from_username(
+        cls, username: str, installation_id: int = None
+    ) -> "UserSettings":
         if IS_SELF_HOSTED:
             return cls(username=username, email="", do_email=False)
 
@@ -64,9 +67,9 @@ class UserSettings(BaseModel):
             return f"> [!TIP]\n> I'll email you at {self.email} when I complete this pull request!"
         elif not self.email:
             if not completed:
-                return f"> [!TIP]\n> I can email you when I complete this pull request if you set up your email [here](https://progress.sweep.dev/profile)!"
+                return f"> [!TIP]\n> I can email you when I complete this pull request if you set up your email [here]({PROGRESS_BASE_URL}/profile)!"
             else:
-                return f"> [!TIP]\n> I can email you next time I complete a pull request if you set up your email [here](https://progress.sweep.dev/profile)!"
+                return f"> [!TIP]\n> I can email you next time I complete a pull request if you set up your email [here]({PROGRESS_BASE_URL}/profile)!"
 
     def send_email(
         self,

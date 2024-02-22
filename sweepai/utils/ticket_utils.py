@@ -16,16 +16,15 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 
-# @file_cache()
-def prep_snippets(
+@file_cache()
+def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7,
+    k: int = 7  
 ):
     sweep_config: SweepConfig = SweepConfig()
-
-    file_list, snippets, lexical_index = prepare_lexical_search_index(
+    _, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo.cached_dir, sweep_config, ticket_progress
     )
     if ticket_progress:
@@ -36,33 +35,37 @@ def prep_snippets(
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-
     content_to_lexical_score = search_index(query, lexical_index)
-    snippet_to_key = (
-        lambda snippet: f"{snippet.file_path}:{snippet.start}:{snippet.end}"
-    )
-
     files_to_scores = compute_vector_search_scores(query, snippets)
     for snippet in snippets:
         vector_score = files_to_scores.get(snippet.denotation, 0.04)
         snippet_score = 0.02
-        if snippet_to_key(snippet) in content_to_lexical_score:
+        if snippet.denotation in content_to_lexical_score:
             # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
             snippet_score = (
-                content_to_lexical_score[snippet_to_key(snippet)] + (vector_score * 3.5)
+                content_to_lexical_score[snippet.denotation] + (vector_score * 3.5)
             )
-            content_to_lexical_score[snippet_to_key(snippet)] = snippet_score
+            content_to_lexical_score[snippet.denotation] = snippet_score
         else:
-            content_to_lexical_score[snippet_to_key(snippet)] = (
+            content_to_lexical_score[snippet.denotation] = (
                 snippet_score * vector_score
             )
 
     ranked_snippets = sorted(
         snippets,
-        key=lambda snippet: content_to_lexical_score[snippet_to_key(snippet)],
+        key=lambda snippet: content_to_lexical_score[snippet.denotation],
         reverse=True,
     )
     ranked_snippets = ranked_snippets[:k]
+    return ranked_snippets, snippets, content_to_lexical_score
+
+def prep_snippets(
+    cloned_repo: ClonedRepo,
+    query: str,
+    ticket_progress: TicketProgress | None = None,
+    k: int = 7,
+):
+    ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(cloned_repo, query, ticket_progress, k)
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
