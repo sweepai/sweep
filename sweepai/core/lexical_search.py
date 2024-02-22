@@ -1,5 +1,5 @@
-# import multiprocessing
 import json
+import multiprocessing
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -26,7 +26,6 @@ if DEBUG:
 else:
     redis_client = None
 
-@file_cache()
 def compute_document_tokens(
     content: str,
 ) -> list[str]:  # method that offloads the computation to a separate process
@@ -232,7 +231,7 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
         )
     return docs
 
-
+@file_cache(ignore_params=["ticket_progress", "len_repo_cache_dir"])
 def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,
@@ -247,12 +246,14 @@ def prepare_index_from_snippets(
         ticket_progress.save()
     all_tokens = []
     try:
-        for i, doc in tqdm(enumerate(all_docs)):
-            document_tokens = compute_document_tokens(doc.content)
-            all_tokens.append(document_tokens)
-            if ticket_progress and i % 200 == 0:
-                ticket_progress.search_progress.indexing_progress = i
-                ticket_progress.save()
+        with multiprocessing.Pool(processes=8) as p:
+            for i, document_tokens in tqdm(enumerate(
+                p.imap(compute_document_tokens, [doc.content for doc in all_docs])
+            )):
+                all_tokens.append(document_tokens)
+                if ticket_progress and i % 200 == 0:
+                    ticket_progress.search_progress.indexing_progress = i
+                    ticket_progress.save()
         for doc, document_tokens in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
             index.add_document(
                 title=f"{doc.title}:{doc.start}-{doc.end}", tokens=document_tokens # snippet.denotation
@@ -331,7 +332,7 @@ def compute_vector_search_scores(query, snippets: list[Snippet]):
     snippet_denotation_to_scores = {snippet_denotations[i]: score for i, score in enumerate(query_snippet_similarities)}
     return snippet_denotation_to_scores
 
-@file_cache(ignore_params=["sweep_config"])
+@file_cache(ignore_params=["sweep_config", "ticket_progress"])
 def prepare_lexical_search_index(
     repo_directory,
     sweep_config,

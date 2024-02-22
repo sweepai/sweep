@@ -343,7 +343,8 @@ TIKTOKEN_CACHE_DIR = "/tmp/cache/tiktoken"
 
 
 class Tiktoken:
-    openai_models = [
+    def __init__(self):
+        openai_models = [
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-1106",
         "gpt-4",
@@ -351,13 +352,10 @@ class Tiktoken:
         "gpt-4-32k-0613",
         "gpt-4-1106-preview",
         "gpt-4-0125-preview",
-    ]
-    models = openai_models
-
-    def __init__(self):
+        ]
         self.openai_models = {
             model: tiktoken.encoding_for_model(model)
-            for model in Tiktoken.openai_models
+            for model in openai_models
         }
 
     def count(self, text: str, model: str = "gpt-4") -> int:

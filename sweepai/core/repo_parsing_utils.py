@@ -1,5 +1,6 @@
 import glob
 import logging
+import multiprocessing
 
 # import multiprocessing
 import os
@@ -32,6 +33,8 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     try:
         if os.stat(file).st_size > 240000:
             return False
+        if os.stat(file).st_size < 10:
+            return False
     except FileNotFoundError as e:
         logging.error(f"File not found: {file}. Error: {e}")
         return False
@@ -45,7 +48,6 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
                 break
         if is_binary:
             return False
-
     return True
 
 
@@ -92,7 +94,7 @@ def directory_to_chunks(
         and not is_dir_too_big(file_name)
     ]
     all_chunks = []
-    for file_path in tqdm(file_list):
-        chunks = file_path_to_chunks(file_path)
-        all_chunks.extend(chunks)
+    with multiprocessing.Pool(processes=8) as pool:
+        for chunks in tqdm(pool.imap(file_path_to_chunks, file_list)):
+            all_chunks.extend(chunks)
     return all_chunks, file_list

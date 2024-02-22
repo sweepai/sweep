@@ -184,7 +184,7 @@ class ClonedRepo:
         else:
             try:
                 repo = git.Repo(self.cached_dir)
-                repo.remotes.origin.pull()
+                repo.remotes.origin.pull(kill_after_timeout=60, progress=git.RemoteProgress())
             except Exception:
                 logger.error("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
