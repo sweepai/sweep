@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 from sweepai.agents.assistant_function_modify import function_modify
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import logger
@@ -108,7 +109,7 @@ def create_additional_messages(
                 current_file_diff += generate_diff(old_contents, new_contents) + "\n"
     return additional_messages
 
-
+@file_cache()
 def modify_file(
     cloned_repo: ClonedRepo,
     metadata: str,

@@ -167,7 +167,6 @@ class CodeGenBot(ChatGPT):
                     new_file_change_request.change_type = "check"
                     new_file_change_request.instructions = ""
                     new_file_change_request.parent = file_change_request
-                    new_file_change_request.id_ = str(uuid.uuid4())
                     file_change_requests.append(new_file_change_request)
 
             if file_change_requests:
@@ -727,7 +726,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 new_file_change_request = copy.deepcopy(file_change_request)
                 new_file_change_request.change_type = "check"
                 new_file_change_request.instructions = ""
-                new_file_change_request.id_ = str(uuid.uuid4())
                 new_file_change_request.parent = file_change_request
                 file_change_requests.append(new_file_change_request)
 

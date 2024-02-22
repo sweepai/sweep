@@ -158,7 +158,6 @@ class FileChangeRequest(RegexMatchableBaseModel):
     ] = "queued"
     destination_module: str | None = None
     commit_hash_url: str | None = None
-    id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
     def get_edit_url(self, repo_full_name: str, branch_name: str):
         url = f"https://github.com/{repo_full_name}/edit/{branch_name}/{self.filename}"
