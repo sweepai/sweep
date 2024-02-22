@@ -34,7 +34,7 @@ jobs:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-    - name: Build Docker Image
+    - name: Build Docker Image for Watch Script
       uses: docker/build-push-action@v2
       with:
         context: .
@@ -45,7 +45,7 @@ jobs:
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
 
-    - name: Build Docker Image
+    - name: Build Docker Image for GittHub App
       uses: docker/build-push-action@v2
       with:
         context: .
