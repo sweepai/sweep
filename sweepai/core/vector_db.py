@@ -92,11 +92,17 @@ def openai_with_expo_backoff(batch: tuple[str]):
     # check cache first
     embeddings = [None] * len(batch)
     cache_keys = [hash_sha256(text) + CACHE_VERSION for text in batch]
+    count_cache_miss = 0
     for i, cache_key in enumerate(cache_keys):
+        if count_cache_miss > 5 and i > 5:
+            break
         try:
             cache_value = redis_client.get(cache_key)
             if cache_value:
                 embeddings[i] = np.array(json.loads(cache_value))
+            else:
+                count_cache_miss += 1
+
         except Exception as e:
             logger.exception(e)
     # not stored in cache call openai
