@@ -25,7 +25,7 @@ def get_top_k_snippets(
 ):
     sweep_config: SweepConfig = SweepConfig()
     _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.cached_dir, sweep_config, ticket_progress
+        cloned_repo.cached_dir, sweep_config, ticket_progress, ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}"
     )
     if ticket_progress:
         ticket_progress.search_progress.indexing_progress = (
