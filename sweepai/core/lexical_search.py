@@ -234,7 +234,7 @@ def prepare_index_from_docs(docs: list[tuple[str, str]]) -> CustomIndex | None:
     try:
         for doc in tqdm(all_docs, total=len(all_docs)):
             index.add_document(
-                title=f"{doc.url}", tokens=compute_document_tokens(doc.content)
+                title=f"{doc.url}", token_freq=compute_document_tokens(doc.content)
             )
     except FileNotFoundError as e:
         logger.exception(e)

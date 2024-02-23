@@ -7,7 +7,6 @@ import shutil
 import subprocess
 import time
 import traceback
-from memory_profiler import profile
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
