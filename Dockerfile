@@ -64,7 +64,7 @@ COPY redis.conf /app/redis.conf
 
 # Set the SWEEP_VERSION environment variable to the current date and time during image build
 ARG SWEEP_VERSION
-ENV SWEEP_VERSION=${SWEEP_VERSION:-"$(date +%Y%m%d%H%M)"}
+RUN export SWEEP_VERSION=${SWEEP_VERSION:-$(date +%Y%m%d%H%M)} && echo "SWEEP_VERSION=$SWEEP_VERSION" >> /etc/environment
 RUN chmod u+x /app/startup.sh
 
 EXPOSE $PORT
