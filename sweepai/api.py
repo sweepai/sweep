@@ -257,7 +257,8 @@ def redirect_to_health():
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+    with open("sweepai/web/index.html", "r") as f:
+        return f.read()
 
 
 @app.get("/ticket_progress/{tracking_id}")
