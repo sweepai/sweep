@@ -5,7 +5,6 @@ import ctypes
 import json
 import threading
 import time
-import tracemalloc
 from typing import Optional
 
 import requests
@@ -91,8 +90,6 @@ from sweepai.web.events import (
 from sweepai.web.health import health_check
 
 app = FastAPI()
-
-tracemalloc.start()
 
 events = {}
 on_ticket_events = {}

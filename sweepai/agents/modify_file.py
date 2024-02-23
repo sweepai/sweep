@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 from sweepai.agents.assistant_function_modify import function_modify
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import logger
@@ -51,7 +52,10 @@ def create_additional_messages(
         if file_path not in latest_version_per_file:
             latest_version_per_file[file_path] = new_contents
     for file_path, _ in changed_files:
-        if not latest_version_per_file[file_path].strip():
+        if (
+            not latest_version_per_file[file_path]
+            or not latest_version_per_file[file_path].strip()
+        ):
             continue
         earliest_file_version = earliest_version_per_file[file_path]
         latest_file_version = latest_version_per_file[file_path]
@@ -109,6 +113,7 @@ def create_additional_messages(
     return additional_messages
 
 
+@file_cache()
 def modify_file(
     cloned_repo: ClonedRepo,
     metadata: str,

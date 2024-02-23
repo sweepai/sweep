@@ -3,6 +3,7 @@ import re
 import textwrap
 import time
 
+import openai
 from attr import dataclass
 from loguru import logger
 from openai.types.beta.thread import Thread
@@ -303,7 +304,12 @@ def get_relevant_context(
         old_top_snippets = [
             snippet for snippet in repo_context_manager.current_top_snippets
         ]
-        modify_context(thread, run, repo_context_manager, ticket_progress, model=model)
+        try:
+            modify_context(
+                thread, run, repo_context_manager, ticket_progress, model=model
+            )
+        except openai.BadRequestError as e:  # sometimes means that run has expired
+            logger.exception(e)
         if len(repo_context_manager.current_top_snippets) == 0:
             repo_context_manager.current_top_snippets = old_top_snippets
             discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")

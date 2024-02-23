@@ -253,10 +253,9 @@ def function_modify(
         if diff:
             logger.info("Changes made:")
             logger.info(diff[: min(1000, len(diff))])
-        else:
-            logger.warning("No changes were made.")
         if current_contents != file_contents:
             return current_contents
+        logger.warning("No changes were made.")
     except AssistantRaisedException as e:
         logger.exception(e)
         discord_log_error(

@@ -1,3 +1,5 @@
+from loguru import logger
+
 from sweepai.config.client import (
     RESET_FILE,
     REVERT_CHANGED_FILES_TITLE,
@@ -14,7 +16,6 @@ from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import GITHUB_LABEL_NAME, create_pr_changes
-from sweepai.logn import logger
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog

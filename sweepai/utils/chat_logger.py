@@ -5,6 +5,7 @@ from threading import Thread
 from typing import Any
 
 import requests
+from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
@@ -17,10 +18,11 @@ from sweepai.config.server import (
     MONGODB_URI,
 )
 from sweepai.global_threads import global_threads
-from sweepai.logn import logger
 
 global_mongo_client = MongoClient(
-    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000
+    MONGODB_URI,
+    serverSelectionTimeoutMS=20000,
+    socketTimeoutMS=20000,
 )
 
 
