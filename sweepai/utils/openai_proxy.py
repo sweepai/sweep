@@ -30,6 +30,7 @@ class OpenAIProxy:
     @file_cache(ignore_params=[])
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
+            raise NotImplementedError("OpenAIProxy is not implemented")
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 response = self.set_openai_default_api_parameters(
