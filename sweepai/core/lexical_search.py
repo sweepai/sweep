@@ -175,7 +175,7 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     for snippet in snippets:
         docs.append(
             Document(
-                title=f"{snippet.file_path[len_repo_cache_dir:]}{snippet.start}-{snippet.end}",
+                title=f"{snippet.file_path[len_repo_cache_dir:]}:{snippet.start}-{snippet.end}",
                 content=snippet.get_snippet(add_ellipsis=False, add_lines=False),
             )
         )
