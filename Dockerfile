@@ -61,6 +61,9 @@ COPY tests /app/tests
 ENV PYTHONPATH=.
 COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
+
+# Set the SWEEP_VERSION environment variable to the current date and time during image build
+ENV SWEEP_VERSION=$(date +%Y%m%d%H%M)
 RUN chmod u+x /app/startup.sh
 
 EXPOSE $PORT
