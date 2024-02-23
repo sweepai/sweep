@@ -1,6 +1,5 @@
 from functools import lru_cache
 import json
-import multiprocessing
 from typing import Generator
 import backoff
 from loguru import logger

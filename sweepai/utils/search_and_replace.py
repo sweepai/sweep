@@ -5,7 +5,8 @@ from functools import lru_cache
 from rapidfuzz import fuzz
 from tqdm import tqdm
 
-from sweepai.logn import file_cache, logger
+from sweepai.logn import file_cache
+from loguru import logger
 
 
 @lru_cache()
