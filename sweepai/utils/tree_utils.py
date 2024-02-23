@@ -1,6 +1,6 @@
 import copy
 
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.logn.cache import file_cache
 
 class Line:

@@ -17,12 +17,11 @@ from sweepai.config.server import (
     MONGODB_URI,
 )
 from sweepai.global_threads import global_threads
-from sweepai.logn import logger
+from loguru import logger
 
 global_mongo_client = MongoClient(
-    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000
+    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000,
 )
-
 
 class ChatLogger(BaseModel):
     data: dict

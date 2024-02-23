@@ -3,6 +3,7 @@ import traceback
 from typing import Any, Literal
 
 import backoff
+from loguru import logger
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -15,7 +16,6 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
-from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -55,8 +55,6 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 }
 default_temperature = 0.1
-count_tokens = Tiktoken().count
-
 
 class MessageList(BaseModel):
     messages: list[Message] = [

@@ -52,7 +52,7 @@ def create_additional_messages(
         if file_path not in latest_version_per_file:
             latest_version_per_file[file_path] = new_contents
     for file_path, _ in changed_files:
-        if not latest_version_per_file[file_path].strip():
+        if not latest_version_per_file[file_path] or not latest_version_per_file[file_path].strip():
             continue
         earliest_file_version = earliest_version_per_file[file_path]
         latest_file_version = latest_version_per_file[file_path]

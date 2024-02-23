@@ -1,6 +1,5 @@
 from functools import lru_cache
 import json
-import multiprocessing
 from typing import Generator
 import backoff
 from loguru import logger
@@ -92,13 +91,12 @@ def openai_with_expo_backoff(batch: tuple[str]):
     # check cache first
     embeddings = [None] * len(batch)
     cache_keys = [hash_sha256(text) + CACHE_VERSION for text in batch]
-    for i, cache_key in enumerate(cache_keys):
-        try:
-            cache_value = redis_client.get(cache_key)
+    try:
+        for i, cache_value in enumerate(redis_client.mget(cache_keys)):
             if cache_value:
                 embeddings[i] = np.array(json.loads(cache_value))
-        except Exception as e:
-            logger.exception(e)
+    except Exception as e:
+        logger.exception(e)
     # not stored in cache call openai
     batch = [text for i, text in enumerate(batch) if embeddings[i] is None] # remove all the cached values from the batch
     if len(batch) == 0:
@@ -118,12 +116,10 @@ def openai_with_expo_backoff(batch: tuple[str]):
     for i, index in enumerate(indices):
         embeddings[index] = new_embeddings[i]
     # store in cache
-    for i, cache_key in enumerate(cache_keys):
-        if embeddings[i] is not None:
-            redis_client.set(cache_key, json.dumps(embeddings[i].tolist()))
+    redis_client.mset({cache_key: json.dumps(embedding.tolist()) for cache_key, embedding in zip(cache_keys, embeddings)})
     embeddings = np.array(embeddings)
     return embeddings
     
 if __name__ == "__main__":
-    texts = ["sasxt " * 10000 for i in range(10)] + ["abc " * 1 for i in range(10)]
+    texts = ["sasxt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
     embeddings = embed_text_array(texts)

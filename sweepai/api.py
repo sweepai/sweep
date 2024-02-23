@@ -91,10 +91,6 @@ from sweepai.web.health import health_check
 
 app = FastAPI()
 
-import tracemalloc
-
-tracemalloc.start()
-
 events = {}
 on_ticket_events = {}
 
