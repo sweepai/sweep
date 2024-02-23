@@ -337,6 +337,7 @@ def prepare_lexical_search_index(
     repo_directory,
     sweep_config,
     ticket_progress: TicketProgress | None = None,
+    ref_name: str | None = None, # used for caching on different refs
 ):
     snippets, file_list = directory_to_chunks(repo_directory, sweep_config)
     index = prepare_index_from_snippets(
