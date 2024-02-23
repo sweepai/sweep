@@ -12,6 +12,12 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+ARG SWEEP_COMMIT_HASH
+RUN git rev-parse HEAD > .git_hash
+RUN echo "SWEEP_COMMIT_HASH=$(cat .git_hash)" >> .env
+ENV SWEEP_COMMIT_HASH=${SWEEP_COMMIT_HASH}
+RUN rm .git_hash
+
 RUN git clone https://github.com/universal-ctags/ctags.git && \
     cd ctags && \
     ./autogen.sh && \
