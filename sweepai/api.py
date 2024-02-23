@@ -24,6 +24,7 @@ from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
 from sweepai.global_threads import global_threads
+from sweepai.version import __version__
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -251,6 +252,9 @@ def call_on_merge(*args, **kwargs):
 
 
 @app.get("/health")
+@app.get("/version")
+def get_version():
+    return {"version": __version__}
 def redirect_to_health():
     return health_check()
 
