@@ -25,7 +25,7 @@ def get_top_k_snippets(
 ):
     sweep_config: SweepConfig = SweepConfig()
     _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.cached_dir, sweep_config, ticket_progress
+        cloned_repo.cached_dir, sweep_config, ticket_progress, ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}"
     )
     if ticket_progress:
         ticket_progress.search_progress.indexing_progress = (
@@ -77,10 +77,9 @@ def prep_snippets(
             if idx > snippet_depth // 2:
                 prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
         prefixes.append(snippet_path)
-    included_files = [snippet.file_path for snippet in ranked_snippets]
     _, dir_obj = cloned_repo.list_directory_tree(
         included_directories=prefixes,
-        included_files=included_files,
+        included_files=snippet_paths,
     )
     repo_context_manager = RepoContextManager(
         dir_obj=dir_obj,
@@ -91,7 +90,6 @@ def prep_snippets(
         cloned_repo=cloned_repo,
     )
     return repo_context_manager
-
 
 def fetch_relevant_files(
     cloned_repo,

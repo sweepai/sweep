@@ -4,7 +4,7 @@ from itertools import islice
 from github.Repository import Repository
 from pydantic import BaseModel
 
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.chat_logger import discord_log_error
 
 summary_format = """# Pull Request #{id_}

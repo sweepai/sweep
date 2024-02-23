@@ -9,8 +9,8 @@ import re
 import traceback
 from time import time
 
-import markdown
 import openai
+import markdown
 import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
@@ -154,7 +154,6 @@ You ran out of the free tier GPT-4 tickets! We no longer support running Sweep w
 - You can self-host Sweep with your own GPT-4 API key. You can find instructions [here](https://docs.sweep.dev/deployment).
 - You can book a chat with us to discuss your use case and get additional free GPT-4 tickets [here](https://calendly.com/d/2n5-3qf-9xy/user-interview).
 """
-
 
 def on_ticket(
     title: str,
