@@ -7,7 +7,7 @@ import time
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_rules
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client

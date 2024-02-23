@@ -12,14 +12,13 @@ from functools import cached_property
 from typing import Any
 
 import git
-import rapidfuzz
 import requests
 from github import Github
 from jwt import encode
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.ctags import CTags
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
@@ -362,6 +361,7 @@ class ClonedRepo:
         return commit_history
 
     def get_similar_file_paths(self, file_path: str, limit: int = 10):
+        from rapidfuzz.fuzz import ratio
         # Fuzzy search over file names
         file_name = os.path.basename(file_path)
         all_file_paths = self.get_file_list()
@@ -374,12 +374,12 @@ class ClonedRepo:
                 files_without_matching_name.append(file_path)
         files_with_matching_name = sorted(
             files_with_matching_name,
-            key=lambda file_path: rapidfuzz.fuzz.ratio(file_name, file_path),
+            key=lambda file_path: ratio(file_name, file_path),
             reverse=True,
         )
         files_without_matching_name = sorted(
             files_without_matching_name,
-            key=lambda file_path: rapidfuzz.fuzz.ratio(file_name, file_path),
+            key=lambda file_path: ratio(file_name, file_path),
             reverse=True,
         )
         all_files = files_with_matching_name + files_without_matching_name
@@ -479,8 +479,7 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
-str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
-
 if __name__ == "__main__":
+    str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
+    str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
     print(get_hunks(str1, str2, 1))

@@ -16,7 +16,7 @@ from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 
