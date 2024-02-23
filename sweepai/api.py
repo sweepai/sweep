@@ -22,6 +22,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
+import os
 from prometheus_fastapi_instrumentator import Instrumentator
 from sweepai.global_threads import global_threads
 
@@ -264,6 +265,13 @@ def home():
 def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
     return ticket_progress.dict()
+
+@app.get("/version")
+def get_version():
+    version_file_path = os.path.join(os.path.dirname(__file__), 'version.txt')
+    with open(version_file_path, 'r') as file:
+        version = file.read().strip()
+    return {'version': version}
 
 
 def init_hatchet() -> Hatchet | None:
