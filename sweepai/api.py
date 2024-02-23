@@ -260,6 +260,11 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
+@app.get("/version")
+def get_version():
+    from sweepai.utils.version import get_version as get_sweep_version
+    return {"version": get_sweep_version()}
+
 @app.get("/ticket_progress/{tracking_id}")
 def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
