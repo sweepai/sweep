@@ -5,6 +5,7 @@ import ctypes
 import json
 import threading
 import time
+import os
 from typing import Optional
 
 import requests
@@ -264,6 +265,11 @@ def home():
 def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
     return ticket_progress.dict()
+
+@app.get("/version")
+def get_version():
+    commit_hash = os.getenv('SWEEP_COMMIT_HASH', 'unknown')
+    return {"version": commit_hash}
 
 
 def init_hatchet() -> Hatchet | None:
