@@ -198,7 +198,7 @@ DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106"
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
 LOKI_URL = os.environ.get("LOKI_URL", None)
 
-DEBUG: bool = True
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
 
 PROGRESS_BASE_URL = os.environ.get(

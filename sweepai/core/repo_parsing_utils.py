@@ -5,11 +5,11 @@ import multiprocessing
 # import multiprocessing
 import os
 
+from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
-from sweepai.logn import logger
 from sweepai.utils.utils import chunk_code
 
 
@@ -57,11 +57,12 @@ def read_file(file_name: str) -> str:
             return f.read()
     except SystemExit:
         raise SystemExit
-    except:
+    except Exception:
         return ""
 
 
 FILE_THRESHOLD = 120
+
 
 def file_path_to_chunks(file_path: str) -> list[str]:
     file_contents = read_file(file_path)
@@ -93,8 +94,9 @@ def directory_to_chunks(
         and filter_file(directory, file_name, sweep_config)
         and not is_dir_too_big(file_name)
     ]
+    logger.info("Done reading files")
     all_chunks = []
-    with multiprocessing.Pool(processes=8) as pool:
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
         for chunks in tqdm(pool.imap(file_path_to_chunks, file_list)):
             all_chunks.extend(chunks)
     return all_chunks, file_list

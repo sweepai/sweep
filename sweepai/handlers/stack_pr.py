@@ -133,7 +133,7 @@ def stack_pr(
                 chat_logger,
                 ticket_progress,
             )
-        except:
+        except Exception:
             edit_comment(
                 "It looks like an issue has occurred around fetching the files."
                 " Perhaps the repo failed to initialized. If this error persists"
@@ -188,7 +188,6 @@ def stack_pr(
 
         for item in generator:
             if isinstance(item, dict):
-                response = item
                 break
             (
                 file_change_request,

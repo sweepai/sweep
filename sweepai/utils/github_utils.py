@@ -12,14 +12,13 @@ from functools import cached_property
 from typing import Any
 
 import git
-import rapidfuzz
 import requests
 from github import Github
 from jwt import encode
+from loguru import logger
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
-from sweepai.logn import logger
 from sweepai.utils.ctags import CTags
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
@@ -60,7 +59,7 @@ def get_token(installation_id: int):
             return obj["token"]
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             time.sleep(timeout)
     raise Exception(
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
@@ -88,7 +87,7 @@ def get_installation_id(username: str) -> str:
         )
         obj = response.json()
         return obj["id"]
-    except Exception as e:
+    except Exception:
         # Try org
         response = requests.get(
             f"https://api.github.com/orgs/{username}/installation",
@@ -184,7 +183,9 @@ class ClonedRepo:
         else:
             try:
                 repo = git.Repo(self.cached_dir)
-                repo.remotes.origin.pull(kill_after_timeout=60, progress=git.RemoteProgress())
+                repo.remotes.origin.pull(
+                    kill_after_timeout=60, progress=git.RemoteProgress()
+                )
             except Exception:
                 logger.error("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
@@ -215,7 +216,7 @@ class ClonedRepo:
             shutil.rmtree(self.repo_dir)
             os.remove(self.zip_path)
             return True
-        except:
+        except Exception:
             return False
 
     def list_directory_tree(
@@ -339,7 +340,7 @@ class ClonedRepo:
                 if time_limited and commit.authored_datetime.replace(
                     tzinfo=None
                 ) <= cut_off_date.replace(tzinfo=None):
-                    logger.info(f"Exceeded cut off date, stopping...")
+                    logger.info("Exceeded cut off date, stopping...")
                     break
                 repo = get_github_client(self.installation_id)[1].get_repo(
                     self.repo_full_name
@@ -357,11 +358,13 @@ class ClonedRepo:
                     f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>"
                 )
                 line_count += lines
-        except:
+        except Exception:
             logger.error(f"An error occurred: {traceback.print_exc()}")
         return commit_history
 
     def get_similar_file_paths(self, file_path: str, limit: int = 10):
+        from rapidfuzz.fuzz import ratio
+
         # Fuzzy search over file names
         file_name = os.path.basename(file_path)
         all_file_paths = self.get_file_list()
@@ -374,12 +377,12 @@ class ClonedRepo:
                 files_without_matching_name.append(file_path)
         files_with_matching_name = sorted(
             files_with_matching_name,
-            key=lambda file_path: rapidfuzz.fuzz.ratio(file_name, file_path),
+            key=lambda file_path: ratio(file_name, file_path),
             reverse=True,
         )
         files_without_matching_name = sorted(
             files_without_matching_name,
-            key=lambda file_path: rapidfuzz.fuzz.ratio(file_name, file_path),
+            key=lambda file_path: ratio(file_name, file_path),
             reverse=True,
         )
         all_files = files_with_matching_name + files_without_matching_name
@@ -392,15 +395,15 @@ class MockClonedRepo(ClonedRepo):
     git_repo: git.Repo | None = None
 
     def __init__(
-            self,
-            _repo_dir: str,
-            repo_full_name: str,
-            installation_id: str = "",
-            branch: str | None = None,
-            token: str | None = None,
-            repo: Any | None = None,
-            git_repo: git.Repo | None = None,
-        ):
+        self,
+        _repo_dir: str,
+        repo_full_name: str,
+        installation_id: str = "",
+        branch: str | None = None,
+        token: str | None = None,
+        repo: Any | None = None,
+        git_repo: git.Repo | None = None,
+    ):
         self._repo_dir = _repo_dir
         self.repo_full_name = repo_full_name
         self.installation_id = installation_id
@@ -423,7 +426,7 @@ class MockClonedRepo(ClonedRepo):
     @property
     def git_repo(self):
         return git.Repo(self.repo_dir)
-    
+
     def clone(self):
         return git.Repo(self.repo_dir)
 
@@ -432,6 +435,7 @@ class MockClonedRepo(ClonedRepo):
 
     def __del__(self):
         return True
+
 
 def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r"\b[\w\-\.\/]*\w+\.\w{1,6}\b", query)
@@ -479,8 +483,7 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
-str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
-
 if __name__ == "__main__":
+    str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
+    str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
     print(get_hunks(str1, str2, 1))

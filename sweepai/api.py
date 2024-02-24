@@ -23,7 +23,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
-from sweepai.global_threads import global_threads
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -49,6 +48,7 @@ from sweepai.config.server import (
     MERGE_CONFLICT_ENABLED,
 )
 from sweepai.core.entities import PRChangeRequest
+from sweepai.global_threads import global_threads
 from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos,
     create_gha_pr,
@@ -90,10 +90,6 @@ from sweepai.web.events import (
 from sweepai.web.health import health_check
 
 app = FastAPI()
-
-import tracemalloc
-
-tracemalloc.start()
 
 events = {}
 on_ticket_events = {}
@@ -261,7 +257,8 @@ def redirect_to_health():
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+    with open("sweepai/web/index.html", "r") as f:
+        return f.read()
 
 
 @app.get("/ticket_progress/{tracking_id}")
@@ -404,7 +401,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                 logger.warning(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
-    except:
+    except Exception:
         logger.warning("Failed to update sweep PRs")
 
 
@@ -566,7 +563,7 @@ def run(request_dict, event):
                     )
                     pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
 
-                if pr.mergeable == False and MERGE_CONFLICT_ENABLED:
+                if pr.mergeable is False and MERGE_CONFLICT_ENABLED:
                     attributor = pr.user.login
                     if attributor.endswith("[bot]"):
                         attributor = pr.assignee.login
@@ -705,7 +702,7 @@ def run(request_dict, event):
                     if (
                         comment.lower().startswith("sweep:")
                         or any(label.name.lower() == "sweep" for label in labels)
-                    ) and not BOT_SUFFIX in comment:
+                    ) and BOT_SUFFIX not in comment:
                         pr_change_request = PRChangeRequest(
                             params={
                                 "comment_type": "comment",
@@ -778,7 +775,7 @@ def run(request_dict, event):
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
                     )
-                    and not (BOT_SUFFIX in request.comment.body)
+                    and BOT_SUFFIX not in request.comment.body
                 ):
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
@@ -810,7 +807,7 @@ def run(request_dict, event):
                 elif (
                     request.issue.pull_request
                     and request.comment.user.type == "User"
-                    and not (BOT_SUFFIX in request.comment.body)
+                    and BOT_SUFFIX not in request.comment.body
                 ):  # TODO(sweep): set a limit
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
@@ -820,7 +817,7 @@ def run(request_dict, event):
                     if (
                         comment.lower().startswith("sweep:")
                         or any(label.name.lower() == "sweep" for label in labels)
-                        and not BOT_SUFFIX in comment
+                        and BOT_SUFFIX not in comment
                     ):
                         pr_change_request = PRChangeRequest(
                             params={
@@ -850,7 +847,7 @@ def run(request_dict, event):
                         or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
-                    and not BOT_SUFFIX in comment
+                    and BOT_SUFFIX not in comment
                 ):
                     pr_change_request = PRChangeRequest(
                         params={
@@ -880,7 +877,7 @@ def run(request_dict, event):
                         or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
-                    and not BOT_SUFFIX in comment
+                    and BOT_SUFFIX not in comment
                 ):
                     pr_change_request = PRChangeRequest(
                         params={
@@ -972,7 +969,7 @@ def run(request_dict, event):
                             "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
                         }
                         headers = {"Content-Type": "application/json"}
-                        response = requests.post(
+                        requests.post(
                             DISCORD_FEEDBACK_WEBHOOK_URL,
                             data=json.dumps(data),
                             headers=headers,
@@ -1070,7 +1067,7 @@ def run(request_dict, event):
                     )
                 chat_logger = ChatLogger({"username": merged_by})
             case "push", None:
-                if event != "pull_request" or request_dict["base"]["merged"] == True:
+                if event != "pull_request" or request_dict["base"]["merged"] is True:
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
                     )
@@ -1103,7 +1100,7 @@ def run(request_dict, event):
                             logger.info(
                                 f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
                             )
-                            if pr.mergeable == False and MERGE_CONFLICT_ENABLED:
+                            if pr.mergeable is False and MERGE_CONFLICT_ENABLED:
                                 attributor = pr.user.login
                                 if attributor.endswith("[bot]"):
                                     attributor = pr.assignee.login
