@@ -28,10 +28,10 @@ search_and_replace_schema = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        # "section_id": {
-                        #     "type": "string",
-                        #     "description": "The section ID the original code belongs to.",
-                        # },
+                        "section_id": {
+                            "type": "string",
+                            "description": "The section ID the original code belongs to.",
+                        },
                         "old_code": {
                             "type": "string",
                             "description": "The old lines of code. Be sure to add lines before and after to disambiguate the change.",
@@ -41,7 +41,7 @@ search_and_replace_schema = {
                             "description": "The new code to replace the old code.",
                         },
                     },
-                    "required": ["old_code", "new_code"],
+                    "required": ["section_id", "old_code", "new_code"],
                 },
             },
         },
