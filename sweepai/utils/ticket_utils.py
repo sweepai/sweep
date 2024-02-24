@@ -15,6 +15,7 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
+from sweepai.agents.query_filter_agent import QueryFilterAgent
 
 @file_cache()
 def get_top_k_snippets(
@@ -109,6 +110,7 @@ def fetch_relevant_files(
     logger.info("Fetching relevant files...")
     try:
         search_query = (title + summary + replies_text).strip("\n")
+        search_query = QueryFilterAgent().filter_query(search_query)
         replies_text = f"\n{replies_text}" if replies_text else ""
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
