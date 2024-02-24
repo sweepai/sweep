@@ -35,7 +35,7 @@ elif OPENAI_API_TYPE == "azure":
         api_key=AZURE_API_KEY,
         api_version=OPENAI_API_VERSION,
     )
-    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT
+    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
 else:
     raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
 
@@ -257,7 +257,7 @@ def run_until_complete(
                             r"\\+'", "", tool_call.function.arguments
                         )
                         function_input: dict = json.loads(tool_call_arguments)
-                    except:
+                    except Exception:
                         logger.warning(
                             f"Could not parse function arguments (i={num_tool_calls_made}): {tool_call_arguments}"
                         )

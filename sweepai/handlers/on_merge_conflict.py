@@ -92,7 +92,7 @@ def on_merge_conflict(
             branch=branch,
             token=token,
         )
-        start_time = time.time()
+        time.time()
 
         request = f"Sweep: Resolve merge conflicts for PR #{pr_number}: {pr.title}"
         title = request
@@ -108,7 +108,7 @@ def on_merge_conflict(
         )
 
         is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
+        chat_logger.is_consumer_tier()
 
         # this logic is partly taken from on_ticket.py, if there is an issue please refer to that file
         if chat_logger:
@@ -189,7 +189,7 @@ def on_merge_conflict(
                 "user", "email", "team@sweep.dev"
             ).release()
             git_repo.git.merge("origin/" + pr.base.ref)
-        except GitCommandError as e:
+        except GitCommandError:
             # Assume there are merge conflicts
             pass
 
@@ -310,7 +310,6 @@ def on_merge_conflict(
 
         for item in generator:
             if isinstance(item, dict):
-                response = item
                 break
             (
                 file_change_request,
@@ -325,7 +324,7 @@ def on_merge_conflict(
         ticket_progress.save()
         edit_comment("Done creating pull request.")
 
-        diff_text = get_branch_diff_text(repo, new_pull_request.branch_name)
+        get_branch_diff_text(repo, new_pull_request.branch_name)
 
         new_description = f"This PR resolves the merge conflicts in #{pr_number}. This branch can be directly merged into {pr.base.ref}.\n\nFixes #{pr_number}."
 

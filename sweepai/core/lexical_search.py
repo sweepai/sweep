@@ -1,22 +1,19 @@
-import json
 import multiprocessing
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from math import log
 
+from loguru import logger
 from redis import Redis
 from tqdm import tqdm
 
-from sweepai.config.server import REDIS_URL, DEBUG
+from sweepai.config.server import DEBUG, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import get_query_texts_similarity
-from loguru import logger
 from sweepai.logn.cache import file_cache
-from sweepai.utils.hash import hash_sha256
 from sweepai.utils.progress import TicketProgress
-from sweepai.utils.scorer import compute_score, get_scores
 
 CACHE_VERSION = "v1.0.14"
 
@@ -24,6 +21,7 @@ if DEBUG:
     redis_client = Redis.from_url(REDIS_URL)
 else:
     redis_client = None
+
 
 def compute_document_tokens(
     content: str,
@@ -43,9 +41,11 @@ class CustomIndex:
         self.metadata = {}  # Store custom metadata here
         self.tokenizer = CodeTokenizer()
 
-    def add_document(self, title: str, token_freq: Counter, metadata: dict = {}) -> None:
+    def add_document(
+        self, title: str, token_freq: Counter, metadata: dict = {}
+    ) -> None:
         doc_id = len(self.doc_lengths)  # increment doc_id
-        self.metadata[doc_id] = title # Store the title as metadata
+        self.metadata[doc_id] = title  # Store the title as metadata
         doc_length = sum(token_freq.values())
         self.doc_lengths[doc_id] = doc_length
         self.total_doc_length += doc_length
@@ -62,7 +62,13 @@ class CustomIndex:
         doc_length = self.doc_lengths[doc_id]
         tf = ((self.k1 + 1) * term_freq) / (
             term_freq
-            + self.k1 * (1 - self.b + self.b * (doc_length / (self.total_doc_length / len(self.doc_lengths))))
+            + self.k1
+            * (
+                1
+                - self.b
+                + self.b
+                * (doc_length / (self.total_doc_length / len(self.doc_lengths)))
+            )
         )
         return idf * tf
 
@@ -97,15 +103,13 @@ def tokenize_call(code: str) -> list[str]:
     valid_tokens = []
     for m in matches:
         text = m.group()
-        span_start = m.start()
+        m.start()
 
         if "_" in text:  # snakecase
             offset = 0
             for part in text.split("_"):
                 if check_valid_token(part):
-                    valid_tokens.append(
-                        part.lower()
-                    )
+                    valid_tokens.append(part.lower())
                     pos += 1
                 offset += len(part) + 1
         elif parts := variable_pattern.findall(text):  # pascal and camelcase
@@ -113,16 +117,12 @@ def tokenize_call(code: str) -> list[str]:
             offset = 0
             for part in parts:
                 if check_valid_token(part):
-                    valid_tokens.append(
-                        part.lower()
-                    )
+                    valid_tokens.append(part.lower())
                     pos += 1
                 offset += len(part)
         else:  # everything else
             if check_valid_token(text):
-                valid_tokens.append(
-                    text.lower()
-                )
+                valid_tokens.append(text.lower())
                 pos += 1
     return valid_tokens
 
@@ -152,10 +152,7 @@ def construct_trigrams(tokens: list[str]) -> list[str]:
 
 
 class CodeTokenizer:
-    def __call__(
-        self,
-        value
-    ):
+    def __call__(self, value):
         tokens = tokenize_call(value)
         bigrams = construct_bigrams(tokens)
         trigrams = construct_trigrams(tokens)
@@ -181,6 +178,7 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
         )
     return docs
 
+
 @file_cache(ignore_params=["ticket_progress", "len_repo_cache_dir"])
 def prepare_index_from_snippets(
     snippets: list[Snippet],
@@ -198,16 +196,20 @@ def prepare_index_from_snippets(
     try:
         # use 1/4 the max number of cores
         with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as p:
-            for i, document_token_freq in tqdm(enumerate(
-                p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-            )):
+            for i, document_token_freq in tqdm(
+                enumerate(
+                    p.imap(compute_document_tokens, [doc.content for doc in all_docs])
+                )
+            ):
                 all_tokens.append(document_token_freq)
                 if ticket_progress and i % 200 == 0:
                     ticket_progress.search_progress.indexing_progress = i
                     ticket_progress.save()
-        for doc, document_token_freq in tqdm(zip(all_docs, all_tokens), desc="Indexing"):
+        for doc, document_token_freq in tqdm(
+            zip(all_docs, all_tokens), desc="Indexing"
+        ):
             index.add_document(
-                title=doc.title, token_freq=document_token_freq # snippet.denotation
+                title=doc.title, token_freq=document_token_freq  # snippet.denotation
             )
     except FileNotFoundError as e:
         logger.exception(e)
@@ -248,7 +250,7 @@ def search_index(query, index: CustomIndex):
     and their corresponding scores.
     """
     """Title, score, content"""
-    if index == None:
+    if index is None:
         return {}
     try:
         # Create a query parser for the "content" field of the index
@@ -273,22 +275,32 @@ def search_index(query, index: CustomIndex):
         logger.exception(e)
         return {}
 
+
 @file_cache(ignore_params=["snippets"])
 def compute_vector_search_scores(query, snippets: list[Snippet]):
     # get get dict of snippet to score
-    snippet_str_to_contents = {snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False) for snippet in snippets}
+    snippet_str_to_contents = {
+        snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False)
+        for snippet in snippets
+    }
     snippet_contents_array = list(snippet_str_to_contents.values())
-    query_snippet_similarities = get_query_texts_similarity(query, snippet_contents_array)
+    query_snippet_similarities = get_query_texts_similarity(
+        query, snippet_contents_array
+    )
     snippet_denotations = [snippet.denotation for snippet in snippets]
-    snippet_denotation_to_scores = {snippet_denotations[i]: score for i, score in enumerate(query_snippet_similarities)}
+    snippet_denotation_to_scores = {
+        snippet_denotations[i]: score
+        for i, score in enumerate(query_snippet_similarities)
+    }
     return snippet_denotation_to_scores
+
 
 @file_cache(ignore_params=["sweep_config", "ticket_progress"])
 def prepare_lexical_search_index(
     repo_directory,
     sweep_config,
     ticket_progress: TicketProgress | None = None,
-    ref_name: str | None = None, # used for caching on different refs
+    ref_name: str | None = None,  # used for caching on different refs
 ):
     snippets, file_list = directory_to_chunks(repo_directory, sweep_config)
     index = prepare_index_from_snippets(
@@ -297,6 +309,7 @@ def prepare_lexical_search_index(
         ticket_progress=ticket_progress,
     )
     return file_list, snippets, index
+
 
 if __name__ == "__main__":
     pass
