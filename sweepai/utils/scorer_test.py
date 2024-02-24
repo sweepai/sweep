@@ -1,6 +1,5 @@
-import pytest
-
 from sweepai.utils.scorer import get_scores
+
 
 def test_days_since_last_modified_scores():
     # Given: Two file score factors

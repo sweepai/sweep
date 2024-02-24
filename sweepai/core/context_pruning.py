@@ -3,15 +3,25 @@ import re
 import textwrap
 import time
 
+import openai
 from attr import dataclass
 from loguru import logger
-import openai
+from openai import AzureOpenAI, OpenAI
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_function_modify import MAX_CHARS
 from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED
+from sweepai.config.server import (
+    AZURE_API_KEY,
+    AZURE_OPENAI_DEPLOYMENT,
+    DEFAULT_GPT4_32K_MODEL,
+    IS_SELF_HOSTED,
+    OPENAI_API_BASE,
+    OPENAI_API_KEY,
+    OPENAI_API_TYPE,
+    OPENAI_API_VERSION,
+)
 from sweepai.core.entities import AssistantRaisedException, Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -20,6 +30,19 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
+
+if OPENAI_API_TYPE == "openai":
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+elif OPENAI_API_TYPE == "azure":
+    client = AzureOpenAI(
+        azure_endpoint=OPENAI_API_BASE,
+        api_key=AZURE_API_KEY,
+        api_version=OPENAI_API_VERSION,
+    )
+    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
+else:
+    raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
+
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
@@ -227,9 +250,9 @@ class RepoContextManager:
         return user_prompt
 
     def get_highest_scoring_snippet(self, file_path: str) -> Snippet:
-        snippet_key = (
-            lambda snippet: snippet.denotation
-        )
+        def snippet_key(snippet):
+            return snippet.denotation
+
         filtered_snippets = [
             snippet
             for snippet in self.snippets
@@ -261,7 +284,6 @@ def get_relevant_context(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
-    modify_iterations: int = 2
     model = (
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
@@ -306,8 +328,10 @@ def get_relevant_context(
             snippet for snippet in repo_context_manager.current_top_snippets
         ]
         try:
-            modify_context(thread, run, repo_context_manager, ticket_progress, model=model)
-        except openai.BadRequestError as e: # sometimes means that run has expired
+            modify_context(
+                thread, run, repo_context_manager, ticket_progress, model=model
+            )
+        except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
         if len(repo_context_manager.current_top_snippets) == 0:
             repo_context_manager.current_top_snippets = old_top_snippets
@@ -346,7 +370,7 @@ def modify_context(
     run: Run,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
-    model: str = "gpt-4-0125-preview",
+    model: str = "gpt-4-1106-preview",
 ) -> bool | None:
     max_iterations = 90
     directories_to_expand = []
@@ -384,7 +408,7 @@ def modify_context(
             try:
                 tool_call_arguments = re.sub(r"\\+'", "", tool_call.function.arguments)
                 function_input = json.loads(tool_call_arguments)
-            except:
+            except Exception:
                 logger.warning(
                     f"Could not parse function arguments: {tool_call_arguments}"
                 )
@@ -419,7 +443,7 @@ def modify_context(
                         ]
                     )
                     valid_path = True
-                except:
+                except Exception:
                     similar_file_paths = ""
                     error_message = "FAILURE: This file path does not exist."
                 if error_message:
@@ -445,7 +469,7 @@ def modify_context(
                         function_path_or_dir
                     )
                     valid_path = True
-                except:
+                except Exception:
                     file_contents = ""
                     similar_file_paths = "\n".join(
                         [
@@ -504,7 +528,7 @@ def modify_context(
                         function_path_or_dir
                     )
                     valid_path = True
-                except:
+                except Exception:
                     file_contents = ""
                     similar_file_paths = "\n".join(
                         [
@@ -553,7 +577,7 @@ def modify_context(
                         function_path_or_dir
                     )
                     valid_path = True
-                except:
+                except Exception:
                     code = ""
                     similar_file_paths = "\n".join(
                         [

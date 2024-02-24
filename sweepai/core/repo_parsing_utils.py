@@ -5,12 +5,13 @@ import multiprocessing
 # import multiprocessing
 import os
 
+from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
-from loguru import logger
 from sweepai.utils.utils import chunk_code
+
 
 def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     """
@@ -56,11 +57,12 @@ def read_file(file_name: str) -> str:
             return f.read()
     except SystemExit:
         raise SystemExit
-    except:
+    except Exception:
         return ""
 
 
 FILE_THRESHOLD = 120
+
 
 def file_path_to_chunks(file_path: str) -> list[str]:
     file_contents = read_file(file_path)
