@@ -1,15 +1,15 @@
-from functools import lru_cache
 import json
 from typing import Generator
+
 import backoff
+import numpy as np
 from loguru import logger
+from openai import OpenAI
 from redis import Redis
 from tqdm import tqdm
-from sweepai.config.server import BATCH_SIZE, REDIS_URL, OPENAI_API_KEY
-from sweepai.logn.cache import file_cache
-from openai import OpenAI
-import numpy as np
 
+from sweepai.config.server import BATCH_SIZE, REDIS_URL
+from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.utils import Tiktoken
 
@@ -17,6 +17,7 @@ client = OpenAI()
 CACHE_VERSION = "v1.0.16"
 redis_client: Redis = Redis.from_url(REDIS_URL)
 tiktoken_client = Tiktoken()
+
 
 def cosine_similarity(a, B):
     dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nx1, resulting in Mx1
@@ -34,6 +35,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
     for i in range(0, len(texts), batch_size):
         yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
 
+
 @file_cache(ignore_params=["texts"])
 def get_query_texts_similarity(query: str, texts: str) -> float:
     embeddings = embed_text_array(texts)
@@ -42,6 +44,7 @@ def get_query_texts_similarity(query: str, texts: str) -> float:
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
+
 
 def normalize_l2(x):
     x = np.array(x)
@@ -57,11 +60,11 @@ def normalize_l2(x):
 
 # lru_cache(maxsize=20)
 def embed_text_array(texts: tuple[str]):
-    logger.info(
-        f"Computing embeddings for {len(texts)} texts using openai..."
-    )
+    logger.info(f"Computing embeddings for {len(texts)} texts using openai...")
     embeddings = []
-    for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"):
+    for batch in tqdm(
+        chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"
+    ):
         try:
             embeddings.append(openai_with_expo_backoff(batch))
         except SystemExit:
@@ -71,20 +74,22 @@ def embed_text_array(texts: tuple[str]):
             raise e
     return embeddings
 
+
 def openai_call_embedding(batch):
     response = client.embeddings.create(
-            input=batch, model="text-embedding-3-small", encoding_format="float"
+        input=batch, model="text-embedding-3-small", encoding_format="float"
     )
     cut_dim = np.array([data.embedding for data in response.data])[:, :512]
     normalized_dim = normalize_l2(cut_dim)
     # save results to redis
-    return normalized_dim        
+    return normalized_dim
+
 
 @backoff.on_exception(
-            backoff.expo,
-            Exception,
-            max_tries=16,
-        )
+    backoff.expo,
+    Exception,
+    max_tries=16,
+)
 def openai_with_expo_backoff(batch: tuple[str]):
     if not redis_client:
         return openai_call_embedding(batch)
@@ -98,13 +103,15 @@ def openai_with_expo_backoff(batch: tuple[str]):
     except Exception as e:
         logger.exception(e)
     # not stored in cache call openai
-    batch = [text for i, text in enumerate(batch) if embeddings[i] is None] # remove all the cached values from the batch
+    batch = [
+        text for i, text in enumerate(batch) if embeddings[i] is None
+    ]  # remove all the cached values from the batch
     if len(batch) == 0:
         embeddings = np.array(embeddings)
-        return embeddings # all embeddings are in cache
+        return embeddings  # all embeddings are in cache
     try:
         new_embeddings = openai_call_embedding(batch)
-    except Exception as e:
+    except Exception:
         # try to truncate the string and call openai again
         if any(tiktoken_client.count(text) > 8000 for text in batch):
             batch = [tiktoken_client.truncate_string(text) for text in batch]
@@ -116,10 +123,16 @@ def openai_with_expo_backoff(batch: tuple[str]):
     for i, index in enumerate(indices):
         embeddings[index] = new_embeddings[i]
     # store in cache
-    redis_client.mset({cache_key: json.dumps(embedding.tolist()) for cache_key, embedding in zip(cache_keys, embeddings)})
+    redis_client.mset(
+        {
+            cache_key: json.dumps(embedding.tolist())
+            for cache_key, embedding in zip(cache_keys, embeddings)
+        }
+    )
     embeddings = np.array(embeddings)
     return embeddings
-    
+
+
 if __name__ == "__main__":
     texts = ["sasxt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
     embeddings = embed_text_array(texts)

@@ -38,7 +38,7 @@ class CTags:
                     tag = json.loads(line)
                     if tag["_type"] == "tag":
                         data.append(tag)
-                except json.decoder.JSONDecodeError as err:
+                except json.decoder.JSONDecodeError:
                     pass
             # set cache
             self.redis_instance.set(

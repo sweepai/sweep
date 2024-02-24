@@ -101,7 +101,6 @@ def main(
         json=issue_request.dict(),
         headers={"X-GitHub-Event": "issues"},
     )
-    print(response)
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")
 

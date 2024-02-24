@@ -41,5 +41,5 @@ def get_docker_badge():
         badge_url = f"https://img.shields.io/badge/Docker%20Version%20Updated-{encoded_duration}-blue"
         markdown_badge = f"<br/>![Docker Version Updated]({badge_url})"
         return markdown_badge
-    except:
+    except Exception:
         return ""
