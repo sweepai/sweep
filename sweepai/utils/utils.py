@@ -52,7 +52,7 @@ class Span:
 
     def extract_lines(self, s: str) -> str:
         # Grab the corresponding substring of string s by lines
-        return "\n".join(s.splitlines()[self.start : self.end])
+        return "\n".join(s.splitlines()[self.start : self.end + 1])
 
     def __add__(self, other: Span | int) -> Span:
         # e.g. Span(1, 2) + Span(2, 4) = Span(1, 4) (concatenation)
