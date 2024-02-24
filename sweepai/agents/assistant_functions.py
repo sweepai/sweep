@@ -24,24 +24,24 @@ search_and_replace_schema = {
             },
             "replaces_to_make": {
                 "type": "array",
-                "description": "Array of sections to modify",
+                "description": "Array of sections of code to modify",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "section_id": {
-                            "type": "string",
-                            "description": "The section ID the original code belongs to.",
-                        },
+                        # "section_id": {
+                        #     "type": "string",
+                        #     "description": "The section ID the original code belongs to.",
+                        # },
                         "old_code": {
                             "type": "string",
-                            "description": "The old lines of code that belongs to section with ID section_id. Be sure to add lines before and after to disambiguate the change.",
+                            "description": "The old lines of code. Be sure to add lines before and after to disambiguate the change.",
                         },
                         "new_code": {
                             "type": "string",
                             "description": "The new code to replace the old code.",
                         },
                     },
-                    "required": ["section_id", "old_code", "new_code"],
+                    "required": ["old_code", "new_code"],
                 },
             },
         },

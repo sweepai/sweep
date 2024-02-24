@@ -77,7 +77,7 @@ class AssistantConversation(BaseModel):
             thread_messages = client.beta.threads.messages.list(
                 thread_id=thread_id, timeout=1.5
             ).data
-        except:
+        except Exception:
             return None
         messages: list[AssistantAPIMessage] = [
             AssistantAPIMessage(
@@ -111,7 +111,7 @@ class AssistantConversation(BaseModel):
                             .content[0]
                             .text.value
                         )
-                    except:
+                    except Exception:
                         return None
                     messages.append(
                         AssistantAPIMessage(

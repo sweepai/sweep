@@ -5,6 +5,7 @@ from threading import Thread
 from typing import Any
 
 import requests
+from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
@@ -17,11 +18,13 @@ from sweepai.config.server import (
     MONGODB_URI,
 )
 from sweepai.global_threads import global_threads
-from loguru import logger
 
 global_mongo_client = MongoClient(
-    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000,
+    MONGODB_URI,
+    serverSelectionTimeoutMS=20000,
+    socketTimeoutMS=20000,
 )
+
 
 class ChatLogger(BaseModel):
     data: dict
@@ -207,7 +210,7 @@ def discord_log_error(content, priority=0):
             "content": f"Traceback:\n\n{traceback.format_exc()}\n\nMessage:\n\n```\n{content}\n```"
         }
         headers = {"Content-Type": "application/json"}
-        response = requests.post(url, data=json.dumps(data), headers=headers)
+        requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
     except SystemExit:
         raise SystemExit
