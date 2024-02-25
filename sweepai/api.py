@@ -100,9 +100,13 @@ on_ticket_events = {}
 security = HTTPBearer()
 
 templates = Jinja2Templates(directory="sweepai/web")
-version_command = r"""timestamp=$(git log -1 --format="%at")
+version_command = r"""git config --global --add safe.directory /app
+timestamp=$(git log -1 --format="%at")
 date -d "@$timestamp" +%y.%m.%d.%H 2>/dev/null || date -r "$timestamp" +%y.%m.%d.%H"""
-version = subprocess.check_output(version_command, shell=True, text=True).strip()
+try:
+    version = subprocess.check_output(version_command, shell=True, text=True).strip()
+except Exception:
+    version = time.strftime("%y.%m.%d.%H")
 
 logger.bind(application="webhook")
 
