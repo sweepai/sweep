@@ -3,6 +3,7 @@ from __future__ import annotations
 # Do not save logs for main process
 import ctypes
 import json
+import subprocess
 import threading
 import time
 from typing import Optional
@@ -15,11 +16,13 @@ from fastapi import (
     Header,
     HTTPException,
     Path,
+    Request,
     Security,
     status,
 )
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -95,6 +98,11 @@ events = {}
 on_ticket_events = {}
 
 security = HTTPBearer()
+
+templates = Jinja2Templates(directory="sweepai/web")
+version_command = """timestamp=$(git log -1 --format="%at")
+[[ "$OSTYPE" == "linux-gnu"* ]] && date -d @$timestamp +%y.%m.%d.%H || date -r $timestamp +%y.%m.%d.%H"""
+version = subprocess.check_output(version_command, shell=True, text=True).strip()
 
 logger.bind(application="webhook")
 
@@ -256,9 +264,10 @@ def redirect_to_health():
 
 
 @app.get("/", response_class=HTMLResponse)
-def home():
-    with open("sweepai/web/index.html", "r") as f:
-        return f.read()
+def home(request: Request):
+    return templates.TemplateResponse(
+        name="index.html", context={"version": version, "request": request}
+    )
 
 
 @app.get("/ticket_progress/{tracking_id}")
