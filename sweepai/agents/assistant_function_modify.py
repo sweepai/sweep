@@ -133,16 +133,6 @@ def function_modify(
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(50):
                 print(tool_name, json.dumps(tool_call, indent=2))
-                if tool_name == "multi_tool_use.parallel":
-                    key_value_pairs = list(tool_call.items())
-                    if len(key_value_pairs) > 1:
-                        tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\nOnly one tool call is allowed at a time."
-                        )
-                        continue
-                    key, value = list(tool_call.items())[0]
-                    tool_name = key
-                    tool_call = value
                 if tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""

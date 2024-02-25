@@ -238,20 +238,22 @@ def run_until_complete(
                     raise AssistantRaisedException(
                         "Too many tool calls made on GPT 3.5."
                     )
-                tool_calls = [
+                raw_tool_calls = [
                     tool_call
                     for tool_call in run.required_action.submit_tool_outputs.tool_calls
                 ]
                 if any(
                     [
                         tool_call.function.name == raise_error_schema["name"]
-                        for tool_call in tool_calls
+                        for tool_call in raw_tool_calls
                     ]
                 ):
                     arguments_parsed = json.loads(tool_calls[0].function.arguments)
                     raise AssistantRaisedException(arguments_parsed["message"])
                 tool_outputs = []
-                for tool_call in tool_calls:
+                # tool_calls = raw_tool_calls
+                tool_calls = []
+                for tool_call in raw_tool_calls:
                     try:
                         tool_call_arguments = re.sub(
                             r"\\+'", "", tool_call.function.arguments
@@ -268,9 +270,32 @@ def run_until_complete(
                             }
                         )
                         continue
-                    tool_output = yield tool_call.function.name, function_input
+                    tool_function_name = tool_call.function.name
+                    tool_function_input = function_input
+                    # OpenAI has a bug where it calls the imaginary function "multi_tool_use.parallel"
+                    # Based on https://github.com/phdowling/openai_multi_tool_use_parallel_patch/blob/main/openai_multi_tool_use_parallel_patch.py
+                    if tool_function_name in ("multi_tool_use.parallel", "parallel"):
+                        for fake_i, fake_tool_uses in function_input["tool_uses"]:
+                            for fake_tool_use in fake_tool_uses:
+                                function_input = fake_tool_use["parameters"]
+                                function_name: str = fake_tool_use["recipient_name"]
+                                function_name = function_name.removeprefix("functions.")
+                                tool_calls.append(
+                                    (
+                                        f"{tool_call.id}_{fake_i}",
+                                        function_name,
+                                        function_input,
+                                    )
+                                )
+                    else:
+                        tool_calls.append(
+                            (tool_call.id, tool_function_name, tool_function_input)
+                        )
+
+                for tool_call_id, tool_function_name, tool_function_input in tool_calls:
+                    tool_output = yield tool_function_name, tool_function_input
                     tool_output_formatted = {
-                        "tool_call_id": tool_call.id,
+                        "tool_call_id": tool_call_id,
                         "output": tool_output,
                     }
                     tool_outputs.append(tool_output_formatted)
