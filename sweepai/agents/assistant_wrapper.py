@@ -318,6 +318,8 @@ def run_until_complete(
             else:
                 if i % 5 == 0:
                     logger.info(run.status)
+            if i == max_iterations - 1:
+                logger.warning(f"run_until_complete hit max iterations, run.status is {run.status}")
             time.sleep(sleep_time)
     except (KeyboardInterrupt, SystemExit):
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)

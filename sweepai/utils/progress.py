@@ -92,6 +92,8 @@ class AssistantConversation(BaseModel):
         )
         for message_obj in list(all_messages)[::-1]:
             if isinstance(message_obj, ThreadMessage):
+                if len(message_obj.content) == 0:
+                    continue
                 text = message_obj.content[0].text.value
                 if text.strip():
                     messages.append(
