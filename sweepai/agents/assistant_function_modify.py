@@ -4,6 +4,7 @@ import traceback
 from loguru import logger
 
 from sweepai.agents.assistant_functions import (
+    chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
 )
@@ -16,7 +17,7 @@ from sweepai.utils.utils import check_code, chunk_code
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
-instructions = """You are an expert software developer assigned to write code to complete the user's request.
+instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
@@ -24,10 +25,15 @@ Respect and use existing conventions, libraries, etc that are already present in
 Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
-Modify the snippets above according to the request by calling the search_and_replace function.
-* Keep whitespace and comments.
-* Make the minimum necessary search_and_replaces to make changes to the snippets. Only write diffs for lines that have been asked to be changed.
-* Write multiple small changes instead of a single large change."""
+1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
+2. Use the keyword_search function to find the right places to make changes.
+3. Use the search_and_replace function to make the changes.
+    - Keep whitespace and comments.
+    - Make the minimum necessary search_and_replaces to make changes to the snippets.
+    - Write multiple small changes instead of a single large change.
+"""
+
+# TODO: fuzzy search for keyword_search
 
 
 def int_to_excel_col(n):
@@ -124,6 +130,7 @@ def function_modify(
             assistant_name="Code Modification Function Assistant",
             tools=[
                 {"type": "code_interpreter"},
+                {"type": "function", "function": chain_of_thought_schema},
                 {"type": "function", "function": search_and_replace_schema},
                 {"type": "function", "function": keyword_search_schema},
             ],
@@ -131,9 +138,13 @@ def function_modify(
 
         try:
             tool_name, tool_call = assistant_generator.send(None)
-            for i in range(50):
+            for i in range(100):
                 print(tool_name, json.dumps(tool_call, indent=2))
-                if tool_name == "search_and_replace":
+                if tool_name == "propose_problem_analysis_and_plan":
+                    tool_name, tool_call = assistant_generator.send(
+                        f"SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
+                    )
+                elif tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
                     new_contents = current_contents
@@ -319,6 +330,7 @@ def function_modify(
                     assistant_generator.send(
                         f"ERROR\nUnexpected tool name: {tool_name}"
                     )
+            logger.error("Too many iterations.")
         except StopIteration:
             pass
         diff = generate_diff(file_contents, current_contents)
