@@ -778,7 +778,6 @@ def run(request_dict, event):
                         comment_id=None,
                     )
             case "issue_comment", "created":
-                # import pdb; pdb.set_trace()
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
