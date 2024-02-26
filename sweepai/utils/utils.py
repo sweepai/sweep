@@ -10,13 +10,13 @@ from io import StringIO
 from typing import Optional
 
 import tiktoken
+from loguru import logger
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
 from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
-from sweepai.logn import logger
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 
@@ -52,7 +52,7 @@ class Span:
 
     def extract_lines(self, s: str) -> str:
         # Grab the corresponding substring of string s by lines
-        return "\n".join(s.splitlines()[self.start : self.end])
+        return "\n".join(s.splitlines()[self.start : self.end + 1])
 
     def __add__(self, other: Span | int) -> Span:
         # e.g. Span(1, 2) + Span(2, 4) = Span(1, 4) (concatenation)
@@ -79,8 +79,6 @@ def chunk_tree(
     MAX_CHARS=AVG_CHAR_IN_LINE * 200,  # 200 lines of code
     coalesce=AVG_CHAR_IN_LINE * 50,  # 50 lines of code
 ) -> list[Span]:
-    from tree_sitter import Node
-
     # 1. Recursively form chunks based on the last post (https://docs.sweep.dev/blogs/chunking-2m-files)
     def chunk_node(node: Node) -> list[Span]:
         chunks: list[Span] = []
@@ -133,10 +131,7 @@ def chunk_tree(
         line_chunks.append(Span(start_line, max(start_line, end_line)))
 
     # 5. Eliminating empty chunks
-    new_line_chunks = []
-    for chunk in line_chunks:
-        if len(chunk) > 0:
-            new_line_chunks.append(chunk)
+    line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
 
     # 6. Coalescing last chunk if it's too small
     if len(line_chunks) > 1 and len(line_chunks[-1]) < coalesce:
@@ -346,21 +341,18 @@ TIKTOKEN_CACHE_DIR = "/tmp/cache/tiktoken"
 
 
 class Tiktoken:
-    openai_models = [
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-1106",
-        "gpt-4",
-        "gpt-4-32k",
-        "gpt-4-32k-0613",
-        "gpt-4-1106-preview",
-        "gpt-4-0125-preview",
-    ]
-    models = openai_models
-
     def __init__(self):
+        openai_models = [
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-1106",
+            "gpt-4",
+            "gpt-4-32k",
+            "gpt-4-32k-0613",
+            "gpt-4-1106-preview",
+            "gpt-4-0125-preview",
+        ]
         self.openai_models = {
-            model: tiktoken.encoding_for_model(model)
-            for model in Tiktoken.openai_models
+            model: tiktoken.encoding_for_model(model) for model in openai_models
         }
 
     def count(self, text: str, model: str = "gpt-4") -> int:

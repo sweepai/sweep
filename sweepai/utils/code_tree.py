@@ -115,10 +115,10 @@ class CodeTree(BaseModel):
                     spacing = " " * (len(str(start_line)) + 2)
                     middle_lines = spacing.join(
                         [
-                            spacing + indentation + f"     ...\n",
+                            spacing + indentation + "     ...\n",
                             indentation
                             + f"     (lines {start_line + 1}-{end_line - 1} contains terms: {first_n_terms}\n",
-                            indentation + f"     ...\n",
+                            indentation + "     ...\n",
                         ]
                     )
                     second_last_line = node_lines[-2]

@@ -1,14 +1,15 @@
 import glob
 import logging
+import multiprocessing
 
 # import multiprocessing
 import os
 
+from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
-from sweepai.logn import logger
 from sweepai.utils.utils import chunk_code
 
 
@@ -32,6 +33,8 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     try:
         if os.stat(file).st_size > 240000:
             return False
+        if os.stat(file).st_size < 10:
+            return False
     except FileNotFoundError as e:
         logging.error(f"File not found: {file}. Error: {e}")
         return False
@@ -45,7 +48,6 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
                 break
         if is_binary:
             return False
-
     return True
 
 
@@ -55,11 +57,12 @@ def read_file(file_name: str) -> str:
             return f.read()
     except SystemExit:
         raise SystemExit
-    except:
+    except Exception:
         return ""
 
 
-FILE_THRESHOLD = 100
+FILE_THRESHOLD = 120
+
 
 def file_path_to_chunks(file_path: str) -> list[str]:
     file_contents = read_file(file_path)
@@ -84,7 +87,6 @@ def directory_to_chunks(
 
     logger.info(f"Reading files from {directory}")
     file_list = glob.iglob(f"{directory}/**", recursive=True)
-
     file_list = [
         file_name
         for file_name in file_list
@@ -92,8 +94,9 @@ def directory_to_chunks(
         and filter_file(directory, file_name, sweep_config)
         and not is_dir_too_big(file_name)
     ]
+    logger.info("Done reading files")
     all_chunks = []
-    for file_path in tqdm(file_list):
-        chunks = file_path_to_chunks(file_path)
-        all_chunks.extend(chunks)
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
+        for chunks in tqdm(pool.imap(file_path_to_chunks, file_list)):
+            all_chunks.extend(chunks)
     return all_chunks, file_list

@@ -1,7 +1,9 @@
 import copy
 
-from sweepai.logn import logger
+from loguru import logger
+
 from sweepai.logn.cache import file_cache
+
 
 class Line:
     def __init__(self, indent_count, text, parent=None, is_dir=False):
@@ -76,9 +78,9 @@ class DirectoryTree:
         self.lines = new_lines
 
     def expand_directory(self, dirs_to_expand):
-        parent_dirs = lambda path: [
-            path[: i + 1] for i in range(len(path)) if path[i] == "/"
-        ]
+        def parent_dirs(path):
+            return [path[: i + 1] for i in range(len(path)) if path[i] == "/"]
+
         dir_parents = []
         for dir in dirs_to_expand:
             # if it's not an extension and it doesn't end in /, add /
@@ -107,9 +109,9 @@ class DirectoryTree:
 
     def add_file_paths(self, file_paths):
         # might be similar to expand_directory
-        parent_dirs = lambda path: [
-            path[: i + 1] for i in range(len(path)) if path[i] == "/"
-        ]
+        def parent_dirs(path):
+            return [path[: i + 1] for i in range(len(path)) if path[i] == "/"]
+
         dirs_to_expand = set()
         for file_path in file_paths:
             file_parent_dirs = parent_dirs(file_path)
@@ -132,6 +134,7 @@ class DirectoryTree:
             results.append(("  " * line.indent_count) + line_text)
         return "\n".join(results)
 
+
 @file_cache()
 def remove_all_not_included(dir_obj: DirectoryTree, included):
     new_lines = []
@@ -145,8 +148,7 @@ def remove_all_not_included(dir_obj: DirectoryTree, included):
                 else line.full_path()
             )
         if any(
-            full_relative_path.startswith(included_path)
-            for included_path in included
+            full_relative_path.startswith(included_path) for included_path in included
         ):
             parent_list = []
             curr_parent = line.parent

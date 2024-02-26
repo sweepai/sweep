@@ -2,12 +2,13 @@
 create_pr is a function that creates a pull request from a list of file change requests.
 It is also responsible for handling Sweep config PR creation.
 """
+
 import datetime
-from typing import Generator
+from typing import Any, Generator
 
 import openai
-from github.Commit import Commit
 from github.Repository import Repository
+from loguru import logger
 
 from sweepai.config.client import DEFAULT_RULES_STRING, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
@@ -25,7 +26,6 @@ from sweepai.core.entities import (
     PullRequest,
 )
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -51,7 +51,7 @@ def create_pr_changes(
     sandbox=None,
     chat_logger: ChatLogger = None,
     base_branch: str = None,
-) -> Generator[tuple[FileChangeRequest, int, Commit], None, dict]:
+) -> Generator[tuple[FileChangeRequest, int, Any], None, dict]:
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -277,7 +277,7 @@ def create_config_pr(
             logger.error(e)
     else:
         # Create branch based on default branch
-        branch = repo.create_git_ref(
+        repo.create_git_ref(
             ref=f"refs/heads/{branch_name}",
             sha=repo.get_branch(repo.default_branch).commit.sha,
         )
@@ -402,7 +402,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
 def create_gha_pr(g, repo):
     # Create a new branch
     branch_name = "sweep/gha-enable"
-    branch = repo.create_git_ref(
+    repo.create_git_ref(
         ref=f"refs/heads/{branch_name}",
         sha=repo.get_branch(repo.default_branch).commit.sha,
     )

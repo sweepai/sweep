@@ -16,16 +16,20 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 
+
 @file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7  
+    k: int = 7,
 ):
     sweep_config: SweepConfig = SweepConfig()
     _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.cached_dir, sweep_config, ticket_progress
+        cloned_repo.cached_dir,
+        sweep_config,
+        ticket_progress,
+        ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
     )
     if ticket_progress:
         ticket_progress.search_progress.indexing_progress = (
@@ -42,14 +46,12 @@ def get_top_k_snippets(
         snippet_score = 0.02
         if snippet.denotation in content_to_lexical_score:
             # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
-            snippet_score = (
-                content_to_lexical_score[snippet.denotation] + (vector_score * 3.5)
+            snippet_score = content_to_lexical_score[snippet.denotation] + (
+                vector_score * 3.5
             )
             content_to_lexical_score[snippet.denotation] = snippet_score
         else:
-            content_to_lexical_score[snippet.denotation] = (
-                snippet_score * vector_score
-            )
+            content_to_lexical_score[snippet.denotation] = snippet_score * vector_score
 
     ranked_snippets = sorted(
         snippets,
@@ -59,13 +61,16 @@ def get_top_k_snippets(
     ranked_snippets = ranked_snippets[:k]
     return ranked_snippets, snippets, content_to_lexical_score
 
+
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 7,
 ):
-    ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(cloned_repo, query, ticket_progress, k)
+    ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
+        cloned_repo, query, ticket_progress, k
+    )
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
@@ -77,10 +82,9 @@ def prep_snippets(
             if idx > snippet_depth // 2:
                 prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
         prefixes.append(snippet_path)
-    included_files = [snippet.file_path for snippet in ranked_snippets]
     _, dir_obj = cloned_repo.list_directory_tree(
         included_directories=prefixes,
-        included_files=included_files,
+        included_files=snippet_paths,
     )
     repo_context_manager = RepoContextManager(
         dir_obj=dir_obj,
@@ -203,7 +207,7 @@ def fire_and_forget_wrapper(call):
     def wrapper(*args, **kwargs):
         try:
             return call(*args, **kwargs)
-        except:
+        except Exception:
             pass
         # def run_in_thread(call, *a, **kw):
         #     try:

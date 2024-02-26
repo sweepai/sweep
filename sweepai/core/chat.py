@@ -3,6 +3,7 @@ import traceback
 from typing import Any, Literal
 
 import backoff
+from loguru import logger
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
@@ -15,7 +16,6 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
-from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -55,18 +55,41 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 }
 default_temperature = 0.1
-count_tokens = Tiktoken().count
 
-
-class ChatGPT(BaseModel):
+class MessageList(BaseModel):
     messages: list[Message] = [
         Message(
             role="system",
             content=system_message_prompt,
         )
     ]
+
+    @property
+    def messages_dicts(self):
+        # Remove the key from the message object before sending to OpenAI
+        cleaned_messages = [message.to_openai() for message in self.messages]
+        return cleaned_messages
+
+    def delete_messages_from_chat(
+        self, key_to_delete: str, delete_user=True, delete_assistant=True
+    ):
+        self.messages = [
+            message
+            for message in self.messages
+            if not (
+                key_to_delete in (message.key or "")
+                and (
+                    delete_user
+                    and message.role == "user"
+                    or delete_assistant
+                    and message.role == "assistant"
+                )
+            )  # Only delete if message matches key to delete and role should be deleted
+        ]
+
+
+class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
-    # model: ChatModel = "gpt-4-0125-preview"
     model: ChatModel = DEFAULT_GPT4_32K_MODEL
     chat_logger: ChatLogger | None = None
     human_message: HumanMessagePrompt | None = None
@@ -118,17 +141,6 @@ class ChatGPT(BaseModel):
             **kwargs,
         )
 
-    def select_message_from_message_key(
-        self, message_key: str, message_role: str = None
-    ):
-        if message_role:
-            return [
-                message
-                for message in self.messages
-                if message.key == message_key and message.role == message_role
-            ][0]
-        return [message for message in self.messages if message.key == message_key][0]
-
     def delete_messages_from_chat(
         self, key_to_delete: str, delete_user=True, delete_assistant=True
     ):
@@ -145,17 +157,6 @@ class ChatGPT(BaseModel):
                 )
             )  # Only delete if message matches key to delete and role should be deleted
         ]
-
-    def delete_file_from_system_message(self, file_path: str):
-        self.human_message.delete_file(file_path)
-
-    def update_message_content_from_message_key(
-        self, message_key: str, new_content: str, message_role: str = None
-    ):
-        if [message for message in self.messages if message.key == message_key]:
-            self.select_message_from_message_key(
-                message_key, message_role=message_role
-            ).content = new_content
 
     def chat(
         self,
