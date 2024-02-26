@@ -3,6 +3,7 @@ from __future__ import annotations
 # Do not save logs for main process
 import ctypes
 import json
+import subprocess
 import threading
 import time
 from typing import Optional
@@ -15,11 +16,13 @@ from fastapi import (
     Header,
     HTTPException,
     Path,
+    Request,
     Security,
     status,
 )
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -95,6 +98,15 @@ events = {}
 on_ticket_events = {}
 
 security = HTTPBearer()
+
+templates = Jinja2Templates(directory="sweepai/web")
+version_command = r"""git config --global --add safe.directory /app
+timestamp=$(git log -1 --format="%at")
+date -d "@$timestamp" +%y.%m.%d.%H 2>/dev/null || date -r "$timestamp" +%y.%m.%d.%H"""
+try:
+    version = subprocess.check_output(version_command, shell=True, text=True).strip()
+except Exception:
+    version = time.strftime("%y.%m.%d.%H")
 
 logger.bind(application="webhook")
 
@@ -256,9 +268,10 @@ def redirect_to_health():
 
 
 @app.get("/", response_class=HTMLResponse)
-def home():
-    with open("sweepai/web/index.html", "r") as f:
-        return f.read()
+def home(request: Request):
+    return templates.TemplateResponse(
+        name="index.html", context={"version": version, "request": request}
+    )
 
 
 @app.get("/ticket_progress/{tracking_id}")
@@ -765,7 +778,6 @@ def run(request_dict, event):
                         comment_id=None,
                     )
             case "issue_comment", "created":
-                # import pdb; pdb.set_trace()
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
