@@ -91,6 +91,9 @@ class SweepConfig(BaseModel):
         ".ttf",
         "sweep.yaml",
         ".ftl",
+        "pnpm-lock.yaml",
+        "LICENSE",
+        "poetry.lock"
     ]
     # Image formats
     max_file_limit: int = 60_000
