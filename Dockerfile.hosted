@@ -31,7 +31,6 @@ COPY requirements.txt ./
 
 RUN /root/.cargo/bin/uv pip install --no-cache -r requirements.txt
 
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libnss3 \
@@ -73,6 +72,7 @@ COPY redis.conf /app/redis.conf
 COPY bin /app/bin
 RUN chmod a+x /app/bin/startup.hosted.sh
 
+# CMD ["bash", "-c", "while true; do sleep 30; done;"]
 EXPOSE 8080
 CMD ["bash", "-c", "chmod a+x /app/bin/startup.hosted.sh && /app/bin/startup.hosted.sh"]
 
