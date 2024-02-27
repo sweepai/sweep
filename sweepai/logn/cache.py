@@ -52,7 +52,7 @@ def file_cache(ignore_params=[], verbose=False):
     """
 
     def decorator(func):
-        if GITHUB_BOT_USERNAME != TEST_BOT_NAME or not DEBUG:
+        if not DEBUG:
             print("File cache is disabled.")
             return func
 

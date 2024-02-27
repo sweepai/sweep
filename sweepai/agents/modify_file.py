@@ -52,7 +52,10 @@ def create_additional_messages(
         if file_path not in latest_version_per_file:
             latest_version_per_file[file_path] = new_contents
     for file_path, _ in changed_files:
-        if not latest_version_per_file[file_path] or not latest_version_per_file[file_path].strip():
+        if (
+            not latest_version_per_file[file_path]
+            or not latest_version_per_file[file_path].strip()
+        ):
             continue
         earliest_file_version = earliest_version_per_file[file_path]
         latest_file_version = latest_version_per_file[file_path]
@@ -109,6 +112,7 @@ def create_additional_messages(
                 current_file_diff += generate_diff(old_contents, new_contents) + "\n"
     return additional_messages
 
+
 @file_cache()
 def modify_file(
     cloned_repo: ClonedRepo,
@@ -117,7 +121,7 @@ def modify_file(
     contents: str = "",
     branch: str = None,
     # context related
-    changed_files: list[tuple[str, str]] = [],
+    changed_files: list[tuple[str, tuple[str, str]]] = [],
     comment_pr_diff_str: str = "",
     # o11y related
     assistant_conversation: AssistantConversation | None = None,
