@@ -75,9 +75,16 @@ unformatted_user_prompt = """\
 Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
 {snippets_in_repo}
 
-<import_tree>
-{import_tree}
-</import_tree>
+## Code files mentioned in the user request
+Here are the code files mentioned in the user request, these code files are very important to the solution and should be considered very relevant:
+<code_files_in_query>
+{file_paths_in_query}
+</code_files_in_query>
+
+## Import trees for code files in the user request
+<import_trees>
+{import_trees}
+</import_trees>
 
 ## User Request
 {query}"""
@@ -210,7 +217,8 @@ class RepoContextManager:
     snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
     current_top_snippets: list[Snippet] = []
-    import_tree: str = ""
+    import_trees: str = ""
+    relevant_file_paths: list[str] = [] # a list of file paths that appear in the user query
 
     @property
     def top_snippet_paths(self):
@@ -256,7 +264,8 @@ class RepoContextManager:
             query=query,
             snippets_in_repo=snippets_in_repo_str,
             repo_tree=repo_tree,
-            import_tree=self.import_tree,
+            import_trees=self.import_trees,
+            file_paths_in_query=", ".join(self.relevant_file_paths),
         )
         return user_prompt
 
@@ -286,9 +295,16 @@ class RepoContextManager:
         self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
+
+    def add_import_trees(self, import_trees: str):
+        self.import_trees += ("\n" + import_trees)
     
-    def set_import_tree(self, import_tree: str):
-        self.import_tree = import_tree
+    def append_relevant_file_paths(self, relevant_file_paths: str):
+        # do not use append, it modifies the list in place and will update it for ALL instances of RepoContextManager
+        self.relevant_file_paths = self.relevant_file_paths + [relevant_file_paths]
+
+    def set_relevant_paths(self, relevant_file_paths: list[str]):
+        self.relevant_file_paths = relevant_file_paths
 
 """
 Dump the import tree to a string
@@ -307,7 +323,11 @@ def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', i
     else:
         hierarchy = f"{prefix}{'└── ' if is_last else '├── '}{start_node}\n"
     child_prefix = prefix + ("    " if is_last else "│   ")
-    successors = {node for node, length in nx.single_source_shortest_path_length(graph, start_node, cutoff=1).items() if length == 1}
+    try:
+        successors = {node for node, length in nx.single_source_shortest_path_length(graph, start_node, cutoff=1).items() if length == 1}
+    except Exception as e:
+        print("error occured attetmping to fetch successors:", e)
+        import pdb; pdb.set_trace()
     sorted_successors = sorted(successors)
     for idx, child in enumerate(sorted_successors):
         child_is_last = idx == len(sorted_successors) - 1
@@ -339,31 +359,38 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
-def parse_query_for_links(query: str, rcm: RepoContextManager) -> RepoContextManager:
+def parse_query_for_links(query: str, rcm: RepoContextManager, import_graph: nx.DiGraph) -> tuple[RepoContextManager]:
+    if import_graph is None:
+        return rcm
+    code_files_in_query = rcm.relevant_file_paths
+    for file in code_files_in_query:
+        # fetch direct parent and children
+        representation = f"\nThe file '{file}' has the following import structure: \n" + build_full_hierarchy(import_graph, file, 2)
+        rcm.add_import_trees(representation)
+    return rcm
+
+# fetch all files mentioned in the user query
+def parse_query_for_files(query: str, rcm: RepoContextManager) -> tuple[RepoContextManager, nx.DiGraph]:
     repo_full_name = rcm.cloned_repo.repo_full_name
     repo_name = repo_full_name.split("/")[-1]
     # only for enterprise
     try:
         pathing = f"ee/import_graphs/{repo_full_name}/{repo_name}_import_tree.txt"
         if not os.path.exists(pathing):
-            return rcm
+            return rcm, None
         graph = load_graph_from_file(pathing)
     except Exception as e:
         logger.error(f"Error loading import tree: {e}, skipping step and setting import_tree to empty string")
-        return rcm
-    top_k_snippets = rcm.current_top_snippets
-    top_k_snippet_paths = [snippet.file_path for snippet in top_k_snippets]
-    top_k_snippets_html_encoded = [urllib.parse.quote(file_path) for file_path in top_k_snippet_paths]
-    for i in range(len(top_k_snippet_paths)):
-        snippet_file_path = top_k_snippet_paths[i]
-        snippet_file_path_uri = top_k_snippets_html_encoded[i]
-        if snippet_file_path in query or snippet_file_path_uri in query:
-            # fetch direct parent and children
-            representation = f"\nThe file '{snippet_file_path}' has the following import structure: \n" + build_full_hierarchy(graph, snippet_file_path, 2)
-            rcm.set_import_tree(representation)
-    return rcm
-
-@file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
+        return rcm, None
+    files = set(list(graph.nodes()))
+    files_uri_encoded = [urllib.parse.quote(file_path) for file_path in files]
+    for file, file_uri_encoded in zip(files, files_uri_encoded):
+        if file in query or file_uri_encoded in query:
+            rcm.append_relevant_file_paths(file)
+    return rcm, graph
+    
+# do not ignore repo_context_manager
+@file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -386,11 +413,14 @@ def get_relevant_context(
     )
     try:
         # attempt to get import tree for relevant snippets that show up in the query
-        repo_context_manager = parse_query_for_links(query, repo_context_manager)
+        repo_context_manager, import_graph = parse_query_for_files(query, repo_context_manager)
+        repo_context_manager = parse_query_for_links(query, repo_context_manager, import_graph)
+        # check to see if there are any files that are mentioned in the query
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
+        import pdb; pdb.set_trace()
         messages = textwrap.wrap(user_prompt, MAX_CHARS)
         assistant = openai_retry_with_timeout(
             client.beta.assistants.create,
