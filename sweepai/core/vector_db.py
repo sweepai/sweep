@@ -4,16 +4,27 @@ from typing import Generator
 import backoff
 import numpy as np
 from loguru import logger
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 from redis import Redis
 from tqdm import tqdm
 
-from sweepai.config.server import BATCH_SIZE, REDIS_URL
+from sweepai.config.server import BATCH_SIZE, OPENAI_API_TYPE, OPENAI_EMBEDDINGS_AZURE_API_KEY, OPENAI_EMBEDDINGS_AZURE_API_VERSION, OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT, OPENAI_EMBEDDINGS_AZURE_ENDPOINT, REDIS_URL
 from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.utils import Tiktoken
 
-client = OpenAI()
+if OPENAI_API_TYPE == "openai":
+    client = OpenAI()
+elif OPENAI_API_TYPE == "azure":
+    client = AzureOpenAI(
+        azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
+        api_key=OPENAI_EMBEDDINGS_AZURE_API_KEY,
+        azure_deployment=OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
+        api_version=OPENAI_EMBEDDINGS_AZURE_API_VERSION,
+    )
+else:
+    raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
+
 CACHE_VERSION = "v1.0.16"
 redis_client: Redis = Redis.from_url(REDIS_URL)
 tiktoken_client = Tiktoken()
