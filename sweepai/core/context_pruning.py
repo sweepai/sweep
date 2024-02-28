@@ -2,6 +2,11 @@ import json
 import re
 import textwrap
 import time
+from git import Repo
+import requests
+import networkx as nx
+import urllib
+import os
 
 import openai
 from attr import dataclass
@@ -69,6 +74,10 @@ unformatted_user_prompt = """\
 ## Relevant Snippets
 Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
 {snippets_in_repo}
+
+<import_tree>
+{import_tree}
+</import_tree>
 
 ## User Request
 {query}"""
@@ -201,6 +210,7 @@ class RepoContextManager:
     snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
     current_top_snippets: list[Snippet] = []
+    import_tree: str = ""
 
     @property
     def top_snippet_paths(self):
@@ -246,6 +256,7 @@ class RepoContextManager:
             query=query,
             snippets_in_repo=snippets_in_repo_str,
             repo_tree=repo_tree,
+            import_tree=self.import_tree,
         )
         return user_prompt
 
@@ -275,7 +286,82 @@ class RepoContextManager:
         self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
+    
+    def set_import_tree(self, import_tree: str):
+        self.import_tree = import_tree
 
+"""
+Dump the import tree to a string
+Ex:
+main.py
+├── database.py
+│   └── models.py
+└── utils.py
+    └── models.py
+"""
+def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', is_last=True, level=0):
+    if level > k:
+        return ""
+    if level == 0:
+        hierarchy = f"{start_node}\n"
+    else:
+        hierarchy = f"{prefix}{'└── ' if is_last else '├── '}{start_node}\n"
+    child_prefix = prefix + ("    " if is_last else "│   ")
+    successors = {node for node, length in nx.single_source_shortest_path_length(graph, start_node, cutoff=1).items() if length == 1}
+    sorted_successors = sorted(successors)
+    for idx, child in enumerate(sorted_successors):
+        child_is_last = idx == len(sorted_successors) - 1
+        hierarchy += build_full_hierarchy(graph, child, k, child_prefix, child_is_last, level+1)
+    if level == 0:
+        predecessors = {node for node, length in nx.single_source_shortest_path_length(graph.reverse(), start_node, cutoff=1).items() if length == 1}
+        sorted_predecessors = sorted(predecessors)
+        for idx, parent in enumerate(sorted_predecessors):
+            parent_is_last = idx == len(sorted_predecessors) - 1
+            # Prepend parent hierarchy to the current node's hierarchy
+            hierarchy = build_full_hierarchy(graph, parent, k, '', parent_is_last, level+1) + hierarchy
+    return hierarchy
+
+def load_graph_from_file(filename):
+    G = nx.DiGraph()
+    current_node = None
+    with open(filename, 'r') as file:
+        for line in file:
+            if not line: 
+                continue
+            if line.startswith(' '):
+                line = line.strip()
+                if current_node:
+                    G.add_edge(current_node, line)
+            else:
+                line = line.strip()
+                current_node = line
+                if current_node:
+                    G.add_node(current_node)
+    return G
+
+def parse_query_for_links(query: str, rcm: RepoContextManager) -> RepoContextManager:
+    repo_full_name = rcm.cloned_repo.repo_full_name
+    repo_name = repo_full_name.split("/")[-1]
+    # only for enterprise
+    try:
+        pathing = f"ee/import_graphs/{repo_full_name}/{repo_name}_import_tree.txt"
+        if not os.path.exists(pathing):
+            return rcm
+        graph = load_graph_from_file(pathing)
+    except Exception as e:
+        logger.error(f"Error loading import tree: {e}, skipping step and setting import_tree to empty string")
+        return rcm
+    top_k_snippets = rcm.current_top_snippets
+    top_k_snippet_paths = [snippet.file_path for snippet in top_k_snippets]
+    top_k_snippets_html_encoded = [urllib.parse.quote(file_path) for file_path in top_k_snippet_paths]
+    for i in range(len(top_k_snippet_paths)):
+        snippet_file_path = top_k_snippet_paths[i]
+        snippet_file_path_uri = top_k_snippets_html_encoded[i]
+        if snippet_file_path in query or snippet_file_path_uri in query:
+            # fetch direct parent and children
+            representation = f"\nThe file '{snippet_file_path}' has the following import structure: \n" + build_full_hierarchy(graph, snippet_file_path, 2)
+            rcm.set_import_tree(representation)
+    return rcm
 
 @file_cache(ignore_params=["repo_context_manager", "ticket_progress", "chat_logger"])
 def get_relevant_context(
@@ -299,6 +385,8 @@ def get_relevant_context(
         },
     )
     try:
+        # attempt to get import tree for relevant snippets that show up in the query
+        repo_context_manager = parse_query_for_links(query, repo_context_manager)
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
