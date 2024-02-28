@@ -6,6 +6,7 @@ from git import Repo
 import requests
 import networkx as nx
 import urllib
+import os
 
 import openai
 from attr import dataclass
@@ -320,18 +321,33 @@ def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', i
             hierarchy = build_full_hierarchy(graph, parent, k, '', parent_is_last, level+1) + hierarchy
     return hierarchy
 
+def load_graph_from_file(filename):
+    G = nx.DiGraph()
+    current_node = None
+    with open(filename, 'r') as file:
+        for line in file:
+            if not line: 
+                continue
+            if line.startswith(' '):
+                line = line.strip()
+                if current_node:
+                    G.add_edge(current_node, line)
+            else:
+                line = line.strip()
+                current_node = line
+                if current_node:
+                    G.add_node(current_node)
+    return G
+
 def parse_query_for_links(query: str, rcm: RepoContextManager) -> RepoContextManager:
     repo_full_name = rcm.cloned_repo.repo_full_name
+    repo_name = repo_full_name.split("/")[-1]
     # only for enterprise
-    url = "http://0.0.0.0:8079/get_import_graph"
     try:
-        data = {"repo_name": repo_full_name}
-        response = requests.post(url, json=data)
-        graph_data = response.json()["graph"]
-        data = json.loads(graph_data)
-        graph = nx.DiGraph()
-        graph.add_nodes_from(data["nodes"])
-        graph.add_edges_from(data["edges"])
+        pathing = f"ee/import_graphs/{repo_full_name}/{repo_name}_import_tree.txt"
+        if not os.path.exists(pathing):
+            return rcm
+        graph = load_graph_from_file(pathing)
     except Exception as e:
         logger.error(f"Error loading import tree: {e}, skipping step and setting import_tree to empty string")
         return rcm
