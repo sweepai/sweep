@@ -30,6 +30,9 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     for dir_name in sweep_config.exclude_dirs:
         if file[len(directory) + 1 :].startswith(dir_name):
             return False
+    for dir_name in sweep_config.exclude_path_dirs:
+        if dir_name in file:
+            return False
     try:
         if os.stat(file).st_size > 240000:
             return False

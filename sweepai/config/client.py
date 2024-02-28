@@ -21,6 +21,11 @@ class SweepConfig(BaseModel):
         "patch",
         "packages/blobs",
     ]
+    exclude_path_dirs: list[str] = [
+        "node_modules",
+        "venv",
+        ".git"
+    ]
     include_exts: list[str] = [
         ".cs",
         ".csharp",

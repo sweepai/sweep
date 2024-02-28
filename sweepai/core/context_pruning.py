@@ -2,8 +2,6 @@ import json
 import re
 import textwrap
 import time
-from git import Repo
-import requests
 import networkx as nx
 import urllib
 import os
@@ -359,7 +357,8 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
-def parse_query_for_links(query: str, rcm: RepoContextManager, import_graph: nx.DiGraph) -> tuple[RepoContextManager]:
+# add import trees for any relevant_file_paths (code files that appear in query)
+def build_import_trees(rcm: RepoContextManager, import_graph: nx.DiGraph) -> tuple[RepoContextManager]:
     if import_graph is None:
         return rcm
     code_files_in_query = rcm.relevant_file_paths
@@ -367,6 +366,20 @@ def parse_query_for_links(query: str, rcm: RepoContextManager, import_graph: nx.
         # fetch direct parent and children
         representation = f"\nThe file '{file}' has the following import structure: \n" + build_full_hierarchy(import_graph, file, 2)
         rcm.add_import_trees(representation)
+    return rcm
+
+# add any code files that appear in the query to current_top_snippets
+def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextManager:
+    code_files_in_query = rcm.relevant_file_paths
+    for file in code_files_in_query:
+        current_top_snippet_paths = [snippet.file_path for snippet in rcm.current_top_snippets]
+        # if our mentioned code file isnt already in the current_top_snippets we add it
+        if file not in current_top_snippet_paths:
+            try:
+                code_snippet = [snippet for snippet in rcm.snippets if snippet.file_path == file][0]
+                rcm.add_snippets([code_snippet])
+            except Exception as e:
+                logger.error(f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one.")
     return rcm
 
 # fetch all files mentioned in the user query
@@ -414,7 +427,10 @@ def get_relevant_context(
     try:
         # attempt to get import tree for relevant snippets that show up in the query
         repo_context_manager, import_graph = parse_query_for_files(query, repo_context_manager)
-        repo_context_manager = parse_query_for_links(query, repo_context_manager, import_graph)
+        # for any code file mentioned in the query, build its import tree
+        repo_context_manager = build_import_trees(repo_context_manager, import_graph)
+        # for any code file mentioned in the query add it to the top relevant snippets
+        repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         # check to see if there are any files that are mentioned in the query
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
@@ -490,7 +506,7 @@ def modify_context(
     ticket_progress: TicketProgress,
     model: str = "gpt-4-1106-preview",
 ) -> bool | None:
-    max_iterations = 90
+    max_iterations = 200
     directories_to_expand = []
     repo_context_manager.current_top_snippets = []
     initial_file_paths = repo_context_manager.top_snippet_paths
