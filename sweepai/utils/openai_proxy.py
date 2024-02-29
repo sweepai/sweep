@@ -5,6 +5,7 @@ from openai import AzureOpenAI, OpenAI
 
 from sweepai.config.server import (
     AZURE_API_KEY,
+    AZURE_OPENAI_DEPLOYMENT,
     BASERUN_API_KEY,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
@@ -12,6 +13,7 @@ from sweepai.config.server import (
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
 )
+from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
 
 if BASERUN_API_KEY is not None:
@@ -28,15 +30,25 @@ SEED = 100
 
 class OpenAIProxy:
     @file_cache(ignore_params=[])
-    def call_openai(self, model, messages, max_tokens, temperature) -> str:
+    def call_openai(
+        self, 
+        model: str, 
+        messages: list[Message], 
+        max_tokens: int = 4096,
+        temperature: float = 0.0
+    ) -> str:
         try:
-            raise NotImplementedError("OpenAIProxy is not implemented")
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 response = self.set_openai_default_api_parameters(
                     model, messages, max_tokens, temperature
                 )
                 return response.choices[0].message.content
+            if OPENAI_API_TYPE == "azure":
+                return self.call_azure_api(
+                    engine, model, messages, max_tokens, temperature
+                )
+            raise Exception("Invalid OpenAI API Type")
             # validity checks for MULTI_REGION_CONFIG
             if (
                 MULTI_REGION_CONFIG is None
@@ -129,6 +141,24 @@ class OpenAIProxy:
             timeout=OPENAI_TIMEOUT,
         )
         return response
+    
+    def call_azure_api(
+        self, engine, model, messages, max_tokens, temperature
+    ):
+        client = AzureOpenAI(
+            api_key=AZURE_API_KEY,
+            azure_endpoint=OPENAI_API_BASE,
+            api_version=OPENAI_API_VERSION,
+            azure_deployment=AZURE_OPENAI_DEPLOYMENT
+        )
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=OPENAI_TIMEOUT,
+        )
+        return response.choices[0].message.content
 
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature
@@ -143,3 +173,15 @@ class OpenAIProxy:
             seed=SEED,
         )
         return response
+
+if __name__ == "__main__":
+    openai_proxy = OpenAIProxy()
+    response = openai_proxy.call_openai(
+        "gpt-4-1106-preview",
+        [{
+            "role": "user",
+            "content": "Say this is a test",
+        }],
+        max_tokens=100
+    )
+    print((response))

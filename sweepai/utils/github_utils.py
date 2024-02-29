@@ -5,11 +5,13 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 import traceback
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
+from unittest.mock import Mock
 
 import git
 import requests
@@ -436,6 +438,53 @@ class MockClonedRepo(ClonedRepo):
     def __del__(self):
         return True
 
+@dataclass
+class TemporarilyCopiedClonedRepo(MockClonedRepo):
+    tmp_dir: tempfile.TemporaryDirectory | None = None
+
+    def __init__(
+        self,
+        _repo_dir: str,
+        tmp_dir: tempfile.TemporaryDirectory,
+        repo_full_name: str,
+        installation_id: str = "",
+        branch: str | None = None,
+        token: str | None = None,
+        repo: Any | None = None,
+        git_repo: git.Repo | None = None,
+    ):
+        self._repo_dir = _repo_dir
+        self.tmp_dir = tmp_dir
+        self.repo_full_name = repo_full_name
+        self.installation_id = installation_id
+        self.branch = branch
+        self.token = token
+        self.repo = repo
+
+    @classmethod
+    def copy_from_cloned_repo(cls, cloned_repo: ClonedRepo, **kwargs):
+        temp_dir = tempfile.TemporaryDirectory()
+        new_dir = temp_dir.name + "/" + cloned_repo.repo_full_name.split("/")[1]
+        print("Copying...")
+        shutil.copytree(cloned_repo.repo_dir, new_dir)
+        print("Done copying.")
+        return cls(
+            _repo_dir=new_dir,
+            tmp_dir=temp_dir,
+            repo_full_name=cloned_repo.repo_full_name,
+            installation_id=cloned_repo.installation_id,
+            branch=cloned_repo.branch,
+            token=cloned_repo.token,
+            repo=cloned_repo.repo,
+            **kwargs
+        )
+    
+    def __del__(self):
+        print(f"Dropping {self.tmp_dir.name}...")
+        self.tmp_dir.cleanup()
+        print("Done.")
+        return True
+
 
 def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r"\b[\w\-\.\/]*\w+\.\w{1,6}\b", query)
@@ -484,6 +533,12 @@ def parse_collection_name(name: str) -> str:
 
 
 if __name__ == "__main__":
-    str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
-    str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
-    print(get_hunks(str1, str2, 1))
+    # str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
+    # str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
+    # print(get_hunks(str1, str2, 1))
+    mocked_repo = MockClonedRepo.from_dir(
+        "benchmark/data/repos/pulse-alp",
+        repo_full_name="sweepai/sweep",
+    )
+    temp_repo = TemporarilyCopiedClonedRepo.copy_from_cloned_repo(mocked_repo)
+    print(mocked_repo)

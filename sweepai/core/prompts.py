@@ -181,7 +181,7 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 
 files_to_change_prompt = """\
 # Task:
-Reference and analyze the snippets, repo, PRs, and issue to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
+Reference and analyze the snippets, repo, PRs, and issue to break down the requested change and propose a highly specific plan that addresses the user's request.
 
 Provide a plan to solve the issue, following these rules:
 * You may only create new files and modify existing files but may not necessarily need both.
@@ -204,6 +204,7 @@ You MUST follow the following format with XML tags:
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
 * Natural language instructions for creating the new file needed to solve the issue.
 * Reference necessary files, imports and entity names.
+* You may only modify each file at most once.
 ...
 </create>
 ...
