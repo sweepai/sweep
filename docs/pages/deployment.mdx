@@ -140,7 +140,7 @@ We can create an app using `npm` to make it easier to set up the GitHub App. If 
 
 First, open a terminal and run the following commands (RUN LOCALLY):
 
-```sh
+```sh filename="terminal"
 git clone https://github.com/sweepai/sweep
 cd sweep/self_deploy
 npm install
@@ -157,7 +157,7 @@ Second, open http://localhost:3000 in your browser, and:
 
 Now, stop the server by pressing `Ctrl+C` in the terminal. Once it has stopped, open the `.env` file with a text editor in the `sweep/self_deploy` directory. You should see something like this:
 
-```sh
+```sh filename=".env"
 APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 WEBHOOK_SECRET=213921898f9as8f92139128989f
@@ -169,14 +169,14 @@ Add two variables to the end of the file:
 1. GITHUB_BOT_USERNAME=sweep-example-name
 2. WHITELISTED_USERS=your-username,other-username,another-username
 
-```sh
+```sh filename=".env"
 ...
 GITHUB_BOT_USERNAME=sweep-example-name
 WHITELISTED_USERS=your-username,other-username,another-username
 ```
 
 You should have the following environment variables:
-```sh
+```sh filename=".env"
 APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 WEBHOOK_SECRET=213921898f9as8f92139128989f
@@ -232,13 +232,13 @@ Generate a private key (it should prompt you at the top of the screen, or altern
 
 Once the private key is downloaded, format it for the next step:
 
-```sh
+```sh filename="terminal"
 echo -e "paste key here" | tr '\n' ' ' | sed 's/ /\\n/g'
 ```
 
 And, save the output for later in the following format:
 
-```sh
+```sh filename=".env"
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 ```
 
@@ -250,7 +250,7 @@ Click Install App to install it on your account or organization. Point it to a r
 
 Store the following constants for later:
 
-```sh
+```sh filename=".env"
 APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 GITHUB_BOT_USERNAME=sweep-example-name
@@ -289,7 +289,7 @@ Now to host Sweep you need to run the Sweep webhook on a publically accessible s
 
 *Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a [GitHub issue](https://github.com/sweepai/sweep/issues) (ironic, we know!). We are online, please ping us @kevin, @william, and @martin.*
 
-<Tabs items={["Cloud (recommended)", "Local", "DigitalOcean"]}>
+<Tabs items={["Cloud (recommended)", "Local"]}>
 <Tabs.Tab>
 Here's how to deploy Sweep on the cloud, which we recommend for most users since we don't need a reverse proxy.
 
@@ -401,7 +401,7 @@ Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
 
 Then proceed with step 4.
 </Tabs.Tab>
-<Tabs.Tab>
+{/* <Tabs.Tab>
 As Sweep is Dockerized, you can deploy this anywhere but for this guide, we will deploy it on Digital Ocean for simplicity. If you would like to run it locally, you can follow the section in the dropdown at the bottom of this guide.
 
 First, click the following:
@@ -481,7 +481,7 @@ Navigating to this link should look like this:
 
 <img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" />
 </details>
-</Tabs.Tab>
+</Tabs.Tab> */}
 </Tabs>
 
 ---
