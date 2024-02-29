@@ -327,7 +327,6 @@ def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', i
         successors = {node for node, length in nx.single_source_shortest_path_length(graph, start_node, cutoff=1).items() if length == 1}
     except Exception as e:
         print("error occured attetmping to fetch successors:", e)
-        import pdb; pdb.set_trace()
     sorted_successors = sorted(successors)
     for idx, child in enumerate(sorted_successors):
         child_is_last = idx == len(sorted_successors) - 1
