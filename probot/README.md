@@ -1,5 +1,7 @@
 # sweep-self-deploy
 
+This is a fork of Probot to easily set up a GitHub App with the right Sweep settings.
+
 > A GitHub App built with [Probot](https://github.com/probot/probot) that Self-hosted Sweep, an AI powered-junior developer
 
 ## Setup
