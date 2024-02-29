@@ -9,14 +9,14 @@ from redis import Redis
 import requests
 from tqdm import tqdm
 
-from sweepai.config.server import BATCH_SIZE, OPENAI_API_TYPE, OPENAI_EMBEDDINGS_AZURE_API_KEY, OPENAI_EMBEDDINGS_AZURE_API_VERSION, OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT, OPENAI_EMBEDDINGS_AZURE_ENDPOINT, REDIS_URL
+from sweepai.config.server import BATCH_SIZE, OPENAI_API_TYPE, OPENAI_EMBEDDINGS_AZURE_API_KEY, OPENAI_EMBEDDINGS_AZURE_API_VERSION, OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT, OPENAI_EMBEDDINGS_AZURE_ENDPOINT, REDIS_URL, OPENAI_EMBEDDINGS_API_TYPE
 from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.utils import Tiktoken
 
-if OPENAI_API_TYPE == "openai":
+if OPENAI_EMBEDDINGS_API_TYPE == "openai":
     client = OpenAI()
-elif OPENAI_API_TYPE == "azure":
+elif OPENAI_EMBEDDINGS_API_TYPE == "azure":
     client = AzureOpenAI(
         azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
         api_key=OPENAI_EMBEDDINGS_AZURE_API_KEY,
@@ -26,7 +26,7 @@ elif OPENAI_API_TYPE == "azure":
 else:
     raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
 
-CACHE_VERSION = "v1.2.3"
+CACHE_VERSION = "v1.3.04"
 redis_client: Redis = Redis.from_url(REDIS_URL)
 tiktoken_client = Tiktoken()
 
