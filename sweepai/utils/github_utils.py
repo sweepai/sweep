@@ -481,6 +481,7 @@ class TemporarilyCopiedClonedRepo(MockClonedRepo):
     
     def __del__(self):
         print(f"Dropping {self.tmp_dir.name}...")
+        shutil.rmtree(self._repo_dir, ignore_errors=True)
         self.tmp_dir.cleanup()
         print("Done.")
         return True

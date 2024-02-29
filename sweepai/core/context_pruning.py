@@ -248,7 +248,9 @@ class RepoContextManager:
     ):
         new_top_snippets: list[Snippet] = []
         for snippet in self.current_top_snippets:
-            if can_add_snippet(snippet, new_top_snippets):
+            # if can_add_snippet(snippet, new_top_snippets):
+            #     new_top_snippets.append(snippet)
+            if True:
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
         top_snippets_str = [
@@ -376,8 +378,8 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
         # if our mentioned code file isnt already in the current_top_snippets we add it
         if file not in current_top_snippet_paths:
             try:
-                code_snippet = [snippet for snippet in rcm.snippets if snippet.file_path == file][0]
-                rcm.add_snippets([code_snippet])
+                code_snippets = [snippet for snippet in rcm.snippets if snippet.file_path == file]
+                rcm.add_snippets(code_snippets)
             except Exception as e:
                 logger.error(f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one.")
     return rcm
@@ -521,7 +523,7 @@ def modify_context(
             update_assistant_conversation(
                 run, thread, ticket_progress, repo_context_manager
             )
-            logger.info("iteration: " + str(iter))
+            logger.info("iteration: " + str(iter) + f" run status {run.status}")
         if run.status == "completed" or run.status == "failed":
             break
         if (
