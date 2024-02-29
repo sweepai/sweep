@@ -7,6 +7,7 @@ from sweepai.agents.assistant_functions import (
     chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
+    write_changes_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, Message
@@ -17,20 +18,46 @@ from sweepai.utils.utils import check_code, chunk_code
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
-instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
+preamble = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
 Respect and use existing conventions, libraries, etc that are already present in the code base.
 Your job is to make edits to the file to complete the user "# Request".
+"""
 
+instructions = preamble + """
 # Instructions
 1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
 2. Use the keyword_search function to find the right places to make changes.
-3. Use the search_and_replace function to make the changes.
+3. Use the write_changes function to read relevant sections of the code and propose changes on them.
     - Keep whitespace and comments.
-    - Make the minimum necessary search_and_replaces to make changes to the snippets.
+    - Make the minimum necessary search_and_replace calls to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
+4. Use the search_and_replace function to take in the change list and apply the changes.
+"""
+
+write_changes_instructions = preamble + """
+# Instructions
+Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made.
+
+- Be sure to consider all imports that are required to complete the task.
+- Keep existing whitespace and comments.
+- Write multiple small changes instead of a single large change.
+
+Your changes must be an array of valid JSON under the following schema. See example below:
+[
+    {
+        "section_id": "AW",
+        "old_code": "       foo = get_foo()",
+        "new_code": "       foo = get_foo()\n      bar = get_bar()",
+    }
+    {
+        "section_id": "BZ",
+        "old_code": "       res = call_old_function(foo)",
+        "new_code": "       res = call_new_function(foo)",
+    },
+]
 """
 
 # TODO: fuzzy search for keyword_search
@@ -122,15 +149,15 @@ def function_modify(
             request="",  # already present in additional_messages
             instructions=instructions,
             additional_messages=additional_messages,
-            chat_logger=chat_logger,
+            # chat_logger=chat_logger,
             assistant_id=assistant_id,
             save_ticket_progress=(
                 save_ticket_progress if ticket_progress is not None else None
             ),
             assistant_name="Code Modification Function Assistant",
             tools=[
-                {"type": "code_interpreter"},
                 {"type": "function", "function": chain_of_thought_schema},
+                {"type": "function", "function": write_changes_schema},
                 {"type": "function", "function": search_and_replace_schema},
                 {"type": "function", "function": keyword_search_schema},
             ],
@@ -144,6 +171,31 @@ def function_modify(
                     tool_name, tool_call = assistant_generator.send(
                         f"SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
                     )
+                elif tool_name == "write_changes":
+                    error_message = ""
+                    success_message = ""
+
+                    for key in ["analysis_and_identification", "task", "section_ids"]:
+                        if key not in tool_call:
+                            error_message = f"Missing {key} in write_changes."
+                            break
+
+                    task = tool_call["task"]
+                    section_ids = tool_call["section_ids"]
+
+                    # get code of requested section IDs
+                    sections = []
+                    for section_letter in section_ids:
+                        if section_letter >= len(chunks):
+                            error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            break
+
+                        section_id = excel_col_to_int(section_letter)
+                        sections.append(chunks[section_id])
+                    print(f"\n===== Sections: {sections} =====\n") # REMOVE
+
+                    # send to LLM to generate changes
+                    # TODO
                 elif tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
@@ -603,7 +655,7 @@ def function_modify(
 
 
 if __name__ == "__main__":
-    request = "Convert any all logger.errors to logger.exceptions in api.py"
+    request = "Split the large functions in on_ticket.py into smaller helpers and units"
     additional_messages = [
         Message(
             role="user",

@@ -86,3 +86,47 @@ keyword_search_schema = {
     },
     "description": "Searches for all lines in the file containing the keyword.",
 }
+
+write_changes_schema = {
+    "name": "write_changes",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "analysis_and_identification": {
+                "type": "string",
+                "description": "Identify and list the minimal changes that need to be made to the file, by listing all code section IDs that should receive these changes and the intended changes to be made.",
+            },
+            "task": {
+                "type": "string",
+                "description": "The overall task to accomplish by writing changes applied to the code sections.",
+            },
+            "section_ids": {
+                "type": "array",
+                "description": "Relevant section IDs whose code to read.",
+                "items": {
+                    "type": "string",
+                    "description": "The section ID the original code belongs to.",
+                },
+            },
+        },
+    },
+    "returns": {
+        "type": "object",
+        "properties": {
+            "section_id": {
+                "type": "string",
+                "description": "The section ID the original code belongs to.",
+            },
+            "old_code": {
+                "type": "string",
+                "description": "The old lines of code. Be sure to add lines before and after to disambiguate the change.",
+            },
+            "new_code": {
+                "type": "string",
+                "description": "The new code to replace the old code.",
+            },
+        },
+        "required": ["section_id", "old_code", "new_code"],
+    },
+    "description": "Given a task, read multiple relevant code sections and suggest edits.",
+}
