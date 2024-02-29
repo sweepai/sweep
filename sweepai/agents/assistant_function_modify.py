@@ -219,39 +219,7 @@ def function_modify(
                             current_contents = new_contents
 
                             # Re-initialize
-                            original_snippets = chunk_code(
-                                current_contents, file_path, 700, 200
-                            )
-                            file_contents_lines = current_contents.split("\n")
-                            chunks = [
-                                "\n".join(
-                                    file_contents_lines[snippet.start : snippet.end]
-                                )
-                                for snippet in original_snippets
-                            ]
-                            code_sections = []
-                            current_code_section = ""
-                            for i, chunk in enumerate(chunks):
-                                idx = int_to_excel_col(i + 1)
-                                section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-                                if (
-                                    len(current_code_section) + len(section_display)
-                                    > MAX_CHARS
-                                ):
-                                    code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
-                                    code_sections.append(code_sections_string)
-                                    current_code_section = section_display
-                                else:
-                                    current_code_section += "\n" + section_display
-                            code_sections.append(current_code_section)
-                            new_current_code = f"\n\n{code_sections[0]}"
-                            max_allowed_chars = TOOLS_MAX_CHARS - 1000 - len(diff)
-                            if len(new_current_code) > max_allowed_chars:
-                                new_current_code = (
-                                    new_current_code[:max_allowed_chars]
-                                    + "\n\n... (truncated)"
-                                )
-                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}\n\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
                             error_message = f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
