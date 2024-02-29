@@ -10,7 +10,9 @@ from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
-from sweepai.utils.utils import chunk_code
+from sweepai.utils.utils import Tiktoken, chunk_code
+
+tiktoken_client = Tiktoken()
 
 
 def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
@@ -43,6 +45,19 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         return False
     if not os.path.isfile(file):
         return False
+    with open(file, "r") as f:
+        lines = f.readlines()
+        line_count = len(lines)
+        data = "\n".join(lines)
+        # if average line length is greater than 200, then it is likely not human readable
+        if len(data)/line_count > 200:
+            return False
+        # check token density, if it is greater than 2, then it is likely not human readable
+        token_count = tiktoken_client.count(data)
+        if token_count == 0:
+            return False
+        if len(data)/token_count < 2:
+            return False
     with open(file, "rb") as f:
         is_binary = False
         for block in iter(lambda: f.read(1024), b""):
@@ -51,6 +66,7 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
                 break
         if is_binary:
             return False
+        f.close()
     return True
 
 

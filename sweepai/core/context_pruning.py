@@ -436,7 +436,6 @@ def get_relevant_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
-        import pdb; pdb.set_trace()
         messages = textwrap.wrap(user_prompt, MAX_CHARS)
         assistant = openai_retry_with_timeout(
             client.beta.assistants.create,

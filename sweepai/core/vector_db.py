@@ -6,6 +6,7 @@ import numpy as np
 from loguru import logger
 from openai import AzureOpenAI, OpenAI
 from redis import Redis
+import requests
 from tqdm import tqdm
 
 from sweepai.config.server import BATCH_SIZE, OPENAI_API_TYPE, OPENAI_EMBEDDINGS_AZURE_API_KEY, OPENAI_EMBEDDINGS_AZURE_API_VERSION, OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT, OPENAI_EMBEDDINGS_AZURE_ENDPOINT, REDIS_URL
@@ -25,7 +26,7 @@ elif OPENAI_API_TYPE == "azure":
 else:
     raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
 
-CACHE_VERSION = "v1.0.16"
+CACHE_VERSION = "v1.2.3"
 redis_client: Redis = Redis.from_url(REDIS_URL)
 tiktoken_client = Tiktoken()
 
@@ -51,6 +52,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
 def get_query_texts_similarity(query: str, texts: str) -> float:
     embeddings = embed_text_array(texts)
     embeddings = np.concatenate(embeddings)
+    # query = "Embed this user query for retrieving code snippets: " + query
     query_embedding = embed_text_array([query])[0]
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
@@ -73,10 +75,13 @@ def normalize_l2(x):
 def embed_text_array(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts using openai...")
     embeddings = []
+    chunks = list(chunk(texts, batch_size=BATCH_SIZE))
     for batch in tqdm(
-        chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"
+        chunks, disable=False, desc="openai embedding", total=len(chunks)
     ):
         try:
+            # prepend each text with a prompt
+            # batch = [f"Embed this code snippet for retrieval: {text}" for text in batch]
             embeddings.append(openai_with_expo_backoff(batch))
         except SystemExit:
             raise SystemExit
@@ -98,7 +103,7 @@ def openai_call_embedding(batch):
 
 @backoff.on_exception(
     backoff.expo,
-    Exception,
+    requests.exceptions.Timeout,
     max_tries=16,
 )
 def openai_with_expo_backoff(batch: tuple[str]):
@@ -121,10 +126,15 @@ def openai_with_expo_backoff(batch: tuple[str]):
         embeddings = np.array(embeddings)
         return embeddings  # all embeddings are in cache
     try:
+        # make sure all token counts are within model params (max: 8192)
+
         new_embeddings = openai_call_embedding(batch)
-    except Exception:
-        # try to truncate the string and call openai again
-        if any(tiktoken_client.count(text) > 8000 for text in batch):
+    except requests.exceptions.Timeout as e:
+        logger.exception(f"Timeout error occured while embedding: {e}")
+    except Exception as e:
+        logger.exception(e)
+        if any(tiktoken_client.count(text) > 8192 for text in batch):
+            logger.warning(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
             batch = [tiktoken_client.truncate_string(text) for text in batch]
             new_embeddings = openai_call_embedding(batch)
     # get all indices where embeddings are None
