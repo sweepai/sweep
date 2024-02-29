@@ -207,7 +207,7 @@ def run_until_complete(
     model: str = DEFAULT_GPT4_32K_MODEL,
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
-    max_iterations: int = 200,
+    max_iterations: int = 2000,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     message_strings = []
@@ -348,11 +348,13 @@ def run_until_complete(
                 if i % 5 == 0:
                     logger.info(run.status)
             if i == max_iterations - 1:
-                logger.warning(f"run_until_complete hit max iterations, run.status is {run.status}")
+                logger.warning(
+                    f"run_until_complete hit max iterations, run.status is {run.status}"
+                )
             time.sleep(sleep_time)
     except (KeyboardInterrupt, SystemExit):
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
-        logger.warning(f"Run cancelled: {run_id} (i={num_tool_calls_made})")
+        logger.warning(f"Run cancelled: {run_id} (n={num_tool_calls_made})")
         raise SystemExit
     if save_ticket_progress is not None:
         save_ticket_progress(
@@ -361,7 +363,7 @@ def run_until_complete(
             run_id=run_id,
         )
     for json_message in json_messages:
-        logger.info(f'(i={num_tool_calls_made}) {json_message["content"]}')
+        logger.info(f'(n={num_tool_calls_made}) {json_message["content"]}')
     return client.beta.threads.messages.list(
         thread_id=thread_id,
     )

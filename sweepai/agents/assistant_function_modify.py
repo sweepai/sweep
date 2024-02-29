@@ -137,7 +137,7 @@ def function_modify(
 
         try:
             tool_name, tool_call = assistant_generator.send(None)
-            for i in range(100):
+            for i in range(500):
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "propose_problem_analysis_and_plan":
                     tool_name, tool_call = assistant_generator.send(
