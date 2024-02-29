@@ -227,7 +227,7 @@ def run_until_complete(
                 break
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
-                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                    f"Run completed with {run.status} (i={num_tool_calls_made}) and reason {run.last_error}."
                 )
                 raise Exception(
                     f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
