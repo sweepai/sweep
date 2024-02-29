@@ -151,6 +151,8 @@ def function_modify(
 
                     if "replaces_to_make" not in tool_call:
                         error_message = "No replaces_to_make found in tool call."
+                    elif len(tool_call["replaces_to_make"]) == 0:
+                        error_message = "replace_to_make should not be empty."
                     else:
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
