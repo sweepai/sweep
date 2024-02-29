@@ -129,7 +129,6 @@ def function_modify(
             ),
             assistant_name="Code Modification Function Assistant",
             tools=[
-                {"type": "code_interpreter"},
                 {"type": "function", "function": chain_of_thought_schema},
                 {"type": "function", "function": search_and_replace_schema},
                 {"type": "function", "function": keyword_search_schema},
