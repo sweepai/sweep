@@ -329,9 +329,9 @@ def function_modify(
                         section_index = excel_col_to_int(section_id)
                         section_indices.update(
                             (
-                                int_to_excel_col(section_index - 1),
                                 int_to_excel_col(section_index),
                                 int_to_excel_col(section_index + 1),
+                                int_to_excel_col(section_index + 2),
                             )
                         )
                     section_indices = sorted(list(section_indices))
