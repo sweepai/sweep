@@ -31,7 +31,7 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
 BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 32)
+    os.environ.get("BATCH_SIZE", 256)
 )  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
