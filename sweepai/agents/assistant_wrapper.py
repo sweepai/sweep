@@ -231,6 +231,7 @@ def run_until_complete(
                 if not done_response:
                     break
                 else:
+                    client.beta.thread.runs.cancel(thread_id=thread_id, run_id=run_id)
                     run = client.beta.threads.runs.create(
                         thread_id=thread_id,
                         assistant_id=assistant_id,
@@ -250,6 +251,7 @@ def run_until_complete(
                         f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
                     )
                 else:
+                    client.beta.thread.runs.cancel(thread_id=thread_id, run_id=run_id)
                     run = client.beta.threads.runs.create(
                         thread_id=thread_id,
                         assistant_id=assistant_id,
