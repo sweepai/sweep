@@ -78,3 +78,6 @@ def test_e2e_pr_comment():
             thread.join()
         print(f"Failed with error: {e}")
         sys.exit(1)
+
+if __name__ == "__main__":
+    test_e2e_pr_comment()
