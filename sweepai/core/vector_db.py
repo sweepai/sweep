@@ -102,7 +102,7 @@ def openai_call_embedding(batch):
 @backoff.on_exception(
     backoff.expo,
     requests.exceptions.Timeout,
-    max_tries=16,
+    max_tries=5,
 )
 def openai_with_expo_backoff(batch: tuple[str]):
     if not redis_client:
