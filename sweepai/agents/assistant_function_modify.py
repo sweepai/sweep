@@ -329,6 +329,7 @@ def function_modify(
                         section_index = excel_col_to_int(section_id)
                         section_indices.update(
                             (
+                                int_to_excel_col(max(0, section_index - 1)),
                                 int_to_excel_col(min(len(chunks), section_index)),
                                 int_to_excel_col(min(len(chunks), section_index + 1)),
                                 int_to_excel_col(min(len(chunks), section_index + 2)),
