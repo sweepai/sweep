@@ -173,6 +173,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
 
 # Azure settings, only checked if OPENAI_API_TYPE == "azure"
 OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
 
 AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)

@@ -237,17 +237,17 @@ class ClonedRepo:
         """
 
         root_directory = self.repo_dir
+        sweep_config: SweepConfig = SweepConfig()
 
         # Default values if parameters are not provided
         if included_directories is None:
             included_directories = []  # gets all directories
         if excluded_directories is None:
-            excluded_directories = [".git"]
-        else:
-            excluded_directories.append(".git")
+            excluded_directories = sweep_config.exclude_dirs
 
         def list_directory_contents(
-            current_directory,
+            current_directory: str,
+            excluded_directories: list[str],
             indentation="",
             ctags: CTags = None,
         ):
@@ -257,8 +257,8 @@ class ClonedRepo:
             file_and_folder_names.sort()
 
             directory_tree_string = ""
-
             for name in file_and_folder_names[:MAX_FILE_COUNT]:
+                
                 relative_path = os.path.join(current_directory, name)[
                     len(root_directory) + 1 :
                 ]
@@ -269,7 +269,7 @@ class ClonedRepo:
                 if os.path.isdir(complete_path):
                     directory_tree_string += f"{indentation}{relative_path}/\n"
                     directory_tree_string += list_directory_contents(
-                        complete_path, indentation + "  ", ctags=ctags
+                        complete_path, excluded_directories, indentation + "  ", ctags=ctags
                     )
                 else:
                     directory_tree_string += f"{indentation}{name}\n"
@@ -282,7 +282,7 @@ class ClonedRepo:
             return directory_tree_string
 
         dir_obj = DirectoryTree()
-        directory_tree = list_directory_contents(root_directory, ctags=ctags)
+        directory_tree = list_directory_contents(root_directory, excluded_directories, ctags=ctags)
         dir_obj.parse(directory_tree)
         if included_directories:
             dir_obj = remove_all_not_included(dir_obj, included_directories)
@@ -481,6 +481,7 @@ class TemporarilyCopiedClonedRepo(MockClonedRepo):
     
     def __del__(self):
         print(f"Dropping {self.tmp_dir.name}...")
+        shutil.rmtree(self._repo_dir, ignore_errors=True)
         self.tmp_dir.cleanup()
         print("Done.")
         return True
