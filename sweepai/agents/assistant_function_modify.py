@@ -4,10 +4,8 @@ import traceback
 from loguru import logger
 
 from sweepai.agents.assistant_functions import (
-    chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
-    write_changes_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.chat import ChatGPT
@@ -30,24 +28,25 @@ Your job is to make edits to the file to complete the user "# Request".
 instructions = preamble + """
 # Instructions
 - Use the keyword_search function to find the right places to make changes.
-- Use the write_changes function to read relevant sections of the code and propose changes on them.
+- Use the search_and_replace function to read relevant sections of the code and propose changes on them.
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replace calls to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
 """
 
-write_changes_instructions = """Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made.
+search_and_replace_instructions = """Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made.
 
 - Be sure to consider all imports that are required to complete the task.
 - Keep existing whitespace and comments.
 - Write multiple small changes instead of a single large change.
+- NEVER include duplicate changes to the same section ID. A section can only have 0 or 1 change.
 - Analyze the code and identify your intended changes first.
 
 Your changes must be valid JSON under the following schema.
 See example below:
 {
     "analysis_and_identification": "We will replace do_old_bad_thing with do_new_good_thing. This requires an additional argument which we retrieve above.",
-    "change_list": [
+    "replaces_to_make": [
         {
             "section_id": "AW",
             "old_code": "       foo = get_foo()",
@@ -158,8 +157,6 @@ def function_modify(
             ),
             assistant_name="Code Modification Function Assistant",
             tools=[
-                # {"type": "function", "function": chain_of_thought_schema},
-                {"type": "function", "function": write_changes_schema},
                 {"type": "function", "function": search_and_replace_schema},
                 {"type": "function", "function": keyword_search_schema},
             ],
@@ -169,17 +166,13 @@ def function_modify(
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(100):
                 print(tool_name, json.dumps(tool_call, indent=2))
-                if tool_name == "propose_problem_analysis_and_plan":
-                    tool_name, tool_call = assistant_generator.send(
-                        f"SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
-                    )
-                elif tool_name == "write_changes":
+                if tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
 
                     for key in ["analysis_and_identification", "task", "section_ids"]:
                         if key not in tool_call:
-                            error_message = f"Missing {key} in write_changes."
+                            error_message = f"Missing {key} in search_and_replace."
                             break
 
                     if error_message:
@@ -201,27 +194,27 @@ def function_modify(
                     if error_message:
                         break
 
-                    # send to LLM to generate change list
+                    # send to LLM to generate replaces_to_make
                     chatgpt = ChatGPT.from_system_message_string(instructions, chat_logger)  # instantiate new for fresh message history
                     # TODO: stuff as much of the file + section IDs as fits into message prefix
-                    write_changes_prompt = "\n".join(code_sections) + f"\n\n{write_changes_instructions}\n# Request\n{task}"
-                    write_changes_response = chatgpt.chat(write_changes_prompt, response_format={ "type": "json_object" })
-                    if not write_changes_response:
+                    search_and_replace_prompt = "\n".join(code_sections) + f"\n\n{search_and_replace_instructions}\n# Request\n{task}"
+                    search_and_replace_response = chatgpt.chat(search_and_replace_prompt, response_format={ "type": "json_object" })
+                    if not search_and_replace_response:
                         error_message = "No response from the LLM when attempting to write changes."
                         break
                     try:
-                        change_list = json.loads(write_changes_response)["change_list"]
+                        replaces_to_make = json.loads(search_and_replace_response)["replaces_to_make"]
                     except Exception as e:
                         logger.error(e)
                         error_message = "Invalid response from the LLM when attempting to write changes."
                         break
 
-                    # apply the change list
-                    error_message_prefix = f"Attempted to apply change list:\n{json.dumps(change_list, indent=2)}\n\nBut encountered error:\n"
+                    # apply the replaces_to_make
+                    error_message_prefix = f"Attempted to apply replaces_to_make:\n{json.dumps(replaces_to_make, indent=2)}\n\nBut encountered error:\n"
                     new_contents = current_contents
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
 
-                    for index, replace_to_make in enumerate(change_list):
+                    for index, replace_to_make in enumerate(replaces_to_make):
                         for key in ["section_id", "old_code", "new_code"]:
                             if key not in replace_to_make:
                                 error_message = error_message_prefix + f"Missing {key} in replace_to_make."
@@ -319,7 +312,7 @@ def function_modify(
                             success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}\n\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
-                            error_message = error_message_prefix + f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
+                            error_message = error_message_prefix + f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry search_and_replace with different changes that yield valid code."
 
                     if error_message:
                         logger.error(error_message)

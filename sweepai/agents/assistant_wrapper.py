@@ -394,6 +394,7 @@ def openai_assistant_call_helper(
             file_ids.append(file_object.id)
 
     logger.debug(instructions)
+    logger.debug(tools)
     # always create new one
     assistant = openai_retry_with_timeout(
         client.beta.assistants.create,
@@ -515,3 +516,20 @@ def openai_assistant_call(
         except Exception as e:
             logger.error(e)
             raise e
+
+# compat layer; many args are unused
+def iudex_call(
+    request: str,
+    instructions: str | None = None,
+    additional_messages: list[Message] = [],
+    file_paths: list[str] = [],
+    uploaded_file_ids: list[str] = [],
+    tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
+    model: str = DEFAULT_GPT4_32K_MODEL,
+    sleep_time: int = 3,
+    chat_logger: ChatLogger | None = None,
+    assistant_id: str | None = None,
+    assistant_name: str | None = None,
+    save_ticket_progress: save_ticket_progress_type | None = None,
+):
+    pass
