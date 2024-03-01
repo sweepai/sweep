@@ -137,10 +137,22 @@ def function_modify(
         )
 
         try:
+            done_counter = 0
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(100):
                 print(tool_name, json.dumps(tool_call, indent=2))
-                if tool_name == "propose_problem_analysis_and_plan":
+                if tool_name == "done":
+                    diff = generate_diff(file_contents, current_contents)
+                    if diff:
+                        break
+                    else:
+                        done_counter += 1
+                        if done_counter >= 3:
+                            break
+                        tool_name, tool_call = assistant_generator.send(
+                            "ERROR\nNo changes were made. Please continue working on your task."
+                        )
+                elif tool_name == "propose_problem_analysis_and_plan":
                     tool_name, tool_call = assistant_generator.send(
                         f"SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
                     )

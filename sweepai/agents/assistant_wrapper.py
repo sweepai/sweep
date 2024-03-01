@@ -224,14 +224,36 @@ def run_until_complete(
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made})"
                 )
-                break
+                done_response = yield "done", {
+                    "status": "completed",
+                    "message": "Run completed successfully",
+                }
+                if not done_response:
+                    break
+                else:
+                    run = client.beta.threads.messages.create(
+                        thread_id=thread_id,
+                        role="user",
+                        content=done_response,
+                    )
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made})"
                 )
-                raise Exception(
-                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
-                )
+                done_response = yield "done", {
+                    "status": run.status,
+                    "message": "Run failed",
+                }
+                if not done_response:
+                    raise Exception(
+                        f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
+                    )
+                else:
+                    run = client.beta.threads.messages.create(
+                        thread_id=thread_id,
+                        role="user",
+                        content=done_response,
+                    )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
@@ -275,11 +297,6 @@ def run_until_complete(
                     # OpenAI has a bug where it calls the imaginary function "multi_tool_use.parallel"
                     # Based on https://github.com/phdowling/openai_multi_tool_use_parallel_patch/blob/main/openai_multi_tool_use_parallel_patch.py
                     if tool_function_name in ("multi_tool_use.parallel", "parallel"):
-                        # import pdb
-
-                        # pdb.set_trace()
-                        # print(tool_function_input)
-                        # print(function_input)
                         for fake_i, fake_tool_use in function_input["tool_uses"]:
                             function_input = fake_tool_use["parameters"]
                             function_name: str = fake_tool_use["recipient_name"]
@@ -348,7 +365,9 @@ def run_until_complete(
                 if i % 5 == 0:
                     logger.info(run.status)
             if i == max_iterations - 1:
-                logger.warning(f"run_until_complete hit max iterations, run.status is {run.status}")
+                logger.warning(
+                    f"run_until_complete hit max iterations, run.status is {run.status}"
+                )
             time.sleep(sleep_time)
     except (KeyboardInterrupt, SystemExit):
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
