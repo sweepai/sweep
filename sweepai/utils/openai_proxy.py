@@ -28,7 +28,7 @@ SEED = 100
 
 class OpenAIProxy:
     @file_cache(ignore_params=[])
-    def call_openai(self, model, messages, max_tokens, temperature) -> str:
+    def call_openai(self, model, messages, max_tokens, temperature, **kwargs) -> str:
         try:
             raise NotImplementedError("OpenAIProxy is not implemented")
             engine = self.determine_openai_engine(model)
@@ -87,7 +87,7 @@ class OpenAIProxy:
             if OPENAI_API_KEY:
                 try:
                     response = self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature
+                        model, messages, max_tokens, temperature, **kwargs
                     )
                     return response.choices[0].message.content
                 except SystemExit:
@@ -131,7 +131,7 @@ class OpenAIProxy:
         return response
 
     def set_openai_default_api_parameters(
-        self, model, messages, max_tokens, temperature
+        self, model, messages, max_tokens, temperature, **kwargs
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
@@ -141,5 +141,6 @@ class OpenAIProxy:
             temperature=temperature,
             timeout=OPENAI_TIMEOUT,
             seed=SEED,
+            **kwargs,
         )
         return response

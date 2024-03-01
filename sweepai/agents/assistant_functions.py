@@ -40,9 +40,9 @@ search_and_replace_schema = {
                 "type": "string",
                 "description": "Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made. Be sure to consider all imports that are required to complete the task.",
             },
-            "replaces_to_make": {
+            "change_list": {
                 "type": "array",
-                "description": "Array of sections of code to modify",
+                "description": "List of changes by section as produced by the write_changes function.",
                 "items": {
                     "type": "object",
                     "properties": {
@@ -109,24 +109,6 @@ write_changes_schema = {
                 },
             },
         },
-    },
-    "returns": {
-        "type": "object",
-        "properties": {
-            "section_id": {
-                "type": "string",
-                "description": "The section ID the original code belongs to.",
-            },
-            "old_code": {
-                "type": "string",
-                "description": "The old lines of code. Be sure to add lines before and after to disambiguate the change.",
-            },
-            "new_code": {
-                "type": "string",
-                "description": "The new code to replace the old code.",
-            },
-        },
-        "required": ["section_id", "old_code", "new_code"],
     },
     "description": "Given a task, read multiple relevant code sections and suggest edits.",
 }

@@ -38,7 +38,7 @@ class Message(BaseModel):
         else:
             return cls(role="user", content=tup[0])
 
-    def to_openai(self) -> str:
+    def to_openai(self) -> dict[str, Any]:
         obj = {
             "role": self.role,
             "content": self.content,

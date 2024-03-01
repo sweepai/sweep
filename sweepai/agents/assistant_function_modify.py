@@ -10,6 +10,7 @@ from sweepai.agents.assistant_functions import (
     write_changes_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
@@ -28,36 +29,38 @@ Your job is to make edits to the file to complete the user "# Request".
 
 instructions = preamble + """
 # Instructions
-1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes.
-3. Use the write_changes function to read relevant sections of the code and propose changes on them.
+1. Use the keyword_search function to find the right places to make changes.
+2. Use the write_changes function to read relevant sections of the code and propose changes on them.
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replace calls to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
-4. Use the search_and_replace function to take in the change list and apply the changes.
+3. Use the search_and_replace function to take in the change list and apply the changes.
 """
 
-write_changes_instructions = preamble + """
-# Instructions
-Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made.
+write_changes_instructions = """Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made.
 
 - Be sure to consider all imports that are required to complete the task.
 - Keep existing whitespace and comments.
 - Write multiple small changes instead of a single large change.
+- Analyze the code and identify your intended changes first.
 
-Your changes must be an array of valid JSON under the following schema. See example below:
-[
-    {
-        "section_id": "AW",
-        "old_code": "       foo = get_foo()",
-        "new_code": "       foo = get_foo()\n      bar = get_bar()",
-    }
-    {
-        "section_id": "BZ",
-        "old_code": "       res = call_old_function(foo)",
-        "new_code": "       res = call_new_function(foo)",
-    },
-]
+Your changes must be valid JSON under the following schema.
+See example below:
+{
+    "analysis_and_identification": "We should replace do_old_bad_thing with do_new_good_thing. This requires an additional argument which we must also add.",
+    "change_list": [
+        {
+            "section_id": "AW",
+            "old_code": "       foo = get_foo()",
+            "new_code": "       foo = get_foo()\n      bar = get_bar()",
+        }
+        {
+            "section_id": "BZ",
+            "old_code": "       res = do_old_bad_thing(foo)",
+            "new_code": "       res = do_new_good_thing(foo, bar)",
+        },
+    ]
+}
 """
 
 # TODO: fuzzy search for keyword_search
@@ -156,7 +159,7 @@ def function_modify(
             ),
             assistant_name="Code Modification Function Assistant",
             tools=[
-                {"type": "function", "function": chain_of_thought_schema},
+                # {"type": "function", "function": chain_of_thought_schema},
                 {"type": "function", "function": write_changes_schema},
                 {"type": "function", "function": search_and_replace_schema},
                 {"type": "function", "function": keyword_search_schema},
@@ -183,30 +186,33 @@ def function_modify(
                     task = tool_call["task"]
                     section_ids = tool_call["section_ids"]
 
-                    # get code of requested section IDs
-                    sections = []
+                    # gather requested code sections from IDs
+                    requested_sections = []
                     for section_letter in section_ids:
-                        if section_letter >= len(chunks):
+                        section_id = excel_col_to_int(section_letter)
+                        if section_id >= len(chunks):
                             error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
                             break
 
-                        section_id = excel_col_to_int(section_letter)
-                        sections.append(chunks[section_id])
-                    print(f"\n===== Sections: {sections} =====\n") # REMOVE
+                        requested_sections.append(chunks[section_id])
 
-                    # send to LLM to generate changes
-                    # TODO
+                    # send to LLM to generate change list
+                    chatgpt = ChatGPT.from_system_message_string(instructions, chat_logger)  # instantiate new for fresh message history
+                    prompt = "\n".join(code_sections) + f"\n\n{write_changes_instructions}\n# Request\n{task}"
+                    content = chatgpt.chat(prompt, response_format={ "type": "json_object" })
+                    print(content)
+                    tool_name, tool_call = assistant_generator.send(content)
                 elif tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
                     new_contents = current_contents
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
 
-                    if "replaces_to_make" not in tool_call:
-                        error_message = "No replaces_to_make found in tool call."
+                    if "change_list" not in tool_call:
+                        error_message = "No change_list found in tool call."
                     else:
                         for index, replace_to_make in enumerate(
-                            tool_call["replaces_to_make"]
+                            tool_call["change_list"]
                         ):
                             for key in ["section_id", "old_code", "new_code"]:
                                 if key not in replace_to_make:
@@ -315,7 +321,7 @@ def function_modify(
                     else:
                         logger.info(success_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\nHere are the new code sections:\n\n{success_message}"
+                            f"SUCCESS\n{success_message}"
                         )
                 elif tool_name == "keyword_search":
                     error_message = ""
@@ -670,11 +676,11 @@ if __name__ == "__main__":
         request=request,
         file_path="sweepai/handlers/on_ticket.py",
         file_contents=file_contents,
-        chat_logger=ChatLogger(
-            {
-                "username": "kevinlu1248",
-                "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
-            }
-        ),
+        # chat_logger=ChatLogger(
+        #     {
+        #         "username": "kevinlu1248",
+        #         "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
+        #     }
+        # ),
         # additional_messages=additional_messages,
     )

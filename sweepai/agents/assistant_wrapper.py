@@ -280,7 +280,7 @@ def run_until_complete(
                         # pdb.set_trace()
                         # print(tool_function_input)
                         # print(function_input)
-                        for fake_i, fake_tool_use in function_input["tool_uses"]:
+                        for fake_i, fake_tool_use in enumerate(function_input["tool_uses"]):
                             function_input = fake_tool_use["parameters"]
                             function_name: str = fake_tool_use["recipient_name"]
                             function_name = function_name.removeprefix("functions.")
