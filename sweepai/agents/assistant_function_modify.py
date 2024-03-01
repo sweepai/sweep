@@ -27,7 +27,7 @@ Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
 1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes. Check surrounding code for context with the view_sections function.
+2. Use the keyword_search function to find the right places to make changes. If relevant, check surrounding code for context with the view_sections function. For example, if you find section B, you may want to see sections A and C to understand the surrounding context like the function headers and return statements.
 3. Use the search_and_replace function to make the changes.
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
@@ -237,12 +237,12 @@ def function_modify(
                             success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
-                            error_message = f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
+                            error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
 
                     if error_message:
                         logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\nNo changes were made due to the following error:\n\n{error_message}"
+                            f"ERROR\n{error_message}"
                         )
                     else:
                         logger.info(success_message)
@@ -323,11 +323,23 @@ def function_modify(
                     if not len(tool_call["section_ids"]):
                         error_message = "section_ids should not be empty."
 
+                    # get one section before and after each section
+                    section_indices = set()
+                    for section_id in tool_call["section_ids"]:
+                        section_index = excel_col_to_int(section_id)
+                        section_indices.update(
+                            (
+                                int_to_excel_col(section_index - 1),
+                                int_to_excel_col(section_index),
+                                int_to_excel_col(section_index + 1),
+                            )
+                        )
+                    section_indices = sorted(list(section_indices))
                     if not error_message:
                         success_message = "Here are the sections:" + "\n\n".join(
                             [
                                 f"<section id='{section_id}'>\n{chunks[excel_col_to_int(section_id)]}\n</section>"
-                                for section_id in tool_call["section_ids"]
+                                for section_id in section_indices
                             ]
                         )
 
