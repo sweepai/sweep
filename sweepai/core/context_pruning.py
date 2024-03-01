@@ -326,13 +326,18 @@ def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', i
     try:
         successors = {node for node, length in nx.single_source_shortest_path_length(graph, start_node, cutoff=1).items() if length == 1}
     except Exception as e:
-        print("error occured attetmping to fetch successors:", e)
+        print("error occured while fetching successors:", e)
+        return hierarchy
     sorted_successors = sorted(successors)
     for idx, child in enumerate(sorted_successors):
         child_is_last = idx == len(sorted_successors) - 1
         hierarchy += build_full_hierarchy(graph, child, k, child_prefix, child_is_last, level+1)
     if level == 0:
-        predecessors = {node for node, length in nx.single_source_shortest_path_length(graph.reverse(), start_node, cutoff=1).items() if length == 1}
+        try:
+            predecessors = {node for node, length in nx.single_source_shortest_path_length(graph.reverse(), start_node, cutoff=1).items() if length == 1}
+        except Exception as e:
+            print("error occured while fetching predecessors:", e)
+            return hierarchy
         sorted_predecessors = sorted(predecessors)
         for idx, parent in enumerate(sorted_predecessors):
             parent_is_last = idx == len(sorted_predecessors) - 1
@@ -385,8 +390,17 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
 
 # fetch all files mentioned in the user query
 def parse_query_for_files(query: str, rcm: RepoContextManager) -> tuple[RepoContextManager, nx.DiGraph]:
+    # use cloned_repo to attempt to find any files names that appear in the query
     repo_full_name = rcm.cloned_repo.repo_full_name
     repo_name = repo_full_name.split("/")[-1]
+    code_files_to_add = set([])
+    code_files_to_check = set(list(rcm.cloned_repo.get_file_list()))
+    code_files_uri_encoded = [urllib.parse.quote(file_path) for file_path in code_files_to_check]
+    for file, file_uri_encoded in zip(code_files_to_check, code_files_uri_encoded):
+        if file in query or file_uri_encoded in query:
+            code_files_to_add.add(file)
+    for code_file in code_files_to_add:
+        rcm.append_relevant_file_paths(code_file)
     # only for enterprise
     try:
         pathing = f"ee/import_graphs/{repo_full_name}/{repo_name}_import_tree.txt"
@@ -399,7 +413,7 @@ def parse_query_for_files(query: str, rcm: RepoContextManager) -> tuple[RepoCont
     files = set(list(graph.nodes()))
     files_uri_encoded = [urllib.parse.quote(file_path) for file_path in files]
     for file, file_uri_encoded in zip(files, files_uri_encoded):
-        if file in query or file_uri_encoded in query:
+        if (file in query or file_uri_encoded in query) and (file not in code_files_to_add):
             rcm.append_relevant_file_paths(file)
     return rcm, graph
     
