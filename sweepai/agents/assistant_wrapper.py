@@ -231,10 +231,11 @@ def run_until_complete(
                 if not done_response:
                     break
                 else:
-                    run = client.beta.threads.messages.create(
+                    run = client.beta.threads.runs.create(
                         thread_id=thread_id,
-                        role="user",
-                        content=done_response,
+                        assistant_id=assistant_id,
+                        instructions=done_response,
+                        model=model,
                     )
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
@@ -249,10 +250,11 @@ def run_until_complete(
                         f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
                     )
                 else:
-                    run = client.beta.threads.messages.create(
+                    run = client.beta.threads.runs.create(
                         thread_id=thread_id,
-                        role="user",
-                        content=done_response,
+                        assistant_id=assistant_id,
+                        instructions=done_response,
+                        model=model,
                     )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
