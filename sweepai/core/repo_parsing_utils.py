@@ -45,6 +45,15 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         return False
     if not os.path.isfile(file):
         return False
+    with open(file, "rb") as f:
+        is_binary = False
+        for block in iter(lambda: f.read(1024), b""):
+            if b"\0" in block:
+                is_binary = True
+                break
+        if is_binary:
+            return False
+        f.close()
     with open(file, "r") as f:
         lines = f.readlines()
         line_count = len(lines)
@@ -58,15 +67,6 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
             return False
         if len(data)/token_count < 2:
             return False
-    with open(file, "rb") as f:
-        is_binary = False
-        for block in iter(lambda: f.read(1024), b""):
-            if b"\0" in block:
-                is_binary = True
-                break
-        if is_binary:
-            return False
-        f.close()
     return True
 
 
