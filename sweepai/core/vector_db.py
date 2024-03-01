@@ -131,7 +131,6 @@ def openai_with_expo_backoff(batch: tuple[str]):
         logger.exception(f"Timeout error occured while embedding: {e}")
     except Exception as e:
         logger.exception(e)
-        import pdb; pdb.set_trace()
         if any(tiktoken_client.count(text) > 8192 for text in batch):
             logger.warning(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
             batch = [tiktoken_client.truncate_string(text) for text in batch]
