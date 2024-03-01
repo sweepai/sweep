@@ -55,7 +55,11 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
             return False
         f.close()
     with open(file, "r") as f:
-        lines = f.readlines()
+        try:
+            lines = f.readlines()
+        except UnicodeDecodeError:
+            logger.warning(f"UnicodeDecodeError: {file}, skipping")
+            return False
         line_count = len(lines)
         data = "\n".join(lines)
         # if average line length is greater than 200, then it is likely not human readable
