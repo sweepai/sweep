@@ -94,7 +94,7 @@ write_changes_schema = {
         "properties": {
             "analysis_and_identification": {
                 "type": "string",
-                "description": "Identify and list the minimal changes that need to be made to the file, by listing all code section IDs that should receive these changes and the intended changes to be made.",
+                "description": "Identify and list the minimal changes that need to be made to the file,by listing all code section IDs that should receive these changes and the intended changes to be made. A developer will review all requested sections and perform edits on them based on your instructions in `task`.",
             },
             "task": {
                 "type": "string",
@@ -109,6 +109,7 @@ write_changes_schema = {
                 },
             },
         },
+        "required": ["analysis_and_identification", "task", "section_ids"],
     },
     "description": "Given a task, read multiple relevant code sections and suggest edits.",
 }
