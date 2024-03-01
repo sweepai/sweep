@@ -97,6 +97,7 @@ class SweepConfig(BaseModel):
         ".pem",
         ".ttf",
         ".dfn",
+        ".dfm",
         "sweep.yaml",
         ".ftl",
         "pnpm-lock.yaml",
