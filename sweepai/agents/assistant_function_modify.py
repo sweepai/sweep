@@ -27,7 +27,7 @@ Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
 1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes.
+2. Use the keyword_search function to find the right places to make changes. Check surrounding code for context with the view_sections function.
 3. Use the search_and_replace function to make the changes.
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
@@ -83,9 +83,10 @@ def function_modify(
         initial_code_valid, _ = check_code(file_path, current_contents)
         initial_code_valid = initial_code_valid or (
             "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
-        )  # If there's a merge conflict, we still check that the final code is valid
+        )
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
+        # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
         file_contents_lines = current_contents.split("\n")
         chunks = [
             "\n".join(file_contents_lines[snippet.start : snippet.end])
@@ -245,8 +246,11 @@ def function_modify(
                         )
                     else:
                         logger.info(success_message)
+                        # tool_name, tool_call = assistant_generator.send(
+                        #     f"SUCCESS\nThe following changes have been applied: successfully\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                        # )
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\nHere are the new code sections:\n\n{success_message}"
+                            f"SUCCESS\n\n{success_message}"
                         )
                 elif tool_name == "keyword_search":
                     error_message = ""
@@ -307,7 +311,7 @@ def function_modify(
                     else:
                         logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or continue to make changes by calling the search_and_replace function."
+                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords, view_sections calls to view surrounding sections, or continue to make changes by calling the search_and_replace function."
                         )
                 elif tool_name == "view_sections":
                     if "section_ids" not in tool_call:
