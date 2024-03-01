@@ -288,12 +288,12 @@ def function_modify(
                     if error_message:
                         logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\nThe search failed due to the following error:\n\n{error_message}"
+                            f"ERROR\n\n{error_message}"
                         )
                     else:
                         logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\nHere are the lines containing the keywords:\n\n{success_message}"
+                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or continue to make changes by calling the search_and_replace function."
                         )
                 else:
                     assistant_generator.send(
