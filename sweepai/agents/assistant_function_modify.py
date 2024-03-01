@@ -140,7 +140,7 @@ def function_modify(
         try:
             done_counter = 0
             tool_name, tool_call = assistant_generator.send(None)
-            for i in range(500):
+            for i in range(10000):
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "done":
                     diff = generate_diff(file_contents, current_contents)
@@ -338,7 +338,7 @@ def function_modify(
                             f"SUCCESS\n{success_message}\n\nMake additional view_sections or keyword_search calls to find other keywords or sections or continue to make changes by calling the search_and_replace function."
                         )
                 else:
-                    assistant_generator.send(
+                    tool_name, tool_call = assistant_generator.send(
                         f"ERROR\nUnexpected tool name: {tool_name}"
                     )
             logger.error("Too many iterations.")
