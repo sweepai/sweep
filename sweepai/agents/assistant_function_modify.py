@@ -7,6 +7,7 @@ from sweepai.agents.assistant_functions import (
     chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
+    view_sections_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, Message
@@ -130,8 +131,9 @@ def function_modify(
             assistant_name="Code Modification Function Assistant",
             tools=[
                 {"type": "function", "function": chain_of_thought_schema},
-                {"type": "function", "function": search_and_replace_schema},
                 {"type": "function", "function": keyword_search_schema},
+                {"type": "function", "function": view_sections_schema},
+                {"type": "function", "function": search_and_replace_schema},
             ],
         )
 
@@ -294,6 +296,34 @@ def function_modify(
                         logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or continue to make changes by calling the search_and_replace function."
+                        )
+                elif tool_name == "view_sections":
+                    if "section_ids" not in tool_call:
+                        error_message = "No section_ids found in tool call."
+
+                    if not isinstance(tool_call["section_ids"], list):
+                        error_message = "section_ids should be a list."
+
+                    if not len(tool_call["section_ids"]):
+                        error_message = "section_ids should not be empty."
+
+                    if not error_message:
+                        success_message = "Here are the sections:" + "\n\n".join(
+                            [
+                                f"<section id='{section_id}'>\n{chunks[excel_col_to_int(section_id)]}\n</section>"
+                                for section_id in tool_call["section_ids"]
+                            ]
+                        )
+
+                    if error_message:
+                        logger.debug(error_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n{error_message}"
+                        )
+                    else:
+                        logger.debug(success_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n{success_message}\n\nMake additional view_sections or keyword_search calls to find other keywords or sections or continue to make changes by calling the search_and_replace function."
                         )
                 else:
                     assistant_generator.send(
