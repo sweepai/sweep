@@ -20,7 +20,6 @@ click==8.1.7
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
-cloudpickle==2.0.0
 config-path==1.0.5
 coverage==7.4.3
 cryptography==42.0.5
@@ -69,7 +68,6 @@ markdownify==0.11.6
 markupsafe==2.1.5
 mccabe==0.7.0
 mdurl==0.1.2
-modal==0.51.3360
 modal-client==0.51.3360
 monotonic==1.6
 msgpack==1.0.7
