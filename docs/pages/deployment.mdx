@@ -141,7 +141,7 @@ GITHUB_CLIENT_ID=Iv1.123218f182131
 GITHUB_CLIENT_SECRET=6g626312b212142132121321412
 ```
 
-Add your GITHUB_BOT_USERNAME and WHITELISTED_USERS (your GitHub username) to the end of the file:
+Add your `GITHUB_BOT_USERNAME` and `WHITELISTED_USERS` (your GitHub username) to the end of the file:
 ```sh filename=".env"
 ...
 GITHUB_BOT_USERNAME=sweep-example-name
@@ -304,8 +304,9 @@ http://YOUR_IP:8080
 Navigating to this link should look like this:
 <img src="/deployment/digitalocean_step7.png" alt="Skip Resources Page" />
 
-Go to your GitHub app and update the `Webhook URL` to the link above.
-For user accounts: 
+Go to your GitHub app and update `Webhook URL` to the link above.
+
+For user accounts:
 ```txt /GITHUB_BOT_USERNAME/
 https://github.com/settings/apps/GITHUB_BOT_USERNAME
 ```
