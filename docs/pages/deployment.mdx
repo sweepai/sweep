@@ -132,7 +132,7 @@ Alternatively, we have written instructions below.
 
 <Tabs items={['Probot (recommended)', 'Manual']}>
 <Tabs.Tab>
-We can create an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you would like ot set it up yourself, scroll down to the **Manual GitHub App Setup** section.
+We can create an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
 
 > Run this GitHub App locally! This tool is only used for creating the GitHub App, not hosting Sweep.
 >
@@ -141,7 +141,7 @@ First, open a terminal and run the following commands (RUN LOCALLY):
 
 ```sh filename="terminal"
 git clone https://github.com/sweepai/sweep
-cd sweep/self_deploy
+cd sweep/probot
 npm install
 npm start
 ```
@@ -149,12 +149,9 @@ npm start
 Second, open http://localhost:3000 in your browser, and:
 1. Click the "Register GitHub App" button.
 2. Click the green "Create GitHub App for USERNAME" button.
-3. Pick where to install the app and then click the green "Install" button. This will take you to the app settings page.
-4. Click the small "App settings" button.
+3. Pick where to install the app and then click the green "Install" button.
 
-![image](/deployment/appsettings.png)
-
-Now, stop the server by pressing `Ctrl+C` in the terminal. Once it has stopped, open the `.env` file with a text editor in the `sweep/self_deploy` directory. You should see something like this:
+Now, stop the server by pressing `Ctrl+C` in the terminal. Once it has stopped, open the `.env` file in the `sweep/probot` directory. You should see something like this:
 
 ```sh filename=".env"
 APP_ID=123456
@@ -184,6 +181,7 @@ GITHUB_CLIENT_SECRET=6g626312b212142132121321412
 GITHUB_BOT_USERNAME=sweep-example-name
 WHITELISTED_USERS=your-username,other-username,another-username
 ```
+If Probot fails, please follow the manual instructions above.
 </Tabs.Tab>
 <Tabs.Tab>
 If you would like to use Sweep on GitHub organizations, please follow the steps below.
@@ -225,7 +223,7 @@ Set the Repository Permissions (7 selected):
 | workflow run             |
 
 Put a placeholder url for now (ex: https://github.com/sweepai/sweep/).
-Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later.
+Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it.
 
 ![image](/deployment/pem.png)
 
@@ -235,7 +233,7 @@ Once the private key is downloaded, format it for the next step:
 echo -e "paste key here" | tr '\n' ' ' | sed 's/ /\\n/g'
 ```
 
-And, save the output for later in the following format:
+And, save the output in the following format:
 
 ```sh filename=".env"
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
@@ -247,7 +245,7 @@ You will also need your app ID, which is the number at the top of the page. This
 
 Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
 
-Store the following constants for later:
+Store the following constants:
 
 ```sh filename=".env"
 APP_ID=123456
@@ -259,16 +257,10 @@ GITHUB_BOT_USERNAME=sweep-example-name
 
 ---
 
-### 2. OpenAI API Token
+### 2. OpenAI API key
 
-Please create an OpenAI API token at https://platform.openai.com/account/api-keys. You will need this later. Also, if you have access to the 32k model, please set `OPENAI_DO_HAVE_32K_MODEL_ACCESS=true`. If you have a beefier machine and want higher quality search, change the sentence transformers model to `sentence-transformers/all-mpnet-base-v2`.
-```sh
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
-```
-
-After following one of the above sections, you should have the following environment variables:
-```sh
+Please create an (OpenAI API key)[https://platform.openai.com/account/api-keys] and add it to your .env.
+```sh filename=".env"
 APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 WEBHOOK_SECRET=213921898f9as8f92139128989f
@@ -277,14 +269,13 @@ GITHUB_CLIENT_SECRET=6g626312b212142132121321412
 GITHUB_BOT_USERNAME=sweep-example-name
 WHITELISTED_USERS=your-username,other-username,another-username
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
 ---
 
 ### 3. Hosting Sweep
 
-Now to host Sweep you need to run the Sweep webhook on a publically accessible server. We recommend using a cloud provider like DigitalOcean, AWS, or Azure, but you can also run it locally and use a reverse proxy like Ngrok. For this guide, we will use DigitalOcean.
+Now to host Sweep you need to run the Sweep webhook on a publicly accessible server. We recommend using a cloud provider like DigitalOcean, AWS, or Azure, but you can also run it locally and use a reverse proxy like Ngrok. For this guide, we will use DigitalOcean.
 
 *Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a [GitHub issue](https://github.com/sweepai/sweep/issues) (ironic, we know!). We are online, please ping us @kevin, @william, and @martin.*
 
@@ -317,7 +308,6 @@ Start the docker client if you are on Mac/Windows.
 git clone https://github.com/sweepai/sweep
 cd sweep
 vim .env
-docker compose pull
 ```
 
 And copy the following into the `.env` file:
@@ -333,12 +323,11 @@ GITHUB_BOT_USERNAME=sweep-example-name
 WHITELISTED_USERS=your-username,other-username,another-username
 # Step 2
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
 ##### 4. Launch Docker Image
 ```sh filename="terminal"
-docker compose up # Add -d to run in background
+docker compose up --build hosted # Add -d to run in background
 ```
 
 ##### 5. Update GitHub Webhook URL
@@ -440,7 +429,6 @@ GITHUB_BOT_USERNAME=sweep-example-name
 
 # These three are from step 2.
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
 <details>
