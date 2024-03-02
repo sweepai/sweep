@@ -67,6 +67,15 @@ def get_token(installation_id: int):
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
     )
 
+def get_app():
+    jwt = get_jwt()
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": "Bearer " + jwt,
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    response = requests.get("https://api.github.com/app", headers=headers)
+    return response.json()
 
 def get_github_client(installation_id: int):
     if not installation_id:
