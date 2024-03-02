@@ -4,17 +4,29 @@ from typing import Generator
 import backoff
 import numpy as np
 from loguru import logger
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 from redis import Redis
+import requests
 from tqdm import tqdm
 
-from sweepai.config.server import BATCH_SIZE, REDIS_URL
+from sweepai.config.server import BATCH_SIZE, OPENAI_API_TYPE, OPENAI_EMBEDDINGS_AZURE_API_KEY, OPENAI_EMBEDDINGS_AZURE_API_VERSION, OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT, OPENAI_EMBEDDINGS_AZURE_ENDPOINT, REDIS_URL, OPENAI_EMBEDDINGS_API_TYPE
 from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.utils import Tiktoken
 
-client = OpenAI()
-CACHE_VERSION = "v1.0.16"
+if OPENAI_EMBEDDINGS_API_TYPE == "openai":
+    client = OpenAI()
+elif OPENAI_EMBEDDINGS_API_TYPE == "azure":
+    client = AzureOpenAI(
+        azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
+        api_key=OPENAI_EMBEDDINGS_AZURE_API_KEY,
+        azure_deployment=OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
+        api_version=OPENAI_EMBEDDINGS_AZURE_API_VERSION,
+    )
+else:
+    raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
+
+CACHE_VERSION = "v1.3.04"
 redis_client: Redis = Redis.from_url(REDIS_URL)
 tiktoken_client = Tiktoken()
 
@@ -62,10 +74,12 @@ def normalize_l2(x):
 def embed_text_array(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts using openai...")
     embeddings = []
+    chunks = list(chunk(texts, batch_size=BATCH_SIZE))
     for batch in tqdm(
-        chunk(texts, batch_size=BATCH_SIZE), disable=False, desc="openai embedding"
+        chunks, disable=False, desc="openai embedding", total=len(chunks)
     ):
         try:
+            # prepend each text with a prompt
             embeddings.append(openai_with_expo_backoff(batch))
         except SystemExit:
             raise SystemExit
@@ -87,8 +101,8 @@ def openai_call_embedding(batch):
 
 @backoff.on_exception(
     backoff.expo,
-    Exception,
-    max_tries=16,
+    requests.exceptions.Timeout,
+    max_tries=5,
 )
 def openai_with_expo_backoff(batch: tuple[str]):
     if not redis_client:
@@ -110,10 +124,15 @@ def openai_with_expo_backoff(batch: tuple[str]):
         embeddings = np.array(embeddings)
         return embeddings  # all embeddings are in cache
     try:
+        # make sure all token counts are within model params (max: 8192)
+
         new_embeddings = openai_call_embedding(batch)
-    except Exception:
-        # try to truncate the string and call openai again
-        if any(tiktoken_client.count(text) > 8000 for text in batch):
+    except requests.exceptions.Timeout as e:
+        logger.exception(f"Timeout error occured while embedding: {e}")
+    except Exception as e:
+        logger.exception(e)
+        if any(tiktoken_client.count(text) > 8192 for text in batch):
+            logger.warning(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
             batch = [tiktoken_client.truncate_string(text) for text in batch]
             new_embeddings = openai_call_embedding(batch)
     # get all indices where embeddings are None

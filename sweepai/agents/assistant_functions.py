@@ -68,6 +68,25 @@ old_search_and_replace_schema = {
     "description": "Make edits to the code file.",
 }
 
+view_sections_schema = {
+    "name": "view_sections",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "section_ids": {
+                "type": "array",
+                "description": "Section IDs to view",
+                "items": {
+                    "type": "string",
+                    "description": "The section ID to view.",
+                },
+            },
+        },
+        "required": ["section_ids"],
+    },
+    "description": "Searches for sections in the file and returns the code for each section.",
+}
+
 keyword_search_schema = {
     "name": "keyword_search",
     "parameters": {

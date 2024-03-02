@@ -52,7 +52,7 @@ def file_cache(ignore_params=[], verbose=False):
     """
 
     def decorator(func):
-        if not DEBUG:
+        if not DEBUG and False:
             print("File cache is disabled.")
             return func
 
@@ -95,8 +95,8 @@ def file_cache(ignore_params=[], verbose=False):
             try:
                 with open(cache_file, "wb") as f:
                     pickle.dump(result, f)
-            except Exception:
-                logger.info("Pickling failed")
+            except Exception as e:
+                logger.info(f"Pickling failed: {e}")
             return result
 
         return wrapper

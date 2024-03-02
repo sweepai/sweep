@@ -201,3 +201,5 @@ certs
 
 docker-compose
 .pdbrc.py
+
+ee/**

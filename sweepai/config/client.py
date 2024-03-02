@@ -20,6 +20,13 @@ class SweepConfig(BaseModel):
         "venv",
         "patch",
         "packages/blobs",
+        "dist",
+    ]
+    exclude_path_dirs: list[str] = [
+        "node_modules",
+        "venv",
+        ".git",
+        "dist"
     ]
     include_exts: list[str] = [
         ".cs",
@@ -89,6 +96,8 @@ class SweepConfig(BaseModel):
         ".pub",
         ".pem",
         ".ttf",
+        ".dfn",
+        ".dfm",
         "sweep.yaml",
         ".ftl",
         "pnpm-lock.yaml",

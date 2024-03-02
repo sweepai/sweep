@@ -6,6 +6,7 @@ from loguru import logger
 from sweepai.agents.assistant_functions import (
     keyword_search_schema,
     search_and_replace_schema,
+    view_sections_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.chat import ChatGPT
@@ -110,9 +111,10 @@ def function_modify(
         initial_code_valid, _ = check_code(file_path, current_contents)
         initial_code_valid = initial_code_valid or (
             "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
-        )  # If there's a merge conflict, we still check that the final code is valid
+        )
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
+        # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
         file_contents_lines = current_contents.split("\n")
         chunks = [
             "\n".join(file_contents_lines[snippet.start : snippet.end])
@@ -163,10 +165,26 @@ def function_modify(
         )
 
         try:
+            done_counter = 0
             tool_name, tool_call = assistant_generator.send(None)
-            for i in range(100):
+            for i in range(10000):
                 print(tool_name, json.dumps(tool_call, indent=2))
-                if tool_name == "search_and_replace":
+                if tool_name == "done":
+                    diff = generate_diff(file_contents, current_contents)
+                    if diff:
+                        break
+                    else:
+                        done_counter += 1
+                        if done_counter >= 3:
+                            break
+                        tool_name, tool_call = assistant_generator.send(
+                            "ERROR\nNo changes were made. Please continue working on your task."
+                        )
+                elif tool_name == "propose_problem_analysis_and_plan":
+                    tool_name, tool_call = assistant_generator.send(
+                        f"SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
+                    )
+                elif tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
 
@@ -277,39 +295,7 @@ def function_modify(
                             current_contents = new_contents
 
                             # Re-initialize
-                            original_snippets = chunk_code(
-                                current_contents, file_path, 700, 200
-                            )
-                            file_contents_lines = current_contents.split("\n")
-                            chunks = [
-                                "\n".join(
-                                    file_contents_lines[snippet.start : snippet.end]
-                                )
-                                for snippet in original_snippets
-                            ]
-                            code_sections = []
-                            current_code_section = ""
-                            for i, chunk in enumerate(chunks):
-                                idx = int_to_excel_col(i + 1)
-                                section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-                                if (
-                                    len(current_code_section) + len(section_display)
-                                    > MAX_CHARS
-                                ):
-                                    code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
-                                    code_sections.append(code_sections_string)
-                                    current_code_section = section_display
-                                else:
-                                    current_code_section += "\n" + section_display
-                            code_sections.append(current_code_section)
-                            new_current_code = f"\n\n{code_sections[0]}"
-                            max_allowed_chars = TOOLS_MAX_CHARS - 1000 - len(diff)
-                            if len(new_current_code) > max_allowed_chars:
-                                new_current_code = (
-                                    new_current_code[:max_allowed_chars]
-                                    + "\n\n... (truncated)"
-                                )
-                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nHere are the new code sections:\n\n{new_current_code}\n\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
                             error_message = error_message_prefix + f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry search_and_replace with different changes that yield valid code."
@@ -317,12 +303,15 @@ def function_modify(
                     if error_message:
                         logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\nNo changes were made due to the following error:\n\n{error_message}"
+                            f"ERROR\n{error_message}"
                         )
                     else:
                         logger.info(success_message)
+                        # tool_name, tool_call = assistant_generator.send(
+                        #     f"SUCCESS\nThe following changes have been applied: successfully\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                        # )
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}"
+                            f"SUCCESS\n\n{success_message}"
                         )
                 elif tool_name == "keyword_search":
                     error_message = ""
@@ -378,15 +367,55 @@ def function_modify(
                     if error_message:
                         logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\nThe search failed due to the following error:\n\n{error_message}"
+                            f"ERROR\n\n{error_message}"
                         )
                     else:
                         logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\nHere are the lines containing the keywords:\n\n{success_message}"
+                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords, view_sections calls to view surrounding sections, or continue to make changes by calling the search_and_replace function."
+                        )
+                elif tool_name == "view_sections":
+                    if "section_ids" not in tool_call:
+                        error_message = "No section_ids found in tool call."
+
+                    if not isinstance(tool_call["section_ids"], list):
+                        error_message = "section_ids should be a list."
+
+                    if not len(tool_call["section_ids"]):
+                        error_message = "section_ids should not be empty."
+
+                    # get one section before and after each section
+                    section_indices = set()
+                    for section_id in tool_call["section_ids"]:
+                        section_index = excel_col_to_int(section_id)
+                        section_indices.update(
+                            (
+                                int_to_excel_col(section_index - 1),
+                                int_to_excel_col(section_index),
+                                int_to_excel_col(section_index + 1),
+                            )
+                        )
+                    section_indices = sorted(list(section_indices))
+                    if not error_message:
+                        success_message = "Here are the sections:" + "\n\n".join(
+                            [
+                                f"<section id='{section_id}'>\n{chunks[excel_col_to_int(section_id)]}\n</section>"
+                                for section_id in section_indices
+                            ]
+                        )
+
+                    if error_message:
+                        logger.debug(error_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n{error_message}"
+                        )
+                    else:
+                        logger.debug(success_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n{success_message}\n\nMake additional view_sections or keyword_search calls to find other keywords or sections or continue to make changes by calling the search_and_replace function."
                         )
                 else:
-                    assistant_generator.send(
+                    tool_name, tool_call = assistant_generator.send(
                         f"ERROR\nUnexpected tool name: {tool_name}"
                     )
             logger.error("Too many iterations.")
