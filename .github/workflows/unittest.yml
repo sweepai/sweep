@@ -24,13 +24,29 @@ jobs:
         # os: [ubuntu-latest, macos-latest]
         os: [ubuntu-latest]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      # - name: Checkout repository
+      #   uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      # - name: Set up Python
+      #   uses: actions/setup-python@v2
+      #   with:
+      #     python-version: ${{ matrix.python-version }}
+
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.67.0
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+      - run: pip install uv
+      - run: uv pip install -r requirements.txt
+      - run: pylint sweepai --errors-only
+      - run: ruff check sweepai
 
       # - name: Cache Python dependencies
       #   uses: actions/cache@v2
@@ -40,12 +56,13 @@ jobs:
       #     restore-keys: |
       #       ${{ runner.os }}-poetry-
 
-      - name: Install dependencies
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          poetry install
+      # - name: Install dependencies
+      #   run: |
+      #     curl -sSL https://install.python-poetry.org | python3 -
+      #     poetry install
 
       - name: Run unittest
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: poetry run python -m unittest sweepai/**/*_test.py
+        # run: poetry run python -m unittest sweepai/**/*_test.py
+        run: unittest sweepai/**/*_test.py
