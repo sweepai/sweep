@@ -119,6 +119,7 @@ resend==0.6.0
 rich==13.7.0
 robotexclusionrulesparser==1.7.1
 rope==1.12.0
+ruff==0.3.0
 setuptools==69.1.1
 sigtools==4.0.1
 six==1.16.0
