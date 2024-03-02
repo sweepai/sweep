@@ -11,7 +11,6 @@ import traceback
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
-from unittest.mock import Mock
 
 import git
 import requests
