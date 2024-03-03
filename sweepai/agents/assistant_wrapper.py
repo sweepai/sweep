@@ -266,6 +266,8 @@ def run_until_complete(
                     tool_call
                     for tool_call in run.required_action.submit_tool_outputs.tool_calls
                 ]
+                tool_outputs = []
+                tool_calls = []
                 if any(
                     [
                         tool_call.function.name == raise_error_schema["name"]
@@ -274,9 +276,7 @@ def run_until_complete(
                 ):
                     arguments_parsed = json.loads(tool_calls[0].function.arguments)
                     raise AssistantRaisedException(arguments_parsed["message"])
-                tool_outputs = []
                 # tool_calls = raw_tool_calls
-                tool_calls = []
                 for tool_call in raw_tool_calls:
                     try:
                         tool_call_arguments = re.sub(

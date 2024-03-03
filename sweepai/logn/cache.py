@@ -5,7 +5,7 @@ import pickle
 
 from loguru import logger
 
-from sweepai.config.server import DEBUG, GITHUB_BOT_USERNAME
+from sweepai.config.server import DEBUG
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
