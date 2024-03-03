@@ -34,7 +34,8 @@ class OpenAIProxy:
         model: str, 
         messages: list[Message], 
         max_tokens: int = 4096,
-        temperature: float = 0.0
+        temperature: float = 0.0,
+        seed: int = 0,
     ) -> str:
         try:
             engine = self.determine_openai_engine(model)

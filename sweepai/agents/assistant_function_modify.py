@@ -358,7 +358,8 @@ def function_modify(
                     tool_name, tool_call = assistant_generator.send(
                         f"ERROR\nUnexpected tool name: {tool_name}"
                     )
-            logger.error("Too many iterations.")
+            else:
+                logger.error("Too many iterations.")
         except StopIteration:
             pass
         diff = generate_diff(file_contents, current_contents)
