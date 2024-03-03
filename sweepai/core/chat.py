@@ -1,18 +1,14 @@
-import time
 import traceback
 from typing import Any, Literal
 
 import backoff
 from loguru import logger
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
     DEFAULT_GPT35_MODEL,
-    OPENAI_API_KEY,
-    OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt

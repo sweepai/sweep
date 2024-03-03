@@ -3,14 +3,13 @@ from __future__ import annotations
 import os
 import re
 import string
-import uuid
 from dataclasses import dataclass
 from difflib import unified_diff
 from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from sweepai.utils.str_utils import (
     blockquote,

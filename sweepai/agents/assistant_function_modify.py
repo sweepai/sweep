@@ -156,7 +156,7 @@ def function_modify(
                         )
                 elif tool_name == "propose_problem_analysis_and_plan":
                     tool_name, tool_call = assistant_generator.send(
-                        f"SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
+                        "SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
                     )
                 elif tool_name == "search_and_replace":
                     error_message = ""
@@ -201,7 +201,7 @@ def function_modify(
                                 chunks_with_old_code = chunks_with_old_code[:5]
                                 error_message = f"The old_code in the {index}th replace_to_make does not appear to be present in section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_letter} has code:\n```\n{chunk}\n```"
                                 if chunks_with_old_code:
-                                    error_message += f"\n\nDid you mean one of the following sections?"
+                                    error_message += "\n\nDid you mean one of the following sections?"
                                     error_message += "\n".join(
                                         [
                                             f'\n<section id="{int_to_excel_col(section_id + 1)}">\n{chunks[index]}\n</section>\n```'
@@ -209,7 +209,7 @@ def function_modify(
                                         ]
                                     )
                                 else:
-                                    error_message += f"\n\nMake another replacement. In the analysis_and_identification, first identify the indentation or spelling error. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct old_code, and make another replacement with the corrected old_code."
+                                    error_message += "\n\nMake another replacement. In the analysis_and_identification, first identify the indentation or spelling error. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct old_code, and make another replacement with the corrected old_code."
                                 break
                             new_chunk = chunk.replace(old_code, new_code, 1)
                             if new_chunk == chunk:

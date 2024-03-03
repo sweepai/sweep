@@ -11,7 +11,6 @@ import traceback
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
-from unittest.mock import Mock
 
 import git
 import requests
@@ -20,7 +19,7 @@ from jwt import encode
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
 from sweepai.utils.ctags import CTags
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
@@ -67,6 +66,15 @@ def get_token(installation_id: int):
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
     )
 
+def get_app():
+    jwt = get_jwt()
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": "Bearer " + jwt,
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    response = requests.get("https://api.github.com/app", headers=headers)
+    return response.json()
 
 def get_github_client(installation_id: int):
     if not installation_id:
@@ -532,6 +540,15 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
+try:
+    g = Github(os.environ.get("GITHUB_PAT"))
+    CURRENT_USERNAME = g.get_user().login
+except Exception:
+    try:
+        slug = get_app()["slug"]
+        CURRENT_USERNAME = f"{slug}[bot]"
+    except Exception:
+        CURRENT_USERNAME = GITHUB_BOT_USERNAME
 
 if __name__ == "__main__":
     # str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
