@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from loguru import logger
+from iudex import Iudex
 from openai import AzureOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
@@ -18,6 +19,7 @@ from sweepai.config.server import (
     AZURE_OPENAI_DEPLOYMENT,
     DEFAULT_GPT4_32K_MODEL,
     IS_SELF_HOSTED,
+    IUDEX_MODULE_NAME,
     OPENAI_API_BASE,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
@@ -545,7 +547,7 @@ def iudex_call(
     additional_messages: list[Message] = [],
     file_paths: list[str] = [],
     uploaded_file_ids: list[str] = [],
-    tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
+    tools: list[dict[str, str]],
     model: str = DEFAULT_GPT4_32K_MODEL,
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
@@ -553,4 +555,87 @@ def iudex_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    pass
+    client = Iudex()
+
+    iudex_upsert_functions(client, tools)
+
+    # HACK: combine instructions and request for single message
+    # exclude additional_messages for now, which typically include raw code sections
+    req_msg = {
+        "role": "user",
+        "content": f"{instructions}\n{request}",
+    }
+
+    messages = [req_msg]
+    res = client.chat.completions.create(messages=messages, model=model)
+    next_msg = res.choices[0].message
+    messages.append(next_msg)
+
+    num_tool_calls_made = 0
+    while True:
+        # get next message
+        res = client.chat.completions.create(
+            messages=messages,
+            model=model,
+        )
+        next_msg = res.choices[0].message
+        messages.append(next_msg)
+
+        tool_calls = next_msg.tool_calls
+
+        # no more tool calls, so return text content
+        if not tool_calls:
+            if not next_msg.content:
+                raise ValueError("No content in OpenAI assistant message")
+            logger.info(
+                f"Run completed (i={num_tool_calls_made})"
+            )
+            done_response = yield "done", {
+                "status": "completed",
+                "message": "Run completed successfully",
+            }
+            # receiving done_response means there was no code diff, so keep processing
+            if done_response:
+                messages.append(req_msg)
+                continue
+
+
+        # otherwise resolve tool calls
+        for tool_call in tool_calls:
+            num_tool_calls_made += 1
+
+            fn_name = tool_call.function.name
+            fn = client.get_function(fn_name)
+
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": json.dumps(fn_return, indent=2),
+                    "tool_call_id": tool_call.id,
+                }
+            )
+
+
+    # TODO: chat logger
+    # TODO: save_ticket_progress
+
+def iudex_upsert_functions(
+    client: Iudex,
+    tools: list[dict[str, str]],
+):
+    if not tools:
+        raise ValueError("Must supply at least one tool")
+    for tool in tools:
+        if tool["type"] != "function":
+            logger.warning(f'Tool of type "{tool["type"]}" is not yet supported by iudex and will not be used.')
+    functions = [tool["function"] for tool in tools if tool["type"] == "function"]
+
+    res = client.functions.upsert(
+        functions=functions,
+        module=IUDEX_MODULE_NAME,
+    )
+    logger.debug(f"iudex upsert functions response: {res}")
+
+    return functions
+
+def 

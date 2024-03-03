@@ -6,7 +6,6 @@ from loguru import logger
 from sweepai.agents.assistant_functions import (
     keyword_search_schema,
     search_and_replace_schema,
-    view_sections_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.chat import ChatGPT

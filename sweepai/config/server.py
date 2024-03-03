@@ -215,3 +215,5 @@ PROGRESS_BASE_URL = os.environ.get(
 GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
 MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)
 INSTALLATION_ID = os.environ.get("INSTALLATION_ID", None)
+
+IUDEX_MODULE_NAME = os.environ.get("IUDEX_MODULE_NAME", "sweep")
