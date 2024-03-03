@@ -29,7 +29,7 @@ SEED = 100
 
 
 class OpenAIProxy:
-    @file_cache(ignore_params=[])
+    # @file_cache(ignore_params=[])
     def call_openai(
         self, 
         model: str, 
