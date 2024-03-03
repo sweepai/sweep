@@ -1213,7 +1213,7 @@ def on_ticket(
 
                 pr_changes = response["pull_request"]
                 # change the body here
-                diff_text = get_branch_diff_text(repo, pull_request.branch_name)
+                diff_text = get_branch_diff_text(repo=repo, branch=pull_request.branch_name, base_branch=overrided_branch_name)
                 new_description = PRDescriptionBot().describe_diffs(
                     diff_text,
                     pull_request.title,
