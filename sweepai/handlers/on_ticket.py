@@ -69,7 +69,7 @@ from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client, get_app
+from sweepai.utils.github_utils import CURRENT_USERNAME, ClonedRepo, get_github_client, get_app
 from sweepai.utils.progress import (
     AssistantConversation,
     PaymentContext,
@@ -225,15 +225,6 @@ def on_ticket(
         assignee = current_issue.assignee.login if current_issue.assignee else None
         if assignee is None:
             assignee = current_issue.user.login
-
-        try:
-            CURRENT_USERNAME = g.get_user().login
-        except Exception:
-            try:
-                slug = get_app()["slug"]
-                CURRENT_USERNAME = f"{slug}[bot]"
-            except Exception:
-                CURRENT_USERNAME = GITHUB_BOT_USERNAME
 
         ticket_progress = TicketProgress(
             tracking_id=tracking_id,

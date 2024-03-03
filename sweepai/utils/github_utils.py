@@ -19,7 +19,7 @@ from jwt import encode
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
 from sweepai.utils.ctags import CTags
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
@@ -540,6 +540,15 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
+try:
+    g = Github(os.environ.get("GITHUB_PAT"))
+    CURRENT_USERNAME = g.get_user().login
+except Exception:
+    try:
+        slug = get_app()["slug"]
+        CURRENT_USERNAME = f"{slug}[bot]"
+    except Exception:
+        CURRENT_USERNAME = GITHUB_BOT_USERNAME
 
 if __name__ == "__main__":
     # str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
