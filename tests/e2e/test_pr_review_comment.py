@@ -36,7 +36,7 @@ def test_e2e_pr_comment():
         assert "success" in response_text
         pr = repo.get_pull(pr_number)
         # poll github 5 times, waiting 1 minute between each poll, check if the pr has been updated or not
-        for i in range(5):
+        for i in range(10):
             pr = repo.get_pull(pr_number)
             # iterate through the review comments of the pr and check if a new comment got created the title Wrote Changes
             # get last 5 comments

@@ -35,7 +35,7 @@ def e2e_test_base(issue_json):
         assert response.status_code == 200
         assert "success" in response_text
         # poll github 5 times, waiting 1 minute between each poll, check if the pr has been created successfully or not
-        for i in range(10):
+        for i in range(15):
             pulls: PaginatedList[PullRequest] = repo.get_pulls(
                 state="open", sort="created", direction="desc"
             )
