@@ -39,7 +39,6 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
-    GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     LOGTAIL_SOURCE_KEY,
@@ -69,7 +68,7 @@ from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import CURRENT_USERNAME, ClonedRepo, get_github_client, get_app
+from sweepai.utils.github_utils import CURRENT_USERNAME, ClonedRepo, get_github_client
 from sweepai.utils.progress import (
     AssistantConversation,
     PaymentContext,
