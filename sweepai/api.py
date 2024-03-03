@@ -76,7 +76,7 @@ from sweepai.utils.buttons import (
 )
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
-from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.github_utils import CURRENT_USERNAME, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
@@ -1057,12 +1057,21 @@ def run(request_dict, event):
                     if pr_request.pull_request.merged_by
                     else None
                 )
-                if GITHUB_BOT_USERNAME == commit_author and merged_by is not None:
+                if CURRENT_USERNAME == commit_author and merged_by is not None:
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
                     elif pr_request.pull_request.title.startswith("[Sweep Rules]"):
                         event_name = "sweep_rules_pr_merged"
+                    edited_by_developers = False
+                    _token, g = get_github_client(pr_request.installation.id)
+                    pr = g.get_repo(pr_request.repository.full_name).get_pull(
+                        pr_request.number
+                    )
+                    for commit in pr.get_commits():
+                        if commit.author.login != CURRENT_USERNAME:
+                            edited_by_developers = True
+                            break
                     posthog.capture(
                         merged_by,
                         event_name,
@@ -1075,6 +1084,7 @@ def run(request_dict, event):
                             "deletions": pr_request.pull_request.deletions,
                             "total_changes": pr_request.pull_request.additions
                             + pr_request.pull_request.deletions,
+                            "edited_by_developers": edited_by_developers,
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})
