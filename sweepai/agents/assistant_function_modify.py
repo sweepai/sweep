@@ -147,8 +147,8 @@ def function_modify(
                 content=f"# Request\n{request}",
             ),
         ]
-        assistant_generator = openai_assistant_call(
-            request="",  # already present in additional_messages
+        assistant_generator = iudex_call(
+            request=f"# Request\n{request}",
             instructions=instructions,
             additional_messages=additional_messages,
             # chat_logger=chat_logger,
@@ -302,7 +302,7 @@ def function_modify(
                     if error_message:
                         logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n{error_message}"
+                            {"error": error_message}
                         )
                     else:
                         logger.info(success_message)
@@ -310,11 +310,12 @@ def function_modify(
                         #     f"SUCCESS\nThe following changes have been applied: successfully\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         # )
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n\n{success_message}"
+                            {"success": success_message}
                         )
                 elif tool_name == "keyword_search":
                     error_message = ""
-                    success_message = ""
+                    match_letters = []
+                    match_sections = []
 
                     for key in ["justification", "keyword"]:
                         if key not in tool_call:
@@ -329,10 +330,7 @@ def function_modify(
                                 matches.append(i)
                         if not matches:
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
-                        else:
-                            success_message = (
-                                "The keyword was found in the following sections:\n\n"
-                            )
+
                         for match_index in matches:
                             match = chunks[match_index]
                             match_lines = match.split("\n")
@@ -361,17 +359,23 @@ def function_modify(
                                 else:
                                     match_display += f"{line}\n"
                             match_display = match_display.strip("\n")
-                            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
 
-                    if error_message:
-                        logger.debug(error_message)
+                            match_letter = int_to_excel_col(match_index + 1)
+                            match_letters.append(match_letter)
+                            match_sections.append(f"<section id='{match_letter}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n")
+
+                    if match_letters and match_sections:
+                        logger.debug(f"Keyword search matched sections: {match_sections}")
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n{error_message}"
+                            {
+                                "section_ids": match_letters,
+                                "sections": match_sections,
+                            }
                         )
                     else:
-                        logger.debug(success_message)
+                        logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords, view_sections calls to view surrounding sections, or continue to make changes by calling the search_and_replace function."
+                            {"error": error_message}
                         )
                 elif tool_name == "view_sections":
                     if "section_ids" not in tool_call:

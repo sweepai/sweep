@@ -36,12 +36,13 @@ class OpenAIProxy:
         max_tokens: int = 4096,
         temperature: float = 0.0,
         seed: int = 0,
+        **kwargs,
     ) -> str:
         try:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 response = self.set_openai_default_api_parameters(
-                    model, messages, max_tokens, temperature
+                    model, messages, max_tokens, temperature, **kwargs
                 )
                 return response.choices[0].message.content
             if OPENAI_API_TYPE == "azure":

@@ -565,12 +565,9 @@ def iudex_call(
         "role": "user",
         "content": f"{instructions}\n{request}",
     }
+    logger.debug(f"sending message to iudex: {req_msg}")
 
     messages = [req_msg]
-    res = iudex.chat.completions.create(messages=messages, model=model)
-    next_msg = res.choices[0].message
-    messages.append(next_msg)
-
     num_tool_calls_made = 0
     while True:
         # get next message
@@ -579,6 +576,7 @@ def iudex_call(
             model=model,
         )
         next_msg = res.choices[0].message
+        logger.debug('iudex', next_msg)
         messages.append(next_msg)
 
         tool_calls = next_msg.tool_calls
@@ -646,10 +644,9 @@ def iudex_upsert_functions(tools: list[dict[str, str]]):
             logger.warning(f'Tool of type "{tool["type"]}" is not yet supported by iudex and will not be used.')
     functions = [tool["function"] for tool in tools if tool["type"] == "function"]
 
-    res = iudex.functions.upsert(
+    iudex.functions.upsert(
         functions=functions,
         module=IUDEX_MODULE_NAME,
     )
-    logger.debug(f"iudex upsert functions response: {res}")
 
     return functions

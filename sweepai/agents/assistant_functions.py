@@ -67,6 +67,27 @@ keyword_search_schema = {
         "required": ["justification", "keyword"],
     },
     "description": "Searches for all lines in the file containing the keyword.",
+    "returns": {
+        "type": "object",
+        "properties": {
+            "section_ids": {
+            "type": "array",
+            "description": "Section IDs from the file that contain the keyword.",
+                "items": {
+                    "type": "string",
+                    "description": "The section ID in which the keyword was found.",
+                },
+            },
+            "sections": {
+                "type": "array",
+                "description": "Sections, including ID and actual code with pointers to matches, from the file that contain the keyword.",
+                "items": {
+                    "type": "string",
+                    "description": "The entire code of the section in which the keyword was found, e.g. <section id=AA> (2 matches)\n# ... code with matches\n</section>",
+                },
+            }
+        },
+    }
 }
 
 search_and_replace_schema = {
@@ -84,7 +105,7 @@ search_and_replace_schema = {
             },
             "section_ids": {
                 "type": "array",
-                "description": "Relevant section IDs whose code to read.",
+                "description": "Relevant section IDs from keyword_search results whose code to read.",
                 "items": {
                     "type": "string",
                     "description": "The section ID the original code belongs to.",
@@ -93,5 +114,18 @@ search_and_replace_schema = {
         },
         "required": ["analysis_and_identification", "task", "section_ids"],
     },
-    "description": "Given a task, read multiple relevant code sections and suggest edits.",
+    "description": "MUST RUN AFTER keyword_search. Given a task, read multiple relevant code sections (AS RETURNED BY keyword_search) and suggest edits.",
+    "returns": {
+        "type": "object",
+        "properties": {
+            "success_message": {
+                "type": "string",
+                "description": "Success message including the full diff after making edits to the code sections.",
+            },
+            "error": {
+                "type": "string",
+                "description": "Error message and explanation if the task was not successful.",
+            },
+        },
+    }
 }
