@@ -195,6 +195,7 @@ You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
+* Identify the file(s) and section(s) of code that need to be modified to solve the user request. Specify what needs to be changed in there in low-level detail that would resolve the user's request.
 * Outline the minimal plan that solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
 * Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible.
 ...
