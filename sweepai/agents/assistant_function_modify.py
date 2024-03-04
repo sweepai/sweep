@@ -7,7 +7,7 @@ from sweepai.agents.assistant_functions import (
     keyword_search_schema,
     search_and_replace_schema,
 )
-from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.agents.assistant_wrapper import iudex_call, openai_assistant_call
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error

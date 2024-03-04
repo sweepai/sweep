@@ -4,7 +4,7 @@ import re
 import time
 import traceback
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from loguru import logger
 from iudex import Iudex
@@ -40,6 +40,8 @@ elif OPENAI_API_TYPE == "azure":
     DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
 else:
     raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
+
+iudex = Iudex()
 
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
@@ -547,7 +549,7 @@ def iudex_call(
     additional_messages: list[Message] = [],
     file_paths: list[str] = [],
     uploaded_file_ids: list[str] = [],
-    tools: list[dict[str, str]],
+    tools: list[dict[str, Any]] = [],
     model: str = DEFAULT_GPT4_32K_MODEL,
     sleep_time: int = 3,
     chat_logger: ChatLogger | None = None,
@@ -555,9 +557,7 @@ def iudex_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    client = Iudex()
-
-    iudex_upsert_functions(client, tools)
+    iudex_upsert_functions(tools)
 
     # HACK: combine instructions and request for single message
     # exclude additional_messages for now, which typically include raw code sections
@@ -567,14 +567,14 @@ def iudex_call(
     }
 
     messages = [req_msg]
-    res = client.chat.completions.create(messages=messages, model=model)
+    res = iudex.chat.completions.create(messages=messages, model=model)
     next_msg = res.choices[0].message
     messages.append(next_msg)
 
     num_tool_calls_made = 0
     while True:
         # get next message
-        res = client.chat.completions.create(
+        res = iudex.chat.completions.create(
             messages=messages,
             model=model,
         )
@@ -598,14 +598,25 @@ def iudex_call(
             if done_response:
                 messages.append(req_msg)
                 continue
-
+            else:
+                break
 
         # otherwise resolve tool calls
         for tool_call in tool_calls:
             num_tool_calls_made += 1
 
+            if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
+                raise AssistantRaisedException(
+                    "Too many tool calls made on GPT 3.5."
+                )
+
             fn_name = tool_call.function.name
-            fn = client.get_function(fn_name)
+            fn_args = json.loads(
+                tool_call.function.arguments.replace("'", '"').replace("None", '"null"')
+            )
+
+            # NOTE: iudex does not currently use parallel tool calls, so linear iter is fine
+            fn_return = yield fn_name, fn_args
 
             messages.append(
                 {
@@ -615,14 +626,19 @@ def iudex_call(
                 }
             )
 
+            # TODO: chat logger
 
-    # TODO: chat logger
-    # TODO: save_ticket_progress
+    if save_ticket_progress is not None:
+        save_ticket_progress(
+            assistant_id="iudex",
+            thread_id="iudex",
+            run_id="iudex",
+        )
+    for message in messages:
+        logger.info(f'(n={num_tool_calls_made}) {message["content"]}')
+    return messages
 
-def iudex_upsert_functions(
-    client: Iudex,
-    tools: list[dict[str, str]],
-):
+def iudex_upsert_functions(tools: list[dict[str, str]]):
     if not tools:
         raise ValueError("Must supply at least one tool")
     for tool in tools:
@@ -630,12 +646,10 @@ def iudex_upsert_functions(
             logger.warning(f'Tool of type "{tool["type"]}" is not yet supported by iudex and will not be used.')
     functions = [tool["function"] for tool in tools if tool["type"] == "function"]
 
-    res = client.functions.upsert(
+    res = iudex.functions.upsert(
         functions=functions,
         module=IUDEX_MODULE_NAME,
     )
     logger.debug(f"iudex upsert functions response: {res}")
 
     return functions
-
-def 
