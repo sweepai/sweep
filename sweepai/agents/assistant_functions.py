@@ -66,7 +66,7 @@ keyword_search_schema = {
         },
         "required": ["justification", "keyword"],
     },
-    "description": "Searches for all lines in the file containing the keyword.",
+    "description": "Searches for all lines in the file containing the keyword. The file is already loaded and does not need to specified.",
     "returns": {
         "type": "object",
         "properties": {

@@ -565,7 +565,7 @@ def iudex_call(
         "role": "user",
         "content": f"{instructions}\n{request}",
     }
-    logger.debug(f"sending message to iudex: {req_msg}")
+    logger.debug(f"sending message to iudex:\n{req_msg}")
 
     messages = [req_msg]
     num_tool_calls_made = 0
@@ -576,7 +576,7 @@ def iudex_call(
             model=model,
         )
         next_msg = res.choices[0].message
-        logger.debug('iudex', next_msg)
+        logger.debug(f"received message from iudex:\n{next_msg}")
         messages.append(next_msg)
 
         tool_calls = next_msg.tool_calls

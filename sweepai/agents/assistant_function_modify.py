@@ -696,7 +696,7 @@ def function_modify(
 
 
 if __name__ == "__main__":
-    request = "Make the try-except blocks simpler in on_ticket.py"
+    request = "Replace logger.error with logger.exception in on_ticket.py"
     additional_messages = [
         Message(
             role="user",
