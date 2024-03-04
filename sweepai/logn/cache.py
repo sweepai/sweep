@@ -5,7 +5,7 @@ import pickle
 
 from loguru import logger
 
-from sweepai.config.server import DEBUG, GITHUB_BOT_USERNAME
+from sweepai.config.server import DEBUG
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
@@ -52,7 +52,7 @@ def file_cache(ignore_params=[], verbose=False):
     """
 
     def decorator(func):
-        if not DEBUG and False:
+        if not DEBUG:
             print("File cache is disabled.")
             return func
 

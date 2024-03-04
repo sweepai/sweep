@@ -5,9 +5,13 @@ on:
     branches:
       - main
       - dev
+    paths:
+      - 'sweepai/**'
   push:
     branches:
       - main
+    paths:
+      - 'sweepai/**'
 
 
 jobs:
@@ -19,25 +23,27 @@ jobs:
         # os: [ubuntu-latest, macos-latest]
         os: [ubuntu-latest]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.67.0
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          poetry install
+      - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+      - run: pip install uv
+      - run: uv pip install -r requirements.txt
+      - run: pylint sweepai --errors-only
+      - run: ruff check sweepai
 
       # apparently installing redis-server runs it automatically
       - name: Set up Redis
         run: |
           sudo apt-get update; sudo apt-get install redis-server;
           sudo lsof -i :6379 || true
-      #     redis-server redis.conf --bind 0.0.0.0 --port 6379;
 
       - name: Run e2e test
         env:
@@ -50,5 +56,5 @@ jobs:
           OPENAI_API_VERSION: 2024-02-15-preview
           AZURE_API_KEY: ${{ secrets.GH_AZURE_API_KEY }}
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.GH_AZURE_OPENAI_DEPLOYMENT }}
-        run: poetry run pytest -n 4 tests/e2e -s
+        run: PYTHONPATH=. pytest -n 4 tests/e2e -s
         timeout-minutes: 15

@@ -31,7 +31,11 @@ echo "Found open port: $PORT"
 
 # Start new docker container on the next available port
 cd /app
-docker run --env-file env -p $PORT:8080 -d sweepai/sweep.hosted:latest
+if [ -d "/var/lib/sweep" ]; then
+    docker run --env-file env -p $PORT:8080 -v /var/lib/sweep:/tmp -d sweepai/sweep.hosted:latest
+else
+    docker run --env-file env -p $PORT:8080 -d sweepai/sweep.hosted:latest
+fi
 
 sleep 5
 

@@ -181,7 +181,7 @@ def function_modify(
                         )
                 elif tool_name == "propose_problem_analysis_and_plan":
                     tool_name, tool_call = assistant_generator.send(
-                        f"SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
+                        "SUCCESS\nSounds like a great plan! Let's start by using the keyword_search function to find the right places to make changes, and the search_and_replace function to make the changes."
                     )
                 elif tool_name == "search_and_replace":
                     error_message = ""
@@ -389,9 +389,10 @@ def function_modify(
                         section_index = excel_col_to_int(section_id)
                         section_indices.update(
                             (
-                                int_to_excel_col(section_index - 1),
-                                int_to_excel_col(section_index),
-                                int_to_excel_col(section_index + 1),
+                                int_to_excel_col(max(0, section_index - 1)),
+                                int_to_excel_col(min(len(chunks), section_index)),
+                                int_to_excel_col(min(len(chunks), section_index + 1)),
+                                int_to_excel_col(min(len(chunks), section_index + 2)),
                             )
                         )
                     section_indices = sorted(list(section_indices))
@@ -417,7 +418,8 @@ def function_modify(
                     tool_name, tool_call = assistant_generator.send(
                         f"ERROR\nUnexpected tool name: {tool_name}"
                     )
-            logger.error("Too many iterations.")
+            else:
+                logger.error("Too many iterations.")
         except StopIteration:
             pass
         diff = generate_diff(file_contents, current_contents)

@@ -1194,7 +1194,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 ) = get_new_file(temperature=0.4)
 
             # If the original file content is identical to the new file content, log a warning and return
-            if file_contents == new_file_contents:
+            if file_contents == new_file_contents or not new_file_contents:
                 logger.warning(
                     f"No changes made to {file_change_request.filename}. Skipping file"
                     " update."
