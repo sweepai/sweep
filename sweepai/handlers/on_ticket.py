@@ -632,7 +632,7 @@ def on_ticket(
                         )
 
                     # Update the issue comment
-                    msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file)}\n{sep}{agg_message}{suffix}"
+                    msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
                     try:
                         issue_comment.edit(msg)
                     except BadCredentialsException:
@@ -814,7 +814,7 @@ def on_ticket(
                     try:
                         logger.info("Creating sweep.yaml file...")
                         config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
-                        # config_pr_url = config_pr.html_url
+                        config_pr_url = config_pr.html_url
                         edit_sweep_comment(message="", index=-2)
                     except SystemExit:
                         raise SystemExit
