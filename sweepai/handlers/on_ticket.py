@@ -4,6 +4,7 @@ It is only called by the webhook handler in sweepai/api.py.
 """
 
 import difflib
+import math
 import os
 import re
 import traceback
