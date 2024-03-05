@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import re
@@ -609,7 +610,7 @@ def iudex_call(
                 )
 
             fn_name = tool_call.function.name
-            fn_args = json.loads(
+            fn_args = ast.literal_eval(
                 tool_call.function.arguments.replace("'", '"').replace("None", '"null"')
             )
 
