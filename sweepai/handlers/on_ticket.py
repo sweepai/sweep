@@ -814,7 +814,7 @@ def on_ticket(
                     try:
                         logger.info("Creating sweep.yaml file...")
                         config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
-                        config_pr_url = config_pr.html_url
+                        # config_pr_url = config_pr.html_url
                         edit_sweep_comment(message="", index=-2)
                     except SystemExit:
                         raise SystemExit
