@@ -99,7 +99,6 @@ class SweepConfig(BaseModel):
         ".dfn",
         ".dfm",
         "sweep.yaml",
-        ".ftl",
         "pnpm-lock.yaml",
         "LICENSE",
         "poetry.lock"
