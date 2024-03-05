@@ -57,4 +57,4 @@ jobs:
           AZURE_API_KEY: ${{ secrets.GH_AZURE_API_KEY }}
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.GH_AZURE_OPENAI_DEPLOYMENT }}
         run: PYTHONPATH=. pytest -n 4 tests/e2e -s
-        timeout-minutes: 15
+        timeout-minutes: 30
