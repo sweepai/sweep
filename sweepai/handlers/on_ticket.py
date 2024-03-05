@@ -237,7 +237,7 @@ def on_ticket(
                 start_time=int(time()),
             ),
         )
-        branch_match = re.search(r"([B|b]ranch:) *(?P<branch_name>.+?)(\n|$)", summary)
+        branch_match = re.search(r"([B|b]ranch:?)\s*(?P<branch_name>.+?)(\n|$)", summary)
         overrided_branch_name = None
         if branch_match and "branch_name" in branch_match.groupdict():
             overrided_branch_name = branch_match.groupdict()["branch_name"].strip()
