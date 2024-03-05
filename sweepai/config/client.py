@@ -98,6 +98,7 @@ class SweepConfig(BaseModel):
         ".ttf",
         ".dfn",
         ".dfm",
+        ".feature",
         "sweep.yaml",
         "pnpm-lock.yaml",
         "LICENSE",
