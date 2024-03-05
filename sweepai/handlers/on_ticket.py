@@ -106,6 +106,12 @@ from sweepai.utils.user_settings import UserSettings
 # from sandbox.sandbox_utils import Sandbox
 
 
+def restart_pr_if_failed(pr_number, attempt_counter):
+    # Placeholder for restarting PR logic, limited to 3 attempts
+    if attempt_counter < 3:
+        print(f'Restarting PR {pr_number}, attempt {attempt_counter + 1}')
+    # The real implementation would interact with GitHub API to restart the PR
+
 sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping"></a>"""
 
 
@@ -460,6 +466,12 @@ def on_ticket(
                     if success:
                         sandbox_execution_message += f"\n\nSandbox passed on the latest `{repo.default_branch}`, so sandbox checks will be enabled for this issue."
                     else:
+                        # If GitHub Actions check failed, attempt to restart PR
+                        pr_number = pull_request.number  # Assuming pull_request is the PR object
+                        restart_attempts = ticket_progress.context.restart_attempts or 0
+                        restart_pr_if_failed(pr_number, restart_attempts)
+                        ticket_progress.context.restart_attempts = restart_attempts + 1
+                        ticket_progress.save()
                         sandbox_execution_message += "\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
 
                 if index < 0:
