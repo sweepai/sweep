@@ -7,11 +7,13 @@ on:
       - dev
     paths:
       - 'sweepai/**'
+      - 'tests/**'
   push:
     branches:
       - main
     paths:
       - 'sweepai/**'
+      - 'tests/**'
 
 
 jobs:
