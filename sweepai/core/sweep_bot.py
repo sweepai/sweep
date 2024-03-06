@@ -35,6 +35,7 @@ from sweepai.core.prompts import (
     pull_request_prompt,
     sandbox_files_to_change_prompt,
     subissues_prompt,
+    files_to_change_system_prompt
 )
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.chat_logger import discord_log_error
@@ -147,11 +148,14 @@ class CodeGenBot(ChatGPT):
                     )
                 )
                 self.ticket_progress.save()
+            old_system_prompt = self.messages[0].content
+            self.messages[0].content = files_to_change_system_prompt
             # pylint: enable=no-member
             # pylint: enable=access-member-before-definition
             files_to_change_response = self.chat(
                 files_to_change_prompt, message_key="files_to_change"
             )
+            self.messages[0].content = old_system_prompt
             if self.ticket_progress is not None:
                 self.ticket_progress.planning_progress.assistant_conversation.messages.append(
                     AssistantAPIMessage(
