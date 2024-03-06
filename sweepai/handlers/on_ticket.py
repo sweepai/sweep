@@ -56,7 +56,6 @@ from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
-from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.pr_reader import PRReader
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import (
