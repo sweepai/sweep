@@ -197,7 +197,6 @@ def function_modify(
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
-                            import pdb; pdb.set_trace()
                             for key in ["section_id", "old_code", "new_code"]:
                                 if key not in replace_to_make:
                                     error_message = f"Missing {key} in replace_to_make."
