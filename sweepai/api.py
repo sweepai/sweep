@@ -309,18 +309,20 @@ def init_hatchet() -> Hatchet | None:
 
         return hatchet
     except Exception as e:
+        raise e
         print(f"Failed to initialize Hatchet: {e}, continuing with local mode")
         return None
 
 
-# hatchet = init_hatchet()
+hatchet = init_hatchet()
+print(hatchet)
 
 
 def handle_github_webhook(event_payload):
-    # if hatchet:
-    #     hatchet.client.event.push("github:webhook", event_payload)
-    # else:
-    run(event_payload.get("request"), event_payload.get("event"))
+    if hatchet:
+        hatchet.client.event.push("github:webhook", event_payload)
+    else:
+        run(event_payload.get("request"), event_payload.get("event"))
 
 
 def handle_request(request_dict, event=None):
