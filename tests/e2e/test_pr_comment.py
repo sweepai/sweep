@@ -66,6 +66,16 @@ def test_e2e_pr_comment():
                     print(f"PR successfully updated: {pr.title}")
                     print(f"PR object is: {pr}")
                     return
+                if (
+                    "Could not find files to change" in comment.body
+                    and creation_date.timestamp() > current_date.timestamp()
+                ):
+                    for thread in global_threads:
+                        thread.join()
+                    print(f"Failed to find files to change: {pr.title}")
+                    print(f"PR object is: {pr}")
+                    raise AssertionError("Failed to find files to change")
+                    
             time.sleep(60)
         raise AssertionError("PR was not updated!")
     except AssertionError as e:
