@@ -85,8 +85,8 @@ def function_modify(
             "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
         )
 
-        original_snippets = chunk_code(current_contents, file_path, 700, 200)
-        # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
+        # original_snippets = chunk_code(current_contents, file_path, 700, 200)
+        original_snippets = chunk_code(current_contents, file_path, 1500, 200)
         file_contents_lines = current_contents.split("\n")
         chunks = [
             "\n".join(file_contents_lines[snippet.start : snippet.end])
