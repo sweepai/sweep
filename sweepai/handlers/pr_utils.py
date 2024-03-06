@@ -11,7 +11,6 @@ from sweepai.config.client import (
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import NoFilesException, SandboxResponse
-from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
