@@ -751,9 +751,10 @@ def on_ticket(
                     repo_description = "No description provided."
 
                 message_summary += replies_text
-                external_results = ExternalSearcher.extract_summaries(message_summary)
-                if external_results:
-                    message_summary += "\n\n" + external_results
+                # removed external search as it provides no real value and only adds noise
+                # external_results = ExternalSearcher.extract_summaries(message_summary)
+                # if external_results:
+                #     message_summary += "\n\n" + external_results
 
                 get_documentation_dict(repo)
                 docs_results = ""
