@@ -852,14 +852,15 @@ def on_ticket(
                             if prs_extracted
                             else ""
                         )
-                        + (
-                            create_collapsible(
-                                "I also found the following external resources that might be helpful:",
-                                f"\n\n{external_results}\n\n",
-                            )
-                            if external_results
-                            else ""
-                        )
+                        # removed external results as it provides no real value and only adds noise
+                        # + (
+                        #     create_collapsible(
+                        #         "I also found the following external resources that might be helpful:",
+                        #         f"\n\n{external_results}\n\n",
+                        #     )
+                        #     if external_results
+                        #     else ""
+                        # )
                         + (f"\n\n{docs_results}\n\n" if docs_results else ""),
                         1,
                     )
