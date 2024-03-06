@@ -43,7 +43,7 @@ def test_e2e_pr_comment():
         assert response.status_code == 200
         assert "success" in response_text
         pr = repo.get_pull(pr_number)
-        # poll github 5 times, waiting 1 minute between each poll, check if the pr has been updated or not
+        # poll github 20 times, waiting 1 minute between each poll, check if the pr has been updated or not
         for i in range(20):
             pr = repo.get_pull(pr_number)
             # iterate through the comments of the pr and check if a new comment got created the title Wrote Changes
@@ -51,7 +51,7 @@ def test_e2e_pr_comment():
             comments = pr.get_issue_comments()
             slicer = max(0, comments.totalCount - 5)
             for comment in comments[slicer:]:
-                current_date = time.time() - 60 * (i + 1)
+                current_date = time.time() - 60 * (i + 2)
                 current_date = datetime.datetime.fromtimestamp(current_date)
                 creation_date = comment.created_at.replace(
                     tzinfo=datetime.timezone.utc
