@@ -1,12 +1,14 @@
+import ast
 import json
 import os
 import re
 import time
 import traceback
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from loguru import logger
+from iudex import Iudex
 from openai import AzureOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
@@ -18,6 +20,7 @@ from sweepai.config.server import (
     AZURE_OPENAI_DEPLOYMENT,
     DEFAULT_GPT4_32K_MODEL,
     IS_SELF_HOSTED,
+    IUDEX_MODULE_NAME,
     OPENAI_API_BASE,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
@@ -38,6 +41,8 @@ elif OPENAI_API_TYPE == "azure":
     DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
 else:
     raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
+
+iudex = Iudex()
 
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
@@ -299,7 +304,7 @@ def run_until_complete(
                     # OpenAI has a bug where it calls the imaginary function "multi_tool_use.parallel"
                     # Based on https://github.com/phdowling/openai_multi_tool_use_parallel_patch/blob/main/openai_multi_tool_use_parallel_patch.py
                     if tool_function_name in ("multi_tool_use.parallel", "parallel"):
-                        for fake_i, fake_tool_use in function_input["tool_uses"]:
+                        for fake_i, fake_tool_use in enumerate(function_input["tool_uses"]):
                             function_input = fake_tool_use["parameters"]
                             function_name: str = fake_tool_use["recipient_name"]
                             function_name = function_name.removeprefix("functions.")
@@ -415,6 +420,7 @@ def openai_assistant_call_helper(
             file_ids.append(file_object.id)
 
     logger.debug(instructions)
+    logger.debug(tools)
     # always create new one
     assistant = openai_retry_with_timeout(
         client.beta.assistants.create,
@@ -536,3 +542,112 @@ def openai_assistant_call(
         except Exception as e:
             logger.error(e)
             raise e
+
+# compat layer; many args are unused
+def iudex_call(
+    request: str,
+    instructions: str | None = None,
+    additional_messages: list[Message] = [],
+    file_paths: list[str] = [],
+    uploaded_file_ids: list[str] = [],
+    tools: list[dict[str, Any]] = [],
+    model: str = DEFAULT_GPT4_32K_MODEL,
+    sleep_time: int = 3,
+    chat_logger: ChatLogger | None = None,
+    assistant_id: str | None = None,
+    assistant_name: str | None = None,
+    save_ticket_progress: save_ticket_progress_type | None = None,
+):
+    iudex_upsert_functions(tools)
+
+    # HACK: combine instructions and request for single message
+    # exclude additional_messages for now, which typically include raw code sections
+    req_msg = {
+        "role": "user",
+        "content": f"{instructions}\n{request}",
+    }
+    logger.debug(f"sending message to iudex:\n{req_msg}")
+
+    messages = [req_msg]
+    num_tool_calls_made = 0
+    while True:
+        # get next message
+        res = iudex.chat.completions.create(
+            messages=messages,
+            model=model,
+        )
+        next_msg = res.choices[0].message
+        logger.debug(f"received message from iudex:\n{next_msg}")
+        messages.append(next_msg)
+
+        tool_calls = next_msg.tool_calls
+
+        # no more tool calls, so return text content
+        if not tool_calls:
+            if not next_msg.content:
+                raise ValueError("No content in OpenAI assistant message")
+            logger.info(
+                f"Run completed (i={num_tool_calls_made})"
+            )
+            done_response = yield "done", {
+                "status": "completed",
+                "message": "Run completed successfully",
+            }
+            # receiving done_response means there was no code diff, so keep processing
+            if done_response:
+                messages.append(req_msg)
+                continue
+            else:
+                break
+
+        # otherwise resolve tool calls
+        for tool_call in tool_calls:
+            num_tool_calls_made += 1
+
+            if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
+                raise AssistantRaisedException(
+                    "Too many tool calls made on GPT 3.5."
+                )
+
+            fn_name = tool_call.function.name
+            fn_args = ast.literal_eval(
+                tool_call.function.arguments.replace("'", '"').replace("None", '"null"')
+            )
+
+            # NOTE: iudex does not currently use parallel tool calls, so linear iter is fine
+            fn_return = yield fn_name, fn_args
+
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": json.dumps(fn_return, indent=2),
+                    "tool_call_id": tool_call.id,
+                }
+            )
+
+            # TODO: chat logger
+
+    if save_ticket_progress is not None:
+        save_ticket_progress(
+            assistant_id="iudex",
+            thread_id="iudex",
+            run_id="iudex",
+        )
+    for message in messages:
+        logger.info(f'(n={num_tool_calls_made}) {message["content"]}')
+    return messages
+
+def iudex_upsert_functions(tools: list[dict[str, str]]):
+    if not tools:
+        raise ValueError("Must supply at least one tool")
+    for tool in tools:
+        if tool["type"] != "function":
+            logger.warning(f'Tool of type "{tool["type"]}" is not yet supported by iudex and will not be used.')
+    functions = [tool["function"] for tool in tools if tool["type"] == "function"]
+
+    iudex.functions.upsert(
+        functions=functions,
+        module=IUDEX_MODULE_NAME,
+    )
+
+    return functions

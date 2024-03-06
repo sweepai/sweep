@@ -4,12 +4,11 @@ import traceback
 from loguru import logger
 
 from sweepai.agents.assistant_functions import (
-    chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
-    view_sections_schema,
 )
-from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.agents.assistant_wrapper import iudex_call, openai_assistant_call
+from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
@@ -18,20 +17,48 @@ from sweepai.utils.utils import check_code, chunk_code
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
-instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
+preamble = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
 Respect and use existing conventions, libraries, etc that are already present in the code base.
 Your job is to make edits to the file to complete the user "# Request".
+"""
 
+instructions = preamble + """
 # Instructions
-1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes. If relevant, check surrounding code for context with the view_sections function. For example, if you find section B, you may want to see sections A and C to understand the surrounding context like the function headers and return statements.
-3. Use the search_and_replace function to make the changes.
+- Use the keyword_search function to find the right places to make changes.
+- Use the search_and_replace function to read relevant sections of the code and propose changes on them.
     - Keep whitespace and comments.
-    - Make the minimum necessary search_and_replaces to make changes to the snippets.
+    - Make the minimum necessary search_and_replace calls to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
+"""
+
+search_and_replace_instructions = """Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made.
+
+- Be sure to consider all imports that are required to complete the task.
+- Keep existing whitespace and comments.
+- Write multiple small changes instead of a single large change.
+- NEVER include duplicate changes to the same section ID. A section can only have 0 or 1 change.
+- Analyze the code and identify your intended changes first.
+
+Your changes must be valid JSON under the following schema.
+See example below:
+{
+    "analysis_and_identification": "We will replace do_old_bad_thing with do_new_good_thing. This requires an additional argument which we retrieve above.",
+    "replaces_to_make": [
+        {
+            "section_id": "AW",
+            "old_code": "       foo = get_foo()",
+            "new_code": "       foo = get_foo()\n      bar = get_bar()",
+        }
+        {
+            "section_id": "BZ",
+            "old_code": "       res = do_old_bad_thing(foo)",
+            "new_code": "       res = do_new_good_thing(foo, bar)",
+        },
+    ]
+}
 """
 
 # TODO: fuzzy search for keyword_search
@@ -120,21 +147,19 @@ def function_modify(
                 content=f"# Request\n{request}",
             ),
         ]
-        assistant_generator = openai_assistant_call(
-            request="",  # already present in additional_messages
+        assistant_generator = iudex_call(
+            request=f"# Request\n{request}",
             instructions=instructions,
             additional_messages=additional_messages,
-            chat_logger=chat_logger,
+            # chat_logger=chat_logger,
             assistant_id=assistant_id,
             save_ticket_progress=(
                 save_ticket_progress if ticket_progress is not None else None
             ),
             assistant_name="Code Modification Function Assistant",
             tools=[
-                {"type": "function", "function": chain_of_thought_schema},
-                {"type": "function", "function": keyword_search_schema},
-                {"type": "function", "function": view_sections_schema},
                 {"type": "function", "function": search_and_replace_schema},
+                {"type": "function", "function": keyword_search_schema},
             ],
         )
 
@@ -161,66 +186,101 @@ def function_modify(
                 elif tool_name == "search_and_replace":
                     error_message = ""
                     success_message = ""
+
+                    for key in ["analysis_and_identification", "task", "section_ids"]:
+                        if key not in tool_call:
+                            error_message = f"Missing {key} in search_and_replace."
+                            break
+
+                    if error_message:
+                        break
+
+                    task = tool_call["task"]
+                    section_ids = tool_call["section_ids"]
+
+                    # gather requested code sections from IDs
+                    requested_sections = []
+                    for section_letter in section_ids:
+                        section_id = excel_col_to_int(section_letter)
+                        if section_id >= len(chunks):
+                            error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            break
+
+                        requested_sections.append(chunks[section_id])
+
+                    if error_message:
+                        break
+
+                    # send to LLM to generate replaces_to_make
+                    chatgpt = ChatGPT.from_system_message_string(instructions, chat_logger)  # instantiate new for fresh message history
+                    # TODO: stuff as much of the file + section IDs as fits into message prefix
+                    search_and_replace_prompt = "\n".join(code_sections) + f"\n\n{search_and_replace_instructions}\n# Request\n{task}"
+                    search_and_replace_response = chatgpt.chat(search_and_replace_prompt, response_format={ "type": "json_object" })
+                    if not search_and_replace_response:
+                        error_message = "No response from the LLM when attempting to write changes."
+                        break
+                    try:
+                        replaces_to_make = json.loads(search_and_replace_response)["replaces_to_make"]
+                    except Exception as e:
+                        logger.error(e)
+                        error_message = "Invalid response from the LLM when attempting to write changes."
+                        break
+
+                    # apply the replaces_to_make
+                    error_message_prefix = f"Attempted to apply replaces_to_make:\n{json.dumps(replaces_to_make, indent=2)}\n\nBut encountered error:\n"
                     new_contents = current_contents
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
 
-                    if "replaces_to_make" not in tool_call:
-                        error_message = "No replaces_to_make found in tool call."
-                    elif len(tool_call["replaces_to_make"]) == 0:
-                        error_message = "replace_to_make should not be empty."
-                    else:
-                        for index, replace_to_make in enumerate(
-                            tool_call["replaces_to_make"]
-                        ):
-                            for key in ["section_id", "old_code", "new_code"]:
-                                if key not in replace_to_make:
-                                    error_message = f"Missing {key} in replace_to_make."
-                                    break
-                                if not isinstance(replace_to_make[key], str):
-                                    error_message = f"{key} should be a string."
-                                    break
-
-                            if error_message:
+                    for index, replace_to_make in enumerate(replaces_to_make):
+                        for key in ["section_id", "old_code", "new_code"]:
+                            if key not in replace_to_make:
+                                error_message = error_message_prefix + f"Missing {key} in replace_to_make."
+                                break
+                            if not isinstance(replace_to_make[key], str):
+                                error_message = error_message_prefix + f"{key} should be a string."
                                 break
 
-                            section_letter = replace_to_make["section_id"]
-                            section_id = excel_col_to_int(section_letter)
-                            old_code = replace_to_make["old_code"].strip("\n")
-                            new_code = replace_to_make["new_code"].strip("\n")
+                        if error_message:
+                            break
 
-                            if section_id >= len(chunks):
-                                error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
-                                break
-                            chunk = new_chunks[section_id]
-                            if old_code not in chunk:
-                                chunks_with_old_code = [
-                                    index
-                                    for index, chunk in enumerate(chunks)
-                                    if old_code in chunk
-                                ]
-                                chunks_with_old_code = chunks_with_old_code[:5]
-                                error_message = f"The old_code in the {index}th replace_to_make does not appear to be present in section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_letter} has code:\n```\n{chunk}\n```"
-                                if chunks_with_old_code:
-                                    error_message += "\n\nDid you mean one of the following sections?"
-                                    error_message += "\n".join(
-                                        [
-                                            f'\n<section id="{int_to_excel_col(section_id + 1)}">\n{chunks[index]}\n</section>\n```'
-                                            for index in chunks_with_old_code
-                                        ]
-                                    )
-                                else:
-                                    error_message += "\n\nMake another replacement. In the analysis_and_identification, first identify the indentation or spelling error. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct old_code, and make another replacement with the corrected old_code."
-                                break
-                            new_chunk = chunk.replace(old_code, new_code, 1)
-                            if new_chunk == chunk:
-                                logger.warning("No changes were made to the code.")
-                            new_chunks[section_id] = new_chunk
-                            new_contents = new_contents.replace(chunk, new_chunk, 1)
-                            if new_contents == current_contents:
-                                logger.warning("No changes were made to the code.")
+                        section_letter = replace_to_make["section_id"]
+                        section_id = excel_col_to_int(section_letter)
+                        old_code = replace_to_make["old_code"].strip("\n")
+                        new_code = replace_to_make["new_code"].strip("\n")
+
+                        if section_id >= len(chunks):
+                            error_message = error_message_prefix + f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            break
+                        chunk = new_chunks[section_id]
+                        if old_code not in chunk:
+                            chunks_with_old_code = [
+                                index
+                                for index, chunk in enumerate(chunks)
+                                if old_code in chunk
+                            ]
+                            chunks_with_old_code = chunks_with_old_code[:5]
+                            error_message = error_message_prefix + f"The old_code in the {index}th replace_to_make does not appear to be present in section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_letter} has code:\n```\n{chunk}\n```"
+                            if chunks_with_old_code:
+                                error_message += f"\n\nDid you mean one of the following sections?"
+                                error_message += "\n".join(
+                                    [
+                                        f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
+                                        for index in chunks_with_old_code
+                                    ]
+                                )
+                            else:
+                                error_message += f"\n\nMake another replacement. In the analysis_and_identification, first identify the indentation or spelling error. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct old_code, and make another replacement with the corrected old_code."
+                            break
+                        new_chunk = chunk.replace(old_code, new_code, 1)
+                        if new_chunk == chunk:
+                            logger.warning("No changes were made to the code.")
+                        new_chunks[section_id] = new_chunk
+                        new_contents = new_contents.replace(chunk, new_chunk, 1)
+                        if new_contents == current_contents:
+                            logger.warning("No changes were made to the code.")
 
                     if not error_message and new_contents == current_contents:
-                        error_message = "No changes were made, make sure old_code and new_code are not the same."
+                        error_message = error_message_prefix + "No changes were made, make sure old_code and new_code are not the same."
 
                     if not error_message:
                         # If the initial code failed, we don't need to/can't check the new code
@@ -237,12 +297,12 @@ def function_modify(
                             success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
-                            error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
+                            error_message = error_message_prefix + f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry search_and_replace with different changes that yield valid code."
 
                     if error_message:
                         logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n{error_message}"
+                            {"error": error_message}
                         )
                     else:
                         logger.info(success_message)
@@ -250,11 +310,12 @@ def function_modify(
                         #     f"SUCCESS\nThe following changes have been applied: successfully\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         # )
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n\n{success_message}"
+                            {"success": success_message}
                         )
                 elif tool_name == "keyword_search":
                     error_message = ""
-                    success_message = ""
+                    match_letters = []
+                    match_sections = []
 
                     for key in ["justification", "keyword"]:
                         if key not in tool_call:
@@ -269,10 +330,7 @@ def function_modify(
                                 matches.append(i)
                         if not matches:
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
-                        else:
-                            success_message = (
-                                "The keyword was found in the following sections:\n\n"
-                            )
+
                         for match_index in matches:
                             match = chunks[match_index]
                             match_lines = match.split("\n")
@@ -301,17 +359,23 @@ def function_modify(
                                 else:
                                     match_display += f"{line}\n"
                             match_display = match_display.strip("\n")
-                            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
 
-                    if error_message:
-                        logger.debug(error_message)
+                            match_letter = int_to_excel_col(match_index + 1)
+                            match_letters.append(match_letter)
+                            match_sections.append(f"<section id='{match_letter}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n")
+
+                    if match_letters and match_sections:
+                        logger.debug(f"Keyword search matched sections: {match_sections}")
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n{error_message}"
+                            {
+                                "section_ids": match_letters,
+                                "sections": match_sections,
+                            }
                         )
                     else:
-                        logger.debug(success_message)
+                        logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords, view_sections calls to view surrounding sections, or continue to make changes by calling the search_and_replace function."
+                            {"error": error_message}
                         )
                 elif tool_name == "view_sections":
                     if "section_ids" not in tool_call:
@@ -632,7 +696,7 @@ def function_modify(
 
 
 if __name__ == "__main__":
-    request = "Convert any all logger.errors to logger.exceptions in api.py"
+    request = "Replace logger.error with logger.exception in on_ticket.py"
     additional_messages = [
         Message(
             role="user",
@@ -647,11 +711,11 @@ if __name__ == "__main__":
         request=request,
         file_path="sweepai/handlers/on_ticket.py",
         file_contents=file_contents,
-        chat_logger=ChatLogger(
-            {
-                "username": "kevinlu1248",
-                "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
-            }
-        ),
+        # chat_logger=ChatLogger(
+        #     {
+        #         "username": "kevinlu1248",
+        #         "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
+        #     }
+        # ),
         # additional_messages=additional_messages,
     )

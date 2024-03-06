@@ -31,43 +31,6 @@ chain_of_thought_schema = {
     },
 }
 
-search_and_replace_schema = {
-    "name": "search_and_replace",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "analysis_and_identification": {
-                "type": "string",
-                "description": "Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made. Be sure to consider all imports that are required to complete the task.",
-            },
-            "replaces_to_make": {
-                "type": "array",
-                "description": "Array of sections of code to modify",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "section_id": {
-                            "type": "string",
-                            "description": "The section ID the original code belongs to.",
-                        },
-                        "old_code": {
-                            "type": "string",
-                            "description": "The old lines of code. Be sure to add lines before and after to disambiguate the change.",
-                        },
-                        "new_code": {
-                            "type": "string",
-                            "description": "The new code to replace the old code.",
-                        },
-                    },
-                    "required": ["section_id", "old_code", "new_code"],
-                },
-            },
-        },
-        "required": ["analysis_and_identification", "replaces_to_make"],
-    },
-    "description": "Make edits to the code file.",
-}
-
 view_sections_schema = {
     "name": "view_sections",
     "parameters": {
@@ -103,5 +66,66 @@ keyword_search_schema = {
         },
         "required": ["justification", "keyword"],
     },
-    "description": "Searches for all lines in the file containing the keyword.",
+    "description": "Searches for all lines in the file containing the keyword. The file is already loaded and does not need to specified.",
+    "returns": {
+        "type": "object",
+        "properties": {
+            "section_ids": {
+            "type": "array",
+            "description": "Section IDs from the file that contain the keyword.",
+                "items": {
+                    "type": "string",
+                    "description": "The section ID in which the keyword was found.",
+                },
+            },
+            "sections": {
+                "type": "array",
+                "description": "Sections, including ID and actual code with pointers to matches, from the file that contain the keyword.",
+                "items": {
+                    "type": "string",
+                    "description": "The entire code of the section in which the keyword was found, e.g. <section id=AA> (2 matches)\n# ... code with matches\n</section>",
+                },
+            }
+        },
+    }
+}
+
+search_and_replace_schema = {
+    "name": "search_and_replace",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "analysis_and_identification": {
+                "type": "string",
+                "description": "Identify and list the minimal changes that need to be made to the file by listing all code section IDs that should receive these changes and the intended changes to be made. A developer will review all requested sections and perform edits on them based on your instructions in `task`.",
+            },
+            "task": {
+                "type": "string",
+                "description": "The overall task to accomplish by writing changes applied to the code sections.",
+            },
+            "section_ids": {
+                "type": "array",
+                "description": "Relevant section IDs from keyword_search results whose code to read.",
+                "items": {
+                    "type": "string",
+                    "description": "The section ID the original code belongs to.",
+                },
+            },
+        },
+        "required": ["analysis_and_identification", "task", "section_ids"],
+    },
+    "description": "MUST RUN AFTER keyword_search. Given a task, read multiple relevant code sections (AS RETURNED BY keyword_search) and suggest edits.",
+    "returns": {
+        "type": "object",
+        "properties": {
+            "success_message": {
+                "type": "string",
+                "description": "Success message including the full diff after making edits to the code sections.",
+            },
+            "error": {
+                "type": "string",
+                "description": "Error message and explanation if the task was not successful.",
+            },
+        },
+    }
 }

@@ -130,7 +130,7 @@ class ChatGPT(MessageList):
     @classmethod
     def from_system_message_string(
         cls, prompt_string: str, chat_logger: ChatLogger | None = None, **kwargs
-    ) -> Any:
+    ):
         return cls(
             messages=[Message(role="system", content=prompt_string, key="system")],
             chat_logger=chat_logger,
@@ -161,6 +161,7 @@ class ChatGPT(MessageList):
         message_key: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        **kwargs,
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
@@ -172,6 +173,7 @@ class ChatGPT(MessageList):
                     model=model,
                     temperature=temperature,
                     requested_max_tokens=max_tokens,
+                    **kwargs,
                 ),
                 key=message_key,
             )
@@ -185,6 +187,7 @@ class ChatGPT(MessageList):
         model: ChatModel | None = None,
         temperature=temperature,
         requested_max_tokens: int | None = None,
+        **kwargs,
     ):
         if self.chat_logger is not None:
             if (
@@ -267,6 +270,7 @@ class ChatGPT(MessageList):
                     messages=self.messages_dicts,
                     max_tokens=max_tokens - token_sub,
                     temperature=temperature,
+                    **kwargs,
                 )
                 if self.chat_logger is not None:
                     self.chat_logger.add_chat(

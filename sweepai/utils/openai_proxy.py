@@ -36,12 +36,13 @@ class OpenAIProxy:
         max_tokens: int = 4096,
         temperature: float = 0.0,
         seed: int = 0,
+        **kwargs,
     ) -> str:
         try:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 response = self.set_openai_default_api_parameters(
-                    model, messages, max_tokens, temperature
+                    model, messages, max_tokens, temperature, **kwargs
                 )
                 return response.choices[0].message.content
             if OPENAI_API_TYPE == "azure":
@@ -99,7 +100,7 @@ class OpenAIProxy:
             if OPENAI_API_KEY:
                 try:
                     response = self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature
+                        model, messages, max_tokens, temperature, **kwargs
                     )
                     return response.choices[0].message.content
                 except SystemExit:
@@ -161,7 +162,7 @@ class OpenAIProxy:
         return response.choices[0].message.content
 
     def set_openai_default_api_parameters(
-        self, model, messages, max_tokens, temperature
+        self, model, messages, max_tokens, temperature, **kwargs
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
@@ -171,6 +172,7 @@ class OpenAIProxy:
             temperature=temperature,
             timeout=OPENAI_TIMEOUT,
             seed=SEED,
+            **kwargs,
         )
         return response
 
