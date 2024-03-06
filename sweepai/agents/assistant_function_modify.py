@@ -40,9 +40,11 @@ Your job is to make edits to the file to complete the user "# Request".
 
 def int_to_excel_col(n):
     result = ""
+    if n == 0:
+        result = "A"
     while n > 0:
         n, remainder = divmod(n - 1, 26)
-        result = chr(65 + remainder) + result
+        result = chr(65 + remainder + 1) + result
     return result
 
 
@@ -195,6 +197,7 @@ def function_modify(
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
+                            import pdb; pdb.set_trace()
                             for key in ["section_id", "old_code", "new_code"]:
                                 if key not in replace_to_make:
                                     error_message = f"Missing {key} in replace_to_make."
