@@ -6,14 +6,19 @@ It is only called by the webhook handler in sweepai/api.py.
 import difflib
 import os
 import re
+import textwrap
 import traceback
 from time import time
+from copy import deepcopy
 
 import markdown
 import openai
+import requests
+import io
+import zipfile
 import yaml
 import yamllint.config as yamllint_config
-from github import BadCredentialsException, Github, Repository
+from github import BadCredentialsException, Github, Repository, WorkflowRun
 from github.Issue import Issue
 from github.PullRequest import PullRequest as GithubPullRequest
 from logtail import LogtailContext, LogtailHandler
@@ -50,6 +55,7 @@ from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
     MaxTokensExceeded,
+    Message,
     NoFilesException,
     ProposedIssue,
     PullRequest,
@@ -63,6 +69,7 @@ from sweepai.handlers.create_pr import (
     create_pr_changes,
     safe_delete_sweep_branch,
 )
+from sweepai.handlers.on_check_suite import clean_logs
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -153,6 +160,12 @@ You ran out of the free tier GPT-4 tickets! We no longer support running Sweep w
 - You can book a chat with us to discuss your use case and get additional free GPT-4 tickets [here](https://calendly.com/d/2n5-3qf-9xy/user-interview).
 """
 
+FAILING_GITHUB_ACTION_PROMPT = """
+The following Github Actions failed on a previous attempt at fixing this issue.
+Review the provided logs to ensure that any code modifications you make do not cause these actions to fail again.
+{github_action_log}
+"""
+
 def initialize_logtail_context(title: str, issue_url: int, issue_number: str, repo_full_name: str, repo_description: str, username: str, comment_id: int = None, edited: bool = False):
     context = LogtailContext()
     context.context(
@@ -194,6 +207,94 @@ def remove_emoji(issue: Issue, comment_id: int = None, content_to_delete="eyes")
         ):
             item_to_react_to.delete_reaction(reaction.id)
 
+def create_error_logs(
+    commit_url_display: str,
+    sandbox_response: SandboxResponse,
+    status: str = "✓",
+):
+    return (
+        (
+            "<br/>"
+            + create_collapsible(
+                f"Sandbox logs for {commit_url_display} {status}",
+                blockquote(
+                    "\n\n".join(
+                        [
+                            create_collapsible(
+                                f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                                f"<pre>{clean_logs(output)}</pre>",
+                                i == len(sandbox_response.outputs) - 1,
+                            )
+                            for i, output in enumerate(
+                                sandbox_response.outputs
+                            )
+                            if len(sandbox_response.outputs) > 0
+                        ]
+                    )
+                ),
+                opened=True,
+            )
+        )
+        if sandbox_response
+        else ""
+    )
+
+
+# takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
+def get_failing_gha_logs(runs) -> list[Message]:
+    messages: list[Message] = []
+    for run in runs:
+        # jobs_url
+        jobs_url = run.jobs_url
+        jobs_response = requests.get(
+            jobs_url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "X-Github-Api-Version": "2022-11-28",
+                "Authorization": "Bearer " + os.environ["GITHUB_PAT"],
+            },
+        )
+        if jobs_response.status_code == 200:
+            failed_jobs = []
+            jobs = jobs_response.json()['jobs']
+            for job in jobs:
+                if job['conclusion'] == 'failure':
+                    failed_jobs.append(job)
+
+            failed_jobs_name_list = []
+            for job in failed_jobs:
+                # add failed steps
+                for step in job['steps']:
+                    if step['conclusion'] == 'failure':
+                        failed_jobs_name_list.append(f"{job['name']}/{step['number']}_{step['name']}")
+        else:
+            logger.error("Failed to get jobs for failing github actions, possible a credentials issue")
+            return messages
+        # logs url
+        logs_url = run.logs_url
+        logs_response = requests.get(
+            logs_url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "X-Github-Api-Version": "2022-11-28",
+                "Authorization": "Bearer " + os.environ["GITHUB_PAT"],
+            },
+            allow_redirects=True,
+        )
+        # Check if the request was successful
+        if logs_response.status_code == 200:
+            zip_data = io.BytesIO(logs_response.content)
+            zip_file = zipfile.ZipFile(zip_data, 'r')
+            zip_file_names = zip_file.namelist()
+            for file in failed_jobs_name_list:
+                if f"{file}.txt" in zip_file_names:
+                    logs = zip_file.read(f"{file}.txt").decode("utf-8")
+                    cleaned_logs = clean_logs(logs)
+                    messages.append(Message(role="user", content=FAILING_GITHUB_ACTION_PROMPT.replace("{github_action_log}", cleaned_logs)))
+        else:
+            logger.error("Failed to get logs for failing github actions, likely a credentials issue")
+            return messages
+    return messages
 
 def delete_old_prs(repo: Repository, issue_number: int):
     logger.info("Deleting old PRs...")
@@ -329,6 +430,8 @@ def on_ticket(
     with logger.contextualize(
             tracking_id=tracking_id,
         ):
+        # we want to pass in the failing github action messages to the next run in order to fix them
+        failing_gha_messages: list[Message] = []
         # we rerun this logic 3 times at most if the github actions associated with the created pr fails
         for run_attempt in range(3):
             if tracking_id is None:
@@ -1049,6 +1152,9 @@ def on_ticket(
 
                     delete_branch = False
 
+                    # this is to prevent failing_gha_messages from being modified by the generator
+                    additional_messages = deepcopy(failing_gha_messages)
+
                     generator = create_pr_changes(
                         file_change_requests,
                         pull_request,
@@ -1058,41 +1164,10 @@ def on_ticket(
                         issue_number,
                         chat_logger=chat_logger,
                         base_branch=overrided_branch_name,
+                        additional_messages=additional_messages,
                     )
                     edit_sweep_comment(checkboxes_contents, 2)
                     response = {"error": NoFilesException()}
-
-                    def create_error_logs(
-                        commit_url_display: str,
-                        sandbox_response: SandboxResponse,
-                        status: str = "✓",
-                    ):
-                        return (
-                            (
-                                "<br/>"
-                                + create_collapsible(
-                                    f"Sandbox logs for {commit_url_display} {status}",
-                                    blockquote(
-                                        "\n\n".join(
-                                            [
-                                                create_collapsible(
-                                                    f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
-                                                    f"<pre>{clean_logs(output)}</pre>",
-                                                    i == len(sandbox_response.outputs) - 1,
-                                                )
-                                                for i, output in enumerate(
-                                                    sandbox_response.outputs
-                                                )
-                                                if len(sandbox_response.outputs) > 0
-                                            ]
-                                        )
-                                    ),
-                                    opened=True,
-                                )
-                            )
-                            if sandbox_response
-                            else ""
-                        )
 
                     changed_files = []
                     for item in generator:
@@ -1438,13 +1513,17 @@ def on_ticket(
                         # if any of them have failed we retry
                         if any([run.conclusion == "failure" for run in runs]):
                             pr_created_successfully = False
-                            # rerun on ticket but increment run_attempt
+                            failed_runs = [run for run in runs if run.conclusion == "failure"]
+                            
+                            failed_gha_logs: list[Message] = get_failing_gha_logs(failed_runs)
+                            if failed_gha_logs:
+                                failing_gha_messages.extend(failed_gha_logs)
                             logger.info(f"Rerunning issue {issue_url} as some workflows failed! Rerun attempt {run_attempt + 1}")
                             # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
                             # unless this is sweep's last attempt
                             if run_attempt < 2:
                                 try:
-                                    pr.edit(state="closed")
+                                    pr.edit(state="closed", title = pr.title + f" (Closed due to failing Github Action: Attempt {run_attempt + 1})")
                                     if pr.head.ref.startswith("sweep"):
                                         repo.get_git_ref(f"heads/{pr.head.ref}").delete()
                                 except Exception as e:
