@@ -23,6 +23,7 @@ from tqdm import tqdm
 from yamllint import linter
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
+import math
 from sweepai.config.client import (
     DEFAULT_RULES,
     RESET_FILE,
