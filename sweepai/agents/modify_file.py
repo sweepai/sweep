@@ -113,7 +113,7 @@ def create_additional_messages(
     return additional_messages
 
 
-# @file_cache()
+@file_cache()
 def modify_file(
     cloned_repo: ClonedRepo,
     metadata: str,

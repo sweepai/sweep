@@ -58,7 +58,7 @@ from sweepai.handlers.create_pr import (  # type: ignore
 )
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import (  # type: ignore
-    clean_logs,
+    clean_gh_logs,
     download_logs,
     on_check_suite,
 )
@@ -471,7 +471,7 @@ def run(request_dict, event):
                                 request.check_run.run_id,
                                 request.installation.id,
                             )
-                            logs, user_message = clean_logs(logs)
+                            logs, user_message = clean_gh_logs(logs)
                             attributor = request.sender.login
                             if attributor.endswith("[bot]"):
                                 attributor = commit.author.login
@@ -523,7 +523,7 @@ def run(request_dict, event):
                             request.check_run.run_id,
                             request.installation.id,
                         )
-                        logs, user_message = clean_logs(logs)
+                        logs, user_message = clean_gh_logs(logs)
                         chat_logger = ChatLogger(
                             data={
                                 "username": attributor,

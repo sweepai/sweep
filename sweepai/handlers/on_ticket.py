@@ -69,7 +69,7 @@ from sweepai.handlers.create_pr import (
     create_pr_changes,
     safe_delete_sweep_branch,
 )
-from sweepai.handlers.on_check_suite import clean_logs
+from sweepai.handlers.on_check_suite import clean_gh_logs
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -289,7 +289,7 @@ def get_failing_gha_logs(runs) -> list[Message]:
             for file in failed_jobs_name_list:
                 if f"{file}.txt" in zip_file_names:
                     logs = zip_file.read(f"{file}.txt").decode("utf-8")
-                    cleaned_logs = clean_logs(logs)
+                    cleaned_logs = clean_gh_logs(logs)
                     messages.append(Message(role="user", content=FAILING_GITHUB_ACTION_PROMPT.replace("{github_action_log}", cleaned_logs)))
         else:
             logger.error("Failed to get logs for failing github actions, likely a credentials issue")
