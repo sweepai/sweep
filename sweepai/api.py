@@ -40,6 +40,7 @@ from sweepai.config.client import (
     get_rules,
 )
 from sweepai.config.server import (
+    DISABLED_REPOS,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GHA_AUTOFIX_ENABLED,
@@ -420,6 +421,11 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
 
 def run(request_dict, event):
     action = request_dict.get("action")
+
+    if repo_full_name := request_dict.get("repository", {}).get("full_name"):
+        if repo_full_name in DISABLED_REPOS:
+            logger.warning(f"Repo {repo_full_name} is disabled")
+            return {"success": False, "error_message": "Repo is disabled"}
 
     with logger.contextualize(tracking_id="main", env=ENV):
         match event, action:
