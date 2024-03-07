@@ -325,7 +325,7 @@ def init_hatchet() -> Hatchet | None:
                 # event = event_payload.get("event")
 
                 # run(request_dict, event)
-                # context.log("Test log")
+                context.log("Test log")
                 return {}
 
         @hatchet.workflow(on_events=["ticket:create"], timeout="60m")
