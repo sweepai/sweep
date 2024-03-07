@@ -319,35 +319,31 @@ def init_hatchet() -> Hatchet | None:
 
             @hatchet.step(timeout="60m")
             def run(self, context: Context):
-                # event_payload = context.workflow_input()
+                event_payload = context.workflow_input()
 
-                # request_dict = event_payload.get("request")
-                # event = event_payload.get("event")
+                request_dict = event_payload.get("request")
+                event = event_payload.get("event")
 
-                # run(request_dict, event)
-                context.log("Test log")
+                run(request_dict, event)
                 return {}
 
         @hatchet.workflow(on_events=["ticket:create"], timeout="60m")
         class OnTicket:
             """Workflow for handling new tickets."""
 
-            # @hatchet.concurrency(max_runs=1)
-            # def get_concurrency_key(self, context: Context):
-            #     event_payload = context.workflow_input()
+            @hatchet.concurrency(max_runs=1)
+            def get_concurrency_key(self, context: Context):
+                event_payload = context.workflow_input()
 
-            #     return (
-            #         event_payload.get("repo_full_name", "")
-            #         + "-"
-            #         + event_payload.get("issue_number", "")
-            #     )
+                return (
+                    event_payload.get("repo_full_name", "")
+                    + "-"
+                    + event_payload.get("issue_number", "")
+                )
 
             @hatchet.step(timeout="60m")
             def run(self, context: Context):
                 event_payload = context.workflow_input()
-
-                context.log("Test log")
-                return
 
                 run_on_ticket(
                     title=event_payload.get("title"),
