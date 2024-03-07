@@ -44,7 +44,7 @@ def int_to_excel_col(n):
         result = "A"
     while n > 0:
         n, remainder = divmod(n - 1, 26)
-        result = chr(65 + remainder + 1) + result
+        result = chr(65 + remainder) + result
     return result
 
 
@@ -354,7 +354,7 @@ def function_modify(
                         section_index = excel_col_to_int(section_id)
                         section_indices.update(
                             (
-                                int_to_excel_col(max(0, section_index - 1)),
+                                int_to_excel_col(max(1, section_index - 1)),
                                 int_to_excel_col(min(len(chunks), section_index)),
                                 int_to_excel_col(min(len(chunks), section_index + 1)),
                                 int_to_excel_col(min(len(chunks), section_index + 2)),
