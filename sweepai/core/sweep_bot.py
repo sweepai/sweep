@@ -35,6 +35,7 @@ from sweepai.core.prompts import (
     pull_request_prompt,
     sandbox_files_to_change_prompt,
     subissues_prompt,
+    files_to_change_system_prompt
 )
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.chat_logger import discord_log_error
@@ -147,11 +148,14 @@ class CodeGenBot(ChatGPT):
                     )
                 )
                 self.ticket_progress.save()
+            old_system_prompt = self.messages[0].content
+            self.messages[0].content = files_to_change_system_prompt
             # pylint: enable=no-member
             # pylint: enable=access-member-before-definition
             files_to_change_response = self.chat(
                 files_to_change_prompt, message_key="files_to_change"
             )
+            self.messages[0].content = old_system_prompt
             if self.ticket_progress is not None:
                 self.ticket_progress.planning_progress.assistant_conversation.messages.append(
                     AssistantAPIMessage(
@@ -634,6 +638,7 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: list[tuple[str, str]] = [],
         temperature: float = 0.1,
         assistant_conversation: AssistantConversation | None = None,
+        additional_messages: list[Message] = []
     ):
         new_file = modify_file(
             self.cloned_repo,
@@ -646,6 +651,7 @@ class SweepBot(CodeGenBot, GithubBot):
             assistant_conversation,
             self.ticket_progress,
             self.chat_logger,
+            additional_messages=additional_messages
         )
         commit_message = f"feat: Updated {file_change_request.filename}"[:50]
         changed_files.append((file_change_request.filename, (contents, new_file)))
@@ -739,6 +745,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_requests: list[FileChangeRequest],
         branch: str,
         blocked_dirs: list[str],
+        additional_messages: list[Message] = []
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         completed = 0
         sandbox_response = None
@@ -852,6 +859,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 if self.ticket_progress
                                 else None
                             ),
+                            additional_messages=additional_messages
                         )
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
@@ -1051,6 +1059,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         changed_files: list[tuple[str, str]] = [],
         assistant_conversation: AssistantConversation | None = None,
+        additional_messages: list[Message] = []
     ):
         CHUNK_SIZE = 10000  # Disable chunking for now
         sandbox_execution: SandboxResponse = None
@@ -1093,6 +1102,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             temperature=temperature,
                             changed_files=changed_files,
                             assistant_conversation=assistant_conversation,
+                            additional_messages=additional_messages,
                         )
                         commit_message = suggested_commit_message
                     elif not chunking:
@@ -1108,6 +1118,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             changed_files=changed_files,
                             temperature=temperature,
                             assistant_conversation=assistant_conversation,
+                            additional_messages=additional_messages,
                         )
                         commit_message = suggested_commit_message
                     elif file_change_request.comment_line is not None:
@@ -1127,6 +1138,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             contents=chunk,
                             changed_files=changed_files,
                             temperature=temperature,
+                            additional_messages=additional_messages,
                         )
                         new_lines = copy.deepcopy(lines)
                         new_lines[start:end] = new_chunk.split("\n")
@@ -1156,6 +1168,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 chunking=True,
                                 changed_files=changed_files,
                                 temperature=temperature,
+                                additional_messages=additional_messages,
                             )
                             commit_message = suggested_commit_message
                             logger.info(

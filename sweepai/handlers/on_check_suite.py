@@ -58,7 +58,7 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     return logs_str
 
 
-def clean_logs(logs_str: str):
+def clean_gh_logs(logs_str: str):
     # Extraction process could be better
     MAX_LINES = 50
     log_list = logs_str.split("\n")
@@ -149,7 +149,7 @@ def on_check_suite(request: CheckRunCompleted):
     )
     if not logs:
         return None
-    logs, user_message = clean_logs(logs)
+    logs, user_message = clean_gh_logs(logs)
     comment = pr.as_issue().create_comment(user_message)
     pr_change_request = PRChangeRequest(
         params={

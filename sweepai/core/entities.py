@@ -152,8 +152,9 @@ class FileChangeRequest(RegexMatchableBaseModel):
     old_content: str | None = None
     new_content: str | None = None
     raw_relevant_files: str | None = None
-    start_line: int | str | None = None
-    end_line: int | str | None = None
+    # allow inf
+    start_line: Any | int | str | None = None
+    end_line: Any | int | str | None = None
     start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
     sandbox_response: None = None

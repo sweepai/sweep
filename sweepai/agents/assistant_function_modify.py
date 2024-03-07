@@ -1,4 +1,5 @@
 import json
+import textwrap
 import traceback
 
 from loguru import logger
@@ -7,7 +8,7 @@ from sweepai.agents.assistant_functions import (
     keyword_search_schema,
     search_and_replace_schema,
 )
-from sweepai.agents.assistant_wrapper import iudex_call, openai_assistant_call
+from sweepai.agents.assistant_wrapper import iudex_call
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -25,7 +26,9 @@ Respect and use existing conventions, libraries, etc that are already present in
 Your job is to make edits to the file to complete the user "# Request".
 """
 
-instructions = preamble + """
+instructions = (
+    preamble
+    + """
 # Instructions
 - Use the keyword_search function to find the right places to make changes.
 - Use the search_and_replace function to read relevant sections of the code and propose changes on them.
@@ -33,6 +36,7 @@ instructions = preamble + """
     - Make the minimum necessary search_and_replace calls to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
 """
+)
 
 search_and_replace_instructions = """Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made.
 
@@ -66,6 +70,8 @@ See example below:
 
 def int_to_excel_col(n):
     result = ""
+    if n == 0:
+        result = "A"
     while n > 0:
         n, remainder = divmod(n - 1, 26)
         result = chr(65 + remainder) + result
@@ -81,6 +87,29 @@ def excel_col_to_int(s):
 
 MAX_CHARS = 32000
 TOOLS_MAX_CHARS = 20000
+
+
+# ensure that all additional_messages are 32768 characters at most, if not split them
+def ensure_additional_messages_length(additional_messages: list[Message]):
+    for i, additional_message in enumerate(additional_messages):
+        if len(additional_message.content) > MAX_CHARS:
+            new_messages = textwrap.wrap(additional_message.content, MAX_CHARS)
+            # replace the original message with the broken up messages
+            for j, new_message in enumerate(new_messages):
+                if j == 0:
+                    additional_messages[i] = Message(
+                        role=additional_message.role,
+                        content=new_message,
+                    )
+                else:
+                    additional_messages.insert(
+                        i + j,
+                        Message(
+                            role=additional_message.role,
+                            content=new_message,
+                        ),
+                    )
+    return additional_messages
 
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
@@ -149,8 +178,9 @@ def function_modify(
         ]
         assistant_generator = iudex_call(
             request=f"# Request\n{request}",
+            request="",  # already present in additional_messages
             instructions=instructions,
-            additional_messages=additional_messages,
+            additional_messages=ensure_additional_messages_length(additional_messages),
             # chat_logger=chat_logger,
             assistant_id=assistant_id,
             save_ticket_progress=(
@@ -212,15 +242,27 @@ def function_modify(
                         break
 
                     # send to LLM to generate replaces_to_make
-                    chatgpt = ChatGPT.from_system_message_string(instructions, chat_logger)  # instantiate new for fresh message history
+                    chatgpt = ChatGPT.from_system_message_string(
+                        instructions, chat_logger
+                    )  # instantiate new for fresh message history
                     # TODO: stuff as much of the file + section IDs as fits into message prefix
-                    search_and_replace_prompt = "\n".join(code_sections) + f"\n\n{search_and_replace_instructions}\n# Request\n{task}"
-                    search_and_replace_response = chatgpt.chat(search_and_replace_prompt, response_format={ "type": "json_object" })
+                    search_and_replace_prompt = (
+                        "\n".join(code_sections)
+                        + f"\n\n{search_and_replace_instructions}\n# Request\n{task}"
+                    )
+                    search_and_replace_response = chatgpt.chat(
+                        search_and_replace_prompt,
+                        response_format={"type": "json_object"},
+                    )
                     if not search_and_replace_response:
-                        error_message = "No response from the LLM when attempting to write changes."
+                        error_message = (
+                            "No response from the LLM when attempting to write changes."
+                        )
                         break
                     try:
-                        replaces_to_make = json.loads(search_and_replace_response)["replaces_to_make"]
+                        replaces_to_make = json.loads(search_and_replace_response)[
+                            "replaces_to_make"
+                        ]
                     except Exception as e:
                         logger.error(e)
                         error_message = "Invalid response from the LLM when attempting to write changes."
@@ -234,10 +276,15 @@ def function_modify(
                     for index, replace_to_make in enumerate(replaces_to_make):
                         for key in ["section_id", "old_code", "new_code"]:
                             if key not in replace_to_make:
-                                error_message = error_message_prefix + f"Missing {key} in replace_to_make."
+                                error_message = (
+                                    error_message_prefix
+                                    + f"Missing {key} in replace_to_make."
+                                )
                                 break
                             if not isinstance(replace_to_make[key], str):
-                                error_message = error_message_prefix + f"{key} should be a string."
+                                error_message = (
+                                    error_message_prefix + f"{key} should be a string."
+                                )
                                 break
 
                         if error_message:
@@ -249,7 +296,10 @@ def function_modify(
                         new_code = replace_to_make["new_code"].strip("\n")
 
                         if section_id >= len(chunks):
-                            error_message = error_message_prefix + f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            error_message = (
+                                error_message_prefix
+                                + f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            )
                             break
                         chunk = new_chunks[section_id]
                         if old_code not in chunk:
@@ -259,9 +309,14 @@ def function_modify(
                                 if old_code in chunk
                             ]
                             chunks_with_old_code = chunks_with_old_code[:5]
-                            error_message = error_message_prefix + f"The old_code in the {index}th replace_to_make does not appear to be present in section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_letter} has code:\n```\n{chunk}\n```"
+                            error_message = (
+                                error_message_prefix
+                                + f"The old_code in the {index}th replace_to_make does not appear to be present in section {section_letter}. The old_code contains:\n```\n{old_code}\n```\nBut section {section_letter} has code:\n```\n{chunk}\n```"
+                            )
                             if chunks_with_old_code:
-                                error_message += f"\n\nDid you mean one of the following sections?"
+                                error_message += (
+                                    f"\n\nDid you mean one of the following sections?"
+                                )
                                 error_message += "\n".join(
                                     [
                                         f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
@@ -280,7 +335,10 @@ def function_modify(
                             logger.warning("No changes were made to the code.")
 
                     if not error_message and new_contents == current_contents:
-                        error_message = error_message_prefix + "No changes were made, make sure old_code and new_code are not the same."
+                        error_message = (
+                            error_message_prefix
+                            + "No changes were made, make sure old_code and new_code are not the same."
+                        )
 
                     if not error_message:
                         # If the initial code failed, we don't need to/can't check the new code
@@ -297,7 +355,10 @@ def function_modify(
                             success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                         else:
                             diff = generate_diff(current_contents, new_contents)
-                            error_message = error_message_prefix + f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry search_and_replace with different changes that yield valid code."
+                            error_message = (
+                                error_message_prefix
+                                + f"No changes have been applied. This is because when the following changes are applied:\n\n```diff\n{diff}\n```\n\nIt yields invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry search_and_replace with different changes that yield valid code."
+                            )
 
                     if error_message:
                         logger.error(error_message)
@@ -362,10 +423,14 @@ def function_modify(
 
                             match_letter = int_to_excel_col(match_index + 1)
                             match_letters.append(match_letter)
-                            match_sections.append(f"<section id='{match_letter}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n")
+                            match_sections.append(
+                                f"<section id='{match_letter}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
+                            )
 
                     if match_letters and match_sections:
-                        logger.debug(f"Keyword search matched sections: {match_sections}")
+                        logger.debug(
+                            f"Keyword search matched sections: {match_sections}"
+                        )
                         tool_name, tool_call = assistant_generator.send(
                             {
                                 "section_ids": match_letters,
@@ -393,7 +458,7 @@ def function_modify(
                         section_index = excel_col_to_int(section_id)
                         section_indices.update(
                             (
-                                int_to_excel_col(max(0, section_index - 1)),
+                                int_to_excel_col(max(1, section_index - 1)),
                                 int_to_excel_col(min(len(chunks), section_index)),
                                 int_to_excel_col(min(len(chunks), section_index + 1)),
                                 int_to_excel_col(min(len(chunks), section_index + 2)),
