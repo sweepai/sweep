@@ -13,7 +13,7 @@ WORKDIR /app
 #     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends git curl redis-server npm \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -65,8 +65,8 @@ RUN /root/.cargo/bin/uv pip install --no-cache -r requirements.txt
 #     && rm -rf /var/lib/apt/lists/*
 
 # RUN apt-get update && apt-get install -y screen
-RUN apt-get update && apt-get install -y redis-server
-RUN apt-get update && apt-get install -y npm
+# RUN apt-get update && apt-get install -y redis-server
+# RUN apt-get update && apt-get install -y npm
 RUN npm install -g prettier @types/react @types/react-dom typescript
 
 COPY sweepai /app/sweepai
