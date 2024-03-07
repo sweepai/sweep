@@ -7,6 +7,7 @@ import difflib
 import os
 import re
 import traceback
+import math
 from time import time
 
 import markdown
