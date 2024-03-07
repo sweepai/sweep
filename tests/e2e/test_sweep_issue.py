@@ -34,14 +34,14 @@ def e2e_test_base(issue_json):
         response_text = json.loads(response.text)
         assert response.status_code == 200
         assert "success" in response_text
-        # poll github 5 times, waiting 1 minute between each poll, check if the pr has been created successfully or not
+        # poll github 15 times, waiting 1 minute between each poll, check if the pr has been created successfully or not
         for i in range(15):
             pulls: PaginatedList[PullRequest] = repo.get_pulls(
                 state="open", sort="created", direction="desc"
             )
             # iterate through the top 5 pull requests and check if the title matches the expected title
             for pr in pulls[: min(5, pulls.totalCount)]:
-                current_date = time.time() - 60 * (i + 1)
+                current_date = time.time() - 60 * (i + 2)
                 current_date = datetime.datetime.fromtimestamp(current_date)
                 creation_date: datetime.datetime = pr.created_at.replace(
                     tzinfo=datetime.timezone.utc

@@ -1,4 +1,5 @@
 import json
+import textwrap
 import traceback
 
 from loguru import logger
@@ -55,6 +56,27 @@ def excel_col_to_int(s):
 MAX_CHARS = 32000
 TOOLS_MAX_CHARS = 20000
 
+# ensure that all additional_messages are 32768 characters at most, if not split them
+def ensure_additional_messages_length(additional_messages: list[Message]):
+    for i, additional_message in enumerate(additional_messages):
+        if len(additional_message.content) > MAX_CHARS:
+            new_messages = textwrap.wrap(additional_message.content, MAX_CHARS)
+            # replace the original message with the broken up messages
+            for j, new_message in enumerate(new_messages):
+                if j == 0:
+                    additional_messages[i] = Message(
+                        role=additional_message.role,
+                        content=new_message,
+                    )
+                else:
+                    additional_messages.insert(
+                        i + j,
+                        Message(
+                            role=additional_message.role,
+                            content=new_message,
+                        ),
+                    )
+    return additional_messages
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
@@ -71,7 +93,6 @@ def function_modify(
     seed: int = None,
 ):
     try:
-
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             if assistant_conversation:
                 assistant_conversation.update_from_ids(
@@ -120,6 +141,8 @@ def function_modify(
                 content=f"# Request\n{request}",
             ),
         ]
+        # make sure all additional messages are < 32k chars long
+        additional_messages = ensure_additional_messages_length(additional_messages)
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,

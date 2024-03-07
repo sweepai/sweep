@@ -1,6 +1,6 @@
 """
 create_pr is a function that creates a pull request from a list of file change requests.
-It is also responsible for handling Sweep config PR creation.
+It is also responsible for handling Sweep config PR creation. test
 """
 
 import datetime
@@ -445,4 +445,11 @@ body:
         Unit Tests: Write unit tests for <FILE>. Test each function in the file. Make sure to test edge cases.
         Bugs: The bug might be in <FILE>. Here are the logs: ...
         Features: the new endpoint should use the ... class from <FILE> because it contains ... logic.
-        Refactors: We are migrating this function to ... version because ..."""
+        Refactors: We are migrating this function to ... version because ...
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: The branch to work off of (optional)
+      placeholder: |
+        main"""
