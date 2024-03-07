@@ -8,7 +8,7 @@ YELLOW="\033[1;33m"
 BOLD="\033[1m"
 NC="\033[0m" # No Color
 
-echo -e "
+echo "
 
                          @@@@@@@@@@@@@@@@@@@%*
                      #@@@                    @+
@@ -41,9 +41,9 @@ echo -e "
 
                                                             "
 
-echo -e "${YELLOW}You're currently using the free version of self-hosted Sweep AI. For more performance, like fine-tuned search, switch to our enterprise version. Email us at ${BLUE}team@sweep.dev${YELLOW} or schedule a call at ${BLUE}https://calendly.com/sweep-ai/founders-meeting${NC}.\n"
+echo "${YELLOW}You're currently using the free version of self-hosted Sweep AI. For more performance, like fine-tuned search, switch to our enterprise version. Email us at ${BLUE}team@sweep.dev${YELLOW} or schedule a call at ${BLUE}https://calendly.com/sweep-ai/founders-meeting${NC}.\n"
 
 
-echo -e "${YELLOW}Launching sweep on https://localhost:${PORT:-8080}${NC}"
+echo "${YELLOW}Launching sweep on https://localhost:${PORT:-8080}${NC}"
 redis-server /app/redis.conf --bind 0.0.0.0 --port 6379 > /dev/null 2>&1 &
 PYTHONPATH=. python sweepai/watch.py

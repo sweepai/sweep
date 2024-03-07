@@ -12,13 +12,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/universal-ctags/ctags.git && \
-    cd ctags && \
-    ./autogen.sh && \
-    ./configure && \
-    make && make install
-
-COPY pyproject.toml ./
+# COPY pyproject.toml ./
 
 ENV VIRTUAL_ENV=/usr/local
 ADD --chmod=755 https://astral.sh/uv/install.sh /install.sh
