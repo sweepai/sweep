@@ -22,6 +22,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import (
     FileChangeRequest,
     MaxTokensExceeded,
+    Message,
     MockPR,
     PullRequest,
 )
@@ -51,6 +52,7 @@ def create_pr_changes(
     sandbox=None,
     chat_logger: ChatLogger = None,
     base_branch: str = None,
+    additional_messages: list[Message] = []
 ) -> Generator[tuple[FileChangeRequest, int, Any], None, dict]:
     # Flow:
     # 1. Get relevant files
@@ -108,6 +110,7 @@ def create_pr_changes(
             file_change_requests,
             pull_request.branch_name,
             blocked_dirs,
+            additional_messages=additional_messages
         ):
             completed_count += changed_file
             logger.info(f"Completed {completed_count}/{fcr_count} files")
