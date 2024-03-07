@@ -6,7 +6,6 @@ It is only called by the webhook handler in sweepai/api.py.
 import difflib
 import os
 import re
-import textwrap
 import traceback
 from time import time
 from copy import deepcopy
@@ -18,7 +17,7 @@ import io
 import zipfile
 import yaml
 import yamllint.config as yamllint_config
-from github import BadCredentialsException, Github, Repository, WorkflowRun
+from github import BadCredentialsException, Github, Repository
 from github.Issue import Issue
 from github.PullRequest import PullRequest as GithubPullRequest
 from logtail import LogtailContext, LogtailHandler
