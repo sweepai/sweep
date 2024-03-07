@@ -40,6 +40,8 @@ Your job is to make edits to the file to complete the user "# Request".
 
 def int_to_excel_col(n):
     result = ""
+    if n == 0:
+        result = "A"
     while n > 0:
         n, remainder = divmod(n - 1, 26)
         result = chr(65 + remainder) + result
@@ -227,7 +229,7 @@ def function_modify(
                                     error_message += "\n\nDid you mean one of the following sections?"
                                     error_message += "\n".join(
                                         [
-                                            f'\n<section id="{int_to_excel_col(section_id + 1)}">\n{chunks[index]}\n</section>\n```'
+                                            f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
                                             for index in chunks_with_old_code
                                         ]
                                     )
@@ -352,7 +354,7 @@ def function_modify(
                         section_index = excel_col_to_int(section_id)
                         section_indices.update(
                             (
-                                int_to_excel_col(max(0, section_index - 1)),
+                                int_to_excel_col(max(1, section_index - 1)),
                                 int_to_excel_col(min(len(chunks), section_index)),
                                 int_to_excel_col(min(len(chunks), section_index + 1)),
                                 int_to_excel_col(min(len(chunks), section_index + 2)),

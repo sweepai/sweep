@@ -56,7 +56,6 @@ from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
-from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.pr_reader import PRReader
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import (
@@ -751,9 +750,10 @@ def on_ticket(
                     repo_description = "No description provided."
 
                 message_summary += replies_text
-                external_results = ExternalSearcher.extract_summaries(message_summary)
-                if external_results:
-                    message_summary += "\n\n" + external_results
+                # removed external search as it provides no real value and only adds noise
+                # external_results = ExternalSearcher.extract_summaries(message_summary)
+                # if external_results:
+                #     message_summary += "\n\n" + external_results
 
                 get_documentation_dict(repo)
                 docs_results = ""
@@ -851,14 +851,15 @@ def on_ticket(
                             if prs_extracted
                             else ""
                         )
-                        + (
-                            create_collapsible(
-                                "I also found the following external resources that might be helpful:",
-                                f"\n\n{external_results}\n\n",
-                            )
-                            if external_results
-                            else ""
-                        )
+                        # removed external results as it provides no real value and only adds noise
+                        # + (
+                        #     create_collapsible(
+                        #         "I also found the following external resources that might be helpful:",
+                        #         f"\n\n{external_results}\n\n",
+                        #     )
+                        #     if external_results
+                        #     else ""
+                        # )
                         + (f"\n\n{docs_results}\n\n" if docs_results else ""),
                         1,
                     )
