@@ -127,10 +127,11 @@ def modify_file(
     assistant_conversation: AssistantConversation | None = None,
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger | None = None,
+    additional_messages: list[Message] = [],
 ):
     new_file = None
     try:
-        additional_messages = create_additional_messages(
+        additional_messages += create_additional_messages(
             metadata,
             file_change_request,
             changed_files,
