@@ -229,7 +229,7 @@ def function_modify(
                                     error_message += "\n\nDid you mean one of the following sections?"
                                     error_message += "\n".join(
                                         [
-                                            f'\n<section id="{int_to_excel_col(section_id + 1)}">\n{chunks[index]}\n</section>\n```'
+                                            f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
                                             for index in chunks_with_old_code
                                         ]
                                     )
