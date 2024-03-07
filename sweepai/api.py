@@ -311,38 +311,43 @@ def init_hatchet() -> Hatchet | None:
     try:
         hatchet = Hatchet(debug=True)
 
-        worker = hatchet.worker("github-worker")
+        worker = hatchet.worker("github-worker-2")
 
         @hatchet.workflow(on_events=["github:webhook"], timeout="60m")
-        class OnGithubEvent:
+        class OnGithubEventLocal:
             """Workflow for handling GitHub events."""
 
             @hatchet.step(timeout="60m")
             def run(self, context: Context):
-                event_payload = context.workflow_input()
+                # event_payload = context.workflow_input()
 
-                request_dict = event_payload.get("request")
-                event = event_payload.get("event")
+                # request_dict = event_payload.get("request")
+                # event = event_payload.get("event")
 
-                run(request_dict, event)
+                # run(request_dict, event)
+                # context.log("Test log")
+                return {}
 
         @hatchet.workflow(on_events=["ticket:create"], timeout="60m")
         class OnTicket:
             """Workflow for handling new tickets."""
 
-            @hatchet.concurrency(max_runs=1)
-            def get_concurrency_key(self, context: Context):
-                event_payload = context.workflow_input()
+            # @hatchet.concurrency(max_runs=1)
+            # def get_concurrency_key(self, context: Context):
+            #     event_payload = context.workflow_input()
 
-                return (
-                    event_payload.get("repo_full_name")
-                    + "-"
-                    + event_payload.get("issue_number")
-                )
+            #     return (
+            #         event_payload.get("repo_full_name", "")
+            #         + "-"
+            #         + event_payload.get("issue_number", "")
+            #     )
 
             @hatchet.step(timeout="60m")
             def run(self, context: Context):
                 event_payload = context.workflow_input()
+
+                context.log("Test log")
+                return
 
                 run_on_ticket(
                     title=event_payload.get("title"),
@@ -355,6 +360,7 @@ def init_hatchet() -> Hatchet | None:
                     installation_id=event_payload.get("installation_id"),
                     comment_id=event_payload.get("comment_id"),
                     edited=event_payload.get("edited"),
+                    hatchet_context=context,
                 )
 
         @hatchet.workflow(on_events=["comment:create"], timeout="60m")
@@ -379,7 +385,7 @@ def init_hatchet() -> Hatchet | None:
                     type=event_payload.get("type"),
                 )
 
-        worker.register_workflow(OnGithubEvent())
+        worker.register_workflow(OnGithubEventLocal())
         worker.register_workflow(OnTicket())
         worker.register_workflow(OnComment())
 

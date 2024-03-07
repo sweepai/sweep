@@ -16,6 +16,7 @@ import yamllint.config as yamllint_config
 from github import BadCredentialsException, Github, Repository
 from github.Issue import Issue
 from github.PullRequest import PullRequest as GithubPullRequest
+from hatchet_sdk import Context
 from logtail import LogtailContext, LogtailHandler
 from loguru import logger
 from tabulate import tabulate
@@ -153,7 +154,17 @@ You ran out of the free tier GPT-4 tickets! We no longer support running Sweep w
 - You can book a chat with us to discuss your use case and get additional free GPT-4 tickets [here](https://calendly.com/d/2n5-3qf-9xy/user-interview).
 """
 
-def initialize_logtail_context(title: str, issue_url: int, issue_number: str, repo_full_name: str, repo_description: str, username: str, comment_id: int = None, edited: bool = False):
+
+def initialize_logtail_context(
+    title: str,
+    issue_url: int,
+    issue_number: str,
+    repo_full_name: str,
+    repo_description: str,
+    username: str,
+    comment_id: int = None,
+    edited: bool = False,
+):
     context = LogtailContext()
     context.context(
         task={
@@ -170,22 +181,16 @@ def initialize_logtail_context(title: str, issue_url: int, issue_number: str, re
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
     logger.add(handler)
 
+
 # Add :eyes: emoji to ticket
 def add_emoji(issue: Issue, comment_id: int = None, reaction_content="eyes"):
-    item_to_react_to = (
-        issue.get_comment(comment_id)
-        if comment_id
-        else issue
-    )
+    item_to_react_to = issue.get_comment(comment_id) if comment_id else issue
     item_to_react_to.create_reaction("eyes")
+
 
 # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
 def remove_emoji(issue: Issue, comment_id: int = None, content_to_delete="eyes"):
-    item_to_react_to = (
-        issue.get_comment(comment_id)
-        if comment_id
-        else issue
-    )
+    item_to_react_to = issue.get_comment(comment_id) if comment_id else issue
     reactions = item_to_react_to.get_reactions()
     for reaction in reactions:
         if (
@@ -206,12 +211,10 @@ def delete_old_prs(repo: Repository, issue_number: int):
     for pr in tqdm(prs.get_page(0)):
         # # Check if this issue is mentioned in the PR, and pr is owned by bot
         # # This is done in create_pr, (pr_description = ...)
-        if (
-            pr.user.login == CURRENT_USERNAME
-            and f"Fixes #{issue_number}.\n" in pr.body
-        ):
+        if pr.user.login == CURRENT_USERNAME and f"Fixes #{issue_number}.\n" in pr.body:
             safe_delete_sweep_branch(pr, repo)
             break
+
 
 def get_comment_header(
     index: int,
@@ -221,7 +224,7 @@ def get_comment_header(
     progress_headers: list[None | str],
     tracking_id: str | None,
     payment_message_start: str,
-    user_settings_message: str, 
+    user_settings_message: str,
     errored: bool = False,
     pr_message: str = "",
     done: bool = False,
@@ -248,10 +251,7 @@ def get_comment_header(
     elif initial_sandbox_response is not None:
         repo = g.get_repo(repo_full_name)
         commit_hash = repo.get_commits()[0].sha
-        success = (
-            initial_sandbox_response.outputs
-            and initial_sandbox_response.success
-        )
+        success = initial_sandbox_response.outputs and initial_sandbox_response.success
         status = "✓" if success else "X"
         sandbox_execution_message = (
             "\n\n## GitHub Actions"
@@ -324,11 +324,12 @@ def on_ticket(
     comment_id: int = None,
     edited: bool = False,
     tracking_id: str | None = None,
+    hatchet_context: Context | None = None,
 ):
-    
+    logger.info = hatchet_context.log
     with logger.contextualize(
-            tracking_id=tracking_id,
-        ):
+        tracking_id=tracking_id,
+    ):
         # we rerun this logic 3 times at most if the github actions associated with the created pr fails
         for run_attempt in range(3):
             if tracking_id is None:
@@ -345,7 +346,16 @@ def on_ticket(
                 lint_mode,
             ) = strip_sweep(title)
 
-            fire_and_forget_wrapper(initialize_logtail_context)(title, issue_url, issue_number, repo_full_name, repo_description, username, comment_id, edited)
+            fire_and_forget_wrapper(initialize_logtail_context)(
+                title,
+                issue_url,
+                issue_number,
+                repo_full_name,
+                repo_description,
+                username,
+                comment_id,
+                edited,
+            )
 
             summary = summary or ""
             summary = re.sub(
@@ -355,9 +365,14 @@ def on_ticket(
                 flags=re.DOTALL,
             ).strip()
             summary = re.sub(
-                "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
+                "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*",
+                "",
+                summary,
+                flags=re.DOTALL,
             ).strip()
-            summary = re.sub("### Details\n\n_No response_", "", summary, flags=re.DOTALL)
+            summary = re.sub(
+                "### Details\n\n_No response_", "", summary, flags=re.DOTALL
+            )
             summary = re.sub("\n\n", "\n", summary, flags=re.DOTALL)
 
             repo_name = repo_full_name
@@ -380,7 +395,9 @@ def on_ticket(
                     start_time=int(time()),
                 ),
             )
-            branch_match = re.search(r"([B|b]ranch:) *(?P<branch_name>.+?)(\n|$)", summary)
+            branch_match = re.search(
+                r"([B|b]ranch:) *(?P<branch_name>.+?)(\n|$)", summary
+            )
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
                 overrided_branch_name = branch_match.groupdict()["branch_name"].strip()
@@ -480,7 +497,9 @@ def on_ticket(
                     return {"success": False, "reason": "Issue is closed"}
 
                 fire_and_forget_wrapper(add_emoji)(current_issue, comment_id)
-                fire_and_forget_wrapper(remove_emoji)(current_issue, comment_id, content_to_delete="rocket")
+                fire_and_forget_wrapper(remove_emoji)(
+                    current_issue, comment_id, content_to_delete="rocket"
+                )
                 fire_and_forget_wrapper(current_issue.edit)(body=summary)
 
                 replies_text = ""
@@ -503,13 +522,17 @@ def on_ticket(
                     ]
 
                 issue_comment = None
-                payment_message, payment_message_start = get_payment_messages(chat_logger)
+                payment_message, payment_message_start = get_payment_messages(
+                    chat_logger
+                )
 
                 ticket_progress.context.payment_context = PaymentContext(
                     use_faster_model=use_faster_model,
                     pro_user=is_paying_user,
                     daily_tickets_used=(
-                        chat_logger.get_ticket_count(use_date=True) if chat_logger else 0
+                        chat_logger.get_ticket_count(use_date=True)
+                        if chat_logger
+                        else 0
                     ),
                     monthly_tickets_used=(
                         chat_logger.get_ticket_count() if chat_logger else 0
@@ -626,9 +649,7 @@ def on_ticket(
                                 + f"\n{sep}Please look at the generated plan. If something looks"
                                 f" wrong, please add more details to your issue.\n\n{table}"
                             )
-                        suffix = (
-                            bot_suffix  # don't include discord suffix for error messages
-                        )
+                        suffix = bot_suffix  # don't include discord suffix for error messages
 
                     # Update the issue comment
                     msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
@@ -656,7 +677,9 @@ def on_ticket(
                             issue_comment.edit(msg)
 
                 if use_faster_model:
-                    edit_sweep_comment(FASTER_MODEL_MESSAGE, -1, add_bonus_message=False)
+                    edit_sweep_comment(
+                        FASTER_MODEL_MESSAGE, -1, add_bonus_message=False
+                    )
                     posthog.capture(
                         username,
                         "ran_out_of_tickets",
@@ -879,7 +902,8 @@ def on_ticket(
                         for subissue in tqdm(subissues):
                             subissue.issue_id = repo.create_issue(
                                 title="Sweep: " + subissue.title,
-                                body=subissue.body + f"\n\nParent issue: #{issue_number}",
+                                body=subissue.body
+                                + f"\n\nParent issue: #{issue_number}",
                                 assignee=username,
                             ).number
                         subissues_checklist = "\n\n".join(
@@ -890,7 +914,9 @@ def on_ticket(
                             ]
                         )
                         current_issue.edit(
-                            body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist
+                            body=summary
+                            + "\n\n---\n\nChecklist:\n\n"
+                            + subissues_checklist
                         )
                         edit_sweep_comment(
                             "I finished creating the subissues! Track them at:\n\n"
@@ -920,8 +946,12 @@ def on_ticket(
                         and not file_path.endswith(".md")
                         for file_path in human_message.get_file_paths()
                     )
-                    python_count = len(human_message.get_file_paths()) - non_python_count
-                    is_python_issue = python_count >= non_python_count and python_count > 0
+                    python_count = (
+                        len(human_message.get_file_paths()) - non_python_count
+                    )
+                    is_python_issue = (
+                        python_count >= non_python_count and python_count > 0
+                    )
                     posthog.capture(
                         username,
                         "is_python_issue",
@@ -1078,7 +1108,9 @@ def on_ticket(
                                                 create_collapsible(
                                                     f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
                                                     f"<pre>{clean_logs(output)}</pre>",
-                                                    i == len(sandbox_response.outputs) - 1,
+                                                    i
+                                                    == len(sandbox_response.outputs)
+                                                    - 1,
                                                 )
                                                 for i, output in enumerate(
                                                     sandbox_response.outputs
@@ -1115,7 +1147,9 @@ def on_ticket(
                             else (
                                 commit.sha
                                 if commit is not None
-                                else repo.get_branch(pull_request.branch_name).commit.sha
+                                else repo.get_branch(
+                                    pull_request.branch_name
+                                ).commit.sha
                             )
                         )
                         commit_url = (
@@ -1129,7 +1163,9 @@ def on_ticket(
                             sandbox_response,
                             status=(
                                 "✓"
-                                if (sandbox_response is None or sandbox_response.success)
+                                if (
+                                    sandbox_response is None or sandbox_response.success
+                                )
                                 else "❌"
                             ),
                         )
@@ -1145,7 +1181,8 @@ def on_ticket(
                                 + f"\n\n{file_change_request.diff_display}",
                                 (
                                     "X"
-                                    if file_change_request.status in ("succeeded", "failed")
+                                    if file_change_request.status
+                                    in ("succeeded", "failed")
                                     else " "
                                 ),
                             )
@@ -1234,7 +1271,11 @@ def on_ticket(
 
                     pr_changes = response["pull_request"]
                     # change the body here
-                    diff_text = get_branch_diff_text(repo=repo, branch=pull_request.branch_name, base_branch=overrided_branch_name)
+                    diff_text = get_branch_diff_text(
+                        repo=repo,
+                        branch=pull_request.branch_name,
+                        base_branch=overrided_branch_name,
+                    )
                     new_description = PRDescriptionBot().describe_diffs(
                         diff_text,
                         pull_request.title,
@@ -1265,7 +1306,8 @@ def on_ticket(
                     changes_required, review_message = False, ""
                     if changes_required:
                         edit_sweep_comment(
-                            review_message + "\n\nI finished incorporating these changes.",
+                            review_message
+                            + "\n\nI finished incorporating these changes.",
                             3,
                         )
                     else:
@@ -1288,7 +1330,9 @@ def on_ticket(
                     )
                     revert_buttons = []
                     for changed_file in set(changed_files):
-                        revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+                        revert_buttons.append(
+                            Button(label=f"{RESET_FILE} {changed_file}")
+                        )
                     revert_buttons_list = ButtonList(
                         buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
                     )
@@ -1298,12 +1342,18 @@ def on_ticket(
                     if repo_rules != [""] and repo_rules != []:
                         for rule in repo_rules or []:
                             if rule:
-                                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                                rule_buttons.append(
+                                    Button(label=f"{RULES_LABEL} {rule}")
+                                )
                         if len(repo_rules) == 0:
                             for rule in DEFAULT_RULES:
-                                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                                rule_buttons.append(
+                                    Button(label=f"{RULES_LABEL} {rule}")
+                                )
 
-                    rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
+                    rules_buttons_list = ButtonList(
+                        buttons=rule_buttons, title=RULES_TITLE
+                    )
 
                     sandbox_passed = None
                     for file_change_request in file_change_requests:
@@ -1355,7 +1405,9 @@ def on_ticket(
                             revert_buttons_list.serialize() + BOT_SUFFIX
                         )
                     if rule_buttons:
-                        pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
+                        pr.create_issue_comment(
+                            rules_buttons_list.serialize() + BOT_SUFFIX
+                        )
 
                     # add comments before labelling
                     pr.add_to_labels(GITHUB_LABEL_NAME)
@@ -1419,7 +1471,9 @@ def on_ticket(
                     pr_created_successfully = False
                     total_poll_attempts = 0
                     while True:
-                        logger.info(f"Polling to see if Github Actions have finished... {total_poll_attempts}")
+                        logger.info(
+                            f"Polling to see if Github Actions have finished... {total_poll_attempts}"
+                        )
                         # we wait at most 60 minutes
                         if total_poll_attempts >= 60:
                             pr_created_successfully = False
@@ -1439,24 +1493,34 @@ def on_ticket(
                         if any([run.conclusion == "failure" for run in runs]):
                             pr_created_successfully = False
                             # rerun on ticket but increment run_attempt
-                            logger.info(f"Rerunning issue {issue_url} as some workflows failed! Rerun attempt {run_attempt + 1}")
+                            logger.info(
+                                f"Rerunning issue {issue_url} as some workflows failed! Rerun attempt {run_attempt + 1}"
+                            )
                             # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
                             # unless this is sweep's last attempt
                             if run_attempt < 2:
                                 try:
                                     pr.edit(state="closed")
                                     if pr.head.ref.startswith("sweep"):
-                                        repo.get_git_ref(f"heads/{pr.head.ref}").delete()
+                                        repo.get_git_ref(
+                                            f"heads/{pr.head.ref}"
+                                        ).delete()
                                 except Exception as e:
-                                    logger.error(f"Failed to clean up branch {pr.head.ref} and pr before restarting: {e}")
+                                    logger.error(
+                                        f"Failed to clean up branch {pr.head.ref} and pr before restarting: {e}"
+                                    )
                             break
                         # if none of the runs have completed we wait and poll github
-                        logger.info("No Github Actions have failed yet and not all have succeeded yet, waiting for 60 seconds before polling again...")
+                        logger.info(
+                            "No Github Actions have failed yet and not all have succeeded yet, waiting for 60 seconds before polling again..."
+                        )
                     # break from main for loop
                     if pr_created_successfully:
-                        logger.info(f"All Github Actions have finished successfully! It took {run_attempt + 1} attempts to create the PR. It took {total_poll_attempts + 1} minutes for all Github Actions to finish.")
+                        logger.info(
+                            f"All Github Actions have finished successfully! It took {run_attempt + 1} attempts to create the PR. It took {total_poll_attempts + 1} minutes for all Github Actions to finish."
+                        )
                         break
-                                
+
                 except MaxTokensExceeded as e:
                     logger.info("Max tokens exceeded")
                     ticket_progress.status = TicketProgressStatus.ERROR
@@ -1628,7 +1692,9 @@ def on_ticket(
                 if delete_branch:
                     try:
                         if pull_request.branch_name.startswith("sweep"):
-                            repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
+                            repo.get_git_ref(
+                                f"heads/{pull_request.branch_name}"
+                            ).delete()
                         else:
                             raise Exception(
                                 f"Branch name {pull_request.branch_name} does not start with sweep/"
