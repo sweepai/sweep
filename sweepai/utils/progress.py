@@ -12,8 +12,9 @@ from pydantic import BaseModel, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
-from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
 from sweepai.global_threads import global_threads
+from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
+
 
 class AssistantAPIMessageRole(Enum):
     SYSTEM = "system"
@@ -76,7 +77,7 @@ class AssistantConversation(BaseModel):
             thread_messages = client.beta.threads.messages.list(
                 thread_id=thread_id, timeout=1.5
             ).data
-        except:
+        except Exception:
             return None
         messages: list[AssistantAPIMessage] = [
             AssistantAPIMessage(
@@ -91,6 +92,8 @@ class AssistantConversation(BaseModel):
         )
         for message_obj in list(all_messages)[::-1]:
             if isinstance(message_obj, ThreadMessage):
+                if len(message_obj.content) == 0:
+                    continue
                 text = message_obj.content[0].text.value
                 if text.strip():
                     messages.append(
@@ -110,7 +113,7 @@ class AssistantConversation(BaseModel):
                             .content[0]
                             .text.value
                         )
-                    except:
+                    except Exception:
                         return None
                     messages.append(
                         AssistantAPIMessage(

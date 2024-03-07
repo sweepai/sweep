@@ -5,6 +5,7 @@ from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
+from sweepai.config.server import PROGRESS_BASE_URL
 from sweepai.core import entities
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import create_pr_changes
@@ -54,7 +55,7 @@ def stack_pr(
 
     status_message = center(
         f"{sweeping_gif}\n\n"
-        + f'Fixing PR: track the progress <a href="https://progress.sweep.dev/issues/{tracking_id}">here</a>.'
+        + f'Fixing PR: track the progress <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">here</a>.'
     )
     header = f"{status_message}\n---\n\nI'm currently fixing this PR to address the following:\n\n{blockquote(request)}"
     comment = pr.create_issue_comment(body=header)
@@ -132,7 +133,7 @@ def stack_pr(
                 chat_logger,
                 ticket_progress,
             )
-        except:
+        except Exception:
             edit_comment(
                 "It looks like an issue has occurred around fetching the files."
                 " Perhaps the repo failed to initialized. If this error persists"
@@ -187,7 +188,6 @@ def stack_pr(
 
         for item in generator:
             if isinstance(item, dict):
-                response = item
                 break
             (
                 file_change_request,

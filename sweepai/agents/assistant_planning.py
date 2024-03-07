@@ -1,7 +1,6 @@
 import copy
 import re
 import traceback
-import uuid
 from pathlib import Path
 
 from loguru import logger
@@ -187,7 +186,6 @@ def new_planning(
             new_file_change_request = copy.deepcopy(fcr)
             new_file_change_request.change_type = "check"
             new_file_change_request.parent = fcr
-            new_file_change_request.id_ = str(uuid.uuid4())
             fcrs.append(new_file_change_request)
         assert len(fcrs) > 0
         return fcrs

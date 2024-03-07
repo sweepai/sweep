@@ -1,21 +1,17 @@
-import time
 import traceback
 from typing import Any, Literal
 
 import backoff
-from openai import AsyncOpenAI
+from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    DEFAULT_GPT4_32K_MODEL,
     DEFAULT_GPT35_MODEL,
-    OPENAI_API_KEY,
-    OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
-from sweepai.logn import logger
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -55,18 +51,42 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 }
 default_temperature = 0.1
-count_tokens = Tiktoken().count
 
-
-class ChatGPT(BaseModel):
+class MessageList(BaseModel):
     messages: list[Message] = [
         Message(
             role="system",
             content=system_message_prompt,
         )
     ]
+
+    @property
+    def messages_dicts(self):
+        # Remove the key from the message object before sending to OpenAI
+        cleaned_messages = [message.to_openai() for message in self.messages]
+        return cleaned_messages
+
+    def delete_messages_from_chat(
+        self, key_to_delete: str, delete_user=True, delete_assistant=True
+    ):
+        self.messages = [
+            message
+            for message in self.messages
+            if not (
+                key_to_delete in (message.key or "")
+                and (
+                    delete_user
+                    and message.role == "user"
+                    or delete_assistant
+                    and message.role == "assistant"
+                )
+            )  # Only delete if message matches key to delete and role should be deleted
+        ]
+
+
+class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = "gpt-4-0125-preview"
+    model: ChatModel = DEFAULT_GPT4_32K_MODEL
     chat_logger: ChatLogger | None = None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
@@ -109,24 +129,13 @@ class ChatGPT(BaseModel):
 
     @classmethod
     def from_system_message_string(
-        cls, prompt_string: str, chat_logger: ChatLogger, **kwargs
+        cls, prompt_string: str, chat_logger: ChatLogger | None = None, **kwargs
     ) -> Any:
         return cls(
             messages=[Message(role="system", content=prompt_string, key="system")],
             chat_logger=chat_logger,
             **kwargs,
         )
-
-    def select_message_from_message_key(
-        self, message_key: str, message_role: str = None
-    ):
-        if message_role:
-            return [
-                message
-                for message in self.messages
-                if message.key == message_key and message.role == message_role
-            ][0]
-        return [message for message in self.messages if message.key == message_key][0]
 
     def delete_messages_from_chat(
         self, key_to_delete: str, delete_user=True, delete_assistant=True
@@ -144,17 +153,6 @@ class ChatGPT(BaseModel):
                 )
             )  # Only delete if message matches key to delete and role should be deleted
         ]
-
-    def delete_file_from_system_message(self, file_path: str):
-        self.human_message.delete_file(file_path)
-
-    def update_message_content_from_message_key(
-        self, message_key: str, new_content: str, message_role: str = None
-    ):
-        if [message for message in self.messages if message.key == message_key]:
-            self.select_message_from_message_key(
-                message_key, message_role=message_role
-            ).content = new_content
 
     def chat(
         self,
@@ -311,134 +309,6 @@ class ChatGPT(BaseModel):
                 raise e
 
         result = fetch()
-        logger.info(f"Output to call openai:\n{result}")
-        return result
-
-    async def achat(
-        self,
-        content: str,
-        model: ChatModel | None = None,
-        message_key: str | None = None,
-    ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
-        model = model or self.model
-        response = await self.acall_openai(model=model)
-        self.messages.append(
-            Message(role="assistant", content=response, key=message_key)
-        )
-        self.prev_message_states.append(self.messages)
-        return self.messages[-1].content
-
-    async def acall_openai(
-        self,
-        model: ChatModel | None = None,
-    ):
-        if self.chat_logger is not None:
-            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-            tickets_count = self.chat_logger.get_ticket_count()
-            if tickets_count < tickets_allocated:
-                model = model or self.model
-                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
-            else:
-                model = DEFAULT_GPT35_MODEL
-
-        count_tokens = Tiktoken().count
-        messages_length = sum(
-            [count_tokens(message.content or "") for message in self.messages]
-        )
-        max_tokens = (
-            model_to_max_tokens[model] - int(messages_length) - 400
-        )  # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
-        if len(self.file_change_paths) > 0:
-            self.file_change_paths.remove(self.file_change_paths[0])
-        if max_tokens < 0:
-            if len(self.file_change_paths) > 0:
-                pass
-            else:
-                logger.error(
-                    f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}"
-                )
-                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
-        messages_raw = "\n".join([(message.content or "") for message in self.messages])
-        logger.info(f"Input to call openai:\n{messages_raw}")
-
-        messages_dicts = [self.messages_dicts[0]]
-        for message_dict in self.messages_dicts[:1]:
-            if message_dict["role"] == messages_dicts[-1]["role"]:
-                messages_dicts[-1]["content"] += "\n" + message_dict["content"]
-            messages_dicts.append(message_dict)
-
-        gpt_4_buffer = 800
-        if "gpt-4" in model:
-            max_tokens = min(max_tokens, 4096)
-        # Fix for self hosting where TPM limit is super low for GPT-4
-        if OPENAI_USE_3_5_MODEL_ONLY:
-            model = DEFAULT_GPT35_MODEL
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
-        global retry_counter
-        retry_counter = 0
-
-        async def fetch():
-            for time_to_sleep in [10, 10, 20, 30, 60]:
-                global retry_counter
-                retry_counter += 1
-                token_sub = retry_counter * 200
-                try:
-                    aclient = AsyncOpenAI(api_key=OPENAI_API_KEY)
-                    output = (
-                        await aclient.chat.completions.create(
-                            model=model,
-                            messages=self.messages_dicts,
-                            max_tokens=max_tokens - token_sub,
-                            temperature=default_temperature,
-                        )
-                    )["choices"][0].message["content"]
-                    if self.chat_logger is not None:
-                        self.chat_logger.add_chat(
-                            {
-                                "model": model,
-                                "messages": self.messages_dicts,
-                                "max_tokens": max_tokens - token_sub,
-                                "temperature": default_temperature,
-                                "output": output,
-                            }
-                        )
-                    if self.chat_logger:
-                        try:
-                            token_count = count_tokens(output)
-                            posthog.capture(
-                                self.chat_logger.data.get("username"),
-                                "call_openai",
-                                {
-                                    "model": model,
-                                    "max_tokens": max_tokens - token_sub,
-                                    "input_tokens": messages_length,
-                                    "output_tokens": token_count,
-                                    "repo_full_name": self.chat_logger.data.get(
-                                        "repo_full_name"
-                                    ),
-                                    "username": self.chat_logger.data.get("username"),
-                                    "pr_number": self.chat_logger.data.get("pr_number"),
-                                    "issue_url": self.chat_logger.data.get("issue_url"),
-                                },
-                            )
-                        except SystemExit:
-                            raise SystemExit
-                        except Exception as e:
-                            logger.warning(e)
-                    return output
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.warning(f"{e}\n{traceback.format_exc()}")
-                    time.sleep(time_to_sleep + backoff.random_jitter(5))
-
-        result = await fetch()
         logger.info(f"Output to call openai:\n{result}")
         return result
 

@@ -3,8 +3,9 @@ import traceback
 from datetime import datetime, timedelta
 from threading import Thread
 from typing import Any
-from sweepai.global_threads import global_threads
+
 import requests
+from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
@@ -13,12 +14,15 @@ from sweepai.config.server import (
     DISCORD_MEDIUM_PRIORITY_URL,
     DISCORD_WEBHOOK_URL,
     GITHUB_BOT_USERNAME,
+    IS_SELF_HOSTED,
     MONGODB_URI,
 )
-from sweepai.logn import logger
+from sweepai.global_threads import global_threads
 
 global_mongo_client = MongoClient(
-    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000
+    MONGODB_URI,
+    serverSelectionTimeoutMS=20000,
+    socketTimeoutMS=20000,
 )
 
 
@@ -117,7 +121,6 @@ class ChatLogger(BaseModel):
         thread.start()
         global_threads.append(thread)
 
-
     def _cache_key(self, username, field, metadata=""):
         return f"{username}_{field}_{metadata}"
 
@@ -168,9 +171,13 @@ class ChatLogger(BaseModel):
         return self._get_user_field("is_trial_user")
 
     def is_paying_user(self):
+        if IS_SELF_HOSTED:
+            return True
         return self._get_user_field("is_paying_user")
 
     def use_faster_model(self):
+        if IS_SELF_HOSTED:
+            return False
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return True
@@ -189,6 +196,7 @@ def discord_log_error(content, priority=0):
     """
     priority: 0 (high), 1 (medium), 2 (low)
     """
+    logger.error(content)
     if GITHUB_BOT_USERNAME != "sweep-ai[bot]":  # disable for dev
         return
     try:
@@ -202,7 +210,7 @@ def discord_log_error(content, priority=0):
             "content": f"Traceback:\n\n{traceback.format_exc()}\n\nMessage:\n\n```\n{content}\n```"
         }
         headers = {"Content-Type": "application/json"}
-        response = requests.post(url, data=json.dumps(data), headers=headers)
+        requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
     except SystemExit:
         raise SystemExit

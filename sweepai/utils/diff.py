@@ -1,7 +1,7 @@
 import difflib
 import re
 
-from sweepai.logn import logger
+from loguru import logger
 from sweepai.utils.search_and_replace import Match, find_best_match
 
 

@@ -1,15 +1,18 @@
 import glob
 import logging
+import multiprocessing
 
 # import multiprocessing
 import os
 
+from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
-from sweepai.logn import logger
-from sweepai.utils.utils import chunk_code
+from sweepai.utils.utils import Tiktoken, chunk_code
+
+tiktoken_client = Tiktoken()
 
 
 def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
@@ -29,8 +32,13 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     for dir_name in sweep_config.exclude_dirs:
         if file[len(directory) + 1 :].startswith(dir_name):
             return False
+    for dir_name in sweep_config.exclude_path_dirs:
+        if dir_name in file:
+            return False
     try:
         if os.stat(file).st_size > 240000:
+            return False
+        if os.stat(file).st_size < 10:
             return False
     except FileNotFoundError as e:
         logging.error(f"File not found: {file}. Error: {e}")
@@ -45,7 +53,24 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
                 break
         if is_binary:
             return False
-
+        f.close()
+    with open(file, "r") as f:
+        try:
+            lines = f.readlines()
+        except UnicodeDecodeError:
+            logger.warning(f"UnicodeDecodeError: {file}, skipping")
+            return False
+        line_count = len(lines)
+        data = "\n".join(lines)
+        # if average line length is greater than 200, then it is likely not human readable
+        if len(data)/line_count > 200:
+            return False
+        # check token density, if it is greater than 2, then it is likely not human readable
+        token_count = tiktoken_client.count(data)
+        if token_count == 0:
+            return False
+        if len(data)/token_count < 2:
+            return False
     return True
 
 
@@ -55,11 +80,12 @@ def read_file(file_name: str) -> str:
             return f.read()
     except SystemExit:
         raise SystemExit
-    except:
+    except Exception:
         return ""
 
 
-FILE_THRESHOLD = 100
+FILE_THRESHOLD = 120
+
 
 def file_path_to_chunks(file_path: str) -> list[str]:
     file_contents = read_file(file_path)
@@ -84,7 +110,6 @@ def directory_to_chunks(
 
     logger.info(f"Reading files from {directory}")
     file_list = glob.iglob(f"{directory}/**", recursive=True)
-
     file_list = [
         file_name
         for file_name in file_list
@@ -92,8 +117,9 @@ def directory_to_chunks(
         and filter_file(directory, file_name, sweep_config)
         and not is_dir_too_big(file_name)
     ]
+    logger.info("Done reading files")
     all_chunks = []
-    for file_path in tqdm(file_list):
-        chunks = file_path_to_chunks(file_path)
-        all_chunks.extend(chunks)
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
+        for chunks in tqdm(pool.imap(file_path_to_chunks, file_list)):
+            all_chunks.extend(chunks)
     return all_chunks, file_list

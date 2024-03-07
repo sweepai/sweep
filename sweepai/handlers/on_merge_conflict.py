@@ -5,7 +5,7 @@ from git import GitCommandError
 from github.PullRequest import PullRequest
 from loguru import logger
 
-from sweepai.config.server import OPENAI_USE_3_5_MODEL_ONLY
+from sweepai.config.server import OPENAI_USE_3_5_MODEL_ONLY, PROGRESS_BASE_URL
 from sweepai.core import entities
 from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
@@ -62,7 +62,7 @@ def on_merge_conflict(
 
     status_message = center(
         f"{sweeping_gif}\n\n"
-        + f'Resolving merge conflicts: track the progress <a href="https://progress.sweep.dev/issues/{tracking_id}">here</a>.'
+        + f'Resolving merge conflicts: track the progress <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">here</a>.'
     )
     header = f"{status_message}\n---\n\nI'm currently resolving the merge conflicts in this PR. I will stack a new PR once I'm done."
 
@@ -92,7 +92,7 @@ def on_merge_conflict(
             branch=branch,
             token=token,
         )
-        start_time = time.time()
+        time.time()
 
         request = f"Sweep: Resolve merge conflicts for PR #{pr_number}: {pr.title}"
         title = request
@@ -108,7 +108,7 @@ def on_merge_conflict(
         )
 
         is_paying_user = chat_logger.is_paying_user()
-        is_consumer_tier = chat_logger.is_consumer_tier()
+        chat_logger.is_consumer_tier()
 
         # this logic is partly taken from on_ticket.py, if there is an issue please refer to that file
         if chat_logger:
@@ -133,12 +133,14 @@ def on_merge_conflict(
                 payment_context=PaymentContext(
                     use_faster_model=use_faster_model,
                     pro_user=is_paying_user,
-                    daily_tickets_used=chat_logger.get_ticket_count(use_date=True)
-                    if chat_logger
-                    else 0,
-                    monthly_tickets_used=chat_logger.get_ticket_count()
-                    if chat_logger
-                    else 0,
+                    daily_tickets_used=(
+                        chat_logger.get_ticket_count(use_date=True)
+                        if chat_logger
+                        else 0
+                    ),
+                    monthly_tickets_used=(
+                        chat_logger.get_ticket_count() if chat_logger else 0
+                    ),
                 ),
             ),
         )
@@ -187,7 +189,7 @@ def on_merge_conflict(
                 "user", "email", "team@sweep.dev"
             ).release()
             git_repo.git.merge("origin/" + pr.base.ref)
-        except GitCommandError as e:
+        except GitCommandError:
             # Assume there are merge conflicts
             pass
 
@@ -308,7 +310,6 @@ def on_merge_conflict(
 
         for item in generator:
             if isinstance(item, dict):
-                response = item
                 break
             (
                 file_change_request,
@@ -323,7 +324,7 @@ def on_merge_conflict(
         ticket_progress.save()
         edit_comment("Done creating pull request.")
 
-        diff_text = get_branch_diff_text(repo, new_pull_request.branch_name)
+        get_branch_diff_text(repo, new_pull_request.branch_name)
 
         new_description = f"This PR resolves the merge conflicts in #{pr_number}. This branch can be directly merged into {pr.base.ref}.\n\nFixes #{pr_number}."
 

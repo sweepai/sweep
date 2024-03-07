@@ -3,14 +3,13 @@ from __future__ import annotations
 import os
 import re
 import string
-import uuid
 from dataclasses import dataclass
 from difflib import unified_diff
 from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from sweepai.utils.str_utils import (
     blockquote,
@@ -23,9 +22,9 @@ Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
 class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
-        "function"
-    ]
+    role: (
+        Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
+    )
     content: str | None = None
     name: str | None = None
     function_call: dict | None = None
@@ -137,9 +136,16 @@ class ExtractionRequest(RegexMatchableBaseModel):
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
-    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
-        "rename"
-    ] | Literal["rewrite"] | Literal["check"] | Literal["refactor"] | Literal["test"]
+    change_type: (
+        Literal["modify"]
+        | Literal["create"]
+        | Literal["delete"]
+        | Literal["rename"]
+        | Literal["rewrite"]
+        | Literal["check"]
+        | Literal["refactor"]
+        | Literal["test"]
+    )
     _regex = r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @]*?)\"( start_line=\"(?P<start_line>.*?)\")?( end_line=\"(?P<end_line>.*?)\")?( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?(.*?)>(?P<instructions>.*?)\s*<\/\1>"""
     entity: str | None = None
     source_file: str | None = None
@@ -153,12 +159,14 @@ class FileChangeRequest(RegexMatchableBaseModel):
     sandbox_response: None = None
     failed_sandbox_test: bool | None = False
     parent: FileChangeRequest | None = None
-    status: Literal["succeeded"] | Literal["failed"] | Literal["queued"] | Literal[
-        "running"
-    ] = "queued"
+    status: (
+        Literal["succeeded"]
+        | Literal["failed"]
+        | Literal["queued"]
+        | Literal["running"]
+    ) = "queued"
     destination_module: str | None = None
     commit_hash_url: str | None = None
-    id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
     def get_edit_url(self, repo_full_name: str, branch_name: str):
         url = f"https://github.com/{repo_full_name}/edit/{branch_name}/{self.filename}"
@@ -411,6 +419,9 @@ class Snippet(BaseModel):
     @property
     def xml(self):
         return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
+
+    def get_xml(self, add_lines: bool = True):
+        return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet(add_lines)}\n</snippet>"""
 
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1

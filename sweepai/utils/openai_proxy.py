@@ -5,17 +5,15 @@ from openai import AzureOpenAI, OpenAI
 
 from sweepai.config.server import (
     AZURE_API_KEY,
+    AZURE_OPENAI_DEPLOYMENT,
     BASERUN_API_KEY,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
-    OPENAI_API_ENGINE_GPT4,
-    OPENAI_API_ENGINE_GPT4_32K,
-    OPENAI_API_ENGINE_GPT35,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
 )
-from sweepai.logn.cache import file_cache
+from sweepai.core.entities import Message
 
 if BASERUN_API_KEY is not None:
     pass
@@ -23,17 +21,22 @@ if BASERUN_API_KEY is not None:
 OPENAI_TIMEOUT = 60  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
-    "gpt-4-1106-preview",
     "gpt-4-0125-preview",
-    "gpt-3.5-turbo-1106",
     "gpt-3.5-turbo-1106",
 ]
 SEED = 100
 
 
 class OpenAIProxy:
-    @file_cache(ignore_params=[])
-    def call_openai(self, model, messages, max_tokens, temperature) -> str:
+    # @file_cache(ignore_params=[])
+    def call_openai(
+        self, 
+        model: str, 
+        messages: list[Message], 
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int = 0,
+    ) -> str:
         try:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
@@ -41,6 +44,11 @@ class OpenAIProxy:
                     model, messages, max_tokens, temperature
                 )
                 return response.choices[0].message.content
+            if OPENAI_API_TYPE == "azure":
+                return self.call_azure_api(
+                    engine, model, messages, max_tokens, temperature
+                )
+            raise Exception("Invalid OpenAI API Type")
             # validity checks for MULTI_REGION_CONFIG
             if (
                 MULTI_REGION_CONFIG is None
@@ -107,25 +115,14 @@ class OpenAIProxy:
         if model in OPENAI_EXCLUSIVE_MODELS and OPENAI_API_TYPE != "azure":
             logger.info(f"Calling OpenAI exclusive model. {model}")
         elif (
-            model == "gpt-3.5-turbo-16k"
-            or model == "gpt-3.5-turbo-16k-0613"
-            and OPENAI_API_ENGINE_GPT35 is not None
-        ):
-            engine = OPENAI_API_ENGINE_GPT35
-        elif (
             model == "gpt-4"
             or model == "gpt-4-0613"
             or model == "gpt-4-1106-preview"
             or model == "gpt-4-0125-preview"
-            and OPENAI_API_ENGINE_GPT4 is not None
         ):
-            engine = OPENAI_API_ENGINE_GPT4
-        elif (
-            model == "gpt-4-32k"
-            or model == "gpt-4-32k-0613"
-            and OPENAI_API_ENGINE_GPT4_32K is not None
-        ):
-            engine = OPENAI_API_ENGINE_GPT4_32K
+            engine = model
+        elif model == "gpt-4-32k" or model == "gpt-4-32k-0613":
+            engine = model
         return engine
 
     def create_openai_chat_completion(
@@ -144,6 +141,24 @@ class OpenAIProxy:
             timeout=OPENAI_TIMEOUT,
         )
         return response
+    
+    def call_azure_api(
+        self, engine, model, messages, max_tokens, temperature
+    ):
+        client = AzureOpenAI(
+            api_key=AZURE_API_KEY,
+            azure_endpoint=OPENAI_API_BASE,
+            api_version=OPENAI_API_VERSION,
+            azure_deployment=AZURE_OPENAI_DEPLOYMENT
+        )
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=OPENAI_TIMEOUT,
+        )
+        return response.choices[0].message.content
 
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature
@@ -158,3 +173,15 @@ class OpenAIProxy:
             seed=SEED,
         )
         return response
+
+if __name__ == "__main__":
+    openai_proxy = OpenAIProxy()
+    response = openai_proxy.call_openai(
+        "gpt-4-1106-preview",
+        [{
+            "role": "user",
+            "content": "Say this is a test",
+        }],
+        max_tokens=100
+    )
+    print((response))

@@ -177,6 +177,9 @@ class PRRequest(BaseModel):
 
     pull_request: PullRequest
     repository: Repository
+    number: int
+
+    installation: Installation
 
 
 class CheckRunCompleted(BaseModel):

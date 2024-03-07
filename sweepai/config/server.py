@@ -31,7 +31,7 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
 BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 32)
+    os.environ.get("BATCH_SIZE", 256)
 )  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
@@ -128,19 +128,14 @@ OPENAI_USE_3_5_MODEL_ONLY = (
 )
 
 
-# goes under Modal 'mongodb' secret name
 MONGODB_URI = os.environ.get("MONGODB_URI", None)
+IS_SELF_HOSTED = bool(os.environ.get("IS_SELF_HOSTED", MONGODB_URI is None))
 
-IS_SELF_HOSTED = MONGODB_URI is None
-
-# goes under Modal 'redis_url' secret name (optional, can leave env var blank)
 REDIS_URL = os.environ.get("REDIS_URL")
-# deprecated: old logic transfer so upstream can use this
 if not REDIS_URL:
     REDIS_URL = os.environ.get("redis_url", "redis://0.0.0.0:6379/0")
 
 ORG_ID = os.environ.get("ORG_ID", None)
-# goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
 )
@@ -177,10 +172,27 @@ REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
 
 # Azure settings, only checked if OPENAI_API_TYPE == "azure"
+OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
+
 AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
-OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
+AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT", None)
+
+OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
+OPENAI_EMBEDDINGS_AZURE_ENDPOINT = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_ENDPOINT", None
+)
+OPENAI_EMBEDDINGS_AZURE_API_KEY = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_API_KEY", None
+)
+OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT", None
+)
+OPENAI_EMBEDDINGS_AZURE_API_VERSION = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_API_VERSION", None
+)
 
 OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
@@ -201,8 +213,12 @@ DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106"
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
 LOKI_URL = os.environ.get("LOKI_URL", None)
 
-DEBUG: bool = True
+DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
+
+PROGRESS_BASE_URL = os.environ.get(
+    "PROGRESS_BASE_URL", "https://progress.sweep.dev"
+).rstrip("/")
 
 GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
 MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)

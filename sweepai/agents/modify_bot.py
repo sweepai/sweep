@@ -1,7 +1,5 @@
-import copy
 import os
 import re
-import uuid
 from dataclasses import dataclass
 
 from sweepai.agents.assistant_function_modify import (
@@ -11,7 +9,6 @@ from sweepai.agents.assistant_function_modify import (
 )
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
-from sweepai.config.server import DEBUG
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet, UnneededEditError
 from sweepai.core.prompts import dont_use_chunking_message, use_chunking_message
@@ -259,7 +256,6 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         cloned_repo: ClonedRepo,
-        chunking: bool = False,
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
     ):
@@ -272,12 +268,16 @@ class ModifyBot:
             ticket_progress=self.ticket_progress,
             assistant_conversation=assistant_conversation,
             seed=seed,
+            start_line=file_change_request.start_line,
+            end_line=file_change_request.end_line,
         )
         if new_file is not None:
             posthog.capture(
-                self.chat_logger.data["username"]
-                if self.chat_logger is not None
-                else "anonymous",
+                (
+                    self.chat_logger.data["username"]
+                    if self.chat_logger is not None
+                    else "anonymous"
+                ),
                 "function_modify_succeeded",
                 {
                     "file_path": file_path,
@@ -289,9 +289,11 @@ class ModifyBot:
                 file_path, cloned_repo.repo_dir, new_file, run_isort=False
             )
         posthog.capture(
-            self.chat_logger.data["username"]
-            if self.chat_logger is not None
-            else "anonymous",
+            (
+                self.chat_logger.data["username"]
+                if self.chat_logger is not None
+                else "anonymous"
+            ),
             "function_modify_succeeded",
             {
                 "file_path": file_path,
@@ -299,69 +301,7 @@ class ModifyBot:
                 "repo_full_name": cloned_repo.repo_full_name,
             },
         )
-        try:
-            (
-                snippet_queries,
-                extraction_terms,
-                analysis_and_identification,
-            ) = self.get_snippets_to_modify(
-                file_path=file_path,
-                file_contents=file_contents,
-                file_change_request=file_change_request,
-                chunking=chunking,
-            )
-        except Exception as e:
-            print("an exception occured!", e)
-            raise e
-
-        new_file, leftover_comments = self.update_file(
-            file_path=file_path,
-            file_contents=file_contents,
-            file_change_request=file_change_request,
-            snippet_queries=snippet_queries,
-            extraction_terms=extraction_terms,
-            chunking=chunking,
-            analysis_and_identification=analysis_and_identification,
-        )
-        for _ in range(3):
-            if leftover_comments and not DEBUG:
-                joined_comments = "\n".join(leftover_comments)
-                new_file_change_request = copy.deepcopy(file_change_request)
-                new_file_change_request.new_content = new_file
-                new_file_change_request.id_ = str(uuid.uuid4())
-                new_file_change_request.instructions = f"Address all of the unfinished code changes here: \n{joined_comments}"
-                self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
-                self.prune_modify_snippets_bot.messages = (
-                    self.prune_modify_snippets_bot.messages[:-2]
-                )
-                try:
-                    (
-                        snippet_queries,
-                        extraction_terms,
-                        analysis_and_identification,
-                    ) = self.get_snippets_to_modify(
-                        file_path=file_path,
-                        file_contents=new_file,
-                        file_change_request=new_file_change_request,
-                        chunking=chunking,
-                    )
-                except Exception as e:
-                    print("an exception occured!", e)
-                    raise e
-                self.update_snippets_bot.messages = self.update_snippets_bot.messages[
-                    :-2
-                ]
-                new_file, leftover_comments = self.update_file(
-                    file_path=file_path,
-                    file_contents=new_file,
-                    file_change_request=new_file_change_request,
-                    snippet_queries=snippet_queries,
-                    extraction_terms=extraction_terms,
-                    chunking=chunking,
-                    analysis_and_identification=analysis_and_identification,
-                )
-        # new_file = add_auto_imports(file_path, cloned_repo.repo_dir, new_file)
-        return new_file
+        raise UnneededEditError("No snippets edited")
 
     def get_snippets_to_modify(
         self,
@@ -391,9 +331,9 @@ class ModifyBot:
                 changes_made=self.get_diffs_message(file_contents),
                 file_path=file_path,
                 request=file_change_request.instructions,
-                chunking_message=use_chunking_message
-                if chunking
-                else dont_use_chunking_message,
+                chunking_message=(
+                    use_chunking_message if chunking else dont_use_chunking_message
+                ),
             )
         )
         analysis_and_identification_pattern = r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
@@ -509,10 +449,10 @@ class ModifyBot:
             )
 
         update_snippets_code = file_contents
-        if file_change_request.entity:
-            update_snippets_code = extract_python_span(
-                file_contents, [file_change_request.entity]
-            ).content
+        # if file_change_request.entity:
+        #     update_snippets_code = extract_python_span(
+        #         file_contents, [file_change_request.entity]
+        #     ).content
 
         if len(selected_snippets) > 1:
             indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(
@@ -553,7 +493,7 @@ class ModifyBot:
 
         problematic_message = None
         for _ in range(3):
-            if problematic_message != None:  # this means the last match failed
+            if problematic_message is not None:  # this means the last match failed
                 update_snippets_response = self.update_snippets_bot.chat(
                     problematic_message
                 )
@@ -689,7 +629,7 @@ class ModifyBot:
 
             if problematic_matches:
                 problematic_message = (
-                    f"The following replacement diffs that you generated are invalid:\n"
+                    "The following replacement diffs that you generated are invalid:\n"
                 )
                 for idx, original_code, updated_code in problematic_matches:
                     problematic_message += f"<<<<<<< REPLACE (index = {idx})\n{original_code}\n=======\n{updated_code}\n>>>>>>>\n"
