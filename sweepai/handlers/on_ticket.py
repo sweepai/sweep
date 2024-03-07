@@ -22,6 +22,8 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
+import math
+
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.config.client import (
     DEFAULT_RULES,
