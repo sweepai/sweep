@@ -74,20 +74,9 @@ class OpenAIProxy:
                 logger.info(
                     f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                 )
-                # response = self.call_azure_api(
-                #     engine,
-                #     OPENAI_API_BASE,
-                #     AZURE_API_KEY,
-                #     model,
-                #     messages,
-                #     max_tokens,
-                #     temperature,
-                # )
-                # return response.choices[0].message.content
-                # raise Exception("No Azure regions available")
                 if OPENAI_API_TYPE == "azure":
                     response = self.call_azure_api(
-                        engine, model, messages, max_tokens, temperature
+                        model, messages, max_tokens, temperature
                     )
                     return response
                 return (
@@ -127,7 +116,7 @@ class OpenAIProxy:
             try:
                 if OPENAI_API_TYPE == "azure":
                     response = self.call_azure_api(
-                        engine, model, messages, max_tokens, temperature
+                        model, messages, max_tokens, temperature
                     )
                     return response
                 return (
@@ -163,19 +152,7 @@ class OpenAIProxy:
     def create_openai_chat_completion(
         self, engine, base_url, api_key, model, messages, max_tokens, temperature
     ):
-        print(
-            engine,
-            model,
-            max_tokens,
-            AZURE_API_KEY,
-            OPENAI_API_BASE,
-            OPENAI_API_VERSION,
-            AZURE_OPENAI_DEPLOYMENT,
-        )
         client = AzureOpenAI(
-            # api_key=api_key,
-            # azure_endpoint=base_url,
-            # api_version=OPENAI_API_VERSION,
             api_key=api_key,
             azure_endpoint=base_url,
             api_version=OPENAI_API_VERSION,
