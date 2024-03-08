@@ -20,7 +20,6 @@ from loguru import logger
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
-from sweepai.utils.ctags import CTags
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
 MAX_FILE_COUNT = 50
@@ -66,6 +65,7 @@ def get_token(installation_id: int):
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
     )
 
+
 def get_app():
     jwt = get_jwt()
     headers = {
@@ -75,6 +75,7 @@ def get_app():
     }
     response = requests.get("https://api.github.com/app", headers=headers)
     return response.json()
+
 
 def get_github_client(installation_id: int):
     if not installation_id:
@@ -234,7 +235,6 @@ class ClonedRepo:
         included_directories=None,
         excluded_directories: list[str] = None,
         included_files=None,
-        ctags: CTags = None,
     ):
         """Display the directory tree.
 
@@ -257,7 +257,6 @@ class ClonedRepo:
             current_directory: str,
             excluded_directories: list[str],
             indentation="",
-            ctags: CTags = None,
         ):
             """Recursively list the contents of directories."""
 
@@ -266,7 +265,6 @@ class ClonedRepo:
 
             directory_tree_string = ""
             for name in file_and_folder_names[:MAX_FILE_COUNT]:
-                
                 relative_path = os.path.join(current_directory, name)[
                     len(root_directory) + 1 :
                 ]
@@ -277,7 +275,9 @@ class ClonedRepo:
                 if os.path.isdir(complete_path):
                     directory_tree_string += f"{indentation}{relative_path}/\n"
                     directory_tree_string += list_directory_contents(
-                        complete_path, excluded_directories, indentation + "  ", ctags=ctags
+                        complete_path,
+                        excluded_directories,
+                        indentation + "  ",
                     )
                 else:
                     directory_tree_string += f"{indentation}{name}\n"
@@ -290,7 +290,7 @@ class ClonedRepo:
             return directory_tree_string
 
         dir_obj = DirectoryTree()
-        directory_tree = list_directory_contents(root_directory, excluded_directories, ctags=ctags)
+        directory_tree = list_directory_contents(root_directory, excluded_directories)
         dir_obj.parse(directory_tree)
         if included_directories:
             dir_obj = remove_all_not_included(dir_obj, included_directories)
@@ -446,6 +446,7 @@ class MockClonedRepo(ClonedRepo):
     def __del__(self):
         return True
 
+
 @dataclass
 class TemporarilyCopiedClonedRepo(MockClonedRepo):
     tmp_dir: tempfile.TemporaryDirectory | None = None
@@ -484,9 +485,9 @@ class TemporarilyCopiedClonedRepo(MockClonedRepo):
             branch=cloned_repo.branch,
             token=cloned_repo.token,
             repo=cloned_repo.repo,
-            **kwargs
+            **kwargs,
         )
-    
+
     def __del__(self):
         print(f"Dropping {self.tmp_dir.name}...")
         shutil.rmtree(self._repo_dir, ignore_errors=True)
@@ -539,6 +540,7 @@ def parse_collection_name(name: str) -> str:
     # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
+
 
 try:
     g = Github(os.environ.get("GITHUB_PAT"))
