@@ -22,12 +22,7 @@ class SweepConfig(BaseModel):
         "packages/blobs",
         "dist",
     ]
-    exclude_path_dirs: list[str] = [
-        "node_modules",
-        "venv",
-        ".git",
-        "dist"
-    ]
+    exclude_path_dirs: list[str] = ["node_modules", "venv", ".git", "dist"]
     include_exts: list[str] = [
         ".cs",
         ".csharp",
@@ -102,7 +97,7 @@ class SweepConfig(BaseModel):
         "sweep.yaml",
         "pnpm-lock.yaml",
         "LICENSE",
-        "poetry.lock"
+        "poetry.lock",
     ]
     # Image formats
     max_file_limit: int = 60_000
