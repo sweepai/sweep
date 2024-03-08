@@ -73,7 +73,7 @@ from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import CURRENT_USERNAME, ClonedRepo, get_github_client
+from sweepai.utils.github_utils import CURRENT_USERNAME, ClonedRepo, get_github_client, convert_pr_draft_field
 from sweepai.utils.progress import (
     AssistantConversation,
     PaymentContext,
@@ -288,7 +288,7 @@ def get_failing_gha_logs(runs) -> list[Message]:
             for file in failed_jobs_name_list:
                 if f"{file}.txt" in zip_file_names:
                     logs = zip_file.read(f"{file}.txt").decode("utf-8")
-                    cleaned_logs = clean_gh_logs(logs)
+                    cleaned_logs, user_message = clean_gh_logs(logs)
                     messages.append(Message(role="user", content=FAILING_GITHUB_ACTION_PROMPT.replace("{github_action_log}", cleaned_logs)))
         else:
             logger.error("Failed to get logs for failing github actions, likely a credentials issue")
@@ -411,7 +411,6 @@ def get_comment_header(
         + sandbox_execution_message
     )
 
-
 def on_ticket(
     title: str,
     summary: str,
@@ -432,7 +431,8 @@ def on_ticket(
         # we want to pass in the failing github action messages to the next run in order to fix them
         failing_gha_messages: list[Message] = []
         # we rerun this logic 3 times at most if the github actions associated with the created pr fails
-        for run_attempt in range(3):
+        max_pr_attempts = 3
+        for run_attempt in range(max_pr_attempts):
             if tracking_id is None:
                 tracking_id = get_hash()
             on_ticket_start_time = time()
@@ -1404,12 +1404,18 @@ def on_ticket(
                             )
                         except Exception:
                             pass
-
+                    
+                    # create draft pr, then convert to regular pr if it all is well
+                    is_draft_pr = True
+                    # if we are on our last attempt we just create a normal pr
+                    if run_attempt >= max_pr_attempts - 1:
+                        is_draft_pr = False
                     pr: GithubPullRequest = repo.create_pull(
                         title=pr_changes.title,
                         body=pr_actions_message + pr_changes.body,
                         head=pr_changes.pr_head,
                         base=overrided_branch_name or SweepConfig.get_branch(repo),
+                        draft=is_draft_pr
                     )
 
                     try:
@@ -1533,6 +1539,8 @@ def on_ticket(
                     # break from main for loop
                     if pr_created_successfully:
                         logger.info(f"All Github Actions have finished successfully! It took {run_attempt + 1} attempts to create the PR. It took {total_poll_attempts + 1} minutes for all Github Actions to finish.")
+                        # convert draft pr to normal one
+                        convert_pr_draft_field(pr, is_draft=False)
                         break
                                 
                 except MaxTokensExceeded as e:

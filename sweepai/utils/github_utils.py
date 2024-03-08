@@ -1,6 +1,7 @@
 import datetime
 import difflib
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -14,7 +15,7 @@ from typing import Any
 
 import git
 import requests
-from github import Github
+from github import Github, PullRequest
 from jwt import encode
 from loguru import logger
 
@@ -540,6 +541,42 @@ def parse_collection_name(name: str) -> str:
     # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
+
+# set whether or not a pr is a draft, there is no way to do this using pygithub
+def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False):
+    pr_id = pr.raw_data['node_id']
+    # GraphQL mutation for marking a PR as ready for review
+    mutation = """
+    mutation MarkPRReady {
+    markPullRequestReadyForReview(input: {pullRequestId: {pull_request_id}}) {
+    pullRequest {
+    id
+    }
+    }
+    }
+    """.replace("{pull_request_id}", "\""+pr_id+"\"")
+
+    # GraphQL API URL
+    url = 'https://api.github.com/graphql'
+
+    # Headers
+    headers={
+        "Accept": "application/vnd.github+json",
+        "X-Github-Api-Version": "2022-11-28",
+        "Authorization": "Bearer " + os.environ["GITHUB_PAT"],
+    }
+
+    # Prepare the JSON payload
+    json_data = {
+        'query': mutation,
+    }
+
+    # Make the POST request
+    response = requests.post(url, headers=headers, data=json.dumps(json_data))
+    if response.status_code != 200:
+        logger.error(f"Failed to convert PR to {'draft' if is_draft else 'open'}")
+        return False
+    return True
 
 
 try:
