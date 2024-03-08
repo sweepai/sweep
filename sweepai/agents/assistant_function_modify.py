@@ -197,6 +197,9 @@ def function_modify(
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
+                            # only do this is replace_to_make is a dict
+                            if not isinstance(replace_to_make, dict):
+                                continue
                             for key in ["section_id", "old_code", "new_code"]:
                                 if key not in replace_to_make:
                                     error_message = f"Missing {key} in replace_to_make."
