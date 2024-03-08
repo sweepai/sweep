@@ -343,6 +343,7 @@ def init_hatchet() -> Hatchet | None:
 
             @hatchet.step(timeout="60m")
             def run(self, context: Context):
+                print(self, context)
                 event_payload = context.workflow_input()
 
                 run_on_ticket(

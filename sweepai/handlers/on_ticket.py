@@ -326,7 +326,7 @@ def on_ticket(
     tracking_id: str | None = None,
     hatchet_context: Context | None = None,
 ):
-    logger.info = hatchet_context.log
+    # logger.info = hatchet_context.log
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
