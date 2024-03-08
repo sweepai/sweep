@@ -18,7 +18,7 @@ from sweepai.core.entities import Message
 if BASERUN_API_KEY is not None:
     pass
 
-OPENAI_TIMEOUT = 60  # one minute
+OPENAI_TIMEOUT = 300  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
     "gpt-4-0125-preview",
@@ -53,17 +53,18 @@ class OpenAIProxy:
         self,
         model: str,
         messages: list[Message],
+        tools: list[str] = [],
         max_tokens: int = 4096,
         temperature: float = 0.0,
         seed: int = 0,
-    ) -> str:
+    ):
         try:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 response = self.set_openai_default_api_parameters(
                     model, messages, max_tokens, temperature
                 )
-                return response.choices[0].message.content
+                return response
             # validity checks for MULTI_REGION_CONFIG
             if (
                 MULTI_REGION_CONFIG is None
@@ -76,15 +77,13 @@ class OpenAIProxy:
                 )
                 if OPENAI_API_TYPE == "azure":
                     response = self.call_azure_api(
-                        model, messages, max_tokens, temperature
+                        model, messages, tools, max_tokens, temperature
                     )
                     return response
                 return (
                     self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature
+                        model, messages, tools, max_tokens, temperature
                     )
-                    .choices[0]
-                    .message.content
                 )
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
@@ -103,10 +102,11 @@ class OpenAIProxy:
                         api_key,
                         model,
                         messages,
+                        tools,
                         max_tokens,
                         temperature,
                     )
-                    return response.choices[0].message.content
+                    return response
                 except Exception as e:
                     logger.exception(f"Error calling {region_url}: {e}")
             raise Exception("No Azure regions available")
@@ -116,16 +116,13 @@ class OpenAIProxy:
             try:
                 if OPENAI_API_TYPE == "azure":
                     response = self.call_azure_api(
-                        model, messages, max_tokens, temperature
+                        model, messages, tools, max_tokens, temperature
                     )
                     return response
-                return (
-                    self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature
+                return self.set_openai_default_api_parameters(
+                        model, messages, tools, max_tokens, temperature
                     )
-                    .choices[0]
-                    .message.content
-                )
+                
             except SystemExit:
                 raise SystemExit
             except Exception as _e:
@@ -150,7 +147,7 @@ class OpenAIProxy:
         return engine
 
     def create_openai_chat_completion(
-        self, engine, base_url, api_key, model, messages, max_tokens, temperature
+        self, engine, base_url, api_key, model, messages, tools, max_tokens, temperature
     ):
         client = AzureOpenAI(
             api_key=api_key,
@@ -161,13 +158,14 @@ class OpenAIProxy:
         response = client.chat.completions.create(
             model=model,
             messages=messages,
+            tools=tools,
             max_tokens=max_tokens,
             temperature=temperature,
             timeout=OPENAI_TIMEOUT,
         )
         return response
 
-    def call_azure_api(self, model, messages, max_tokens, temperature):
+    def call_azure_api(self, model, messages, tools ,max_tokens, temperature):
         client = AzureOpenAI(
             api_key=AZURE_API_KEY,
             azure_endpoint=OPENAI_API_BASE,
@@ -177,19 +175,21 @@ class OpenAIProxy:
         response = client.chat.completions.create(
             model=model,
             messages=messages,
+            tools=tools,
             max_tokens=max_tokens,
             temperature=temperature,
             timeout=OPENAI_TIMEOUT,
         )
-        return response.choices[0].message.content
+        return response
 
     def set_openai_default_api_parameters(
-        self, model, messages, max_tokens, temperature
+        self, model, messages, tools, max_tokens, temperature
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
             model=model,
             messages=messages,
+            tools=tools,
             max_tokens=max_tokens,
             temperature=temperature,
             timeout=OPENAI_TIMEOUT,

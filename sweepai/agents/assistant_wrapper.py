@@ -29,6 +29,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.openai_proxy import OpenAIProxy
 
 if OPENAI_API_TYPE == "openai":
     client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
@@ -38,7 +39,7 @@ elif OPENAI_API_TYPE == "azure":
         api_key=AZURE_API_KEY,
         api_version=OPENAI_API_VERSION,
     )
-    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
+    # DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
 
 else:
     raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
@@ -413,10 +414,19 @@ def run_until_complete2(
             )
         # get the response from openai
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=tools
+            # response = client.chat.completions.create(
+            #     model=model,
+            #     messages=messages,
+            #     tools=tools
+            # )
+            openai_proxy = OpenAIProxy()
+            response = openai_proxy.call_openai(
+                model,
+                messages,
+                tools,
+                max_tokens=1024,
+                temperature=0.0,
+                # set max tokens later
             )
         # sometimes deployment for opennai is not found, retry after a minute
         except openai.NotFoundError as e:
