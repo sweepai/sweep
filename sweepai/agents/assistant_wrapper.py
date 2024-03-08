@@ -4,13 +4,12 @@ import re
 import time
 import traceback
 from pathlib import Path
-from typing import Callable
-from urllib import response
 from time import sleep, time
+from typing import Callable
 
+import openai
 from loguru import logger
 from openai import AzureOpenAI, OpenAI
-import openai
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
@@ -18,7 +17,6 @@ from pydantic import BaseModel
 from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import (
     AZURE_API_KEY,
-    AZURE_OPENAI_DEPLOYMENT,
     DEFAULT_GPT4_32K_MODEL,
     IS_SELF_HOSTED,
     OPENAI_API_BASE,
@@ -392,6 +390,7 @@ def run_until_complete(
         thread_id=thread_id,
     )
 
+
 def run_until_complete2(
     tools: list[dict[str, str]],
     model: str = DEFAULT_GPT4_32K_MODEL,
@@ -399,14 +398,15 @@ def run_until_complete2(
     sleep_time: int = 3,
     max_iterations: int = 100,
     save_ticket_progress: save_ticket_progress_type | None = None,
-    messages: list[Message] = []
+    messages: list[Message] = [],
 ):
     # used for chat logger
-    message_strings = []
     for i in range(max_iterations):
         # log our progress
         if i % 5 == 0:
-            logger.info(f"run_until_complete iteration {i}, current message length: {len(messages)}")
+            logger.info(
+                f"run_until_complete iteration {i}, current message length: {len(messages)}"
+            )
         # if we are somehow about to hit the max iterations, log a warning
         if i == max_iterations - 1:
             logger.warning(
@@ -414,11 +414,6 @@ def run_until_complete2(
             )
         # get the response from openai
         try:
-            # response = client.chat.completions.create(
-            #     model=model,
-            #     messages=messages,
-            #     tools=tools
-            # )
             openai_proxy = OpenAIProxy()
             response = openai_proxy.call_openai(
                 model,
@@ -430,12 +425,16 @@ def run_until_complete2(
             )
         # sometimes deployment for opennai is not found, retry after a minute
         except openai.NotFoundError as e:
-            logger.error(f"Openai deployment not found on iteration {i} with error: {e}\n Retrying in 60 seconds...")
+            logger.error(
+                f"Openai deployment not found on iteration {i} with error: {e}\n Retrying in 60 seconds..."
+            )
             sleep(60)
             continue
         except Exception as e:
             logger.error(f"chat completions failed on interation {i} with error: {e}")
-            import pdb; pdb.set_trace()
+            import pdb
+
+            pdb.set_trace()
             sleep(sleep_time)
             continue
 
@@ -448,11 +447,11 @@ def run_until_complete2(
             if value is None:
                 response_message_dict[key] = ""
         # if function_call is None we must remove it or else openai will throw an error
-        if response_message_dict.get('function_call', 'not in dict') == '':
-            response_message_dict.pop('function_call')
-        if response_message_dict.get('tool_calls', 'not in dict') == '':
-            response_message_dict.pop('tool_calls')
-        
+        if response_message_dict.get("function_call", "not in dict") == "":
+            response_message_dict.pop("function_call")
+        if response_message_dict.get("tool_calls", "not in dict") == "":
+            response_message_dict.pop("tool_calls")
+
         messages.append(response_message_dict)
         # if a tool call was made
         if tool_calls:
@@ -465,34 +464,38 @@ def run_until_complete2(
                         "tool_call_id": tool_call.id,
                         "role": "tool",
                         "name": function_name,
-                        "content": tool_output
+                        "content": tool_output,
                     }
                 )  # extend conversation with function response
                 if not tool_output:
                     break
-        else: # no tool call being made implies either an error or a success
+        else:  # no tool call being made implies either an error or a success
             done_response = yield "done", {
-                    "status": "completed",
-                    "message": "Run completed successfully",
-                }
-            logger.info(f"run_until_complete done_response: {done_response} completed after {i} iterations")
+                "status": "completed",
+                "message": "Run completed successfully",
+            }
+            logger.info(
+                f"run_until_complete done_response: {done_response} completed after {i} iterations"
+            )
             if not done_response:
                 break
-        
+
         # on each iteration of the for loop, we will log to chat_logger
         if chat_logger is not None and len(messages):
             descriptive_messages = [message for message in messages]
             # for tool calls, the content is empty, replace that with the function contents
             for message in descriptive_messages:
-                if message.get('content', '') == '' and 'tool_calls' in message:
+                if message.get("content", "") == "" and "tool_calls" in message:
                     # if there were multiple tool calls, add them both
-                    for tool_call in message['tool_calls']:
-                        message['content'] += f"\n\ntool_call: {tool_call.get('function', '')}"
+                    for tool_call in message["tool_calls"]:
+                        message[
+                            "content"
+                        ] += f"\n\ntool_call: {tool_call.get('function', '')}"
             chat_logger.add_chat(
                 {
                     "model": model,
                     "messages": descriptive_messages,
-                    "output": descriptive_messages[-1]['content'], 
+                    "output": descriptive_messages[-1]["content"],
                     "max_tokens": 1000,
                     "temperature": 0,
                 }
@@ -502,7 +505,6 @@ def run_until_complete2(
         #     save_ticket_progress(
         #         messages=messages
         #     )
-                
 
 
 def openai_assistant_call_helper2(
@@ -520,12 +522,10 @@ def openai_assistant_call_helper2(
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     logger.debug(instructions)
-    messages = [
-        {'role': "system", 'content': instructions}
-    ]
+    messages = [{"role": "system", "content": instructions}]
     for message in additional_messages:
-        messages.append({'role': message.role, 'content': message.content})
-    
+        messages.append({"role": message.role, "content": message.content})
+
     # tools must always be > 1
     if len(tools) > 1:
         return run_until_complete2(
@@ -616,6 +616,8 @@ def openai_assistant_call_helper(
         run.id,
         thread.id,
     )
+
+
 # Split in two so it can be cached
 def openai_assistant_call(
     request: str,
