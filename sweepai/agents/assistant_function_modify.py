@@ -296,7 +296,7 @@ def function_modify(
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             success_message = (
-                                "The keyword was found in the following sections:\n\n"
+                                f"The keyword {keyword} was found in the following sections:\n\n"
                             )
                         for match_index in matches:
                             match = chunks[match_index]
@@ -339,6 +339,8 @@ def function_modify(
                             f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords, view_sections calls to view surrounding sections, or continue to make changes by calling the search_and_replace function."
                         )
                 elif tool_name == "view_sections":
+                    error_message = ""
+                    success_message = ""
                     if "section_ids" not in tool_call:
                         error_message = "No section_ids found in tool call."
 
@@ -679,4 +681,5 @@ if __name__ == "__main__":
             }
         ),
         # additional_messages=additional_messages,
+        ticket_progress=TicketProgress(tracking_id="test_remove_assistant_1"),
     )
