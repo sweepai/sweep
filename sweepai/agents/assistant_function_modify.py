@@ -178,7 +178,6 @@ def function_modify(
         ]
         assistant_generator = iudex_call(
             request=f"# Request\n{request}",
-            request="",  # already present in additional_messages
             instructions=instructions,
             additional_messages=ensure_additional_messages_length(additional_messages),
             # chat_logger=chat_logger,
@@ -266,7 +265,7 @@ def function_modify(
                     except Exception as e:
                         logger.error(e)
                         error_message = "Invalid response from the LLM when attempting to write changes."
-                        break
+                        # break
 
                     # apply the replaces_to_make
                     error_message_prefix = f"Attempted to apply replaces_to_make:\n{json.dumps(replaces_to_make, indent=2)}\n\nBut encountered error:\n"
