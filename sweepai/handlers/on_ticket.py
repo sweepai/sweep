@@ -16,6 +16,7 @@ import requests
 import io
 import zipfile
 import yaml
+import math
 import yamllint.config as yamllint_config
 from github import BadCredentialsException, Github, Repository
 from github.Issue import Issue
