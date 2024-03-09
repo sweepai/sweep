@@ -3,6 +3,7 @@ from __future__ import annotations
 # Do not save logs for main process
 import ctypes
 import json
+import subprocess
 import threading
 import time
 from typing import Optional
@@ -15,11 +16,13 @@ from fastapi import (
     Header,
     HTTPException,
     Path,
+    Request,
     Security,
     status,
 )
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
 from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -37,6 +40,7 @@ from sweepai.config.client import (
     get_rules,
 )
 from sweepai.config.server import (
+    DISABLED_REPOS,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GHA_AUTOFIX_ENABLED,
@@ -55,7 +59,7 @@ from sweepai.handlers.create_pr import (  # type: ignore
 )
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import (  # type: ignore
-    clean_logs,
+    clean_gh_logs,
     download_logs,
     on_check_suite,
 )
@@ -73,7 +77,7 @@ from sweepai.utils.buttons import (
 )
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
-from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.github_utils import CURRENT_USERNAME, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
@@ -95,6 +99,15 @@ events = {}
 on_ticket_events = {}
 
 security = HTTPBearer()
+
+templates = Jinja2Templates(directory="sweepai/web")
+version_command = r"""git config --global --add safe.directory /app
+timestamp=$(git log -1 --format="%at")
+date -d "@$timestamp" +%y.%m.%d.%H 2>/dev/null || date -r "$timestamp" +%y.%m.%d.%H"""
+try:
+    version = subprocess.check_output(version_command, shell=True, text=True).strip()
+except Exception:
+    version = time.strftime("%y.%m.%d.%H")
 
 logger.bind(application="webhook")
 
@@ -256,9 +269,10 @@ def redirect_to_health():
 
 
 @app.get("/", response_class=HTMLResponse)
-def home():
-    with open("sweepai/web/index.html", "r") as f:
-        return f.read()
+def home(request: Request):
+    return templates.TemplateResponse(
+        name="index.html", context={"version": version, "request": request}
+    )
 
 
 @app.get("/ticket_progress/{tracking_id}")
@@ -408,6 +422,11 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
 def run(request_dict, event):
     action = request_dict.get("action")
 
+    if repo_full_name := request_dict.get("repository", {}).get("full_name"):
+        if repo_full_name in DISABLED_REPOS:
+            logger.warning(f"Repo {repo_full_name} is disabled")
+            return {"success": False, "error_message": "Repo is disabled"}
+
     with logger.contextualize(tracking_id="main", env=ENV):
         match event, action:
             case "check_run", "completed":
@@ -458,7 +477,7 @@ def run(request_dict, event):
                                 request.check_run.run_id,
                                 request.installation.id,
                             )
-                            logs, user_message = clean_logs(logs)
+                            logs, user_message = clean_gh_logs(logs)
                             attributor = request.sender.login
                             if attributor.endswith("[bot]"):
                                 attributor = commit.author.login
@@ -510,7 +529,7 @@ def run(request_dict, event):
                             request.check_run.run_id,
                             request.installation.id,
                         )
-                        logs, user_message = clean_logs(logs)
+                        logs, user_message = clean_gh_logs(logs)
                         chat_logger = ChatLogger(
                             data={
                                 "username": attributor,
@@ -765,7 +784,6 @@ def run(request_dict, event):
                         comment_id=None,
                     )
             case "issue_comment", "created":
-                # import pdb; pdb.set_trace()
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
@@ -1045,12 +1063,21 @@ def run(request_dict, event):
                     if pr_request.pull_request.merged_by
                     else None
                 )
-                if GITHUB_BOT_USERNAME == commit_author and merged_by is not None:
+                if CURRENT_USERNAME == commit_author and merged_by is not None:
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
                     elif pr_request.pull_request.title.startswith("[Sweep Rules]"):
                         event_name = "sweep_rules_pr_merged"
+                    edited_by_developers = False
+                    _token, g = get_github_client(pr_request.installation.id)
+                    pr = g.get_repo(pr_request.repository.full_name).get_pull(
+                        pr_request.number
+                    )
+                    for commit in pr.get_commits():
+                        if commit.author.login != CURRENT_USERNAME:
+                            edited_by_developers = True
+                            break
                     posthog.capture(
                         merged_by,
                         event_name,
@@ -1063,6 +1090,7 @@ def run(request_dict, event):
                             "deletions": pr_request.pull_request.deletions,
                             "total_changes": pr_request.pull_request.additions
                             + pr_request.pull_request.deletions,
+                            "edited_by_developers": edited_by_developers,
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})

@@ -34,11 +34,11 @@ services:
     # network_mode: "host"
     volumes:
       - .:/app
-    # command: >
-    #   sh -c ". bin/startup.sh"
+    command: >
+      sh -c ". bin/startup.hosted.sh"
     stdin_open: true
     tty: true
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"
-    scale: 0
+    # scale: 0

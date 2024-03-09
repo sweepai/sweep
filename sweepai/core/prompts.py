@@ -179,23 +179,27 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
+files_to_change_system_prompt = """
+You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue. You have the utmost care for the plan that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies."""
+
+# put more emphasis on modify
 files_to_change_prompt = """\
 # Task:
-Reference and analyze the snippets, repo, PRs, and issue to break down the requested change and propose a highly specific plan that addresses the user's request. Mention every single change required to solve the issue.
+Reference and analyze the snippets, repo, and issue to break down the requested change and propose the minimal plan that resolve's the user's issue.
 
-Provide a plan to solve the issue, following these rules:
-* You may only create new files and modify existing files but may not necessarily need both.
+Follow these rules:
+* You may only modify existing files and create new files but may not necessarily need both.
 * Include the full path (e.g. src/main.py and not just main.py), using the snippets and repo_tree for reference.
-* Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
-* Be concrete with instructions and do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
+* Provide natural language instructions on updates to business logic and specify which files to import.
+* Be concrete with instructions. Do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
+* Provide the plan that is minimal and complete.
 
 You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
-* If a PR was referenced, outline the structure of the code changes in the PR.
-* Outline the ideal plan that solves the user request by referencing the snippets, and names of entities. and any other necessary files/directories.
-* Describe each <create> and <modify> section in the following plan and why it will be needed.
+* Outline the minimal plan that solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
+* Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible.
 ...
 </contextual_request_analysis>
 
@@ -208,9 +212,10 @@ You MUST follow the following format with XML tags:
 </create>
 ...
 
-<modify file="file_path_2" start_line="i" end_line="j" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Natural language instructions for the modifications needed to solve the issue.
 * Be concise and reference necessary files, imports and entity names.
+* You may only modify each file at most once.
 ...
 </modify>
 ...

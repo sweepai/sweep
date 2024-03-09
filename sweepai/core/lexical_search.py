@@ -1,4 +1,5 @@
 import multiprocessing
+import os
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -312,4 +313,13 @@ def prepare_lexical_search_index(
 
 
 if __name__ == "__main__":
-    pass
+    repo_directory = os.getenv("REPO_DIRECTORY")
+    from sweepai.config.client import SweepConfig
+    sweep_config = SweepConfig()
+    assert repo_directory
+    _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None, None)
+    result = search_index("logger export", index)
+    # print some of the keys
+    print(list(result.keys())[:5])
+    # print the first 2 result keys sorting by value
+    print(sorted(result.items(), key=lambda x: result.get(x, 0), reverse=True)[:5])

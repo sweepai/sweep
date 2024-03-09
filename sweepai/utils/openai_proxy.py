@@ -5,6 +5,7 @@ from openai import AzureOpenAI, OpenAI
 
 from sweepai.config.server import (
     AZURE_API_KEY,
+    AZURE_OPENAI_DEPLOYMENT,
     BASERUN_API_KEY,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
@@ -12,7 +13,7 @@ from sweepai.config.server import (
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
 )
-from sweepai.logn.cache import file_cache
+from sweepai.core.entities import Message
 
 if BASERUN_API_KEY is not None:
     pass
@@ -25,10 +26,37 @@ OPENAI_EXCLUSIVE_MODELS = [
 ]
 SEED = 100
 
+RATE_LIMITS = {
+    "australiaeast": 80000,
+    "brazilsouth": 0,
+    "canadaeast": 80000,
+    "eastus": 80000,
+    "eastus2": 80000,
+    "francecentral": 80000,
+    "japaneast": 0,
+    "northcentralus": 80000,
+    "norwayeast": 150000,
+    "southafricanorth": 0,
+    "southcentralus": 80000,
+    "southindia": 150000,
+    "swedencentral": 150000,
+    "switzerlandnorth": 0,
+    "uksouth": 80000,
+    "westeurope": 0,
+    "westus": 80000,
+}
+
 
 class OpenAIProxy:
-    @file_cache(ignore_params=[])
-    def call_openai(self, model, messages, max_tokens, temperature) -> str:
+    # @file_cache(ignore_params=[])
+    def call_openai(
+        self,
+        model: str,
+        messages: list[Message],
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int = 0,
+    ) -> str:
         try:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
@@ -46,16 +74,18 @@ class OpenAIProxy:
                 logger.info(
                     f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                 )
-                response = self.create_openai_chat_completion(
-                    engine,
-                    OPENAI_API_BASE,
-                    AZURE_API_KEY,
-                    model,
-                    messages,
-                    max_tokens,
-                    temperature,
+                if OPENAI_API_TYPE == "azure":
+                    response = self.call_azure_api(
+                        model, messages, max_tokens, temperature
+                    )
+                    return response
+                return (
+                    self.set_openai_default_api_parameters(
+                        model, messages, max_tokens, temperature
+                    )
+                    .choices[0]
+                    .message.content
                 )
-                return response.choices[0].message.content
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
             # randomize the order of the list
@@ -83,16 +113,23 @@ class OpenAIProxy:
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            if OPENAI_API_KEY:
-                try:
-                    response = self.set_openai_default_api_parameters(
+            try:
+                if OPENAI_API_TYPE == "azure":
+                    response = self.call_azure_api(
                         model, messages, max_tokens, temperature
                     )
-                    return response.choices[0].message.content
-                except SystemExit:
-                    raise SystemExit
-                except Exception as _e:
-                    logger.error(f"OpenAI API Key found but error: {_e}")
+                    return response
+                return (
+                    self.set_openai_default_api_parameters(
+                        model, messages, max_tokens, temperature
+                    )
+                    .choices[0]
+                    .message.content
+                )
+            except SystemExit:
+                raise SystemExit
+            except Exception as _e:
+                logger.error(f"OpenAI API Key found but error: {_e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
             # Raise exception to report error
             raise e
@@ -119,6 +156,7 @@ class OpenAIProxy:
             api_key=api_key,
             azure_endpoint=base_url,
             api_version=OPENAI_API_VERSION,
+            azure_deployment=AZURE_OPENAI_DEPLOYMENT,
         )
         response = client.chat.completions.create(
             model=model,
@@ -128,6 +166,22 @@ class OpenAIProxy:
             timeout=OPENAI_TIMEOUT,
         )
         return response
+
+    def call_azure_api(self, model, messages, max_tokens, temperature):
+        client = AzureOpenAI(
+            api_key=AZURE_API_KEY,
+            azure_endpoint=OPENAI_API_BASE,
+            api_version=OPENAI_API_VERSION,
+            azure_deployment=AZURE_OPENAI_DEPLOYMENT,
+        )
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=OPENAI_TIMEOUT,
+        )
+        return response.choices[0].message.content
 
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature
@@ -142,3 +196,18 @@ class OpenAIProxy:
             seed=SEED,
         )
         return response
+
+
+if __name__ == "__main__":
+    openai_proxy = OpenAIProxy()
+    response = openai_proxy.call_openai(
+        "gpt-4-0125-preview",
+        [
+            {
+                "role": "user",
+                "content": "Say this is a test",
+            }
+        ],
+        max_tokens=100,
+    )
+    print((response))
