@@ -227,11 +227,11 @@ def run_until_complete(
         # get the response from openai
         try:
             openai_proxy = OpenAIProxy()
-            response = openai_proxy.call_openai(
+            response = openai_proxy.call_openai_with_retry(
                 model,
                 messages,
                 tools,
-                max_tokens=1024,
+                max_tokens=256,
                 temperature=0.0,
                 # set max tokens later
             )

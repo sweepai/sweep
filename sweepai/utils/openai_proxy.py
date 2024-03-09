@@ -14,6 +14,7 @@ from sweepai.config.server import (
     OPENAI_API_VERSION,
 )
 from sweepai.core.entities import Message
+from sweepai.logn.cache import file_cache
 
 if BASERUN_API_KEY is not None:
     pass
@@ -48,7 +49,7 @@ RATE_LIMITS = {
 
 
 class OpenAIProxy:
-    # @file_cache(ignore_params=[])
+    @file_cache(ignore_params=[])
     def call_openai_with_retry(
         self,
         model: str,
@@ -69,10 +70,13 @@ class OpenAIProxy:
             logger.info(f"Calling OpenAI with {current_max_tokens} tokens...")
             try:
                 response = self.call_openai(
-                    model, messages, tools, max_tokens, temperature, seed
+                    model, messages, tools, current_max_tokens, temperature, seed
                 )
                 if response.choices[0].finish_reason != "length":
                     return response
+                logger.warning(
+                    f"OpenAI call finish_reason returned {response.choices[0].finish_reason}, retrying with {current_max_tokens * 2}..."
+                )
             except Exception as e:
                 logger.exception(
                     f"Error calling OpenAI: {e}, retrying with {current_max_tokens * 2}..."
@@ -81,6 +85,7 @@ class OpenAIProxy:
             raise Exception("OpenAI call failed") from e
         raise Exception("OpenAI call failed")
 
+    @file_cache(ignore_params=[])
     def call_openai(
         self,
         model: str,
