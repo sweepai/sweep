@@ -222,12 +222,12 @@ def run_until_complete(
         # get the response from openai
         try:
             openai_proxy = OpenAIProxy()
-            response = openai_proxy.call_openai_with_retry(
+            response = openai_proxy.call_openai(
                 model,
                 messages,
                 tools,
-                max_tokens=256,
-                temperature=0.0,
+                max_tokens=2048,
+                temperature=0.2,
                 # set max tokens later
             )
         # sometimes deployment for opennai is not found, retry after a minute
@@ -274,7 +274,9 @@ def run_until_complete(
                 if not tool_output:
                     break
         else:  # no tool call being made implies either an error or a success
-            logger.info(f"no tool calls were made, we are done - message: {response_message}")
+            logger.info(
+                f"no tool calls were made, we are done - message: {response_message}"
+            )
             done_response = yield "done", {
                 "status": "completed",
                 "message": "Run completed successfully",
@@ -343,6 +345,7 @@ def openai_assistant_call_helper(
         )
     else:
         raise Exception("openai_assistant_call_helper tools must be > 1")
+
 
 # Split in two so it can be cached
 def openai_assistant_call(
