@@ -236,7 +236,7 @@ class OpenAIProxy:
         return response
 
     def set_openai_default_api_parameters(
-        self, model, messages, tools, max_tokens, temperature
+        self, model, messages, max_tokens, temperature, tools = []
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         if len(tools) == 0:
