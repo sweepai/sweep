@@ -8,7 +8,6 @@ from sweepai.agents.assistant_functions import (
     chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
-    view_sections_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.core.entities import AssistantRaisedException, Message
@@ -28,7 +27,7 @@ Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
 1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes. If relevant, check surrounding code for context with the view_sections function. For example, if you find section B, you may want to see sections A and C to understand the surrounding context like the function headers and return statements.
+2. Use the keyword_search function to find the right places to make changes.
 3. Use the search_and_replace function to make the changes.
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
@@ -161,7 +160,7 @@ def function_modify(
             tools=[
                 {"type": "function", "function": chain_of_thought_schema},
                 {"type": "function", "function": keyword_search_schema},
-                {"type": "function", "function": view_sections_schema},
+                # {"type": "function", "function": view_sections_schema},
                 {"type": "function", "function": search_and_replace_schema},
             ],
         )
@@ -294,15 +293,19 @@ def function_modify(
 
                     if not error_message:
                         keyword = tool_call["keyword"]
-                        matches = []
+                        match_indices = []
                         for i, chunk in enumerate(chunks):
                             if keyword in chunk:
-                                matches.append(i)
-                        if not matches:
+                                match_indices.append(max(0, i - 1))
+                                match_indices.append(i)
+                                match_indices.append(min(len(chunks) - 1, i + 1))
+                        match_indices = sorted(list(set(match_indices)))
+                        if not match_indices:
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             success_message = f"The keyword {keyword} was found in the following sections:\n\n"
-                        for match_index in matches:
+                        for match_index in match_indices:
+                            # TODO: handle multiple matches in one line
                             match = chunks[match_index]
                             match_lines = match.split("\n")
                             lines_containing_keyword = [
@@ -340,7 +343,7 @@ def function_modify(
                     else:
                         logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords, view_sections calls to view surrounding sections, or continue to make changes by calling the search_and_replace function."
+                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or continue to make changes by calling the search_and_replace function."
                         )
                 elif tool_name == "view_sections":
                     error_message = ""
