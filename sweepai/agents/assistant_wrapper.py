@@ -467,6 +467,7 @@ def run_until_complete2(
                 if not tool_output:
                     break
         else:  # no tool call being made implies either an error or a success
+            logger.info(f"no tool calls were made, we are done - message: {response_message}")
             done_response = yield "done", {
                 "status": "completed",
                 "message": "Run completed successfully",
