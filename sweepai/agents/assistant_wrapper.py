@@ -1,10 +1,6 @@
 import json
-import os
-import re
-import time
 import traceback
-from pathlib import Path
-from time import sleep, time
+from time import sleep
 from typing import Callable
 
 import openai
@@ -14,7 +10,6 @@ from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel
 
-from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import (
     AZURE_API_KEY,
     DEFAULT_GPT4_32K_MODEL,
@@ -338,7 +333,7 @@ def openai_assistant_call_helper(
 
     # tools must always be > 1
     if len(tools) > 1:
-        return run_until_complete2(
+        return run_until_complete(
             tools=tools,
             messages=messages,
             model=model,
