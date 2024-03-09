@@ -279,10 +279,9 @@ class TicketProgress(BaseModel):
         try:
             if MONGODB_URI is None:
                 return None
-            if self.model_dump() == self.prev_dict:
+            if self.model_dump(mode="json") == self.prev_dict:
                 return
-            current_dict = self.model_dump()
-            print(current_dict)
+            current_dict = self.model_dump(mode="json")
             del current_dict["prev_dict"]
             self.prev_dict = current_dict
             db = global_mongo_client["progress"]
@@ -360,6 +359,8 @@ if __name__ == "__main__":
     # ticket_progress.status = TicketProgressStatus.ERROR
     ticket_progress.save(do_async=False)
     ticket_progress.wait()
-    # new_ticket_progress = TicketProgress.load("test")
-    # print(new_ticket_progress)
+    new_ticket_progress = TicketProgress.load("test")
+    print(new_ticket_progress)
+    del new_ticket_progress.prev_dict
+    print(ticket_progress)
     # assert new_ticket_progress == ticket_progress
