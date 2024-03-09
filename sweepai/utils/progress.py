@@ -8,7 +8,7 @@ from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
 from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
 from openai.types.beta.threads.thread_message import ThreadMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
@@ -27,9 +27,7 @@ class AssistantAPIMessageRole(Enum):
 
 
 class AssistantAPIMessage(BaseModel):
-    class Config:
-        use_enum_values = True
-
+    model_config = ConfigDict(use_enum_values=True)
     role: AssistantAPIMessageRole
     content: str = ""
 
@@ -46,15 +44,14 @@ class AssistantStatus(Enum):
 
 
 class AssistantConversation(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     messages: list[AssistantAPIMessage] = []
     is_active: bool = True
     status: AssistantStatus = "in_progress"
     assistant_id: str = ""
     run_id: str = ""
     thread_id: str = ""
-
-    class Config:
-        use_enum_values = True
 
     @classmethod
     def from_ids(
@@ -250,6 +247,7 @@ class TicketUserState(BaseModel):
 
 
 class TicketProgress(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
     tracking_id: str
     username: str = ""
     context: TicketContext = TicketContext()
@@ -260,9 +258,6 @@ class TicketProgress(BaseModel):
     prev_dict: dict = Field(default_factory=dict)
     error_message: str = ""
     user_state: TicketUserState = TicketUserState()
-
-    class Config:
-        use_enum_values = True
 
     @classmethod
     def load(cls, tracking_id: str) -> TicketProgress:
@@ -284,9 +279,10 @@ class TicketProgress(BaseModel):
         try:
             if MONGODB_URI is None:
                 return None
-            if self.dict() == self.prev_dict:
+            if self.model_dump() == self.prev_dict:
                 return
-            current_dict = self.dict()
+            current_dict = self.model_dump()
+            print(current_dict)
             del current_dict["prev_dict"]
             self.prev_dict = current_dict
             db = global_mongo_client["progress"]
@@ -362,7 +358,7 @@ if __name__ == "__main__":
     #     + " https://discord.gg/sweep."
     # )
     # ticket_progress.status = TicketProgressStatus.ERROR
-    # ticket_progress.save()
+    ticket_progress.save(do_async=False)
     ticket_progress.wait()
     # new_ticket_progress = TicketProgress.load("test")
     # print(new_ticket_progress)
