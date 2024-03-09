@@ -331,15 +331,16 @@ def init_hatchet() -> Hatchet | None:
         class OnTicket:
             """Workflow for handling new tickets."""
 
-            @hatchet.concurrency(max_runs=1)
-            def get_concurrency_key(self, context: Context):
-                event_payload = context.workflow_input()
+            # temporarily removed
+            # @hatchet.concurrency(max_runs=1)
+            # def get_concurrency_key(self, context: Context):
+            #     event_payload = context.workflow_input()
 
-                return (
-                    event_payload.get("repo_full_name")
-                    + "-"
-                    + event_payload.get("issue_number")
-                )
+            #     return (
+            #         event_payload.get("repo_full_name")
+            #         + "-"
+            #         + event_payload.get("issue_number")
+            #     )
 
             @hatchet.step(timeout="60m")
             def run(self, context: Context):
