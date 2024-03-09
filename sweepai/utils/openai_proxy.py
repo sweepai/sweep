@@ -14,11 +14,12 @@ from sweepai.config.server import (
     OPENAI_API_VERSION,
 )
 from sweepai.core.entities import Message
+from sweepai.logn.cache import file_cache
 
 if BASERUN_API_KEY is not None:
     pass
 
-OPENAI_TIMEOUT = 60  # one minute
+OPENAI_TIMEOUT = 300  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
     "gpt-4-0125-preview",
@@ -48,22 +49,59 @@ RATE_LIMITS = {
 
 
 class OpenAIProxy:
-    # @file_cache(ignore_params=[])
+    @file_cache(ignore_params=[])
+    def call_openai_with_retry(
+        self,
+        model: str,
+        messages: list[Message],
+        tools: list[str] = [],
+        max_tokens: int = 256,
+        temperature: float = 0.0,
+        seed: int = 0,
+    ):
+        e = None
+        for current_max_tokens in [
+            max_tokens,
+            2 * max_tokens,
+            4 * max_tokens,
+            8 * max_tokens,
+            16 * max_tokens,
+        ]:
+            logger.info(f"Calling OpenAI with {current_max_tokens} tokens...")
+            try:
+                response = self.call_openai(
+                    model, messages, tools, current_max_tokens, temperature, seed
+                )
+                if response.choices[0].finish_reason != "length":
+                    return response
+                logger.warning(
+                    f"OpenAI call finish_reason returned {response.choices[0].finish_reason}, retrying with {current_max_tokens * 2}..."
+                )
+            except Exception as e:
+                logger.exception(
+                    f"Error calling OpenAI: {e}, retrying with {current_max_tokens * 2}..."
+                )
+        if e is not None:
+            raise Exception("OpenAI call failed") from e
+        raise Exception("OpenAI call failed")
+
+    @file_cache(ignore_params=[])
     def call_openai(
         self,
         model: str,
         messages: list[Message],
+        tools: list[str] = [],
         max_tokens: int = 4096,
         temperature: float = 0.0,
         seed: int = 0,
-    ) -> str:
+    ):
         try:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 response = self.set_openai_default_api_parameters(
                     model, messages, max_tokens, temperature
                 )
-                return response.choices[0].message.content
+                return response
             # validity checks for MULTI_REGION_CONFIG
             if (
                 MULTI_REGION_CONFIG is None
@@ -76,15 +114,11 @@ class OpenAIProxy:
                 )
                 if OPENAI_API_TYPE == "azure":
                     response = self.call_azure_api(
-                        model, messages, max_tokens, temperature
+                        model, messages, tools, max_tokens, temperature
                     )
                     return response
-                return (
-                    self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature
-                    )
-                    .choices[0]
-                    .message.content
+                return self.set_openai_default_api_parameters(
+                    model, messages, tools, max_tokens, temperature
                 )
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
@@ -103,10 +137,11 @@ class OpenAIProxy:
                         api_key,
                         model,
                         messages,
+                        tools,
                         max_tokens,
                         temperature,
                     )
-                    return response.choices[0].message.content
+                    return response
                 except Exception as e:
                     logger.exception(f"Error calling {region_url}: {e}")
             raise Exception("No Azure regions available")
@@ -116,16 +151,13 @@ class OpenAIProxy:
             try:
                 if OPENAI_API_TYPE == "azure":
                     response = self.call_azure_api(
-                        model, messages, max_tokens, temperature
+                        model, messages, tools, max_tokens, temperature
                     )
                     return response
-                return (
-                    self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature
-                    )
-                    .choices[0]
-                    .message.content
+                return self.set_openai_default_api_parameters(
+                    model, messages, tools, max_tokens, temperature
                 )
+
             except SystemExit:
                 raise SystemExit
             except Exception as _e:
@@ -150,7 +182,7 @@ class OpenAIProxy:
         return engine
 
     def create_openai_chat_completion(
-        self, engine, base_url, api_key, model, messages, max_tokens, temperature
+        self, engine, base_url, api_key, model, messages, tools, max_tokens, temperature
     ):
         client = AzureOpenAI(
             api_key=api_key,
@@ -158,49 +190,80 @@ class OpenAIProxy:
             api_version=OPENAI_API_VERSION,
             azure_deployment=AZURE_OPENAI_DEPLOYMENT,
         )
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=OPENAI_TIMEOUT,
-        )
+        if len(tools) == 0:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=OPENAI_TIMEOUT,
+            )
+        else:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=tools,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=OPENAI_TIMEOUT,
+            )
         return response
 
-    def call_azure_api(self, model, messages, max_tokens, temperature):
+    def call_azure_api(self, model, messages, tools, max_tokens, temperature):
         client = AzureOpenAI(
             api_key=AZURE_API_KEY,
             azure_endpoint=OPENAI_API_BASE,
             api_version=OPENAI_API_VERSION,
             azure_deployment=AZURE_OPENAI_DEPLOYMENT,
         )
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=OPENAI_TIMEOUT,
-        )
-        return response.choices[0].message.content
+        if len(tools) == 0:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=OPENAI_TIMEOUT,
+            )
+        else:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=tools,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=OPENAI_TIMEOUT,
+            )
+        return response
 
     def set_openai_default_api_parameters(
-        self, model, messages, max_tokens, temperature
+        self, model, messages, max_tokens, temperature, tools = []
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=OPENAI_TIMEOUT,
-            seed=SEED,
-        )
+        if len(tools) == 0:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=OPENAI_TIMEOUT,
+                seed=SEED,
+            )
+        else:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=tools,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=OPENAI_TIMEOUT,
+                seed=SEED,
+            )
         return response
 
 
 if __name__ == "__main__":
     openai_proxy = OpenAIProxy()
-    response = openai_proxy.call_openai(
+    response = openai_proxy.call_openai_with_retry(
         "gpt-4-0125-preview",
         [
             {

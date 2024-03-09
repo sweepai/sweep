@@ -58,6 +58,7 @@ def excel_col_to_int(s):
 MAX_CHARS = 32000
 TOOLS_MAX_CHARS = 20000
 
+
 # ensure that all additional_messages are 32768 characters at most, if not split them
 def ensure_additional_messages_length(additional_messages: list[Message]):
     for i, additional_message in enumerate(additional_messages):
@@ -80,6 +81,7 @@ def ensure_additional_messages_length(additional_messages: list[Message]):
                     )
     return additional_messages
 
+
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
     request: str,
@@ -95,6 +97,7 @@ def function_modify(
     seed: int = None,
 ):
     try:
+
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
             if assistant_conversation:
                 assistant_conversation.update_from_ids(
@@ -197,6 +200,9 @@ def function_modify(
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
+                            # only do this is replace_to_make is a dict
+                            if not isinstance(replace_to_make, dict):
+                                continue
                             for key in ["section_id", "old_code", "new_code"]:
                                 if key not in replace_to_make:
                                     error_message = f"Missing {key} in replace_to_make."
@@ -295,9 +301,7 @@ def function_modify(
                         if not matches:
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
-                            success_message = (
-                                "The keyword was found in the following sections:\n\n"
-                            )
+                            success_message = f"The keyword {keyword} was found in the following sections:\n\n"
                         for match_index in matches:
                             match = chunks[match_index]
                             match_lines = match.split("\n")
@@ -339,6 +343,8 @@ def function_modify(
                             f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords, view_sections calls to view surrounding sections, or continue to make changes by calling the search_and_replace function."
                         )
                 elif tool_name == "view_sections":
+                    error_message = ""
+                    success_message = ""
                     if "section_ids" not in tool_call:
                         error_message = "No section_ids found in tool call."
 
@@ -679,4 +685,5 @@ if __name__ == "__main__":
             }
         ),
         # additional_messages=additional_messages,
+        ticket_progress=TicketProgress(tracking_id="test_remove_assistant_1"),
     )
