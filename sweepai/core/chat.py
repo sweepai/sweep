@@ -267,7 +267,7 @@ class ChatGPT(MessageList):
                     messages=self.messages_dicts,
                     max_tokens=max_tokens - token_sub,
                     temperature=temperature,
-                )
+                ).choices[0].message.content
                 if self.chat_logger is not None:
                     self.chat_logger.add_chat(
                         {
