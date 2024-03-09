@@ -3,7 +3,7 @@ from time import time
 
 from loguru import logger
 
-from sweepai.config.client import SweepConfig
+from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.agents.query_filter_agent import QueryFilterAgent
 from sweepai.core.lexical_search import (
@@ -26,6 +26,8 @@ def get_top_k_snippets(
     k: int = 7,
 ):
     sweep_config: SweepConfig = SweepConfig()
+    blocked_dirs = get_blocked_dirs(cloned_repo.repo)
+    sweep_config.exclude_dirs += blocked_dirs
     _, snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo.cached_dir,
         sweep_config,

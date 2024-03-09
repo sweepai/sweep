@@ -25,6 +25,7 @@
     <h1 class="text-4xl font-bold">Welcome to Sweep AI</h1>
     <img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" alt="Sweeping GIF" class="w-64 h-64 mt-8 rounded-full">
     <h2 class="text-2xl mt-8">Sweep AI is up and running on <a id="dynamicUrl" href="http://localhost:8080" class="text-blue-400 hover:underline">http://localhost:8080</a></h2>
+    <code class="mt-4">Version {{version}}</code>
     <script>
         document.getElementById('dynamicUrl').textContent = window.location.href;
         document.getElementById('dynamicUrl').setAttribute("href", window.location.href);

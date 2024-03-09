@@ -71,7 +71,9 @@ class HumanMessagePrompt(BaseModel):
 
     @staticmethod
     def render_snippet_array(snippets, snippet_tag=None):
-        joined_snippets = "\n".join([snippet.xml for snippet in snippets])
+        joined_snippets = "\n".join(
+            [snippet.get_xml(add_lines=False) for snippet in snippets]
+        )
         start_snippet_tag = (
             "<relevant_snippets_in_repo>" if not snippet_tag else f"<{snippet_tag}>"
         )

@@ -207,7 +207,7 @@ def run_until_complete(
     model: str = DEFAULT_GPT4_32K_MODEL,
     chat_logger: ChatLogger | None = None,
     sleep_time: int = 3,
-    max_iterations: int = 200,
+    max_iterations: int = 2000,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     message_strings = []
@@ -224,34 +224,60 @@ def run_until_complete(
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made})"
                 )
-                break
+                done_response = yield "done", {
+                    "status": "completed",
+                    "message": "Run completed successfully",
+                }
+                if not done_response:
+                    break
+                else:
+                    run = client.beta.threads.runs.create(
+                        thread_id=thread_id,
+                        assistant_id=assistant_id,
+                        instructions=done_response,
+                        model=model,
+                    )
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
-                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                    f"Run completed with {run.status} (i={num_tool_calls_made}) and reason {run.last_error}."
                 )
-                raise Exception(
-                    f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
-                )
+                done_response = yield "done", {
+                    "status": run.status,
+                    "message": "Run failed",
+                }
+                if not done_response:
+                    raise Exception(
+                        f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
+                    )
+                else:
+                    run = client.beta.threads.runs.create(
+                        thread_id=thread_id,
+                        assistant_id=assistant_id,
+                        instructions=done_response,
+                        model=model,
+                    )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
                     raise AssistantRaisedException(
                         "Too many tool calls made on GPT 3.5."
                     )
-                tool_calls = [
+                raw_tool_calls = [
                     tool_call
                     for tool_call in run.required_action.submit_tool_outputs.tool_calls
                 ]
+                tool_outputs = []
+                tool_calls = []
                 if any(
                     [
                         tool_call.function.name == raise_error_schema["name"]
-                        for tool_call in tool_calls
+                        for tool_call in raw_tool_calls
                     ]
                 ):
                     arguments_parsed = json.loads(tool_calls[0].function.arguments)
                     raise AssistantRaisedException(arguments_parsed["message"])
-                tool_outputs = []
-                for tool_call in tool_calls:
+                # tool_calls = raw_tool_calls
+                for tool_call in raw_tool_calls:
                     try:
                         tool_call_arguments = re.sub(
                             r"\\+'", "", tool_call.function.arguments
@@ -268,9 +294,31 @@ def run_until_complete(
                             }
                         )
                         continue
-                    tool_output = yield tool_call.function.name, function_input
+                    tool_function_name = tool_call.function.name
+                    tool_function_input = function_input
+                    # OpenAI has a bug where it calls the imaginary function "multi_tool_use.parallel"
+                    # Based on https://github.com/phdowling/openai_multi_tool_use_parallel_patch/blob/main/openai_multi_tool_use_parallel_patch.py
+                    if tool_function_name in ("multi_tool_use.parallel", "parallel"):
+                        for fake_i, fake_tool_use in function_input["tool_uses"]:
+                            function_input = fake_tool_use["parameters"]
+                            function_name: str = fake_tool_use["recipient_name"]
+                            function_name = function_name.removeprefix("functions.")
+                            tool_calls.append(
+                                (
+                                    f"{tool_call.id}_{fake_i}",
+                                    function_name,
+                                    function_input,
+                                )
+                            )
+                    else:
+                        tool_calls.append(
+                            (tool_call.id, tool_function_name, tool_function_input)
+                        )
+
+                for tool_call_id, tool_function_name, tool_function_input in tool_calls:
+                    tool_output = yield tool_function_name, tool_function_input
                     tool_output_formatted = {
-                        "tool_call_id": tool_call.id,
+                        "tool_call_id": tool_call_id,
                         "output": tool_output,
                     }
                     tool_outputs.append(tool_output_formatted)
@@ -318,10 +366,14 @@ def run_until_complete(
             else:
                 if i % 5 == 0:
                     logger.info(run.status)
+            if i == max_iterations - 1:
+                logger.warning(
+                    f"run_until_complete hit max iterations, run.status is {run.status}"
+                )
             time.sleep(sleep_time)
     except (KeyboardInterrupt, SystemExit):
         client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
-        logger.warning(f"Run cancelled: {run_id} (i={num_tool_calls_made})")
+        logger.warning(f"Run cancelled: {run_id} (n={num_tool_calls_made})")
         raise SystemExit
     if save_ticket_progress is not None:
         save_ticket_progress(
@@ -330,7 +382,7 @@ def run_until_complete(
             run_id=run_id,
         )
     for json_message in json_messages:
-        logger.info(f'(i={num_tool_calls_made}) {json_message["content"]}')
+        logger.info(f'(n={num_tool_calls_made}) {json_message["content"]}')
     return client.beta.threads.messages.list(
         thread_id=thread_id,
     )
