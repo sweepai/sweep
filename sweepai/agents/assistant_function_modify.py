@@ -34,6 +34,9 @@ Your job is to make edits to the file to complete the user "# Request".
     - Write multiple small changes instead of a single large change.
 """
 
+# 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
+# - Make one change at a time.
+
 # TODO: fuzzy search for keyword_search
 
 
@@ -196,9 +199,11 @@ def function_modify(
                     elif len(tool_call["replaces_to_make"]) == 0:
                         error_message = "replace_to_make should not be empty."
                     else:
+                        success_messages = []
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
+                            current_new_contents = new_contents
                             # only do this is replace_to_make is a dict
                             if not isinstance(replace_to_make, dict):
                                 continue
@@ -245,40 +250,70 @@ def function_modify(
                             if new_chunk == chunk:
                                 logger.warning("No changes were made to the code.")
                             new_chunks[section_id] = new_chunk
-                            new_contents = new_contents.replace(chunk, new_chunk, 1)
+                            current_new_contents = current_new_contents.replace(
+                                chunk, new_chunk, 1
+                            )
+
+                            # Check if changes we're made
                             if new_contents == current_contents:
                                 logger.warning("No changes were made to the code.")
+
+                            # Check if the changes are valid
+                            if not error_message:
+                                is_valid, message = check_code(
+                                    file_path, current_new_contents
+                                )
+                                current_diff = generate_diff(
+                                    new_contents, current_new_contents
+                                )
+                                if is_valid:
+                                    success_messages.append(
+                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                                    )
+                                else:
+                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                                    break
+                                new_contents = current_new_contents
 
                     if not error_message and new_contents == current_contents:
                         error_message = "No changes were made, make sure old_code and new_code are not the same."
 
-                    if not error_message:
-                        # If the initial code failed, we don't need to/can't check the new code
-                        is_valid, message = (
-                            (True, "")
-                            if not initial_code_valid
-                            else check_code(file_path, new_contents)
-                        )
-                        if is_valid:
-                            diff = generate_diff(current_contents, new_contents)
-                            current_contents = new_contents
+                    # if not error_message:
+                    #     # If the initial code failed, we don't need to/can't check the new code
+                    #     is_valid, message = (
+                    #         (True, "")
+                    #         if not initial_code_valid
+                    #         else check_code(file_path, new_contents)
+                    #     )
+                    #     if is_valid:
+                    #         diff = generate_diff(current_contents, new_contents)
+                    #         current_contents = new_contents
 
-                            # Re-initialize
-                            success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
-                        else:
-                            diff = generate_diff(current_contents, new_contents)
-                            error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nPlease retry the search_and_replace with different changes that yield valid code."
+                    #         # Re-initialize
+                    #         success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                    #     else:
+                    #         diff = generate_diff(current_contents, new_contents)
+                    #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                    if not error_message:
+                        success_message = (
+                            "The following changes have been applied:\n\n"
+                            + generate_diff(current_contents, new_contents)
+                        )
+                        current_contents = new_contents
 
                     if error_message:
                         logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n{error_message}"
+                            f"ERROR\n\n"
+                            + "\n".join(
+                                f"{i}th replace to make:\n\n{message}"
+                                for i, message in enumerate(success_messages)
+                            )
+                            + f"\n{index}th replace to make: "
+                            + error_message
                         )
                     else:
                         logger.info(success_message)
-                        # tool_name, tool_call = assistant_generator.send(
-                        #     f"SUCCESS\nThe following changes have been applied: successfully\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
-                        # )
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\n\n{success_message}"
                         )
@@ -343,7 +378,7 @@ def function_modify(
                     else:
                         logger.debug(success_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or continue to make changes by calling the search_and_replace function."
+                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function."
                         )
                 elif tool_name == "view_sections":
                     error_message = ""
@@ -380,6 +415,9 @@ def function_modify(
 
                     if error_message:
                         logger.debug(error_message)
+                        import pdb
+
+                        pdb.set_trace()
                         tool_name, tool_call = assistant_generator.send(
                             f"ERROR\n\n{error_message}"
                         )
@@ -398,8 +436,7 @@ def function_modify(
             pass
         diff = generate_diff(file_contents, current_contents)
         if diff:
-            logger.info("Changes made:")
-            logger.info(diff[: min(1000, len(diff))])
+            logger.info("Changes made:\n\n" + diff)
         else:
             logger.warning("No changes were made.")
         if current_contents != file_contents:
