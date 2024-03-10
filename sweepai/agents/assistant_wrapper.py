@@ -56,6 +56,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     The result of the OpenAI client call.
     """
     error_message = None
+    e = None
     for attempt in range(num_retries):
         try:
             return call(*args, **kwargs, timeout=timeout)

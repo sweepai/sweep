@@ -304,7 +304,7 @@ def function_modify(
                     if error_message:
                         logger.error(error_message)
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n"
+                            "ERROR\n\n"
                             + "\n".join(
                                 f"{i}th replace to make:\n\n{message}"
                                 for i, message in enumerate(success_messages)
