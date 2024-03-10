@@ -42,7 +42,7 @@ search_and_replace_schema = {
             },
             "replaces_to_make": {
                 "type": "array",
-                "description": "Array of sections of code to modify",
+                "description": "Array of sections of code to modify.",
                 "items": {
                     "type": "object",
                     "properties": {
