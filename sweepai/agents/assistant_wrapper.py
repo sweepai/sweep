@@ -64,7 +64,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
             error_message = str(e)
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
-    )
+    ) from e
 
 
 save_ticket_progress_type = Callable[[str, str, str], None]
