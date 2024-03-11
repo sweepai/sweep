@@ -24,7 +24,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
-from hatchet_sdk import Context, Hatchet
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from sweepai.config.client import (
@@ -281,8 +280,10 @@ def progress(tracking_id: str = Path(...)):
     return ticket_progress.dict()
 
 
-def init_hatchet() -> Hatchet | None:
+def init_hatchet() -> "Hatchet" | None:
     try:
+        from hatchet_sdk import Context, Hatchet
+
         hatchet = Hatchet(debug=True)
 
         worker = hatchet.worker("github-worker")
