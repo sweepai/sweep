@@ -194,7 +194,7 @@ def run(issue_url: str):
 
     request = fetch_issue_request(issue_url)
 
-    cprint("\nRunning Sweep!\n")
+    cprint(f'\nRunning Sweep to solve "{request.issue.title}"!\n')
     on_ticket(
         title=request.issue.title,
         summary=request.issue.body,
