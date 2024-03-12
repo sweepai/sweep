@@ -315,6 +315,152 @@ def run_until_complete(
         #     )
 
 
+def run_until_complete2(
+    tools: list[dict[str, str]],
+    model: str = DEFAULT_GPT4_32K_MODEL,
+    chat_logger: ChatLogger | None = None,
+    sleep_time: int = 3,
+    max_iterations: int = 100,
+    save_ticket_progress: save_ticket_progress_type | None = None,
+    messages: list[Message] = [],
+):
+    # used for chat logger
+    for i in range(max_iterations):
+        # log our progress
+        if i % 5 == 0:
+            logger.info(
+                f"run_until_complete iteration {i}, current message length: {len(messages)}"
+            )
+        # if we are somehow about to hit the max iterations, log a warning
+        if i == max_iterations - 1:
+            logger.warning(
+                f"run_until_complete about to hit max iterations! iteration {i} out {max_iterations}"
+            )
+        # get the response from openai
+        try:
+            openai_proxy = OpenAIProxy()
+            response = openai_proxy.call_openai_with_retry(
+                model,
+                messages,
+                tools,
+                max_tokens=256,
+                temperature=0.0,
+                # set max tokens later
+            )
+        # sometimes deployment for opennai is not found, retry after a minute
+        except openai.NotFoundError as e:
+            logger.error(
+                f"Openai deployment not found on iteration {i} with error: {e}\n Retrying in 60 seconds..."
+            )
+            sleep(60)
+            continue
+        except Exception as e:
+            logger.error(f"chat completions failed on interation {i} with error: {e}")
+            sleep(sleep_time)
+            continue
+
+        response_message = response.choices[0].message
+        tool_calls = response_message.tool_calls
+        # extend conversation
+        response_message_dict = response_message.dict()
+        # in some cases the fields are None and we must replace these with empty strings
+        for key, value in response_message_dict.items():
+            if value is None:
+                response_message_dict[key] = ""
+        # if function_call is None we must remove it or else openai will throw an error
+        if response_message_dict.get("function_call", "not in dict") == "":
+            response_message_dict.pop("function_call")
+        if response_message_dict.get("tool_calls", "not in dict") == "":
+            response_message_dict.pop("tool_calls")
+
+        messages.append(response_message_dict)
+        # if a tool call was made
+        if tool_calls:
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+                tool_output = yield function_name, function_args
+                messages.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": tool_output,
+                    }
+                )  # extend conversation with function response
+                if not tool_output:
+                    break
+        else:  # no tool call being made implies either an error or a success
+            done_response = yield "done", {
+                "status": "completed",
+                "message": "Run completed successfully",
+            }
+            logger.info(
+                f"run_until_complete done_response: {done_response} completed after {i} iterations"
+            )
+            if not done_response:
+                break
+
+        # on each iteration of the for loop, we will log to chat_logger
+        if chat_logger is not None and len(messages):
+            descriptive_messages = [message for message in messages]
+            # for tool calls, the content is empty, replace that with the function contents
+            for message in descriptive_messages:
+                if message.get("content", "") == "" and "tool_calls" in message:
+                    # if there were multiple tool calls, add them both
+                    for tool_call in message["tool_calls"]:
+                        message[
+                            "content"
+                        ] += f"\n\ntool_call: {tool_call.get('function', '')}"
+            chat_logger.add_chat(
+                {
+                    "model": model,
+                    "messages": descriptive_messages,
+                    "output": descriptive_messages[-1]["content"],
+                    "max_tokens": 1000,
+                    "temperature": 0,
+                }
+            )
+        # update ticket_progress
+        # if save_ticket_progress is not None:
+        #     save_ticket_progress(
+        #         messages=messages
+        #     )
+
+
+def openai_assistant_call_helper2(
+    request: str,
+    instructions: str | None = None,
+    additional_messages: list[Message] = [],
+    file_paths: list[str] = [],  # use either file_paths or file_ids
+    uploaded_file_ids: list[str] = [],
+    tools: list[dict[str, str]] = [{"type": "code_interpreter"}],
+    model: str = DEFAULT_GPT4_32K_MODEL,
+    sleep_time: int = 3,
+    chat_logger: ChatLogger | None = None,
+    assistant_id: str | None = None,
+    assistant_name: str | None = None,
+    save_ticket_progress: save_ticket_progress_type | None = None,
+):
+    logger.debug(instructions)
+    messages = [{"role": "system", "content": instructions}]
+    for message in additional_messages:
+        messages.append({"role": message.role, "content": message.content})
+
+    # tools must always be > 1
+    if len(tools) > 1:
+        return run_until_complete2(
+            tools=tools,
+            messages=messages,
+            model=model,
+            chat_logger=chat_logger,
+            sleep_time=sleep_time,
+            save_ticket_progress=save_ticket_progress,
+        )
+    else:
+        raise Exception("openai_assistant_call_helper tools must be > 1")
+
+
 def openai_assistant_call_helper(
     request: str,
     instructions: str | None = None,
@@ -387,7 +533,7 @@ def openai_assistant_call(
     retries = range(3)
     for _ in retries:
         try:
-            response = openai_assistant_call_helper(
+            response = openai_assistant_call_helper2(
                 request=request,
                 instructions=instructions,
                 additional_messages=additional_messages,

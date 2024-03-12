@@ -99,7 +99,7 @@ class OpenAIProxy:
             engine = self.determine_openai_engine(model)
             if OPENAI_API_TYPE is None or engine is None:
                 response = self.set_openai_default_api_parameters(
-                    model, messages, max_tokens, temperature
+                    model, messages, tools, max_tokens, temperature
                 )
                 return response
             # validity checks for MULTI_REGION_CONFIG
@@ -236,7 +236,7 @@ class OpenAIProxy:
         return response
 
     def set_openai_default_api_parameters(
-        self, model, messages, max_tokens, temperature, tools = []
+        self, model, messages, tools, max_tokens, temperature
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         if len(tools) == 0:
