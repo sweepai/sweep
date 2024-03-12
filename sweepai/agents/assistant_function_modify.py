@@ -149,7 +149,7 @@ def function_modify(
             ),
         ]
         # make sure all additional messages are < 32k chars long
-        additional_messages = ensure_additional_messages_length(additional_messages)
+        # additional_messages = ensure_additional_messages_length(additional_messages)
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
@@ -271,7 +271,7 @@ def function_modify(
                                         f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                                     )
                                 else:
-                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
                                     break
                                 new_contents = current_new_contents
 
@@ -293,7 +293,7 @@ def function_modify(
                     #         success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                     #     else:
                     #         diff = generate_diff(current_contents, new_contents)
-                    #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                    #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
                     if not error_message:
                         success_message = (
                             "The following changes have been applied:\n\n"
