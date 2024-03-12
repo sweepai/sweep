@@ -56,6 +56,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     The result of the OpenAI client call.
     """
     error_message = None
+    e = None
     for attempt in range(num_retries):
         try:
             return call(*args, **kwargs, timeout=timeout)
@@ -64,7 +65,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
             error_message = str(e)
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
-    )
+    ) from e
 
 
 save_ticket_progress_type = Callable[[str, str, str], None]
@@ -222,12 +223,12 @@ def run_until_complete(
         # get the response from openai
         try:
             openai_proxy = OpenAIProxy()
-            response = openai_proxy.call_openai_with_retry(
+            response = openai_proxy.call_openai(
                 model,
                 messages,
                 tools,
-                max_tokens=256,
-                temperature=0.0,
+                max_tokens=2048,
+                temperature=0.2,
                 # set max tokens later
             )
         # sometimes deployment for opennai is not found, retry after a minute
@@ -274,7 +275,9 @@ def run_until_complete(
                 if not tool_output:
                     break
         else:  # no tool call being made implies either an error or a success
-            logger.info(f"no tool calls were made, we are done - message: {response_message}")
+            logger.info(
+                f"no tool calls were made, we are done - message: {response_message}"
+            )
             done_response = yield "done", {
                 "status": "completed",
                 "message": "Run completed successfully",
@@ -343,6 +346,7 @@ def openai_assistant_call_helper(
         )
     else:
         raise Exception("openai_assistant_call_helper tools must be > 1")
+
 
 # Split in two so it can be cached
 def openai_assistant_call(

@@ -1,5 +1,6 @@
 {
-    "vector-db-implementation": " Our simple vector database implementation",
+    "vector-db-implementation": "🧭 Our simple vector database implementation",
+    "soc2": "🔒 Sweep's SOC 2 Compliant and Enterprise Offering",
     "llm-sdk": "🎉 Releasing our Open Source LLM Framework + Playground!",
     "refactor-python": "📝 Large Language Models are Bad at Refactoring Code",
     "openai-proxy": "🕸️ A Simple Proxy for Azure and OpenAI raised our GPT4 TPM limit by 24x",

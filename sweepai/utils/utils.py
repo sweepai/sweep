@@ -245,9 +245,9 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     error_location = find_deepest_error(tree.root_node)
     if error_location:
         line_number, _ = error_location.start_point
-        error_start = max(0, line_number - 10)
-        error_span = "\n".join(code.split("\n")[error_start:line_number])
-        error_message = f"Invalid syntax found within or before the lines {error_start}-{line_number}, displayed below:\n{error_span}"
+        error_start = max(0, line_number - 20)
+        error_span = "\n".join(code.split("\n")[error_start : line_number + 10])
+        error_message = f"Invalid syntax found around lines {error_start}-{line_number}, displayed below:\n{error_span}"
         return (False, error_message)
     return True, ""
 
