@@ -165,7 +165,6 @@ dependencies = [
   "pycubexr==1.2.1",
   "pydantic==2.6.3",
   "pydantic_core==2.16.3",
-  "pydeck==0.8.1b0",
   "pydot==2.0.0",
   "pyee==9.0.4",
   "pyflakes==3.1.0",
