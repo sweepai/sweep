@@ -6,7 +6,7 @@ import json
 import subprocess
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from fastapi import (
@@ -280,7 +280,7 @@ def progress(tracking_id: str = Path(...)):
     return ticket_progress.dict()
 
 
-def init_hatchet() -> "Hatchet" | None:
+def init_hatchet() -> Any | None:
     try:
         from hatchet_sdk import Context, Hatchet
 

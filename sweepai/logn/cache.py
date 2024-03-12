@@ -52,7 +52,7 @@ def file_cache(ignore_params=[], verbose=False):
     """
 
     def decorator(func):
-        if not DEBUG:
+        if not DEBUG or True:
             print("File cache is disabled.")
             return func
 
