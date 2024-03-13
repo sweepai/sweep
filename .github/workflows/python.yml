@@ -17,11 +17,13 @@ on:
       - 'tests/**'
 
 jobs:
-  build-and-test:
+  setup-and-dependencies:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.10", "3.11"]
+    outputs:
+      cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -32,6 +34,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Cache Python dependencies
+      id: cache-dependencies
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
@@ -44,6 +47,18 @@ jobs:
         pip install -r requirements.txt
         pip install black ruff pylint uvicorn pytest
 
+  code-quality:
+    needs: setup-and-dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Use Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11 # Choose based on your project's needs
+
     - name: Format code with Black
       run: black --check .
 
@@ -53,10 +68,34 @@ jobs:
     - name: Lint with Pylint
       run: pylint sweepai --errors-only
 
+  unit-tests:
+    needs: setup-and-dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Use Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11 # Choose based on your project's needs
+
     - name: Run Unit Tests
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: python -m unittest sweepai/**/*_test.py
+
+  e2e-tests:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11 # Choose based on your project's needs
 
     - name: Set up Redis (for e2e tests)
       run: |
