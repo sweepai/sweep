@@ -3,7 +3,7 @@ import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
 # Self-Hosting Sweep via Docker
 
-<Callout type="info">This is a guide for self-hosting Sweep. To use a hosted version please visit https://github.com/apps/sweep-ai</Callout>
+<Callout type="info">This is a guide for self-hosting Sweep. If you are interested in our hosted version please visit https://github.com/apps/sweep-ai.</Callout>
 
 This guide is for self-hosting the Sweep GitHub App, which can serve many repositories at once. If you are looking to try out Sweep on a few example GitHub issues, see [Sweep CLI](/cli).
 
@@ -14,7 +14,7 @@ Setting up the Sweep GitHub App involves:
 For help setting up Sweep please contact us at team@sweep.dev.
 
 <Steps>
-### 1. Create GitHub App
+### Create GitHub App
 
 <Tabs items={['Automatic (recommended)', 'Manual']}>
 <Tabs.Tab>
@@ -142,7 +142,7 @@ GITHUB_BOT_USERNAME=sweep-example-name
 
 ---
 
-### 2. OpenAI API key
+### OpenAI API key
 
 Create an [OpenAI API key](https://platform.openai.com/account/api-keys) and add it to your `.env`:
 ```sh filename=".env"
@@ -152,7 +152,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-### 3. Hosting Sweep
+### Hosting Sweep
 
 To host Sweep you need to run the Sweep webhook on a publicly accessible server. We recommend using a cloud provider(DigitalOcean, AWS, or Azure) but you can also run it locally and use a reverse proxy like Ngrok.
 

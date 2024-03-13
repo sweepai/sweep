@@ -5,12 +5,12 @@ import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
 Sweep CLI is a way to try out Sweep without the data entering our servers. It's a great way to get started and see how Sweep works.
 
-<Callout type="info">This is a guide for running the Sweep CLI. To use a hosted version please visit https://github.com/apps/sweep-ai, and to self-host the GitHub App, visit [here](/deployment).</Callout>
+<Callout type="info">This is a guide for running the Sweep CLI. To use our hosted version please visit https://github.com/apps/sweep-ai, and to self-host the GitHub App, visit [here](/deployment).</Callout>
 
 <Callout type="warning">Prerequisites: you need Python 3.10 and pip installed.</Callout>
 
 <Steps>
-### Step 1: GitHub Personal Access Token
+### GitHub Personal Access Token
 
 To allow Sweep to access your repo(s), create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow). Sweep will run entirely locally, and no code will be shared outside of OpenAI's API and GitHub.
 
@@ -21,7 +21,7 @@ REPO=your-username/your-repo
 GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### Step 2: OpenAI API Key
+### OpenAI API Key
 
 Please create an OpenAI API token at https://platform.openai.com/account/api-keys and add it to your `.env` file which should now look like this:
 ```sh filename=".env"
@@ -30,13 +30,13 @@ GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### Step 3: Install the Sweep CLI
+### Install the Sweep CLI
 
 ```sh filename="terminal"
 pip install sweepai
 ```
 
-### Step 4: Run the Sweep CLI
+### Run the Sweep CLI
 
 Create a GitHub Issue like "Add Sweep to my repo" in your repo, and run the following command:
 
