@@ -17,6 +17,7 @@ RUN /install.sh && rm /install.sh
 
 COPY requirements.txt ./
 
+COPY redis.conf /app/redis.conf
 RUN /root/.cargo/bin/uv pip install --no-cache -r requirements.txt
 
 RUN npm install -g prettier @types/react @types/react-dom typescript
