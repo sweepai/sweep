@@ -1,0 +1,79 @@
+name: Full CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install black ruff pylint uvicorn pytest
+
+    - name: Format code with Black
+      run: black --check .
+
+    - name: Lint with Ruff
+      run: ruff check sweepai
+
+    - name: Lint with Pylint
+      run: pylint sweepai --errors-only
+
+    - name: Run Unit Tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: python -m unittest sweepai/**/*_test.py
+
+    - name: Set up Redis (for e2e tests)
+      run: |
+        sudo apt-get update
+        sudo apt-get install redis-server
+        sudo lsof -i :6379 || true
+
+    - name: Run e2e Tests
+      env:
+        GITHUB_PAT: ${{ secrets.GH_PAT }}
+        GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
+        OPENAI_API_TYPE: azure
+        OPENAI_API_BASE: ${{ secrets.GH_OPENAI_API_BASE }}
+        OPENAI_API_VERSION: 2024-02-15-preview
+        AZURE_API_KEY: ${{ secrets.GH_AZURE_API_KEY }}
+        AZURE_OPENAI_DEPLOYMENT: ${{ secrets.GH_AZURE_OPENAI_DEPLOYMENT }}
+      run: PYTHONPATH=. pytest -n 4 tests/e2e -s
+      timeout-minutes: 30
