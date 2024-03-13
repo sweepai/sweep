@@ -218,17 +218,17 @@ def init(override: bool = False):
             abort=True,
         )
     cprint(
-        f"\n[bold black on white]  Initializing Sweep CLI...  [/bold black on white]\n",
+        "\n[bold black on white]  Initializing Sweep CLI...  [/bold black on white]\n",
     )
     cprint(
-        f"Firstly, we'll need your OpenAI API Key. You can get it here: https://platform.openai.com/api-keys\n",
+        "Firstly, we'll need your OpenAI API Key. You can get it here: https://platform.openai.com/api-keys\n",
         style="yellow",
     )
     openai_api_key = Prompt.ask("OpenAI API Key", password=True)
     assert len(openai_api_key) > 30, "OpenAI API Key must be of length at least 30."
     assert openai_api_key.startswith("sk-"), "OpenAI API Key must start with 'sk-'."
     cprint(
-        f"\nGreat! Next, we'll need your GitHub PAT. Here's a link with all the permissions pre-filled:\nhttps://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow\n",
+        "\nGreat! Next, we'll need your GitHub PAT. Here's a link with all the permissions pre-filled:\nhttps://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow\n",
         style="yellow",
     )
     github_pat = Prompt.ask("GitHub PAT", password=True)
@@ -246,7 +246,7 @@ def init(override: bool = False):
     cprint(f"\nConfiguration saved to {config_path}\n", style="yellow")
 
     cprint(
-        f"Installation complete! You can now run [green]'sweep run <issue-url>'[/green][yellow] to run Sweep on an issue. or [/yellow][green]'sweep watch <org-name>/<repo-name>'[/green] to have Sweep listen for and fix newly created GitHub issues.",
+        "Installation complete! You can now run [green]'sweep run <issue-url>'[/green][yellow] to run Sweep on an issue. or [/yellow][green]'sweep watch <org-name>/<repo-name>'[/green] to have Sweep listen for and fix newly created GitHub issues.",
         style="yellow",
     )
 
