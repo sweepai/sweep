@@ -15,7 +15,7 @@ from rich.console import Console
 
 from sweepai.api import handle_request
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.utils.github_utils import get_github_client, get_installation_id
+from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.str_utils import get_hash
 from sweepai.web.events import Account, Installation, IssueRequest
 
@@ -36,7 +36,7 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
         issue_number,
     ) = issue_url.split("/")
     cprint("Fetching installation ID...")
-    installation_id = get_installation_id(org_name)
+    installation_id = -1
     cprint("Fetching access token...")
     _token, g = get_github_client(installation_id)
     g: Github = g
