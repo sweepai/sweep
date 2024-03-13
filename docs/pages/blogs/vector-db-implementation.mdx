@@ -67,7 +67,6 @@ except requests.exceptions.Timeout as e:
     logger.exception(f"Timeout error occured while embedding: {e}")
 except BadRequestError as e:
     try:
-
         # 4. If we get a BadRequestError, truncate the text and try again
         batch = [truncate_string_tiktoken(text) for text in batch] # truncation is slow, so we only do it if we have to
         new_embeddings = openai_call_embedding(batch)
