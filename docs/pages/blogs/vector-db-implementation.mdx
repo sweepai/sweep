@@ -8,10 +8,9 @@ Standard vector databases worked great for Sweep when we had a single index, but
 Our backend consists of a single docker image that handles vector search over hundreds of repositories, each with a few thousand files.
 
 ## Code Walkthrough
-Here’s our implementation: https://github.com/sweepai/sweep/blob/main/docs/public/redis_vector_db.py. <br/>
-To use it you can copy and paste our code into your project and then start Redis with `docker run -p 6379:6379 -d redis`.
-
-You'll need to install the following packages:
+Here’s our implementation: https://github.com/sweepai/sweep/blob/main/docs/public/redis_vector_db.py.<br/>
+To use it you can copy and paste our code into your project and then start Redis with `docker run -p 6379:6379 -d redis`.<br/>
+You'll need to install the following packages:<br/>
 ```requirements.txt
 numpy
 redis
@@ -20,7 +19,7 @@ tiktoken
 openai
 ```
 
-Here's a usage example:
+Here's a usage example:<br/>
 ```python
 from redis_vector_db import get_most_similar_texts
 
@@ -31,7 +30,7 @@ most_similar_texts = get_most_similar_texts(query, texts)
 # most_similar_texts is a sorted list of the most similar texts to the query
 ```
 
-We have a couple of configuration options:
+We also added a couple of configuration options:
 | Config             | Value                                            | Description                                                                                             |
 |-----------------------|--------------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `BATCH_SIZE`          | `512`                                            | The number of texts that will be fetched from redis/embedded at once. |
@@ -101,23 +100,21 @@ We designed our vector database in this way because it’s simple and reliable. 
 #### Requirements 
 
 - We need to handle hundreds of codebases with frequent updates
-    - This architecture does not require any indices. Typically in Pinecone you’d have separate repositories under different namespaces https://docs.pinecone.io/reference/fetch. 
-This makes a lot of sense if we have small amount of very large indices, but becomes cumbersome because we have many small indices. We’d also have to manage the reindexing as each user pushes code to their repos (multiple times an hour).
+    - This architecture does not require any indices. Typically in Pinecone you’d have separate repositories under different namespaces (https://docs.pinecone.io/reference/fetch).
+    - This makes a lot of sense for a small amount of indices, but becomes cumbersome with a large amount of indices. We’d also have to manage the reindexing as each user pushes code to their repos (multiple times an hour).
 
 - Reliability and developer experience
     - Using an external store introduces another dependency for us. We’d have to handle when Pinecone fails, and it’s not as easily self-hostable.
-Learning how to use a new API and manage new infrastructure was not worth it in this case.
+    - Learning how to use a new API and manage new infrastructure was not worth it in this case.
 
 #### Non-requirements
-- This approach has high latency.
+- This approach is relatively slow (~1 second per query). We don’t need sub-second latency for our generating pull requests because our GPT4 calls are much slower. 
     - This is because we process/cache the entire index at runtime. We key our cache on the actual content’s SHA256 hash.
-A codebase doesn’t tend to change a substantial percentage of it’s files day-to-day. So if we use the actual contents as a hash, we only have to re-embed the diffs. This lets us completely skip offline indexing, simplifying our vector db implementation.
-
-#### Non-requirement 
+    - A codebase doesn’t tend to change a substantial percentage of it’s files day-to-day. So if we use the actual contents as a hash, we only have to re-embed the diffs. This lets us completely skip offline indexing, simplifying our vector db implementation.
 
 - 1M+ embeddings in a single index
     - This approach doesn’t scale well for indices with 1M+ embeddings. Fortunately for us that hasn’t been a problem yet because the codebases we work with do not usually exceed 30k files.
-We recently began embedding larger chunks, giving us a chunks:doc ratio of about 1.5 or ~45k files. This takes about 1 second to serve, and we own all of the infrastructure!
+    - We recently began embedding larger chunks, giving us a chunks:doc ratio of about 1.5 or ~45k files. This takes about 1 second to serve, and we own all of the infrastructure!
 
 ## Conclusion
 I don't think everyone needs a separate dependency for their vector database. Depending on how you value development speed, reliability, and latency, you might be better off with a simple self-hosted solution like ours.
