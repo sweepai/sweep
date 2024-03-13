@@ -8,7 +8,7 @@ from openai import OpenAI
 from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
 from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
 from openai.types.beta.threads.thread_message import ThreadMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
@@ -27,9 +27,7 @@ class AssistantAPIMessageRole(Enum):
 
 
 class AssistantAPIMessage(BaseModel):
-    class Config:
-        use_enum_values = True
-
+    model_config = ConfigDict(use_enum_values=True)
     role: AssistantAPIMessageRole
     content: str = ""
 
@@ -46,15 +44,13 @@ class AssistantStatus(Enum):
 
 
 class AssistantConversation(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
     messages: list[AssistantAPIMessage] = []
     is_active: bool = True
     status: AssistantStatus = "in_progress"
     assistant_id: str = ""
     run_id: str = ""
     thread_id: str = ""
-
-    class Config:
-        use_enum_values = True
 
     @classmethod
     def from_ids(
@@ -192,8 +188,7 @@ class TicketProgressStatus(Enum):
 
 
 class SearchProgress(BaseModel):
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
     indexing_progress: int = 0
     indexing_total: int = 0
@@ -242,14 +237,13 @@ class TicketUserStateTypes(Enum):
 
 
 class TicketUserState(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
     state_type: TicketUserStateTypes = TicketUserStateTypes.RUNNING
     waiting_deadline: int = 0
 
-    class Config:
-        use_enum_values = True
-
 
 class TicketProgress(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
     tracking_id: str
     username: str = ""
     context: TicketContext = TicketContext()
@@ -260,9 +254,6 @@ class TicketProgress(BaseModel):
     prev_dict: dict = Field(default_factory=dict)
     error_message: str = ""
     user_state: TicketUserState = TicketUserState()
-
-    class Config:
-        use_enum_values = True
 
     @classmethod
     def load(cls, tracking_id: str) -> TicketProgress:

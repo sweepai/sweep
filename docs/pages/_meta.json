@@ -1,8 +1,9 @@
 {
   "index": "What's Sweep?",
   "getting-started": "🚀 Getting Started",
-  "assistant": "🧪 Sweep Assistant",
+  "cli": "🔧 Sweep CLI",
   "deployment": "🏠 Self-Host",
+  "assistant": "🧪 Sweep Assistant",
   "usage": "📖 Usage",
   "about": "👋 About",
   "faq": "❓ FAQ",

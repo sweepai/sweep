@@ -1,15 +1,25 @@
 import json
+import multiprocessing
 from typing import Generator
 
 import backoff
 import numpy as np
+import requests
 from loguru import logger
 from openai import AzureOpenAI, OpenAI
 from redis import Redis
-import requests
 from tqdm import tqdm
 
-from sweepai.config.server import BATCH_SIZE, OPENAI_API_TYPE, OPENAI_EMBEDDINGS_AZURE_API_KEY, OPENAI_EMBEDDINGS_AZURE_API_VERSION, OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT, OPENAI_EMBEDDINGS_AZURE_ENDPOINT, REDIS_URL, OPENAI_EMBEDDINGS_API_TYPE
+from sweepai.config.server import (
+    BATCH_SIZE,
+    OPENAI_API_TYPE,
+    OPENAI_EMBEDDINGS_API_TYPE,
+    OPENAI_EMBEDDINGS_AZURE_API_KEY,
+    OPENAI_EMBEDDINGS_AZURE_API_VERSION,
+    OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
+    OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
+    REDIS_URL,
+)
 from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.utils import Tiktoken
@@ -52,7 +62,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
 def get_query_texts_similarity(query: str, texts: str) -> float:
     embeddings = embed_text_array(texts)
     embeddings = np.concatenate(embeddings)
-    query_embedding = embed_text_array([query])[0]
+    query_embedding = np.array(embed_text_array([query])[0])
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
@@ -71,21 +81,12 @@ def normalize_l2(x):
 
 
 # lru_cache(maxsize=20)
-def embed_text_array(texts: tuple[str]):
-    logger.info(f"Computing embeddings for {len(texts)} texts using openai...")
+def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
-    chunks = list(chunk(texts, batch_size=BATCH_SIZE))
-    for batch in tqdm(
-        chunks, disable=False, desc="openai embedding", total=len(chunks)
-    ):
-        try:
-            # prepend each text with a prompt
-            embeddings.append(openai_with_expo_backoff(batch))
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.exception("Failed to get embeddings for batch")
-            raise e
+    texts = [text if text else " " for text in texts]
+    batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
+        embeddings = list(tqdm(pool.imap(openai_with_expo_backoff, batches), total=len(batches), desc="openai embedding"))
     return embeddings
 
 
@@ -132,7 +133,9 @@ def openai_with_expo_backoff(batch: tuple[str]):
     except Exception as e:
         logger.exception(e)
         if any(tiktoken_client.count(text) > 8192 for text in batch):
-            logger.warning(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
+            logger.warning(
+                f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens."
+            )
             batch = [tiktoken_client.truncate_string(text) for text in batch]
             new_embeddings = openai_call_embedding(batch)
     # get all indices where embeddings are None
@@ -142,13 +145,17 @@ def openai_with_expo_backoff(batch: tuple[str]):
     for i, index in enumerate(indices):
         embeddings[index] = new_embeddings[i]
     # store in cache
-    redis_client.mset(
-        {
-            cache_key: json.dumps(embedding.tolist())
-            for cache_key, embedding in zip(cache_keys, embeddings)
-        }
-    )
-    embeddings = np.array(embeddings)
+    try:
+        redis_client.mset(
+            {
+                cache_key: json.dumps(embedding.tolist())
+                for cache_key, embedding in zip(cache_keys, embeddings)
+            }
+        )
+        embeddings = np.array(embeddings)
+    except Exception as e:
+        logger.error(str(e))
+        logger.error("Failed to store embeddings in cache, returning without storing")
     return embeddings
 
 
