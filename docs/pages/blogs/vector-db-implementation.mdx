@@ -2,10 +2,11 @@
 **William Zeng** - March 12th, 2024
 
 ---
+<div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+    <img src="/covers/vector_db.png" alt="Colorful image of a vector database" style={{ width: "800px" }} />
+</div>
 
-Standard vector databases worked great for Sweep when we had a single index, but they became a pain as we started managing multiple indices, frequent updates, and self-hosting. We started with Chroma as our vector database but decided to go with something we built ourselves.
-
-Our backend consists of a single docker image that handles vector search over hundreds of repositories, each with a few thousand files.
+Standard vector databases worked great for Sweep when we had a single index, but they became a pain as we started managing multiple indices, frequent updates, and self-hosting. Our backend consists of a single docker image that handles vector search over hundreds of repositories, each with a few thousand files.
 
 ## Code Walkthrough
 Here’s our implementation: https://github.com/sweepai/sweep/blob/main/docs/public/redis_vector_db.py.<br/>
