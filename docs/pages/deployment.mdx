@@ -47,10 +47,9 @@ npm start
 
 Second, open http://localhost:3000 in your browser, and:
 1. Click the "Register GitHub App" button.
-2. Click the green "Create GitHub App for USERNAME" button.
-3. Pick where to install the app and then click the green "Install" button.
+2. Choose which repositories you'd like to install your app on and then click "Install".
 
-Now, stop the server by pressing `Ctrl+C` in the terminal. Once it has stopped, open the `.env` file in the `sweep/probot` directory. You should see something like this:
+You can now stop the Probot server. Once it has stopped, open the `.env` file in `sweep/probot`. You should see something like this:
 
 ```sh filename=".env"
 APP_ID=123456
@@ -221,7 +220,7 @@ http://YOUR_IP:8080
 ```
 
 Navigating to this link should look like this:
-<img src="/deployment/digitalocean_step7.png" alt="Skip Resources Page" />
+{/* <img src="/deployment/digitalocean_step7.png" alt="Skip Resources Page" /> */}
 
 Go to your GitHub app and update `Webhook URL` to the link above.
 
@@ -234,7 +233,7 @@ For organizations:
 ```txt /GITHUB_BOT_USERNAME/, /YOUR_ORGANIZATION/
 https://github.com/YOUR_ORGANIZATION/sweepai/settings/apps/GITHUB_BOT_USERNAME
 ```
-<img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" />
+{/* <img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" /> */}
 </Tabs.Tab>
 
 <Tabs.Tab>
