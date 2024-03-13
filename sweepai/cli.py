@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import pickle
 import threading
@@ -12,6 +13,7 @@ from github.IssueEvent import IssueEvent
 from github.Repository import Repository
 from loguru import logger
 from rich.console import Console
+from rich.prompt import Prompt
 
 from sweepai.api import handle_request
 from sweepai.handlers.on_ticket import on_ticket
@@ -20,9 +22,20 @@ from sweepai.utils.str_utils import get_hash
 from sweepai.web.events import Account, Installation, IssueRequest
 
 app = typer.Typer()
+app_dir = typer.get_app_dir("sweepai")
+config_path = os.path.join(app_dir, "config.json")
 
 console = Console()
 cprint = console.print
+
+if os.path.exists(config_path):
+    cprint(f"\nLoading configuration from {config_path}", style="yellow")
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    GITHUB_PAT = config.get("GITHUB_PAT", "")
+    os.environ["GITHUB_PAT"] = config.get("GITHUB_PAT", "")
+    OPENAI_API_KEY = config.get("OPENAI_API_KEY", "")
+    os.environ["OPENAI_API_KEY"] = config.get("OPENAI_API_KEY", "")
 
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
@@ -101,6 +114,14 @@ def watch(
     record_events: bool = False,
     max_events: int = 30,
 ):
+    if not os.path.exists(config_path):
+        cprint(
+            f"\nConfiguration not found at {config_path}. Please run [green]'sweep init'[/green] to initialize the CLI.\n",
+            style="yellow",
+        )
+        raise ValueError(
+            "Configuration not found, please run 'sweep init' to initialize the CLI."
+        )
     GITHUB_PAT = os.environ.get("GITHUB_PAT", None)
     if GITHUB_PAT is None:
         raise ValueError("GITHUB_PAT environment variable must be set")
@@ -189,7 +210,58 @@ def watch(
 
 
 @app.command()
+def init(override: bool = False):
+    if os.path.exists(config_path) and not override:
+        override = typer.confirm(
+            f"\nConfiguration already exists at {config_path}. Override?",
+            default=False,
+            abort=True,
+        )
+    cprint(
+        f"\n[bold black on white]  Initializing Sweep CLI...  [/bold black on white]\n",
+    )
+    cprint(
+        f"Firstly, we'll need your OpenAI API Key. You can get it here: https://platform.openai.com/api-keys\n",
+        style="yellow",
+    )
+    openai_api_key = Prompt.ask("OpenAI API Key", password=True)
+    assert len(openai_api_key) > 30, "OpenAI API Key must be of length at least 30."
+    assert openai_api_key.startswith("sk-"), "OpenAI API Key must start with 'sk-'."
+    cprint(
+        f"\nGreat! Next, we'll need your GitHub PAT. Here's a link with all the permissions pre-filled:\nhttps://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow\n",
+        style="yellow",
+    )
+    github_pat = Prompt.ask("GitHub PAT", password=True)
+    assert len(github_pat) > 30, "GitHub PAT must be of length at least 30."
+    assert github_pat.startswith("ghp_"), "GitHub PAT must start with 'ghp_'."
+
+    config = {
+        "GITHUB_PAT": github_pat,
+        "OPENAI_API_KEY": openai_api_key,
+    }
+    os.makedirs(app_dir, exist_ok=True)
+    with open(config_path, "w") as f:
+        json.dump(config, f)
+
+    cprint(f"\nConfiguration saved to {config_path}\n", style="yellow")
+
+    cprint(
+        f"Installation complete! You can now run [green]'sweep run <issue-url>'[/green][yellow] to run Sweep on an issue. or [/yellow][green]'sweep watch <org-name>/<repo-name>'[/green] to have Sweep listen for and fix newly created GitHub issues.",
+        style="yellow",
+    )
+
+
+@app.command()
 def run(issue_url: str):
+    if not os.path.exists(config_path):
+        cprint(
+            f"\nConfiguration not found at {config_path}. Please run [green]'sweep init'[/green] to initialize the CLI.\n",
+            style="yellow",
+        )
+        raise ValueError(
+            "Configuration not found, please run 'sweep init' to initialize the CLI."
+        )
+
     cprint(f"\n  Running Sweep on issue: {issue_url}  \n", style="bold black on white")
 
     request = fetch_issue_request(issue_url)
