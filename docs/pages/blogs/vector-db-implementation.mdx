@@ -38,7 +38,7 @@ We also added a couple of configuration options:
 | `CACHE_VERSION`       | `"v0.0.1"`                                       | If you change the format/model for the embeddings, you should change this to avoid incorrect cache hits. |
 | `DIMENSIONS_TO_KEEP`  | `512`                                            | The number of dimensions to keep from the OpenAI embeddings. 512 dimensions worked best in this case.  |
 
-This is our main loop. It turns a batch of texts into embeddings, handling cache reads and writes as it goes.
+This is our main loop. It turns a batch of texts into embeddings, handling cache reads and writes.
 ```python
 # 0. If we don't have a redis client, just call openai
 if not redis_client:
