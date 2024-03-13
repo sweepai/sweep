@@ -193,16 +193,18 @@ def function_modify(
                     success_message = ""
                     new_contents = current_contents
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
-
+                    success_messages = []
+                    error_index = 0
                     if "replaces_to_make" not in tool_call:
                         error_message = "No replaces_to_make found in tool call."
                     elif len(tool_call["replaces_to_make"]) == 0:
                         error_message = "replace_to_make should not be empty."
                     else:
-                        success_messages = []
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
+                            # error_index is last index before we break from this for loop
+                            error_index = index
                             current_new_contents = new_contents
                             # only do this is replace_to_make is a dict
                             if not isinstance(replace_to_make, dict):
@@ -309,7 +311,7 @@ def function_modify(
                                 f"{i}th replace to make:\n\n{message}"
                                 for i, message in enumerate(success_messages)
                             )
-                            + f"\n{index}th replace to make: "
+                            + f"\n{error_index}th replace to make: "
                             + error_message
                         )
                     else:

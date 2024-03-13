@@ -393,6 +393,7 @@ def parse_query_for_files(query: str, rcm: RepoContextManager) -> tuple[RepoCont
     # use cloned_repo to attempt to find any files names that appear in the query
     repo_full_name = rcm.cloned_repo.repo_full_name
     repo_name = repo_full_name.split("/")[-1]
+    repo_group_name = repo_full_name.split("/")[0]
     code_files_to_add = set([])
     code_files_to_check = set(list(rcm.cloned_repo.get_file_list()))
     code_files_uri_encoded = [urllib.parse.quote(file_path) for file_path in code_files_to_check]
@@ -403,7 +404,7 @@ def parse_query_for_files(query: str, rcm: RepoContextManager) -> tuple[RepoCont
         rcm.append_relevant_file_paths(code_file)
     # only for enterprise
     try:
-        pathing = f"ee/import_graphs/{repo_full_name}/{repo_name}_import_tree.txt"
+        pathing = f"{repo_group_name}_import_graphs/{repo_name}/{repo_name}_import_tree.txt"
         if not os.path.exists(pathing):
             return rcm, None
         graph = load_graph_from_file(pathing)
