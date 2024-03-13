@@ -1,14 +1,12 @@
 import { Callout, Tabs, Steps } from 'nextra/components'
 import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
-# Setting up the Sweep CLI
+# Sweep CLI Installation
+<Callout type="info">Prerequisites: **python 3.10, pip, OpenAI account and GitHub account**</Callout>
 
-Sweep CLI is a way to try out Sweep without the data entering our servers. It's a great way to get started and see how Sweep works.
+Sweep CLI is a locally running version of Sweep (no data will enter our servers).<br/>
 
-<Callout type="info">This is a guide for running the Sweep CLI. To use our hosted version please visit https://github.com/apps/sweep-ai, and to self-host the GitHub App, visit [here](/deployment).</Callout>
-
-<Callout type="warning">Prerequisites: you need Python 3.10 and pip installed, an OpenAI account and a GitHub account.</Callout>
-
+*To use our hosted Sweep, [install here (2 min)](https://github.com/apps/sweep-ai). To self-host your own Sweep, visit [deployment (15 min)](/deployment).*
 <Steps>
 ### Install the Sweep CLI
 
@@ -18,23 +16,25 @@ pip install sweepai
 
 ### Initialize the Sweep CLI
 
-Initialize the CLI with your GitHub and OpenAI API keys by running the following command and following the prompts:
+Initialize the CLI with your GitHub and OpenAI API keys:
 
 ```sh filename="terminal"
 sweep init
 ```
 
+and follow the prompts to enter your GitHub and OpenAI API keys.
+
 ### Run the Sweep CLI
 
-Create a GitHub Issue like "Add Sweep to my repo" in your repo, and run the following command:
+Create a GitHub Issue like [the examples in our guide](/#best-practices-for-creating-issues) in your repo, and run the following command:
 
 ```sh filename="terminal"
-sweep run https://github.com/your-username/your-repo/issues/1
+sweep run https://github.com/YOUR-USERNAME/YOUR-REPO/issues/1
 ```
 
-Alternatively, if you want to have Sweep automatically fix new issues as they are created, you can run the following command:
+To have Sweep automatically fix newly created issues, you can also run the following command:
 ```sh filename="terminal"
-sweep watch your-username/your-repo
+sweep watch YOUR-USERNAME/YOUR-REPO
 ```
 </Steps>
 
@@ -42,4 +42,4 @@ sweep watch your-username/your-repo
 
 ### 🎉 Congratulations!
 
-You have successfully set up the Sweep CLI. You can now use Sweep to help you with your GitHub issues and pull requests. To set up Sweep for your organization, see [self-hosting the GitHub App](/deployment) and [book a call](https://calendly.com/sweep-ai/founders-meeting) with us for a commercial license.
+You have successfully set up the Sweep CLI. You can now use Sweep to help you with your GitHub issues and pull requests. To set up Sweep for your organization see [self-hosting the GitHub App](/deployment) and [book a call](https://calendly.com/sweep-ai/founders-meeting) with us for a commercial license.

@@ -1,3 +1,4 @@
+from collections import defaultdict
 import json
 import textwrap
 import traceback
@@ -10,7 +11,7 @@ from sweepai.agents.assistant_functions import (
     search_and_replace_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
-from sweepai.core.entities import AssistantRaisedException, Message
+from sweepai.core.entities import AssistantRaisedException, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -83,6 +84,48 @@ def ensure_additional_messages_length(additional_messages: list[Message]):
                     )
     return additional_messages
 
+def read_file_with_fallback_encodings(file_path, encodings=['utf-8', 'windows-1252', 'iso-8859-1']):
+    for encoding in encodings:
+        try:
+            with open(file_path, 'r', encoding=encoding) as file:
+                return file.read()
+        except UnicodeDecodeError:
+            continue
+    raise UnicodeDecodeError(f"Could not decode {file_path} with any of the specified encodings: {encodings}")
+
+def build_keyword_search_match_results(match_indices: list[int], chunks: list[str], keyword: str, success_message) -> str:
+    for match_index in match_indices:
+        # TODO: handle multiple matches in one line
+        match = chunks[match_index]
+        match_lines = match.split("\n")
+        lines_containing_keyword = [
+            i
+            for i, line in enumerate(match_lines)
+            if keyword in line
+        ]
+        cols_of_keyword = [
+            match_lines[line_containing_keyword].index(keyword)
+            for line_containing_keyword in lines_containing_keyword
+        ]
+        match_display = ""
+        for i, line in enumerate(match_lines):
+            if i in lines_containing_keyword:
+                match_display += (
+                    f"{line}\n"
+                    + " "
+                    * (
+                        cols_of_keyword[
+                            lines_containing_keyword.index(i)
+                        ]
+                    )
+                    + "^\n"
+                )
+            else:
+                match_display += f"{line}\n"
+        match_display = match_display.strip("\n")
+        success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
+    return success_message
+
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
@@ -97,6 +140,7 @@ def function_modify(
     ticket_progress: TicketProgress | None = None,
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
+    relevant_filepaths: list[str] = [],
 ):
     try:
 
@@ -108,6 +152,14 @@ def function_modify(
             ticket_progress.save()
 
         current_contents = file_contents
+        relevant_file_contents = defaultdict(str)
+        # get code for relevant filepaths
+        try:
+            for relevant_file_path in relevant_filepaths:
+                relevant_file_content = read_file_with_fallback_encodings(relevant_file_path)
+                relevant_file_contents[relevant_file_path] = relevant_file_content
+        except Exception as e:
+            logger.error(f"Error occured while attempting to fetch contents for relevant file: {e}")
         initial_code_valid, _ = check_code(file_path, current_contents)
         initial_code_valid = initial_code_valid or (
             "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
@@ -115,11 +167,27 @@ def function_modify(
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
+
+        relevant_file_snippets: dict[str, list[Snippet]] = defaultdict(list)
+        # now we chunk relevant file contents
+        for relevant_file_path, relevant_file_content in relevant_file_contents.items():
+            relevant_file_snippet = chunk_code(relevant_file_content, relevant_file_path, 700, 200)
+            relevant_file_snippets[relevant_file_path] = relevant_file_snippet
+
         file_contents_lines = current_contents.split("\n")
         chunks = [
             "\n".join(file_contents_lines[snippet.start : snippet.end])
             for snippet in original_snippets
         ]
+
+        # split our relevant files into chunks
+        relevant_file_chunks = defaultdict(list)
+        for relevant_file_path, relevant_file_content in relevant_file_contents.items():
+            relevant_file_contents_lines = relevant_file_content.split("\n")
+            relevant_file_chunks[relevant_file_path] = [
+                "\n".join(relevant_file_contents_lines[snippet.start : snippet.end])
+                for snippet in relevant_file_snippets[relevant_file_path]
+            ]
         code_sections = []  # TODO: do this for the new sections after modifications
         current_code_section = ""
         for i, chunk in enumerate(chunks):
@@ -148,8 +216,6 @@ def function_modify(
                 content=f"# Request\n{request}",
             ),
         ]
-        # make sure all additional messages are < 32k chars long
-        additional_messages = ensure_additional_messages_length(additional_messages)
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
@@ -322,7 +388,6 @@ def function_modify(
                 elif tool_name == "keyword_search":
                     error_message = ""
                     success_message = ""
-
                     for key in ["justification", "keyword"]:
                         if key not in tool_call:
                             error_message = f"Missing {key} in keyword_search."
@@ -331,47 +396,36 @@ def function_modify(
                     if not error_message:
                         keyword = tool_call["keyword"]
                         match_indices = []
+                        relevant_file_match_indices: dict[str, list[int]] = defaultdict(list)
+                        # search current code file
                         for i, chunk in enumerate(chunks):
                             if keyword in chunk:
                                 match_indices.append(max(0, i - 1))
                                 match_indices.append(i)
                                 match_indices.append(min(len(chunks) - 1, i + 1))
+                        # search all relevant code files
+                        for relevant_file_path, relevant_file_chunk_group in relevant_file_chunks.items():
+                            for i, chunk in enumerate(relevant_file_chunk_group):
+                                if keyword in chunk:
+                                    relevant_file_match_indices[relevant_file_path].append(max(0, i - 1))
+                                    relevant_file_match_indices[relevant_file_path].append(i)
+                                    relevant_file_match_indices[relevant_file_path].append(min(len(relevant_file_chunk_group) - 1, i + 1))
+                        
                         match_indices = sorted(list(set(match_indices)))
-                        if not match_indices:
+                        relevant_file_match_indices = {k: sorted(list(set(v))) for k, v in relevant_file_match_indices.items()}
+                        if not match_indices and not relevant_file_match_indices:
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
-                            success_message = f"The keyword {keyword} was found in the following sections:\n\n"
-                        for match_index in match_indices:
-                            # TODO: handle multiple matches in one line
-                            match = chunks[match_index]
-                            match_lines = match.split("\n")
-                            lines_containing_keyword = [
-                                i
-                                for i, line in enumerate(match_lines)
-                                if keyword in line
-                            ]
-                            cols_of_keyword = [
-                                match_lines[line_containing_keyword].index(keyword)
-                                for line_containing_keyword in lines_containing_keyword
-                            ]
-                            match_display = ""
-                            for i, line in enumerate(match_lines):
-                                if i in lines_containing_keyword:
-                                    match_display += (
-                                        f"{line}\n"
-                                        + " "
-                                        * (
-                                            cols_of_keyword[
-                                                lines_containing_keyword.index(i)
-                                            ]
-                                        )
-                                        + "^\n"
-                                    )
-                                else:
-                                    match_display += f"{line}\n"
-                            match_display = match_display.strip("\n")
-                            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
-
+                            # for matches inside current code file
+                            if match_indices:
+                                starter_message = f"The keyword {keyword} was found in the following sections:\n\n"
+                                success_message += build_keyword_search_match_results(match_indices, chunks, keyword, starter_message)
+                            # for matches inside relevant code files
+                            if relevant_file_match_indices:
+                                for relevant_file_path, relevant_file_match_indices in relevant_file_match_indices.items():
+                                    starter_message = f"The keyword {keyword} was found in the following sections of the relevant file {relevant_file_path}:\n\n"
+                                    success_message += build_keyword_search_match_results(relevant_file_match_indices, relevant_file_chunks[relevant_file_path], keyword, starter_message)
+                        
                     if error_message:
                         logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
@@ -417,9 +471,6 @@ def function_modify(
 
                     if error_message:
                         logger.debug(error_message)
-                        import pdb
-
-                        pdb.set_trace()
                         tool_name, tool_call = assistant_generator.send(
                             f"ERROR\n\n{error_message}"
                         )
