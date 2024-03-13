@@ -27,7 +27,7 @@ class AssistantAPIMessageRole(Enum):
 
 
 class AssistantAPIMessage(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     role: AssistantAPIMessageRole
     content: str = ""
 
@@ -44,7 +44,7 @@ class AssistantStatus(Enum):
 
 
 class AssistantConversation(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     messages: list[AssistantAPIMessage] = []
     is_active: bool = True
     status: AssistantStatus = "in_progress"
@@ -188,7 +188,7 @@ class TicketProgressStatus(Enum):
 
 
 class SearchProgress(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
 
     indexing_progress: int = 0
     indexing_total: int = 0
@@ -237,13 +237,13 @@ class TicketUserStateTypes(Enum):
 
 
 class TicketUserState(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     state_type: TicketUserStateTypes = TicketUserStateTypes.RUNNING
     waiting_deadline: int = 0
 
 
 class TicketProgress(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     tracking_id: str
     username: str = ""
     context: TicketContext = TicketContext()
@@ -275,9 +275,9 @@ class TicketProgress(BaseModel):
         try:
             if MONGODB_URI is None:
                 return None
-            if self.dict() == self.prev_dict:
+            if self.model_dump() == self.prev_dict:
                 return
-            current_dict = self.dict()
+            current_dict = self.model_dump()
             del current_dict["prev_dict"]
             self.prev_dict = current_dict
             db = global_mongo_client["progress"]
@@ -353,8 +353,8 @@ if __name__ == "__main__":
     #     + " https://discord.gg/sweep."
     # )
     # ticket_progress.status = TicketProgressStatus.ERROR
-    # ticket_progress.save()
+    ticket_progress.save()
     ticket_progress.wait()
-    # new_ticket_progress = TicketProgress.load("test")
-    # print(new_ticket_progress)
+    new_ticket_progress = TicketProgress.load("test")
+    print(new_ticket_progress)
     # assert new_ticket_progress == ticket_progress

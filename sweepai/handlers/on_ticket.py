@@ -20,7 +20,6 @@ import yamllint.config as yamllint_config
 from github import BadCredentialsException, Github, Repository
 from github.Issue import Issue
 from github.PullRequest import PullRequest as GithubPullRequest
-from logtail import LogtailContext, LogtailHandler
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
@@ -45,7 +44,6 @@ from sweepai.config.server import (
     ENV,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
-    LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
     OPENAI_USE_3_5_MODEL_ONLY,
     PROGRESS_BASE_URL,
@@ -169,33 +167,6 @@ The following Github Actions failed on a previous attempt at fixing this issue.
 Review the provided logs to ensure that any code modifications you make do not cause these actions to fail again.
 {github_action_log}
 """
-
-
-def initialize_logtail_context(
-    title: str,
-    issue_url: int,
-    issue_number: str,
-    repo_full_name: str,
-    repo_description: str,
-    username: str,
-    comment_id: int = None,
-    edited: bool = False,
-):
-    context = LogtailContext()
-    context.context(
-        task={
-            "issue_url": issue_url,
-            "issue_number": issue_number,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "username": username,
-            "comment_id": comment_id,
-            "edited": edited,
-            "issue_title": title,
-        }
-    )
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
-    logger.add(handler)
 
 
 # Add :eyes: emoji to ticket
@@ -463,17 +434,6 @@ def on_ticket(
                 fast_mode,
                 lint_mode,
             ) = strip_sweep(title)
-
-            fire_and_forget_wrapper(initialize_logtail_context)(
-                title,
-                issue_url,
-                issue_number,
-                repo_full_name,
-                repo_description,
-                username,
-                comment_id,
-                edited,
-            )
 
             summary = summary or ""
             summary = re.sub(

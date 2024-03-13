@@ -37,7 +37,7 @@ else:
     raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
 
 CACHE_VERSION = "v1.3.04"
-redis_client: Redis = Redis.from_url(REDIS_URL)
+redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 
 
@@ -86,7 +86,13 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
     with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
-        embeddings = list(tqdm(pool.imap(openai_with_expo_backoff, batches), total=len(batches), desc="openai embedding"))
+        embeddings = list(
+            tqdm(
+                pool.imap(openai_with_expo_backoff, batches),
+                total=len(batches),
+                desc="openai embedding",
+            )
+        )
     return embeddings
 
 

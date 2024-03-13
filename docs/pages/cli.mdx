@@ -1,30 +1,28 @@
-import { Callout, Tabs, Steps } from 'nextra/components'
+ import { Callout, Tabs, Steps } from 'nextra/components'
 import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
 
 # Sweep CLI Installation
-<Callout type="info">Prerequisites: **python 3.10, pip**</Callout>
+<Callout type="info">Prerequisites: **python 3.10, pip, an OpenAI account and a GitHub account**</Callout>
 
 Sweep CLI is a locally running version of Sweep (no data will enter our servers).<br/>
+
 *To use our hosted Sweep, [install here (2 min)](https://github.com/apps/sweep-ai). To self-host your own Sweep, visit [deployment (15 min)](/deployment).*
 <Steps>
-### Setup environment variables
-
-To grant Sweep repository access create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow). Sweep will run entirely locally, and no code will be shared outside of OpenAI API and GitHub.<br/>
-You also need to create an [OpenAI API token](https://platform.openai.com/account/api-keys).
-
-Add both to your `.env`:
-
-```sh filename=".env"
-REPO=YOUR-USERNAME/YOUR-REPO
-GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
 ### Install the Sweep CLI
 
 ```sh filename="terminal"
 pip install sweepai
 ```
+
+### Initialize the Sweep CLI
+
+Initialize the CLI with your GitHub and OpenAI API keys:
+
+```sh filename="terminal"
+sweep init
+```
+
+and follow the prompts to enter your GitHub and OpenAI API keys.
 
 ### Run the Sweep CLI
 
@@ -44,4 +42,5 @@ sweep watch YOUR-USERNAME/YOUR-REPO
 
 ### 🎉 Congratulations!
 
-You have successfully set up the Sweep CLI. You can now use Sweep to help you with your GitHub issues and pull requests. To set up Sweep for your organization see [self-hosting the GitHub App](/deployment) and [book a call](https://calendly.com/sweep-ai/founders-meeting) with us for a commercial license.
+You have successfully set up the Sweep CLI. You can now use Sweep to help you with your GitHub issues and pull requests.<br/>
+To set up Sweep for your organization, see [self-hosting Sweep's GitHub App](/deployment) and [book a call](https://calendly.com/sweep-ai/founders-meeting) with us for a commercial license.
