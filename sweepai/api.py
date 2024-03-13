@@ -299,7 +299,7 @@ def init_hatchet() -> Any | None:
                 request_dict = event_payload.get("request")
                 event = event_payload.get("event")
 
-                run(request_dict, event)
+                handle_event(request_dict, event)
 
         workflow = OnGithubEvent()
         worker.register_workflow(workflow)
@@ -322,7 +322,7 @@ def handle_github_webhook(event_payload):
     # if hatchet:
     #     hatchet.client.event.push("github:webhook", event_payload)
     # else:
-    run(event_payload.get("request"), event_payload.get("event"))
+    handle_event(event_payload.get("request"), event_payload.get("event"))
 
 
 def handle_request(request_dict, event=None):
@@ -420,7 +420,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
         logger.warning("Failed to update sweep PRs")
 
 
-def run(request_dict, event):
+def handle_event(request_dict, event):
     action = request_dict.get("action")
 
     if repo_full_name := request_dict.get("repository", {}).get("full_name"):
