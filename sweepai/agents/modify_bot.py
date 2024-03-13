@@ -258,6 +258,7 @@ class ModifyBot:
         cloned_repo: ClonedRepo,
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
+        relevant_filepaths: list[str] = [],
     ):
         new_file = function_modify(
             request=file_change_request.instructions,
@@ -270,6 +271,7 @@ class ModifyBot:
             seed=seed,
             start_line=file_change_request.start_line,
             end_line=file_change_request.end_line,
+            relevant_filepaths=relevant_filepaths,
         )
         if new_file is not None:
             posthog.capture(
