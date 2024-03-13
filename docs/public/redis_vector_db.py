@@ -19,7 +19,6 @@ DIMENSIONS_TO_KEEP = 512
 
 openai_client = OpenAI()
 redis_client: Redis = Redis.from_url(REDIS_URL)
-# redis_client = None
 
 def count_tiktoken(text: str, model: str = "gpt-4") -> int:
     tiktoken_encoding = encoding_for_model(model)
@@ -125,9 +124,10 @@ if __name__ == "__main__":
     import time
     start = time.time()
     n = 30000
-    s = "a" * 4 * 4000
-    texts = [s for _ in range(n)]
-    most_similar_texts = get_most_similar_texts("abb ", texts)
+    query = "example_query"
+    document = "example_document"
+    texts = [document for _ in range(n)]
+    most_similar_texts = get_most_similar_texts(query, texts)
     elapsed = time.time() - start
     # elapsed in ms
     print(f"Elapsed: {elapsed * 1000}ms")
