@@ -1,4 +1,4 @@
-name: Full CI Pipeline
+name: Python CI All
 
 on:
   pull_request:
