@@ -140,8 +140,6 @@ POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
 )
 
-LOGTAIL_SOURCE_KEY = os.environ.get("LOGTAIL_SOURCE_KEY")
-
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")

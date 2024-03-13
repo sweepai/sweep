@@ -7,7 +7,6 @@ import time
 import traceback
 from typing import Any
 
-from logtail import LogtailHandler
 from loguru import logger
 from tabulate import tabulate
 
@@ -17,7 +16,6 @@ from sweepai.config.server import (
     DEFAULT_GPT35_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
-    LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
 )
 from sweepai.core.context_pruning import get_relevant_context
@@ -60,8 +58,6 @@ def on_comment(
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
-        handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
-        logger.add(handler)
         logger.info(
             f"Calling on_comment() with the following arguments: {comment},"
             f" {repo_full_name}, {repo_description}, {pr_path}"
