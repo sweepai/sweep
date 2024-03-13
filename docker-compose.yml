@@ -14,6 +14,7 @@ services:
     # network_mode: "host"
     volumes:
       - .:/app
+      - ./sweepai:/app/sweepai
     command: >
       sh -c ". bin/startup.sh"
     stdin_open: true
