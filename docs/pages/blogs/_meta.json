@@ -1,4 +1,6 @@
 {
+    "vector-db-implementation": "🧭 Our simple vector database implementation",
+    "soc2": "🔒 Sweep's SOC 2 Compliant and Enterprise Offering",
     "llm-sdk": "🎉 Releasing our Open Source LLM Framework + Playground!",
     "refactor-python": "📝 Large Language Models are Bad at Refactoring Code",
     "openai-proxy": "🕸️ A Simple Proxy for Azure and OpenAI raised our GPT4 TPM limit by 24x",
@@ -18,5 +20,6 @@
     "search-infra": "🔍 Code Search Infra for an AI junior developer - that doesn't store code",
     "understanding-codebase-with-ctags": "📚 Understanding your codebase with ctags",
     "building-code-search": "🏗️ Building a code search engine in one day",
-    "gpt-32k-open-source": "🌐 GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!"
+    "gpt-32k-open-source": "🌐 GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!",
+    "index": "Blogs Gallery"
 }

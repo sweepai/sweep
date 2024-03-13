@@ -24,7 +24,7 @@ def create_additional_messages(
     changed_files: list[tuple[str, str]],
     comment_pr_diff_str: str,
     cloned_repo: ClonedRepo,
-):
+) -> tuple[list[Message], list[str]]:
     additional_messages = [
         Message(
             role="user",
@@ -32,6 +32,7 @@ def create_additional_messages(
             key="issue_metadata",
         )
     ]
+    relevant_filepaths = []
     if comment_pr_diff_str and comment_pr_diff_str.strip():
         additional_messages = [
             Message(
@@ -105,12 +106,15 @@ def create_additional_messages(
                     key="relevant_files_summary",
                 )
             )
+            # keep all relevant_filepaths
+            for file_path in file_change_request.relevant_files:
+                relevant_filepaths.append(file_path)
     current_file_diff = ""
     if changed_files:
         for file_path, (old_contents, new_contents) in changed_files:
             if file_path == file_change_request.filename:
                 current_file_diff += generate_diff(old_contents, new_contents) + "\n"
-    return additional_messages
+    return additional_messages, relevant_filepaths
 
 
 @file_cache()
@@ -131,13 +135,14 @@ def modify_file(
 ):
     new_file = None
     try:
-        additional_messages += create_additional_messages(
+        relevant_file_messages, relevant_filepaths = create_additional_messages(
             metadata,
             file_change_request,
             changed_files,
             comment_pr_diff_str,
             cloned_repo,
         )
+        additional_messages += relevant_file_messages
         new_file = function_modify(
             file_change_request.instructions,
             file_change_request.filename,
@@ -148,6 +153,7 @@ def modify_file(
             end_line=file_change_request.end_line,
             ticket_progress=ticket_progress,
             assistant_conversation=assistant_conversation,
+            relevant_filepaths=relevant_filepaths,
         )
 
     except Exception as e:  # Check for max tokens error

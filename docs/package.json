@@ -32,6 +32,7 @@
     "react-icons": "^4.12.0",
     "react-markdown": "^8.0.7",
     "react-youtube": "^10.1.0",
+    "tailwind": "^4.0.0",
     "uglify-js": "2.6.0"
   },
   "devDependencies": {

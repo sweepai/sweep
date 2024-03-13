@@ -1,0 +1,46 @@
+import { Callout, Tabs, Steps } from 'nextra/components'
+import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
+
+# Sweep CLI Installation
+<Callout type="info">Prerequisites: **python 3.10, pip, OpenAI account, GitHub account**</Callout>
+
+Sweep CLI is a locally running version of Sweep (no data will enter our servers).<br/>
+
+*To use our hosted version of Sweep, [install it here (2 min)](https://github.com/apps/sweep-ai). To self-host your own deployment of Sweep, visit [deployment (15 min)](/deployment).*
+<Steps>
+### Install the Sweep CLI
+
+```sh filename="terminal"
+pip install sweepai
+```
+
+### Initialize the Sweep CLI
+
+Initialize the CLI with your GitHub and OpenAI API keys:
+
+```sh filename="terminal"
+sweep init
+```
+
+and follow the prompts to enter your GitHub and OpenAI API keys.
+
+### Run the Sweep CLI
+
+Create a GitHub Issue like [the examples in our guide](/#best-practices-for-creating-issues) in your repo, and run the following command:
+
+```sh filename="terminal"
+sweep run https://github.com/YOUR-USERNAME/YOUR-REPO/issues/1
+```
+
+To have Sweep automatically fix newly created issues, you can also run the following command:
+```sh filename="terminal"
+sweep watch YOUR-USERNAME/YOUR-REPO
+```
+</Steps>
+
+---
+
+### 🎉 Congratulations!
+
+You have successfully set up the Sweep CLI. You can now use Sweep to help with hanlde GitHub issues and pull requests.<br/>
+To set up Sweep for your organization, see [self-hosting Sweep's GitHub App](/deployment) and [book a call](https://calendly.com/sweep-ai/founders-meeting) with us for a commercial license.

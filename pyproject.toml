@@ -1,108 +1,73 @@
-[tool.poetry]
-name = "sweepai"
-version = "0.5.2"
-description = "Sweep software chores"
-authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
-packages = [{ include = "sweepai" }]
-classifiers = ["Programming Language :: Python :: 3.10"]
-readme = "README.md"
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.poetry.urls]
+[tool.setuptools]
+packages = { find = { where = ["."], exclude = ["tests", "sdk", "benchmark", "docs", "tests.*", "sdk.*", "benchmark.*", "docs.*"] } }
+
+[project.scripts]
+sweep = "sweepai.cli:app"
+sweepai = "sweepai.cli:app"
+
+[project.urls]
 Repository = "https://github.com/sweepai/sweep"
-"Community" = "https://discord.gg/sweep"
+Community = "https://discord.gg/sweep"
 Documentation = "https://docs.sweep.dev"
 Homepage = "https://sweep.dev"
 "Bug Tracker" = "https://github.com/sweepai/sweep/issues"
 
-[tool.poetry.dependencies]
-python = "^3.10"
-PyGithub = "1.58.2"
-loguru = "^0.7.2"
-requests = "^2.28.2"
-urllib3 = "<2.0.0"
-config-path = "^1.0.3"
-typer = "^0.9.0"
-tabulate = "^0.9.0"
-GitPython = "^3.1.31"
-pyyaml = "^6.0"
-pylint-pydantic = "^0.2.3"
-greenlet = "2.0.1"
-modal-client = "^0.51.3182"
-markdownify = "^0.11.6"
-playwright = "^1.30.0"
-robotexclusionrulesparser = "^1.7.1"
-pre-commit = "^3.3.3"
-rapidfuzz = "^3.2.0"
-python-dotenv = "^1.0.0"
-redis = "^5.0.0"
-lxml = "4.9.3"
-docker = "6.1.3"
-celery = "^5.1.2"
-logtail-python = "^0.2.6"
-
-# Backend dependencies
-fastapi = "^0.109.1"
-uvicorn = "^0.21.0"
-pymongo = "^4.4.0"
-tiktoken = "^0.3.2"
-PyJWT = "^2.6.0"
-backoff = "^2.2.1"
-posthog = "^3.0.1"
-tree-sitter = "^0.20.1"
-tree-sitter-languages = "^1.7.0"
-eventlet = "^0.33.3"
-replicate = "0.15.4"
-psutil = "^5.9.5"
-yamllint = "^1.32.0"
-graphviz = "^0.20.1"
-rope = "^1.10.0"
-jedi = "^0.19.1"
-pytest = "^7.4.3"
-black = "^23.11.0"
-importmagic = "^0.1.7"
-pyflakes = "^3.1.0"
-coverage = "^7.3.2"
-openai = "1.12.0"
-unidiff = "^0.7.5"
-resend = "^0.6.0"
-markdown = "^3.5.1"
-py-spy = "^0.3.14"
-prometheus-fastapi-instrumentator = "^6.1.0"
-rich = "^13.7.0"
-hatchet-sdk = "^0.5.0"
-pdbpp = "^0.10.3"
-numpy = "^1.26.4"
-pydantic = "^1.0"
-jinja2 = "^3.1.3"
-networkx = "^3.2.1"
-
-[tool.poetry.dev-dependencies]
-pylint = "^2.17.4"
-black = "^23.1.0"
-commit5 = "^0.1.1"
-jupyter = "^1.0.0"
-ipykernel = "^6.23.1"
-build = "^0.10.0"
-flake8 = "^6.0.0"
-nptyping = "^2.5.0"
-pre-commit = "^3.2.0"
-
-[tool.poetry.group.dev.dependencies]
-vulture = "^2.10"
-pytest-xdist = "^3.5.0"
+[project]
+name = "sweepai"
+version = "1.0.12"
+description = "Sweep fixes GitHub issues"
+authors = [
+    {name = "Kevin Lu", email = "kevin@sweep.dev"},
+    {name = "William Zeng", email = "william@sweep.dev"},
+    {name = "Martin Ye", email = "martin@sweep.dev"},
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3.10"
+]
+dependencies = [
+  "typer==0.9.0",
+  "pygithub==2.2.0",
+  "loguru==0.7.2",
+  "rich==13.7.1",
+  "fastapi==0.110.0",
+  "prometheus-fastapi-instrumentator==7.0.0",
+  "pyyaml==6.0.1",
+  "python-dotenv==1.0.1",
+  "openai==1.13.3",
+  "backoff==2.2.1",
+  "pymongo==4.6.2",
+  "gitpython==3.1.42",
+  "tree-sitter==0.21.0",
+  "tree-sitter-languages==1.10.2",
+  "rapidfuzz==3.6.2",
+  "importmagic==0.1.7",
+  "pyflakes==3.2.0",
+  "networkx==3.2.1",
+  "attrs==23.2.0",
+  "redis==5.0.3",
+  "numpy==1.26.4",
+  "markdown==3.5.2",
+  "yamllint==1.35.1",
+  "logtail==1.0.1",
+  "tabulate==0.9.0",
+  "resend==0.8.0",
+  "psutil==5.9.8",
+  "jinja2==3.1.3",
+  "tiktoken==0.6.0",
+  "pylint==3.1.0"
+]
 
 [tool.isort]
 profile = "black"
 
 [tool.black]
 string-normalization = false
-
-[mypy]
-check_untyped_defs = true
-
-[tool.poetry.scripts]
-sweep = "sweepai.app.cli:app"
-sweepai = "sweepai.app.cli:app"
 
 [tool.pylint.'MESSAGES CONTROL']
 
