@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 from typing import Generator
 
 import backoff
@@ -71,21 +72,12 @@ def normalize_l2(x):
 
 
 # lru_cache(maxsize=20)
-def embed_text_array(texts: tuple[str]):
-    logger.info(f"Computing embeddings for {len(texts)} texts using openai...")
+def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
-    chunks = list(chunk(texts, batch_size=BATCH_SIZE))
-    for batch in tqdm(
-        chunks, disable=False, desc="openai embedding", total=len(chunks)
-    ):
-        try:
-            # prepend each text with a prompt
-            embeddings.append(openai_with_expo_backoff(batch))
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.exception("Failed to get embeddings for batch")
-            raise e
+    texts = [text if text else " " for text in texts]
+    batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
+        embeddings = list(tqdm(pool.imap(openai_with_expo_backoff, batches), total=len(batches), desc="openai embedding"))
     return embeddings
 
 
