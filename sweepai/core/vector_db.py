@@ -61,7 +61,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
 def get_query_texts_similarity(query: str, texts: str) -> float:
     embeddings = embed_text_array(texts)
     embeddings = np.concatenate(embeddings)
-    query_embedding = embed_text_array([query])[0]
+    query_embedding = np.array(embed_text_array([query])[0])
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
@@ -162,7 +162,8 @@ def openai_with_expo_backoff(batch: tuple[str]):
         )
         embeddings = np.array(embeddings)
     except Exception as e:
-        logger.exception(e)
+        logger.error(str(e))
+        logger.error("Failed to store embeddings in cache, returning without storing")
     return embeddings
 
 
