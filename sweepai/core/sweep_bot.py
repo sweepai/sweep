@@ -81,7 +81,13 @@ def safe_decode(
     *args,
     **kwargs
 ):
-    contents = repo.get_contents(path, **kwargs)
+    """
+    By default, this function will decode the file contents from the repo.
+    But if the file > 1MB, we will fetch the raw content and then decode it manually ourselves.
+    It's a strange bug that occurs when the file is too large and the GitHub API doesn't decode it properly and returns encoding="none".
+    Reference: https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#get-repository-content
+    """
+    contents = repo.get_contents(path, *args, **kwargs)
     if contents.encoding == "none":
         blob = repo.get_git_blob(contents.sha)
         # this might be more correct but chatgpt said the latter is better
@@ -402,7 +408,7 @@ class GithubBot(BaseModel):
                 if contents is not None:
                     decoded_content = None
                     try:
-                        file_change_request.old_content = safe_decode(self.repo, file_change_request.filename, branch=SweepConfig.get_branch(self.repo))
+                        file_change_request.old_content = safe_decode(self.repo, file_change_request.filename, ref=SweepConfig.get_branch(self.repo))
                     except Exception as e:
                         logger.info(f"Error: {e}")
                         file_change_request.old_content = ""
@@ -446,7 +452,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 contents = safe_decode(
                     self.repo,
                     fcr_file_path,
-                    branch=SweepConfig.get_branch(self.repo)
+                    ref=SweepConfig.get_branch(self.repo)
                 )
                 _, sandbox_response = self.check_sandbox(fcr_file_path, contents)
                 sandbox_responses.append(sandbox_response)
@@ -550,7 +556,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         safe_decode(
                             self.repo,
                             file_path,
-                            branch=self.cloned_repo.branch
+                            ref=self.cloned_repo.branch
                         )
                     )
                 except Exception:
@@ -1015,8 +1021,8 @@ class SweepBot(CodeGenBot, GithubBot):
                             safe_decode(
                                 self.repo,
                                 file_change_request.filename,
-                                branch=branch
-                            )
+                                ref=branch
+                            ),
                             branch=branch,
                         )
                         self.repo.delete_file(
@@ -1100,7 +1106,7 @@ class SweepBot(CodeGenBot, GithubBot):
             file_contents = safe_decode(
                 self.repo,
                 file_change_request.filename,
-                branch=branch
+                ref=branch
             )
             file_name = file_change_request.filename
             lines = file_contents.split("\n")
