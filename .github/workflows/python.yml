@@ -47,8 +47,8 @@ jobs:
       - name: Install Python dependencies
         if: steps.restore-dependencies.outputs.cache-hit != 'true'
         run: |
-          pip install uv
           echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+          pip install uv
           uv pip install -r requirements.txt
           uv pip install black ruff pylint uvicorn pytest
       - name: Cache dependencies
