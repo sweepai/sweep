@@ -728,16 +728,12 @@ def on_ticket(
                                 f" wrong, please add more details to your issue.\n\n{table}"
                             )
                         suffix = bot_suffix  # don't include discord suffix for error messages
-
-                    # Update the issue comment
-                    msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
-                    try:
-                        issue_comment.edit(msg)
-                    except BadCredentialsException:
+                    
+                    def refresh_token():
                         logger.error(
                             f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
                         )
-                        _user_token, g = get_github_client(installation_id)
+                        user_token, g = get_github_client(installation_id)
                         repo = g.get_repo(repo_full_name)
 
                         for comment in comments:
@@ -753,6 +749,15 @@ def on_ticket(
                                 if comment.user.login == CURRENT_USERNAME
                             ][0]
                             issue_comment.edit(msg)
+                        return user_token, g, repo, issue_comment
+
+                    # Update the issue comment
+                    msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
+                    try:
+                        issue_comment.edit(msg)
+                    except BadCredentialsException:
+                        user_token, g, repo, issue_comment = refresh_token()
+                        cloned_repo.token = user_token
 
                 if use_faster_model:
                     edit_sweep_comment(
@@ -839,6 +844,8 @@ def on_ticket(
                     )
                     raise Exception("Failed to fetch files")
                 _user_token, g = get_github_client(installation_id)
+                user_token, g, repo, issue_comment = refresh_token()
+                cloned_repo.token = user_token
                 repo = g.get_repo(repo_full_name)
                 ticket_progress.search_progress.indexing_progress = (
                     ticket_progress.search_progress.indexing_total
@@ -1274,7 +1281,12 @@ def on_ticket(
                             opened="open",
                         )
 
-                        current_issue = repo.get_issue(number=issue_number)
+                        try:
+                            current_issue = repo.get_issue(number=issue_number)
+                        except BadCredentialsException as e:
+                            user_token, g, repo, issue_comment = refresh_token()
+                            cloned_repo.token = user_token
+
                         current_issue.edit(
                             body=summary + "\n\n" + condensed_checkboxes_collapsible
                         )
