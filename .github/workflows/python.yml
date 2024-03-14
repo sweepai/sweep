@@ -52,6 +52,8 @@ jobs:
         if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install -r requirements.txt
         if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: uv pip install ruff pylint pytest pytest-xdist black
+        if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - name: Cache dependencies
         id: cache-dependencies
         uses: actions/cache/save@v4
