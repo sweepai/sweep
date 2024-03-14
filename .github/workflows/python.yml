@@ -50,8 +50,9 @@ jobs:
     - name: Use Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11 # Choose based on your project's needs
+        python-version: 3.11
 
+    - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
     - name: Lint with Ruff
       run: ruff check sweepai
 
