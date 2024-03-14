@@ -263,6 +263,7 @@ def run_until_complete(
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
                 function_args = json.loads(tool_call.function.arguments)
+                logger.debug(f"tool_call: {function_name} with args: {function_args}")
                 tool_output = yield function_name, function_args
                 messages.append(
                     {
