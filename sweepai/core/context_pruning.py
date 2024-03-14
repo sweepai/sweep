@@ -484,7 +484,8 @@ def get_relevant_context(
             logger.exception(e)
         if len(repo_context_manager.current_top_snippets) == 0:
             repo_context_manager.current_top_snippets = old_top_snippets
-            discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
+            if ticket_progress:
+                discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
