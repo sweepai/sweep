@@ -20,8 +20,8 @@
     <a href="https://github.com/sweepai/sweep">
         <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
     </a>
-    <a href="https://uptime.betterstack.com/?utm_source=status_badge">
-        <img src="https://uptime.betterstack.com/status-badges/v1/monitor/v3bu.svg" alt="Better Stack Badge">
+    <a href="https://pypi.org/project/sweepai">
+        <img src="https://badge.fury.io/py/sweepai.svg" alt="PyPI version" height="18">
     </a>
     <a href="https://hub.docker.com/r/sweepai/sweep">
         <img alt="Self Host Sweep Docker Image" src="https://img.shields.io/badge/Host Sweep-Docker Image-2496ED?link=https://hub.docker.com/r/sweepai/sweep">
