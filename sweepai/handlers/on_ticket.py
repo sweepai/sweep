@@ -674,6 +674,28 @@ def on_ticket(
                 initial_sandbox_response = -1
                 initial_sandbox_response_file = None
 
+                def refresh_token():
+                    logger.error(
+                        f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
+                    )
+                    user_token, g = get_github_client(installation_id)
+                    repo = g.get_repo(repo_full_name)
+
+                    for comment in comments:
+                        if comment.user.login == CURRENT_USERNAME:
+                            issue_comment = comment
+                    current_issue = repo.get_issue(number=issue_number)
+                    if issue_comment is None:
+                        issue_comment = current_issue.create_comment(msg)
+                    else:
+                        issue_comment = [
+                            comment
+                            for comment in current_issue.get_comments()
+                            if comment.user.login == CURRENT_USERNAME
+                        ][0]
+                        issue_comment.edit(msg)
+                    return user_token, g, repo, issue_comment
+
                 def edit_sweep_comment(
                     message: str,
                     index: int,
@@ -729,27 +751,7 @@ def on_ticket(
                             )
                         suffix = bot_suffix  # don't include discord suffix for error messages
                     
-                    def refresh_token():
-                        logger.error(
-                            f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
-                        )
-                        user_token, g = get_github_client(installation_id)
-                        repo = g.get_repo(repo_full_name)
 
-                        for comment in comments:
-                            if comment.user.login == CURRENT_USERNAME:
-                                issue_comment = comment
-                        current_issue = repo.get_issue(number=issue_number)
-                        if issue_comment is None:
-                            issue_comment = current_issue.create_comment(msg)
-                        else:
-                            issue_comment = [
-                                comment
-                                for comment in current_issue.get_comments()
-                                if comment.user.login == CURRENT_USERNAME
-                            ][0]
-                            issue_comment.edit(msg)
-                        return user_token, g, repo, issue_comment
 
                     # Update the issue comment
                     msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
