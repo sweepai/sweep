@@ -10,11 +10,11 @@ from github.PaginatedList import PaginatedList
 from github.PullRequest import PullRequest
 from typer.testing import CliRunner
 
-from benchmark.sweep_eval import GITHUB_PAT
 from sweepai.cli import app, load_config
 
 issue_json = json.load(open("tests/jsons/e2e_button_to_green.json", "r"))
 local_tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+GITHUB_PAT = os.environ.get("GITHUB_PAT")
 
 runner = CliRunner()
 
