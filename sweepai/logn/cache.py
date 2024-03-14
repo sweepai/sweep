@@ -9,6 +9,8 @@ from sweepai.config.server import DEBUG
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
+if DEBUG:
+    print("File cache is disabled.")
 
 
 def recursive_hash(value, depth=0, ignore_params=[]):
@@ -52,8 +54,7 @@ def file_cache(ignore_params=[], verbose=False):
     """
 
     def decorator(func):
-        if not DEBUG:
-            print("File cache is disabled.")
+        if DEBUG:
             return func
 
         def wrapper(*args, **kwargs):
