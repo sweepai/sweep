@@ -147,7 +147,7 @@
       "created_at": "2024-02-09T00:41:27Z",
       "updated_at": "2024-02-09T00:41:27Z",
       "author_association": "COLLABORATOR",
-      "body": "change the button color to blue",
+      "body": "change the button color to another color",
       "reactions": {
         "url": "https://api.github.com/repos/sweepai/e2e/issues/comments/1935152258/reactions",
         "total_count": 0,
@@ -256,7 +256,7 @@
       "is_template": false,
       "web_commit_signoff_required": false,
       "topics": [
-  
+
       ],
       "visibility": "private",
       "forks": 0,
@@ -264,7 +264,7 @@
       "watchers": 0,
       "default_branch": "main",
       "custom_properties": {
-  
+
       }
     },
     "organization": {
