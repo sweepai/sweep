@@ -300,7 +300,7 @@ class ClonedRepo:
     def get_file_list(self) -> str:
         root_directory = self.repo_dir
         files = []
-
+        sweep_config: SweepConfig = SweepConfig()
         def dfs_helper(directory):
             nonlocal files
             for item in os.listdir(directory):
@@ -308,7 +308,9 @@ class ClonedRepo:
                     continue
                 item_path = os.path.join(directory, item)
                 if os.path.isfile(item_path):
-                    files.append(item_path)  # Add the file to the list
+                    # make sure the item_path is not in one of the banned directories
+                    if len([banned_dir for banned_dir in sweep_config.exclude_dirs if banned_dir in item_path.split(os.path.sep)]) == 0:
+                        files.append(item_path)  # Add the file to the list
                 elif os.path.isdir(item_path):
                     dfs_helper(item_path)  # Recursive call to explore subdirectory
 

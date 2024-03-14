@@ -84,7 +84,7 @@ def read_file(file_name: str) -> str:
         return ""
 
 
-FILE_THRESHOLD = 120
+FILE_THRESHOLD = 240
 
 
 def file_path_to_chunks(file_path: str) -> list[str]:
