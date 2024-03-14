@@ -83,6 +83,7 @@ jobs:
 
       - name: Run e2e Tests
         env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           GITHUB_PAT: ${{ secrets.GH_PAT }}
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
