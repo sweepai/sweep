@@ -335,8 +335,10 @@ def function_modify(
 
                             # Check if the changes are valid
                             if not error_message:
-                                is_valid, message = check_code(
-                                    file_path, current_new_contents
+                                is_valid, message = (
+                                    (True, "")
+                                    if not initial_code_valid
+                                    else check_code(file_path, current_new_contents)
                                 )
                                 current_diff = generate_diff(
                                     new_contents, current_new_contents
