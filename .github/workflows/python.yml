@@ -50,7 +50,7 @@ jobs:
           echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
           pip install uv
           uv pip install -r requirements.txt
-          uv pip install black ruff pylint uvicorn pytest
+          # uv pip install black ruff pylint uvicorn pytest
       - name: Cache dependencies
         id: cache-dependencies
         uses: actions/cache/save@v4
