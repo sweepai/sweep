@@ -1,13 +1,18 @@
 import json
 import traceback
+from collections import defaultdict
 from time import sleep
-from typing import Callable
+from typing import Callable, Optional
 
 import openai
 from loguru import logger
 from openai import AzureOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
+from openai.types.chat.chat_completion_message_tool_call import (
+    ChatCompletionMessageToolCall,
+    Function,
+)
 from pydantic import BaseModel
 
 from sweepai.config.server import (
@@ -66,6 +71,41 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
     ) from e
+
+
+def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
+    if tool_calls is None:
+        return
+
+    replacements: dict[int, list[ChatCompletionMessageToolCall]] = defaultdict(list)
+    for i, tool_call in enumerate(tool_calls):
+        current_function = tool_call.function.name
+        function_args = json.loads(tool_call.function.arguments)
+        if current_function in ("parallel", "multi_tool_use.parallel"):
+            logger.debug(
+                "OpenAI did a weird pseudo-multi-tool-use call, fixing call structure.."
+            )
+            for _fake_i, _fake_tool_use in enumerate(function_args["tool_uses"]):
+                _function_args = _fake_tool_use["parameters"]
+                _current_function = _fake_tool_use["recipient_name"]
+                if _current_function.startswith("functions."):
+                    _current_function = _current_function[len("functions.") :]
+
+                fixed_tc = ChatCompletionMessageToolCall(
+                    id=f"{tool_call.id}_{_fake_i}",
+                    type="function",
+                    function=Function(
+                        name=_current_function, arguments=json.dumps(_function_args)
+                    ),
+                )
+                replacements[i].append(fixed_tc)
+
+    shift = 0
+    for i, replacement in replacements.items():
+        tool_calls[:] = (
+            tool_calls[: i + shift] + replacement + tool_calls[i + shift + 1 :]
+        )
+        shift += len(replacement)
 
 
 save_ticket_progress_type = Callable[[str, str, str], None]
