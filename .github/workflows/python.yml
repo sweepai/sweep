@@ -74,7 +74,7 @@ jobs:
     - name: Use Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.10
+        python-version: ${{ matrix.python-version }}
 
     - uses: actions/cache@v4
       name: Fetch dependencies
@@ -105,7 +105,7 @@ jobs:
     - name: Use Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.10 # Choose based on your project's needs
+        python-version: ${{ matrix.python-version }}
 
     - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
     - uses: actions/cache@v4
@@ -135,7 +135,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.10 # Choose based on your project's needs
+        python-version: ${{ matrix.python-version }}
 
     - uses: actions/cache@v4
       name: Fetch dependencies
