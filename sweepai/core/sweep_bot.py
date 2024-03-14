@@ -406,7 +406,6 @@ class GithubBot(BaseModel):
                     file_change_request.change_type = "create"
                 
                 if contents is not None:
-                    decoded_content = None
                     try:
                         file_change_request.old_content = safe_decode(self.repo, file_change_request.filename, ref=SweepConfig.get_branch(self.repo))
                     except Exception as e:

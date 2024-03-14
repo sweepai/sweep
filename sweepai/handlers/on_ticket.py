@@ -1286,7 +1286,7 @@ def on_ticket(
 
                         try:
                             current_issue = repo.get_issue(number=issue_number)
-                        except BadCredentialsException as e:
+                        except BadCredentialsException:
                             user_token, g, repo = refresh_token()
                             cloned_repo.token = user_token
 
