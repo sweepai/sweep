@@ -48,6 +48,7 @@ jobs:
         if: steps.restore-dependencies.outputs.cache-hit != 'true'
         run: |
           pip install uv
+          echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
           uv pip install -r requirements.txt
           uv pip install black ruff pylint uvicorn pytest
       - name: Cache dependencies
@@ -95,6 +96,7 @@ jobs:
       with:
         python-version: 3.11 # Choose based on your project's needs
 
+    - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
     - uses: actions/cache@v4
       name: Fetch dependencies
       id: fetch-dependencies
@@ -126,6 +128,7 @@ jobs:
         path: ~/.cache/uv
         key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
 
+    - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
     - name: Set up Redis (for e2e tests)
       run: |
         sudo apt-get update
