@@ -675,26 +675,9 @@ def on_ticket(
                 initial_sandbox_response_file = None
 
                 def refresh_token():
-                    logger.error(
-                        f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
-                    )
                     user_token, g = get_github_client(installation_id)
                     repo = g.get_repo(repo_full_name)
-
-                    for comment in comments:
-                        if comment.user.login == CURRENT_USERNAME:
-                            issue_comment = comment
-                    current_issue = repo.get_issue(number=issue_number)
-                    if issue_comment is None:
-                        issue_comment = current_issue.create_comment(msg)
-                    else:
-                        issue_comment = [
-                            comment
-                            for comment in current_issue.get_comments()
-                            if comment.user.login == CURRENT_USERNAME
-                        ][0]
-                        issue_comment.edit(msg)
-                    return user_token, g, repo, issue_comment
+                    return user_token, g, repo
 
                 def edit_sweep_comment(
                     message: str,
@@ -758,8 +741,26 @@ def on_ticket(
                     try:
                         issue_comment.edit(msg)
                     except BadCredentialsException:
-                        user_token, g, repo, issue_comment = refresh_token()
-                        cloned_repo.token = user_token
+                        logger.error(
+                            f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
+                        )
+                        user_token, g = get_github_client(installation_id)
+                        repo = g.get_repo(repo_full_name)
+
+                        issue_comment = None
+                        for comment in comments:
+                            if comment.user.login == CURRENT_USERNAME:
+                                issue_comment = comment
+                        current_issue = repo.get_issue(number=issue_number)
+                        if issue_comment is None:
+                            issue_comment = current_issue.create_comment(msg)
+                        else:
+                            issue_comment = [
+                                comment
+                                for comment in current_issue.get_comments()
+                                if comment.user.login == CURRENT_USERNAME
+                            ][0]
+                            issue_comment.edit(msg)
 
                 if use_faster_model:
                     edit_sweep_comment(
@@ -846,7 +847,7 @@ def on_ticket(
                     )
                     raise Exception("Failed to fetch files")
                 _user_token, g = get_github_client(installation_id)
-                user_token, g, repo, issue_comment = refresh_token()
+                user_token, g, repo = refresh_token()
                 cloned_repo.token = user_token
                 repo = g.get_repo(repo_full_name)
                 ticket_progress.search_progress.indexing_progress = (
@@ -1286,7 +1287,7 @@ def on_ticket(
                         try:
                             current_issue = repo.get_issue(number=issue_number)
                         except BadCredentialsException as e:
-                            user_token, g, repo, issue_comment = refresh_token()
+                            user_token, g, repo = refresh_token()
                             cloned_repo.token = user_token
 
                         current_issue.edit(
