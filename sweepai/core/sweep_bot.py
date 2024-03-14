@@ -1,3 +1,4 @@
+import base64
 import copy
 import re
 import time
@@ -73,6 +74,22 @@ Edit old_code to pass the CI/CD.
 1. Analyze the business logic and tests. Identify whether the failure is in the unit tests or business logic.
 2a. If the business logic is correct fix the test to return the expected output.
 2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
+
+def safe_decode(
+    repo: Repository,
+    path: str,
+    *args,
+    **kwargs
+):
+    contents = repo.get_contents(path, **kwargs)
+    if contents.encoding == "none":
+        blob = repo.get_git_blob(contents.sha)
+        # this might be more correct but chatgpt said the latter is better
+        # return base64.b64decode(bytearray(blob.content, "utf-8")).decode("utf-8")
+        return base64.b64decode(blob.content).decode("utf-8")
+    return contents.decoded_content.decode("utf-8")
+    
+
 
 
 def remove_line_numbers(s: str) -> str:
@@ -322,9 +339,11 @@ class GithubBot(BaseModel):
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
-                snippet.content = self.repo.get_contents(
-                    snippet.file_path, SweepConfig.get_branch(self.repo)
-                ).decoded_content.decode("utf-8")
+                snippet.content = safe_decode(
+                    self.repo,
+                    snippet.file_path,
+                    ref=SweepConfig.get_branch(self.repo)
+                )
                 snippet.start = max(1, snippet.start)
                 snippet.end = min(len(snippet.content.split("\n")), snippet.end)
             except SystemExit:
@@ -379,11 +398,15 @@ class GithubBot(BaseModel):
                     and file_change_request.change_type == "modify"
                 ):
                     file_change_request.change_type = "create"
+                
+                if contents is not None:
+                    decoded_content = None
+                    try:
+                        file_change_request.old_content = safe_decode(self.repo, file_change_request.filename, branch=SweepConfig.get_branch(self.repo))
+                    except Exception as e:
+                        logger.info(f"Error: {e}")
+                        file_change_request.old_content = ""
 
-                if contents is not None and contents.decoded_content is not None:
-                    file_change_request.old_content = contents.decoded_content.decode(
-                        "utf-8"
-                    )
                 created_files.append(file_change_request.filename)
 
                 block_status = is_blocked(file_change_request.filename, blocked_dirs)
@@ -420,8 +443,10 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox_responses: list[SandboxResponse] = []
         for fcr_file_path in fcr_file_paths:
             try:
-                contents = self.get_contents(fcr_file_path).decoded_content.decode(
-                    "utf-8"
+                contents = safe_decode(
+                    self.repo,
+                    fcr_file_path,
+                    branch=SweepConfig.get_branch(self.repo)
                 )
                 _, sandbox_response = self.check_sandbox(fcr_file_path, contents)
                 sandbox_responses.append(sandbox_response)
@@ -522,9 +547,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     continue
                 try:
                     relevant_files_contents.append(
-                        self.get_contents(
-                            file_path, branch=self.cloned_repo.branch
-                        ).decoded_content.decode("utf-8")
+                        safe_decode(
+                            self.repo,
+                            file_path,
+                            branch=self.cloned_repo.branch
+                        )
                     )
                 except Exception:
                     for file_path, (old_contents, new_contents) in changed_files:
@@ -985,7 +1012,11 @@ class SweepBot(CodeGenBot, GithubBot):
                                 f"Renamed {file_change_request.filename} to"
                                 f" {file_change_request.instructions}"
                             ),
-                            contents.decoded_content,
+                            safe_decode(
+                                self.repo,
+                                file_change_request.filename,
+                                branch=branch
+                            )
                             branch=branch,
                         )
                         self.repo.delete_file(
@@ -1066,7 +1097,11 @@ class SweepBot(CodeGenBot, GithubBot):
         commit_message: str = None
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
+            file_contents = safe_decode(
+                self.repo,
+                file_change_request.filename,
+                branch=branch
+            )
             file_name = file_change_request.filename
             lines = file_contents.split("\n")
 
