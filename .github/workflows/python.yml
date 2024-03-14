@@ -17,7 +17,7 @@ on:
       - 'tests/**'
 
 jobs:
-  setup-and-dependencies:
+  python-ci:
     runs-on: ubuntu-latest
     strategy:
       matrix:

@@ -34,7 +34,6 @@ def load_config():
         cprint(f"\nLoading configuration from {config_path}", style="yellow")
         with open(config_path, "r") as f:
             config = json.load(f)
-            print(config)
         config.get("GITHUB_PAT", "")
         os.environ["GITHUB_PAT"] = config.get("GITHUB_PAT", "")
         config.get("OPENAI_API_KEY", "")
