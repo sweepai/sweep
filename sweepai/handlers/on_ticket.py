@@ -1420,9 +1420,6 @@ def on_ticket(
                             elif sandbox_passed is None:
                                 sandbox_passed = True
 
-                    if sandbox_passed is True:
-                        pr_changes.title = f"{pr_changes.title} (✓ Sandbox Passed)"
-
                     # delete failing sweep yaml if applicable
                     if sweep_yml_failed:
                         try:
