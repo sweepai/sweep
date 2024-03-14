@@ -478,7 +478,7 @@ def on_ticket(
             )
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
-                overrided_branch_name = branch_match.groupdict()["branch_name"].strip()
+                overrided_branch_name = branch_match.groupdict()["branch_name"].strip().strip("`\"\'")
                 if overrided_branch_name == "_No response_":
                     continue
                 SweepConfig.get_branch(repo, overrided_branch_name)
