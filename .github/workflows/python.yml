@@ -37,25 +37,21 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      # - name: Restore dependencies
-      #   id: restore-dependencies
-      #   uses: actions/cache/restore@v4
-      #   with:
-      #     path: ~/.cache/uv
-      #     key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-python-${{ matrix.python-version }}-
-      #       ${{ runner.os }}-python-
-      # - name: Install Python dependencies
-      #   # if: steps.restore-dependencies.outputs.cache-hit != 'true'
-      #   run: |
-      #     echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
-      #     pip install uv
-      #     uv pip install -r requirements.txt
-      #     # uv pip install black ruff pylint uvicorn pytest
+      - name: Restore dependencies
+        id: restore-dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ matrix.python-version }}-
+            ${{ runner.os }}-python-
       - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+        if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: pip install uv
+        if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install -r requirements.txt
+        if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - name: Cache dependencies
         id: cache-dependencies
         uses: actions/cache/save@v4
@@ -66,6 +62,11 @@ jobs:
   code-quality:
     needs: setup-and-dependencies
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -73,7 +74,7 @@ jobs:
     - name: Use Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11
+        python-version: 3.10
 
     - uses: actions/cache@v4
       name: Fetch dependencies
@@ -92,6 +93,11 @@ jobs:
   unit-tests:
     needs: setup-and-dependencies
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -99,7 +105,7 @@ jobs:
     - name: Use Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11 # Choose based on your project's needs
+        python-version: 3.10 # Choose based on your project's needs
 
     - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
     - uses: actions/cache@v4
@@ -117,6 +123,11 @@ jobs:
   e2e-tests:
     needs: unit-tests
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -124,7 +135,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11 # Choose based on your project's needs
+        python-version: 3.10 # Choose based on your project's needs
 
     - uses: actions/cache@v4
       name: Fetch dependencies
