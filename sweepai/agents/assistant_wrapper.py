@@ -262,9 +262,18 @@ def run_until_complete(
         if tool_calls:
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
-                logger.debug(f"tool_call: {function_name} with args: {function_args}")
-                tool_output = yield function_name, function_args
+                try:
+                    function_args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError as e:
+                    logger.debug(
+                        f"Error: could not decode function arguments: {tool_call.function.args}"
+                    )
+                    tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
+                else:
+                    logger.debug(
+                        f"tool_call: {function_name} with args: {function_args}"
+                    )
+                    tool_output = yield function_name, function_args
                 messages.append(
                     {
                         "tool_call_id": tool_call.id,
