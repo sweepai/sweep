@@ -23,6 +23,7 @@ jobs:
       matrix:
         python-version: ["3.10"]
         # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
     outputs:
       cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
     steps:
@@ -45,13 +46,16 @@ jobs:
       #     restore-keys: |
       #       ${{ runner.os }}-python-${{ matrix.python-version }}-
       #       ${{ runner.os }}-python-
-      - name: Install Python dependencies
-        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
-        run: |
-          echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
-          pip install uv
-          uv pip install -r requirements.txt
-          # uv pip install black ruff pylint uvicorn pytest
+      # - name: Install Python dependencies
+      #   # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      #   run: |
+      #     echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+      #     pip install uv
+      #     uv pip install -r requirements.txt
+      #     # uv pip install black ruff pylint uvicorn pytest
+      - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+      - run: pip install uv
+      - run: uv pip install -r requirements.txt
       - name: Cache dependencies
         id: cache-dependencies
         uses: actions/cache/save@v4
