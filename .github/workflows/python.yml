@@ -41,7 +41,7 @@ jobs:
         id: restore-dependencies
         uses: actions/cache/restore@v4
         with:
-          path: ~
+          path: "~"
           key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-python-${{ matrix.python-version }}-
@@ -58,7 +58,7 @@ jobs:
         id: cache-dependencies
         uses: actions/cache/save@v4
         with:
-          path: ~
+          path: "~"
           key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
 
       - name: Format with Black
