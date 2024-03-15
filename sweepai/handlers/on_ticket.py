@@ -412,7 +412,7 @@ def on_ticket(
         # we want to pass in the failing github action messages to the next run in order to fix them
         failing_gha_messages: list[Message] = []
         # we rerun this logic 3 times at most if the github actions associated with the created pr fails
-        max_pr_attempts = 3
+        max_pr_attempts = 1
         for run_attempt in range(max_pr_attempts):
             if tracking_id is None:
                 tracking_id = get_hash()
