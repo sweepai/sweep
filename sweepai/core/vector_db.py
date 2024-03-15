@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from sweepai.config.server import (
     BATCH_SIZE,
+    OPENAI_API_KEY,
     OPENAI_API_TYPE,
     OPENAI_EMBEDDINGS_API_TYPE,
     OPENAI_EMBEDDINGS_AZURE_API_KEY,
@@ -25,7 +26,7 @@ from sweepai.utils.hash import hash_sha256
 from sweepai.utils.utils import Tiktoken
 
 if OPENAI_EMBEDDINGS_API_TYPE == "openai":
-    client = OpenAI()
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
 elif OPENAI_EMBEDDINGS_API_TYPE == "azure":
     client = AzureOpenAI(
         azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
@@ -85,7 +86,9 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
-    with multiprocessing.Pool(processes=max(1, multiprocessing.cpu_count() // 4)) as pool:
+    with multiprocessing.Pool(
+        processes=max(1, multiprocessing.cpu_count() // 4)
+    ) as pool:
         embeddings = list(
             tqdm(
                 pool.imap(openai_with_expo_backoff, batches),
