@@ -54,17 +54,20 @@ def test_cli():
     assert os.environ.get("GITHUB_PAT") is not None
 
 
+# def test_initialization(): pass
+
+
 def test_run():
-    issue_title = issue_json["issue"]["title"]
+    issue_title = "Sweep: Change the install app button color to green"
     load_config()
-    result = runner.invoke(app, ["run", "https://github.com/sweepai/e2e/issues/1"])
+    result = runner.invoke(app, ["run", "https://github.com/sweepai/e2e/issues/8"])
 
     repo = Github(GITHUB_PAT).get_repo("sweepai/e2e")
     pulls: PaginatedList[PullRequest] = repo.get_pulls(
         state="open", sort="created", direction="desc"
     )
     for pr in pulls[: pulls.totalCount]:
-        current_date = time.time() - 60 * 2
+        current_date = time.time() - 60 * 5
         current_date = datetime.datetime.fromtimestamp(current_date)
         creation_date: datetime.datetime = pr.created_at.replace(
             tzinfo=datetime.timezone.utc
