@@ -85,7 +85,7 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
+    with multiprocessing.Pool(processes=max(1, multiprocessing.cpu_count() // 4)) as pool:
         embeddings = list(
             tqdm(
                 pool.imap(openai_with_expo_backoff, batches),
