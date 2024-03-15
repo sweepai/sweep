@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 
-def e2e_run_file_tests():
+def test_run_file_tests():
     list_of_files = ["sweepai/core/repo_parsing_utils.py", "sweepai/utils/github_utils.py", "sweepai/agents/modify_file.py", "sweepai/core/context_pruning.py", "sweepai/agents/modify_bot.py"]
 
     for file in list_of_files:
@@ -14,4 +14,4 @@ def e2e_run_file_tests():
             sys.exit(1)
 
 if __name__ == "__main__":
-    e2e_run_file_tests()
+    test_run_file_tests()
