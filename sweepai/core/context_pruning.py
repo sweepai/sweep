@@ -485,7 +485,8 @@ def get_relevant_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
-        messages = textwrap.wrap(user_prompt, MAX_CHARS)
+        wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
+        messages = wrapper.wrap(user_prompt)
         assistant = openai_retry_with_timeout(
             client.beta.assistants.create,
             name="Relevant Files Assistant",
