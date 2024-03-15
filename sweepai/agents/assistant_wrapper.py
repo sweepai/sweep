@@ -82,7 +82,7 @@ def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
         current_function = tool_call.function.name
         try:
             function_args = json.loads(tool_call.function.arguments)
-        except:
+        except json.JSONDecodeError:
             logger.error(
                 f"Error: could not decode function arguments: {tool_call.function.args}"
             )
