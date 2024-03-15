@@ -444,20 +444,23 @@ def function_modify(
                             # for matches inside current code file
                             if match_indices:
                                 sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
-                                starter_message = f"The keyword {keyword} was found in sections {sections_message}. They appear in the following places:\n\n"
+                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
                                     match_indices, chunks, keyword, starter_message
                                 )
+                                if relevant_file_match_indices:
+                                    success_message += "\n\n"
                             else:
                                 success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
+                                also_keyword = "also " if match_indices else ""
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
                                 ) in relevant_file_match_indices.items():
                                     sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
-                                    starter_message = f"The keyword {keyword} was found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
+                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
                                             relevant_file_match_indices,
