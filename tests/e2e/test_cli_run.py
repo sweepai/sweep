@@ -57,7 +57,7 @@ def test_cli():
 def test_run():
     issue_title = issue_json["issue"]["title"]
     load_config()
-    result = runner.invoke(app, ["run", "https://github.com/sweepai/e2e/issues/1"])
+    result = runner.invoke(app, ["run", "https://github.com/sweepai/e2e/issues/8"])
 
     repo = Github(GITHUB_PAT).get_repo("sweepai/e2e")
     pulls: PaginatedList[PullRequest] = repo.get_pulls(
