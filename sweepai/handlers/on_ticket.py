@@ -45,7 +45,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     MONGODB_URI,
-    OPENAI_USE_3_5_MODEL_ONLY,
     PROGRESS_BASE_URL,
 )
 from sweepai.core.entities import (
@@ -512,9 +511,7 @@ def on_ticket(
             if chat_logger:
                 is_paying_user = chat_logger.is_paying_user()
                 is_consumer_tier = chat_logger.is_consumer_tier()
-                use_faster_model = (
-                    OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
-                )
+                use_faster_model = chat_logger.use_faster_model()
             else:
                 is_paying_user = True
                 is_consumer_tier = False
