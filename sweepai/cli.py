@@ -314,22 +314,25 @@ def run(issue_url: str):
 
     request = fetch_issue_request(issue_url)
 
-    cprint(f'\nRunning Sweep to solve "{request.issue.title}"!\n')
-    on_ticket(
-        title=request.issue.title,
-        summary=request.issue.body,
-        issue_number=request.issue.number,
-        issue_url=request.issue.html_url,
-        username=request.sender.login,
-        repo_full_name=request.repository.full_name,
-        repo_description=request.repository.description,
-        installation_id=request.installation.id,
-        comment_id=None,
-        edited=False,
-        tracking_id=get_hash(),
-    )
-
-    posthog_capture("sweep_run_success", {"issue_url": issue_url})
+    try:
+        cprint(f'\nRunning Sweep to solve "{request.issue.title}"!\n')
+        on_ticket(
+            title=request.issue.title,
+            summary=request.issue.body,
+            issue_number=request.issue.number,
+            issue_url=request.issue.html_url,
+            username=request.sender.login,
+            repo_full_name=request.repository.full_name,
+            repo_description=request.repository.description,
+            installation_id=request.installation.id,
+            comment_id=None,
+            edited=False,
+            tracking_id=get_hash(),
+        )
+    except Exception as e:
+        posthog_capture("sweep_run_fail", {"issue_url": issue_url, "error": str(e)})
+    else:
+        posthog_capture("sweep_run_success", {"issue_url": issue_url})
 
 
 def main():
