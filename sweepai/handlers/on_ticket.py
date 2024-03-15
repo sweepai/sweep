@@ -86,8 +86,8 @@ from sweepai.utils.progress import (
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     BOT_SUFFIX,
-    UPDATES_MESSAGE,
     FASTER_MODEL_MESSAGE,
+    UPDATES_MESSAGE,
     blockquote,
     bot_suffix,
     checkbox_template,
@@ -471,7 +471,9 @@ def on_ticket(
             )
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
-                overrided_branch_name = branch_match.groupdict()["branch_name"].strip().strip("`\"\'")
+                overrided_branch_name = (
+                    branch_match.groupdict()["branch_name"].strip().strip("`\"'")
+                )
                 if overrided_branch_name == "_No response_":
                     continue
                 SweepConfig.get_branch(repo, overrided_branch_name)
@@ -510,7 +512,7 @@ def on_ticket(
                 is_paying_user = True
                 is_consumer_tier = False
                 use_faster_model = False
-            
+
             if use_faster_model:
                 raise Exception(FASTER_MODEL_MESSAGE)
 
@@ -727,8 +729,6 @@ def on_ticket(
                                 f" wrong, please add more details to your issue.\n\n{table}"
                             )
                         suffix = bot_suffix  # don't include discord suffix for error messages
-                    
-
 
                     # Update the issue comment
                     msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
@@ -1451,7 +1451,8 @@ def on_ticket(
                         body=pr_actions_message + pr_changes.body,
                         head=pr_changes.pr_head,
                         base=overrided_branch_name or SweepConfig.get_branch(repo),
-                        draft=is_draft_pr,
+                        # TODO: reenable it later
+                        draft=is_draft_pr and False,
                     )
 
                     try:
@@ -1533,73 +1534,75 @@ def on_ticket(
                         ),
                     )
 
+                    # TODO: re-enable this later
                     # poll for github to check when gha are done or not
                     pr_created_successfully = False
                     total_poll_attempts = 0
-                    while True:
-                        logger.info(
-                            f"Polling to see if Github Actions have finished... {total_poll_attempts}"
-                        )
-                        # we wait at most 60 minutes
-                        if total_poll_attempts >= 60:
-                            pr_created_successfully = False
-                            break
-                        else:
-                            # wait one minute between check attempts
-                            total_poll_attempts += 1
-                            from time import sleep
-
-                            sleep(60)
-                        runs = list(repo.get_workflow_runs(branch=pr.head.ref))
-                        # if all runs have succeeded, break
-                        if all([run.conclusion == "success" for run in runs]):
-                            pr_created_successfully = True
-                            break
-                        # if any of them have failed we retry
-                        if any([run.conclusion == "failure" for run in runs]):
-                            pr_created_successfully = False
-                            failed_runs = [
-                                run for run in runs if run.conclusion == "failure"
-                            ]
-
-                            failed_gha_logs: list[Message] = get_failing_gha_logs(
-                                failed_runs
-                            )
-                            if failed_gha_logs:
-                                failing_gha_messages.extend(failed_gha_logs)
+                    if False:
+                        while True:
                             logger.info(
-                                f"Rerunning issue {issue_url} as some workflows failed! Rerun attempt {run_attempt + 1}"
+                                f"Polling to see if Github Actions have finished... {total_poll_attempts}"
                             )
-                            # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
-                            # unless this is sweep's last attempt
-                            if run_attempt < 2:
-                                try:
-                                    pr.edit(
-                                        state="closed",
-                                        title=pr.title
-                                        + f" (Closed due to failing Github Action: Attempt {run_attempt + 1})",
-                                    )
-                                    if pr.head.ref.startswith("sweep"):
-                                        repo.get_git_ref(
-                                            f"heads/{pr.head.ref}"
-                                        ).delete()
-                                except Exception as e:
-                                    logger.error(
-                                        f"Failed to clean up branch {pr.head.ref} and pr before restarting: {e}"
-                                    )
+                            # we wait at most 60 minutes
+                            if total_poll_attempts >= 60:
+                                pr_created_successfully = False
+                                break
+                            else:
+                                # wait one minute between check attempts
+                                total_poll_attempts += 1
+                                from time import sleep
+
+                                sleep(60)
+                            runs = list(repo.get_workflow_runs(branch=pr.head.ref))
+                            # if all runs have succeeded, break
+                            if all([run.conclusion == "success" for run in runs]):
+                                pr_created_successfully = True
+                                break
+                            # if any of them have failed we retry
+                            if any([run.conclusion == "failure" for run in runs]):
+                                pr_created_successfully = False
+                                failed_runs = [
+                                    run for run in runs if run.conclusion == "failure"
+                                ]
+
+                                failed_gha_logs: list[Message] = get_failing_gha_logs(
+                                    failed_runs
+                                )
+                                if failed_gha_logs:
+                                    failing_gha_messages.extend(failed_gha_logs)
+                                logger.info(
+                                    f"Rerunning issue {issue_url} as some workflows failed! Rerun attempt {run_attempt + 1}"
+                                )
+                                # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
+                                # unless this is sweep's last attempt
+                                if run_attempt < 2:
+                                    try:
+                                        pr.edit(
+                                            state="closed",
+                                            title=pr.title
+                                            + f" (Closed due to failing Github Action: Attempt {run_attempt + 1})",
+                                        )
+                                        if pr.head.ref.startswith("sweep"):
+                                            repo.get_git_ref(
+                                                f"heads/{pr.head.ref}"
+                                            ).delete()
+                                    except Exception as e:
+                                        logger.error(
+                                            f"Failed to clean up branch {pr.head.ref} and pr before restarting: {e}"
+                                        )
+                                break
+                            # if none of the runs have completed we wait and poll github
+                            logger.info(
+                                "No Github Actions have failed yet and not all have succeeded yet, waiting for 60 seconds before polling again..."
+                            )
+                        # break from main for loop
+                        if pr_created_successfully:
+                            logger.info(
+                                f"All Github Actions have finished successfully! It took {run_attempt + 1} attempts to create the PR. It took {total_poll_attempts + 1} minutes for all Github Actions to finish."
+                            )
+                            # convert draft pr to normal one
+                            convert_pr_draft_field(pr, is_draft=False)
                             break
-                        # if none of the runs have completed we wait and poll github
-                        logger.info(
-                            "No Github Actions have failed yet and not all have succeeded yet, waiting for 60 seconds before polling again..."
-                        )
-                    # break from main for loop
-                    if pr_created_successfully:
-                        logger.info(
-                            f"All Github Actions have finished successfully! It took {run_attempt + 1} attempts to create the PR. It took {total_poll_attempts + 1} minutes for all Github Actions to finish."
-                        )
-                        # convert draft pr to normal one
-                        convert_pr_draft_field(pr, is_draft=False)
-                        break
 
                 except MaxTokensExceeded as e:
                     logger.info("Max tokens exceeded")
@@ -1925,7 +1928,6 @@ def get_payment_messages(chat_logger: ChatLogger):
         else 999
     )
 
- 
     model_name = "GPT-4"
     single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
     pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
