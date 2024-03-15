@@ -221,7 +221,7 @@ def run_until_complete(
             active_runs = any(
                 run.status == "in_progress" for run in last_runs.data
             )
-            
+
             logger.info(f"Active run in thread: {active_runs}")
             
             run = openai_retry_with_timeout(
@@ -229,7 +229,7 @@ def run_until_complete(
                 thread_id=thread_id,
                 run_id=run_id,
             )
-            if run.status == "completed" and not active_runs:
+            if run.status == "completed":
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made})"
                 )
@@ -240,13 +240,14 @@ def run_until_complete(
                 if not done_response:
                     break
                 else:
-                    run = client.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        instructions=done_response,
-                        model=model,
-                    )
-            elif run.status in ("cancelled", "cancelling", "failed", "expired") and not active_runs:
+                    if not active_runs:
+                        run = client.beta.threads.runs.create(
+                            thread_id=thread_id,
+                            assistant_id=assistant_id,
+                            instructions=done_response,
+                            model=model,
+                        )
+            elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made}) and reason {run.last_error}."
                 )
