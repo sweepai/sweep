@@ -199,7 +199,6 @@ def get_json_messages(
                         )
     return messages_json
 
-
 def run_until_complete(
     thread_id: str,
     run_id: str,
@@ -215,12 +214,22 @@ def run_until_complete(
     try:
         num_tool_calls_made = 0
         for i in range(max_iterations):
+            last_runs = openai_retry_with_timeout(
+                client.beta.threads.runs.list,
+                thread_id=thread_id,
+            )
+            active_runs = any(
+                run.status == "in_progress" for run in last_runs.data
+            )
+            
+            logger.info(f"Active run in thread: {active_runs}")
+            
             run = openai_retry_with_timeout(
                 client.beta.threads.runs.retrieve,
                 thread_id=thread_id,
                 run_id=run_id,
             )
-            if run.status == "completed":
+            if run.status == "completed" and not active_runs:
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made})"
                 )
@@ -237,7 +246,7 @@ def run_until_complete(
                         instructions=done_response,
                         model=model,
                     )
-            elif run.status in ("cancelled", "cancelling", "failed", "expired"):
+            elif run.status in ("cancelled", "cancelling", "failed", "expired") and not active_runs:
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made}) and reason {run.last_error}."
                 )
