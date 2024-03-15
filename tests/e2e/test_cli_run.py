@@ -58,7 +58,7 @@ def test_cli():
 
 
 def test_run():
-    issue_title = issue_json["issue"]["title"]
+    issue_title = "Sweep: Change the install app button color to green"
     load_config()
     result = runner.invoke(app, ["run", "https://github.com/sweepai/e2e/issues/8"])
 
