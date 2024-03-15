@@ -241,7 +241,8 @@ def run_until_complete(
                     break
                 else:
                     if not active_runs:
-                        run = client.beta.threads.runs.create(
+                        run = openai_retry_with_timeout(
+                            client.beta.threads.runs.create,
                             thread_id=thread_id,
                             assistant_id=assistant_id,
                             instructions=done_response,
@@ -260,12 +261,14 @@ def run_until_complete(
                         f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
                     )
                 else:
-                    run = client.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        instructions=done_response,
-                        model=model,
-                    )
+                    if not active_runs:
+                        run = openai_retry_with_timeout(
+                            client.beta.threads.runs.create,
+                            thread_id=thread_id,
+                            assistant_id=assistant_id,
+                            instructions=done_response,
+                            model=model,
+                        )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
