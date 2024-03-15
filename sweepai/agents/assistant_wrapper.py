@@ -17,6 +17,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 from pydantic import BaseModel
 
+from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED
 from sweepai.core.entities import AssistantRaisedException, Message
@@ -530,6 +531,7 @@ def openai_assistant_call(
         },
     )
     retries = range(3)
+    additional_messages = ensure_additional_messages_length(additional_messages)
     for _ in retries:
         try:
             response = openai_assistant_call_helper(

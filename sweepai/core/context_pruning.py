@@ -455,7 +455,7 @@ def get_relevant_context(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
-    if chat_logger and chat_logger.use_faster_model():
+    if chat_logger.use_faster_model():
         raise Exception(FASTER_MODEL_MESSAGE)
     model = DEFAULT_GPT4_32K_MODEL
     posthog.capture(
@@ -843,27 +843,38 @@ def modify_context(
 
 
 if __name__ == "__main__":
-    import os
+    try:
+        import os
 
-    from sweepai.utils.ticket_utils import prep_snippets
-
-    installation_id = os.environ["INSTALLATION_ID"]
-    cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-    query = (
-        "allow sweep.yaml to be read from the user/organization's .github repository"
-    )
-    # golden response is
-    # sweepai/handlers/create_pr.py:401-428
-    # sweepai/config/client.py:178-282
-    ticket_progress = TicketProgress(
-        tracking_id="test",
-    )
-    repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
-    rcm = get_relevant_context(
-        query,
-        repo_context_manager,
-        ticket_progress,
-        chat_logger=ChatLogger({"username": "wwzeng1"}),
-    )
-    for snippet in rcm.current_top_snippets:
-        print(snippet.denotation)
+        from sweepai.utils.ticket_utils import prep_snippets
+        from sweepai.utils.github_utils import get_installation_id
+        organization_name = "sweepai"
+        installation_id = get_installation_id(organization_name)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        query = (
+            "allow sweep.yaml to be read from the user/organization's .github repository"
+        )
+        # golden response is
+        # sweepai/handlers/create_pr.py:401-428
+        # sweepai/config/client.py:178-282
+        ticket_progress = TicketProgress(
+            tracking_id="test",
+        )
+        repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
+        rcm = get_relevant_context(
+            query,
+            repo_context_manager,
+            ticket_progress,
+            chat_logger=ChatLogger({"username": "wwzeng1"}),
+        )
+        for snippet in rcm.current_top_snippets:
+            print(snippet.denotation)
+        # run with no chat_logger and ticket_progress
+        repo_context_manager = prep_snippets(cloned_repo, query)
+        rcm = get_relevant_context(
+            query,
+            repo_context_manager,
+        )
+    except Exception as e:
+        logger.error(f"context_pruning.py failed to run successfully with error: {e}")
+        raise e

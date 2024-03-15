@@ -169,15 +169,22 @@ def modify_file(
 
 
 if __name__ == "__main__":
-    cloned_repo = MockClonedRepo("/tmp/sweep", "sweepai/sweep")
+    try:
+        from sweepai.utils.github_utils import get_installation_id
+        organization_name = "sweepai"
+        installation_id = get_installation_id(organization_name)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
 
-    new_file = modify_file(
-        cloned_repo=cloned_repo,
-        metadata="This repo is Sweep.",
-        file_change_request=FileChangeRequest(
-            filename="push_image.sh",
-            instructions="Add a print hello world statement before running anything.",
-            change_type="modify",
-        ),
-    )
-    print(new_file)
+        new_file = modify_file(
+            cloned_repo=cloned_repo,
+            metadata="This repo is Sweep.",
+            file_change_request=FileChangeRequest(
+                filename="sweepai/api.py",
+                instructions="import math at the top of the file",
+                change_type="modify",
+            ),
+        )
+        print(new_file)
+    except Exception as e:
+        logger.error(f"modify_file.py failed to run successfully with error: {e}")
+        raise e

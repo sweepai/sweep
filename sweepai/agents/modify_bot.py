@@ -645,8 +645,40 @@ class ModifyBot:
 
 
 if __name__ == "__main__":
-    response = """
+    try: 
+        from sweepai.utils.github_utils import get_installation_id, ClonedRepo
+        from loguru import logger
+        organization_name = "sweepai"
+        installation_id = get_installation_id(organization_name)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        additional_messages = [Message(
+                role="user",
+                content=f"""# Repo & Issue Metadata
+Repo: sweepai/sweep: sweep
+add an import math statement at the top of the api.py file""",
+            ), Message(
+                role="user",
+                content=f"<relevant_file file_path='sweepai/api.py'>\n{open(cloned_repo.repo_dir + '/' + 'sweepai/api.py').read()}\n</relevant_file>",
+                key="instructions",
+            )]
+        modify_bot = ModifyBot(
+            additional_messages=additional_messages
+        )
+        new_file = modify_bot.try_update_file(
+            "sweepai/api.py",
+            open(cloned_repo.repo_dir + '/' + 'sweepai/api.py').read(),
+            FileChangeRequest(
+                filename="sweepai/api.py",
+                instructions="add an import math statement at the top of the api.py file",
+                change_type="modify"
+            ),
+            cloned_repo,
+        )
+        assert("import math" in new_file)
+        response = """
 ```python
 ```"""
-    stripped = strip_backticks(response)
-    print(stripped)
+        stripped = strip_backticks(response)
+        print(stripped)
+    except Exception as e:
+        logger.error(f"sweep_bot.py failed to run successfully with error: {e}")
