@@ -244,7 +244,7 @@ def function_modify(
         try:
             done_counter = 0
             tool_name, tool_call = assistant_generator.send(None)
-            for i in range(10000):
+            for i in range(100): # TODO: tune this parameter
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "done":
                     diff = generate_diff(file_contents, current_contents)
@@ -335,8 +335,10 @@ def function_modify(
 
                             # Check if the changes are valid
                             if not error_message:
-                                is_valid, message = check_code(
-                                    file_path, current_new_contents
+                                is_valid, message = (
+                                    (True, "")
+                                    if not initial_code_valid
+                                    else check_code(file_path, current_new_contents)
                                 )
                                 current_diff = generate_diff(
                                     new_contents, current_new_contents

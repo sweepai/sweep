@@ -1,13 +1,17 @@
 import json
 import traceback
 from time import sleep
-from typing import Callable
+from typing import Callable, Optional
 
 import openai
 from loguru import logger
 from openai import AzureOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
+from openai.types.chat.chat_completion_message_tool_call import (
+    ChatCompletionMessageToolCall,
+    Function,
+)
 from pydantic import BaseModel
 
 from sweepai.config.server import (
@@ -66,6 +70,43 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
     ) from e
+
+
+def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
+    if tool_calls is None:
+        return
+
+    fixed_tool_calls = []
+
+    for tool_call in tool_calls:
+        current_function = tool_call.function.name
+        try:
+            function_args = json.loads(tool_call.function.arguments)
+        except json.JSONDecodeError:
+            logger.error(
+                f"Error: could not decode function arguments: {tool_call.function.args}"
+            )
+            fixed_tool_calls.append(tool_call)
+            continue
+        if current_function in ("parallel", "multi_tool_use.parallel"):
+            for _fake_i, _fake_tool_use in enumerate(function_args["tool_uses"]):
+                _function_args = _fake_tool_use["parameters"]
+                _current_function = _fake_tool_use["recipient_name"]
+                if _current_function.startswith("functions."):
+                    _current_function = _current_function[len("functions.") :]
+
+                fixed_tc = ChatCompletionMessageToolCall(
+                    id=f"{tool_call.id}_{_fake_i}",
+                    type="function",
+                    function=Function(
+                        name=_current_function, arguments=json.dumps(_function_args)
+                    ),
+                )
+                fixed_tool_calls.append(fixed_tc)
+        else:
+            fixed_tool_calls.append(tool_call)
+
+    return fixed_tool_calls
 
 
 save_ticket_progress_type = Callable[[str, str, str], None]
@@ -244,7 +285,8 @@ def run_until_complete(
             continue
 
         response_message = response.choices[0].message
-        tool_calls = response_message.tool_calls
+        tool_calls = fix_tool_calls(response_message.tool_calls)
+        response_message.tool_calls = tool_calls
         # extend conversation
         response_message_dict = response_message.dict()
         # in some cases the fields are None and we must replace these with empty strings
@@ -262,8 +304,18 @@ def run_until_complete(
         if tool_calls:
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
-                tool_output = yield function_name, function_args
+                try:
+                    function_args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError as e:
+                    logger.debug(
+                        f"Error: could not decode function arguments: {tool_call.function.args}"
+                    )
+                    tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
+                else:
+                    logger.debug(
+                        f"tool_call: {function_name} with args: {function_args}"
+                    )
+                    tool_output = yield function_name, function_args
                 messages.append(
                     {
                         "tool_call_id": tool_call.id,
@@ -363,12 +415,9 @@ def openai_assistant_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    model = (
-        "gpt-3.5-turbo-1106"
-        if (chat_logger is None or chat_logger.use_faster_model())
-        and not IS_SELF_HOSTED
-        else DEFAULT_GPT4_32K_MODEL
-    )
+    if chat_logger.use_faster_model():
+        raise Exception("GPT-3.5 is not supported on assistant calls.")
+    model = DEFAULT_GPT4_32K_MODEL
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
         "call_assistant_api",

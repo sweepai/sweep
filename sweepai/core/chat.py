@@ -1,3 +1,4 @@
+from math import inf
 import traceback
 from typing import Any, Literal
 
@@ -8,7 +9,6 @@ from pydantic import BaseModel
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
-    DEFAULT_GPT35_MODEL,
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
@@ -192,9 +192,11 @@ class ChatGPT(MessageList):
                 and not self.chat_logger.is_paying_user()
                 and not self.chat_logger.is_consumer_tier()
             ):
-                model = DEFAULT_GPT35_MODEL
+                raise ValueError(
+                    "You have no more tickets! Please upgrade to a paid plan."
+                )
             else:
-                tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+                tickets_allocated = inf if self.chat_logger.is_paying_user() else 5
                 tickets_count = self.chat_logger.get_ticket_count()
                 purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
                 if tickets_count < tickets_allocated:
@@ -208,7 +210,9 @@ class ChatGPT(MessageList):
                         f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
                     )
                 else:
-                    model = DEFAULT_GPT35_MODEL
+                    raise ValueError(
+                        f"Tickets allocated: {tickets_allocated}, tickets found: {tickets_count}. You have no more tickets!"
+                    )
 
         count_tokens = Tiktoken().count
         messages_length = sum(

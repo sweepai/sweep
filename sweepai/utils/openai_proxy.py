@@ -19,7 +19,7 @@ from sweepai.logn.cache import file_cache
 if BASERUN_API_KEY is not None:
     pass
 
-OPENAI_TIMEOUT = 300  # one minute
+OPENAI_TIMEOUT = 60  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
     "gpt-4-0125-preview",

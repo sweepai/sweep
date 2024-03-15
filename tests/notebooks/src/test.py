@@ -108,12 +108,6 @@ class RefactorBot(ChatGPT):
         cloned_repo: ClonedRepo = None,
         **kwargs,
     ):
-        self.model = (
-            DEFAULT_GPT4_32K_MODEL
-            if (self.chat_logger and self.chat_logger.is_paying_user())
-            else DEFAULT_GPT35_MODEL
-        )
-
         # first perform manual refactoring step
         script, tree = setup_jedi_for_file(
             project_dir=cloned_repo.repo_dir,

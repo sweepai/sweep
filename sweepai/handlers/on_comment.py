@@ -13,7 +13,6 @@ from tabulate import tabulate
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
-    DEFAULT_GPT35_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
@@ -27,7 +26,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
@@ -128,6 +127,9 @@ def on_comment(
             # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
             is_paying_user = True
             use_faster_model = False
+        
+        if use_faster_model:
+            raise Exception(FASTER_MODEL_MESSAGE)
 
         assignee = pr.assignee.login if pr.assignee else None
 
@@ -139,7 +141,7 @@ def on_comment(
             "installation_id": installation_id,
             "username": username if not username.startswith("sweep") else assignee,
             "function": "on_comment",
-            "model": "gpt-3.5" if use_faster_model else "gpt-4",
+            "model": "gpt-4",
             "tier": "pro" if is_paying_user else "free",
             "mode": ENV,
             "pr_path": pr_path,
@@ -302,14 +304,14 @@ def on_comment(
             )
             logger.info(f"Human prompt{human_message.construct_prompt()}")
 
+            if use_faster_model:
+                raise Exception("GPT-3.5 is not supported for comments")
             sweep_bot = SweepBot.from_system_message_content(
                 # human_message=human_message, model="claude-v1.3-100k", repo=repo
                 human_message=human_message,
                 repo=repo,
                 chat_logger=chat_logger,
-                model=DEFAULT_GPT35_MODEL
-                if use_faster_model
-                else DEFAULT_GPT4_32K_MODEL,
+                model=DEFAULT_GPT4_32K_MODEL,
                 cloned_repo=cloned_repo,
             )
         except Exception as e:
