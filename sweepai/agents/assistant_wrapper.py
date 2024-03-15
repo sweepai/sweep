@@ -9,7 +9,6 @@ from typing import Callable, Optional
 import openai
 from anyio import Path
 from loguru import logger
-from openai import AzureOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
 from openai.types.chat.chat_completion_message_tool_call import (
@@ -19,32 +18,11 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from pydantic import BaseModel
 
 from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import (
-    AZURE_API_KEY,
-    DEFAULT_GPT4_32K_MODEL,
-    IS_SELF_HOSTED,
-    OPENAI_API_BASE,
-    OPENAI_API_KEY,
-    OPENAI_API_TYPE,
-    OPENAI_API_VERSION,
-)
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.openai_proxy import OpenAIProxy
-
-if OPENAI_API_TYPE == "openai":
-    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
-elif OPENAI_API_TYPE == "azure":
-    client = AzureOpenAI(
-        azure_endpoint=OPENAI_API_BASE,
-        api_key=AZURE_API_KEY,
-        api_version=OPENAI_API_VERSION,
-    )
-    # DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
-
-else:
-    raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
+from sweepai.utils.openai_proxy import OpenAIProxy, get_client
 
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
@@ -160,6 +138,7 @@ def get_json_messages(
     run_id: str,
     assistant_id: str,
 ):
+    client = get_client()
     assistant = openai_retry_with_timeout(
         client.beta.assistants.retrieve,
         assistant_id=assistant_id,
@@ -255,6 +234,7 @@ def run_until_complete(
     max_iterations: int = 2000,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    client = get_client()
     message_strings = []
     json_messages = []
     try:
@@ -449,6 +429,7 @@ def openai_assistant_call_helper(
 ):
     file_ids = [] if not uploaded_file_ids else uploaded_file_ids
     file_object = None
+    client = get_client()
     if not file_ids:
         for file_path in file_paths:
             if not any(file_path.endswith(extension) for extension in allowed_exts):
@@ -526,6 +507,7 @@ def openai_assistant_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    client = get_client()
     model = (
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
@@ -592,6 +574,7 @@ def run_until_complete_unstable(
     save_ticket_progress: save_ticket_progress_type | None = None,
     messages: list[Message] = [],
 ):
+    get_client()
     # used for chat logger
     for i in range(max_iterations):
         # log our progress
@@ -724,6 +707,7 @@ def openai_assistant_call_helper_unstable(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    get_client()
     logger.debug(instructions)
     messages = [{"role": "system", "content": instructions}]
     for message in additional_messages:
@@ -758,6 +742,7 @@ def openai_assistant_call_unstable(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    client = get_client()
     if chat_logger and chat_logger.use_faster_model():
         raise Exception("GPT-3.5 is not supported on assistant calls.")
     model = DEFAULT_GPT4_32K_MODEL

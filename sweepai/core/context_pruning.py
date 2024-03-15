@@ -9,43 +9,22 @@ import networkx as nx
 import openai
 from attr import dataclass
 from loguru import logger
-from openai import AzureOpenAI, OpenAI
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_function_modify import MAX_CHARS
-from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
-from sweepai.config.server import (
-    AZURE_API_KEY,
-    AZURE_OPENAI_DEPLOYMENT,
-    DEFAULT_GPT4_32K_MODEL,
-    OPENAI_API_BASE,
-    OPENAI_API_KEY,
-    OPENAI_API_TYPE,
-    OPENAI_API_VERSION,
-)
+from sweepai.agents.assistant_wrapper import openai_retry_with_timeout
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE
 from sweepai.utils.tree_utils import DirectoryTree
-
-if OPENAI_API_TYPE == "openai":
-    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
-elif OPENAI_API_TYPE == "azure":
-    client = AzureOpenAI(
-        azure_endpoint=OPENAI_API_BASE,
-        api_key=AZURE_API_KEY,
-        api_version=OPENAI_API_VERSION,
-    )
-    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
-else:
-    raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
-
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
@@ -487,6 +466,7 @@ def get_relevant_context(
             "model": model,
         },
     )
+    client = get_client()
     try:
         # attempt to get import tree for relevant snippets that show up in the query
         repo_context_manager, import_graph = parse_query_for_files(
@@ -583,6 +563,7 @@ def modify_context(
     initial_file_paths = repo_context_manager.top_snippet_paths
     paths_to_add = []
     num_tool_calls_made = 0
+    client = get_client()
     for iter in range(max_iterations):
         run = openai_retry_with_timeout(
             client.beta.threads.runs.retrieve,
