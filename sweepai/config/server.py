@@ -124,7 +124,7 @@ blocked_dirs: []
 
 
 MONGODB_URI = os.environ.get("MONGODB_URI", None)
-IS_SELF_HOSTED = bool(os.environ.get("IS_SELF_HOSTED", MONGODB_URI is None))
+IS_SELF_HOSTED = os.environ.get("IS_SELF_HOSTED", "true").lower() == "true"
 
 REDIS_URL = os.environ.get("REDIS_URL")
 if not REDIS_URL:

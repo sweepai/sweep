@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import (
     AZURE_API_KEY,
+    AZURE_OPENAI_DEPLOYMENT,
     DEFAULT_GPT4_32K_MODEL,
     IS_SELF_HOSTED,
     OPENAI_API_BASE,
@@ -41,7 +42,7 @@ elif OPENAI_API_TYPE == "azure":
         api_key=AZURE_API_KEY,
         api_version=OPENAI_API_VERSION,
     )
-    # DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
+    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
 
 else:
     raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
@@ -74,7 +75,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
             error_message = str(e)
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
-    ) from e
+    ) from error_message
 
 
 def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):

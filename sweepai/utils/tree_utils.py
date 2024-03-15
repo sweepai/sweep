@@ -141,7 +141,7 @@ class DirectoryTree:
         # if raw_str is too large (> 20k chars) we will use a truncated version
         if len(raw_str) > 20000:
             results = []
-            logger.warning("While attempting to dump the directory tree, the string was too large. Outputting the truncated version instead...")
+            logger.warning(f"While attempting to dump the directory tree, the string was too large: {len(raw_str)}. Outputting the truncated version instead...")
             for line in self.lines:
                 # always print out directories
                 if line.is_dir:
@@ -160,6 +160,7 @@ class DirectoryTree:
                 elif len(results) > 0 and results[-1] != ("  " * line.indent_count) + "...":
                     results.append(("  " * line.indent_count) + "...")
             raw_str = "\n".join(results)
+            logger.warning(f"Truncated version is of length {len(raw_str)}")
 
         return raw_str
 
