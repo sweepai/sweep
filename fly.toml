@@ -1,0 +1,27 @@
+# fly.toml app configuration file generated for sweep on 2024-03-13T14:53:57-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'sweep'
+primary_region = 'sjc'
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+[[vm]]
+  memory = '4gb'
+  cpu_kind = 'shared'
+  cpus = 2
+
+[mounts]
+  source="sweep_data"
+  destination="/"
+  processes = ["app"]

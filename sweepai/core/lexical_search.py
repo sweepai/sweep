@@ -196,7 +196,7 @@ def prepare_index_from_snippets(
     all_tokens = []
     try:
         # use 1/4 the max number of cores
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as p:
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
             for i, document_token_freq in tqdm(
                 enumerate(
                     p.imap(compute_document_tokens, [doc.content for doc in all_docs])
