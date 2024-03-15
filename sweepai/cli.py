@@ -284,6 +284,10 @@ def run(issue_url: str):
     )
 
 
-if __name__ == "__main__":
+def main():
     load_config()
     app()
+
+
+if __name__ == "__main__":
+    main()
