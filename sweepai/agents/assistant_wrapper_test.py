@@ -20,51 +20,6 @@ if __name__ == "__main__":
 
 
 class TestFixToolCalls(unittest.TestCase):
-    def test_happy_path(self):
-        # Setup input with one 'parallel' tool call needing replacement
-        input_tool_calls = [
-            ChatCompletionMessageToolCall(
-                id="1",
-                type="function",
-                function={
-                    "name": "parallel",
-                    "arguments": json.dumps(
-                        {
-                            "tool_uses": [
-                                {
-                                    "recipient_name": "functions.example_function",
-                                    "parameters": {"arg1": "value1"},
-                                }
-                            ]
-                        }
-                    ),
-                },
-            )
-        ]
-
-        # Expected tool calls after fix
-        expected_tool_calls = [
-            ChatCompletionMessageToolCall(
-                id="1_0",
-                type="function",
-                function={
-                    "name": "example_function",
-                    "arguments": json.dumps({"arg1": "value1"}),
-                },
-            )
-        ]
-
-        # Run the fix_tool_calls function
-        fix_tool_calls(input_tool_calls)
-        print(input_tool_calls)
-
-        # Assert the fixed tool calls match the expected output
-        self.assertEqual(len(input_tool_calls), len(expected_tool_calls))
-        for actual, expected in zip(input_tool_calls, expected_tool_calls):
-            self.assertEqual(actual.id, expected.id)
-            self.assertEqual(actual.type, expected.type)
-            self.assertEqual(actual.function, expected.function)
-
     def test_multiple_tool_calls(self):
         # Setup input with multiple tool calls, including more than one 'parallel' tool calls
         input_tool_calls = [
@@ -79,7 +34,11 @@ class TestFixToolCalls(unittest.TestCase):
                                 {
                                     "recipient_name": "functions.example_function",
                                     "parameters": {"arg1": "value1"},
-                                }
+                                },
+                                {
+                                    "recipient_name": "functions.example_function",
+                                    "parameters": {"arg1": "value2"},
+                                },
                             ]
                         }
                     ),
@@ -123,6 +82,14 @@ class TestFixToolCalls(unittest.TestCase):
                 },
             ),
             ChatCompletionMessageToolCall(
+                id="1_1",
+                type="function",
+                function={
+                    "name": "example_function",
+                    "arguments": json.dumps({"arg1": "value2"}),
+                },
+            ),
+            ChatCompletionMessageToolCall(
                 id="2",
                 type="function",
                 function={
@@ -141,11 +108,9 @@ class TestFixToolCalls(unittest.TestCase):
         ]
 
         # Run the fix_tool_calls function
-        fix_tool_calls(input_tool_calls)
-
-        # Assert the fixed tool calls match the expected output
-        self.assertEqual(len(input_tool_calls), len(expected_tool_calls))
-        for actual, expected in zip(input_tool_calls, expected_tool_calls):
+        output_tool_calls = fix_tool_calls(input_tool_calls)
+        self.assertEqual(len(output_tool_calls), len(expected_tool_calls))
+        for actual, expected in zip(output_tool_calls, expected_tool_calls):
             self.assertEqual(actual.id, expected.id)
             self.assertEqual(actual.type, expected.type)
             self.assertEqual(actual.function, expected.function)

@@ -1,6 +1,5 @@
 import json
 import traceback
-from collections import defaultdict
 from time import sleep
 from typing import Callable, Optional
 
@@ -77,14 +76,12 @@ def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
     if tool_calls is None:
         return
 
-    replacements: dict[int, list[ChatCompletionMessageToolCall]] = defaultdict(list)
+    fixed_tool_calls = []
+
     for i, tool_call in enumerate(tool_calls):
         current_function = tool_call.function.name
         function_args = json.loads(tool_call.function.arguments)
         if current_function in ("parallel", "multi_tool_use.parallel"):
-            logger.debug(
-                "OpenAI did a weird pseudo-multi-tool-use call, fixing call structure.."
-            )
             for _fake_i, _fake_tool_use in enumerate(function_args["tool_uses"]):
                 _function_args = _fake_tool_use["parameters"]
                 _current_function = _fake_tool_use["recipient_name"]
@@ -98,14 +95,11 @@ def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
                         name=_current_function, arguments=json.dumps(_function_args)
                     ),
                 )
-                replacements[i].append(fixed_tc)
+                fixed_tool_calls.append(fixed_tc)
+        else:
+            fixed_tool_calls.append(tool_call)
 
-    shift = 0
-    for i, replacement in replacements.items():
-        tool_calls[:] = (
-            tool_calls[: i + shift] + replacement + tool_calls[i + shift + 1 :]
-        )
-        shift += len(replacement)
+    return fixed_tool_calls
 
 
 save_ticket_progress_type = Callable[[str, str, str], None]
