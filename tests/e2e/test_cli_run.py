@@ -80,7 +80,4 @@ def test_run():
             print(f"PR created successfully: {pr.title}")
             print(f"PR object is: {pr}")
             return pr
-    import pdb
-
-    pdb.set_trace()
     raise AssertionError("PR not created")
