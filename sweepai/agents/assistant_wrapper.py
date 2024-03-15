@@ -758,7 +758,7 @@ def openai_assistant_call_unstable(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    if chat_logger.use_faster_model():
+    if chat_logger and chat_logger.use_faster_model():
         raise Exception("GPT-3.5 is not supported on assistant calls.")
     model = DEFAULT_GPT4_32K_MODEL
     posthog.capture(

@@ -162,9 +162,10 @@ def openai_with_expo_backoff(batch: tuple[str]):
             }
         )
         embeddings = np.array(embeddings)
-    except Exception as e:
-        logger.error(str(e))
-        logger.error("Failed to store embeddings in cache, returning without storing")
+    except Exception:
+        # logger.error(str(e))
+        # logger.error("Failed to store embeddings in cache, returning without storing")
+        pass
     return embeddings
 
 
