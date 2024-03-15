@@ -17,6 +17,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import check_code, chunk_code
 from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
+from sweepai.agents.assistant_functions import submit_schema
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -34,6 +35,8 @@ Your job is to make edits to the file to complete the user "# Request".
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
+
+When you have completed the task, call the submit function.
 """
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
@@ -195,15 +198,13 @@ def function_modify(
         code_sections.append(current_code_section)
         code_sections_string = "\n".join(code_sections)
         additional_messages += [
-            *reversed(
-                [
-                    Message(
-                        role="user",
-                        content=code_section,
-                    )
-                    for code_section in code_sections
-                ]
-            ),
+            *[
+                Message(
+                    role="user",
+                    content=code_section,
+                )
+                for code_section in code_sections
+            ],
             Message(
                 role="user",
                 content=f"# Request\n{request}",
@@ -224,6 +225,7 @@ def function_modify(
                 {"type": "function", "function": keyword_search_schema},
                 # {"type": "function", "function": view_sections_schema},
                 {"type": "function", "function": search_and_replace_schema},
+                {"type": "function", "function": submit_schema},
             ],
         )
 
@@ -800,6 +802,6 @@ if __name__ == "__main__":
                 "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
             }
         ),
-        # additional_messages=additional_messages,
+        additional_messages=additional_messages,
         ticket_progress=TicketProgress(tracking_id="test_remove_assistant_1"),
     )
