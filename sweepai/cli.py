@@ -21,7 +21,9 @@ from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.str_utils import get_hash
 from sweepai.web.events import Account, Installation, IssueRequest
 
-app = typer.Typer()
+app = typer.Typer(
+    name="sweepai", context_settings={"help_option_names": ["-h", "--help"]}
+)
 app_dir = typer.get_app_dir("sweepai")
 config_path = os.path.join(app_dir, "config.json")
 
@@ -285,6 +287,10 @@ def run(issue_url: str):
 
 
 def main():
+    cprint(
+        f"By using the Sweep CLI, you agree to the Sweep AI Terms of Service at https://sweep.dev/tos.pdf",
+        style="cyan",
+    )
     load_config()
     app()
 
