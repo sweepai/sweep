@@ -54,6 +54,9 @@ def test_cli():
     assert os.environ.get("GITHUB_PAT") is not None
 
 
+# def test_initialization(): pass
+
+
 def test_run():
     issue_title = issue_json["issue"]["title"]
     load_config()
@@ -64,7 +67,7 @@ def test_run():
         state="open", sort="created", direction="desc"
     )
     for pr in pulls[: pulls.totalCount]:
-        current_date = time.time() - 60 * 2
+        current_date = time.time() - 60 * 5
         current_date = datetime.datetime.fromtimestamp(current_date)
         creation_date: datetime.datetime = pr.created_at.replace(
             tzinfo=datetime.timezone.utc
@@ -77,4 +80,7 @@ def test_run():
             print(f"PR created successfully: {pr.title}")
             print(f"PR object is: {pr}")
             return pr
+    import pdb
+
+    pdb.set_trace()
     raise AssertionError("PR not created")
