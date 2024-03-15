@@ -859,4 +859,5 @@ def openai_assistant_call_unstable(
             logger.error(e)
             raise e
 
-# openai_assistant_call = openai_assistant_call_unstable
+openai_assistant_call = openai_assistant_call_unstable
+
