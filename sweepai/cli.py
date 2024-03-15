@@ -288,7 +288,7 @@ def run(issue_url: str):
 
 def main():
     cprint(
-        f"By using the Sweep CLI, you agree to the Sweep AI Terms of Service at https://sweep.dev/tos.pdf.",
+        "By using the Sweep CLI, you agree to the Sweep AI Terms of Service at https://sweep.dev/tos.pdf.",
         style="cyan",
     )
     load_config()
