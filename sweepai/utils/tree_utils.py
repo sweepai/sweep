@@ -39,6 +39,11 @@ class DirectoryTree:
     def __init__(self):
         self.original_lines: list[Line] = []
         self.lines: list[Line] = []
+        self.relevant_files: list[str] = [] # this is for __str__ method if the resulting string becomes too large
+
+    def add_relevant_files(self, files: list[str]) -> None:
+        relevant_files = copy.deepcopy(files)
+        self.relevant_files += relevant_files
 
     def parse(self, input_str: str):
         stack: list[Line] = []  # To keep track of parent directories
@@ -132,7 +137,31 @@ class DirectoryTree:
         for line in self.lines:
             line_text = line.text.split("/")[-2] + "/" if line.is_dir else line.text
             results.append(("  " * line.indent_count) + line_text)
-        return "\n".join(results)
+        raw_str = "\n".join(results)
+        # if raw_str is too large (> 20k chars) we will use a truncated version
+        if len(raw_str) > 20000:
+            results = []
+            logger.warning("While attempting to dump the directory tree, the string was too large. Outputting the truncated version instead...")
+            for line in self.lines:
+                # always print out directories
+                if line.is_dir:
+                    line_text = line.text.split("/")[-2] + "/" if line.is_dir else line.text
+                    results.append(("  " * line.indent_count) + line_text)
+                    continue
+                # if a file name doesn't appear as a file name in one fo the relevant files, don't print it
+                # instead print ... unless the previous item is already a ...
+                if (line.parent):
+                    full_path_of_file = line.parent.full_path() + line.full_path()
+                else:
+                    full_path_of_file = line.full_path()
+                if full_path_of_file in self.relevant_files:
+                    line_text = line.text.split("/")[-2] + "/" if line.is_dir else line.text
+                    results.append(("  " * line.indent_count) + line_text)
+                elif len(results) > 0 and results[-1] != ("  " * line.indent_count) + "...":
+                    results.append(("  " * line.indent_count) + "...")
+            raw_str = "\n".join(results)
+
+        return raw_str
 
 
 @file_cache()

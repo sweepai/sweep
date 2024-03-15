@@ -85,8 +85,8 @@ def prep_snippets(
                 prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
         prefixes.append(snippet_path)
     _, dir_obj = cloned_repo.list_directory_tree(
-        included_directories=prefixes,
-        included_files=snippet_paths,
+        included_directories=list(set(prefixes)),
+        included_files=list(set(snippet_paths)),
     )
     repo_context_manager = RepoContextManager(
         dir_obj=dir_obj,
