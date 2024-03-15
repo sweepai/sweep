@@ -78,9 +78,16 @@ def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
 
     fixed_tool_calls = []
 
-    for i, tool_call in enumerate(tool_calls):
+    for tool_call in tool_calls:
         current_function = tool_call.function.name
-        function_args = json.loads(tool_call.function.arguments)
+        try:
+            function_args = json.loads(tool_call.function.arguments)
+        except:
+            logger.error(
+                f"Error: could not decode function arguments: {tool_call.function.args}"
+            )
+            fixed_tool_calls.append(tool_call)
+            continue
         if current_function in ("parallel", "multi_tool_use.parallel"):
             for _fake_i, _fake_tool_use in enumerate(function_args["tool_uses"]):
                 _function_args = _fake_tool_use["parameters"]
@@ -294,6 +301,7 @@ def run_until_complete(
         messages.append(response_message_dict)
         # if a tool call was made
         if tool_calls:
+            tool_calls = fix_tool_calls(tool_calls)
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
                 try:
