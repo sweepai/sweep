@@ -182,6 +182,15 @@ class SweepConfig(BaseModel):
         except Exception as e:
             logger.warning(f"Error when getting draft: {e}, returning False")
             return False
+    
+    # returns if file is excluded or not
+    def is_file_excluded(self, file_path: str) -> bool:
+        parts = file_path.split(os.path.sep)
+        for part in parts:
+            if part in self.exclude_dirs or part in self.exclude_exts:
+                return True
+        return False
+        
 
 
 @lru_cache(maxsize=None)

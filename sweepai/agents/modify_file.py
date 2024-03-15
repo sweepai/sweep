@@ -1,7 +1,7 @@
 import traceback
 from collections import OrderedDict
 
-from sweepai.agents.assistant_function_modify import function_modify
+from sweepai.agents.assistant_function_modify import ensure_additional_messages_length, function_modify
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
@@ -143,6 +143,7 @@ def modify_file(
             cloned_repo,
         )
         additional_messages += relevant_file_messages
+        additional_messages = ensure_additional_messages_length(additional_messages)
         new_file = function_modify(
             file_change_request.instructions,
             file_change_request.filename,
