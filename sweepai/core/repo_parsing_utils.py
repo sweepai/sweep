@@ -119,7 +119,7 @@ def directory_to_chunks(
     ]
     logger.info("Done reading files")
     all_chunks = []
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as pool:
         for chunks in tqdm(pool.imap(file_path_to_chunks, file_list)):
             all_chunks.extend(chunks)
     return all_chunks, file_list

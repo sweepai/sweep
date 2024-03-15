@@ -13,7 +13,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 ENV VIRTUAL_ENV=/usr/local
 ADD --chmod=755 https://astral.sh/uv/install.sh /install.sh
-RUN /install.sh && rm /install.sh
+# RUN /install.sh && rm /install.sh
+RUN chmod 755 /install.sh && /install.sh && rm /install.sh
 
 COPY requirements.txt ./
 
