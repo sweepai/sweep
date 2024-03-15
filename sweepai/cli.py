@@ -28,14 +28,16 @@ config_path = os.path.join(app_dir, "config.json")
 console = Console()
 cprint = console.print
 
-if os.path.exists(config_path):
-    cprint(f"\nLoading configuration from {config_path}", style="yellow")
-    with open(config_path, "r") as f:
-        config = json.load(f)
-    GITHUB_PAT = config.get("GITHUB_PAT", "")
-    os.environ["GITHUB_PAT"] = config.get("GITHUB_PAT", "")
-    OPENAI_API_KEY = config.get("OPENAI_API_KEY", "")
-    os.environ["OPENAI_API_KEY"] = config.get("OPENAI_API_KEY", "")
+
+def load_config():
+    if os.path.exists(config_path):
+        cprint(f"\nLoading configuration from {config_path}", style="yellow")
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        config.get("GITHUB_PAT", "")
+        os.environ["GITHUB_PAT"] = config.get("GITHUB_PAT", "")
+        config.get("OPENAI_API_KEY", "")
+        os.environ["OPENAI_API_KEY"] = config.get("OPENAI_API_KEY", "")
 
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
@@ -283,4 +285,5 @@ def run(issue_url: str):
 
 
 if __name__ == "__main__":
+    load_config()
     app()
