@@ -123,11 +123,6 @@ blocked_dirs: []
 )
 
 
-OPENAI_USE_3_5_MODEL_ONLY = (
-    os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
-)
-
-
 MONGODB_URI = os.environ.get("MONGODB_URI", None)
 IS_SELF_HOSTED = bool(os.environ.get("IS_SELF_HOSTED", MONGODB_URI is None))
 

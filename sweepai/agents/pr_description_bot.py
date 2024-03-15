@@ -1,6 +1,5 @@
 import re
 
-from sweepai.config.server import DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 
 prompt = """\
@@ -30,7 +29,6 @@ class PRDescriptionBot(ChatGPT):
         pr_title,
     ):
         self.messages = []
-        self.model = DEFAULT_GPT35_MODEL
         # attempt to generate description 3 times
         pr_desc_pattern = r"<pr_description>\n(.*?)\n</pr_description>"
         for attempt in [0, 1, 2]:

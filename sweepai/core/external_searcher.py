@@ -1,6 +1,5 @@
 import re
 
-from sweepai.config.server import DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.prompts import external_search_prompt, external_search_system_prompt
@@ -18,7 +17,6 @@ class ExternalSearcher(ChatGPT):
         page_metadata = extract_info(url)
 
         self.messages = [Message(role="system", content=external_search_system_prompt)]
-        self.model = DEFAULT_GPT35_MODEL  # can be optimized
         response = self.chat(
             external_search_prompt.format(
                 page_metadata=page_metadata,
