@@ -4,6 +4,7 @@ import os
 import pickle
 import threading
 import time
+import uuid
 from itertools import chain, islice
 
 import typer
@@ -17,11 +18,14 @@ from rich.prompt import Prompt
 
 from sweepai.api import handle_request
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.str_utils import get_hash
 from sweepai.web.events import Account, Installation, IssueRequest
 
-app = typer.Typer()
+app = typer.Typer(
+    name="sweepai", context_settings={"help_option_names": ["-h", "--help"]}
+)
 app_dir = typer.get_app_dir("sweepai")
 config_path = os.path.join(app_dir, "config.json")
 
@@ -29,15 +33,20 @@ console = Console()
 cprint = console.print
 
 
+def posthog_capture(event_name, properties, *args, **kwargs):
+    POSTHOG_DISTINCT_ID = os.environ.get("POSTHOG_DISTINCT_ID")
+    if POSTHOG_DISTINCT_ID:
+        posthog.capture(POSTHOG_DISTINCT_ID, event_name, properties, *args, **kwargs)
+
+
 def load_config():
     if os.path.exists(config_path):
         cprint(f"\nLoading configuration from {config_path}", style="yellow")
         with open(config_path, "r") as f:
             config = json.load(f)
-        config.get("GITHUB_PAT", "")
         os.environ["GITHUB_PAT"] = config.get("GITHUB_PAT", "")
-        config.get("OPENAI_API_KEY", "")
         os.environ["OPENAI_API_KEY"] = config.get("OPENAI_API_KEY", "")
+        os.environ["POSTHOG_DISTINCT_ID"] = str(config.get("POSTHOG_DISTINCT_ID", ""))
 
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
@@ -124,6 +133,15 @@ def watch(
         raise ValueError(
             "Configuration not found, please run 'sweep init' to initialize the CLI."
         )
+    posthog_capture(
+        "sweep_watch_started",
+        {
+            "repo": repo_name,
+            "debug": debug,
+            "record_events": record_events,
+            "max_events": max_events,
+        },
+    )
     GITHUB_PAT = os.environ.get("GITHUB_PAT", None)
     if GITHUB_PAT is None:
         raise ValueError("GITHUB_PAT environment variable must be set")
@@ -237,10 +255,36 @@ def init(override: bool = False):
     assert len(github_pat) > 30, "GitHub PAT must be of length at least 30."
     assert github_pat.startswith("ghp_"), "GitHub PAT must start with 'ghp_'."
 
+    POSTHOG_DISTINCT_ID = None
+    enable_telemetry = typer.confirm(
+        "\nEnable usage statistics? This will help us improve the product.",
+        default=True,
+    )
+    if enable_telemetry:
+        cprint(
+            "\nThank you for enabling telemetry. We'll collect anonymous usage statistics to improve the product. You can disable this at any time by rerunning 'sweep init'.",
+            style="yellow",
+        )
+        # distinct_id_call = subprocess.run(
+        #     "echo $(whoami 2>/dev/null)@$(hostname 2>/dev/null)",
+        #     shell=True,
+        #     text=True,
+        #     capture_output=True,
+        # )
+        # POSTHOG_DISTINCT_ID = (
+        #     distinct_id_call.stdout.strip()
+        #     if distinct_id_call.returncode == 0
+        #     else uuid.getnode()
+        # )
+        POSTHOG_DISTINCT_ID = uuid.getnode()
+        posthog.capture(POSTHOG_DISTINCT_ID, "sweep_init", {})
+
     config = {
         "GITHUB_PAT": github_pat,
         "OPENAI_API_KEY": openai_api_key,
     }
+    if POSTHOG_DISTINCT_ID:
+        config["POSTHOG_DISTINCT_ID"] = POSTHOG_DISTINCT_ID
     os.makedirs(app_dir, exist_ok=True)
     with open(config_path, "w") as f:
         json.dump(config, f)
@@ -266,25 +310,36 @@ def run(issue_url: str):
 
     cprint(f"\n  Running Sweep on issue: {issue_url}  \n", style="bold black on white")
 
+    posthog_capture("sweep_run_started", {"issue_url": issue_url})
+
     request = fetch_issue_request(issue_url)
 
-    cprint(f'\nRunning Sweep to solve "{request.issue.title}"!\n')
-    on_ticket(
-        title=request.issue.title,
-        summary=request.issue.body,
-        issue_number=request.issue.number,
-        issue_url=request.issue.html_url,
-        username=request.sender.login,
-        repo_full_name=request.repository.full_name,
-        repo_description=request.repository.description,
-        installation_id=request.installation.id,
-        comment_id=None,
-        edited=False,
-        tracking_id=get_hash(),
-    )
+    try:
+        cprint(f'\nRunning Sweep to solve "{request.issue.title}"!\n')
+        on_ticket(
+            title=request.issue.title,
+            summary=request.issue.body,
+            issue_number=request.issue.number,
+            issue_url=request.issue.html_url,
+            username=request.sender.login,
+            repo_full_name=request.repository.full_name,
+            repo_description=request.repository.description,
+            installation_id=request.installation.id,
+            comment_id=None,
+            edited=False,
+            tracking_id=get_hash(),
+        )
+    except Exception as e:
+        posthog_capture("sweep_run_fail", {"issue_url": issue_url, "error": str(e)})
+    else:
+        posthog_capture("sweep_run_success", {"issue_url": issue_url})
 
 
 def main():
+    cprint(
+        "By using the Sweep CLI, you agree to the Sweep AI Terms of Service at https://sweep.dev/tos.pdf.",
+        style="cyan",
+    )
     load_config()
     app()
 
