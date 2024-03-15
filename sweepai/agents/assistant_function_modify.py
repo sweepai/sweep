@@ -89,7 +89,7 @@ def ensure_additional_messages_length(additional_messages: list[Message]):
     return additional_messages
 
 def build_keyword_search_match_results(
-    match_indices: list[int], chunks: list[str], keyword: str, success_message
+    match_indices: list[int], chunks: list[str], keyword: str, success_message, readonly: bool = False
 ) -> str:
     for match_index in match_indices:
         # TODO: handle multiple matches in one line
@@ -113,9 +113,21 @@ def build_keyword_search_match_results(
             else:
                 match_display += f"{line}\n"
         match_display = match_display.strip("\n")
-        success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
+        num_matches_message = f" ({len(lines_containing_keyword)} matches)" if lines_containing_keyword else " No matches, just shown for context."
+        if not readonly:
+            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
+        else:
+            success_message += f"<readonly_section>{num_matches_message}\n{match_display}\n</readonly_section>\n"
     return success_message
 
+def english_join(items: list[str]) -> str:
+    if len(items) == 0:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
@@ -207,7 +219,7 @@ def function_modify(
             ],
             Message(
                 role="user",
-                content=f"# Request\n{request}",
+                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
             ),
         ]
         assistant_generator = openai_assistant_call(
@@ -431,17 +443,21 @@ def function_modify(
                         else:
                             # for matches inside current code file
                             if match_indices:
-                                starter_message = f"The keyword {keyword} was found in the following sections:\n\n"
+                                sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                starter_message = f"The keyword {keyword} was found in sections {sections_message}. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
                                     match_indices, chunks, keyword, starter_message
                                 )
+                            else:
+                                success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
                                 ) in relevant_file_match_indices.items():
-                                    starter_message = f"The keyword {keyword} was found in the following sections of the relevant file {relevant_file_path}:\n\n"
+                                    sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                    starter_message = f"The keyword {keyword} was found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
                                             relevant_file_match_indices,
