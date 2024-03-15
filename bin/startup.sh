@@ -10,36 +10,26 @@ NC="\033[0m" # No Color
 
 echo "
 
-                         @@@@@@@@@@@@@@@@@@@%*
-                     #@@@                    @+
-                   @@                       @
-                 =@             @@@       @@
-                @@              @  @=   @-
-                @               @@ @*   @
-               @                +@ @%   @
-               %@               *@ @=   @@
-               @@@@@            =% %  @@
-              @@@@@@@@@@@@@@@@@@@  @@@@@
-              @@@@@@@@@@@@@@@@@@@  @@@@@@
-             @@@@@@@@@@@@@@@@@@@@  @@@@@@#                  ${PURPLE}Sweep AI Assistant${NC}
-             @@@   %@@@   @@@@@@  @@@@@@@@@
-             @@@    @@%   *@@@@# @@@@@@@@@@@@@@
-             @@@   @@@@   @@@@@ @@@@@@@@@@@@@@
-             @@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@               https://docs.sweep.dev/deployment
-              @@@@@@@@@@@@@@@@  @@@@@@@@@@@@
-               @@@@@@@@@@@@@@  @@@@@@@@@@@@
-                #@@@@@@@@@@@    @@@@@@@@@@
-                   @@@@@@@    @@@@@@@@@*
-                      @*    @@@@@@@@
-           @%*@@@@@@@       %
-           #@               #@
-             @            @ @@
-              @@         @# @*
-                @@*      @  @
-                  %@@@# @@  @
-                      %@@@@@
-
-                                                            "
+            @@@@@@%%@@@@@@@
+          @@              #@
+        @@        @@@   @@
+      @          * @  :@
+      @          =.@   @
+      -@*          #  @-
+      @@@@@@@@@@@@@ @@@@
+      @@@@@@@@@@@@@ @@@@+        ${PURPLE}Sweep AI GitHub App${NC}
+      @@  @@   @@@  @@@@@@
+      @@  @@   @@@@@@@@@@@@@     https://docs.sweep.dev/deployment
+      @@@@@@@@@@@  @@@@@@@@
+      @@@@@@@@@  @@@@@@@@
+        @@@@@@@   @@@@@@.
+          @@   @@@@@%
+    @@@@@@      @
+    @        + @
+      -@      @ @
+        @@= @- @
+              -#
+                                    "
 
 echo "${BLUE}By using the Sweep GitHub App, you agree to the Sweep AI Terms of Service at https://sweep.dev/tos.pdf.${NC}\n"
 echo "${YELLOW}You're currently using the free version of self-hosted Sweep AI. For more performance, like fine-tuned search, switch to our enterprise version. Email us at ${BLUE}william@sweep.dev${YELLOW} or schedule a call at ${BLUE}https://calendly.com/sweep-ai/founders-meeting${YELLOW} to get set up.\n"
