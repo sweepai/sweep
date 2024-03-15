@@ -52,7 +52,7 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
             error_message = str(e)
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
-    ) from e
+    ) from error_message
 
 
 def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
