@@ -478,7 +478,7 @@ def on_ticket(
             )
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
-                overrided_branch_name = branch_match.groupdict()["branch_name"].strip()
+                overrided_branch_name = branch_match.groupdict()["branch_name"].strip().strip("`\"\'")
                 if overrided_branch_name == "_No response_":
                     continue
                 SweepConfig.get_branch(repo, overrided_branch_name)
@@ -674,6 +674,11 @@ def on_ticket(
                 initial_sandbox_response = -1
                 initial_sandbox_response_file = None
 
+                def refresh_token():
+                    user_token, g = get_github_client(installation_id)
+                    repo = g.get_repo(repo_full_name)
+                    return user_token, g, repo
+
                 def edit_sweep_comment(
                     message: str,
                     index: int,
@@ -728,6 +733,8 @@ def on_ticket(
                                 f" wrong, please add more details to your issue.\n\n{table}"
                             )
                         suffix = bot_suffix  # don't include discord suffix for error messages
+                    
+
 
                     # Update the issue comment
                     msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
@@ -737,9 +744,10 @@ def on_ticket(
                         logger.error(
                             f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
                         )
-                        _user_token, g = get_github_client(installation_id)
+                        user_token, g = get_github_client(installation_id)
                         repo = g.get_repo(repo_full_name)
 
+                        issue_comment = None
                         for comment in comments:
                             if comment.user.login == CURRENT_USERNAME:
                                 issue_comment = comment
@@ -839,6 +847,8 @@ def on_ticket(
                     )
                     raise Exception("Failed to fetch files")
                 _user_token, g = get_github_client(installation_id)
+                user_token, g, repo = refresh_token()
+                cloned_repo.token = user_token
                 repo = g.get_repo(repo_full_name)
                 ticket_progress.search_progress.indexing_progress = (
                     ticket_progress.search_progress.indexing_total
@@ -1274,7 +1284,12 @@ def on_ticket(
                             opened="open",
                         )
 
-                        current_issue = repo.get_issue(number=issue_number)
+                        try:
+                            current_issue = repo.get_issue(number=issue_number)
+                        except BadCredentialsException:
+                            user_token, g, repo = refresh_token()
+                            cloned_repo.token = user_token
+
                         current_issue.edit(
                             body=summary + "\n\n" + condensed_checkboxes_collapsible
                         )

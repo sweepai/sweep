@@ -200,14 +200,14 @@ def prepare_index_from_snippets(
             for i, document_token_freq in tqdm(
                 enumerate(
                     p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-                )
+                ), total=len(all_docs)
             ):
                 all_tokens.append(document_token_freq)
                 if ticket_progress and i % 200 == 0:
                     ticket_progress.search_progress.indexing_progress = i
                     ticket_progress.save()
         for doc, document_token_freq in tqdm(
-            zip(all_docs, all_tokens), desc="Indexing"
+            zip(all_docs, all_tokens), desc="Indexing", total=len(all_docs)
         ):
             index.add_document(
                 title=doc.title, token_freq=document_token_freq  # snippet.denotation

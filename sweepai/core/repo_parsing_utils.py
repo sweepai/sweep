@@ -84,7 +84,7 @@ def read_file(file_name: str) -> str:
         return ""
 
 
-FILE_THRESHOLD = 120
+FILE_THRESHOLD = 240
 
 
 def file_path_to_chunks(file_path: str) -> list[str]:
@@ -120,6 +120,6 @@ def directory_to_chunks(
     logger.info("Done reading files")
     all_chunks = []
     with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
-        for chunks in tqdm(pool.imap(file_path_to_chunks, file_list)):
+        for chunks in tqdm(pool.imap(file_path_to_chunks, file_list), total=len(file_list)):
             all_chunks.extend(chunks)
     return all_chunks, file_list
