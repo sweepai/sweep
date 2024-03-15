@@ -26,7 +26,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
@@ -127,6 +127,9 @@ def on_comment(
             # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
             is_paying_user = True
             use_faster_model = False
+        
+        if use_faster_model:
+            raise Exception(FASTER_MODEL_MESSAGE)
 
         assignee = pr.assignee.login if pr.assignee else None
 
@@ -138,7 +141,7 @@ def on_comment(
             "installation_id": installation_id,
             "username": username if not username.startswith("sweep") else assignee,
             "function": "on_comment",
-            "model": "gpt-3.5" if use_faster_model else "gpt-4",
+            "model": "gpt-4",
             "tier": "pro" if is_paying_user else "free",
             "mode": ENV,
             "pr_path": pr_path,

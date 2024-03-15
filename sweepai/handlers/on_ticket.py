@@ -87,6 +87,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     BOT_SUFFIX,
     UPDATES_MESSAGE,
+    FASTER_MODEL_MESSAGE,
     blockquote,
     bot_suffix,
     checkbox_template,
@@ -153,13 +154,6 @@ Cheers,
 <br/>
 Sweep
 <br/>"""
-
-FASTER_MODEL_MESSAGE = """\
-You ran out of the free tier GPT-4 tickets! We no longer support running Sweep with GPT-3.5 as it is too unreliable. Here are your options:
-- You can get a free trial of Sweep Pro to get unlimited GPT-4 tickets [here](https://buy.stripe.com/00g5npeT71H2gzCfZ8) or purchase a individual GPT-4 tickets [here](https://buy.stripe.com/00g3fh7qF85q0AE14d).
-- You can self-host Sweep with your own GPT-4 API key. You can find instructions [here](https://docs.sweep.dev/deployment).
-- You can book a chat with us to discuss your use case and get additional free GPT-4 tickets [here](https://calendly.com/d/2n5-3qf-9xy/user-interview).
-"""
 
 FAILING_GITHUB_ACTION_PROMPT = """
 The following Github Actions failed on a previous attempt at fixing this issue.
@@ -516,6 +510,9 @@ def on_ticket(
                 is_paying_user = True
                 is_consumer_tier = False
                 use_faster_model = False
+            
+            if use_faster_model:
+                raise Exception(FASTER_MODEL_MESSAGE)
 
             if fast_mode:
                 use_faster_model = True
@@ -1928,7 +1925,8 @@ def get_payment_messages(chat_logger: ChatLogger):
         else 999
     )
 
-    model_name = "GPT-3.5" if use_faster_model else "GPT-4"
+ 
+    model_name = "GPT-4"
     single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
     pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
     daily_message = (

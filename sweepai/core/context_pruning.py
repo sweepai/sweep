@@ -32,6 +32,7 @@ from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
+from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE
 from sweepai.utils.tree_utils import DirectoryTree
 
 if OPENAI_API_TYPE == "openai":
@@ -426,12 +427,9 @@ def get_relevant_context(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
-    model = (
-        "gpt-3.5-turbo-1106"
-        if (chat_logger is None or chat_logger.use_faster_model())
-        and not IS_SELF_HOSTED
-        else DEFAULT_GPT4_32K_MODEL
-    )
+    if chat_logger.use_faster_model():
+        raise Exception(FASTER_MODEL_MESSAGE)
+    model = DEFAULT_GPT4_32K_MODEL
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
         "call_assistant_api",
@@ -550,8 +548,6 @@ def modify_context(
             time.sleep(3)
             continue
         num_tool_calls_made += 1
-        if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
-            raise AssistantRaisedException("Too many tool calls made on gpt-3.5.")
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
         for tool_call in tool_calls:
