@@ -45,7 +45,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     MONGODB_URI,
-    OPENAI_USE_3_5_MODEL_ONLY,
     PROGRESS_BASE_URL,
 )
 from sweepai.core.entities import (
@@ -88,6 +87,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     BOT_SUFFIX,
     UPDATES_MESSAGE,
+    FASTER_MODEL_MESSAGE,
     blockquote,
     bot_suffix,
     checkbox_template,
@@ -154,13 +154,6 @@ Cheers,
 <br/>
 Sweep
 <br/>"""
-
-FASTER_MODEL_MESSAGE = """\
-You ran out of the free tier GPT-4 tickets! We no longer support running Sweep with GPT-3.5 as it is too unreliable. Here are your options:
-- You can get a free trial of Sweep Pro to get unlimited GPT-4 tickets [here](https://buy.stripe.com/00g5npeT71H2gzCfZ8) or purchase a individual GPT-4 tickets [here](https://buy.stripe.com/00g3fh7qF85q0AE14d).
-- You can self-host Sweep with your own GPT-4 API key. You can find instructions [here](https://docs.sweep.dev/deployment).
-- You can book a chat with us to discuss your use case and get additional free GPT-4 tickets [here](https://calendly.com/d/2n5-3qf-9xy/user-interview).
-"""
 
 FAILING_GITHUB_ACTION_PROMPT = """
 The following Github Actions failed on a previous attempt at fixing this issue.
@@ -478,7 +471,7 @@ def on_ticket(
             )
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
-                overrided_branch_name = branch_match.groupdict()["branch_name"].strip()
+                overrided_branch_name = branch_match.groupdict()["branch_name"].strip().strip("`\"\'")
                 if overrided_branch_name == "_No response_":
                     continue
                 SweepConfig.get_branch(repo, overrided_branch_name)
@@ -512,13 +505,14 @@ def on_ticket(
             if chat_logger:
                 is_paying_user = chat_logger.is_paying_user()
                 is_consumer_tier = chat_logger.is_consumer_tier()
-                use_faster_model = (
-                    OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
-                )
+                use_faster_model = chat_logger.use_faster_model()
             else:
                 is_paying_user = True
                 is_consumer_tier = False
                 use_faster_model = False
+            
+            if use_faster_model:
+                raise Exception(FASTER_MODEL_MESSAGE)
 
             if fast_mode:
                 use_faster_model = True
@@ -674,6 +668,11 @@ def on_ticket(
                 initial_sandbox_response = -1
                 initial_sandbox_response_file = None
 
+                def refresh_token():
+                    user_token, g = get_github_client(installation_id)
+                    repo = g.get_repo(repo_full_name)
+                    return user_token, g, repo
+
                 def edit_sweep_comment(
                     message: str,
                     index: int,
@@ -728,6 +727,8 @@ def on_ticket(
                                 f" wrong, please add more details to your issue.\n\n{table}"
                             )
                         suffix = bot_suffix  # don't include discord suffix for error messages
+                    
+
 
                     # Update the issue comment
                     msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
@@ -737,9 +738,10 @@ def on_ticket(
                         logger.error(
                             f"Bad credentials, refreshing token (tracking ID: `{tracking_id}`)"
                         )
-                        _user_token, g = get_github_client(installation_id)
+                        user_token, g = get_github_client(installation_id)
                         repo = g.get_repo(repo_full_name)
 
+                        issue_comment = None
                         for comment in comments:
                             if comment.user.login == CURRENT_USERNAME:
                                 issue_comment = comment
@@ -839,6 +841,8 @@ def on_ticket(
                     )
                     raise Exception("Failed to fetch files")
                 _user_token, g = get_github_client(installation_id)
+                user_token, g, repo = refresh_token()
+                cloned_repo.token = user_token
                 repo = g.get_repo(repo_full_name)
                 ticket_progress.search_progress.indexing_progress = (
                     ticket_progress.search_progress.indexing_total
@@ -1274,7 +1278,12 @@ def on_ticket(
                             opened="open",
                         )
 
-                        current_issue = repo.get_issue(number=issue_number)
+                        try:
+                            current_issue = repo.get_issue(number=issue_number)
+                        except BadCredentialsException:
+                            user_token, g, repo = refresh_token()
+                            cloned_repo.token = user_token
+
                         current_issue.edit(
                             body=summary + "\n\n" + condensed_checkboxes_collapsible
                         )
@@ -1887,7 +1896,7 @@ def get_payment_messages(chat_logger: ChatLogger):
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
+        use_faster_model = chat_logger.use_faster_model()
     else:
         is_paying_user = True
         is_consumer_tier = False
@@ -1916,7 +1925,8 @@ def get_payment_messages(chat_logger: ChatLogger):
         else 999
     )
 
-    model_name = "GPT-3.5" if use_faster_model else "GPT-4"
+ 
+    model_name = "GPT-4"
     single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
     pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
     daily_message = (

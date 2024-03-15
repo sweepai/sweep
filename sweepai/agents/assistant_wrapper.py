@@ -415,12 +415,9 @@ def openai_assistant_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    model = (
-        "gpt-3.5-turbo-1106"
-        if (chat_logger is None or chat_logger.use_faster_model())
-        and not IS_SELF_HOSTED
-        else DEFAULT_GPT4_32K_MODEL
-    )
+    if chat_logger.use_faster_model():
+        raise Exception("GPT-3.5 is not supported on assistant calls.")
+    model = DEFAULT_GPT4_32K_MODEL
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
         "call_assistant_api",
