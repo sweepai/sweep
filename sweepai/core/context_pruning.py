@@ -455,7 +455,7 @@ def get_relevant_context(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
-    if chat_logger.use_faster_model():
+    if chat_logger and chat_logger.use_faster_model():
         raise Exception(FASTER_MODEL_MESSAGE)
     model = DEFAULT_GPT4_32K_MODEL
     posthog.capture(
