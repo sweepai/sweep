@@ -33,6 +33,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
+from time import time
 
 if OPENAI_API_TYPE == "openai":
     client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
@@ -447,7 +448,9 @@ def get_relevant_context(
         repo_context_manager = build_import_trees(repo_context_manager, import_graph)
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
-        # check to see if there are any files that are mentioned in the query
+        # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
+        repo_context_manager.dir_obj.add_relevant_files(repo_context_manager.relevant_file_paths)
+
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
