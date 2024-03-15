@@ -13,7 +13,6 @@ from tabulate import tabulate
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
-    DEFAULT_GPT35_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
@@ -302,14 +301,14 @@ def on_comment(
             )
             logger.info(f"Human prompt{human_message.construct_prompt()}")
 
+            if use_faster_model:
+                raise Exception("GPT-3.5 is not supported for comments")
             sweep_bot = SweepBot.from_system_message_content(
                 # human_message=human_message, model="claude-v1.3-100k", repo=repo
                 human_message=human_message,
                 repo=repo,
                 chat_logger=chat_logger,
-                model=DEFAULT_GPT35_MODEL
-                if use_faster_model
-                else DEFAULT_GPT4_32K_MODEL,
+                model=DEFAULT_GPT4_32K_MODEL,
                 cloned_repo=cloned_repo,
             )
         except Exception as e:
