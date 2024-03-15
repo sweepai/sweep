@@ -615,7 +615,6 @@ def on_ticket(
                 ticket_progress.save()
 
                 config_pr_url = None
-
                 user_settings = UserSettings.from_username(username=username)
                 user_settings_message = user_settings.get_message()
 

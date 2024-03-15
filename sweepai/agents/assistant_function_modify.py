@@ -16,6 +16,7 @@ from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import check_code, chunk_code
+from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -83,21 +84,6 @@ def ensure_additional_messages_length(additional_messages: list[Message]):
                         ),
                     )
     return additional_messages
-
-
-def read_file_with_fallback_encodings(
-    file_path, encodings=["utf-8", "windows-1252", "iso-8859-1"]
-):
-    for encoding in encodings:
-        try:
-            with open(file_path, "r", encoding=encoding) as file:
-                return file.read()
-        except UnicodeDecodeError:
-            continue
-    raise UnicodeDecodeError(
-        f"Could not decode {file_path} with any of the specified encodings: {encodings}"
-    )
-
 
 def build_keyword_search_match_results(
     match_indices: list[int], chunks: list[str], keyword: str, success_message

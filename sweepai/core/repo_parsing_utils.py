@@ -14,6 +14,19 @@ from sweepai.utils.utils import Tiktoken, chunk_code
 
 tiktoken_client = Tiktoken()
 
+def read_file_with_fallback_encodings(
+    file_path, encodings=["utf-8", "windows-1252", "iso-8859-1"]
+):
+    for encoding in encodings:
+        try:
+            with open(file_path, "r", encoding=encoding) as file:
+                return file.read()
+        except UnicodeDecodeError:
+            continue
+    raise UnicodeDecodeError(
+        f"Could not decode {file_path} with any of the specified encodings: {encodings}"
+    )
+
 
 def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     """
@@ -54,23 +67,25 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         if is_binary:
             return False
         f.close()
-    with open(file, "r") as f:
-        try:
-            lines = f.readlines()
-        except UnicodeDecodeError:
-            logger.warning(f"UnicodeDecodeError: {file}, skipping")
-            return False
-        line_count = len(lines)
-        data = "\n".join(lines)
-        # if average line length is greater than 200, then it is likely not human readable
-        if len(data)/line_count > 200:
-            return False
-        # check token density, if it is greater than 2, then it is likely not human readable
-        token_count = tiktoken_client.count(data)
-        if token_count == 0:
-            return False
-        if len(data)/token_count < 2:
-            return False
+
+    
+    try:
+        # fetch file
+        data = read_file_with_fallback_encodings(file)
+        lines = data.split("\n")
+    except UnicodeDecodeError:
+        logger.warning(f"UnicodeDecodeError: {file}, skipping")
+        return False
+    line_count = len(lines)
+    # if average line length is greater than 200, then it is likely not human readable
+    if len(data)/line_count > 200:
+        return False
+    # check token density, if it is greater than 2, then it is likely not human readable
+    token_count = tiktoken_client.count(data)
+    if token_count == 0:
+        return False
+    if len(data)/token_count < 2:
+        return False
     return True
 
 
