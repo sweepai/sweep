@@ -46,7 +46,7 @@ def load_config():
             config = json.load(f)
         os.environ["GITHUB_PAT"] = config.get("GITHUB_PAT", "")
         os.environ["OPENAI_API_KEY"] = config.get("OPENAI_API_KEY", "")
-        os.environ["POSTHOG_DISTINCT_ID"] = config.get("POSTHOG_DISTINCT_ID", "")
+        os.environ["POSTHOG_DISTINCT_ID"] = str(config.get("POSTHOG_DISTINCT_ID", ""))
 
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
