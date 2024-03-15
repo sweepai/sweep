@@ -51,9 +51,14 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
             logger.exception(f"Retry {attempt + 1} failed with error: {e_}")
             error_message = str(e_)
             e = e_
-    raise Exception(
-        f"Maximum retries reached. The call failed for call {error_message}"
-    ) from error_message
+    if e:
+        raise Exception(
+            f"Maximum retries reached. The call failed for call {error_message}"
+        ) from e
+    else:
+        raise Exception(
+            f"Maximum retries reached. The call failed for call {error_message}"
+        )
 
 
 def fix_tool_calls(tool_calls: Optional[list[ChatCompletionMessageToolCall]]):
@@ -663,7 +668,7 @@ def run_until_complete_unstable(
                 else:
                     if function_name == submit_schema["name"]:
                         logger.info(
-                            f"Submit function was called"
+                            "Submit function was called"
                         )
                         done_response = yield "done", {
                             "status": "completed",
@@ -694,7 +699,7 @@ def run_until_complete_unstable(
             #     f"no tool calls were made, we are done - message: {response_message}"
             # )
             logger.error(
-                f"No tool calls were made, use the submit function instead."
+                "No tool calls were made, use the submit function instead."
             )
             # done_response = yield "done", {
             #     "status": "completed",
@@ -843,5 +848,5 @@ def openai_assistant_call_unstable(
             logger.error(e)
             raise e
 
-openai_assistant_call = openai_assistant_call_unstable
+openai_assistant_call = openai_assistant_call_unstable # noqa
 
