@@ -69,9 +69,10 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     for attempt in range(num_retries):
         try:
             return call(*args, **kwargs, timeout=timeout)
-        except Exception as e:
-            logger.exception(f"Retry {attempt + 1} failed with error: {e}")
-            error_message = str(e)
+        except Exception as e_:
+            logger.exception(f"Retry {attempt + 1} failed with error: {e_}")
+            error_message = str(e_)
+            e = e_
     raise Exception(
         f"Maximum retries reached. The call failed for call {error_message}"
     ) from e
@@ -858,4 +859,4 @@ def openai_assistant_call_unstable(
             logger.error(e)
             raise e
 
-openai_assistant_call = openai_assistant_call_unstable
+# openai_assistant_call = openai_assistant_call_unstable
