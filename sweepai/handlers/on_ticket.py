@@ -1896,7 +1896,7 @@ def get_payment_messages(chat_logger: ChatLogger):
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_consumer_tier = chat_logger.is_consumer_tier()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
+        use_faster_model = chat_logger.use_faster_model()
     else:
         is_paying_user = True
         is_consumer_tier = False

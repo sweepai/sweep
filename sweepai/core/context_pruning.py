@@ -19,13 +19,12 @@ from sweepai.config.server import (
     AZURE_API_KEY,
     AZURE_OPENAI_DEPLOYMENT,
     DEFAULT_GPT4_32K_MODEL,
-    IS_SELF_HOSTED,
     OPENAI_API_BASE,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
 )
-from sweepai.core.entities import AssistantRaisedException, Snippet
+from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
