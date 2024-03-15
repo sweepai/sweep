@@ -285,7 +285,8 @@ def run_until_complete(
             continue
 
         response_message = response.choices[0].message
-        tool_calls = response_message.tool_calls
+        tool_calls = fix_tool_calls(response_message.tool_calls)
+        response_message.tool_calls = tool_calls
         # extend conversation
         response_message_dict = response_message.dict()
         # in some cases the fields are None and we must replace these with empty strings
@@ -301,7 +302,6 @@ def run_until_complete(
         messages.append(response_message_dict)
         # if a tool call was made
         if tool_calls:
-            tool_calls = fix_tool_calls(tool_calls)
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
                 try:
