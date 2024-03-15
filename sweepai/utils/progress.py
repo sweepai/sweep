@@ -275,6 +275,9 @@ class TicketProgress(BaseModel):
         try:
             if MONGODB_URI is None:
                 return None
+            # cannot encode enum object
+            if isinstance(self.status, Enum):
+                self.status = self.status.value  # Convert enum member to its value
             if self.model_dump() == self.prev_dict:
                 return
             current_dict = self.model_dump()
@@ -285,6 +288,8 @@ class TicketProgress(BaseModel):
             collection.update_one(
                 {"tracking_id": self.tracking_id}, {"$set": current_dict}, upsert=True
             )
+            # convert status back to enum object
+            self.status = TicketProgressStatus(self.status)
         except Exception as e:
             discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
 
