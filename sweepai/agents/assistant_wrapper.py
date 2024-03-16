@@ -241,6 +241,7 @@ def run_until_complete(
     max_iterations: int = 2000,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    working_run_id = run_id
     client = get_client()
     message_strings = []
     json_messages = []
@@ -250,11 +251,11 @@ def run_until_complete(
             run = openai_retry_with_timeout(
                 client.beta.threads.runs.retrieve,
                 thread_id=thread_id,
-                run_id=run_id,
+                run_id=working_run_id,
             )
             if run.status == "completed":
                 logger.info(
-                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                    f"Run completed with {run.status} (tool calls made={num_tool_calls_made}) (iteration={i})"
                 )
                 done_response = yield "done", {
                     "status": "completed",
@@ -269,9 +270,10 @@ def run_until_complete(
                         instructions=done_response,
                         model=model,
                     )
+                    working_run_id = run.id
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
-                    f"Run completed with {run.status} (i={num_tool_calls_made}) and reason {run.last_error}."
+                    f"Run completed with {run.status} (tool calls made={num_tool_calls_made}) and reason {run.last_error}."
                 )
                 done_response = yield "done", {
                     "status": run.status,
@@ -288,6 +290,7 @@ def run_until_complete(
                         instructions=done_response,
                         model=model,
                     )
+                    working_run_id = run.id
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
