@@ -4,6 +4,7 @@ import os
 import traceback
 from functools import lru_cache
 
+import github
 import yaml
 from github.Repository import Repository
 from loguru import logger
@@ -120,9 +121,30 @@ class SweepConfig(BaseModel):
                 return branch_name
             except SystemExit:
                 raise SystemExit
+            except github.GithubException as e:
+                # try a more robust branch test
+                branch_name_parts = branch_name.split(" ")[0].split("/")
+                branch_name_combos = []
+                for i in range(len(branch_name_parts)):
+                    branch_name_combos.append("/".join(branch_name_parts[i:]))
+                try:
+                    for i in range(len(branch_name_combos)):
+                        branch_name = branch_name_combos[i]
+                        try:
+                            repo.get_branch(branch_name)
+                            return branch_name
+                        except Exception as e:
+                            if i < len(branch_name_combos) - 1:
+                                continue
+                            else:
+                                raise Exception("Branch not found")
+                except Exception as e:
+                    logger.exception(
+                        f"Error when getting branch {branch_name}: {e}, traceback: {traceback.format_exc()}"
+                    )
             except Exception as e:
                 logger.exception(
-                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}"
+                    f"Error when getting branch {branch_name}: {e}, traceback: {traceback.format_exc()}"
                 )
 
         default_branch = repo.default_branch
