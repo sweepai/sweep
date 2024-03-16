@@ -98,7 +98,7 @@ keyword_search_schema = {
             },
             "keyword": {
                 "type": "string",
-                "description": "The keyword to search for. This is keyword itself that you want to search for in the contents of the file, not the name of the file itself.",
+                "description": "The keyword to search for. This is the keyword itself that you want to search for in the contents of the file, not the name of the file itself.",
             },
         },
         "required": ["justification", "keyword"],
