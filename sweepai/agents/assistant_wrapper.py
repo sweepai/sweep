@@ -240,6 +240,8 @@ def run_until_complete(
     max_iterations: int = 2000,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    # Credits to https://github.com/VictorAny for help debugging the thread restarts
+    # Many fixes based on https://github.com/sweepai/sweep/pull/3311
     client = get_client()
     message_strings = []
     json_messages = []
