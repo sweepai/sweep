@@ -1,7 +1,8 @@
 import traceback
 from collections import OrderedDict
 
-from sweepai.agents.assistant_function_modify import ensure_additional_messages_length, function_modify
+from sweepai.agents.agent_utils import ensure_additional_messages_length
+from sweepai.agents.assistant_function_modify import function_modify
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
