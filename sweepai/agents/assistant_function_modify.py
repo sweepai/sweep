@@ -114,7 +114,7 @@ def build_keyword_search_match_results(
             else:
                 match_display += f"{line}\n"
         match_display = match_display.strip("\n")
-        num_matches_message = f" ({len(lines_containing_keyword)} matches)" if lines_containing_keyword else " No matches, just shown for context."
+        num_matches_message = f" ({len(lines_containing_keyword)} matches)" if lines_containing_keyword else " (No keyword matches, just shown for context)"
         if not readonly:
             success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
         else:
@@ -185,16 +185,17 @@ def function_modify(
 
         file_contents_lines = current_contents.split("\n")
         chunks = [
-            "\n".join(file_contents_lines[snippet.start : snippet.end])
+            "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
             for snippet in original_snippets
         ]
+        # import pdb; pdb.set_trace()
 
         # split our relevant files into chunks
         relevant_file_chunks = defaultdict(list)
         for relevant_file_path, relevant_file_content in relevant_file_contents.items():
             relevant_file_contents_lines = relevant_file_content.split("\n")
             relevant_file_chunks[relevant_file_path] = [
-                "\n".join(relevant_file_contents_lines[snippet.start : snippet.end])
+                "\n".join(relevant_file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
                 for snippet in relevant_file_snippets[relevant_file_path]
             ]
         code_sections = []  # TODO: do this for the new sections after modifications
@@ -455,6 +456,7 @@ def function_modify(
                                 success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
+                                sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
                                 also_keyword = "also " if match_indices else ""
                                 for (
                                     relevant_file_path,
