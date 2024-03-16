@@ -17,6 +17,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import check_code, chunk_code
 from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
+from sweepai.agents.assistant_functions import submit_schema
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -34,6 +35,8 @@ Your job is to make edits to the file to complete the user "# Request".
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
+
+When you have completed the task, call the submit function.
 """
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
@@ -87,7 +90,7 @@ def ensure_additional_messages_length(additional_messages: list[Message]) -> lis
     return additional_messages
 
 def build_keyword_search_match_results(
-    match_indices: list[int], chunks: list[str], keyword: str, success_message
+    match_indices: list[int], chunks: list[str], keyword: str, success_message, readonly: bool = False
 ) -> str:
     for match_index in match_indices:
         # TODO: handle multiple matches in one line
@@ -111,9 +114,21 @@ def build_keyword_search_match_results(
             else:
                 match_display += f"{line}\n"
         match_display = match_display.strip("\n")
-        success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
+        num_matches_message = f" ({len(lines_containing_keyword)} matches)" if lines_containing_keyword else " (No keyword matches, just shown for context)"
+        if not readonly:
+            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
+        else:
+            success_message += f"<readonly_section>{num_matches_message}\n{match_display}\n</readonly_section>\n"
     return success_message
 
+def english_join(items: list[str]) -> str:
+    if len(items) == 0:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
@@ -170,16 +185,17 @@ def function_modify(
 
         file_contents_lines = current_contents.split("\n")
         chunks = [
-            "\n".join(file_contents_lines[snippet.start : snippet.end])
+            "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
             for snippet in original_snippets
         ]
+        # import pdb; pdb.set_trace()
 
         # split our relevant files into chunks
         relevant_file_chunks = defaultdict(list)
         for relevant_file_path, relevant_file_content in relevant_file_contents.items():
             relevant_file_contents_lines = relevant_file_content.split("\n")
             relevant_file_chunks[relevant_file_path] = [
-                "\n".join(relevant_file_contents_lines[snippet.start : snippet.end])
+                "\n".join(relevant_file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
                 for snippet in relevant_file_snippets[relevant_file_path]
             ]
         code_sections = []  # TODO: do this for the new sections after modifications
@@ -196,18 +212,16 @@ def function_modify(
         code_sections.append(current_code_section)
         code_sections_string = "\n".join(code_sections)
         additional_messages += [
-            *reversed(
-                [
-                    Message(
-                        role="user",
-                        content=code_section,
-                    )
-                    for code_section in code_sections
-                ]
-            ),
+            *[
+                Message(
+                    role="user",
+                    content=code_section,
+                )
+                for code_section in code_sections
+            ],
             Message(
                 role="user",
-                content=f"# Request\n{request}",
+                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
             ),
         ]
         assistant_generator = openai_assistant_call(
@@ -225,6 +239,7 @@ def function_modify(
                 {"type": "function", "function": keyword_search_schema},
                 # {"type": "function", "function": view_sections_schema},
                 {"type": "function", "function": search_and_replace_schema},
+                {"type": "function", "function": submit_schema},
             ],
         )
 
@@ -430,17 +445,25 @@ def function_modify(
                         else:
                             # for matches inside current code file
                             if match_indices:
-                                starter_message = f"The keyword {keyword} was found in the following sections:\n\n"
+                                sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
                                     match_indices, chunks, keyword, starter_message
                                 )
+                                if relevant_file_match_indices:
+                                    success_message += "\n\n"
+                            else:
+                                success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
+                                sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                also_keyword = "also " if match_indices else ""
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
                                 ) in relevant_file_match_indices.items():
-                                    starter_message = f"The keyword {keyword} was found in the following sections of the relevant file {relevant_file_path}:\n\n"
+                                    sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
                                             relevant_file_match_indices,
@@ -801,6 +824,6 @@ if __name__ == "__main__":
                 "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
             }
         ),
-        # additional_messages=additional_messages,
+        additional_messages=additional_messages,
         ticket_progress=TicketProgress(tracking_id="test_remove_assistant_1"),
     )
