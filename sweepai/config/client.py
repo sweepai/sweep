@@ -121,7 +121,7 @@ class SweepConfig(BaseModel):
                 return branch_name
             except SystemExit:
                 raise SystemExit
-            except github.GithubException as e:
+            except github.GithubException:
                 # try a more robust branch test
                 branch_name_parts = branch_name.split(" ")[0].split("/")
                 branch_name_combos = []
@@ -137,7 +137,7 @@ class SweepConfig(BaseModel):
                             if i < len(branch_name_combos) - 1:
                                 continue
                             else:
-                                raise Exception("Branch not found")
+                                raise Exception(f"Branch not found: {e}")
                 except Exception as e:
                     logger.exception(
                         f"Error when getting branch {branch_name}: {e}, traceback: {traceback.format_exc()}"
