@@ -7,7 +7,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import logger
-from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 
 

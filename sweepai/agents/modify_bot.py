@@ -653,7 +653,7 @@ if __name__ == "__main__":
         cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
         additional_messages = [Message(
                 role="user",
-                content=f"""# Repo & Issue Metadata
+                content="""# Repo & Issue Metadata
 Repo: sweepai/sweep: sweep
 add an import math statement at the top of the api.py file""",
             ), Message(
