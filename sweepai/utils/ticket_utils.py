@@ -2,6 +2,7 @@ import traceback
 from time import time
 
 from loguru import logger
+from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
@@ -15,6 +16,51 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
+
+"""
+Input queries are in natural language so both lexical search 
+and vector search have a heavy bias towards natural language
+files such as tests, docs and localization files. Therefore,
+we add adjustment scores to compensate for this bias.
+"""
+
+prefix_adjustment = {
+    "doc": -0.5,
+    "example": -0.5,
+}
+
+suffix_adjustment = {
+    ".txt": -0.5,
+    ".rst": -0.5,
+    ".md": -0.5,
+    ".html": -0.5,
+    ".po": -1,
+    ".json": -0.25,
+    ".toml": -0.25,
+    ".yaml": -0.25,
+}
+
+substring_adjustment = {
+    "test": -1,
+}
+
+# maybe remove these guys too
+
+"""
+snippet_score 2.5341: sphinx/locale/ro/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5337: sphinx/locale/lt/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.533: sphinx/locale/he/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5296: sphinx/locale/eu/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5281: sphinx/locale/cs/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5258: sphinx/locale/ru/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5244: sphinx/locale/pt_PT/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5228: sphinx/locale/eo/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5213: sphinx/locale/uk_UA/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5206: sphinx/locale/ne/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5156: sphinx/locale/lv/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5139: sphinx/locale/ca/LC_MESSAGES/sphinx.po:0-50
+snippet_score 2.5098: sphinx/locale/fi/LC_MESSAGES/sphinx.po:0-50
+"""
 
 
 @file_cache()
@@ -43,7 +89,7 @@ def get_top_k_snippets(
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
     content_to_lexical_score = search_index(query, lexical_index)
     files_to_scores = compute_vector_search_scores(query, snippets)
-    for snippet in snippets:
+    for snippet in tqdm(snippets):
         vector_score = files_to_scores.get(snippet.denotation, 0.04)
         snippet_score = 0.02
         if snippet.denotation in content_to_lexical_score:
@@ -54,7 +100,18 @@ def get_top_k_snippets(
             content_to_lexical_score[snippet.denotation] = snippet_score
         else:
             content_to_lexical_score[snippet.denotation] = snippet_score * vector_score
-
+        for prefix, adjustment in prefix_adjustment.items():
+            if snippet.file_path.startswith(prefix):
+                content_to_lexical_score[snippet.denotation] += adjustment
+                break
+        for suffix, adjustment in suffix_adjustment.items():
+            if snippet.file_path.endswith(suffix):
+                content_to_lexical_score[snippet.denotation] += adjustment
+                break
+        for substring, adjustment in substring_adjustment.items():
+            if substring in snippet.file_path:
+                content_to_lexical_score[snippet.denotation] += adjustment
+                break
     ranked_snippets = sorted(
         snippets,
         key=lambda snippet: content_to_lexical_score[snippet.denotation],

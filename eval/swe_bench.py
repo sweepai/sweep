@@ -91,7 +91,7 @@ cprint("Loaded test data", style="green")
 seed = 0
 proportion = 0.025
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = "sweep-k-15"
+name = "sweep-k-15-filename-adjustments"
 output_file = f"{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
@@ -148,8 +148,7 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
             f.write(f"{instance_id},{mrr},{acc}\n")
         with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{positions}\n")
-        # continue
-        # import pdb; pdb.set_trace()
+        continue
         fcrs, plan = get_files_to_change(
             rcm.current_top_snippets, problem_statement, repo_identifier
         )
