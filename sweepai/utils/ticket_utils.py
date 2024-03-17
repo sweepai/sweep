@@ -117,6 +117,8 @@ def get_top_k_snippets(
         key=lambda snippet: content_to_lexical_score[snippet.denotation],
         reverse=True,
     )
+    # sort the top 200 using listwise reranking
+    # you can use snippet.denotation and snippet.get_snippet()
     ranked_snippets = ranked_snippets[:k]
     return ranked_snippets, snippets, content_to_lexical_score
 
