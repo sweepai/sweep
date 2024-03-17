@@ -98,10 +98,25 @@ keyword_search_schema = {
             },
             "keyword": {
                 "type": "string",
-                "description": "The keyword to search for.",
+                "description": "The keyword to search for. This is the keyword itself that you want to search for in the contents of the file, not the name of the file itself.",
             },
         },
         "required": ["justification", "keyword"],
     },
     "description": "Searches for all lines in the file containing the keyword.",
+}
+
+submit_schema = {
+    "name": "submit",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "justification": {
+                "type": "string",
+                "description": "Justification for why you are finished with the task.",
+            },
+        },
+        "required": ["justification"],
+    },
+    "description": "Indicates that you have completed the task successfully.",
 }
