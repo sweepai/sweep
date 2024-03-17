@@ -44,25 +44,6 @@ substring_adjustment = {
     "test": -1,
 }
 
-# maybe remove these guys too
-
-"""
-snippet_score 2.5341: sphinx/locale/ro/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5337: sphinx/locale/lt/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.533: sphinx/locale/he/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5296: sphinx/locale/eu/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5281: sphinx/locale/cs/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5258: sphinx/locale/ru/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5244: sphinx/locale/pt_PT/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5228: sphinx/locale/eo/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5213: sphinx/locale/uk_UA/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5206: sphinx/locale/ne/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5156: sphinx/locale/lv/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5139: sphinx/locale/ca/LC_MESSAGES/sphinx.po:0-50
-snippet_score 2.5098: sphinx/locale/fi/LC_MESSAGES/sphinx.po:0-50
-"""
-
-
 @file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
