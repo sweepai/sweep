@@ -18,7 +18,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from pydantic import BaseModel
 
 from sweepai.agents.assistant_functions import raise_error_schema, submit_schema
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -667,9 +667,7 @@ def run_until_complete_unstable(
                     tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
                 else:
                     if function_name == submit_schema["name"]:
-                        logger.info(
-                            "Submit function was called"
-                        )
+                        logger.info("Submit function was called")
                         done_response = yield "done", {
                             "status": "completed",
                             "message": function_args["justification"],
@@ -698,9 +696,7 @@ def run_until_complete_unstable(
             # logger.info(
             #     f"no tool calls were made, we are done - message: {response_message}"
             # )
-            logger.error(
-                "No tool calls were made, use the submit function instead."
-            )
+            logger.error("No tool calls were made, use the submit function instead.")
             # done_response = yield "done", {
             #     "status": "completed",
             #     "message": "Run completed successfully",
@@ -848,5 +844,9 @@ def openai_assistant_call_unstable(
             logger.error(e)
             raise e
 
-openai_assistant_call = openai_assistant_call_unstable # noqa
 
+if not USE_ASSISTANT:
+    logger.warning(
+        "Using our own implementation to mock Assistant API as it is unstable (experimental)"
+    )
+    openai_assistant_call = openai_assistant_call_unstable  # noqa
