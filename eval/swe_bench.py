@@ -91,7 +91,7 @@ cprint("Loaded test data", style="green")
 seed = 0
 proportion = 0.025
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = "sweep-k-15-filename-adjustments"
+name = "sweep-k-15-filename-adjustments-po-removal"
 output_file = f"{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
