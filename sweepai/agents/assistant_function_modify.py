@@ -11,6 +11,7 @@ from sweepai.agents.assistant_functions import (
     search_and_replace_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
@@ -223,6 +224,14 @@ def function_modify(
                 content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
             ),
         ]
+        tools = [
+            {"type": "function", "function": chain_of_thought_schema},
+            {"type": "function", "function": keyword_search_schema},
+            # {"type": "function", "function": view_sections_schema},
+            {"type": "function", "function": search_and_replace_schema},
+        ]
+        if not USE_ASSISTANT:
+            tools.append(submit_schema)
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
@@ -233,13 +242,7 @@ def function_modify(
                 save_ticket_progress if ticket_progress is not None else None
             ),
             assistant_name="Code Modification Function Assistant",
-            tools=[
-                {"type": "function", "function": chain_of_thought_schema},
-                {"type": "function", "function": keyword_search_schema},
-                # {"type": "function", "function": view_sections_schema},
-                {"type": "function", "function": search_and_replace_schema},
-                {"type": "function", "function": submit_schema},
-            ],
+            tools=tools
         )
 
         try:
