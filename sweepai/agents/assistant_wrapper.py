@@ -240,12 +240,22 @@ def run_until_complete(
     max_iterations: int = 2000,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    # Credits to https://github.com/VictorAny for help debugging the thread restarts
+    # Many fixes based on https://github.com/sweepai/sweep/pull/3311
     client = get_client()
     message_strings = []
     json_messages = []
     try:
         num_tool_calls_made = 0
         for i in range(max_iterations):
+            last_runs = openai_retry_with_timeout(
+                client.beta.threads.runs.list,
+                thread_id=thread_id,
+            )
+            active_runs = any(run.status == "in_progress" for run in last_runs.data)
+
+            logger.info(f"Active run in thread: {active_runs}")
+
             run = openai_retry_with_timeout(
                 client.beta.threads.runs.retrieve,
                 thread_id=thread_id,
@@ -262,12 +272,14 @@ def run_until_complete(
                 if not done_response:
                     break
                 else:
-                    run = client.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        instructions=done_response,
-                        model=model,
-                    )
+                    if not active_runs:
+                        run = openai_retry_with_timeout(
+                            client.beta.threads.runs.create,
+                            thread_id=thread_id,
+                            assistant_id=assistant_id,
+                            instructions=done_response,
+                            model=model,
+                        )
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
                     f"Run completed with {run.status} (i={num_tool_calls_made}) and reason {run.last_error}."
@@ -281,12 +293,14 @@ def run_until_complete(
                         f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
                     )
                 else:
-                    run = client.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        instructions=done_response,
-                        model=model,
-                    )
+                    if not active_runs:
+                        run = openai_retry_with_timeout(
+                            client.beta.threads.runs.create,
+                            thread_id=thread_id,
+                            assistant_id=assistant_id,
+                            instructions=done_response,
+                            model=model,
+                        )
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
@@ -567,7 +581,7 @@ def openai_assistant_call(
         except AssistantRaisedException as e:
             logger.warning(e.message)
         except Exception as e:
-            logger.error(e)
+            logger.exception(e)
             raise e
 
 
