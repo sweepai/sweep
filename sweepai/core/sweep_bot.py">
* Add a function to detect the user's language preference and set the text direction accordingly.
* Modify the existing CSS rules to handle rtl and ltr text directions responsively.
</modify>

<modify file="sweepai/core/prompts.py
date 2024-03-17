@@ -1,0 +1,16 @@
+# sweepai/core/sweep_bot.py
+...
+def detect_language_preference(user):
+    # Detect the user's language preference
+    # Return 'rtl' or 'ltr'
+    ...
+
+# Modify existing CSS rules to handle rtl and ltr text directions responsively
+...
+
+# sweepai/core/prompts.py
+...
+# Modify the prompt to support both rtl and ltr text directions
+prompt = "Please enter your input:" if text_direction == 'ltr' else ":input your enter Please"
+...
+
