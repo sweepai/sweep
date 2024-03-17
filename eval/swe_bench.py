@@ -1,60 +1,30 @@
 import json
 import os
-from pathlib import Path
+from math import inf
 from typing import Optional
 
+import git
 import pandas as pd
 from datasets import load_dataset
 from git import Repo
 from loguru import logger
-
-from collections import defaultdict
-import glob
-import subprocess
-import sys
-from time import time
-from unittest.mock import MagicMock
-from loguru import logger
-from tqdm import tqdm
-import typer
-import yaml
-
-import git
-import os
-from github import Github
-
-from rich.console import Console
-from rich.progress import track
 from rich import print
-
-from math import inf
-from sweepai.agents.modify_bot import ModifyBot
-from sweepai.agents.modify_file import modify_file
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
-from sweepai.core.entities import (
-    FileChangeRequest,
-    Message,
-    PullRequest,
-)
-from sweepai.logn.cache import file_cache
-from sweepai.utils import openai_proxy
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
-
-from sweepai.utils.github_utils import (
-    MockClonedRepo,
-    TemporarilyCopiedClonedRepo,
-)
-
-from sweepai.utils.ticket_utils import prep_snippets
 from rich.console import Console
-import datetime
-from swe_bench_utils import checkout_to_pr_ref, get_files_to_change, run_modify_bot, run_search_test
+from swe_bench_utils import get_files_to_change, run_modify_bot, run_search_test
+from tqdm import tqdm
 
-github_token = os.getenv("GITHUB_TOKEN") # this is a github token with repo access
+from sweepai.core.entities import Message
+from sweepai.logn.cache import file_cache
+from sweepai.utils.diff import generate_diff
+from sweepai.utils.github_utils import MockClonedRepo
+
+github_token = os.getenv("GITHUB_TOKEN")  # this is a github token with repo access
+cprint = Console().print
 CLONE_DIR = "/mnt/volume_sfo3_02/tmp/repos"
 
+
 # borrowed from ai-maintainer-inc / SWE-Bench-Runner
+@file_cache()
 def load_swebench_test_data(repo_name: Optional[str] = None) -> pd.DataFrame:
     """Load data from huggingface"""
     dataset = load_dataset("princeton-nlp/SWE-bench", "default", split="test")
@@ -80,6 +50,7 @@ def load_swebench_test_data(repo_name: Optional[str] = None) -> pd.DataFrame:
     # sort the data by created_at starting with the oldest data
     test_df = test_df.sort_values(by=["created_at"], ascending=True)
     return test_df
+
 
 # borrowed from ai-maintainer-inc / SWE-Bench-Runner
 def checkout_or_clone_repo(repo_identifier: str, commit_hash: str) -> str:
@@ -112,25 +83,31 @@ def checkout_or_clone_repo(repo_identifier: str, commit_hash: str) -> str:
 
     return repo_path
 
+
+cprint("Loading test data...", style="yellow")
 test_data = load_swebench_test_data()
+cprint("Loaded test data", style="green")
 
 seed = 0
-# get a % subset of the data with a random seed
-proportion = 0.25
+proportion = 0.025
 test_data = test_data.sample(frac=proportion, random_state=seed)
-# output_file = "sweep__SWE-bench_unassisted_search.jsonl"
-# output_file = "ground_truth__SWE-bench_unassisted.jsonl"
-name = "sweep-03-17-unassisted"
-output_file = "sweep-k-25__SWE-bench_unassisted.jsonl"
-output_file = "sweep-k-15__SWE-bench_unassisted.jsonl"
-logger.info(f"Loaded {len(test_data)} rows of test data ({proportion * 100}% of the total)")
+name = "sweep-k-15-entity-search-unassisted"
+output_file = f"{name}__SWE-bench_unassisted.jsonl"
+output_file = "eval/sweep-k-15__SWE-bench_unassisted.jsonl"
+search_results_file = f"eval/{name}-search_results.csv"
+search_positions_file = f"eval/{name}-search_positions.txt"
+logger.info(
+    f"Loaded {len(test_data)} rows of test data ({proportion * 100}% of the total)"
+)
 
-open("search_results.csv", "w").write("instance_id,mrr,acc\n")
-open("search_positions.txt", "w").write("instance_id,positions\n")
+open(search_results_file, "w").write("instance_id,mrr,acc\n")
+open(search_positions_file, "w").write("instance_id,positions\n")
 
 # already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()]
 already_done_results = []
-previously_finished_tasks = set([result["instance_id"] for result in already_done_results])
+previously_finished_tasks = set(
+    [result["instance_id"] for result in already_done_results]
+)
 
 for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
     instance_id = row.instance_id
@@ -139,7 +116,12 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
     problem_statement = row["problem_statement"]
     hints_text = row["hints_text"]
     solution_patch = row["patch"]
-    print(repo_identifier, commit_hash, problem_statement.split("\n")[0], hints_text.split("\n")[0])
+    print(
+        repo_identifier,
+        commit_hash,
+        problem_statement.split("\n")[0],
+        hints_text.split("\n")[0],
+    )
     if instance_id in previously_finished_tasks:
         continue
     try:
@@ -156,20 +138,22 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
             if line.startswith("---"):
                 resolution_files.append(line.removeprefix("--- a/"))
         mrr, acc, rcm, positions = run_search_test(
-            cloned_repo, 
-            problem_statement, 
-            commit_hash, 
+            cloned_repo,
+            problem_statement,
+            commit_hash,
             k=15,
             resolution_files=resolution_files,
-            name=instance_id
+            name=instance_id,
         )
-        with open("search_results.csv", "a") as f:
+        with open(search_results_file, "a") as f:
             f.write(f"{instance_id},{mrr},{acc}\n")
-        with open("search_positions.txt", "a") as f:
+        with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{positions}\n")
         # continue
         # import pdb; pdb.set_trace()
-        fcrs, plan = get_files_to_change(rcm.current_top_snippets, problem_statement, repo_identifier)
+        fcrs, plan = get_files_to_change(
+            rcm.current_top_snippets, problem_statement, repo_identifier
+        )
         # continue
         # modify files
         additional_messages = [
@@ -186,9 +170,14 @@ Repo: {repo_identifier}
             file_path = fcr.filename
             instructions = fcr.instructions
             try:
-                file_contents = cloned_repo.git_repo.git.show(f"{commit_hash}:{file_path}")
+                file_contents = cloned_repo.git_repo.git.show(
+                    f"{commit_hash}:{file_path}"
+                )
                 myfilepaths = [file for file in fcr.relevant_files]
-                mymessages = [f"<relevant_file file_path='{file}'>\n{open(repo_path + '/' + file).read()}\n</relevant_file>" for file in fcr.relevant_files]
+                mymessages = [
+                    f"<relevant_file file_path='{file}'>\n{open(repo_path + '/' + file).read()}\n</relevant_file>"
+                    for file in fcr.relevant_files
+                ]
                 logger.info(f"{myfilepaths}")
                 logger.info(f"{[len(m) for m in mymessages]}")
                 updated_file = run_modify_bot(
@@ -208,7 +197,9 @@ Repo: {repo_identifier}
                             for file_path in fcr.relevant_files
                         ],
                     ],
-                    relevant_filepaths=[f"{repo_path}/{file}" for file in fcr.relevant_files], # could be wrong
+                    relevant_filepaths=[
+                        f"{repo_path}/{file}" for file in fcr.relevant_files
+                    ],  # could be wrong
                     cloned_repo=cloned_repo,
                 )
             except Exception as e:
@@ -246,7 +237,7 @@ Repo: {repo_identifier}
             "model_name_or_path": name,
             "text": problem_statement,
             "full_output": combined_diff,
-            "model_patch": combined_diff
+            "model_patch": combined_diff,
         }
         with open(output_file, "a") as f:
             f.write("\n" + json.dumps(result))
