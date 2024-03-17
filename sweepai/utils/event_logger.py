@@ -4,8 +4,15 @@ from datetime import datetime  # Correctly import the datetime class
 
 import requests
 from loguru import logger
+from pymongo import MongoClient
 
-from sweepai.config.server import ENV, LOKI_URL, POSTHOG_API_KEY
+from sweepai.config.server import ENV, MONGODB_URI, POSTHOG_API_KEY
+
+mongodb_client = MongoClient(
+    MONGODB_URI,
+    serverSelectionTimeoutMS=20000,
+    socketTimeoutMS=20000,
+)
 
 
 @dataclass
@@ -41,51 +48,41 @@ class PosthogClient:
 posthog = PosthogClient(API_KEY=POSTHOG_API_KEY)
 
 
-def loki_sink(message):
+def mongodb_sink(message):
     try:
+        db = mongodb_client["llm"]
+        collection = db["logs"]
         record = message.record
-
-        extras = {
-            **record["extra"],
-            "level": record["level"].name,
-            "file": record["file"].path,
-            "line": record["line"],
-        }
-
-        message = (
-            f"{record['time'].isoformat()} {record['level'].name}:{record['file'].path}:{record['line']}: {record['message']}\n\n"
-            + json.dumps(extras)
-        )
-
         log_data = {
-            "streams": [
-                {
-                    "stream": {
-                        "level": record["level"].name,
-                        "env": ENV,
-                        # "file": record["file"].path,
-                        # "line": record["line"],
-                    },
-                    "values": [[str(int(record["time"].timestamp() * 1e9)), message]],
-                }
-            ]
+            "time": record["time"].isoformat(),
+            "file": {"name": record["file"].name, "path": record["file"].path},
+            "thread": {"id": record["thread"].id, "name": record["thread"].name},
+            "level": {
+                "name": record["level"].name,
+                "no": record["level"].no,
+                "icon": record["level"].icon,
+            },
+            "process": {"id": record["process"].id, "name": record["process"].name},
+            "tracking_id": record.get("tracking_id", ""),
         }
-
-        for key, value in list(record["extra"].items())[:10]:
-            if key in ["env"]:
-                log_data["streams"][0]["stream"][key] = str(value)
-
-        response = requests.post(
-            LOKI_URL,
-            data=json.dumps(log_data),
-            headers={"Content-Type": "application/json"},
-        )
-        if response.status_code not in (200, 204):
-            print("Error sending log to Loki:", response.text)
+        for key in ["time", "level", "file", "thread", "process", "elapsed"]:
+            if key in record:
+                del record[key]
+        log_data.update(record)
+        return collection.insert_one(log_data)
     except Exception as e:
-        print("Error sending log to Loki:", e)
+        print("Error sending log to MongoDB:", e)
+        raise e
 
 
-if LOKI_URL:
-    sink_id = logger.add(loki_sink)
+if MONGODB_URI:
+    sink_id = logger.add(mongodb_sink)
     logger.bind(env=ENV)
+
+if __name__ == "__main__":
+    mongodb_client["llm"]["logs"].create_index("time")
+    mongodb_client["llm"]["logs"].create_index("tracking_id")
+    logger.info("Hello, World!")
+    # fetch last five docs
+    for doc in mongodb_client["llm"]["logs"].find().sort([("time", -1)]).limit(5):
+        print(doc)
