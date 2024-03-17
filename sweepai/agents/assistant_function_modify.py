@@ -188,7 +188,6 @@ def function_modify(
             "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
             for snippet in original_snippets
         ]
-        # import pdb; pdb.set_trace()
 
         # split our relevant files into chunks
         relevant_file_chunks = defaultdict(list)
