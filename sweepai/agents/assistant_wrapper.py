@@ -17,6 +17,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 from pydantic import BaseModel
 
+from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.agents.assistant_functions import raise_error_schema, submit_schema
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message
@@ -240,6 +241,7 @@ def run_until_complete(
     max_iterations: int = 2000,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
+    working_run_id = run_id
     # Credits to https://github.com/VictorAny for help debugging the thread restarts
     # Many fixes based on https://github.com/sweepai/sweep/pull/3311
     client = get_client()
@@ -259,11 +261,11 @@ def run_until_complete(
             run = openai_retry_with_timeout(
                 client.beta.threads.runs.retrieve,
                 thread_id=thread_id,
-                run_id=run_id,
+                run_id=working_run_id,
             )
             if run.status == "completed":
                 logger.info(
-                    f"Run completed with {run.status} (i={num_tool_calls_made})"
+                    f"Run completed with {run.status} (tool calls made={num_tool_calls_made}) (iteration={i})"
                 )
                 done_response = yield "done", {
                     "status": "completed",
@@ -280,9 +282,10 @@ def run_until_complete(
                             instructions=done_response,
                             model=model,
                         )
+                        working_run_id = run.id
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
-                    f"Run completed with {run.status} (i={num_tool_calls_made}) and reason {run.last_error}."
+                    f"Run completed with {run.status} (tool calls made={num_tool_calls_made}) and reason {run.last_error}."
                 )
                 done_response = yield "done", {
                     "status": run.status,
@@ -301,6 +304,7 @@ def run_until_complete(
                             instructions=done_response,
                             model=model,
                         )
+                        working_run_id = run.id
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
@@ -552,6 +556,7 @@ def openai_assistant_call(
         },
     )
     retries = range(3)
+    additional_messages = ensure_additional_messages_length(additional_messages)
     for _ in retries:
         try:
             response = openai_assistant_call_helper(

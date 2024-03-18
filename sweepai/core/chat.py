@@ -6,7 +6,7 @@ import backoff
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.agents.assistant_function_modify import ensure_additional_messages_length
+from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
