@@ -107,8 +107,8 @@ open(search_positions_file, "w").write("instance_id,positions\n")
 open(context_results_file, "w").write("instance_id,mrr,acc\n")
 open(context_positions_file, "w").write("instance_id,positions\n")
 
-already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()] if os.path.exists(output_file) else []
-# already_done_results = []
+# already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()] if os.path.exists(output_file) else []
+already_done_results = []
 previously_finished_tasks = set(
     [result["instance_id"] for result in already_done_results]
 )
@@ -141,7 +141,7 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
         for line in solution_patch.splitlines():
             if line.startswith("---"):
                 resolution_files.append(line.removeprefix("--- a/"))
-        rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions = run_search_test(
+        rcm, search_mrr, search_accuracy, search_positions, selected_files, recall = run_search_test(
             cloned_repo,
             problem_statement,
             commit_hash,
@@ -154,9 +154,10 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
         with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{search_positions}\n")
         with open(context_results_file, "a") as f:
-            f.write(f"{instance_id},{mrr},{accuracy}\n")
+            f.write(f"{instance_id},{recall}\n")
         with open(context_positions_file, "a") as f:
-            f.write(f"{instance_id},{positions}\n")
+            f.write(f"{instance_id},{selected_files},{resolution_files}\n")
+        continue
         fcrs, plan = get_files_to_change(
             rcm.current_top_snippets, problem_statement, repo_identifier
         )
