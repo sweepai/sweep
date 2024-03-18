@@ -20,7 +20,7 @@ from sweepai.utils.github_utils import MockClonedRepo
 
 github_token = os.getenv("GITHUB_TOKEN")  # this is a github token with repo access
 cprint = Console().print
-CLONE_DIR = "/mnt/volume_sfo3_02/tmp/repos"
+CLONE_DIR = "/mnt/sweep_benchmark/tmp/repos"
 
 
 # borrowed from ai-maintainer-inc / SWE-Bench-Runner
@@ -89,7 +89,7 @@ test_data = load_swebench_test_data()
 cprint("Loaded test data", style="green")
 
 seed = 0
-proportion = 0.025
+proportion = 0.1
 test_data = test_data.sample(frac=proportion, random_state=seed)
 name = "sweep-k-15-filename-adjustments-po-removal"
 output_file = f"{name}__SWE-bench_unassisted.jsonl"
