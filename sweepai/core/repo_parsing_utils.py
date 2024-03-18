@@ -138,3 +138,23 @@ def directory_to_chunks(
         for chunks in tqdm(pool.imap(file_path_to_chunks, file_list), total=len(file_list)):
             all_chunks.extend(chunks)
     return all_chunks, file_list
+
+if __name__ == "__main__":
+    try:
+        from sweepai.utils.github_utils import ClonedRepo, get_installation_id
+        organization_name = "sweepai"
+        
+        installation_id = get_installation_id(organization_name)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        sweep_config = SweepConfig()
+        chunks, file_list = directory_to_chunks(cloned_repo.repo_dir, sweep_config)
+        # ensure no unallowed files are let through
+        assert(not any([file for file in file_list if sweep_config.is_file_excluded(file)]))
+        # pick 10 random files and turn them to chunks
+        import random
+        for _ in range(10):
+            idx = random.randint(0, len(file_list) - 1)
+            file_chunks = file_path_to_chunks(file_list[idx])
+
+    except Exception as e:
+        logger.error(f"repo_parsing_utils.py failed to run successfully with error: {e}")

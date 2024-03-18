@@ -1,5 +1,4 @@
 import json
-import textwrap
 import traceback
 from collections import defaultdict
 
@@ -12,6 +11,7 @@ from sweepai.agents.assistant_functions import (
     submit_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
 from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message, Snippet
 from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
@@ -62,36 +62,7 @@ def excel_col_to_int(s):
         result = result * 26 + (ord(char) - 64)
     return result - 1
 
-
-MAX_CHARS = 32000
 TOOLS_MAX_CHARS = 20000
-
-
-# ensure that all additional_messages are 32768 characters at most, if not split them
-def ensure_additional_messages_length(
-    additional_messages: list[Message],
-) -> list[Message]:
-    for i, additional_message in enumerate(additional_messages):
-        if len(additional_message.content) > MAX_CHARS:
-            wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
-            new_messages = wrapper.wrap(additional_message.content)
-            # replace the original message with the broken up messages
-            for j, new_message in enumerate(new_messages):
-                if j == 0:
-                    additional_messages[i] = Message(
-                        role=additional_message.role,
-                        content=new_message,
-                    )
-                else:
-                    additional_messages.insert(
-                        i + j,
-                        Message(
-                            role=additional_message.role,
-                            content=new_message,
-                        ),
-                    )
-    return additional_messages
-
 
 def build_keyword_search_match_results(
     match_indices: list[int],
