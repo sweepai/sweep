@@ -309,7 +309,7 @@ class ClonedRepo:
                 item_path = os.path.join(directory, item)
                 if os.path.isfile(item_path):
                     # make sure the item_path is not in one of the banned directories
-                    if len([banned_dir for banned_dir in sweep_config.exclude_dirs if banned_dir in item_path.split(os.path.sep)]) == 0:
+                    if not sweep_config.is_file_excluded(item_path):
                         files.append(item_path)  # Add the file to the list
                 elif os.path.isdir(item_path):
                     dfs_helper(item_path)  # Recursive call to explore subdirectory
@@ -592,12 +592,26 @@ except Exception:
         CURRENT_USERNAME = GITHUB_BOT_USERNAME
 
 if __name__ == "__main__":
-    # str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
-    # str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
-    # print(get_hunks(str1, str2, 1))
-    mocked_repo = MockClonedRepo.from_dir(
-        "benchmark/data/repos/pulse-alp",
-        repo_full_name="sweepai/sweep",
-    )
-    temp_repo = TemporarilyCopiedClonedRepo.copy_from_cloned_repo(mocked_repo)
-    print(mocked_repo)
+    try:
+        organization_name = "sweepai"
+        sweep_config = SweepConfig()
+        installation_id = get_installation_id(organization_name)
+        user_token, g = get_github_client(installation_id)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        dir_ojb = cloned_repo.list_directory_tree()
+        commit_history = cloned_repo.get_commit_history()
+        similar_file_paths = cloned_repo.get_similar_file_paths("README.md")
+        # ensure no similar file_paths are sweep excluded
+        assert(not any([file for file in similar_file_paths if sweep_config.is_file_excluded(file)]))
+        print(f"similar_file_paths: {similar_file_paths}")
+        str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
+        str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
+        print(get_hunks(str1, str2, 1))
+        mocked_repo = MockClonedRepo.from_dir(
+            cloned_repo.repo_dir,
+            repo_full_name="sweepai/sweep",
+        )
+        temp_repo = TemporarilyCopiedClonedRepo.copy_from_cloned_repo(mocked_repo)
+        print(f"mocked repo: {mocked_repo}")
+    except Exception as e:
+        logger.error(f"github_utils.py failed to run successfully with error: {e}")

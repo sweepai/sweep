@@ -92,16 +92,20 @@ seed = 0
 proportion = 0.1
 k = int(os.environ.get("k", 10))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-03-18-k-{k}"
+name = f"sweep-03-18-k-{k}-context"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
+context_results_file = f"eval/{name}-context_results.csv"
+context_positions_file = f"eval/{name}-context_positions.txt"
 logger.info(
     f"Loaded {len(test_data)} rows of test data ({proportion * 100}% of the total)"
 )
 
 open(search_results_file, "w").write("instance_id,mrr,acc\n")
 open(search_positions_file, "w").write("instance_id,positions\n")
+open(context_results_file, "w").write("instance_id,mrr,acc\n")
+open(context_positions_file, "w").write("instance_id,positions\n")
 
 already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()] if os.path.exists(output_file) else []
 # already_done_results = []
@@ -137,7 +141,7 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
         for line in solution_patch.splitlines():
             if line.startswith("---"):
                 resolution_files.append(line.removeprefix("--- a/"))
-        mrr, acc, rcm, positions = run_search_test(
+        rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions = mrr, acc, rcm, positions = run_search_test(
             cloned_repo,
             problem_statement,
             commit_hash,
@@ -146,8 +150,12 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
             name=instance_id,
         )
         with open(search_results_file, "a") as f:
-            f.write(f"{instance_id},{mrr},{acc}\n")
+            f.write(f"{instance_id},{search_mrr},{search_acc}\n")
         with open(search_positions_file, "a") as f:
+            f.write(f"{instance_id},{search_positions}\n")
+        with open(context_results_file, "a") as f:
+            f.write(f"{instance_id},{mrr},{acc}\n")
+        with open(context_positions_file, "a") as f:
             f.write(f"{instance_id},{positions}\n")
         fcrs, plan = get_files_to_change(
             rcm.current_top_snippets, problem_statement, repo_identifier
