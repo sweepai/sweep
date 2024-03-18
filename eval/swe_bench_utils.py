@@ -131,6 +131,65 @@ def evaluate_search(
                 )
     return mrr, accuracy, positions
 
+
+def evaluate_context(
+    rcm: RepoContextManager,
+    resolution_files: list[str],
+    problem_statement: str,
+    k: int,
+    name: str,
+):
+    selected_snippets, all_snippets = rcm.current_top_snippets, rcm.snippets
+    content_to_lexical_score = rcm.snippet_scores
+    sorted_snippet_paths = [snippet.file_path for snippet in all_snippets]
+    top_k_paths = [
+        snippet.file_path for snippet in selected_snippets
+    ]  # NOTE: a false positive will hurt the score badly - need to fix
+    mrr = 0
+    accuracy = 1
+    positions = []
+    for resolution_file in resolution_files:
+        if resolution_file not in sorted_snippet_paths:
+            cprint(
+                f"Resolution file {resolution_file} is NOT reachable!", style="bold red"
+            )
+        if resolution_file in top_k_paths:
+            mrr += 1 / (top_k_paths.index(resolution_file) + 1)
+        if resolution_file in sorted_snippet_paths:
+            positions.append(sorted_snippet_paths.index(resolution_file))
+        else:
+            positions.append(9999)
+        # if a resolution file is not in the top k, accuracy is 0
+        if resolution_file not in top_k_paths:
+            accuracy = 0
+    max_mrr_score = sum([1 / (i + 1) for i in range(len(resolution_files))])
+    mrr /= max_mrr_score
+
+    cprint(
+        f"MRR at {k}: {mrr}\ntest {name}"
+    )
+    if debug:
+        cprint(f"Query: {problem_statement}")
+    with open(f"eval/test_outputs.txt", "a") as f:
+        test_config_string = f"MRR at {k}: {mrr}\ntest {name}"
+        f.write(f"{test_config_string}\n")
+        f.close()
+    # print the top k snippets and highlight the ones that are in the resolution files
+    if debug:
+        # if a resolution file is not in the top k, print it in red
+        for resolution_file in resolution_files:
+            snippet = [
+                snippet
+                for snippet in all_snippets
+                if snippet.file_path == resolution_file
+            ][0]
+            snippet_score = round(content_to_lexical_score[snippet.denotation], 4)
+            if resolution_file not in top_k_paths:
+                cprint(
+                    f"snippet_score {snippet_score}: [red]{resolution_file} MISSED at rank {sorted_snippet_paths.index(resolution_file) + 1}/{len(sorted_snippet_paths)}[/red]"
+                )
+    return mrr, accuracy, positions
+
 # @file_cache()
 def run_search_test(
     cloned_repo: MockClonedRepo,
@@ -163,7 +222,7 @@ def run_search_test(
     end = time()
     cprint(f"Total elapsed time: {end - start} seconds")
 
-    mrr, accuracy, positions = evaluate_search(
+    mrr, accuracy, positions = evaluate_context(
         rcm,
         resolution_files,
         problem_statement,
