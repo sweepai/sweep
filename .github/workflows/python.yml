@@ -5,9 +5,9 @@ on:
     branches:
       - main
       - dev
-    # paths:
-    #   - 'sweepai/**'
-    #   - 'tests/**'
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
   push:
     branches:
       - main
@@ -17,7 +17,7 @@ on:
       - 'tests/**'
 
 jobs:
-  python-ci:
+  code-quality:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -37,15 +37,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      # - name: Restore dependencies
-      #   id: restore-dependencies
-      #   uses: actions/cache/restore@v4
-      #   with:
-      #     path: "~"
-      #     key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-python-${{ matrix.python-version }}-
-      #       ${{ runner.os }}-python-
       - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: pip install uv
@@ -75,6 +66,40 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python -m unittest sweepai/**/*_test.py
 
+  e2e-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
+    outputs:
+      cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.67.0
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: pip install uv
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: uv pip install -r requirements.txt
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: uv pip install ruff pylint pytest pytest-xdist black
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache/save@v4
+        with:
+          path: "~"
+          key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
       - name: Set up Redis (for e2e tests)
         run: |
           sudo apt-get update
@@ -83,6 +108,7 @@ jobs:
 
       - name: Run e2e Tests
         env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           GITHUB_PAT: ${{ secrets.GH_PAT }}
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

@@ -1,51 +1,30 @@
 import json
+import os
 import re
 import textwrap
 import time
-import networkx as nx
 import urllib
-import os
 
+import networkx as nx
 import openai
 from attr import dataclass
 from loguru import logger
-from openai import AzureOpenAI, OpenAI
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_function_modify import MAX_CHARS
-from sweepai.agents.assistant_wrapper import client, openai_retry_with_timeout
-from sweepai.config.server import (
-    AZURE_API_KEY,
-    AZURE_OPENAI_DEPLOYMENT,
-    DEFAULT_GPT4_32K_MODEL,
-    IS_SELF_HOSTED,
-    OPENAI_API_BASE,
-    OPENAI_API_KEY,
-    OPENAI_API_TYPE,
-    OPENAI_API_VERSION,
-)
-from sweepai.core.entities import AssistantRaisedException, Snippet
+from sweepai.agents.assistant_wrapper import openai_retry_with_timeout
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.progress import AssistantConversation, TicketProgress
+from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE
 from sweepai.utils.tree_utils import DirectoryTree
-
-if OPENAI_API_TYPE == "openai":
-    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
-elif OPENAI_API_TYPE == "azure":
-    client = AzureOpenAI(
-        azure_endpoint=OPENAI_API_BASE,
-        api_key=AZURE_API_KEY,
-        api_version=OPENAI_API_VERSION,
-    )
-    DEFAULT_GPT4_32K_MODEL = AZURE_OPENAI_DEPLOYMENT  # noqa: F811
-else:
-    raise Exception("OpenAI API type not set, must be either 'openai' or 'azure'.")
-
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
@@ -216,7 +195,9 @@ class RepoContextManager:
     cloned_repo: ClonedRepo
     current_top_snippets: list[Snippet] = []
     import_trees: str = ""
-    relevant_file_paths: list[str] = [] # a list of file paths that appear in the user query
+    relevant_file_paths: list[
+        str
+    ] = []  # a list of file paths that appear in the user query
 
     @property
     def top_snippet_paths(self):
@@ -297,14 +278,15 @@ class RepoContextManager:
             self.current_top_snippets.append(snippet)
 
     def add_import_trees(self, import_trees: str):
-        self.import_trees += ("\n" + import_trees)
-    
+        self.import_trees += "\n" + import_trees
+
     def append_relevant_file_paths(self, relevant_file_paths: str):
         # do not use append, it modifies the list in place and will update it for ALL instances of RepoContextManager
         self.relevant_file_paths = self.relevant_file_paths + [relevant_file_paths]
 
     def set_relevant_paths(self, relevant_file_paths: list[str]):
         self.relevant_file_paths = relevant_file_paths
+
 
 """
 Dump the import tree to a string
@@ -315,7 +297,11 @@ main.py
 └── utils.py
     └── models.py
 """
-def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', is_last=True, level=0):
+
+
+def build_full_hierarchy(
+    graph: nx.DiGraph, start_node: str, k: int, prefix="", is_last=True, level=0
+):
     if level > k:
         return ""
     if level == 0:
@@ -324,17 +310,31 @@ def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', i
         hierarchy = f"{prefix}{'└── ' if is_last else '├── '}{start_node}\n"
     child_prefix = prefix + ("    " if is_last else "│   ")
     try:
-        successors = {node for node, length in nx.single_source_shortest_path_length(graph, start_node, cutoff=1).items() if length == 1}
+        successors = {
+            node
+            for node, length in nx.single_source_shortest_path_length(
+                graph, start_node, cutoff=1
+            ).items()
+            if length == 1
+        }
     except Exception as e:
         print("error occured while fetching successors:", e)
         return hierarchy
     sorted_successors = sorted(successors)
     for idx, child in enumerate(sorted_successors):
         child_is_last = idx == len(sorted_successors) - 1
-        hierarchy += build_full_hierarchy(graph, child, k, child_prefix, child_is_last, level+1)
+        hierarchy += build_full_hierarchy(
+            graph, child, k, child_prefix, child_is_last, level + 1
+        )
     if level == 0:
         try:
-            predecessors = {node for node, length in nx.single_source_shortest_path_length(graph.reverse(), start_node, cutoff=1).items() if length == 1}
+            predecessors = {
+                node
+                for node, length in nx.single_source_shortest_path_length(
+                    graph.reverse(), start_node, cutoff=1
+                ).items()
+                if length == 1
+            }
         except Exception as e:
             print("error occured while fetching predecessors:", e)
             return hierarchy
@@ -342,17 +342,21 @@ def build_full_hierarchy(graph: nx.DiGraph, start_node: str, k:int, prefix='', i
         for idx, parent in enumerate(sorted_predecessors):
             parent_is_last = idx == len(sorted_predecessors) - 1
             # Prepend parent hierarchy to the current node's hierarchy
-            hierarchy = build_full_hierarchy(graph, parent, k, '', parent_is_last, level+1) + hierarchy
+            hierarchy = (
+                build_full_hierarchy(graph, parent, k, "", parent_is_last, level + 1)
+                + hierarchy
+            )
     return hierarchy
+
 
 def load_graph_from_file(filename):
     G = nx.DiGraph()
     current_node = None
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         for line in file:
-            if not line: 
+            if not line:
                 continue
-            if line.startswith(' '):
+            if line.startswith(" "):
                 line = line.strip()
                 if current_node:
                     G.add_edge(current_node, line)
@@ -363,40 +367,58 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
+
 # add import trees for any relevant_file_paths (code files that appear in query)
-def build_import_trees(rcm: RepoContextManager, import_graph: nx.DiGraph) -> tuple[RepoContextManager]:
+def build_import_trees(
+    rcm: RepoContextManager, import_graph: nx.DiGraph
+) -> tuple[RepoContextManager]:
     if import_graph is None:
         return rcm
     code_files_in_query = rcm.relevant_file_paths
     for file in code_files_in_query:
         # fetch direct parent and children
-        representation = f"\nThe file '{file}' has the following import structure: \n" + build_full_hierarchy(import_graph, file, 2)
+        representation = (
+            f"\nThe file '{file}' has the following import structure: \n"
+            + build_full_hierarchy(import_graph, file, 2)
+        )
         rcm.add_import_trees(representation)
     return rcm
+
 
 # add any code files that appear in the query to current_top_snippets
 def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextManager:
     code_files_in_query = rcm.relevant_file_paths
     for file in code_files_in_query:
-        current_top_snippet_paths = [snippet.file_path for snippet in rcm.current_top_snippets]
+        current_top_snippet_paths = [
+            snippet.file_path for snippet in rcm.current_top_snippets
+        ]
         # if our mentioned code file isnt already in the current_top_snippets we add it
         if file not in current_top_snippet_paths:
             try:
-                code_snippets = [snippet for snippet in rcm.snippets if snippet.file_path == file]
+                code_snippets = [
+                    snippet for snippet in rcm.snippets if snippet.file_path == file
+                ]
                 rcm.add_snippets(code_snippets)
             except Exception as e:
-                logger.error(f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one.")
+                logger.error(
+                    f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one."
+                )
     return rcm
 
+
 # fetch all files mentioned in the user query
-def parse_query_for_files(query: str, rcm: RepoContextManager) -> tuple[RepoContextManager, nx.DiGraph]:
+def parse_query_for_files(
+    query: str, rcm: RepoContextManager
+) -> tuple[RepoContextManager, nx.DiGraph]:
     # use cloned_repo to attempt to find any files names that appear in the query
     repo_full_name = rcm.cloned_repo.repo_full_name
     repo_name = repo_full_name.split("/")[-1]
     repo_group_name = repo_full_name.split("/")[0]
     code_files_to_add = set([])
     code_files_to_check = set(list(rcm.cloned_repo.get_file_list()))
-    code_files_uri_encoded = [urllib.parse.quote(file_path) for file_path in code_files_to_check]
+    code_files_uri_encoded = [
+        urllib.parse.quote(file_path) for file_path in code_files_to_check
+    ]
     for file, file_uri_encoded in zip(code_files_to_check, code_files_uri_encoded):
         if file in query or file_uri_encoded in query:
             code_files_to_add.add(file)
@@ -404,20 +426,27 @@ def parse_query_for_files(query: str, rcm: RepoContextManager) -> tuple[RepoCont
         rcm.append_relevant_file_paths(code_file)
     # only for enterprise
     try:
-        pathing = f"{repo_group_name}_import_graphs/{repo_name}/{repo_name}_import_tree.txt"
+        pathing = (
+            f"{repo_group_name}_import_graphs/{repo_name}/{repo_name}_import_tree.txt"
+        )
         if not os.path.exists(pathing):
             return rcm, None
         graph = load_graph_from_file(pathing)
     except Exception as e:
-        logger.error(f"Error loading import tree: {e}, skipping step and setting import_tree to empty string")
+        logger.error(
+            f"Error loading import tree: {e}, skipping step and setting import_tree to empty string"
+        )
         return rcm, None
     files = set(list(graph.nodes()))
     files_uri_encoded = [urllib.parse.quote(file_path) for file_path in files]
     for file, file_uri_encoded in zip(files, files_uri_encoded):
-        if (file in query or file_uri_encoded in query) and (file not in code_files_to_add):
+        if (file in query or file_uri_encoded in query) and (
+            file not in code_files_to_add
+        ):
             rcm.append_relevant_file_paths(file)
     return rcm, graph
-    
+
+
 # do not ignore repo_context_manager
 @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
@@ -426,12 +455,9 @@ def get_relevant_context(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
 ):
-    model = (
-        "gpt-3.5-turbo-1106"
-        if (chat_logger is None or chat_logger.use_faster_model())
-        and not IS_SELF_HOSTED
-        else DEFAULT_GPT4_32K_MODEL
-    )
+    if chat_logger and chat_logger.use_faster_model():
+        raise Exception(FASTER_MODEL_MESSAGE)
+    model = DEFAULT_GPT4_32K_MODEL
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
         "call_assistant_api",
@@ -440,19 +466,27 @@ def get_relevant_context(
             "model": model,
         },
     )
+    client = get_client()
     try:
         # attempt to get import tree for relevant snippets that show up in the query
-        repo_context_manager, import_graph = parse_query_for_files(query, repo_context_manager)
+        repo_context_manager, import_graph = parse_query_for_files(
+            query, repo_context_manager
+        )
         # for any code file mentioned in the query, build its import tree
         repo_context_manager = build_import_trees(repo_context_manager, import_graph)
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
-        # check to see if there are any files that are mentioned in the query
+        # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
+        repo_context_manager.dir_obj.add_relevant_files(
+            repo_context_manager.relevant_file_paths
+        )
+
         user_prompt = repo_context_manager.format_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
-        messages = textwrap.wrap(user_prompt, MAX_CHARS)
+        wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
+        messages = wrapper.wrap(user_prompt)
         assistant = openai_retry_with_timeout(
             client.beta.assistants.create,
             name="Relevant Files Assistant",
@@ -485,7 +519,9 @@ def get_relevant_context(
         if len(repo_context_manager.current_top_snippets) == 0:
             repo_context_manager.current_top_snippets = old_top_snippets
             if ticket_progress:
-                discord_log_error(f"Context manager empty ({ticket_progress.tracking_id})")
+                discord_log_error(
+                    f"Context manager empty ({ticket_progress.tracking_id})"
+                )
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -528,6 +564,7 @@ def modify_context(
     initial_file_paths = repo_context_manager.top_snippet_paths
     paths_to_add = []
     num_tool_calls_made = 0
+    client = get_client()
     for iter in range(max_iterations):
         run = openai_retry_with_timeout(
             client.beta.threads.runs.retrieve,
@@ -550,8 +587,6 @@ def modify_context(
             time.sleep(3)
             continue
         num_tool_calls_made += 1
-        if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
-            raise AssistantRaisedException("Too many tool calls made on gpt-3.5.")
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
         for tool_call in tool_calls:
