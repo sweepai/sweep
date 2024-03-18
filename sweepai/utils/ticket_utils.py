@@ -26,7 +26,7 @@ we add adjustment scores to compensate for this bias.
 """
 
 prefix_adjustment = {
-    "doc": -0.5,
+    "doc": -1,
     "example": -0.75,
 }
 
