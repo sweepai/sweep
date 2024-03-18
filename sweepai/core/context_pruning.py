@@ -468,7 +468,7 @@ def get_relevant_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
-    import_graph: nx.DiGraph = None, # optional override import graph
+    override_import_graph: nx.DiGraph = None, # optional override import graph
 ):
     if chat_logger and chat_logger.use_faster_model():
         raise Exception(FASTER_MODEL_MESSAGE)
@@ -483,8 +483,6 @@ def get_relevant_context(
     )
     client = get_client()
     try:
-        if import_graph:
-            override_import_graph = import_graph
         # attempt to get import tree for relevant snippets that show up in the query
         repo_context_manager, import_graph = parse_query_for_files(
             query, repo_context_manager
