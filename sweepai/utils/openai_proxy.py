@@ -159,12 +159,21 @@ class OpenAIProxy:
                 if OPENAI_API_TYPE == "azure":
                     with Timer():
                         response = self.call_azure_api(
-                            model, messages, tools, max_tokens, temperature
+                            model=model,
+                            messages=messages,
+                            tools=tools,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
                         )
                         return response
                 with Timer():
                     return self.set_openai_default_api_parameters(
-                        model, messages, tools, max_tokens, temperature
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        tools=tools,
+                        
                     )
 
             except SystemExit:

@@ -90,7 +90,7 @@ def run_search_test(
     cloned_repo: MockClonedRepo,
     problem_statement: str,
     commit_hash: str,
-    k: int = 7,
+    k: int = 15,
     resolution_files: list[str] = [],
     name: str = ""
 ) -> tuple[int, int, RepoContextManager, PullRequest]:
