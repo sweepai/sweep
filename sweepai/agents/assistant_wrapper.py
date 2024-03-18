@@ -307,10 +307,12 @@ def run_until_complete(
                     raise AssistantRaisedException(
                         "Too many tool calls made on GPT 3.5."
                     )
-                raw_tool_calls = [
-                    tool_call
-                    for tool_call in run.required_action.submit_tool_outputs.tool_calls
-                ]
+                raw_tool_calls = []
+                if run.required_action:
+                    raw_tool_calls = [
+                        tool_call
+                        for tool_call in run.required_action.submit_tool_outputs.tool_calls
+                    ]
                 tool_outputs = []
                 tool_calls = []
                 if any(
