@@ -45,7 +45,7 @@ Our time to hit that same bug could be cut from 10 minutes to 15 seconds (a 40x 
 
 We didn't build this, but we think our file_cache works just as well.
 
-LLM calls take a really long time, but their inputs and outputs are easy to cache and caching saves a massive amount of time. We can use the input prompt/string as the cache key, and the output string as the cache value.
+LLM calls are slow but their inputs and outputs are easy to cache, saving a lot of time. We can use the input prompt/string as the cache key, and the output string as the cache value.
 
 ### What's different from lru_cache?
 
