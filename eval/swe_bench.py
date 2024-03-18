@@ -89,7 +89,7 @@ test_data = load_swebench_test_data()
 cprint("Loaded test data", style="green")
 
 seed = 0
-proportion = 0.1
+proportion = 0.05
 k = int(os.environ.get("k", 10))
 test_data = test_data.sample(frac=proportion, random_state=seed)
 name = f"sweep-03-18-k-{k}-context"
@@ -150,7 +150,7 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
             name=instance_id,
         )
         with open(search_results_file, "a") as f:
-            f.write(f"{instance_id},{search_mrr},{search_acc}\n")
+            f.write(f"{instance_id},{search_mrr},{search_accuracy}\n")
         with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{search_positions}\n")
         with open(context_results_file, "a") as f:
