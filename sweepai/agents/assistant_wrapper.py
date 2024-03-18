@@ -18,8 +18,8 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from pydantic import BaseModel
 
 from sweepai.agents.agent_utils import ensure_additional_messages_length
-from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED
+from sweepai.agents.assistant_functions import raise_error_schema, submit_schema
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -49,13 +49,13 @@ def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
         try:
             return call(*args, **kwargs, timeout=timeout)
         except Exception as e_:
-            logger.exception(f"Retry {attempt + 1} failed with error: {e}")
-            error_message = str(e)
+            logger.exception(f"Retry {attempt + 1} failed with error: {e_}")
+            error_message = str(e_)
             e = e_
-    if e is not None:
+    if e:
         raise Exception(
             f"Maximum retries reached. The call failed for call {error_message}"
-        ) from error_message
+        ) from e
     else:
         raise Exception(
             f"Maximum retries reached. The call failed for call {error_message}"
@@ -242,12 +242,22 @@ def run_until_complete(
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
     working_run_id = run_id
+    # Credits to https://github.com/VictorAny for help debugging the thread restarts
+    # Many fixes based on https://github.com/sweepai/sweep/pull/3311
     client = get_client()
     message_strings = []
     json_messages = []
     try:
         num_tool_calls_made = 0
         for i in range(max_iterations):
+            last_runs = openai_retry_with_timeout(
+                client.beta.threads.runs.list,
+                thread_id=thread_id,
+            )
+            active_runs = any(run.status == "in_progress" for run in last_runs.data)
+
+            logger.info(f"Active run in thread: {active_runs}")
+
             run = openai_retry_with_timeout(
                 client.beta.threads.runs.retrieve,
                 thread_id=thread_id,
@@ -264,13 +274,15 @@ def run_until_complete(
                 if not done_response:
                     break
                 else:
-                    run = client.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        instructions=done_response,
-                        model=model,
-                    )
-                    working_run_id = run.id
+                    if not active_runs:
+                        run = openai_retry_with_timeout(
+                            client.beta.threads.runs.create,
+                            thread_id=thread_id,
+                            assistant_id=assistant_id,
+                            instructions=done_response,
+                            model=model,
+                        )
+                        working_run_id = run.id
             elif run.status in ("cancelled", "cancelling", "failed", "expired"):
                 logger.info(
                     f"Run completed with {run.status} (tool calls made={num_tool_calls_made}) and reason {run.last_error}."
@@ -284,13 +296,15 @@ def run_until_complete(
                         f"Run failed assistant_id={assistant_id}, run_id={run_id}, thread_id={thread_id} with status {run.status} (i={num_tool_calls_made})"
                     )
                 else:
-                    run = client.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        instructions=done_response,
-                        model=model,
-                    )
-                    working_run_id = run.id
+                    if not active_runs:
+                        run = openai_retry_with_timeout(
+                            client.beta.threads.runs.create,
+                            thread_id=thread_id,
+                            assistant_id=assistant_id,
+                            instructions=done_response,
+                            model=model,
+                        )
+                        working_run_id = run.id
             elif run.status == "requires_action":
                 num_tool_calls_made += 1
                 if num_tool_calls_made > 15 and model.startswith("gpt-3.5"):
@@ -585,7 +599,7 @@ def run_until_complete_unstable(
     save_ticket_progress: save_ticket_progress_type | None = None,
     messages: list[Message] = [],
 ):
-    get_client()
+    normal_messages_remaining = 3
     # used for chat logger
     for i in range(max_iterations):
         # log our progress
@@ -638,6 +652,7 @@ def run_until_complete_unstable(
 
         messages.append(response_message_dict)
         # if a tool call was made
+        done_response = None
         if tool_calls:
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
@@ -649,10 +664,22 @@ def run_until_complete_unstable(
                     )
                     tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
                 else:
-                    logger.debug(
-                        f"tool_call: {function_name} with args: {function_args}"
-                    )
-                    tool_output = yield function_name, function_args
+                    if function_name == submit_schema["name"]:
+                        logger.info("Submit function was called")
+                        done_response = yield "done", {
+                            "status": "completed",
+                            "message": function_args["justification"],
+                        }
+                        logger.info(
+                            f"run_until_complete done_response: {done_response} completed after {i} iterations"
+                        )
+                        if not done_response:
+                            break
+                    else:
+                        logger.debug(
+                            f"tool_call: {function_name} with args: {function_args}"
+                        )
+                        tool_output = yield function_name, function_args
                 messages.append(
                     {
                         "tool_call_id": tool_call.id,
@@ -664,18 +691,26 @@ def run_until_complete_unstable(
                 if not tool_output:
                     break
         else:  # no tool call being made implies either an error or a success
-            logger.info(
-                f"no tool calls were made, we are done - message: {response_message}"
-            )
-            done_response = yield "done", {
-                "status": "completed",
-                "message": "Run completed successfully",
-            }
-            logger.info(
-                f"run_until_complete done_response: {done_response} completed after {i} iterations"
-            )
-            if not done_response:
-                break
+            # logger.info(
+            #     f"no tool calls were made, we are done - message: {response_message}"
+            # )
+            logger.error("No tool calls were made, use the submit function instead.")
+            # done_response = yield "done", {
+            #     "status": "completed",
+            #     "message": "Run completed successfully",
+            # }
+            done_response = "Please use the submit function to indicate that you have completed the task."
+            normal_messages_remaining -= 1
+            if normal_messages_remaining < 0:
+                raise Exception(
+                    "No tool calls were made, use the submit function instead."
+                )
+
+            # logger.info(
+            #     f"run_until_complete done_response: {done_response} completed after {i} iterations"
+            # )
+            # if not done_response:
+            #     break
 
         # on each iteration of the for loop, we will log to chat_logger
         if chat_logger is not None and len(messages):
@@ -806,3 +841,10 @@ def openai_assistant_call_unstable(
         except Exception as e:
             logger.error(e)
             raise e
+
+
+if not USE_ASSISTANT:
+    logger.warning(
+        "Using our own implementation to mock Assistant API as it is unstable (experimental)"
+    )
+    openai_assistant_call = openai_assistant_call_unstable  # noqa
