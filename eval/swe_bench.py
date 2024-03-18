@@ -89,9 +89,9 @@ test_data = load_swebench_test_data()
 cprint("Loaded test data", style="green")
 
 seed = 0
-proportion = 0.1
+proportion = 0.25
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = "sweep-k-15-filename-adjustments-po-removal"
+name = "sweep-03-18-k-10"
 output_file = f"{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
@@ -102,8 +102,8 @@ logger.info(
 open(search_results_file, "w").write("instance_id,mrr,acc\n")
 open(search_positions_file, "w").write("instance_id,positions\n")
 
-# already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()]
-already_done_results = []
+already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()]
+# already_done_results = []
 previously_finished_tasks = set(
     [result["instance_id"] for result in already_done_results]
 )
@@ -148,7 +148,6 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
             f.write(f"{instance_id},{mrr},{acc}\n")
         with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{positions}\n")
-        continue
         fcrs, plan = get_files_to_change(
             rcm.current_top_snippets, problem_statement, repo_identifier
         )
