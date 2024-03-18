@@ -1,24 +1,18 @@
 from __future__ import annotations
 
 import ast
-import os
 import re
 import traceback
-import uuid
 from dataclasses import dataclass
-from io import StringIO
 from typing import Optional
 
 import tiktoken
 from loguru import logger
-from pylint.lint import Run
-from pylint.reporters.text import TextReporter
 from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
-from sweepai.utils.chat_logger import discord_log_error
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -256,7 +250,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return is_valid, error_message
-    ext = file_path.split(".")[-1]
+    ext = file_path.split(".")[-1] # noqa
     # if ext == "py":
     #     file_hash = uuid.uuid4().hex
     #     new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))

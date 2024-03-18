@@ -154,5 +154,6 @@ if __name__ == "__main__":
         # assert no duplicates or missing snippets
         assert len(set(final_ordering)) == len(final_ordering)
     except Exception as e:
-        import pdb; pdb.post_mortem()
+        import pdb
+        pdb.post_mortem()
         raise e

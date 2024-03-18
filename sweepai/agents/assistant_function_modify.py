@@ -19,8 +19,6 @@ from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import check_code, chunk_code
-from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
-from sweepai.agents.assistant_functions import submit_schema
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -132,14 +130,6 @@ def build_keyword_search_match_results(
             success_message += f"<readonly_section>{num_matches_message}\n{match_display}\n</readonly_section>\n"
     return success_message
 
-def english_join(items: list[str]) -> str:
-    if len(items) == 0:
-        return ""
-    if len(items) == 1:
-        return items[0]
-    if len(items) == 2:
-        return f"{items[0]} and {items[1]}"
-    return ", ".join(items[:-1]) + f", and {items[-1]}"
 
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
@@ -209,7 +199,6 @@ def function_modify(
             "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
             for snippet in original_snippets
         ]
-        # import pdb; pdb.set_trace()
 
         # split our relevant files into chunks
         relevant_file_chunks = defaultdict(list)

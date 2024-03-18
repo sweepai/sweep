@@ -166,7 +166,6 @@ def fetch_relevant_files(
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
         )
-        import pdb; pdb.set_trace()
         repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.save()
