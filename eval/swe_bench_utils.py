@@ -95,7 +95,7 @@ def evaluate_search(
     )
     if debug:
         cprint(f"Query: {problem_statement}")
-    with open("test_outputs.txt", "a") as f:
+    with open(f"eval/test_outputs.txt", "a") as f:
         test_config_string = f"MRR at {k}: {mrr}\ntest {name}"
         f.write(f"{test_config_string}\n")
         f.close()
@@ -112,7 +112,7 @@ def evaluate_search(
             if verbose:
                 cprint(f"{snippet.denotation}: {snippet.content}")
             with open(
-                "output_scores.txt", "a"
+                f"eval/output_scores.txt", "a"
             ) as f:
                 snippet_string = f"snippet_score {snippet_score}: {snippet.denotation}\n {snippet.denotation}: {snippet.content}"
                 f.write(f"{snippet_string}\n")
