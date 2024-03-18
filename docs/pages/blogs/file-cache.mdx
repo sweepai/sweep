@@ -54,8 +54,9 @@ lru_cache is great for memoizing repeated function calls, but it doesn't support
 1. we need to persist the cache between runs. 
    - lru_cache stores the results in-memory, which means that the next time you run the program the cache will be empty. file_cache stores the results on disk. We also considered using Redis, but writing to disk is easier to set up/manage.
 
-2. lru_cache doesn't support ignoring arguments that invalidate the cache. Sometimes we'll pass in our custom `chat_logger` which stores the chats for visualization. It contains the current timestamp, `chat_logger.expiration`, which invalidates the cache when it's serialized.
-    - To counteract this we added ignored params, used like so: `file_cache(ignore_params=["chat_logger"])`. This removes `chat_logger` from the cache key construction and prevents bad invalidation.
+2. lru_cache doesn't support ignoring arguments that invalidate the cache. 
+    - We'll use a custom `chat_logger` which stores the chats for visualization. It contains the current timestamp `chat_logger.expiration`, which will invalidate the cache if it's serialized.
+    - To counteract this we added ignored parameters, used like this: `file_cache(ignore_params=["chat_logger"])`. This removes `chat_logger` from the cache key construction and prevents bad invalidation due to the constantly changing `expiration`.
 
 ## Implementation
 
@@ -143,13 +144,13 @@ def wrapper(*args, **kwargs):
 
 Then we can create a cache key.
 
-#### Cache Key Creation / Invalidation Conditions
-We have another problem - we want to invalidate our cache under two conditions.
+#### Cache Key Creation / Miss Conditions
+We have another problem - we want to miss our cache under two conditions:
 
 1. The arguments to the function change - handled by `recursive_hash`
 2. The code changes
 
-To handle 2. we used `inspect.getsource(func)` to add the function's source code to the hash, invalidating the cache when the the code changes.
+To handle 2. we used `inspect.getsource(func)` to add the function's source code to the hash, correctly missing the cache when the the code changes.
 
 ```python /hash_code(inspect.getsource(func))/
     args_names = func.__code__.co_varnames[: func.__code__.co_argcount]
