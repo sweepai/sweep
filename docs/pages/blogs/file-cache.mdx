@@ -132,7 +132,7 @@ def search_codebase(
 
 Without the cache, searching through the codebase using our LLM agent to get `top_results` takes 5 minutes - way too long if we're not actually testing it. Instead with file_cache, we just need to wait for deserialization of the pickled object - basically instantaneous for search results.
 
-#### wrapper
+#### Wrapper
 
 First we store our cache in `/tmp/file_cache`. This lets us remove the cache by simply deleting the directory (running `rm -rf /tmp/file_cache`).
 We can also selectively remove function calls using `rm -rf /tmp/file_cache/search_codebase*`.
@@ -173,7 +173,7 @@ To handle 2. we used `inspect.getsource(func)` to add the function's source code
     )
 ```
 
-#### cache hits and misses
+#### Cache hits and misses
 Finally we check cache key existence and write to the cache in the case of a cache miss.
 
 ```python
