@@ -150,7 +150,7 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
             name=instance_id,
         )
         with open(search_results_file, "a") as f:
-            f.write(f"{instance_id},{search_mrr},{search_acc}\n")
+            f.write(f"{instance_id},{search_mrr},{search_accuracy}\n")
         with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{search_positions}\n")
         with open(context_results_file, "a") as f:

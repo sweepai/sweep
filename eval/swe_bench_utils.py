@@ -1,26 +1,12 @@
 from __future__ import annotations
-from collections import defaultdict
-import glob
-import subprocess
-import sys
 from time import time
-from unittest.mock import MagicMock
-from loguru import logger
-from tqdm import tqdm
-import typer
-import yaml
 
-import git
 import os
-from github import Github
 
 from rich.console import Console
-from rich.progress import track
 from rich import print
 
-from math import inf
 from sweepai.agents.modify_bot import ModifyBot
-from sweepai.agents.modify_file import modify_file
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -28,49 +14,30 @@ from sweepai.core.entities import (
     PullRequest,
 )
 from sweepai.logn.cache import file_cache
-from sweepai.utils import openai_proxy
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
 
 from sweepai.utils.github_utils import (
     MockClonedRepo,
-    TemporarilyCopiedClonedRepo,
 )
 
 from sweepai.utils.ticket_utils import prep_snippets
-from rich.console import Console
-import datetime
-import copy
-import hashlib
-import os
 import re
-import git
-import requests
 
-from typing import Literal
 import backoff
-from pydantic import BaseModel, Field
-import yaml
 from sweepai.core.entities import (
-    FileChangeRequest,
-    Message,
-    PullRequest,
     RegexMatchError,
     Snippet,
 )
-from sweepai.logn.cache import file_cache
 from sweepai.utils.openai_proxy import OpenAIProxy
-from sweepai.utils.github_utils import MockClonedRepo
 from sweepai.core.prompts import files_to_change_prompt, files_to_change_system_prompt
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, INSTALLATION_ID
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 
-from rich.console import Console
 
 def cprint(*args, **kwargs):
     try:
         Console().print(*args, **kwargs)
-    except Exception as e:
+    except Exception:
         print(*args, **kwargs)
 debug = True
 verbose = False
@@ -107,7 +74,7 @@ def evaluate_search(
     accuracy = 1
     positions = []
     for resolution_file in resolution_files:
-        if not (resolution_file in sorted_snippet_paths):
+        if resolution_file not in sorted_snippet_paths:
             cprint(
                 f"Resolution file {resolution_file} is NOT reachable!", style="bold red"
             )
@@ -118,7 +85,7 @@ def evaluate_search(
         else:
             positions.append(9999)
         # if a resolution file is not in the top k, accuracy is 0
-        if not (resolution_file in top_k_paths):
+        if resolution_file not in top_k_paths:
             accuracy = 0
     max_mrr_score = sum([1 / (i + 1) for i in range(len(resolution_files))])
     mrr /= max_mrr_score
@@ -128,7 +95,7 @@ def evaluate_search(
     )
     if debug:
         cprint(f"Query: {problem_statement}")
-    with open(f"test_outputs.txt", "a") as f:
+    with open("test_outputs.txt", "a") as f:
         test_config_string = f"MRR at {k}: {mrr}\ntest {name}"
         f.write(f"{test_config_string}\n")
         f.close()
@@ -145,7 +112,7 @@ def evaluate_search(
             if verbose:
                 cprint(f"{snippet.denotation}: {snippet.content}")
             with open(
-                f"output_scores.txt", "a"
+                "output_scores.txt", "a"
             ) as f:
                 snippet_string = f"snippet_score {snippet_score}: {snippet.denotation}\n {snippet.denotation}: {snippet.content}"
                 f.write(f"{snippet_string}\n")
@@ -158,7 +125,7 @@ def evaluate_search(
                 if snippet.file_path == resolution_file
             ][0]
             snippet_score = round(content_to_lexical_score[snippet.denotation], 4)
-            if not (resolution_file in top_k_paths):
+            if resolution_file not in top_k_paths:
                 cprint(
                     f"snippet_score {snippet_score}: [red]{resolution_file} MISSED at rank {sorted_snippet_paths.index(resolution_file) + 1}/{len(sorted_snippet_paths)}[/red]"
                 )
@@ -176,13 +143,6 @@ def run_search_test(
     start = time()
     checkout_to_pr_ref(commit_hash, cloned_repo)
     rcm = prep_snippets(cloned_repo, problem_statement, ticket_progress=None, k=k)
-    selected_snippets, all_snippets = rcm.current_top_snippets, rcm.snippets
-    content_to_lexical_score = rcm.snippet_scores
-    sorted_snippets = sorted(
-        all_snippets,
-        key=lambda snippet: content_to_lexical_score[snippet.denotation],
-        reverse=True,
-    )
     end = time()
     cprint(f"Search elapsed time: {end - start} seconds")
 
