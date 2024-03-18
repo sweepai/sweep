@@ -1184,7 +1184,7 @@ def on_ticket(
                         raise NoFilesException()
                     response = {
                         "error": Exception(
-                            "Sweep failed to make code changes! This could mean that GPT-4 failed to find the correct lines of code to modify or that GPT-4 did not respond in our specified format. Sometimes, retrying will fix this error. Otherwise, reach out to our Discord server for support (tracking_id={tracking_id})."
+                            f"Sweep failed to make code changes! This could mean that GPT-4 failed to find the correct lines of code to modify or that GPT-4 did not respond in our specified format. Sometimes, retrying will fix this error. Otherwise, reach out to our Discord server for support (tracking_id={tracking_id})."
                         )
                     }
 
