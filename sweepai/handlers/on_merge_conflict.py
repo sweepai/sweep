@@ -5,7 +5,7 @@ from git import GitCommandError
 from github.PullRequest import PullRequest
 from loguru import logger
 
-from sweepai.config.server import OPENAI_USE_3_5_MODEL_ONLY, PROGRESS_BASE_URL
+from sweepai.config.server import PROGRESS_BASE_URL
 from sweepai.core import entities
 from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
@@ -112,9 +112,7 @@ def on_merge_conflict(
 
         # this logic is partly taken from on_ticket.py, if there is an issue please refer to that file
         if chat_logger:
-            use_faster_model = (
-                OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model()
-            )
+            use_faster_model = chat_logger.use_faster_model()
         else:
             is_paying_user = True
 

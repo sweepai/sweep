@@ -123,13 +123,8 @@ blocked_dirs: []
 )
 
 
-OPENAI_USE_3_5_MODEL_ONLY = (
-    os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
-)
-
-
 MONGODB_URI = os.environ.get("MONGODB_URI", None)
-IS_SELF_HOSTED = bool(os.environ.get("IS_SELF_HOSTED", MONGODB_URI is None))
+IS_SELF_HOSTED = os.environ.get("IS_SELF_HOSTED", "true").lower() == "true"
 
 REDIS_URL = os.environ.get("REDIS_URL")
 if not REDIS_URL:
@@ -223,3 +218,5 @@ DISABLED_REPOS = os.environ.get("DISABLED_REPOS", "").split(",")
 GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
 MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)
 INSTALLATION_ID = os.environ.get("INSTALLATION_ID", None)
+
+USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"

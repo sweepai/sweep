@@ -1,7 +1,6 @@
-from collections import defaultdict
 import json
-import textwrap
 import traceback
+from collections import defaultdict
 
 from loguru import logger
 
@@ -9,9 +8,13 @@ from sweepai.agents.assistant_functions import (
     chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
+    submit_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
+from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message, Snippet
+from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -33,6 +36,8 @@ Your job is to make edits to the file to complete the user "# Request".
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
+
+When you have completed the task, call the submit function.
 """
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
@@ -57,51 +62,21 @@ def excel_col_to_int(s):
         result = result * 26 + (ord(char) - 64)
     return result - 1
 
-
-MAX_CHARS = 32000
 TOOLS_MAX_CHARS = 20000
 
-
-# ensure that all additional_messages are 32768 characters at most, if not split them
-def ensure_additional_messages_length(additional_messages: list[Message]):
-    for i, additional_message in enumerate(additional_messages):
-        if len(additional_message.content) > MAX_CHARS:
-            new_messages = textwrap.wrap(additional_message.content, MAX_CHARS)
-            # replace the original message with the broken up messages
-            for j, new_message in enumerate(new_messages):
-                if j == 0:
-                    additional_messages[i] = Message(
-                        role=additional_message.role,
-                        content=new_message,
-                    )
-                else:
-                    additional_messages.insert(
-                        i + j,
-                        Message(
-                            role=additional_message.role,
-                            content=new_message,
-                        ),
-                    )
-    return additional_messages
-
-def read_file_with_fallback_encodings(file_path, encodings=['utf-8', 'windows-1252', 'iso-8859-1']):
-    for encoding in encodings:
-        try:
-            with open(file_path, 'r', encoding=encoding) as file:
-                return file.read()
-        except UnicodeDecodeError:
-            continue
-    raise UnicodeDecodeError(f"Could not decode {file_path} with any of the specified encodings: {encodings}")
-
-def build_keyword_search_match_results(match_indices: list[int], chunks: list[str], keyword: str, success_message) -> str:
+def build_keyword_search_match_results(
+    match_indices: list[int],
+    chunks: list[str],
+    keyword: str,
+    success_message,
+    readonly: bool = False,
+) -> str:
     for match_index in match_indices:
         # TODO: handle multiple matches in one line
         match = chunks[match_index]
         match_lines = match.split("\n")
         lines_containing_keyword = [
-            i
-            for i, line in enumerate(match_lines)
-            if keyword in line
+            i for i, line in enumerate(match_lines) if keyword in line
         ]
         cols_of_keyword = [
             match_lines[line_containing_keyword].index(keyword)
@@ -112,19 +87,29 @@ def build_keyword_search_match_results(match_indices: list[int], chunks: list[st
             if i in lines_containing_keyword:
                 match_display += (
                     f"{line}\n"
-                    + " "
-                    * (
-                        cols_of_keyword[
-                            lines_containing_keyword.index(i)
-                        ]
-                    )
-                    + "^\n"
+                    + " " * (cols_of_keyword[lines_containing_keyword.index(i)])
+                    + "^" * len(keyword)
+                    + "\n"
                 )
             else:
                 match_display += f"{line}\n"
         match_display = match_display.strip("\n")
-        success_message += f"<section id='{int_to_excel_col(match_index + 1)}'> ({len(lines_containing_keyword)} matches)\n{match_display}\n</section>\n"
+        num_matches_message = f" ({len(lines_containing_keyword)} matches)" if lines_containing_keyword else " (No keyword matches, just shown for context)"
+        if not readonly:
+            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
+        else:
+            success_message += f"<readonly_section>{num_matches_message}\n{match_display}\n</readonly_section>\n"
     return success_message
+
+
+def english_join(items: list[str]) -> str:
+    if len(items) == 0:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
 
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
@@ -156,10 +141,14 @@ def function_modify(
         # get code for relevant filepaths
         try:
             for relevant_file_path in relevant_filepaths:
-                relevant_file_content = read_file_with_fallback_encodings(relevant_file_path)
+                relevant_file_content = read_file_with_fallback_encodings(
+                    relevant_file_path
+                )
                 relevant_file_contents[relevant_file_path] = relevant_file_content
         except Exception as e:
-            logger.error(f"Error occured while attempting to fetch contents for relevant file: {e}")
+            logger.error(
+                f"Error occured while attempting to fetch contents for relevant file: {e}"
+            )
         initial_code_valid, _ = check_code(file_path, current_contents)
         initial_code_valid = initial_code_valid or (
             "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
@@ -171,12 +160,14 @@ def function_modify(
         relevant_file_snippets: dict[str, list[Snippet]] = defaultdict(list)
         # now we chunk relevant file contents
         for relevant_file_path, relevant_file_content in relevant_file_contents.items():
-            relevant_file_snippet = chunk_code(relevant_file_content, relevant_file_path, 700, 200)
+            relevant_file_snippet = chunk_code(
+                relevant_file_content, relevant_file_path, 700, 200
+            )
             relevant_file_snippets[relevant_file_path] = relevant_file_snippet
 
         file_contents_lines = current_contents.split("\n")
         chunks = [
-            "\n".join(file_contents_lines[snippet.start : snippet.end])
+            "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
             for snippet in original_snippets
         ]
 
@@ -185,7 +176,11 @@ def function_modify(
         for relevant_file_path, relevant_file_content in relevant_file_contents.items():
             relevant_file_contents_lines = relevant_file_content.split("\n")
             relevant_file_chunks[relevant_file_path] = [
-                "\n".join(relevant_file_contents_lines[snippet.start : snippet.end])
+                "\n".join(
+                    relevant_file_contents_lines[
+                        max(snippet.start - 1, 0) : snippet.end
+                    ]
+                )
                 for snippet in relevant_file_snippets[relevant_file_path]
             ]
         code_sections = []  # TODO: do this for the new sections after modifications
@@ -202,42 +197,43 @@ def function_modify(
         code_sections.append(current_code_section)
         code_sections_string = "\n".join(code_sections)
         additional_messages += [
-            *reversed(
-                [
-                    Message(
-                        role="user",
-                        content=code_section,
-                    )
-                    for code_section in code_sections
-                ]
-            ),
+            *[
+                Message(
+                    role="user",
+                    content=code_section,
+                )
+                for code_section in code_sections
+            ],
             Message(
                 role="user",
-                content=f"# Request\n{request}",
+                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
             ),
         ]
+        tools = [
+            {"type": "function", "function": chain_of_thought_schema},
+            {"type": "function", "function": keyword_search_schema},
+            # {"type": "function", "function": view_sections_schema},
+            {"type": "function", "function": search_and_replace_schema},
+        ]
+        if not USE_ASSISTANT:
+            tools.append({"type": "function", "function": submit_schema})
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
-            additional_messages=additional_messages,
+            additional_messages=ensure_additional_messages_length(additional_messages),
             chat_logger=chat_logger,
             assistant_id=assistant_id,
             save_ticket_progress=(
                 save_ticket_progress if ticket_progress is not None else None
             ),
             assistant_name="Code Modification Function Assistant",
-            tools=[
-                {"type": "function", "function": chain_of_thought_schema},
-                {"type": "function", "function": keyword_search_schema},
-                # {"type": "function", "function": view_sections_schema},
-                {"type": "function", "function": search_and_replace_schema},
-            ],
+            tools=tools,
         )
 
         try:
             done_counter = 0
             tool_name, tool_call = assistant_generator.send(None)
-            for i in range(10000):
+            for i in range(100):  # TODO: tune this parameter
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "done":
                     diff = generate_diff(file_contents, current_contents)
@@ -328,8 +324,10 @@ def function_modify(
 
                             # Check if the changes are valid
                             if not error_message:
-                                is_valid, message = check_code(
-                                    file_path, current_new_contents
+                                is_valid, message = (
+                                    (True, "")
+                                    if not initial_code_valid
+                                    else check_code(file_path, current_new_contents)
                                 )
                                 current_diff = generate_diff(
                                     new_contents, current_new_contents
@@ -396,7 +394,9 @@ def function_modify(
                     if not error_message:
                         keyword = tool_call["keyword"]
                         match_indices = []
-                        relevant_file_match_indices: dict[str, list[int]] = defaultdict(list)
+                        relevant_file_match_indices: dict[str, list[int]] = defaultdict(
+                            list
+                        )
                         # search current code file
                         for i, chunk in enumerate(chunks):
                             if keyword in chunk:
@@ -404,28 +404,77 @@ def function_modify(
                                 match_indices.append(i)
                                 match_indices.append(min(len(chunks) - 1, i + 1))
                         # search all relevant code files
-                        for relevant_file_path, relevant_file_chunk_group in relevant_file_chunks.items():
+                        for (
+                            relevant_file_path,
+                            relevant_file_chunk_group,
+                        ) in relevant_file_chunks.items():
                             for i, chunk in enumerate(relevant_file_chunk_group):
                                 if keyword in chunk:
-                                    relevant_file_match_indices[relevant_file_path].append(max(0, i - 1))
-                                    relevant_file_match_indices[relevant_file_path].append(i)
-                                    relevant_file_match_indices[relevant_file_path].append(min(len(relevant_file_chunk_group) - 1, i + 1))
-                        
+                                    relevant_file_match_indices[
+                                        relevant_file_path
+                                    ].append(max(0, i - 1))
+                                    relevant_file_match_indices[
+                                        relevant_file_path
+                                    ].append(i)
+                                    relevant_file_match_indices[
+                                        relevant_file_path
+                                    ].append(
+                                        min(len(relevant_file_chunk_group) - 1, i + 1)
+                                    )
+
                         match_indices = sorted(list(set(match_indices)))
-                        relevant_file_match_indices = {k: sorted(list(set(v))) for k, v in relevant_file_match_indices.items()}
+                        relevant_file_match_indices = {
+                            k: sorted(list(set(v)))
+                            for k, v in relevant_file_match_indices.items()
+                        }
                         if not match_indices and not relevant_file_match_indices:
                             error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             # for matches inside current code file
                             if match_indices:
-                                starter_message = f"The keyword {keyword} was found in the following sections:\n\n"
-                                success_message += build_keyword_search_match_results(match_indices, chunks, keyword, starter_message)
+                                sections_message = english_join(
+                                    [
+                                        int_to_excel_col(match_index + 1)
+                                        for match_index in match_indices
+                                    ]
+                                )
+                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
+                                success_message += build_keyword_search_match_results(
+                                    match_indices, chunks, keyword, starter_message
+                                )
+                                if relevant_file_match_indices:
+                                    success_message += "\n\n"
+                            else:
+                                success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
-                                for relevant_file_path, relevant_file_match_indices in relevant_file_match_indices.items():
-                                    starter_message = f"The keyword {keyword} was found in the following sections of the relevant file {relevant_file_path}:\n\n"
-                                    success_message += build_keyword_search_match_results(relevant_file_match_indices, relevant_file_chunks[relevant_file_path], keyword, starter_message)
-                        
+                                sections_message = english_join(
+                                    [
+                                        int_to_excel_col(match_index + 1)
+                                        for match_index in match_indices
+                                    ]
+                                )
+                                also_keyword = "also " if match_indices else ""
+                                for (
+                                    relevant_file_path,
+                                    relevant_file_match_indices,
+                                ) in relevant_file_match_indices.items():
+                                    sections_message = english_join(
+                                        [
+                                            int_to_excel_col(match_index + 1)
+                                            for match_index in match_indices
+                                        ]
+                                    )
+                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
+                                    success_message += (
+                                        build_keyword_search_match_results(
+                                            relevant_file_match_indices,
+                                            relevant_file_chunks[relevant_file_path],
+                                            keyword,
+                                            starter_message,
+                                        )
+                                    )
+
                     if error_message:
                         logger.debug(error_message)
                         tool_name, tool_call = assistant_generator.send(
@@ -777,6 +826,6 @@ if __name__ == "__main__":
                 "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
             }
         ),
-        # additional_messages=additional_messages,
+        additional_messages=additional_messages,
         ticket_progress=TicketProgress(tracking_id="test_remove_assistant_1"),
     )

@@ -1,13 +1,14 @@
 import traceback
 from collections import OrderedDict
 
+from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.agents.assistant_function_modify import function_modify
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import logger
-from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 
 
@@ -143,6 +144,7 @@ def modify_file(
             cloned_repo,
         )
         additional_messages += relevant_file_messages
+        additional_messages = ensure_additional_messages_length(additional_messages)
         new_file = function_modify(
             file_change_request.instructions,
             file_change_request.filename,
@@ -168,15 +170,22 @@ def modify_file(
 
 
 if __name__ == "__main__":
-    cloned_repo = MockClonedRepo("/tmp/sweep", "sweepai/sweep")
+    try:
+        from sweepai.utils.github_utils import get_installation_id
+        organization_name = "sweepai"
+        installation_id = get_installation_id(organization_name)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
 
-    new_file = modify_file(
-        cloned_repo=cloned_repo,
-        metadata="This repo is Sweep.",
-        file_change_request=FileChangeRequest(
-            filename="push_image.sh",
-            instructions="Add a print hello world statement before running anything.",
-            change_type="modify",
-        ),
-    )
-    print(new_file)
+        new_file = modify_file(
+            cloned_repo=cloned_repo,
+            metadata="This repo is Sweep.",
+            file_change_request=FileChangeRequest(
+                filename="sweepai/api.py",
+                instructions="import math at the top of the file",
+                change_type="modify",
+            ),
+        )
+        print(new_file)
+    except Exception as e:
+        logger.error(f"modify_file.py failed to run successfully with error: {e}")
+        raise e

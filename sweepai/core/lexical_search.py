@@ -15,6 +15,7 @@ from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import get_query_texts_similarity
 from sweepai.logn.cache import file_cache
 from sweepai.utils.progress import TicketProgress
+from sweepai.config.client import SweepConfig
 
 CACHE_VERSION = "v1.0.14"
 
@@ -200,14 +201,14 @@ def prepare_index_from_snippets(
             for i, document_token_freq in tqdm(
                 enumerate(
                     p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-                )
+                ), total=len(all_docs)
             ):
                 all_tokens.append(document_token_freq)
                 if ticket_progress and i % 200 == 0:
                     ticket_progress.search_progress.indexing_progress = i
                     ticket_progress.save()
         for doc, document_token_freq in tqdm(
-            zip(all_docs, all_tokens), desc="Indexing"
+            zip(all_docs, all_tokens), desc="Indexing", total=len(all_docs)
         ):
             index.add_document(
                 title=doc.title, token_freq=document_token_freq  # snippet.denotation
@@ -299,7 +300,7 @@ def compute_vector_search_scores(query, snippets: list[Snippet]):
 @file_cache(ignore_params=["sweep_config", "ticket_progress"])
 def prepare_lexical_search_index(
     repo_directory,
-    sweep_config,
+    sweep_config: SweepConfig,
     ticket_progress: TicketProgress | None = None,
     ref_name: str | None = None,  # used for caching on different refs
 ):
@@ -314,7 +315,6 @@ def prepare_lexical_search_index(
 
 if __name__ == "__main__":
     repo_directory = os.getenv("REPO_DIRECTORY")
-    from sweepai.config.client import SweepConfig
     sweep_config = SweepConfig()
     assert repo_directory
     _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None, None)

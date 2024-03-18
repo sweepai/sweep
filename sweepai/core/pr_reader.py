@@ -5,6 +5,7 @@ from github.Repository import Repository
 from pydantic import BaseModel
 
 from loguru import logger
+from sweepai.config.client import SweepConfig
 from sweepai.utils.chat_logger import discord_log_error
 
 summary_format = """# Pull Request #{id_}
@@ -41,12 +42,15 @@ class PRReader(BaseModel):
             _match.group("pr_id") for _match in set(re.finditer(pattern_1, content))
         ] + [_match.group("pr_id") for _match in set(re.finditer(pattern_2, content))]
 
-    def extract_summary_from_pr_id(self, pr_id: int) -> str:
+    def extract_summary_from_pr_id(self, pr_id: int, sweep_config: SweepConfig = None) -> str:
         pr = self.repo.get_pull(int(pr_id))
         diff = ""
         files = list(islice(pr.get_files(), 51))
         for file in files:
             path = file.filename
+            # make sure changes are within allowed directories
+            if sweep_config and sweep_config.is_file_excluded(path):
+                continue
             patch = file.patch
             diff += diff_format.format(file_path=path, diff=patch)
         return summary_format.format(
@@ -55,12 +59,13 @@ class PRReader(BaseModel):
 
     @staticmethod
     def extract_prs(repo: Repository, content: str):
+        sweep_config = SweepConfig()
         logger.info("Extracting pull requests from content")
         try:
             pr_reader = PRReader(repo=repo)
             result = ""
             for pr_id in pr_reader.extract_pr_ids(content):
-                result += pr_reader.extract_summary_from_pr_id(pr_id)
+                result += pr_reader.extract_summary_from_pr_id(pr_id, sweep_config = sweep_config)
             if result:
                 result = (
                     "The following PRs were mentioned in the issue:\n\n"

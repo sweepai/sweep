@@ -2,6 +2,7 @@ import traceback
 from time import time
 
 from loguru import logger
+from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
@@ -16,13 +17,48 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import TicketProgress
 
+"""
+Input queries are in natural language so both lexical search 
+and vector search have a heavy bias towards natural language
+files such as tests, docs and localization files. Therefore,
+we add adjustment scores to compensate for this bias.
+"""
+
+prefix_adjustment = {
+    "doc": -0.5,
+    "example": -0.75,
+}
+
+suffix_adjustment = {
+    ".txt": -0.5,
+    ".rst": -0.5,
+    ".md": -0.5,
+    ".html": -0.5,
+    ".po": -1,
+    ".json": -0.5,
+    ".toml": -0.5,
+    ".yaml": -0.5,
+    ".yml": -0.5,
+    ".spec.ts": -1,
+    ".spec.js": -1,
+    ".generated.ts": -1.5,
+    ".generated.graphql": -1.5,
+    ".generated.js": -1.5,
+}
+
+substring_adjustment = {
+    "tests/": -1,
+    "test_": -1,
+    "_test": -1,
+    "migrations/": -1.5,
+}
 
 @file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7,
+    k: int = 15,
 ):
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
@@ -43,7 +79,7 @@ def get_top_k_snippets(
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
     content_to_lexical_score = search_index(query, lexical_index)
     files_to_scores = compute_vector_search_scores(query, snippets)
-    for snippet in snippets:
+    for snippet in tqdm(snippets):
         vector_score = files_to_scores.get(snippet.denotation, 0.04)
         snippet_score = 0.02
         if snippet.denotation in content_to_lexical_score:
@@ -54,12 +90,29 @@ def get_top_k_snippets(
             content_to_lexical_score[snippet.denotation] = snippet_score
         else:
             content_to_lexical_score[snippet.denotation] = snippet_score * vector_score
-
+        for prefix, adjustment in prefix_adjustment.items():
+            if snippet.file_path.startswith(prefix):
+                content_to_lexical_score[snippet.denotation] += adjustment
+                break
+        for suffix, adjustment in suffix_adjustment.items():
+            if snippet.file_path.endswith(suffix):
+                content_to_lexical_score[snippet.denotation] += adjustment
+                break
+        for substring, adjustment in substring_adjustment.items():
+            if substring in snippet.file_path:
+                content_to_lexical_score[snippet.denotation] += adjustment
+                break
     ranked_snippets = sorted(
         snippets,
         key=lambda snippet: content_to_lexical_score[snippet.denotation],
         reverse=True,
     )
+    # sort the top 30 using listwise reranking
+    # you can use snippet.denotation and snippet.get_snippet()
+    # NUM_SNIPPETS_TO_RERANK = 30
+    # disabled for now for testing
+    # ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+    # TODO: we should rescore the snippets after reranking by interpolating their new scores between the 0th and 30th previous scores
     ranked_snippets = ranked_snippets[:k]
     return ranked_snippets, snippets, content_to_lexical_score
 
@@ -68,7 +121,7 @@ def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7,
+    k: int = 15,
 ):
     ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
         cloned_repo, query, ticket_progress, k
@@ -85,8 +138,8 @@ def prep_snippets(
                 prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
         prefixes.append(snippet_path)
     _, dir_obj = cloned_repo.list_directory_tree(
-        included_directories=prefixes,
-        included_files=snippet_paths,
+        included_directories=list(set(prefixes)),
+        included_files=list(set(snippet_paths)),
     )
     repo_context_manager = RepoContextManager(
         dir_obj=dir_obj,
