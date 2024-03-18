@@ -12,6 +12,8 @@ from sweepai.core.entities import Snippet
 # ...
 # </contextual_request_analysis>
 
+# this is roughly 66% of it's optimal performance - it's worth optimizing more in the future
+
 reranking_prompt = """You are a powerful code search engine. You must order the list of code snippets from the most relevant to the least relevant to the user's query.
 
 Here is an example:
