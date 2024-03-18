@@ -141,7 +141,7 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
         for line in solution_patch.splitlines():
             if line.startswith("---"):
                 resolution_files.append(line.removeprefix("--- a/"))
-        rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions = mrr, acc, rcm, positions = run_search_test(
+        rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions = run_search_test(
             cloned_repo,
             problem_statement,
             commit_hash,
