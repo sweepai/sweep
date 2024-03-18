@@ -41,7 +41,11 @@ suffix_adjustment = {
     ".yaml": -0.5,
     ".yml": -0.5,
     ".spec.ts": -1,
+    ".test.ts": -1,
+    ".steps.ts": -1,
     ".spec.js": -1,
+    ".test.js": -1,
+    ".steps.js": -1,
     ".generated.ts": -1.5,
     ".generated.graphql": -1.5,
     ".generated.js": -1.5,
@@ -49,6 +53,7 @@ suffix_adjustment = {
 
 substring_adjustment = {
     "tests/": -1,
+    "test/": -1,
     "test_": -1,
     "_test": -1,
     "migrations/": -1.5,
