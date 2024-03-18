@@ -246,9 +246,12 @@ Repo: {repo_identifier}
             "model_patch": combined_diff,
         }
         with open(output_file, "a") as f:
-            f.write("\n" + json.dumps(result))
+            f.write(json.dumps(result) + "\n")
     except Exception as e:
         logger.exception(f"Exception occured while running the test: {e}")
+        import pdb;
+        pdb.post_mortem()
+        # raise e
 
 
 # output a jsonl file in the format # call it sweep__SWE-bench_unassisted.jsonl
