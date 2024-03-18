@@ -85,18 +85,13 @@ def checkout_to_pr_ref(
         print(f"Exception occured while attempting to checkout to pr ref: {e}")
         raise e
 
-# @file_cache()
-def run_search_test(
-    cloned_repo: MockClonedRepo,
+def evaluate_search(
+    rcm: RepoContextManager,
+    resolution_files: list[str],
     problem_statement: str,
-    commit_hash: str,
-    k: int = 15,
-    resolution_files: list[str] = [],
-    name: str = ""
-) -> tuple[int, int, RepoContextManager, PullRequest]:
-    start = time()
-    checkout_to_pr_ref(commit_hash, cloned_repo)
-    rcm = prep_snippets(cloned_repo, problem_statement, ticket_progress=None, k=k)
+    k: int,
+    name: str,
+):
     selected_snippets, all_snippets = rcm.current_top_snippets, rcm.snippets
     content_to_lexical_score = rcm.snippet_scores
     sorted_snippets = sorted(
@@ -104,12 +99,7 @@ def run_search_test(
         key=lambda snippet: content_to_lexical_score[snippet.denotation],
         reverse=True,
     )
-    # rcm = get_relevant_context(problem_statement, rcm, chat_logger=ChatLogger({
-    #         "username": "__swe_bench_benchmark__",
-    #         "title": f"Benchmarking context {instance_id}",
-    #     }))
     sorted_snippet_paths = [snippet.file_path for snippet in sorted_snippets]
-    # # sort all snippets by score inside of content_to_lexical_score
     top_k_paths = [
         snippet.file_path for snippet in selected_snippets
     ]  # NOTE: a false positive will hurt the score badly - need to fix
@@ -133,15 +123,13 @@ def run_search_test(
     max_mrr_score = sum([1 / (i + 1) for i in range(len(resolution_files))])
     mrr /= max_mrr_score
 
-    end = time()
-    cprint(f"Total elapsed time: {end - start} seconds")
     cprint(
         f"MRR at {k}: {mrr}\ntest {name}"
     )
     if debug:
         cprint(f"Query: {problem_statement}")
     with open(f"test_outputs.txt", "a") as f:
-        test_config_string = f"Total elapsed time: {end - start} seconds\nMRR at {k}: {mrr}\ntest {name}"
+        test_config_string = f"MRR at {k}: {mrr}\ntest {name}"
         f.write(f"{test_config_string}\n")
         f.close()
     # print the top k snippets and highlight the ones that are in the resolution files
@@ -174,7 +162,58 @@ def run_search_test(
                 cprint(
                     f"snippet_score {snippet_score}: [red]{resolution_file} MISSED at rank {sorted_snippet_paths.index(resolution_file) + 1}/{len(sorted_snippet_paths)}[/red]"
                 )
-    return mrr, accuracy, rcm, positions
+    return mrr, accuracy, positions
+
+# @file_cache()
+def run_search_test(
+    cloned_repo: MockClonedRepo,
+    problem_statement: str,
+    commit_hash: str,
+    k: int = 15,
+    resolution_files: list[str] = [],
+    name: str = ""
+) -> tuple[int, int, RepoContextManager, PullRequest]:
+    start = time()
+    checkout_to_pr_ref(commit_hash, cloned_repo)
+    rcm = prep_snippets(cloned_repo, problem_statement, ticket_progress=None, k=k)
+    selected_snippets, all_snippets = rcm.current_top_snippets, rcm.snippets
+    content_to_lexical_score = rcm.snippet_scores
+    sorted_snippets = sorted(
+        all_snippets,
+        key=lambda snippet: content_to_lexical_score[snippet.denotation],
+        reverse=True,
+    )
+    end = time()
+    cprint(f"Search elapsed time: {end - start} seconds")
+
+    search_mrr, search_accuracy, search_positions = evaluate_search(
+        rcm,
+        resolution_files,
+        problem_statement,
+        content_to_lexical_score,
+        k,
+        name,
+    )
+
+    rcm = get_relevant_context(problem_statement, rcm, chat_logger=ChatLogger({
+        "username": "__swe_bench_benchmark__",
+        "title": f"Benchmarking context {name}",
+    }))
+    # # sort all snippets by score inside of content_to_lexical_score
+
+    end = time()
+    cprint(f"Total elapsed time: {end - start} seconds")
+
+    mrr, accuracy, positions = evaluate_search(
+        rcm,
+        resolution_files,
+        problem_statement,
+        content_to_lexical_score,
+        k,
+        name,
+    )
+
+    return search_mrr, search_accuracy, search_positions, mrr, accuracy, rcm, positions
 
 @file_cache()
 def chat(
