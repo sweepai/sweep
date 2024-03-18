@@ -15,6 +15,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import TicketProgress
 
 """
@@ -50,7 +51,7 @@ def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7,
+    k: int = 15,
 ):
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
@@ -99,8 +100,11 @@ def get_top_k_snippets(
         key=lambda snippet: content_to_lexical_score[snippet.denotation],
         reverse=True,
     )
-    # sort the top 200 using listwise reranking
+    # sort the top 30 using listwise reranking
     # you can use snippet.denotation and snippet.get_snippet()
+    NUM_SNIPPETS_TO_RERANK = 30
+    ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+    # TODO: we should rescore the snippets after reranking by interpolating their new scores between the 0th and 30th previous scores
     ranked_snippets = ranked_snippets[:k]
     return ranked_snippets, snippets, content_to_lexical_score
 
@@ -109,7 +113,7 @@ def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7,
+    k: int = 15,
 ):
     ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
         cloned_repo, query, ticket_progress, k
