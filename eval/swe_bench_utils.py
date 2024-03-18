@@ -190,7 +190,6 @@ def run_search_test(
         rcm,
         resolution_files,
         problem_statement,
-        content_to_lexical_score,
         k,
         name,
     )
@@ -208,12 +207,11 @@ def run_search_test(
         rcm,
         resolution_files,
         problem_statement,
-        content_to_lexical_score,
         k,
         name,
     )
 
-    return search_mrr, search_accuracy, search_positions, mrr, accuracy, rcm, positions
+    return rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions
 
 @file_cache()
 def chat(
