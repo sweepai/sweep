@@ -67,7 +67,11 @@ from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, INSTALLATION_ID
 
 from rich.console import Console
 
-cprint = Console().print
+def cprint(*args, **kwargs):
+    try:
+        Console().print(*args, **kwargs)
+    except Exception as e:
+        print(*args, **kwargs)
 debug = True
 verbose = False
 
@@ -119,7 +123,10 @@ def run_search_test(
             )
         if resolution_file in top_k_paths:
             mrr += 1 / (top_k_paths.index(resolution_file) + 1)
-        positions.append(sorted_snippet_paths.index(resolution_file))
+        if resolution_file in sorted_snippet_paths:
+            positions.append(sorted_snippet_paths.index(resolution_file))
+        else:
+            positions.append(9999)
         # if a resolution file is not in the top k, accuracy is 0
         if not (resolution_file in top_k_paths):
             accuracy = 0
