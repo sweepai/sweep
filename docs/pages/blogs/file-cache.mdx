@@ -20,8 +20,8 @@ print(slow_function(1, 2)) # -> 3, takes 0 seconds
 ```
 
 ## Background
-We spend a lot of time on prompt engineering our agents at Sweep. Our agents take a set of input strings, format them as a prompt, then extract the important output from them. We chain multiple agents to turn a GitHub issue to a pull request.
-For example, to modify code we'll input the old code, relevant context, and instructions then output the new code.
+We spend a lot of time prompt engineering our agents at Sweep. Our agents take a set of input strings, formats them as a prompt, then sends the prompt and any other information off to the LLM. We chain multiple agents to turn a GitHub issue to a pull request.
+For example, to modify code we'll input the old code, any relevant context, and instructions then output the new code.
 
 <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
     <img src="/assets/multi_llm_step.png" alt="Multiple llm steps being chained" style={{ height: "400px" }} />
@@ -143,8 +143,8 @@ def wrapper(*args, **kwargs):
 
 Then we can create a cache key.
 
-#### cache key creation / invalidation conditions
-This addresses another problem - we want to invalidate our cache under two conditions.
+#### Cache Key Creation / Invalidation Conditions
+We have another problem - we want to invalidate our cache under two conditions.
 
 1. The arguments to the function change - handled by `recursive_hash`
 2. The code changes
