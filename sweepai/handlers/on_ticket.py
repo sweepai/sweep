@@ -467,7 +467,7 @@ def on_ticket(
                 ),
             )
             branch_match = re.search(
-                r"([B|b]ranch:) *(?P<branch_name>.+?)(\n|$)", summary
+                r"([B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
             )
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
@@ -476,6 +476,11 @@ def on_ticket(
                 )
                 if overrided_branch_name == "_No response_":
                     continue
+                # TODO: this code might be finicky, might have missed edge cases
+                if overrided_branch_name.startswith("https://github.com/"):
+                    overrided_branch_name = overrided_branch_name.split("?")[0].split(
+                        "tree/"
+                    )[-1]
                 SweepConfig.get_branch(repo, overrided_branch_name)
 
             chat_logger = (

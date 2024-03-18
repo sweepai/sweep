@@ -9,9 +9,12 @@ from sweepai.agents.assistant_functions import (
     chain_of_thought_schema,
     keyword_search_schema,
     search_and_replace_schema,
+    submit_schema,
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message, Snippet
+from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -67,7 +70,9 @@ TOOLS_MAX_CHARS = 20000
 
 
 # ensure that all additional_messages are 32768 characters at most, if not split them
-def ensure_additional_messages_length(additional_messages: list[Message]) -> list[Message]:
+def ensure_additional_messages_length(
+    additional_messages: list[Message],
+) -> list[Message]:
     for i, additional_message in enumerate(additional_messages):
         if len(additional_message.content) > MAX_CHARS:
             wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
@@ -89,8 +94,13 @@ def ensure_additional_messages_length(additional_messages: list[Message]) -> lis
                     )
     return additional_messages
 
+
 def build_keyword_search_match_results(
-    match_indices: list[int], chunks: list[str], keyword: str, success_message, readonly: bool = False
+    match_indices: list[int],
+    chunks: list[str],
+    keyword: str,
+    success_message,
+    readonly: bool = False,
 ) -> str:
     for match_index in match_indices:
         # TODO: handle multiple matches in one line
@@ -109,7 +119,8 @@ def build_keyword_search_match_results(
                 match_display += (
                     f"{line}\n"
                     + " " * (cols_of_keyword[lines_containing_keyword.index(i)])
-                    + "^\n"
+                    + "^" * len(keyword)
+                    + "\n"
                 )
             else:
                 match_display += f"{line}\n"
@@ -129,6 +140,16 @@ def english_join(items: list[str]) -> str:
     if len(items) == 2:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
+
+def english_join(items: list[str]) -> str:
+    if len(items) == 0:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
+
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
@@ -195,7 +216,11 @@ def function_modify(
         for relevant_file_path, relevant_file_content in relevant_file_contents.items():
             relevant_file_contents_lines = relevant_file_content.split("\n")
             relevant_file_chunks[relevant_file_path] = [
-                "\n".join(relevant_file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
+                "\n".join(
+                    relevant_file_contents_lines[
+                        max(snippet.start - 1, 0) : snippet.end
+                    ]
+                )
                 for snippet in relevant_file_snippets[relevant_file_path]
             ]
         code_sections = []  # TODO: do this for the new sections after modifications
@@ -224,6 +249,14 @@ def function_modify(
                 content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
             ),
         ]
+        tools = [
+            {"type": "function", "function": chain_of_thought_schema},
+            {"type": "function", "function": keyword_search_schema},
+            # {"type": "function", "function": view_sections_schema},
+            {"type": "function", "function": search_and_replace_schema},
+        ]
+        if not USE_ASSISTANT:
+            tools.append({"type": "function", "function": submit_schema})
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
@@ -234,19 +267,13 @@ def function_modify(
                 save_ticket_progress if ticket_progress is not None else None
             ),
             assistant_name="Code Modification Function Assistant",
-            tools=[
-                {"type": "function", "function": chain_of_thought_schema},
-                {"type": "function", "function": keyword_search_schema},
-                # {"type": "function", "function": view_sections_schema},
-                {"type": "function", "function": search_and_replace_schema},
-                {"type": "function", "function": submit_schema},
-            ],
+            tools=tools,
         )
 
         try:
             done_counter = 0
             tool_name, tool_call = assistant_generator.send(None)
-            for i in range(100): # TODO: tune this parameter
+            for i in range(100):  # TODO: tune this parameter
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "done":
                     diff = generate_diff(file_contents, current_contents)
@@ -445,7 +472,12 @@ def function_modify(
                         else:
                             # for matches inside current code file
                             if match_indices:
-                                sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                sections_message = english_join(
+                                    [
+                                        int_to_excel_col(match_index + 1)
+                                        for match_index in match_indices
+                                    ]
+                                )
                                 starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
                                     match_indices, chunks, keyword, starter_message
@@ -456,13 +488,23 @@ def function_modify(
                                 success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
-                                sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                sections_message = english_join(
+                                    [
+                                        int_to_excel_col(match_index + 1)
+                                        for match_index in match_indices
+                                    ]
+                                )
                                 also_keyword = "also " if match_indices else ""
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
                                 ) in relevant_file_match_indices.items():
-                                    sections_message = english_join([int_to_excel_col(match_index + 1) for match_index in match_indices])
+                                    sections_message = english_join(
+                                        [
+                                            int_to_excel_col(match_index + 1)
+                                            for match_index in match_indices
+                                        ]
+                                    )
                                     starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
