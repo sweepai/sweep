@@ -169,7 +169,7 @@ def run_search_test(
     rcm = get_relevant_context(problem_statement, rcm, chat_logger=ChatLogger({
         "username": "__swe_bench_benchmark__",
         "title": f"Benchmarking context {name}",
-    }), import_graph=import_graph)
+    }), override_import_graph=import_graph)
     # # sort all snippets by score inside of content_to_lexical_score
 
     end = time()
