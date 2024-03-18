@@ -653,6 +653,27 @@ def run_until_complete_unstable(
         if tool_calls:
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
+                # if function_name == submit_schema["name"]:
+                #     logger.info(
+                #         f"Submit function was called"
+                #     )
+                #     try:
+                #         function_args = json.loads(tool_call.function.arguments)
+                #     except json.JSONDecodeError as e:
+                #         logger.debug(
+                #             f"Error: could not decode function arguments: {tool_call.function.args}"
+                #         )
+                #         tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
+                #     else:
+                #         done_response = yield "done", {
+                #             "status": "completed",
+                #             "message": function_args["justification"],
+                #         }
+                #         logger.info(
+                #             f"run_until_complete done_response: {done_response} completed after {i} iterations"
+                #         )
+                #     if not done_response:
+                #         break
                 try:
                     function_args = json.loads(tool_call.function.arguments)
                 except json.JSONDecodeError as e:
@@ -662,7 +683,9 @@ def run_until_complete_unstable(
                     tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
                 else:
                     if function_name == submit_schema["name"]:
-                        logger.info("Submit function was called")
+                        logger.info(
+                            "Submit function was called"
+                        )
                         done_response = yield "done", {
                             "status": "completed",
                             "message": function_args["justification"],
@@ -691,7 +714,9 @@ def run_until_complete_unstable(
             # logger.info(
             #     f"no tool calls were made, we are done - message: {response_message}"
             # )
-            logger.error("No tool calls were made, use the submit function instead.")
+            logger.error(
+                "No tool calls were made, use the submit function instead."
+            )
             # done_response = yield "done", {
             #     "status": "completed",
             #     "message": "Run completed successfully",

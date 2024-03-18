@@ -252,7 +252,7 @@ class ChatGPT(MessageList):
             if requested_max_tokens
             else max_tokens
         )
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
+        logger.info(f"Using the model {model} with {messages_length} input tokens and {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
 
