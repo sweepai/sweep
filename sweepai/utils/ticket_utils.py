@@ -49,7 +49,7 @@ def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7,
+    k: int = 15,
 ):
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
@@ -108,7 +108,7 @@ def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
     ticket_progress: TicketProgress | None = None,
-    k: int = 7,
+    k: int = 15,
 ):
     ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
         cloned_repo, query, ticket_progress, k
@@ -161,6 +161,7 @@ def fetch_relevant_files(
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
         )
+        import pdb; pdb.set_trace()
         repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.save()
