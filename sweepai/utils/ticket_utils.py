@@ -36,10 +36,10 @@ suffix_adjustment = {
     ".md": -0.5,
     ".html": -0.5,
     ".po": -1,
-    ".json": -0.25,
-    ".toml": -0.25,
-    ".yaml": -0.25,
-    ".yml": -0.25,
+    ".json": -0.5,
+    ".toml": -0.5,
+    ".yaml": -0.5,
+    ".yml": -0.5,
     ".spec.ts": -1,
     ".spec.js": -1,
     ".generated.ts": -1,
@@ -51,7 +51,7 @@ substring_adjustment = {
     "tests/": -1,
     "test_": -1,
     "_test": -1,
-    "migrations/": -1,
+    "migrations/": -1.5,
 }
 
 @file_cache()
