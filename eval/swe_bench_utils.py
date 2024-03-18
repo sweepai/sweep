@@ -32,6 +32,7 @@ from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.core.prompts import files_to_change_prompt, files_to_change_system_prompt
 
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+from benchmark.repo_imports.build_tree_for_python import build_import_graph
 
 
 def cprint(*args, **kwargs):
@@ -212,11 +213,11 @@ def run_search_test(
         k,
         name,
     )
-
+    import_graph = build_import_graph(f"{cloned_repo.repo_dir}/")
     rcm = get_relevant_context(problem_statement, rcm, chat_logger=ChatLogger({
         "username": "__swe_bench_benchmark__",
         "title": f"Benchmarking context {name}",
-    }))
+    }), import_graph=import_graph)
     # # sort all snippets by score inside of content_to_lexical_score
 
     end = time()

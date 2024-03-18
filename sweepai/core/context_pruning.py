@@ -370,18 +370,31 @@ def load_graph_from_file(filename):
 
 # add import trees for any relevant_file_paths (code files that appear in query)
 def build_import_trees(
-    rcm: RepoContextManager, import_graph: nx.DiGraph
+    rcm: RepoContextManager, import_graph: nx.DiGraph, override_import_graph: nx.DiGraph = None
 ) -> tuple[RepoContextManager]:
-    if import_graph is None:
+    if import_graph is None and override_import_graph is None:
         return rcm
+    if override_import_graph:
+        import_graph = override_import_graph
+    # if we have found relevant_file_paths in the query, we build their import trees
     code_files_in_query = rcm.relevant_file_paths
-    for file in code_files_in_query:
-        # fetch direct parent and children
-        representation = (
-            f"\nThe file '{file}' has the following import structure: \n"
-            + build_full_hierarchy(import_graph, file, 2)
-        )
-        rcm.add_import_trees(representation)
+    if code_files_in_query:
+        for file in code_files_in_query:
+            # fetch direct parent and children
+            representation = (
+                f"\nThe file '{file}' has the following import structure: \n"
+                + build_full_hierarchy(import_graph, file, 2)
+            )
+            rcm.add_import_trees(representation)
+    # if there are no code_files_in_query, we build import trees for the top 5 snippets
+    else:
+        for snippet in rcm.current_top_snippets[:5]:
+            file_path = snippet.file_path
+            representation = (
+                f"\nThe file '{file_path}' has the following import structure: \n"
+                + build_full_hierarchy(import_graph, file_path, 2)
+            )
+            rcm.add_import_trees(representation)
     return rcm
 
 
@@ -419,6 +432,7 @@ def parse_query_for_files(
     code_files_uri_encoded = [
         urllib.parse.quote(file_path) for file_path in code_files_to_check
     ]
+    # check if any code files are mentioned in the query
     for file, file_uri_encoded in zip(code_files_to_check, code_files_uri_encoded):
         if file in query or file_uri_encoded in query:
             code_files_to_add.add(file)
@@ -454,6 +468,7 @@ def get_relevant_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
+    import_graph: nx.DiGraph = None, # optional override import graph
 ):
     if chat_logger and chat_logger.use_faster_model():
         raise Exception(FASTER_MODEL_MESSAGE)
@@ -468,12 +483,14 @@ def get_relevant_context(
     )
     client = get_client()
     try:
+        if import_graph:
+            override_import_graph = import_graph
         # attempt to get import tree for relevant snippets that show up in the query
         repo_context_manager, import_graph = parse_query_for_files(
             query, repo_context_manager
         )
         # for any code file mentioned in the query, build its import tree
-        repo_context_manager = build_import_trees(repo_context_manager, import_graph)
+        repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
