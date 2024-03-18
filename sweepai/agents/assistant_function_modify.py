@@ -123,11 +123,7 @@ def build_keyword_search_match_results(
             else:
                 match_display += f"{line}\n"
         match_display = match_display.strip("\n")
-        num_matches_message = (
-            f" ({len(lines_containing_keyword)} matches)"
-            if lines_containing_keyword
-            else " (No keyword matches, just shown for context)"
-        )
+        num_matches_message = f" ({len(lines_containing_keyword)} matches)" if lines_containing_keyword else " (No keyword matches, just shown for context)"
         if not readonly:
             success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
         else:
@@ -253,7 +249,7 @@ def function_modify(
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
-            additional_messages=additional_messages,
+            additional_messages=ensure_additional_messages_length(additional_messages),
             chat_logger=chat_logger,
             assistant_id=assistant_id,
             save_ticket_progress=(
