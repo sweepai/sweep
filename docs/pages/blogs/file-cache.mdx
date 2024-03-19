@@ -153,6 +153,10 @@ We have another problem - we want to miss our cache under two conditions:
 To handle 2. we used `inspect.getsource(func)` to add the function's source code to the hash, correctly missing the cache when the the code changes.
 
 ```python /hash_code(inspect.getsource(func))/
+    func_source_code_hash = hash_code(inspect.getsource(func))
+```
+
+```python /func_source_code_hash/
     args_names = func.__code__.co_varnames[: func.__code__.co_argcount]
     args_dict = dict(zip(args_names, args))
 
@@ -166,7 +170,7 @@ To handle 2. we used `inspect.getsource(func)` to add the function's source code
     arg_hash = (
         recursive_hash(args_dict, ignore_params=ignore_params)
         + recursive_hash(kwargs_clone, ignore_params=ignore_params)
-        + hash_code(inspect.getsource(func))
+        + func_source_code_hash
     )
     cache_file = os.path.join(
         cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
