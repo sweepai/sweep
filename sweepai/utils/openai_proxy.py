@@ -2,7 +2,7 @@ import os
 import random
 
 from loguru import logger
-from openai import AzureOpenAI, OpenAI
+from openai import AzureOpenAI, BadRequestError, OpenAI, RateLimitError
 
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -116,12 +116,17 @@ class OpenAIProxy:
                     f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                 )
                 if OPENAI_API_TYPE == "azure":
-                    with Timer():
-                        response = self.call_azure_api(
-                            model, messages, tools, max_tokens, temperature
-                        )
-                        return response
-
+                    try:
+                        with Timer():
+                            response = self.call_azure_api(
+                                model, messages, tools, max_tokens, temperature
+                            )
+                            return response
+                    except RateLimitError as e:
+                        logger.exception(f"Error calling Azure: {e}")
+                    except BadRequestError as e:
+                        logger.exception(f"Error calling Azure: {e}")
+                        raise e
                 with Timer():
                     return self.set_openai_default_api_parameters(
                         model, messages, tools, max_tokens, temperature
@@ -152,20 +157,8 @@ class OpenAIProxy:
                 except Exception as e:
                     logger.exception(f"Error calling {region_url}: {e}")
             raise Exception("No Azure regions available")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
+        except RateLimitError as e:
             try:
-                if OPENAI_API_TYPE == "azure":
-                    with Timer():
-                        response = self.call_azure_api(
-                            model=model,
-                            messages=messages,
-                            tools=tools,
-                            max_tokens=max_tokens,
-                            temperature=temperature,
-                        )
-                        return response
                 with Timer():
                     return self.set_openai_default_api_parameters(
                         model=model,
@@ -173,15 +166,13 @@ class OpenAIProxy:
                         max_tokens=max_tokens,
                         temperature=temperature,
                         tools=tools,
-                        
                     )
-
-            except SystemExit:
-                raise SystemExit
             except Exception as _e:
                 logger.error(f"OpenAI API Key found but error: {_e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
             # Raise exception to report error
+            raise e
+        except Exception as e:
             raise e
 
     def determine_openai_engine(self, model):
@@ -307,6 +298,10 @@ def get_client():
     else:
         raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
     return client
+
+
+def test_openai_client():
+    pass
 
 
 if __name__ == "__main__":
