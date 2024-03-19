@@ -2,7 +2,7 @@ import os
 import random
 
 from loguru import logger
-from openai import AzureOpenAI, BadRequestError, OpenAI, RateLimitError
+from openai import APITimeoutError, AzureOpenAI, OpenAI, RateLimitError
 
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -15,7 +15,6 @@ from sweepai.config.server import (
     OPENAI_API_VERSION,
 )
 from sweepai.core.entities import Message
-from sweepai.logn.cache import file_cache
 from sweepai.utils.timer import Timer
 
 if BASERUN_API_KEY is not None:
@@ -51,43 +50,7 @@ RATE_LIMITS = {
 
 
 class OpenAIProxy:
-    @file_cache(ignore_params=[])
-    def call_openai_with_retry(
-        self,
-        model: str,
-        messages: list[Message],
-        tools: list[str] = [],
-        max_tokens: int = 256,
-        temperature: float = 0.0,
-        seed: int = 0,
-    ):
-        e = None
-        for current_max_tokens in [
-            max_tokens,
-            2 * max_tokens,
-            4 * max_tokens,
-            8 * max_tokens,
-            16 * max_tokens,
-        ]:
-            logger.info(f"Calling OpenAI with {current_max_tokens} tokens...")
-            try:
-                response = self.call_openai(
-                    model, messages, tools, current_max_tokens, temperature, seed
-                )
-                if response.choices[0].finish_reason != "length":
-                    return response
-                logger.warning(
-                    f"OpenAI call finish_reason returned {response.choices[0].finish_reason}, retrying with {current_max_tokens * 2}..."
-                )
-            except Exception as e:
-                logger.exception(
-                    f"Error calling OpenAI: {e}, retrying with {current_max_tokens * 2}..."
-                )
-        if e is not None:
-            raise Exception("OpenAI call failed") from e
-        raise Exception("OpenAI call failed")
-
-    @file_cache(ignore_params=[])
+    # @file_cache(ignore_params=[])
     def call_openai(
         self,
         model: str,
@@ -123,10 +86,7 @@ class OpenAIProxy:
                             )
                             return response
                     except RateLimitError as e:
-                        logger.exception(f"Error calling Azure: {e}")
-                    except BadRequestError as e:
-                        logger.exception(f"Error calling Azure: {e}")
-                        raise e
+                        logger.exception(f"Rate Limit Error calling Azure: {e}")
                 with Timer():
                     return self.set_openai_default_api_parameters(
                         model, messages, tools, max_tokens, temperature
@@ -154,10 +114,18 @@ class OpenAIProxy:
                             temperature,
                         )
                         return response
-                except Exception as e:
-                    logger.exception(f"Error calling {region_url}: {e}")
+                except RateLimitError | APITimeoutError as e:
+                    logger.exception(f"RateLimitError calling {region_url}: {e}")
             raise Exception("No Azure regions available")
-        except RateLimitError as e:
+        # except RateLimitError | APITimeoutError as e:
+        except Exception as e:
+            return self.set_openai_default_api_parameters(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                tools=tools,
+            )
             try:
                 with Timer():
                     return self.set_openai_default_api_parameters(
@@ -174,6 +142,7 @@ class OpenAIProxy:
             raise e
         except Exception as e:
             raise e
+        return None
 
     def determine_openai_engine(self, model):
         engine = None
@@ -298,10 +267,6 @@ def get_client():
     else:
         raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
     return client
-
-
-def test_openai_client():
-    pass
 
 
 if __name__ == "__main__":
