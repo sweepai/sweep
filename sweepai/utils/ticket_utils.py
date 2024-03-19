@@ -27,7 +27,8 @@ we add adjustment scores to compensate for this bias.
 
 prefix_adjustment = {
     "doc": -1,
-    "example": -0.75,
+    "example": -1,
+    "tutorial": -1,
 }
 
 suffix_adjustment = {
@@ -38,7 +39,7 @@ suffix_adjustment = {
     ".po": -1,
     ".json": -0.5,
     ".toml": -0.5,
-    ".yaml": -0.5,
+    ".yaml": -0.25,
     ".yml": -0.5,
     ".spec.ts": -1,
     ".test.ts": -1,
@@ -52,6 +53,7 @@ suffix_adjustment = {
 }
 
 substring_adjustment = {
+    "locale/": -1,
     "tests/": -1,
     "test/": -1,
     "test_": -1,
