@@ -136,6 +136,7 @@ def evaluate_search(
             ]
             if not attained_snippets:
                 cprint(f"MISSED {resolution_file}")
+                continue
             snippet = attained_snippets[0]
             snippet_score = round(get_snippet_score(snippet), 4)
             if resolution_file not in top_k_paths:
@@ -274,7 +275,7 @@ def get_files_to_change(
                 role="user",
                 content=relevant_snippet_template.replace(
                     "{snippet_denotation}", snippet.denotation
-                ).replace("{content}", snippet.get_snippet(add_lines=False)),
+                ).replace("{content}", snippet.expand(300).get_snippet(add_lines=False)),
                 key="relevant_snippets",
             )
         )
