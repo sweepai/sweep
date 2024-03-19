@@ -2,7 +2,7 @@ import os
 import random
 
 from loguru import logger
-from openai import AzureOpenAI, OpenAI
+from openai import APITimeoutError, AzureOpenAI, OpenAI, RateLimitError
 
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -52,42 +52,6 @@ RATE_LIMITS = {
 
 class OpenAIProxy:
     @file_cache(ignore_params=[])
-    def call_openai_with_retry(
-        self,
-        model: str,
-        messages: list[Message],
-        tools: list[str] = [],
-        max_tokens: int = 256,
-        temperature: float = 0.0,
-        seed: int = 0,
-    ):
-        e = None
-        for current_max_tokens in [
-            max_tokens,
-            2 * max_tokens,
-            4 * max_tokens,
-            8 * max_tokens,
-            16 * max_tokens,
-        ]:
-            logger.info(f"Calling OpenAI with {current_max_tokens} tokens...")
-            try:
-                response = self.call_openai(
-                    model, messages, tools, current_max_tokens, temperature, seed
-                )
-                if response.choices[0].finish_reason != "length":
-                    return response
-                logger.warning(
-                    f"OpenAI call finish_reason returned {response.choices[0].finish_reason}, retrying with {current_max_tokens * 2}..."
-                )
-            except Exception as e:
-                logger.exception(
-                    f"Error calling OpenAI: {e}, retrying with {current_max_tokens * 2}..."
-                )
-        if e is not None:
-            raise Exception("OpenAI call failed") from e
-        raise Exception("OpenAI call failed")
-
-    @file_cache(ignore_params=[])
     def call_openai(
         self,
         model: str,
@@ -116,12 +80,14 @@ class OpenAIProxy:
                     f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                 )
                 if OPENAI_API_TYPE == "azure":
-                    with Timer():
-                        response = self.call_azure_api(
-                            model, messages, tools, max_tokens, temperature
-                        )
-                        return response
-
+                    try:
+                        with Timer():
+                            response = self.call_azure_api(
+                                model, messages, tools, max_tokens, temperature
+                            )
+                            return response
+                    except RateLimitError as e:
+                        logger.exception(f"Rate Limit Error calling Azure: {e}")
                 with Timer():
                     return self.set_openai_default_api_parameters(
                         model, messages, tools, max_tokens, temperature
@@ -149,23 +115,11 @@ class OpenAIProxy:
                             temperature,
                         )
                         return response
-                except Exception as e:
-                    logger.exception(f"Error calling {region_url}: {e}")
+                except (RateLimitError, APITimeoutError) as e:
+                    logger.exception(f"RateLimitError calling {region_url}: {e}")
             raise Exception("No Azure regions available")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
+        except (RateLimitError, APITimeoutError) as e:
             try:
-                if OPENAI_API_TYPE == "azure":
-                    with Timer():
-                        response = self.call_azure_api(
-                            model=model,
-                            messages=messages,
-                            tools=tools,
-                            max_tokens=max_tokens,
-                            temperature=temperature,
-                        )
-                        return response
                 with Timer():
                     return self.set_openai_default_api_parameters(
                         model=model,
@@ -173,16 +127,15 @@ class OpenAIProxy:
                         max_tokens=max_tokens,
                         temperature=temperature,
                         tools=tools,
-                        
                     )
-
-            except SystemExit:
-                raise SystemExit
             except Exception as _e:
                 logger.error(f"OpenAI API Key found but error: {_e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
             # Raise exception to report error
             raise e
+        except Exception as e:
+            raise e
+        return None
 
     def determine_openai_engine(self, model):
         engine = None
