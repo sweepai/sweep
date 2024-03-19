@@ -114,18 +114,10 @@ class OpenAIProxy:
                             temperature,
                         )
                         return response
-                except RateLimitError | APITimeoutError as e:
+                except (RateLimitError, APITimeoutError) as e:
                     logger.exception(f"RateLimitError calling {region_url}: {e}")
             raise Exception("No Azure regions available")
-        # except RateLimitError | APITimeoutError as e:
-        except Exception as e:
-            return self.set_openai_default_api_parameters(
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                tools=tools,
-            )
+        except (RateLimitError, APITimeoutError) as e:
             try:
                 with Timer():
                     return self.set_openai_default_api_parameters(
