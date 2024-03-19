@@ -39,6 +39,7 @@ from sweepai.config.client import (
     get_rules,
 )
 from sweepai.config.server import (
+    BLACKLISTED_USERS,
     DISABLED_REPOS,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
@@ -791,6 +792,7 @@ def handle_event(request_dict, event):
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
                     )
