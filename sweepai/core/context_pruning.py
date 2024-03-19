@@ -287,6 +287,12 @@ class RepoContextManager:
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
 
+    # does the same thing as add_snippets but adds it to the beginning of the list
+    def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
+        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_boost])
+        for snippet in snippets_to_boost:
+            self.current_top_snippets.insert(0, snippet)
+
     def add_import_trees(self, import_trees: str):
         self.import_trees += "\n" + import_trees
 
@@ -421,7 +427,7 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
                 code_snippets = [
                     snippet for snippet in rcm.snippets if snippet.file_path == file
                 ]
-                rcm.add_snippets(code_snippets)
+                rcm.boost_snippets_to_top(code_snippets)
             except Exception as e:
                 logger.error(
                     f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one."
@@ -494,11 +500,11 @@ def get_relevant_context(
     client = get_client()
     try:
         # attempt to get import tree for relevant snippets that show up in the query
-        repo_context_manager, import_graph = parse_query_for_files(
+        repo_context_manager, _ = parse_query_for_files(
             query, repo_context_manager
         )
-        # for any code file mentioned in the query, build its import tree
-        repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
+        # for any code file mentioned in the query, build its import tree - This is currently not used
+        # repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
