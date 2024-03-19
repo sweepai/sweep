@@ -15,6 +15,7 @@ from sweepai.config.server import (
     OPENAI_API_VERSION,
 )
 from sweepai.core.entities import Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.timer import Timer
 
 if BASERUN_API_KEY is not None:
@@ -50,7 +51,7 @@ RATE_LIMITS = {
 
 
 class OpenAIProxy:
-    # @file_cache(ignore_params=[])
+    @file_cache(ignore_params=[])
     def call_openai(
         self,
         model: str,
