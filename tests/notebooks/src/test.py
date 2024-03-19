@@ -5,7 +5,6 @@ from loguru import logger
 from rope.refactor.extract import ExtractMethod
 
 from sweepai.agents.name_agent import NameBot
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.update_prompts import (

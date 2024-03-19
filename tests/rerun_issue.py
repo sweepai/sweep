@@ -92,10 +92,10 @@ def main(
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
 ):
     issue_url = issue_url or typer.prompt("Issue URL")
-    print(f"Fetching issue metdata...")
+    print("Fetching issue metdata...")
     issue_request = fetch_issue_request(issue_url)
     wait_for_server(host)
-    print(f"Sending request...")
+    print("Sending request...")
     response = requests.post(
         host,
         json=issue_request.dict(),

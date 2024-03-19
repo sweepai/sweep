@@ -108,7 +108,7 @@ def run_sandbox(
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd landing-page && (yarn run --prettier check . || (exit_code=$?; if [ $exit_code -eq 2 ]; then exit 2; fi; exit 0)) && yarn run lint && yarn run tsc",
+        "cd landing-page && (yarn run --prettier check . || (exit_code=$?; if [ $exit_code -eq 2 ]; then exit 2; fi; exit 0)) && yarn run lint && yarn run tsc",
         image=god_image.copy_local_file(
             "test_repos/landing-page/package.json", "./landing-page/package.json"
         ).run_commands("cd landing-page && yarn install --ignore-engines"),
