@@ -240,6 +240,16 @@ class RepoContextManager:
         [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
         logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
+#         with open("snippets_in_repo.txt", "w") as file:
+#             s = "\n\n".join([snippet.xml for snippet in self.current_top_snippets])
+#             s += "\n\n" + query + """\n\nInstructions:
+
+# The above list of potentially relevant issues.
+
+# First list all snippets in this repository that are absolutely relevant to the task, why they are relevant, and the specific section that is relevant.
+
+# Then, list all snippets that NEEDS to be edited to resolve the issue. Select the minimal number of files that needs to be edited to resolve the issue."""
+#             file.write(s)
         repo_tree = str(self.dir_obj)
         user_prompt = unformatted_user_prompt.format(
             query=query,
@@ -462,7 +472,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
