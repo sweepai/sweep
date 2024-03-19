@@ -4,7 +4,6 @@ from time import time
 import os
 
 from rich.console import Console
-from rich import print
 
 from sweepai.agents.modify_bot import ModifyBot
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
@@ -130,11 +129,14 @@ def evaluate_search(
                 f.close()
         # if a resolution file is not in the top k, print it in red
         for resolution_file in resolution_files:
-            snippet = [
+            attained_snippets = [
                 snippet
                 for snippet in sorted_snippets
                 if snippet.file_path == resolution_file
-            ][0]
+            ]
+            if not attained_snippets:
+                cprint(f"MISSED {resolution_file}")
+            snippet = attained_snippets[0]
             snippet_score = round(get_snippet_score(snippet), 4)
             if resolution_file not in top_k_paths:
                 cprint(
@@ -177,6 +179,10 @@ def run_search_test(
 
     results = rcm.top_snippet_paths
     recall = len([f for f in resolution_files if f in rcm.top_snippet_paths]) / len(resolution_files)
+
+    # if recall < 1 and search_accuracy== 1:
+    #     import pdb
+    #     pdb.set_trace()
 
     return rcm, search_mrr, search_accuracy, search_positions, results, recall
 
