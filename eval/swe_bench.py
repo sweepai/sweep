@@ -93,7 +93,7 @@ proportion = 0.075
 # proportion = 0.025
 k = int(os.environ.get("k", 10))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-03-18-k-{k}-plan-rca-e2e"
+name = f"sweep-03-18-k-{k}-plan-rca-e2e-debug"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
@@ -186,6 +186,15 @@ for i, (row_num, row) in tqdm(enumerate(test_data.iterrows()), total=len(test_da
             f.write(f"{plan}\n\n")
             f.write(f"Diff:\n\n{solution_patch}\n\n")
 
+        filtered_fcrs = []
+        for fcr in fcrs:
+            try:
+                cloned_repo.git_repo.git.show(f"{commit_hash}:{fcr.filename}")
+                filtered_fcrs.append(fcr)
+            except Exception as e:
+                pass
+        fcrs = filtered_fcrs
+
         additional_messages = [
             Message(
                 role="user",
@@ -245,6 +254,7 @@ Repo: {repo_identifier}
                         + "\n```",
                     )
                 )
+        assert updated_files
         cloned_repo.git_repo.git.checkout(commit_hash, force=True)
         if updated_files:
             old_files = {}
