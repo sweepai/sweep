@@ -140,6 +140,7 @@ E2B_API_KEY = os.environ.get("E2B_API_KEY")
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
+BLACKLISTED_USERS = os.environ.get("BLACKLISTED_USERS", "").split(",")
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

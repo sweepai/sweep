@@ -16,7 +16,6 @@ from sweepai.agents.assistant_function_modify import MAX_CHARS
 from sweepai.agents.assistant_wrapper import openai_retry_with_timeout
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.event_logger import posthog
@@ -240,16 +239,16 @@ class RepoContextManager:
         [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
         logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
-#         with open("snippets_in_repo.txt", "w") as file:
-#             s = "\n\n".join([snippet.xml for snippet in self.current_top_snippets])
-#             s += "\n\n" + query + """\n\nInstructions:
+        #         with open("snippets_in_repo.txt", "w") as file:
+        #             s = "\n\n".join([snippet.xml for snippet in self.current_top_snippets])
+        #             s += "\n\n" + query + """\n\nInstructions:
 
-# The above list of potentially relevant issues.
+        # The above list of potentially relevant issues.
 
-# First list all snippets in this repository that are absolutely relevant to the task, why they are relevant, and the specific section that is relevant.
+        # First list all snippets in this repository that are absolutely relevant to the task, why they are relevant, and the specific section that is relevant.
 
-# Then, list all snippets that NEEDS to be edited to resolve the issue. Select the minimal number of files that needs to be edited to resolve the issue."""
-#             file.write(s)
+        # Then, list all snippets that NEEDS to be edited to resolve the issue. Select the minimal number of files that needs to be edited to resolve the issue."""
+        #             file.write(s)
         repo_tree = str(self.dir_obj)
         user_prompt = unformatted_user_prompt.format(
             query=query,
@@ -286,6 +285,14 @@ class RepoContextManager:
         self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
+
+    # does the same thing as add_snippets but adds it to the beginning of the list
+    def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
+        self.dir_obj.add_file_paths(
+            [snippet.file_path for snippet in snippets_to_boost]
+        )
+        for snippet in snippets_to_boost:
+            self.current_top_snippets.insert(0, snippet)
 
     def add_import_trees(self, import_trees: str):
         self.import_trees += "\n" + import_trees
@@ -380,7 +387,9 @@ def load_graph_from_file(filename):
 
 # add import trees for any relevant_file_paths (code files that appear in query)
 def build_import_trees(
-    rcm: RepoContextManager, import_graph: nx.DiGraph, override_import_graph: nx.DiGraph = None
+    rcm: RepoContextManager,
+    import_graph: nx.DiGraph,
+    override_import_graph: nx.DiGraph = None,
 ) -> tuple[RepoContextManager]:
     if import_graph is None and override_import_graph is None:
         return rcm
@@ -421,7 +430,7 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
                 code_snippets = [
                     snippet for snippet in rcm.snippets if snippet.file_path == file
                 ]
-                rcm.add_snippets(code_snippets)
+                rcm.boost_snippets_to_top(code_snippets)
             except Exception as e:
                 logger.error(
                     f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one."
@@ -478,7 +487,7 @@ def get_relevant_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
-    override_import_graph: nx.DiGraph = None, # optional override import graph
+    override_import_graph: nx.DiGraph = None,  # optional override import graph
 ):
     if chat_logger and chat_logger.use_faster_model():
         raise Exception(FASTER_MODEL_MESSAGE)
@@ -494,11 +503,9 @@ def get_relevant_context(
     client = get_client()
     try:
         # attempt to get import tree for relevant snippets that show up in the query
-        repo_context_manager, import_graph = parse_query_for_files(
-            query, repo_context_manager
-        )
-        # for any code file mentioned in the query, build its import tree
-        repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
+        repo_context_manager, _ = parse_query_for_files(query, repo_context_manager)
+        # for any code file mentioned in the query, build its import tree - This is currently not used
+        # repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
@@ -871,14 +878,13 @@ if __name__ == "__main__":
     try:
         import os
 
-        from sweepai.utils.ticket_utils import prep_snippets
         from sweepai.utils.github_utils import get_installation_id
+        from sweepai.utils.ticket_utils import prep_snippets
+
         organization_name = "sweepai"
         installation_id = get_installation_id(organization_name)
         cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-        query = (
-            "allow sweep.yaml to be read from the user/organization's .github repository"
-        )
+        query = "allow sweep.yaml to be read from the user/organization's .github repository"
         # golden response is
         # sweepai/handlers/create_pr.py:401-428
         # sweepai/config/client.py:178-282

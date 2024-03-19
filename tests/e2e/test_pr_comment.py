@@ -11,7 +11,7 @@ from sweepai.api import app, global_threads
 
 GITHUB_PAT = os.environ["GITHUB_PAT"]
 print(
-    f"Using GITHUB_PAT: "
+    "Using GITHUB_PAT: "
     + GITHUB_PAT[:3]
     + "*" * (len(GITHUB_PAT) - 4)
     + GITHUB_PAT[-1:]
@@ -75,7 +75,7 @@ def test_e2e_pr_comment():
                     print(f"Failed to find files to change: {pr.title}")
                     print(f"PR object is: {pr}")
                     raise AssertionError("Failed to find files to change")
-                    
+
             time.sleep(60)
         raise AssertionError("PR was not updated!")
     except AssertionError as e:

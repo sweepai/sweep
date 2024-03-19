@@ -1351,7 +1351,7 @@ def on_ticket(
                     if new_description:
                         pr_changes.body = (
                             f"{new_description}\n\nFixes"
-                            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+                            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
                         )
 
                     edit_sweep_comment(
