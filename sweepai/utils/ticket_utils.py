@@ -33,6 +33,8 @@ prefix_adjustment = {
 
 suffix_adjustment = {
     ".txt": -0.5,
+    ".sty": -0.5,
+    ".tex": -0.5,
     ".rst": -0.5,
     ".md": -0.5,
     ".html": -0.5,
