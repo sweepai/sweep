@@ -490,11 +490,11 @@ def get_relevant_context(
     client = get_client()
     try:
         # attempt to get import tree for relevant snippets that show up in the query
-        repo_context_manager, import_graph = parse_query_for_files(
+        repo_context_manager, _ = parse_query_for_files(
             query, repo_context_manager
         )
-        # for any code file mentioned in the query, build its import tree
-        repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
+        # for any code file mentioned in the query, build its import tree - This is currently not used
+        # repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
