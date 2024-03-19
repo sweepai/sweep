@@ -274,7 +274,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                     "--disable=relative-beyond-top-level",
                 ],
                 reporter=reporter,
-                do_exit=False,
+                exit=False,
             )
             error_message = pylint_output.getvalue()
             try:
@@ -284,7 +284,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
             if error_message:
                 return False, error_message
         except Exception as e:
-            discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
+            discord_log_error("Pylint BS:\n" + str(e) + traceback.format_exc())
     return True, ""
 
 
