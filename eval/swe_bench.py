@@ -89,23 +89,21 @@ test_data = load_swebench_test_data()
 cprint("Loaded test data", style="green")
 
 seed = 0
-proportion = 0.05
+proportion = 0.075
+# proportion = 0.025
 k = int(os.environ.get("k", 10))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-03-18-k-{k}-context"
+name = f"sweep-03-18-k-{k}-plan-rca-e2e"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
 context_results_file = f"eval/{name}-context_results.csv"
 context_positions_file = f"eval/{name}-context_positions.txt"
+planning_file = f"eval/{name}-planning.csv"
+planning_file_logs = f"eval/{name}-planning.txt"
 logger.info(
     f"Loaded {len(test_data)} rows of test data ({proportion * 100}% of the total)"
 )
-
-open(search_results_file, "w").write("instance_id,mrr,acc\n")
-open(search_positions_file, "w").write("instance_id,positions\n")
-open(context_results_file, "w").write("instance_id,mrr,acc\n")
-open(context_positions_file, "w").write("instance_id,positions\n")
 
 # already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()] if os.path.exists(output_file) else []
 already_done_results = []
@@ -113,7 +111,9 @@ previously_finished_tasks = set(
     [result["instance_id"] for result in already_done_results]
 )
 
-for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
+for i, (row_num, row) in tqdm(enumerate(test_data.iterrows()), total=len(test_data)):
+    if i <= 1:
+        continue
     instance_id = row.instance_id
     repo_identifier = row["repo"]
     commit_hash = row["base_commit"]
@@ -154,15 +154,38 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
         with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{search_positions}\n")
         with open(context_results_file, "a") as f:
-            f.write(f"{instance_id},{recall}\n")
-        with open(context_positions_file, "a") as f:
-            f.write(f"{instance_id},{selected_files},{resolution_files}\n")
-        continue
+            f.write(f"{instance_id},{' '.join(selected_files)},{' '.join(resolution_files)},{recall}\n")
         fcrs, plan = get_files_to_change(
             rcm.current_top_snippets, problem_statement, repo_identifier
         )
-        # continue
-        # modify files
+
+        precision, recall = 0, 0
+        for filename in resolution_files:
+            if filename in [fcr.filename for fcr in fcrs]:
+                recall += 1
+        if len(fcrs) > 0:
+            recall /= len(fcrs)
+        for fcr in fcrs:
+            if fcr.filename in resolution_files:
+                precision += 1
+        if len(resolution_files) > 0:
+            precision /= len(resolution_files)
+        f1 = 2 * (precision * recall) / (precision + recall) if precision + recall > 0 else 0
+
+        plan_string = " ".join([fcr.filename for fcr in fcrs])
+        resoution_files_string = " ".join(resolution_files)
+        with open(planning_file, "a") as f:
+            f.write(
+                f"{instance_id},{plan_string},{resoution_files_string},{precision},{recall},{f1}\n"
+            )
+        
+        with open(planning_file_logs, "a") as f:
+            f.write(f"{instance_id}\n\n")
+            f.write(f"Problem statement: {problem_statement}\n\n")
+            f.write(f"Resolution Files: {', '.join(resolution_files)}\n\n")
+            f.write(f"{plan}\n\n")
+            f.write(f"Diff:\n\n{solution_patch}\n\n")
+
         additional_messages = [
             Message(
                 role="user",
