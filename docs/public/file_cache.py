@@ -5,12 +5,11 @@ import pickle
 
 from loguru import logger
 
-from sweepai.config.server import DEBUG
+DISABLE_CACHE = False
 
-TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
-# if DEBUG:
-#     logger.debug("File cache is disabled.")
+if DISABLE_CACHE:
+    print("File cache is disabled.")
 
 
 def recursive_hash(value, depth=0, ignore_params=[]):
@@ -54,7 +53,9 @@ def file_cache(ignore_params=[], verbose=False):
     """
 
     def decorator(func):
-        if DEBUG:
+        if DISABLE_CACHE:
+            if verbose:
+                print("Cache is disabled for function: " + func.__name__)
             return func
 
         def wrapper(*args, **kwargs):
@@ -71,7 +72,7 @@ def file_cache(ignore_params=[], verbose=False):
                 args_dict.pop(param, None)
                 kwargs_clone.pop(param, None)
 
-            # Create hash based on function name, input arguments, and function source code
+            # Create hash based on argument names, argument values, and function source code
             arg_hash = (
                 recursive_hash(args_dict, ignore_params=ignore_params)
                 + recursive_hash(kwargs_clone, ignore_params=ignore_params)

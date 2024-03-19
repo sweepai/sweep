@@ -412,7 +412,7 @@ def on_ticket(
         # we want to pass in the failing github action messages to the next run in order to fix them
         failing_gha_messages: list[Message] = []
         # we rerun this logic 3 times at most if the github actions associated with the created pr fails
-        max_pr_attempts = 3
+        max_pr_attempts = 1
         for run_attempt in range(max_pr_attempts):
             if tracking_id is None:
                 tracking_id = get_hash()
@@ -467,7 +467,7 @@ def on_ticket(
                 ),
             )
             branch_match = re.search(
-                r"([B|b]ranch:) *(?P<branch_name>.+?)(\n|$)", summary
+                r"([B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
             )
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
@@ -476,6 +476,11 @@ def on_ticket(
                 )
                 if overrided_branch_name == "_No response_":
                     continue
+                # TODO: this code might be finicky, might have missed edge cases
+                if overrided_branch_name.startswith("https://github.com/"):
+                    overrided_branch_name = overrided_branch_name.split("?")[0].split(
+                        "tree/"
+                    )[-1]
                 SweepConfig.get_branch(repo, overrided_branch_name)
 
             chat_logger = (
@@ -615,7 +620,6 @@ def on_ticket(
                 ticket_progress.save()
 
                 config_pr_url = None
-
                 user_settings = UserSettings.from_username(username=username)
                 user_settings_message = user_settings.get_message()
 
@@ -1180,7 +1184,7 @@ def on_ticket(
                         raise NoFilesException()
                     response = {
                         "error": Exception(
-                            "Sweep failed to make code changes! This could mean that GPT-4 failed to find the correct lines of code to modify or that GPT-4 did not respond in our specified format. Sometimes, retrying will fix this error. Otherweise, reach out to our Discord server for support (tracking_id={tracking_id})."
+                            f"Sweep failed to make code changes! This could mean that GPT-4 failed to find the correct lines of code to modify or that GPT-4 did not respond in our specified format. Sometimes, retrying will fix this error. Otherwise, reach out to our Discord server for support (tracking_id={tracking_id})."
                         )
                     }
 

@@ -6,6 +6,7 @@ import backoff
 from loguru import logger
 from pydantic import BaseModel
 
+from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
@@ -118,6 +119,7 @@ class ChatGPT(MessageList):
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
         for msg in added_messages:
             messages.append(Message(**msg))
+        messages = ensure_additional_messages_length(messages)
 
         return cls(
             messages=messages,
@@ -250,7 +252,7 @@ class ChatGPT(MessageList):
             if requested_max_tokens
             else max_tokens
         )
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
+        logger.info(f"Using the model {model} with {messages_length} input tokens and {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
 

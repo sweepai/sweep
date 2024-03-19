@@ -6,35 +6,14 @@ import backoff
 import numpy as np
 import requests
 from loguru import logger
-from openai import AzureOpenAI, OpenAI
 from redis import Redis
 from tqdm import tqdm
 
-from sweepai.config.server import (
-    BATCH_SIZE,
-    OPENAI_API_TYPE,
-    OPENAI_EMBEDDINGS_API_TYPE,
-    OPENAI_EMBEDDINGS_AZURE_API_KEY,
-    OPENAI_EMBEDDINGS_AZURE_API_VERSION,
-    OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
-    OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
-    REDIS_URL,
-)
+from sweepai.config.server import BATCH_SIZE, REDIS_URL
 from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
+from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.utils import Tiktoken
-
-if OPENAI_EMBEDDINGS_API_TYPE == "openai":
-    client = OpenAI()
-elif OPENAI_EMBEDDINGS_API_TYPE == "azure":
-    client = AzureOpenAI(
-        azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
-        api_key=OPENAI_EMBEDDINGS_AZURE_API_KEY,
-        azure_deployment=OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
-        api_version=OPENAI_EMBEDDINGS_AZURE_API_VERSION,
-    )
-else:
-    raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
 
 CACHE_VERSION = "v1.3.04"
 redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
@@ -59,7 +38,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
 
 
 @file_cache(ignore_params=["texts"])
-def get_query_texts_similarity(query: str, texts: str) -> float:
+def get_query_texts_similarity(query: str, texts: str) -> list[float]:
     embeddings = embed_text_array(texts)
     embeddings = np.concatenate(embeddings)
     query_embedding = np.array(embed_text_array([query])[0])
@@ -85,7 +64,9 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
+    with multiprocessing.Pool(
+        processes=max(1, multiprocessing.cpu_count() // 4)
+    ) as pool:
         embeddings = list(
             tqdm(
                 pool.imap(openai_with_expo_backoff, batches),
@@ -97,6 +78,7 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
 
 
 def openai_call_embedding(batch):
+    client = get_client()
     response = client.embeddings.create(
         input=batch, model="text-embedding-3-small", encoding_format="float"
     )
@@ -159,9 +141,10 @@ def openai_with_expo_backoff(batch: tuple[str]):
             }
         )
         embeddings = np.array(embeddings)
-    except Exception as e:
-        logger.error(str(e))
-        logger.error("Failed to store embeddings in cache, returning without storing")
+    except Exception:
+        # logger.error(str(e))
+        # logger.error("Failed to store embeddings in cache, returning without storing")
+        pass
     return embeddings
 
 

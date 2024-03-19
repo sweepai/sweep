@@ -22,7 +22,7 @@ Note: The initial startup time typically takes around 3-5 minutes depending on y
 ## Fix Sweep's PRs
 
 Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of Tensorflow".)
-- You can also comment in the issue and code. See [Commenting](https://docs.sweep.dev/commenting).
+- You can also comment in the issue and code. See [Commenting](https://docs.sweep.dev/usage/advanced#giving-sweep-feedback).
 - To have Sweep automatically improve it's PRs, use Github Actions. See [GHA Tech Blog](https://docs.sweep.dev/blogs/giving-dev-tools)
 - To disable Sweep on a PR/issue, remove the Sweep label.
 
