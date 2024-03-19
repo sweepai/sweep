@@ -277,6 +277,12 @@ class RepoContextManager:
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
 
+    # does the same thing as add_snippets but adds it to the beginning of the list
+    def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
+        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_boost])
+        for snippet in snippets_to_boost:
+            self.current_top_snippets.insert(0, snippet)
+
     def add_import_trees(self, import_trees: str):
         self.import_trees += "\n" + import_trees
 
@@ -411,7 +417,7 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
                 code_snippets = [
                     snippet for snippet in rcm.snippets if snippet.file_path == file
                 ]
-                rcm.add_snippets(code_snippets)
+                rcm.boost_snippets_to_top(code_snippets)
             except Exception as e:
                 logger.error(
                     f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one."
