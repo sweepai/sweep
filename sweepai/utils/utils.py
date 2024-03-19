@@ -9,12 +9,12 @@ from dataclasses import dataclass
 from typing import Optional
 import uuid
 
-from pytest import TestReport
 import tiktoken
 from loguru import logger
 from tree_sitter import Node
 from tree_sitter_languages import get_parser
 from pylint.lint import Run
+from pylint.reporters.text import TextReporter
 
 from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
@@ -264,7 +264,9 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
             with open(new_file, "w") as f:
                 f.write(code)
             pylint_output = StringIO()
-            reporter = TestReport(pylint_output)
+            reporter = TextReporter(
+                pylint_output
+            )
             Run(
                 [
                     new_file,
