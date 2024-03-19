@@ -198,6 +198,7 @@ You MUST follow the following format with XML tags:
 
 # Contextual Request Analysis:
 <contextual_request_analysis>
+* Root cause analysis: if the user's request is a bug report or unintended behaviour, identify the root cause of the issue based on the source code, and the exact section of code corresponding to the error.
 * Outline the minimal plan that solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
 * Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible.
 ...
