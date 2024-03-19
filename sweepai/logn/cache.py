@@ -56,6 +56,7 @@ def file_cache(ignore_params=[], verbose=False):
     def decorator(func):
         if DEBUG:
             return func
+        func_source_code_hash = hash_code(inspect.getsource(func))
 
         def wrapper(*args, **kwargs):
             cache_dir = "/tmp/file_cache"
@@ -75,7 +76,7 @@ def file_cache(ignore_params=[], verbose=False):
             arg_hash = (
                 recursive_hash(args_dict, ignore_params=ignore_params)
                 + recursive_hash(kwargs_clone, ignore_params=ignore_params)
-                + hash_code(inspect.getsource(func))
+                + func_source_code_hash
             )
             cache_file = os.path.join(
                 cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
