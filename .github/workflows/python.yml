@@ -28,6 +28,17 @@ jobs:
       cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
     steps:
       - uses: actions/checkout@v3
+      - name: Load environment variables
+        env:
+          ENV_VARS: ${{ secrets.GH_ALL_AZURE }}
+        run: |
+          echo "$ENV_VARS" | while IFS= read -r line; do
+            if [[ "$line" == *":"* ]]; then
+              var_name=$(echo "$line" | cut -d':' -f1)
+              var_value=$(echo "$line" | cut -d':' -f2-)
+              echo "$var_name=$var_value" >> $GITHUB_ENV
+            fi
+          done
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -97,13 +108,6 @@ jobs:
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           GITHUB_PAT: ${{ secrets.GH_PAT }}
-          GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
-          OPENAI_API_TYPE: azure
-          OPENAI_API_BASE: ${{ secrets.GH_OPENAI_API_BASE }}
-          OPENAI_API_VERSION: 2024-02-15-preview
-          AZURE_API_KEY: ${{ secrets.GH_AZURE_API_KEY }}
-          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.GH_AZURE_OPENAI_DEPLOYMENT }}
         run: PYTHONPATH=. pytest -n 4 tests/e2e -s
         timeout-minutes: 30
