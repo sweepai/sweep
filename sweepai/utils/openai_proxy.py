@@ -24,7 +24,6 @@ if BASERUN_API_KEY is not None:
 OPENAI_TIMEOUT = 60  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
-    "gpt-4-0125-preview",
     "gpt-3.5-turbo-1106",
 ]
 SEED = 100
@@ -116,6 +115,7 @@ class OpenAIProxy:
                             messages=messages,
                             tools=tools,
                             max_tokens=max_tokens,
+                            temperature=temperature,
                         )
                         return response
                 except (RateLimitError, APITimeoutError) as e:
@@ -267,7 +267,7 @@ def get_client():
 
 if __name__ == "__main__":
     openai_proxy = OpenAIProxy()
-    response = openai_proxy.call_openai_with_retry(
+    response = openai_proxy.call_openai(
         "gpt-4-0125-preview",
         [
             {
