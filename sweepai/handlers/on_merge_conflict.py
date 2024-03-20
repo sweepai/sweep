@@ -126,7 +126,7 @@ def on_merge_conflict(
                 branch_name="sweep/" + to_branch_name(request),
                 issue_number=pr_number,
                 is_public=repo.private is False,
-                start_time=time.time(),
+                start_time=int(time.time()),
                 # mostly copied from on_ticket, if issue please check that file
                 payment_context=PaymentContext(
                     use_faster_model=use_faster_model,
