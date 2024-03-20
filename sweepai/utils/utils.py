@@ -282,7 +282,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
     return True, ""
 
 
-@file_cache()
+# @file_cache()
 def chunk_code(
     code: str,
     path: str,
