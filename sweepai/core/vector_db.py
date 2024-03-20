@@ -37,7 +37,7 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
         yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
 
 
-@file_cache(ignore_params=["texts"])
+# @file_cache(ignore_params=["texts"])
 def get_query_texts_similarity(query: str, texts: str) -> list[float]:
     embeddings = embed_text_array(texts)
     embeddings = np.concatenate(embeddings)
