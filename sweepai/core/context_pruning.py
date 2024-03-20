@@ -1,6 +1,8 @@
+from collections import defaultdict
 import json
 import os
 import re
+import subprocess
 import textwrap
 import time
 import urllib
@@ -31,16 +33,17 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather ALL RELEVANT information from the codebase that allows you to completely solve the issue. It is very important that you get this right and do not miss any relevant lines of code.
 
 ## Instructions
-You initially start with no snippets and will use the store_file_snippet and expand_directory to add snippets to the context. You will iteratively use the file_search, preview_file and view_file_snippet tools to help you find the relevant snippets to store.
+You initially start with no snippets and will use the store_file_snippet_to_modify, store_read_only_file_snippet and expand_directory to add code snippets to the context. You will iteratively use the keyword_search, file_search, preview_file and view_file_snippet tools to help you find the relevant snippets to store.
 
 You are provided "Relevant Snippets", which are snippets relevant to the user request. These snippets are retrieved by a lexical search over the codebase, but are NOT in the context initially.
 
 You will do this by using the following process for every relevant file:
 
-1. First use the preview_file tool to preview all files that are relevant, starting with file paths and entities mentioned in "User Request", then those in "Relevant Snippets". For example, if the class foo.bar.Bar was mentioned, be sure to preview foo/bar.py. If the file is irrelevant, move onto the next file. If you don't know the full file path, use file_search with the file name.
+1. First use the preview_file tool to preview all files that are relevant, starting with file paths and entities mentioned in "User Request", then those in "Relevant Snippets". For example, if the class foo.bar.Bar was mentioned, be sure to preview foo/bar.py. Make sure to distinguish between files that you want to edit and files that should be read only. If the file is irrelevant, move onto the next file. If you don't know the full file path, use file_search with the file name. 
 2. If the file seems relevant, use the view_file_snippet tool to view specific line numbers of a file. We want to find all line numbers relevant to solve the user request. So if the surrounding lines are relevant, use the view_file_snippet tool again with a larger span to view the surrounding lines. Repeat this process until you are certain you have the maximal relevant span.
-3. Finally, when you are certain you have the maximal relevant span, use the store_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
-
+3. When you are certain you have the maximal relevant span, use the store_file_snippet_to_modify, store_read_only_file_snippet and expand_directory tools to curate the optimal context (snippets_in_repo and repo_tree) until they allow you to completely solve the user request. If you don't know the correct line numbers, complete step one until you find the exact line numbers.
+4. After you have stored a file snippet to modify, use the keyword_search tool on any entities that appear but are not defined in the file snippet. For example, if variable myUnit has the type WorkUnit, you should keyword search for "WorkUnit" in order to find all filepaths where the keyword WorkUnit appears. You are then to iterate over the relevant filepaths to determine where the entities are defined. YOU MUST DO THIS. Once you have a list of relevant filepaths where the keyword is present, repeat the previous steps to determine if these filepaths should be added or dropped. Use the keyword_search tool to find the relevant files that the keyword shows up in, not that this tool will do a keyword match inside the code base. Repeat until you are certain that you have ALL relevant files you need.
+5. Finally, you are to create a report and provide a plan to solve this code issue. Be sure to include enough detail as you will be passing this report onto an outside contractor who has zero prior knowledge of the code base or this issue. To do this use the submit_report_and_plan tool.
 Repeat this process until you have the perfect context to solve the user request. Ensure you have checked ALL files referenced in the user request."""
 
 unformatted_user_prompt = """\
@@ -127,10 +130,10 @@ functions = [
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to view a section of a snippet. You may use this tool multiple times to view multiple snippets. After you are finished using this tool, you may use the view_file_snippet to view the surrounding lines or the store_file_snippet tool to store the snippet to solve the user request.",
+        "description": "Use this to view a section of a snippet. You may use this tool multiple times to view multiple snippets. After you are finished using this tool, you may use the view_file_snippet to view the surrounding lines or the store_file_snippet_to_modify or store_read_only_file_snippet tool to store the snippet to solve the user request.",
     },
     {
-        "name": "store_file_snippet",
+        "name": "store_file_snippet_to_modify",
         "parameters": {
             "type": "object",
             "properties": {
@@ -153,7 +156,33 @@ functions = [
             },
             "required": ["file_path", "start_line", "end_line", "justification"],
         },
-        "description": "Use this to store a snippet. Only store paths you are CERTAIN are relevant and sufficient to solving the user request and be precise with the line numbers, and provides an entire coherent section of code. Make sure to store ALL of the files that are referenced in the issue title or description. You may store multiple snippets with the same file path.",
+        "description": "Use this to store a snippet that will be MODIFIED. Only store paths you are CERTAIN are relevant and sufficient to solving the user request and be precise with the line numbers, and provides an entire coherent section of code. Make sure to store ALL of the files that are referenced in the issue title or description. You may store multiple snippets with the same file path.",
+    },
+    {
+        "name": "store_read_only_file_snippet",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "File or directory to store.",
+                },
+                "start_line": {
+                    "type": "integer",
+                    "description": "Start line of the snippet.",
+                },
+                "end_line": {
+                    "type": "integer",
+                    "description": "End line of the snippet.",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for why file_path is a relevant read only file and why the surrounding lines are irrelevant by indicating what functions are in the surrounding lines and what they do.",
+                },
+            },
+            "required": ["file_path", "start_line", "end_line", "justification"],
+        },
+        "description": "Use this to store a READ ONLY snippet. Only store paths you are CERTAIN are relevant and will help solve the user request, for example store files that contain necessary type or function definitions that are used in the file snippets that are going to be modified. Be precise with the line numbers, and provides an entire coherent section of code. Make sure to store ALL of the files that are referenced in the issue title or description. You may store multiple snippets with the same file path.",
     },
     {
         "name": "expand_directory",
@@ -172,6 +201,42 @@ functions = [
             "required": ["directory_path", "justification"],
         },
         "description": "Expand an existing directory that is closed. This is used for exploration only and does not affect the snippets. If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories. Store all files or directories that are referenced in the issue title or descriptions.",
+    },
+    {
+        "name": "keyword_search",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "keyword": {
+                    "type": "string",
+                    "description": "Keyword to search for. This will search the entire code base for the keyword so make sure that the keyword you search for is descriptive. Avoid searching for generic words like: 'if' or 'else'",
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Justification for why you are searching for this keyword and what it will provide. Example: I need to know the properties of this type in order to figure out what methods/properties are avaialble for a certain variable.",
+                },
+            },
+            "required": ["keyword", "justification"],
+        },
+        "description": "Use this to get a list of relevant file paths with the corresponding lines of code where the keyword is present. After getting the list of relevant file paths, use the preview_file tool to determine if they are relevant.",
+    },
+    {
+        "name": "submit_report_and_plan",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "report": {
+                    "type": "string",
+                    "description": "Report of the issue. The report must contain enough information so that an outside contractor with no prior knowledge of the code base or issue can solve this problem.",
+                },
+                "plan": {
+                    "type": "string",
+                    "description": "High level plan on how to fix the issue.",
+                },
+            },
+            "required": ["snippet_path", "justification"],
+        },
+        "description": "Use this tool to submit a report of the issue and a corresponding plan of how to fix it. The report should mention the root cause of the issue, what the intended behaviour should be and which files should be editted and which files should be read only. The plan should provide a high level overview of what changes need to occur in each file as well as what look ups need to occur in each read only file.",
     },
 ]
 
@@ -194,6 +259,8 @@ class RepoContextManager:
     snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
     current_top_snippets: list[Snippet] = []
+    read_only_snippets: list[Snippet] = []
+    issue_report_and_plan: str = ""
     import_trees: str = ""
     relevant_file_paths: list[
         str
@@ -202,6 +269,10 @@ class RepoContextManager:
     @property
     def top_snippet_paths(self):
         return [snippet.file_path for snippet in self.current_top_snippets]
+    
+    @property
+    def relevant_read_only_snippet_paths(self):
+        return [snippet.file_path for snippet in self.read_only_snippets]
 
     def remove_all_non_kept_paths(self, paths_to_keep: list[str]):
         self.current_top_snippets = [
@@ -276,6 +347,11 @@ class RepoContextManager:
         self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
+    
+    def add_read_only_snippets(self, snippets_to_add: list[Snippet]):
+        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
+        for snippet in snippets_to_add:
+            self.read_only_snippets.append(snippet)
 
     # does the same thing as add_snippets but adds it to the beginning of the list
     def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
@@ -292,6 +368,9 @@ class RepoContextManager:
 
     def set_relevant_paths(self, relevant_file_paths: list[str]):
         self.relevant_file_paths = relevant_file_paths
+    
+    def update_issue_report_and_plan(self, new_issue_report_and_plan: str):
+        self.issue_report_and_plan = new_issue_report_and_plan
 
 
 """
@@ -468,7 +547,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -548,6 +627,37 @@ def get_relevant_context(
         logger.exception(e)
         return repo_context_manager
 
+# post process rip grep output to be more condensed
+def post_process_rg_output(rcm: RepoContextManager, output: str):
+    processed_output = ""
+    root_directory = rcm.cloned_repo.repo_dir
+    output_lines = output.split("\n")
+    file_output_dict = defaultdict(list)
+    for line in output_lines:
+        filename, content = line.split(":", 1)
+        filename = filename[len(root_directory) + 1:]
+        file_output_dict[filename].append(content)
+    
+    # determine if we need to truncate the output
+    total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
+    if total_output_length > MAX_CHARS:
+        for filename, content in file_output_dict.items():
+            processed_output += f"File: {filename} had the following matching lines of code (some lines have been truncated):\n"
+            if len(content) < 3:
+                for line in content:
+                    processed_output += f"{line}\n"
+            else:
+                processed_output += f"{content[0]}\n"
+                processed_output += "...\n"
+                processed_output += f"{content[-1]}\n"
+            processed_output += "\n"
+    else:
+        for filename, content in file_output_dict.items():
+            processed_output += f"File: {filename} had the following matching lines of code:\n"
+            for line in content:
+                processed_output += f"{line}\n"
+            processed_output += "\n"
+    return processed_output
 
 def update_assistant_conversation(
     run: Run,
@@ -631,6 +741,12 @@ def modify_context(
                     for snippet in repo_context_manager.current_top_snippets
                 ]
             )
+            current_read_only_snippets_string = "\n".join(
+                [
+                    "- " + snippet.xml
+                    for snippet in repo_context_manager.read_only_snippets
+                ]
+            )
             logger.info(f"Tool Call: {tool_call.function.name} {function_input}")
             function_path_or_dir = function_input.get(
                 "file_path"
@@ -660,6 +776,28 @@ def modify_context(
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
+            elif tool_call.function.name == "keyword_search":
+                error_message = ""
+                keyword = function_input["keyword"]
+                rg_command = ["rg", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
+                try:
+                    result = subprocess.run(rg_command, text=True, capture_output=True)
+                    output = result.stdout
+                    if output:
+                        # post process rip grep output to be more condensed
+                        rg_output_pretty = post_process_rg_output(output)
+                    else:
+                        error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword."
+                except Exception as e:
+                    logger.error(f"FAILURE: An Error occured while trying to find the keyword: {e}")
+                    error_message = f"FAILURE: An Error occured while trying to find the keyword: {e}"
+                if error_message:
+                    output = error_message
+                else:
+                    output = (
+                        f"SUCCESS: Here are the keyword_search results:\n\n {rg_output_pretty}"
+                    )
+                    
             elif tool_call.function.name == "view_file_snippet":
                 error_message = ""
                 for key in ["start_line", "end_line"]:
@@ -708,11 +846,11 @@ def modify_context(
                     ):
                         selected_file_contents += f"{i + end_line} | {line}\n"
                     output = (
-                        f'Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nCheck if there is additional relevant context surrounding the snippet BETWEEN the START and END tags necessary to solve the user request. If so, call view_file_snippet again with a larger span. If you are CERTAIN this snippet is COMPLETELY SUFFICIENT and RELEVANT, and no surrounding lines provide ANY additional relevant context, call store_file_snippet with the same parameters ({{"file_path": "{function_path_or_dir}", "start_line": "{start_line}", "end_line": "{end_line}"}}).'
+                        f'Here are the contents of `{function_path_or_dir}:{start_line}:{end_line}`\n```\n{selected_file_contents}\n```\nCheck if there is additional relevant context surrounding the snippet BETWEEN the START and END tags necessary to solve the user request. If so, call view_file_snippet again with a larger span. If you are CERTAIN this snippet is COMPLETELY SUFFICIENT and RELEVANT, and no surrounding lines provide ANY additional relevant context, call store_file_snippet_to_modify or store_read_only_file_snippet with the same parameters ({{"file_path": "{function_path_or_dir}", "start_line": "{start_line}", "end_line": "{end_line}"}}).'
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
-            elif tool_call.function.name == "store_file_snippet":
+            elif tool_call.function.name == "store_file_snippet_to_modify":
                 error_message = ""
                 for key in ["start_line", "end_line"]:
                     if key not in function_input:
@@ -759,10 +897,61 @@ def modify_context(
                     repo_context_manager.add_snippets([snippet])
                     paths_to_add.append(function_path_or_dir)
                     output = (
-                        f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{snippet.xml}\n```. Here are the current selected snippets:\n{current_top_snippets_string}"
+                        f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{snippet.xml}\n```. Here are the current selected snippets that will be MODIFIED:\n{current_top_snippets_string}"
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
+            elif tool_call.function.name == "store_read_only_file_snippet":
+                error_message = ""
+                for key in ["start_line", "end_line"]:
+                    if key not in function_input:
+                        logger.warning(
+                            f"Key {key} not in function input {function_input}"
+                        )
+                        error_message = "FAILURE: Please provide a start and end line."
+                start_line = int(function_input["start_line"])
+                end_line = int(function_input["end_line"])
+                if end_line - start_line > 1000:
+                    error_message = (
+                        "FAILURE: Please provide a snippet of 1000 lines or less."
+                    )
+                if start_line >= end_line:
+                    error_message = "FAILURE: Start line must be less than end line."
+
+                try:
+                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                        function_path_or_dir
+                    )
+                    valid_path = True
+                except Exception:
+                    file_contents = ""
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                function_path_or_dir
+                            )
+                        ]
+                    )
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+                if error_message:
+                    output = error_message
+                else:
+                    end_line = min(end_line, len(file_contents.splitlines()))
+                    logger.info(f"start_line: {start_line}, end_line: {end_line}")
+                    snippet = Snippet(
+                        file_path=function_path_or_dir,
+                        start=start_line,
+                        end=end_line,
+                        content=file_contents,
+                    )
+                    repo_context_manager.add_read_only_snippets([snippet])
+                    paths_to_add.append(function_path_or_dir)
+                    output = (
+                        f"SUCCESS: {function_path_or_dir} was added with contents\n```\n{snippet.xml}\n```. Here are the current selected READ ONLY snippets:\n{current_read_only_snippets_string}"
+                        if valid_path
+                        else "FAILURE: This file path does not exist. Please try a new path."
+                    )           
             elif tool_call.function.name == "expand_directory":
                 valid_path = repo_context_manager.is_path_valid(
                     function_path_or_dir, directory=True
@@ -799,6 +988,17 @@ def modify_context(
                 else:
                     file_preview = CodeTree.from_code(code).get_preview()
                     output = f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
+            elif tool_call.function.name == "submit_report_and_plan":
+                error_message = ""
+                if "report" not in function_input or "plan" not in function_input:
+                    error_message = "FAILURE: Please provide a report and a plan."
+                issue_report = function_input["report"]
+                issue_plan = function_input["plan"]
+                repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
+                if error_message:
+                    output = error_message
+                else:
+                    output = "SUCCESS: Report and plan submitted."
             else:
                 output = f"FAILURE: Invalid tool name {tool_call.function.name}"
             logger.info(output)
@@ -849,7 +1049,7 @@ def modify_context(
     if directories_to_expand:
         repo_context_manager.expand_all_directories(directories_to_expand)
     logger.info(
-        f"Context Management End:\ncurrent snippet paths: {repo_context_manager.top_snippet_paths}"
+        f"Context Management End:\ncurrent snippets to modify: {repo_context_manager.top_snippet_paths}\n current read only snippets: {repo_context_manager.relevant_read_only_snippet_paths}"
     )
     paths_changed = set(initial_file_paths) != set(
         repo_context_manager.top_snippet_paths
