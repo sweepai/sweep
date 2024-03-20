@@ -1,8 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from openai import APITimeoutError
-import pytest
 
 from sweepai.config.server import OPENAI_API_ENGINE_GPT35
 from sweepai.utils.openai_proxy import OpenAIProxy

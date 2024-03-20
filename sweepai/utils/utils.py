@@ -12,7 +12,6 @@ from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
