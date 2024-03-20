@@ -83,7 +83,11 @@ class OpenAIProxy:
                     try:
                         with Timer():
                             response = self.call_azure_api(
-                                model, messages, tools, max_tokens, temperature
+                                model=model,
+                                messages=messages,
+                                tools=tools,
+                                max_tokens=max_tokens,
+                                temperature=temperature,
                             )
                             return response
                     except RateLimitError as e:
@@ -105,14 +109,13 @@ class OpenAIProxy:
                     )
                     with Timer():
                         response = self.create_openai_chat_completion(
-                            engine,
-                            region_url,
-                            api_key,
-                            model,
-                            messages,
-                            tools,
-                            max_tokens,
-                            temperature,
+                            engine=engine,
+                            base_url=region_url,
+                            api_key=api_key,
+                            model=model,
+                            messages=messages,
+                            tools=tools,
+                            max_tokens=max_tokens,
                         )
                         return response
                 except (RateLimitError, APITimeoutError) as e:
