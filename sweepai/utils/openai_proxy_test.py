@@ -67,8 +67,8 @@ class TestOpenAIProxyDetermineOpenaiEngine(unittest.TestCase):
         self.assertEqual(self.openai_proxy.determine_openai_engine("other"), None)
 
 
-@pytest.mark.skip("Breaks")
 class TestOpenAIProxy(unittest.TestCase):
+    @pytest.mark.skip("Breaks")
     @patch(
         "sweepai.utils.openai_proxy.MULTI_REGION_CONFIG",
         new=[("url1", "api_key1"), ("url2", "api_key2")],
@@ -108,5 +108,5 @@ class TestOpenAIProxy(unittest.TestCase):
         )  # This checks that the response is from OpenAI after Azure fails
 
 
-# if __name__ == "__main__":
-    # unittest.main() # these tests are broken
+if __name__ == "__main__":
+    unittest.main() # these tests are broken
