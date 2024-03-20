@@ -93,7 +93,7 @@ proportion = 0.075
 # proportion = 0.025
 k = int(os.environ.get("k", 10))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-03-18-k-{k}-plan-rca-e2e-debug"
+name = f"sweep-03-18-k-{k}-plan-rca-e2e-fixed"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
@@ -105,8 +105,7 @@ logger.info(
     f"Loaded {len(test_data)} rows of test data ({proportion * 100}% of the total)"
 )
 
-# already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()] if os.path.exists(output_file) else []
-already_done_results = []
+already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()] if os.path.exists(output_file) else []
 previously_finished_tasks = set(
     [result["instance_id"] for result in already_done_results]
 )
@@ -254,7 +253,6 @@ Repo: {repo_identifier}
                         + "\n```",
                     )
                 )
-        assert updated_files
         cloned_repo.git_repo.git.checkout(commit_hash, force=True)
         if updated_files:
             old_files = {}
