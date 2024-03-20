@@ -298,7 +298,7 @@ def test_openai_proxy():
 def test_get_client():
     model, client = get_client()
     client.beta.assistants.create(
-        model="sweep-gpt-4-turbo",
+        model=model,
         name="Test assistant",
         description="test",
         instructions="Say this is a test",
