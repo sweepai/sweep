@@ -106,5 +106,5 @@ class TestOpenAIProxy(unittest.TestCase):
         )  # This checks that the response is from OpenAI after Azure fails
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # unittest.main() # these tests are broken
