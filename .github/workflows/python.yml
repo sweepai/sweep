@@ -34,8 +34,8 @@ jobs:
         run: |
           echo "$ENV_VARS" | while IFS= read -r line; do
             if [[ "$line" == *":"* ]]; then
-              var_name=$(echo "$line" | cut -d':' -f1)
-              var_value=$(echo "$line" | cut -d':' -f2-)
+              var_name=$(echo "$line" | cut -d'=' -f1)
+              var_value=$(echo "$line" | cut -d'=' -f2-)
               echo "$var_name=$var_value" >> $GITHUB_ENV
             fi
           done
