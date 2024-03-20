@@ -281,34 +281,6 @@ def get_embeddings_client():
     client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
     return client
 
-def get_client_for_assistant():
-    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-    OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
-    OPENAI_API_BASE = os.environ.get(
-        "OPENAI_API_BASE", None
-    )
-    AZURE_API_KEY = os.environ.get(
-        "AZURE_API_KEY", None
-    )
-    AZURE_OPENAI_DEPLOYMENT = os.environ.get(
-        "AZURE_OPENAI_DEPLOYMENT", None
-    )
-    OPENAI_API_VERSION = os.environ.get(
-        "OPENAI_API_VERSION", None
-    )
-
-    if OPENAI_API_TYPE == "openai":
-        client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
-    elif OPENAI_API_TYPE == "azure":
-        client = AzureOpenAI(
-            azure_endpoint=OPENAI_API_BASE,
-            api_key=AZURE_API_KEY,
-            api_version=OPENAI_API_VERSION,
-        )
-    else:
-        raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
-    return client
-
 def test_openai_proxy():
     openai_proxy = OpenAIProxy()
     response = openai_proxy.call_openai(
