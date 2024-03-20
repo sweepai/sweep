@@ -12,7 +12,7 @@ from tqdm import tqdm
 from sweepai.config.server import BATCH_SIZE, REDIS_URL
 from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
-from sweepai.utils.openai_proxy import get_client
+from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
 
 CACHE_VERSION = "v1.3.04"
@@ -78,7 +78,7 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
 
 
 def openai_call_embedding(batch):
-    client = get_client()
+    client = get_embeddings_client()
     response = client.embeddings.create(
         input=batch, model="text-embedding-3-small", encoding_format="float"
     )

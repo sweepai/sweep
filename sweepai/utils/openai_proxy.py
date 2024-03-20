@@ -2,12 +2,13 @@ import os
 import random
 
 from loguru import logger
-from openai import APITimeoutError, AzureOpenAI, OpenAI, RateLimitError
+from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, RateLimitError
 
 from sweepai.config.server import (
     AZURE_API_KEY,
     AZURE_OPENAI_DEPLOYMENT,
     BASERUN_API_KEY,
+    DEFAULT_GPT4_32K_MODEL,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
     OPENAI_API_KEY,
@@ -126,10 +127,10 @@ class OpenAIProxy:
                             temperature=temperature,
                         )
                         return response
-                except (RateLimitError, APITimeoutError) as e:
+                except (RateLimitError, APITimeoutError, InternalServerError) as e:
                     logger.exception(f"RateLimitError calling {region_url}: {e}")
             raise Exception("No Azure regions available")
-        except (RateLimitError, APITimeoutError) as e:
+        except (RateLimitError, APITimeoutError, InternalServerError) as e:
             try:
                 with Timer():
                     return self.set_openai_default_api_parameters(
@@ -245,35 +246,70 @@ class OpenAIProxy:
 
 def get_client():
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-    OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
-    OPENAI_EMBEDDINGS_AZURE_ENDPOINT = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_ENDPOINT", None
+    OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+    OPENAI_API_BASE = os.environ.get(
+        "OPENAI_API_BASE", None
     )
-    OPENAI_EMBEDDINGS_AZURE_API_KEY = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_API_KEY", None
+    AZURE_API_KEY = os.environ.get(
+        "AZURE_API_KEY", None
     )
-    OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT", None
+    AZURE_OPENAI_DEPLOYMENT = os.environ.get(
+        "AZURE_OPENAI_DEPLOYMENT", None
     )
-    OPENAI_EMBEDDINGS_AZURE_API_VERSION = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_API_VERSION", None
+    OPENAI_API_VERSION = os.environ.get(
+        "OPENAI_API_VERSION", None
     )
 
-    if OPENAI_EMBEDDINGS_API_TYPE == "openai":
+    if OPENAI_API_TYPE == "openai":
         client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
-    elif OPENAI_EMBEDDINGS_API_TYPE == "azure":
+        model = DEFAULT_GPT4_32K_MODEL
+    elif OPENAI_API_TYPE == "azure":
         client = AzureOpenAI(
-            azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
-            api_key=OPENAI_EMBEDDINGS_AZURE_API_KEY,
-            azure_deployment=OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
-            api_version=OPENAI_EMBEDDINGS_AZURE_API_VERSION,
+            azure_endpoint=OPENAI_API_BASE,
+            api_key=AZURE_API_KEY,
+            api_version=OPENAI_API_VERSION,
+        )
+        model=AZURE_OPENAI_DEPLOYMENT
+    else:
+        raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
+    return model, client
+
+def get_embeddings_client():
+    # Only supports OpenAI for now
+
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+    return client
+
+def get_client_for_assistant():
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+    OPENAI_API_BASE = os.environ.get(
+        "OPENAI_API_BASE", None
+    )
+    AZURE_API_KEY = os.environ.get(
+        "AZURE_API_KEY", None
+    )
+    AZURE_OPENAI_DEPLOYMENT = os.environ.get(
+        "AZURE_OPENAI_DEPLOYMENT", None
+    )
+    OPENAI_API_VERSION = os.environ.get(
+        "OPENAI_API_VERSION", None
+    )
+
+    if OPENAI_API_TYPE == "openai":
+        client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+    elif OPENAI_API_TYPE == "azure":
+        client = AzureOpenAI(
+            azure_endpoint=OPENAI_API_BASE,
+            api_key=AZURE_API_KEY,
+            api_version=OPENAI_API_VERSION,
         )
     else:
         raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
     return client
 
-
-if __name__ == "__main__":
+def test_openai_proxy():
     openai_proxy = OpenAIProxy()
     response = openai_proxy.call_openai(
         "gpt-4-0125-preview",
@@ -286,3 +322,16 @@ if __name__ == "__main__":
         max_tokens=100,
     )
     print((response))
+
+def test_get_client():
+    model, client = get_client()
+    client.beta.assistants.create(
+        model="sweep-gpt-4-turbo",
+        name="Test assistant",
+        description="test",
+        instructions="Say this is a test",
+    )
+
+if __name__ == "__main__":
+    test_openai_proxy()
+    test_get_client()
