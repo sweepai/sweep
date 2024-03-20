@@ -260,7 +260,7 @@ def get_client():
         "OPENAI_API_VERSION", None
     )
 
-    if OPENAI_API_TYPE == "openai":
+    if OPENAI_API_TYPE == "openai" or True: # only supported endpoint for now for assistant
         client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
         model = DEFAULT_GPT4_32K_MODEL
     elif OPENAI_API_TYPE == "azure":
