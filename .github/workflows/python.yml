@@ -35,9 +35,12 @@ jobs:
       - name: Load environment variables
         env:
           ENV_VARS: ${{ secrets.GH_ALL_AZURE }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          GITHUB_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
         run: |
           echo "$ENV_VARS" | while IFS= read -r line; do
-            if [[ "$line" == *":"* ]]; then
+            if [[ "$line" == *"="* ]]; then
               var_name=$(echo "$line" | cut -d'=' -f1)
               var_value=$(echo "$line" | cut -d'=' -f2-)
               echo "$var_name=$var_value" >> $GITHUB_ENV
@@ -109,9 +112,5 @@ jobs:
           sudo lsof -i :6379 || true
 
       - name: Run e2e Tests
-        env:
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          GITHUB_PAT: ${{ secrets.GH_PAT }}
-          GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
         run: PYTHONPATH=. pytest -n 4 tests/e2e -s
         timeout-minutes: 30
