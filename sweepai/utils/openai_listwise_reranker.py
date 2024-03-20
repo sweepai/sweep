@@ -63,8 +63,9 @@ class RerankSnippetsBot(ChatGPT):
         self,
         user_query,
         code_snippets,
+        model: str = DEFAULT_GPT4_32K_MODEL,
     ):
-        self.model = DEFAULT_GPT4_32K_MODEL
+        self.model = model
         self.messages = []
         # if the regex match fails return the original list
         # gpt doesn't add all snippets, we move all of the dropped snippets to the end in the original order
@@ -115,21 +116,24 @@ f"""<code_snippets>
 def listwise_rerank_snippets(
     user_query,
     code_snippets,
+    model: str = DEFAULT_GPT4_32K_MODEL,
+    window=10,
 ):
     # iterate from the bottom of the list to the top, sorting each n items then resorting with next n // 2 items
-    number_to_rerank_at_once = 10
+    # number_to_rerank_at_once = 10
+    number_to_rerank_at_once = window
     stride = number_to_rerank_at_once // 2
     final_ordering = []
     prev_chunk = []
     for idx in range(len(code_snippets) - stride, 0, -stride):
         # if there is no prev_chunk, rerank the bottom n items
         if not prev_chunk:
-            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, code_snippets[idx - stride:idx + stride])
+            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, code_snippets[idx - stride:idx + stride], model=model)
         # if there's a prev_chunk, rerank this chunk with the prev_chunk
         else:
             # chunk_to_rerank should be 5 new items and the top 5 items of the prev_chunk
             chunk_to_rerank = code_snippets[idx - stride:idx] + prev_chunk[:stride]
-            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, chunk_to_rerank)
+            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, chunk_to_rerank, model=model)
         # last iteration, add all items
         if idx - stride <= 0:
             final_ordering = reranked_chunk + final_ordering
@@ -149,7 +153,7 @@ if __name__ == "__main__":
     ]
     try:
         # rank them
-        final_ordering = listwise_rerank_snippets("I want to add two numbers.", code_snippets)
+        final_ordering = listwise_rerank_snippets("I want to add two numbers.", code_snippets, model="gpt-3.5-turbo", window=6)
         print("\n".join([s.denotation for s in final_ordering]))
         # assert no duplicates or missing snippets
         assert len(set(final_ordering)) == len(final_ordering)

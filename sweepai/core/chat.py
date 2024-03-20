@@ -37,7 +37,8 @@ OpenAIModel = (
 
 ChatModel = OpenAIModel
 model_to_max_tokens = {
-    "gpt-3.5-turbo": 4096,
+    "gpt-3.5-turbo": 16385,
+    "gpt-3.5-turbo-0125": 16385,
     "gpt-3.5-turbo-1106": 16385,
     "gpt-3.5-turbo-16k": 16385,
     "gpt-4": 8192,
