@@ -105,6 +105,7 @@ def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
                 raise ValueError(
                     f"Tickets allocated: {tickets_allocated}, tickets found: {tickets_count}. You have no more tickets!"
                 )
+    return model
 
 class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
@@ -185,8 +186,6 @@ class ChatGPT(MessageList):
         temperature: float | None = None,
         max_tokens: int | None = None,
     ):
-        if model not in model_to_max_tokens:
-            raise ValueError(f"Model {model} not supported")
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
         temperature = temperature or self.temperature or default_temperature
@@ -212,6 +211,8 @@ class ChatGPT(MessageList):
         requested_max_tokens: int | None = None,
     ):
         model = determine_model_from_chat_logger(chat_logger=self.chat_logger, model=model)
+        if model not in model_to_max_tokens:
+            raise ValueError(f"Model {model} not supported")
         count_tokens = Tiktoken().count
         messages_length = sum(
             [count_tokens(message.content or "") for message in self.messages]
