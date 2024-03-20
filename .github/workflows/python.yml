@@ -32,20 +32,6 @@ jobs:
       cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
     steps:
       - uses: actions/checkout@v3
-      - name: Load environment variables
-        env:
-          ENV_VARS: ${{ secrets.GH_ALL_AZURE }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          GITHUB_PAT: ${{ secrets.GH_PAT }}
-          GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
-        run: |
-          echo "$ENV_VARS" | while IFS= read -r line; do
-            if [[ "$line" == *"="* ]]; then
-              var_name=$(echo "$line" | cut -d'=' -f1)
-              var_value=$(echo "$line" | cut -d'=' -f2-)
-              echo "$var_name=$var_value" >> $GITHUB_ENV
-            fi
-          done
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -112,5 +98,16 @@ jobs:
           sudo lsof -i :6379 || true
 
       - name: Run e2e Tests
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          GITHUB_PAT: ${{ secrets.PAT }}
+          GITHUB_APP_ID: ${{ secrets.APP_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+          GITHUB_APP_PEM: ${{ secrets.APP_PEM }}
+          MULTI_REGION_CONFIG: ${{ secrets.MULTI_REGION_CONFIG}}
+          OPENAI_API_TYPE: azure
+          OPENAI_API_VERSION: 2024-02-15-preview
+          AZURE_OPENAI_DEPLOYMENT: sweep-gpt-4-turbo
         run: PYTHONPATH=. pytest -n 4 tests/e2e -s
         timeout-minutes: 30
