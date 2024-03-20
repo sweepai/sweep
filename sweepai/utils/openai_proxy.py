@@ -65,7 +65,11 @@ class OpenAIProxy:
             if OPENAI_API_TYPE is None or engine is None:
                 with Timer():
                     response = self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature, tools
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        tools=tools,
                     )
                     return response
             # validity checks for MULTI_REGION_CONFIG
@@ -93,7 +97,11 @@ class OpenAIProxy:
                         logger.exception(f"Rate Limit Error calling Azure: {e}")
                 with Timer():
                     return self.set_openai_default_api_parameters(
-                        model, messages, tools, max_tokens, temperature
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        tools=tools,
                     )
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
