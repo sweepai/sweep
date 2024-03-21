@@ -1093,13 +1093,10 @@ def handle_event(request_dict, event):
                     for commit in pr.get_commits():
                         lines_modified = commit.stats.additions + commit.stats.deletions
                         total_lines_in_commit += lines_modified
-
                         if commit.author.login != CURRENT_USERNAME:
                             total_lines_edited_by_developer += lines_modified
                     # this was edited by a developer if at least 25% of the lines were edited by a developer
-                    edited_by_developers = total_lines_in_commit > 0 and (
-                        total_lines_edited_by_developer / total_lines_in_commit
-                    ) >= 0.25
+                    edited_by_developers = total_lines_in_commit > 0 and (total_lines_edited_by_developer / total_lines_in_commit) >= 0.25
                     posthog.capture(
                         merged_by,
                         event_name,
