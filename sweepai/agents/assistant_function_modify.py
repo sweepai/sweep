@@ -263,6 +263,7 @@ def function_modify(
                     elif len(tool_call["replaces_to_make"]) == 0:
                         error_message = "replace_to_make should not be empty."
                     else:
+                        # TODO: add roll backwards functionality
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
