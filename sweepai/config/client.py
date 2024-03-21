@@ -24,6 +24,12 @@ class SweepConfig(BaseModel):
         "dist",
     ]
     exclude_path_dirs: list[str] = ["node_modules", "venv", ".git", "dist"]
+    exclude_substrings_aggressive: list[str] = [ # aggressively filter out file paths, may drop some relevant files
+        "integration",
+        ".spec",
+        ".test",
+        ".json"
+    ]
     include_exts: list[str] = [
         ".cs",
         ".csharp",
@@ -210,6 +216,17 @@ class SweepConfig(BaseModel):
         parts = file_path.split(os.path.sep)
         for part in parts:
             if part in self.exclude_dirs or part in self.exclude_exts:
+                return True
+        return False
+    
+    # returns if file is excluded or not, this version may drop actual relevant files
+    def is_file_excluded_aggressive(self, file_path: str) -> bool:
+        parts = file_path.split(os.path.sep)
+        for part in parts:
+            if part in self.exclude_dirs or part in self.exclude_exts:
+                return True
+        for part in self.exclude_substrings_aggressive:
+            if part in file_path:
                 return True
         return False
         

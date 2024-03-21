@@ -101,7 +101,7 @@ functions = [
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "File or directory to store.",
+                    "description": "File to view.",
                 },
                 "justification": {
                     "type": "string",
@@ -110,7 +110,9 @@ functions = [
             },
             "required": ["file_path", "justification"],
         },
-        "description": "Use this to view a file. You may use this tool multiple times. After you are finished using this tool, you may use the store_relevant_file_to_modify or store_relevant_file_to_read tool to store the file to solve the user request.",
+        "description": """Use this to view a file. You may use this tool multiple times. 
+        After you are finished using this tool, you should use keyword_search on relevant entities inside the file in order to find their definitions. 
+        You may use the store_relevant_file_to_modify or store_relevant_file_to_read tool to store the file to solve the user request.""",
     },
     {
         "name": "store_relevant_file_to_modify",
@@ -128,7 +130,8 @@ functions = [
             },
             "required": ["file_path", "justification"],
         },
-        "description": "Use this to store a file that will be MODIFIED. Only store files you are CERTAIN are relevant to solving the user request.",
+        "description": """Use this to store a file that will be MODIFIED. Only store files you are CERTAIN are relevant to solving the user request.
+        Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition for in this file. This will search the entire codebase and allow you to find these definitions.""",
     },
     {
         "name": "store_relevant_file_to_read",
@@ -146,7 +149,8 @@ functions = [
             },
             "required": ["file_path", "justification"],
         },
-        "description": """Use this to store a READ ONLY file. Only store paths you are CERTAIN are relevant and will help solve the user request, such as functions referenced in the modified files.""",
+        "description": """Use this to store a READ ONLY file. Only store paths you are CERTAIN are relevant and will help solve the user request, such as functions referenced in the modified files. 
+        Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition for in this file. This will search the entire codebase and allow you to find these definitions.""",
     },
     {
         "name": "expand_directory",
@@ -183,7 +187,8 @@ If you are looking for a function call, search for it's respective language's de
             },
             "required": ["keyword", "justification"],
         },
-        "description": "Use this to get a list of relevant file paths with the corresponding lines of code where the keyword is present. After getting the list of relevant file paths, use the preview_file tool to determine if they are relevant.",
+        "description": """Use this to get a list of files with the corresponding lines of code where the keyword is present. 
+        Use the view_file tool on each file to determine if they are relevant or not. Pay extra attention to definitions of classes, functions, and variable types.""",
     },
     {
         "name": "submit_report_and_plan",
@@ -201,7 +206,8 @@ If you are looking for a function call, search for it's respective language's de
             },
             "required": ["snippet_path", "justification"],
         },
-        "description": "Use this tool to submit a report of the issue and a corresponding plan of how to fix it. The report should mention the root cause of the issue, what the intended behaviour should be and which files should be editted and which files should be read only. The plan should provide a high level overview of what changes need to occur in each file as well as what look ups need to occur in each read only file.",
+        "description": """Use this tool to submit a report of the issue and a corresponding plan of how to fix it. The report should mention the root cause of the issue, what the intended behaviour should be and which files should be editted and which files should be read only. 
+        The plan should provide a high level overview of what changes need to occur in each file as well as what look ups need to occur in each read only file.""",
     },
 ]
 
@@ -534,11 +540,11 @@ def get_relevant_context(
     )
     try:
         # attempt to get import tree for relevant snippets that show up in the query
-        repo_context_manager, _ = parse_query_for_files(
+        repo_context_manager, import_graph = parse_query_for_files(
             query, repo_context_manager
         )
         # for any code file mentioned in the query, build its import tree - This is currently not used
-        # repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
+        repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
@@ -603,7 +609,7 @@ def post_process_rg_output(rcm: RepoContextManager, sweep_config: SweepConfig, o
     for line in output_lines:
         filename, content = line.split(":", 1)
         filename = filename[len(root_directory) + 1:]
-        if not sweep_config.is_file_excluded(filename):
+        if not sweep_config.is_file_excluded(filename) and not sweep_config.is_file_excluded_aggressive(filename):
             file_output_dict[filename].append(content)
     
     # determine if we need to truncate the output
@@ -615,9 +621,12 @@ def post_process_rg_output(rcm: RepoContextManager, sweep_config: SweepConfig, o
                 for line in content:
                     processed_output += f"{line}\n"
             else:
-                processed_output += f"{content[0]}\n"
+                line1 = content[0]
+                line2 = content[-1]
+                
+                processed_output += f"{line1}\n"
                 processed_output += "...\n"
-                processed_output += f"{content[-1]}\n"
+                processed_output += f"{line2}\n"
             processed_output += "\n"
     else:
         for filename, content in file_output_dict.items():
