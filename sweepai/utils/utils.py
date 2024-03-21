@@ -251,7 +251,7 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     return True, ""
 
 
-def check_code(file_path: str, code: str, cwd: str | None = None) -> tuple[bool, str]:
+def check_code(file_path: str, code: str) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return is_valid, error_message
@@ -284,7 +284,7 @@ def check_code(file_path: str, code: str, cwd: str | None = None) -> tuple[bool,
                 return False, error_message
         except Exception as e:
             logger.exception(e)
-    if ext == "ts":
+    if ext == "ts" and False:
         file_hash = uuid.uuid4().hex
         new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
         try:

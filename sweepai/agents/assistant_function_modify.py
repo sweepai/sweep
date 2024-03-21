@@ -150,7 +150,7 @@ def function_modify(
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        initial_code_valid, _ = check_code(file_path, current_contents, cwd=cwd)
+        initial_code_valid, _ = check_code(file_path, current_contents)
         initial_code_valid = initial_code_valid or (
             "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
         )
@@ -329,7 +329,7 @@ def function_modify(
                                 is_valid, message = (
                                     (True, "")
                                     if not initial_code_valid
-                                    else check_code(file_path, current_new_contents, cwd=cwd)
+                                    else check_code(file_path, current_new_contents)
                                 )
                                 current_diff = generate_diff(
                                     new_contents, current_new_contents
