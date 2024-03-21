@@ -1,5 +1,9 @@
 name: Python CI All
 
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     branches:
@@ -45,13 +49,6 @@ jobs:
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install ruff pylint pytest pytest-xdist black
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
-      - name: Cache dependencies
-        id: cache-dependencies
-        uses: actions/cache/save@v4
-        with:
-          path: "~"
-          key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
-
       - name: Format with Black
         run: black sweepai
 
@@ -94,12 +91,6 @@ jobs:
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install ruff pylint pytest pytest-xdist black
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
-      - name: Cache dependencies
-        id: cache-dependencies
-        uses: actions/cache/save@v4
-        with:
-          path: "~"
-          key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
       - name: Set up Redis (for e2e tests)
         run: |
           sudo apt-get update
@@ -109,14 +100,14 @@ jobs:
       - name: Run e2e Tests
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          GITHUB_PAT: ${{ secrets.GH_PAT }}
-          GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
+          GITHUB_PAT: ${{ secrets.PAT }}
+          GITHUB_APP_ID: ${{ secrets.APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+          GITHUB_APP_PEM: ${{ secrets.APP_PEM }}
+          MULTI_REGION_CONFIG: ${{ secrets.MULTI_REGION_CONFIG}}
           OPENAI_API_TYPE: azure
-          OPENAI_API_BASE: ${{ secrets.GH_OPENAI_API_BASE }}
           OPENAI_API_VERSION: 2024-02-15-preview
-          AZURE_API_KEY: ${{ secrets.GH_AZURE_API_KEY }}
-          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.GH_AZURE_OPENAI_DEPLOYMENT }}
+          AZURE_OPENAI_DEPLOYMENT: sweep-gpt-4-turbo
         run: PYTHONPATH=. pytest -n 4 tests/e2e -s
         timeout-minutes: 30

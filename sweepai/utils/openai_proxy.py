@@ -2,12 +2,13 @@ import os
 import random
 
 from loguru import logger
-from openai import APITimeoutError, AzureOpenAI, OpenAI, RateLimitError
+from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, RateLimitError
 
 from sweepai.config.server import (
     AZURE_API_KEY,
     AZURE_OPENAI_DEPLOYMENT,
     BASERUN_API_KEY,
+    DEFAULT_GPT4_32K_MODEL,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
     OPENAI_API_KEY,
@@ -24,7 +25,6 @@ if BASERUN_API_KEY is not None:
 OPENAI_TIMEOUT = 60  # one minute
 
 OPENAI_EXCLUSIVE_MODELS = [
-    "gpt-4-0125-preview",
     "gpt-3.5-turbo-1106",
 ]
 SEED = 100
@@ -66,7 +66,11 @@ class OpenAIProxy:
             if OPENAI_API_TYPE is None or engine is None:
                 with Timer():
                     response = self.set_openai_default_api_parameters(
-                        model, messages, max_tokens, temperature, tools
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        tools=tools,
                     )
                     return response
             # validity checks for MULTI_REGION_CONFIG
@@ -83,14 +87,22 @@ class OpenAIProxy:
                     try:
                         with Timer():
                             response = self.call_azure_api(
-                                model, messages, tools, max_tokens, temperature
+                                model=model,
+                                messages=messages,
+                                tools=tools,
+                                max_tokens=max_tokens,
+                                temperature=temperature,
                             )
                             return response
                     except RateLimitError as e:
                         logger.exception(f"Rate Limit Error calling Azure: {e}")
                 with Timer():
                     return self.set_openai_default_api_parameters(
-                        model, messages, tools, max_tokens, temperature
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        tools=tools,
                     )
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
@@ -105,20 +117,20 @@ class OpenAIProxy:
                     )
                     with Timer():
                         response = self.create_openai_chat_completion(
-                            engine,
-                            region_url,
-                            api_key,
-                            model,
-                            messages,
-                            tools,
-                            max_tokens,
-                            temperature,
+                            engine=engine,
+                            base_url=region_url,
+                            api_key=api_key,
+                            model=model,
+                            messages=messages,
+                            tools=tools,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
                         )
                         return response
-                except (RateLimitError, APITimeoutError) as e:
+                except (RateLimitError, APITimeoutError, InternalServerError) as e:
                     logger.exception(f"RateLimitError calling {region_url}: {e}")
             raise Exception("No Azure regions available")
-        except (RateLimitError, APITimeoutError) as e:
+        except (RateLimitError, APITimeoutError, InternalServerError) as e:
             try:
                 with Timer():
                     return self.set_openai_default_api_parameters(
@@ -234,37 +246,44 @@ class OpenAIProxy:
 
 def get_client():
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-    OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
-    OPENAI_EMBEDDINGS_AZURE_ENDPOINT = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_ENDPOINT", None
+    OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+    OPENAI_API_BASE = os.environ.get(
+        "OPENAI_API_BASE", None
     )
-    OPENAI_EMBEDDINGS_AZURE_API_KEY = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_API_KEY", None
+    AZURE_API_KEY = os.environ.get(
+        "AZURE_API_KEY", None
     )
-    OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT", None
+    AZURE_OPENAI_DEPLOYMENT = os.environ.get(
+        "AZURE_OPENAI_DEPLOYMENT", None
     )
-    OPENAI_EMBEDDINGS_AZURE_API_VERSION = os.environ.get(
-        "OPENAI_EMBEDDINGS_AZURE_API_VERSION", None
+    OPENAI_API_VERSION = os.environ.get(
+        "OPENAI_API_VERSION", None
     )
 
-    if OPENAI_EMBEDDINGS_API_TYPE == "openai":
+    if OPENAI_API_TYPE == "openai" or True: # only supported endpoint for now for assistant
         client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
-    elif OPENAI_EMBEDDINGS_API_TYPE == "azure":
+        model = DEFAULT_GPT4_32K_MODEL
+    elif OPENAI_API_TYPE == "azure":
         client = AzureOpenAI(
-            azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
-            api_key=OPENAI_EMBEDDINGS_AZURE_API_KEY,
-            azure_deployment=OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
-            api_version=OPENAI_EMBEDDINGS_AZURE_API_VERSION,
+            azure_endpoint=OPENAI_API_BASE,
+            api_key=AZURE_API_KEY,
+            api_version=OPENAI_API_VERSION,
         )
+        model=AZURE_OPENAI_DEPLOYMENT
     else:
         raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
+    return model, client
+
+def get_embeddings_client():
+    # Only supports OpenAI for now
+
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
     return client
 
-
-if __name__ == "__main__":
+def test_openai_proxy():
     openai_proxy = OpenAIProxy()
-    response = openai_proxy.call_openai_with_retry(
+    response = openai_proxy.call_openai(
         "gpt-4-0125-preview",
         [
             {
@@ -275,3 +294,16 @@ if __name__ == "__main__":
         max_tokens=100,
     )
     print((response))
+
+def test_get_client():
+    model, client = get_client()
+    client.beta.assistants.create(
+        model=model,
+        name="Test assistant",
+        description="test",
+        instructions="Say this is a test",
+    )
+
+if __name__ == "__main__":
+    test_openai_proxy()
+    test_get_client()

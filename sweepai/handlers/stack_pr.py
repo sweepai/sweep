@@ -87,7 +87,7 @@ def stack_pr(
                 branch_name="sweep/" + to_branch_name(request),
                 issue_number=pr_number,
                 is_public=repo.private is False,
-                start_time=time.time(),
+                start_time=int(time.time()),
             ),
         )
 

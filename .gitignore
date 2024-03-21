@@ -203,6 +203,6 @@ docker-compose
 .pdbrc.py
 
 ee/**
-eval/*.txt
-eval/*.csv
-eval/*.jsonl
+eval/**/*.txt
+eval/**/*.csv
+eval/**/*.jsonl
