@@ -126,6 +126,7 @@ def function_modify(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
+    cwd: str | None = None,
 ):
     try:
 
@@ -149,7 +150,7 @@ def function_modify(
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        initial_code_valid, _ = check_code(file_path, current_contents)
+        initial_code_valid, _ = check_code(file_path, current_contents, cwd=cwd)
         initial_code_valid = initial_code_valid or (
             "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
         )
@@ -327,7 +328,7 @@ def function_modify(
                                 is_valid, message = (
                                     (True, "")
                                     if not initial_code_valid
-                                    else check_code(file_path, current_new_contents)
+                                    else check_code(file_path, current_new_contents, cwd=cwd)
                                 )
                                 current_diff = generate_diff(
                                     new_contents, current_new_contents
@@ -462,7 +463,7 @@ def function_modify(
                                     sections_message = english_join(
                                         [
                                             int_to_excel_col(match_index + 1)
-                                            for match_index in match_indices
+                                            for match_index in relevant_file_match_indices
                                         ]
                                     )
                                     starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"

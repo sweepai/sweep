@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import ast
+from io import StringIO
+import os
 import re
+import subprocess
 import traceback
 from dataclasses import dataclass
 from typing import Optional
+import uuid
 
+from pylint.lint import Run
+from pylint.reporters.text import TextReporter
 import tiktoken
 from loguru import logger
 from tree_sitter import Node
@@ -245,39 +251,72 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     return True, ""
 
 
-def check_code(file_path: str, code: str) -> tuple[bool, str]:
+def check_code(file_path: str, code: str, cwd: str | None = None) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return is_valid, error_message
     ext = file_path.split(".")[-1] # noqa
-    # if ext == "py":
-    #     file_hash = uuid.uuid4().hex
-    #     new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
-    #     try:
-    #         with open(new_file, "w") as f:
-    #             f.write(code)
-    #         pylint_output = StringIO()
-    #         reporter = TextReporter(pylint_output)
-    #         Run(
-    #             [
-    #                 new_file,
-    #                 "--errors-only",
-    #                 "--disable=import-error",
-    #                 "--disable=no-member",
-    #                 "--disable=relative-beyond-top-level",
-    #             ],
-    #             reporter=reporter,
-    #             do_exit=False,
-    #         )
-    #         error_message = pylint_output.getvalue()
-    #         try:
-    #             os.remove(new_file)
-    #         except FileNotFoundError:
-    #             pass
-    #         if error_message:
-    #             return False, error_message
-    #     except Exception as e:
-    #         discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
+    if ext == "py":
+        file_hash = uuid.uuid4().hex
+        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        try:
+            with open(new_file, "w") as f:
+                f.write(code)
+            pylint_output = StringIO()
+            reporter = TextReporter(pylint_output)
+            Run(
+                [
+                    new_file,
+                    "--errors-only",
+                    "--disable=import-error",
+                    "--disable=no-member",
+                    "--disable=relative-beyond-top-level",
+                ],
+                reporter=reporter,
+                do_exit=False,
+            )
+            error_message = pylint_output.getvalue()
+            try:
+                os.remove(new_file)
+            except FileNotFoundError:
+                pass
+            if error_message:
+                return False, error_message
+        except Exception as e:
+            logger.exception(e)
+    if ext == "ts":
+        file_hash = uuid.uuid4().hex
+        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        try:
+            with open(new_file, "w") as f:
+                f.write(code)
+            result = subprocess.run(
+                ["npx", "eslint", new_file],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            try:
+                os.remove(new_file)
+            except FileNotFoundError:
+                pass
+            if result.returncode != 0:
+                return False, result.stdout + "\n\n" + result.stderr
+        except Exception as e:
+            logger.exception(e)
+        # if cwd:
+        #     try:
+        #         result = subprocess.run(
+        #             ["npx", "ts-node", file_path],
+        #             capture_output=True,
+        #             text=True,
+        #             timeout=60,
+        #             cwd=cwd,
+        #         )
+        #         if result.returncode != 0:
+        #             return False, result.stdout + "\n\n" + result.stderr
+        #     except Exception as e:
+        #         logger.exception(e)
     return True, ""
 
 
