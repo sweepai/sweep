@@ -523,6 +523,7 @@ def get_relevant_context(
     if chat_logger and chat_logger.use_faster_model():
         raise Exception(FASTER_MODEL_MESSAGE)
     model = DEFAULT_GPT4_32K_MODEL
+    model, client = get_client()
     posthog.capture(
         chat_logger.data.get("username") if chat_logger is not None else "anonymous",
         "call_assistant_api",
@@ -531,7 +532,6 @@ def get_relevant_context(
             "model": model,
         },
     )
-    client = get_client()
     try:
         # attempt to get import tree for relevant snippets that show up in the query
         repo_context_manager, _ = parse_query_for_files(
@@ -664,7 +664,7 @@ def modify_context(
     initial_file_paths = repo_context_manager.top_snippet_paths
     paths_to_add = []
     num_tool_calls_made = 0
-    client = get_client()
+    model, client = get_client()
     for iter in range(max_iterations):
         run = openai_retry_with_timeout(
             client.beta.threads.runs.retrieve,
