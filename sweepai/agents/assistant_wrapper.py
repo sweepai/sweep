@@ -591,6 +591,59 @@ def openai_assistant_call(
             logger.exception(e)
             raise e
 
+# parse llm response for tool calls in xml format
+def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
+    tool_calls = []
+    plan_regex = r'<ProposeProblemAnalysisAndPlan(?: analysis="(?P<analysis>[^"]*)")?>(?P<plan>.*?)<\/ProposeProblemAnalysisAndPlan>'
+    keyword_search_regex = r'<KeywordSearch(?: justification="(?P<justification>[^"]*)")?>(?P<keyword>.*?)<\/KeywordSearch>'   
+    search_and_replace_regex = (
+        r'<SearchAndReplace sectionId="(?P<sectionid>[^"]+)">'
+        r'\s*<OriginalCode>\s*(?P<original>.*?)\s*</OriginalCode>'
+        r'\s*<NewCode>\s*(?P<new>.*?)\s*</NewCode>'
+        r'\s*</SearchAndReplace>'
+    )
+    submit_solution_regex = r'<SubmitSolution(?: justification="(?P<justification>[^"]*)")?>(.*?)<\/SubmitSolution>'
+    plan_matches = re.finditer(plan_regex, response_contents)
+    keyword_matches = re.finditer(keyword_search_regex, response_contents)
+    search_and_replace_matches = re.finditer(search_and_replace_regex, response_contents)
+    submit_solution_matches = re.finditer(submit_solution_regex, response_contents)
+
+    for match in plan_matches:
+        tool_calls.append({
+            "tool": "ProposeProblemAnalysisAndPlan",
+            "arguments": {
+                "analysis": match.group("analysis"),
+                "plan": match.group("plan")
+            }
+        })
+    
+    for match in keyword_matches:
+        tool_calls.append({
+            "tool": "KeywordSearch",
+            "arguments": {
+                "justification": match.group("justification"),
+                "keyword": match.group("keyword")
+            }
+        })
+
+    for match in search_and_replace_matches:
+        tool_calls.append({
+            "tool": "SearchAndReplace",
+            "arguments": {
+                "sectionId": match.group("sectionid"),
+                "original": match.group("original"),
+                "new": match.group("new")
+            }
+        })
+    
+    for match in submit_solution_matches:
+        tool_calls.append({
+            "tool": "SubmitSolution",
+            "arguments": {
+                "justification": match.group("justification"),
+            }
+        })
+    return tool_calls
 
 def run_until_complete_unstable(
     tools: list[dict[str, str]],
@@ -638,62 +691,44 @@ def run_until_complete_unstable(
             continue
 
         response_message = response.choices[0].message
-        tool_calls = fix_tool_calls(response_message.tool_calls)
-        response_message.tool_calls = tool_calls
+        import pdb; pdb.set_trace()
+        
+        # tool_calls = fix_tool_calls(response_message.tool_calls)
+        # response_message.tool_calls = tool_calls
         # extend conversation
-        response_message_dict = response_message.dict()
+        response_message_dict = response_message.model_dump()
+        response_contents = response_message_dict.get("content", "")
         # in some cases the fields are None and we must replace these with empty strings
         for key, value in response_message_dict.items():
             if value is None:
                 response_message_dict[key] = ""
         # if function_call is None we must remove it or else openai will throw an error
-        if response_message_dict.get("function_call", "not in dict") == "":
-            response_message_dict.pop("function_call")
-        if response_message_dict.get("tool_calls", "not in dict") == "":
-            response_message_dict.pop("tool_calls")
-
+        # if response_message_dict.get("function_call", "not in dict") == "":
+        #     response_message_dict.pop("function_call")
+        # if response_message_dict.get("tool_calls", "not in dict") == "":
+        #     response_message_dict.pop("tool_calls")
         messages.append(response_message_dict)
+        tool_calls = parse_tool_calls(response_contents)
         # if a tool call was made
         done_response = None
         if tool_calls:
             for tool_call in tool_calls:
-                function_name = tool_call.function.name
-                # if function_name == submit_schema["name"]:
-                #     logger.info(
-                #         f"Submit function was called"
-                #     )
-                #     try:
-                #         function_args = json.loads(tool_call.function.arguments)
-                #     except json.JSONDecodeError as e:
-                #         logger.debug(
-                #             f"Error: could not decode function arguments: {tool_call.function.args}"
-                #         )
-                #         tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
-                #     else:
-                #         done_response = yield "done", {
-                #             "status": "completed",
-                #             "message": function_args["justification"],
-                #         }
-                #         logger.info(
-                #             f"run_until_complete done_response: {done_response} completed after {i} iterations"
-                #         )
-                #     if not done_response:
-                #         break
+                tool_name = tool_call['tool']
                 try:
-                    function_args = json.loads(tool_call.function.arguments)
+                    tool_args = json.loads(tool_call["arguments"])
                 except json.JSONDecodeError as e:
                     logger.debug(
-                        f"Error: could not decode function arguments: {tool_call.function.args}"
+                        f"Error: could not decode function arguments: {tool_call["arguments"]}"
                     )
                     tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
                 else:
-                    if function_name == submit_schema["name"]:
+                    if tool_name == submit_schema["name"]:
                         logger.info(
                             "Submit function was called"
                         )
                         done_response = yield "done", {
                             "status": "completed",
-                            "message": function_args["justification"],
+                            "message": tool_args["justification"],
                         }
                         logger.info(
                             f"run_until_complete done_response: {done_response} completed after {i} iterations"
@@ -702,14 +737,13 @@ def run_until_complete_unstable(
                             break
                     else:
                         logger.debug(
-                            f"tool_call: {function_name} with args: {function_args}"
+                            f"tool_call: {tool_name} with args: {tool_args}"
                         )
-                        tool_output = yield function_name, function_args
+                        tool_output = yield tool_name, tool_args
                 messages.append(
                     {
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": function_name,
+                        "role": "assistant",
+                        "name": tool_name,
                         "content": tool_output,
                     }
                 )  # extend conversation with function response
@@ -786,18 +820,14 @@ def openai_assistant_call_helper_unstable(
     for message in additional_messages:
         messages.append({"role": message.role, "content": message.content})
 
-    # tools must always be > 1
-    if len(tools) > 1:
-        return run_until_complete_unstable(
-            tools=tools,
-            messages=messages,
-            model=model,
-            chat_logger=chat_logger,
-            sleep_time=sleep_time,
-            save_ticket_progress=save_ticket_progress,
-        )
-    else:
-        raise Exception("openai_assistant_call_helper tools must be > 1")
+    return run_until_complete_unstable(
+        tools=tools,
+        messages=messages,
+        model=model,
+        chat_logger=chat_logger,
+        sleep_time=sleep_time,
+        save_ticket_progress=save_ticket_progress,
+    )
 
 
 # Split in two so it can be cached

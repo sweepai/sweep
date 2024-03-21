@@ -30,14 +30,47 @@ Respect and use existing conventions, libraries, etc that are already present in
 Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
-1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes.
-3. Use the search_and_replace function to make the changes.
+1. Use the ProposeProblemAnalysisAndPlan tool to analyze the user's request and construct a plan of keywords to search for and the changes to make.
+2. Use the KeywordSearch tool to find the right places to make changes.
+3. Use the SearchAndReplace tool to make the changes.
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
 
-When you have completed the task, call the submit function.
+You have access to the following tools:
+
+# Tools
+ProposeProblemAnalysisAndPlan - Break down the problem and identify important pieces of information that will be needed to solve the problem, such as the relevant keywords, the intended behavior, and the required imports. Describe the plan for the task, including the keywords to search and the modifications to make. Be sure to consider all imports that are required to complete the task.
+To call this tool you MUST respond in the following xml format:
+
+<ProposeProblemAnalysisAndPlan analysis="Break down the problem and identify important pieces of information that will be needed to solve the problem, such as the relevant keywords, the intended behavior, and the required imports.">
+proposed plan - Describe the plan for the task, including the keywords to search and the modifications to make. Be sure to consider all imports that are required to complete the task.
+</ProposeProblemAnalysisAndPlan>
+
+KeywordSearch - Use this tool to search for a keyword in the current code file as well as all relevant read-only code files. This is the keyword itself that you want to search for in the contents of the file, not the name of the file itself.
+To call this tool you MUST respond in the following xml format:
+
+<KeywordSearch justification="Justification for searching the keyword.">
+keyword to search for - e.g. function name, class name, variable name
+</KeywordSearch>
+
+SearchAndReplace - Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made. Be sure to consider all imports that are required to complete the task.
+If multiple SearchAndReplace calls are needed, call this tool multiple times. To call this tool you MUST respond in the following xml format:
+
+<SearchAndReplace sectionId="The section ID the original code belongs to.">
+<OriginalCode>
+The original lines of code. Be sure to add lines before and after to disambiguate the change.
+</OriginalCode>
+<NewCode>
+The new code to replace the old code.
+</NewCode>
+</SearchAndReplace>
+
+SubmitSolution - Use this tool to let the user know that you have completed all necessary steps in order to satisfy their request.
+To call this tool you MUST respond in the following xml format:
+
+<SubmitSolution justification="Justification for why you are finished with your task.">
+</SubmitSolution>
 """
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
@@ -227,7 +260,7 @@ def function_modify(
                 save_ticket_progress if ticket_progress is not None else None
             ),
             assistant_name="Code Modification Function Assistant",
-            tools=tools,
+            tools=[],
         )
 
         try:
