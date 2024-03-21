@@ -509,7 +509,7 @@ def on_ticket(
                 else None
             )
 
-            if chat_logger:
+            if chat_logger and not IS_SELF_HOSTED:
                 is_paying_user = chat_logger.is_paying_user()
                 is_consumer_tier = chat_logger.is_consumer_tier()
                 use_faster_model = chat_logger.use_faster_model()
