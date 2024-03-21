@@ -145,7 +145,7 @@ def get_json_messages(
     run_id: str,
     assistant_id: str,
 ):
-    client = get_client()
+    model, client = get_client()
     assistant = openai_retry_with_timeout(
         client.beta.assistants.retrieve,
         assistant_id=assistant_id,
@@ -244,7 +244,7 @@ def run_until_complete(
     working_run_id = run_id
     # Credits to https://github.com/VictorAny for help debugging the thread restarts
     # Many fixes based on https://github.com/sweepai/sweep/pull/3311
-    client = get_client()
+    model, client = get_client()
     message_strings = []
     json_messages = []
     try:
@@ -455,7 +455,7 @@ def openai_assistant_call_helper(
 ):
     file_ids = [] if not uploaded_file_ids else uploaded_file_ids
     file_object = None
-    client = get_client()
+    model, client = get_client()
     if not file_ids:
         for file_path in file_paths:
             if not any(file_path.endswith(extension) for extension in allowed_exts):
@@ -533,7 +533,7 @@ def openai_assistant_call(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    client = get_client()
+    model, client = get_client()
     model = (
         "gpt-3.5-turbo-1106"
         if (chat_logger is None or chat_logger.use_faster_model())
@@ -814,7 +814,6 @@ def openai_assistant_call_helper_unstable(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    get_client()
     logger.debug(instructions)
     messages = [{"role": "system", "content": instructions}]
     for message in additional_messages:
@@ -845,7 +844,7 @@ def openai_assistant_call_unstable(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    client = get_client()
+    model, client = get_client()
     if chat_logger and chat_logger.use_faster_model():
         raise Exception("GPT-3.5 is not supported on assistant calls.")
     model = DEFAULT_GPT4_32K_MODEL

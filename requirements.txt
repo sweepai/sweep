@@ -19,7 +19,7 @@ babel==2.14.0
 backoff==2.2.1
 beautifulsoup4==4.12.3
 billiard==4.2.0
-black==23.12.1
+black==24.3.0
 bleach==6.1.0
 blinker==1.7.0
 build==0.10.0

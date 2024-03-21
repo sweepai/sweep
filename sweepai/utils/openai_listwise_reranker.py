@@ -107,10 +107,7 @@ f"""{snippet.denotation}
 """
             result_str += snippet_str + "\n"
         result_removed_trailing_newlines = result_str.rstrip("\n")
-        return \
-f"""<code_snippets>
-{result_removed_trailing_newlines}
-</code_snippets>"""
+        return result_removed_trailing_newlines
         
 def listwise_rerank_snippets(
     user_query,
