@@ -18,7 +18,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 from pydantic import BaseModel
 
 from sweepai.agents.agent_utils import ensure_additional_messages_length
-from sweepai.agents.assistant_functions import raise_error_schema, submit_schema
+from sweepai.agents.assistant_functions import raise_error_schema
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
