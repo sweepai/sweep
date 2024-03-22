@@ -10,22 +10,10 @@ from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.utils import Tiktoken, chunk_code
 
 tiktoken_client = Tiktoken()
-
-def read_file_with_fallback_encodings(
-    file_path, encodings=["utf-8", "windows-1252", "iso-8859-1"]
-):
-    for encoding in encodings:
-        try:
-            with open(file_path, "r", encoding=encoding) as file:
-                return file.read()
-        except UnicodeDecodeError:
-            continue
-    raise UnicodeDecodeError(
-        f"Could not decode {file_path} with any of the specified encodings: {encodings}"
-    )
 
 
 def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
