@@ -11,6 +11,8 @@ from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.entities import EmptyRepository
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
+from sweepai.utils.utils import Tiktoken
 
 
 class SweepConfig(BaseModel):
@@ -24,6 +26,12 @@ class SweepConfig(BaseModel):
         "dist",
     ]
     exclude_path_dirs: list[str] = ["node_modules", "venv", ".git", "dist"]
+    exclude_substrings_aggressive: list[str] = [ # aggressively filter out file paths, may drop some relevant files
+        "integration",
+        ".spec",
+        ".test",
+        ".json"
+    ]
     include_exts: list[str] = [
         ".cs",
         ".csharp",
@@ -210,6 +218,53 @@ class SweepConfig(BaseModel):
         parts = file_path.split(os.path.sep)
         for part in parts:
             if part in self.exclude_dirs or part in self.exclude_exts:
+                return True
+        return False
+    
+    # returns if file is excluded or not, this version may drop actual relevant files
+    def is_file_excluded_aggressive(self, dir: str, file_path: str) -> bool:
+        tiktoken_client = Tiktoken()
+        # must exist
+        if not os.path.exists(os.path.join(dir, file_path)) and not os.path.exists(file_path):
+            return True
+        full_path = os.path.join(dir, file_path)
+        if os.stat(full_path).st_size > 240000 or os.stat(full_path).st_size < 5:
+            return True
+        # exclude binary 
+        with open(full_path, "rb") as f:
+            is_binary = False
+            for block in iter(lambda: f.read(1024), b""):
+                if b"\0" in block:
+                    is_binary = True
+                    break
+            if is_binary:
+                return True
+        try:
+            # fetch file
+            data = read_file_with_fallback_encodings(full_path)
+            lines = data.split("\n")
+        except UnicodeDecodeError:
+            logger.warning(f"UnicodeDecodeError in is_file_excluded_aggressive: {full_path}, skipping")
+            return True
+        line_count = len(lines)
+        # if average line length is greater than 200, then it is likely not human readable
+        if len(data)/line_count > 200:
+            return True
+    
+         # check token density, if it is greater than 2, then it is likely not human readable
+        token_count = tiktoken_client.count(data)
+        if token_count == 0:
+            return True
+        if len(data)/token_count < 2:
+            return True
+        
+        # now check the file name
+        parts = file_path.split(os.path.sep)
+        for part in parts:
+            if part in self.exclude_dirs or part in self.exclude_exts:
+                return True
+        for part in self.exclude_substrings_aggressive:
+            if part in file_path:
                 return True
         return False
         

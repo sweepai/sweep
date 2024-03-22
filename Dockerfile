@@ -8,9 +8,19 @@ ENV PORT=${PORT:-8080}
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git curl redis-server npm \
+    && apt-get install -y --no-install-recommends git curl redis-server npm build-essential pkg-config libssl-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -LO https://github.com/BurntSushi/ripgrep/releases/download/13.0.0/ripgrep_13.0.0_amd64.deb && \
+    dpkg -i ripgrep_13.0.0_amd64.deb && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN git clone https://github.com/BurntSushi/ripgrep
+RUN cd ripgrep && \
+    cargo build --release && \
+    ./target/release/rg --version
+
 ENV VIRTUAL_ENV=/usr/local
 RUN curl -sSL https://astral.sh/uv/install.sh -o /install.sh && chmod 755 /install.sh && /install.sh && rm /install.sh
 
