@@ -1086,10 +1086,17 @@ def handle_event(request_dict, event):
                     pr = g.get_repo(pr_request.repository.full_name).get_pull(
                         pr_request.number
                     )
+                    
+                    total_lines_in_commit = 0
+                    total_lines_edited_by_developer = 0
+                    edited_by_developers = False
                     for commit in pr.get_commits():
+                        lines_modified = commit.stats.additions + commit.stats.deletions
+                        total_lines_in_commit += lines_modified
                         if commit.author.login != CURRENT_USERNAME:
-                            edited_by_developers = True
-                            break
+                            total_lines_edited_by_developer += lines_modified
+                    # this was edited by a developer if at least 25% of the lines were edited by a developer
+                    edited_by_developers = total_lines_in_commit > 0 and (total_lines_edited_by_developer / total_lines_in_commit) >= 0.25
                     posthog.capture(
                         merged_by,
                         event_name,
@@ -1103,6 +1110,8 @@ def handle_event(request_dict, event):
                             "total_changes": pr_request.pull_request.additions
                             + pr_request.pull_request.deletions,
                             "edited_by_developers": edited_by_developers,
+                            "total_lines_in_commit": total_lines_in_commit,
+                            "total_lines_edited_by_developer": total_lines_edited_by_developer,
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})
