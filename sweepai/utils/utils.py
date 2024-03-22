@@ -284,7 +284,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                 return False, error_message
         except Exception as e:
             logger.exception(e)
-    if ext == "ts" and False:
+    if ext == "ts":
         file_hash = uuid.uuid4().hex
         new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
         try:
