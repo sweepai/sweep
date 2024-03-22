@@ -14,9 +14,9 @@ from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
 from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, Message, Snippet
-from sweepai.core.repo_parsing_utils import read_file_with_fallback_encodings
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import check_code, chunk_code
 
