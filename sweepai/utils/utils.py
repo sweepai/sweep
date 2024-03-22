@@ -321,7 +321,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
             text=True,
             timeout=5,
         )
-        if result.code != 0:
+        if result.returncode != 0:
             with TemporaryDirectory() as temp_dir:
                 new_file = os.path.join(temp_dir, "temp.ts")
                 with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
