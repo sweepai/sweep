@@ -1,7 +1,6 @@
 import os
 import random
 
-import backoff
 from loguru import logger
 from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, RateLimitError
 
@@ -219,18 +218,18 @@ class OpenAIProxy:
             )
         return response
 
-    @backoff.on_exception(
-        backoff.expo(
-            base=5,
-            factor=2,
-            max_value=120,
-        ),
-        exception=(RateLimitError, APITimeoutError, InternalServerError),
-        jitter=backoff.full_jitter,
-        on_backoff=lambda details: logger.error(
-            f"Rate Limit or Timeout Error: {details['tries']} tries. Waiting {details['wait']:.2f} seconds."
-        ),
-    )
+    # @backoff.on_exception(
+    #     backoff.expo(
+    #         base=5,
+    #         factor=2,
+    #         max_value=120,
+    #     ),
+    #     exception=(RateLimitError, APITimeoutError, InternalServerError),
+    #     jitter=backoff.full_jitter,
+    #     on_backoff=lambda details: logger.error(
+    #         f"Rate Limit or Timeout Error: {details['tries']} tries. Waiting {details['wait']:.2f} seconds."
+    #     ),
+    # )
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature, tools=[]
     ):
