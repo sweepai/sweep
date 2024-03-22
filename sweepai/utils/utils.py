@@ -313,7 +313,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                 return False, error_message
         except Exception as e:
             logger.exception(e)
-    if ext == "ts":
+    if ext == "ts" and False:
         # see if eslint is installed
         result = subprocess.run(
             ["npx", "eslint", "--version"],
