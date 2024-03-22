@@ -10,7 +10,6 @@ from redis import Redis
 from tqdm import tqdm
 
 from sweepai.config.server import BATCH_SIZE, REDIS_URL
-from sweepai.logn.cache import file_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
