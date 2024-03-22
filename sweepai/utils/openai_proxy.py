@@ -1,7 +1,6 @@
 import os
 import random
 
-import backoff
 from loguru import logger
 from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, RateLimitError
 
