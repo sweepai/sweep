@@ -5,6 +5,7 @@ from io import StringIO
 import os
 import re
 import subprocess
+from tempfile import TemporaryDirectory
 import traceback
 from dataclasses import dataclass
 from typing import Optional
@@ -250,6 +251,34 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         return (False, error_message)
     return True, ""
 
+DEFAULT_ESLINTRC = """{
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "no-undef": "error",
+    "no-const-assign": "error",
+    "no-redeclare": "error",
+    "@typescript-eslint/no-unused-vars": ["warn", { "vars": "all", "args": "after-used", "ignoreRestSiblings": false }],
+    "no-unused-vars": "off"
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {}
+    }
+  },
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "no-undef": "off"
+      }
+    }
+  ]
+}"""
 
 def check_code(file_path: str, code: str) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
@@ -285,38 +314,28 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
         except Exception as e:
             logger.exception(e)
     if ext == "ts":
-        file_hash = uuid.uuid4().hex
-        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
-        try:
-            with open(new_file, "w") as f:
-                f.write(code)
-            result = subprocess.run(
-                ["npx", "eslint", new_file],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            try:
-                os.remove(new_file)
-            except FileNotFoundError:
-                pass
-            if result.returncode != 0:
-                return False, result.stdout + "\n\n" + result.stderr
-        except Exception as e:
-            logger.exception(e)
-        # if cwd:
-        #     try:
-        #         result = subprocess.run(
-        #             ["npx", "ts-node", file_path],
-        #             capture_output=True,
-        #             text=True,
-        #             timeout=60,
-        #             cwd=cwd,
-        #         )
-        #         if result.returncode != 0:
-        #             return False, result.stdout + "\n\n" + result.stderr
-        #     except Exception as e:
-        #         logger.exception(e)
+        # see if eslint is installed
+        result = subprocess.run(
+            ["npx", "eslint", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.code != 0:
+            with TemporaryDirectory() as temp_dir:
+                new_file = os.path.join(temp_dir, "temp.ts")
+                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
+                    f.write(DEFAULT_ESLINTRC)
+                with open(new_file, "w") as f:
+                    f.write(code)
+                result = subprocess.run(
+                    ["npx", "eslint", new_file, "--config", ".eslintrc"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode != 0:
+                    return False, result.stdout + "\n\n" + result.stderr
     return True, ""
 
 
