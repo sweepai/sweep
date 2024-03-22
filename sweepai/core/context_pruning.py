@@ -46,6 +46,7 @@ You will do this by using the following process for every relevant file:
 For example, if the class foo.bar.Bar was mentioned, be sure to view foo/bar.py. If the file is irrelevant, move onto the next file. 
 If you don't know the full file path, use file_search with the file name. Ensure you have checked ALL files referenced in the user request.
 2. Now use the keyword_search tool on any variables, class and function calls that you do not have the definitions for. 
+For example if the method foo(param1: typeX, param2: typeY) -> typeZ: is defined be sure to search for the keywords typeX, typeY and typeZ and find the files that contain their definitions.
 This will return a list of file paths where the keyword shows up in. You MUST view the relevant files that the keyword shows up in.
 3. When you have a relevant file, use the store_relevant_file_to_modify, store_relevant_file_to_read and expand_directory tools until you are completely sure about how to solve the user request. 
 Continue repeating steps 1, 2, and 3 to get every file you need to solve the user request.
@@ -609,7 +610,7 @@ def post_process_rg_output(rcm: RepoContextManager, sweep_config: SweepConfig, o
     for line in output_lines:
         filename, content = line.split(":", 1)
         filename = filename[len(root_directory) + 1:]
-        if not sweep_config.is_file_excluded(filename) and not sweep_config.is_file_excluded_aggressive(filename):
+        if not sweep_config.is_file_excluded_aggressive(root_directory, filename):
             file_output_dict[filename].append(content)
     
     # determine if we need to truncate the output
@@ -623,7 +624,10 @@ def post_process_rg_output(rcm: RepoContextManager, sweep_config: SweepConfig, o
             else:
                 line1 = content[0]
                 line2 = content[-1]
-                
+                if len(line1) > 200:
+                    line1 = line1[:20] + " ..."
+                if len(line2) > 200:
+                    line2 = line2[:20] + " ..."
                 processed_output += f"{line1}\n"
                 processed_output += "...\n"
                 processed_output += f"{line2}\n"
