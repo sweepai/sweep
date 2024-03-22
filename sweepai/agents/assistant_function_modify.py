@@ -22,6 +22,19 @@ from sweepai.utils.utils import check_code, chunk_code
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
+
+add_later = """
+IMPORTANT: If you believe you are missing important information or context in any of the steps above use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary.
+<GetAdditionalContext>
+<Justification>
+Provide justification for why you need additional context
+</Justification>
+<Keyword>
+keyword to search for in order to get more additional context. This will search the entire codebase for this keyword
+</Keyword>
+</GetAdditionalContext>
+"""
+
 instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
@@ -32,7 +45,8 @@ Your job is to make edits to the file to complete the user "# Request".
 # Instructions
 1. Use the ProposeProblemAnalysisAndPlan tool to analyze the user's request and construct a plan of keywords to search for and the changes to make.
 2. Use the KeywordSearch tool to find the right places to make changes.
-3. Use the SearchAndReplace tool to make the changes.
+3. Use the AnalysisAndIdentification tool to determine which sections should be changed.
+4. Use the SearchAndReplace tool to make the changes.
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
@@ -43,21 +57,41 @@ You have access to the following tools:
 ProposeProblemAnalysisAndPlan - Break down the problem and identify important pieces of information that will be needed to solve the problem, such as the relevant keywords, the intended behavior, and the required imports. Describe the plan for the task, including the keywords to search and the modifications to make. Be sure to consider all imports that are required to complete the task.
 To call this tool you MUST respond in the following xml format:
 
-<ProposeProblemAnalysisAndPlan analysis="Break down the problem and identify important pieces of information that will be needed to solve the problem, such as the relevant keywords, the intended behavior, and the required imports.">
-proposed plan - Describe the plan for the task, including the keywords to search and the modifications to make. Be sure to consider all imports that are required to complete the task.
+<ProposeProblemAnalysisAndPlan>
+<Analysis>
+Break down the problem and identify important pieces of information that will be needed to solve the problem, such as the relevant keywords, the intended behavior, and the required imports.
+</Analysis>
+<ProposedPlan>
+Describe the plan for the task, including the keywords to search and the modifications to make. Be sure to consider all imports that are required to complete the task.
+</ProposedPlan>
 </ProposeProblemAnalysisAndPlan>
 
 KeywordSearch - Use this tool to search for a keyword in the current code file as well as all relevant read-only code files. This is the keyword itself that you want to search for in the contents of the file, not the name of the file itself.
 To call this tool you MUST respond in the following xml format:
 
-<KeywordSearch justification="Justification for searching the keyword.">
+<KeywordSearch>
+<Justification>
+Provide justification for searching the keyword.
+</Justification>
+<Keyword>
 keyword to search for - e.g. function name, class name, variable name
+</Keyword>
 </KeywordSearch>
 
-SearchAndReplace - Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made. Be sure to consider all imports that are required to complete the task.
+AnalysisAndIdentification - Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made. Be sure to consider all imports that are required to complete the task.
+To call this tool you MUST respond in the following xml format:
+
+<AnalysisAndIdentification>
+List out the changes that need to be made to the CURRENT FILE ONLY. List out all locations that should recieve these changes and what the changes should be.
+</AnalysisAndIdentification>
+
+SearchAndReplace - Use this tool to apply the changes one by one listed out in the AnalysisAndIdentification tool.
 If multiple SearchAndReplace calls are needed, call this tool multiple times. To call this tool you MUST respond in the following xml format:
 
-<SearchAndReplace sectionId="The section ID the original code belongs to.">
+<SearchAndReplace>
+<SectionId>
+The section ID the original code belongs to.
+</SectionId>
 <OriginalCode>
 The original lines of code. Be sure to add lines before and after to disambiguate the change.
 </OriginalCode>
@@ -69,7 +103,10 @@ The new code to replace the old code.
 SubmitSolution - Use this tool to let the user know that you have completed all necessary steps in order to satisfy their request.
 To call this tool you MUST respond in the following xml format:
 
-<SubmitSolution justification="Justification for why you are finished with your task.">
+<SubmitSolution>
+<Justification>
+Justification for why you are finished with your task.
+</Justification>
 </SubmitSolution>
 """
 
@@ -260,7 +297,7 @@ def function_modify(
                 save_ticket_progress if ticket_progress is not None else None
             ),
             assistant_name="Code Modification Function Assistant",
-            tools=[],
+            tools=tools,
         )
 
         try:
@@ -602,6 +639,437 @@ def function_modify(
         return None
     return None
 
+def function_modify_unstable(
+    request: str,
+    file_path: str,
+    file_contents: str,
+    additional_messages: list[Message] = [],
+    chat_logger: ChatLogger | None = None,
+    assistant_id: str = None,
+    start_line: int = -1,
+    end_line: int = -1,
+    ticket_progress: TicketProgress | None = None,
+    assistant_conversation: AssistantConversation | None = None,
+    seed: int = None,
+    relevant_filepaths: list[str] = [],
+):
+    try:
+        logger.info("Starting function_modify_unstable")
+        def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
+            if assistant_conversation:
+                assistant_conversation.update_from_ids(
+                    assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+                )
+            ticket_progress.save()
+
+        current_contents = file_contents
+        relevant_file_contents = defaultdict(str)
+        # get code for relevant filepaths
+        try:
+            for relevant_file_path in relevant_filepaths:
+                relevant_file_content = read_file_with_fallback_encodings(
+                    relevant_file_path
+                )
+                relevant_file_contents[relevant_file_path] = relevant_file_content
+        except Exception as e:
+            logger.error(
+                f"Error occured while attempting to fetch contents for relevant file: {e}"
+            )
+        initial_code_valid, _ = check_code(file_path, current_contents)
+        initial_code_valid = initial_code_valid or (
+            "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
+        )
+
+        original_snippets = chunk_code(current_contents, file_path, 700, 200)
+        # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
+
+        relevant_file_snippets: dict[str, list[Snippet]] = defaultdict(list)
+        # now we chunk relevant file contents
+        for relevant_file_path, relevant_file_content in relevant_file_contents.items():
+            relevant_file_snippet = chunk_code(
+                relevant_file_content, relevant_file_path, 700, 200
+            )
+            relevant_file_snippets[relevant_file_path] = relevant_file_snippet
+
+        file_contents_lines = current_contents.split("\n")
+        chunks = [
+            "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
+            for snippet in original_snippets
+        ]
+
+        # split our relevant files into chunks
+        relevant_file_chunks = defaultdict(list)
+        for relevant_file_path, relevant_file_content in relevant_file_contents.items():
+            relevant_file_contents_lines = relevant_file_content.split("\n")
+            relevant_file_chunks[relevant_file_path] = [
+                "\n".join(
+                    relevant_file_contents_lines[
+                        max(snippet.start - 1, 0) : snippet.end
+                    ]
+                )
+                for snippet in relevant_file_snippets[relevant_file_path]
+            ]
+        code_sections = []  # TODO: do this for the new sections after modifications
+        current_code_section = ""
+        for i, chunk in enumerate(chunks):
+            idx = int_to_excel_col(i + 1)
+            section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
+            if len(current_code_section) + len(section_display) > MAX_CHARS - 1000:
+                code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
+                code_sections.append(code_sections_string)
+                current_code_section = section_display
+            else:
+                current_code_section += "\n" + section_display
+        code_sections.append(current_code_section)
+        code_sections_string = "\n".join(code_sections)
+        additional_messages += [
+            *[
+                Message(
+                    role="user",
+                    content=code_section,
+                )
+                for code_section in code_sections
+            ],
+            Message(
+                role="user",
+                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
+            ),
+        ]
+        assistant_generator = openai_assistant_call(
+            request="",  # already present in additional_messages
+            instructions=instructions,
+            additional_messages=ensure_additional_messages_length(additional_messages),
+            chat_logger=chat_logger,
+            assistant_id=assistant_id,
+            save_ticket_progress=(
+                save_ticket_progress if ticket_progress is not None else None
+            ),
+            assistant_name="Code Modification Function Assistant",
+            tools=[],
+        )
+
+        try:
+            done_counter = 0
+            tool_name, tool_call = assistant_generator.send(None)
+            for i in range(100):  # TODO: tune this parameter
+                print(tool_name, json.dumps(tool_call, indent=2))
+                if tool_name == "done":
+                    diff = generate_diff(file_contents, current_contents)
+                    if diff:
+                        break
+                    else:
+                        done_counter += 1
+                        if done_counter >= 3:
+                            break
+                        tool_name, tool_call = assistant_generator.send(
+                            "ERROR\nNo changes were made. Please continue working on your task."
+                        )
+                elif tool_name == "no_tool_call":
+                    tool_name, tool_call = assistant_generator.send(
+                        "ERROR\n No tool calls were made. If you are done, please use the SubmitSolution tool to indicate that you have completed the task."
+                    )
+                elif tool_name == "SubmitSolution":
+                    diff = generate_diff(file_contents, current_contents)
+                    if diff:
+                        break
+                    else:
+                        done_counter += 1
+                        if done_counter >= 3:
+                            break
+                        tool_name, tool_call = assistant_generator.send(
+                            "ERROR\nNo changes were made. Please continue working on your task."
+                        )
+                elif tool_name == "ProposeProblemAnalysisAndPlan":
+                    tool_name, tool_call = assistant_generator.send(
+                        "SUCCESS\nSounds like a great plan! Let's start by using the KeywordSearch tool to find the right places to make changes, and the SearchAndReplace tool to make the changes."
+                    )
+                elif tool_name == "AnalysisAndIdentification":
+                    tool_name, tool_call = assistant_generator.send(
+                        "SUCCESS\nNice work! Now use the SearchAndReplace tool to make the listed changes one at a time. If there are multiple changes required, call the SearchAndReplace tool multiple times."
+                    )
+                elif tool_name == "SearchAndReplace":
+                    error_message = ""
+                    success_message = ""
+                    new_chunks = [chunk for chunk in chunks]  # deepcopy
+                    success_messages = []
+                    if "sectionid" not in tool_call:
+                        error_message = "No SectionId was provided in the tool call. Call the tool again but this time provide the SectionId.\n"
+                    if "originalcode" not in tool_call:
+                        error_message += "No OriginalCode was provided in the tool call. Call the tool again but this time provide the OriginalCode.\n"
+                    if "newcode" not in tool_call:
+                        error_message += "No NewCode was provided in the tool call. Call the tool again but this time provide the NewCode.\n"
+                    for _ in range(1): # this is super jank code but it works for now
+                        section_letter = tool_call["sectionid"]
+                        section_id = excel_col_to_int(section_letter)
+                        old_code = tool_call["originalcode"].strip("\n")
+                        new_code = tool_call["newcode"].strip("\n")
+                        if section_id >= len(chunks):
+                            error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            break
+
+                        # fetch the chunk of code we will be modifying
+                        chunk = chunks[section_id]
+
+                        # if the old_code couldn't be found in the chunk we need to let the llm know
+                        if old_code not in chunk:
+                            chunks_with_old_code = [
+                                index
+                                for index, chunk in enumerate(chunks)
+                                if old_code in chunk
+                            ]
+                            chunks_with_old_code = chunks_with_old_code[:5]
+                            error_message = f"The OriginalCode provided does not appear to be present in section {section_letter}. The OriginalCode contains:\n```\n{old_code}\n```\nBut section {section_letter} in {file_path} has code:\n```\n{chunk}\n```"
+                            if chunks_with_old_code:
+                                error_message += "\n\nDid you mean one of the following sections?"
+                                error_message += "\n".join(
+                                    [
+                                        f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
+                                        for index in chunks_with_old_code
+                                    ]
+                                )
+                            else:
+                                error_message += "\n\nMake another replacement. It seems there may be a spelling or indentation error as the OriginalCode could not be found in the code file. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct OriginalCode should be, and make another replacement with the corrected OriginalCode."
+                            break
+                        # apply changes
+                        new_chunk = chunk.replace(old_code, new_code, 1)
+                        if new_chunk == chunk:
+                            logger.warning("No changes were made to the code.")
+                        
+                        new_chunks[section_id] = new_chunk
+                        new_contents = current_contents.replace(
+                            chunk, new_chunk, 1
+                        )
+
+                        # Check if changes were made
+                        if new_contents == current_contents:
+                            logger.warning("No changes were made to the code.")
+                            error_message = "No changes were made, make sure old_code and new_code are not the same."
+                            break
+                        
+                        # Check if the changes are valid
+                        if not error_message:
+                            is_valid, message = (
+                                (True, "")
+                                if not initial_code_valid
+                                else check_code(file_path, new_contents)
+                            )
+                            current_diff = generate_diff(
+                                current_contents, new_contents
+                            )
+                            if is_valid:
+                                success_messages.append(
+                                    f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
+                                )
+                            else:
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                                break
+                    if error_message:
+                        logger.error(f"Error occured in SearchAndReplace tool: {error_message}")
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n {error_message}"
+                        )
+
+                    if not error_message:
+                        success_message = (
+                            "The following changes have been applied:\n\n"
+                            + generate_diff(current_contents, new_contents)
+                        )
+                        # set contents
+                        current_contents = new_contents
+
+                        logger.info(success_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n\n{success_message}"
+                        )
+                # elif tool_name == "GetAdditionalContext":
+                #     import pdb; pdb.set_trace()
+                elif tool_name == "KeywordSearch":
+                    error_message = ""
+                    success_message = ""
+                    for key in ["justification", "keyword"]:
+                        if key not in tool_call:
+                            error_message = f"No {key} was provided in the KeywordSearch tool call. Call the tool again but this time provide the {key}."
+                            break
+                    
+                    # if no issues continue with search
+                    if not error_message:
+                        keyword = tool_call["keyword"].strip()
+                        match_indices = []
+                        relevant_file_match_indices: dict[str, list[int]] = defaultdict(
+                            list
+                        )
+                        # search current code file
+                        for i, chunk in enumerate(chunks):
+                            if keyword in chunk:
+                                match_indices.append(max(0, i - 1))
+                                match_indices.append(i)
+                                match_indices.append(min(len(chunks) - 1, i + 1))
+                        # search all relevant code files
+                        for (
+                            relevant_file_path,
+                            relevant_file_chunk_group,
+                        ) in relevant_file_chunks.items():
+                            for i, chunk in enumerate(relevant_file_chunk_group):
+                                if keyword in chunk:
+                                    relevant_file_match_indices[
+                                        relevant_file_path
+                                    ].append(max(0, i - 1))
+                                    relevant_file_match_indices[
+                                        relevant_file_path
+                                    ].append(i)
+                                    relevant_file_match_indices[
+                                        relevant_file_path
+                                    ].append(
+                                        min(len(relevant_file_chunk_group) - 1, i + 1)
+                                    )
+
+                        match_indices = sorted(list(set(match_indices)))
+                        relevant_file_match_indices = {
+                            k: sorted(list(set(v)))
+                            for k, v in relevant_file_match_indices.items()
+                        }
+                        if not match_indices and not relevant_file_match_indices:
+                            error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
+                        else:
+                            # for matches inside current code file
+                            if match_indices:
+                                sections_message = english_join(
+                                    [
+                                        int_to_excel_col(match_index + 1)
+                                        for match_index in match_indices
+                                    ]
+                                )
+                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
+                                success_message += build_keyword_search_match_results(
+                                    match_indices, chunks, keyword, starter_message
+                                )
+                                if relevant_file_match_indices:
+                                    success_message += "\n\n"
+                            else:
+                                success_message += f"The keyword {keyword} was not found in the current file. However, it was found in the following relevant READONLY file(s).\n\n"
+                            # for matches inside relevant code files
+                            if relevant_file_match_indices:
+                                sections_message = english_join(
+                                    [
+                                        int_to_excel_col(match_index + 1)
+                                        for match_index in match_indices
+                                    ]
+                                )
+                                also_keyword = "also " if match_indices else ""
+                                for (
+                                    relevant_file_path,
+                                    relevant_file_match_indices,
+                                ) in relevant_file_match_indices.items():
+                                    sections_message = english_join(
+                                        [
+                                            int_to_excel_col(match_index + 1)
+                                            for match_index in match_indices
+                                        ]
+                                    )
+                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
+                                    success_message += (
+                                        build_keyword_search_match_results(
+                                            relevant_file_match_indices,
+                                            relevant_file_chunks[relevant_file_path],
+                                            keyword,
+                                            starter_message,
+                                        )
+                                    )
+
+                    if error_message:
+                        logger.debug(error_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n{error_message}"
+                        )
+                    else:
+                        logger.debug(success_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n{success_message}\n\nMake additional KeywordSearch tool calls to find other keywords or start making changes by calling the SearchAndReplace tool."
+                        )
+                elif tool_name == "view_sections":
+                    error_message = ""
+                    success_message = ""
+                    if "section_ids" not in tool_call:
+                        error_message = "No section_ids found in tool call."
+
+                    if not isinstance(tool_call["section_ids"], list):
+                        error_message = "section_ids should be a list."
+
+                    if not len(tool_call["section_ids"]):
+                        error_message = "section_ids should not be empty."
+
+                    # get one section before and after each section
+                    section_indices = set()
+                    for section_id in tool_call["section_ids"]:
+                        section_index = excel_col_to_int(section_id)
+                        section_indices.update(
+                            (
+                                int_to_excel_col(max(1, section_index - 1)),
+                                int_to_excel_col(min(len(chunks), section_index)),
+                                int_to_excel_col(min(len(chunks), section_index + 1)),
+                                int_to_excel_col(min(len(chunks), section_index + 2)),
+                            )
+                        )
+                    section_indices = sorted(list(section_indices))
+                    if not error_message:
+                        success_message = "Here are the sections:" + "\n\n".join(
+                            [
+                                f"<section id='{section_id}'>\n{chunks[excel_col_to_int(section_id)]}\n</section>"
+                                for section_id in section_indices
+                            ]
+                        )
+
+                    if error_message:
+                        logger.debug(error_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n{error_message}"
+                        )
+                    else:
+                        logger.debug(success_message)
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n{success_message}\n\nMake additional view_sections or keyword_search calls to find other keywords or sections or continue to make changes by calling the search_and_replace function."
+                        )
+                else:
+                    tool_name, tool_call = assistant_generator.send(
+                        f"ERROR\nUnexpected tool name: {tool_name}"
+                    )
+            else:
+                logger.error("Too many iterations.")
+        except StopIteration:
+            pass
+        diff = generate_diff(file_contents, current_contents)
+        if diff:
+            logger.info("Changes made:\n\n" + diff)
+        else:
+            logger.warning("No changes were made.")
+        if current_contents != file_contents:
+            return current_contents
+    except AssistantRaisedException as e:
+        logger.exception(e)
+        discord_log_error(
+            str(e)
+            + "\n\n"
+            + traceback.format_exc()
+            + "\n\n"
+            + str(chat_logger.data if chat_logger else "")
+            + "\n\n"
+            + str(ticket_progress.tracking_id if ticket_progress else "")
+        )
+    except Exception as e:
+        logger.exception(e)
+        # TODO: Discord
+        discord_log_error(
+            str(e)
+            + "\n\n"
+            + traceback.format_exc()
+            + "\n\n"
+            + str(chat_logger.data if chat_logger else "")
+            + "\n\n"
+            + str(ticket_progress.tracking_id if ticket_progress else "")
+        )
+        return None
+    return None
+
 
 # # @file_cache(ignore_params=["file_path", "chat_logger"])
 # def function_modify(
@@ -835,7 +1303,11 @@ def function_modify(
 #         )
 #         return None
 #     return None
-
+if not USE_ASSISTANT:
+    logger.warning(
+        "Using our own implementation to mock Assistant API as it is unstable (experimental)"
+    )
+    function_modify = function_modify_unstable  # noqa
 
 if __name__ == "__main__":
     request = "Convert any all logger.errors to logger.exceptions in api.py"

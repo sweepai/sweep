@@ -594,19 +594,20 @@ def openai_assistant_call(
 # parse llm response for tool calls in xml format
 def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
     tool_calls = []
-    plan_regex = r'<ProposeProblemAnalysisAndPlan(?: analysis="(?P<analysis>[^"]*)")?>(?P<plan>.*?)<\/ProposeProblemAnalysisAndPlan>'
-    keyword_search_regex = r'<KeywordSearch(?: justification="(?P<justification>[^"]*)")?>(?P<keyword>.*?)<\/KeywordSearch>'   
+    plan_regex = r'<ProposeProblemAnalysisAndPlan>\s*<Analysis>(?P<analysis>.*?)<\/Analysis>\s*<ProposedPlan>(?P<plan>.*?)<\/ProposedPlan>\s*<\/ProposeProblemAnalysisAndPlan>'
+    keyword_search_regex = r'<KeywordSearch>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/KeywordSearch>'   
     search_and_replace_regex = (
-        r'<SearchAndReplace sectionId="(?P<sectionid>[^"]+)">'
-        r'\s*<OriginalCode>\s*(?P<original>.*?)\s*</OriginalCode>'
-        r'\s*<NewCode>\s*(?P<new>.*?)\s*</NewCode>'
-        r'\s*</SearchAndReplace>'
+        r'<SearchAndReplace>\s*<SectionId>(?P<sectionid>.*?)<\/SectionId>\s*<OriginalCode>(?P<originalcode>.*?)<\/OriginalCode>\s*<NewCode>(?P<newcode>.*?)<\/NewCode>\s*<\/SearchAndReplace>'
     )
-    submit_solution_regex = r'<SubmitSolution(?: justification="(?P<justification>[^"]*)")?>(.*?)<\/SubmitSolution>'
-    plan_matches = re.finditer(plan_regex, response_contents)
-    keyword_matches = re.finditer(keyword_search_regex, response_contents)
-    search_and_replace_matches = re.finditer(search_and_replace_regex, response_contents)
-    submit_solution_matches = re.finditer(submit_solution_regex, response_contents)
+    analysis_and_identification_regex = r'<AnalysisAndIdentification>\s*(?P<analysisandidentification>.*?)\s*<\/AnalysisAndIdentification>'
+    submit_solution_regex = r'<SubmitSolution>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<\/SubmitSolution>'
+    get_additional_context_regex = r'<GetAdditionalContext>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/GetAdditionalContext>'
+    plan_matches = re.finditer(plan_regex, response_contents, re.DOTALL)
+    keyword_matches = re.finditer(keyword_search_regex, response_contents, re.DOTALL)
+    search_and_replace_matches = re.finditer(search_and_replace_regex, response_contents, re.DOTALL)
+    analysis_and_identification_matches = re.finditer(analysis_and_identification_regex, response_contents, re.DOTALL)
+    submit_solution_matches = re.finditer(submit_solution_regex, response_contents, re.DOTALL)
+    get_additional_context_matches = re.finditer(get_additional_context_regex, response_contents, re.DOTALL)
 
     for match in plan_matches:
         tool_calls.append({
@@ -630,17 +631,34 @@ def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
         tool_calls.append({
             "tool": "SearchAndReplace",
             "arguments": {
-                "sectionId": match.group("sectionid"),
-                "original": match.group("original"),
-                "new": match.group("new")
+                "sectionid": match.group("sectionid"),
+                "originalcode": match.group("originalcode"),
+                "newcode": match.group("newcode")
             }
         })
     
+    for match in analysis_and_identification_matches:
+        tool_calls.append({
+            "tool": "AnalysisAndIdentification",
+            "arguments": {
+                "analysisandidentification": match.group("analysisandidentification"),
+            }
+        })
+
     for match in submit_solution_matches:
         tool_calls.append({
             "tool": "SubmitSolution",
             "arguments": {
                 "justification": match.group("justification"),
+            }
+        })
+    
+    for match in get_additional_context_matches:
+        tool_calls.append({
+            "tool": "GetAdditionalContext",
+            "arguments": {
+                "justification": match.group("justification"),
+                "keyword": match.group("keyword")
             }
         })
     return tool_calls
@@ -691,8 +709,6 @@ def run_until_complete_unstable(
             continue
 
         response_message = response.choices[0].message
-        import pdb; pdb.set_trace()
-        
         # tool_calls = fix_tool_calls(response_message.tool_calls)
         # response_message.tool_calls = tool_calls
         # extend conversation
@@ -703,10 +719,10 @@ def run_until_complete_unstable(
             if value is None:
                 response_message_dict[key] = ""
         # if function_call is None we must remove it or else openai will throw an error
-        # if response_message_dict.get("function_call", "not in dict") == "":
-        #     response_message_dict.pop("function_call")
-        # if response_message_dict.get("tool_calls", "not in dict") == "":
-        #     response_message_dict.pop("tool_calls")
+        if response_message_dict.get("function_call", "not in dict") == "":
+            response_message_dict.pop("function_call")
+        if response_message_dict.get("tool_calls", "not in dict") == "":
+            response_message_dict.pop("tool_calls")
         messages.append(response_message_dict)
         tool_calls = parse_tool_calls(response_contents)
         # if a tool call was made
@@ -715,14 +731,14 @@ def run_until_complete_unstable(
             for tool_call in tool_calls:
                 tool_name = tool_call['tool']
                 try:
-                    tool_args = json.loads(tool_call["arguments"])
+                    tool_args = tool_call["arguments"]
                 except json.JSONDecodeError as e:
                     logger.debug(
-                        f"Error: could not decode function arguments: {tool_call["arguments"]}"
+                        f'Error: could not decode function arguments: {tool_call["arguments"]}'
                     )
                     tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
                 else:
-                    if tool_name == submit_schema["name"]:
+                    if tool_name == "SubmitSolution":
                         logger.info(
                             "Submit function was called"
                         )
@@ -740,6 +756,8 @@ def run_until_complete_unstable(
                             f"tool_call: {tool_name} with args: {tool_args}"
                         )
                         tool_output = yield tool_name, tool_args
+                        if not tool_output:
+                            break
                 messages.append(
                     {
                         "role": "assistant",
@@ -747,31 +765,22 @@ def run_until_complete_unstable(
                         "content": tool_output,
                     }
                 )  # extend conversation with function response
-                if not tool_output:
-                    break
+                
         else:  # no tool call being made implies either an error or a success
-            # logger.info(
-            #     f"no tool calls were made, we are done - message: {response_message}"
-            # )
             logger.error(
-                "No tool calls were made, use the submit function instead."
+                f"No tool calls were made, yielding with tool_call no_tool_call: {response_contents}"
             )
-            # done_response = yield "done", {
-            #     "status": "completed",
-            #     "message": "Run completed successfully",
-            # }
-            done_response = "Please use the submit function to indicate that you have completed the task."
+            done_response = yield "no_tool_call", {
+                "status": "",
+                "message": "",
+            }
+            # done_response = "If you are done, please use the SubmitSolution tool to indicate that you have completed the task. If you believe you are stuck, use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary."
             normal_messages_remaining -= 1
             if normal_messages_remaining < 0:
-                raise Exception(
-                    "No tool calls were made, use the submit function instead."
-                )
+                return
 
-            # logger.info(
-            #     f"run_until_complete done_response: {done_response} completed after {i} iterations"
-            # )
-            # if not done_response:
-            #     break
+            if not done_response:
+                break
 
         # on each iteration of the for loop, we will log to chat_logger
         if chat_logger is not None and len(messages):
@@ -880,18 +889,7 @@ def openai_assistant_call_unstable(
                 assistant_name=assistant_name,
                 save_ticket_progress=save_ticket_progress,
             )
-            if len(tools) > 1:
-                return response
-            (assistant_id, run_id, thread_id) = response
-            messages = client.beta.threads.messages.list(
-                thread_id=thread_id,
-            )
-            return AssistantResponse(
-                messages=messages,
-                assistant_id=assistant_id,
-                run_id=run_id,
-                thread_id=thread_id,
-            )
+            return response
         except AssistantRaisedException as e:
             logger.warning(e.message)
         except Exception as e:
