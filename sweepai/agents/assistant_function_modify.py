@@ -126,6 +126,7 @@ def function_modify(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
+    cwd: str | None = None,
 ):
     try:
 
@@ -262,6 +263,7 @@ def function_modify(
                     elif len(tool_call["replaces_to_make"]) == 0:
                         error_message = "replace_to_make should not be empty."
                     else:
+                        # TODO: add roll backwards functionality
                         for index, replace_to_make in enumerate(
                             tool_call["replaces_to_make"]
                         ):
@@ -462,7 +464,7 @@ def function_modify(
                                     sections_message = english_join(
                                         [
                                             int_to_excel_col(match_index + 1)
-                                            for match_index in match_indices
+                                            for match_index in relevant_file_match_indices
                                         ]
                                     )
                                     starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
