@@ -275,6 +275,11 @@ def home(request: Request):
     )
 
 
+@app.get("/version")
+def get_version():
+    from sweepai.utils.version import get_version as get_sweep_version
+    return {"version": get_sweep_version()}
+
 @app.get("/ticket_progress/{tracking_id}")
 def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
