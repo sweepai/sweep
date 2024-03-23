@@ -2,6 +2,9 @@
 # It's a bit broken so if you have a better implementation, please replace this.
 # Based on https://blog.jcoglan.com/2017/09/19/the-patience-diff-algorithm/
 
+# TODO: Improve this with bipartite matching to find the best matches.
+# Minimize the fuzziness product
+
 from rapidfuzz import fuzz
 
 THRESHOLD = 95
@@ -71,7 +74,7 @@ def patience_fuzzy_diff_lines(
         return [f"+ {line}" for line in new_lines]
     if not new_lines:
         return [f"- {line}" for line in old_lines]
-    if all(similar(old_line, new_line) for old_line, new_line in zip(old_lines, new_lines)):
+    if len(old_lines) == len(new_lines) and all(similar(old_line, new_line) for old_line, new_line in zip(old_lines, new_lines)):
         return [f"  {line}" for line in new_lines]
     diff_lines = []
     matches = find_unique_matches(old_lines, new_lines)
