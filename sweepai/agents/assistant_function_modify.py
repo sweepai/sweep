@@ -821,8 +821,11 @@ def function_modify_unstable(
                         section_id = excel_col_to_int(section_letter)
                         old_code = tool_call["originalcode"].strip("\n")
                         new_code = tool_call["newcode"].strip("\n")
-                        if section_id >= len(chunks) or section_id < 0:
+                        if section_id >= len(chunks):
                             error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            break
+                        elif section_id < 0:
+                            error_message = f"The section ID {section_letter} can not be parsed."
                             break
 
                         # fetch the chunk of code we will be modifying
