@@ -908,15 +908,20 @@ def function_modify_unstable(
                     if not error_message:
                         keyword = tool_call["keyword"].strip()
                         match_indices = []
+                        match_context_indices = []
                         relevant_file_match_indices: dict[str, list[int]] = defaultdict(
+                            list
+                        )
+                        relevant_file_match_context_indices: dict[str, list[int]] = defaultdict(
                             list
                         )
                         # search current code file
                         for i, chunk in enumerate(chunks):
                             if keyword in chunk:
-                                match_indices.append(max(0, i - 1))
                                 match_indices.append(i)
-                                match_indices.append(min(len(chunks) - 1, i + 1))
+                                match_context_indices.append(max(0, i - 1))
+                                match_context_indices.append(i)
+                                match_context_indices.append(min(len(chunks) - 1, i + 1))
                         # search all relevant code files
                         for (
                             relevant_file_path,
@@ -926,20 +931,28 @@ def function_modify_unstable(
                                 if keyword in chunk:
                                     relevant_file_match_indices[
                                         relevant_file_path
+                                    ].append(i)
+                                    relevant_file_match_context_indices[
+                                        relevant_file_path
                                     ].append(max(0, i - 1))
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(i)
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(
                                         min(len(relevant_file_chunk_group) - 1, i + 1)
                                     )
 
                         match_indices = sorted(list(set(match_indices)))
+                        match_context_indices = sorted(list(set(match_context_indices)))
                         relevant_file_match_indices = {
                             k: sorted(list(set(v)))
                             for k, v in relevant_file_match_indices.items()
+                        }
+                        relevant_file_match_context_indices = {
+                            k: sorted(list(set(v)))
+                            for k, v in relevant_file_match_context_indices.items()
                         }
                         if not match_indices and not relevant_file_match_indices:
                             error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
@@ -954,7 +967,7 @@ def function_modify_unstable(
                                 )
                                 starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
-                                    match_indices, chunks, keyword, starter_message
+                                    match_context_indices, chunks, keyword, starter_message
                                 )
                                 if relevant_file_match_indices:
                                     success_message += "\n\n"
@@ -972,17 +985,20 @@ def function_modify_unstable(
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
-                                ) in relevant_file_match_indices.items():
+                                ), (
+                                    _,
+                                    relevant_file_match_context_indices,
+                                ) in zip(relevant_file_match_indices.items(), relevant_file_match_context_indices.items()):
                                     sections_message = english_join(
                                         [
                                             int_to_excel_col(match_index + 1)
-                                            for match_index in match_indices
+                                            for match_index in relevant_file_match_indices
                                         ]
                                     )
                                     starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
-                                            relevant_file_match_indices,
+                                            relevant_file_match_context_indices,
                                             relevant_file_chunks[relevant_file_path],
                                             keyword,
                                             starter_message,
