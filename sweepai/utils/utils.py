@@ -218,9 +218,13 @@ class CheckResults:
             old_pylint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in old_pylint_lines])
             new_pylint_lines = self.pylint.splitlines()
             new_pylint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in new_pylint_lines])
-            return f"The following new pylint errors have appeared:\n\n{generate_diff(old_pylint_cleaned, new_pylint_cleaned)}"
+            return f"The following new pylint errors have appeared. Here is the diff:\n\n{generate_diff(old_pylint_cleaned, new_pylint_cleaned)}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
-            return f"The code has the following eslint errors:\n\n{self.eslint}"
+            old_eslint_lines = other.eslint.strip().splitlines()
+            old_eslint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in old_eslint_lines])
+            new_eslint_lines = self.eslint.strip().splitlines()
+            new_eslint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in new_eslint_lines])
+            return f"The following new eslint errors have appeared. Here is the diff:\n\n{generate_diff(old_eslint_cleaned, new_eslint_cleaned)}"
         return ""
 
 
@@ -286,16 +290,60 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
 DEFAULT_ESLINTRC = """{
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "ecmaVersion": 12,
-    "sourceType": "module"
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "project": "./tsconfig.json"
   },
-  "plugins": ["@typescript-eslint"],
+  "plugins": ["@typescript-eslint", "import"],
+  "extends": [
+    "plugin:@typescript-eslint/recommended",
+    "plugin:import/typescript"
+  ],
   "rules": {
     "no-undef": "error",
     "no-const-assign": "error",
     "no-redeclare": "error",
-    "@typescript-eslint/no-unused-vars": ["warn", { "vars": "all", "args": "after-used", "ignoreRestSiblings": false }],
-    "no-unused-vars": "off"
+    "@typescript-eslint/no-unused-vars": ["error", { "vars": "all", "args": "all", "ignoreRestSiblings": false }],
+    "no-unused-vars": "off",
+    "@typescript-eslint/explicit-function-return-type": ["error", { "allowExpressions": false }],
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/strict-boolean-expressions": "error",
+    "import/no-unresolved": "error",
+    "import/named": "error",
+    "import/namespace": "error",
+    "import/default": "error",
+    "import/export": "error"
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {}
+    }
+  },
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "no-undef": "off"
+      }
+    }
+  ]
+}"""
+
+DEFAULT_ESLINTRC = """{
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "plugin:@typescript-eslint/recommended",
+    "plugin:import/typescript"
+  ],
+  "rules": {
+    "no-undef": "error",
+    "no-const-assign": "error",
+    "no-redeclare": "error"
   },
   "settings": {
     "import/resolver": {
@@ -330,6 +378,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
                 [
                     new_file,
                     "--disable=C",
+                    "--enable=C0413",  # Enable only the check for imports not at the top
                     "--disable=R",
                     "--disable=import-error",
                     "--disable=no-member",
@@ -359,7 +408,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
             text=True,
             timeout=5,
         )
-        if result.returncode != 0:
+        if result.returncode == 0:
             with TemporaryDirectory() as temp_dir:
                 new_file = os.path.join(temp_dir, "temp.ts")
                 with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
@@ -367,19 +416,14 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
                 with open(new_file, "w") as f:
                     f.write(code)
                 result = subprocess.run(
-                    ["npx", "eslint", new_file, "--config", ".eslintrc"],
+                    ["npx", "eslint", new_file],
                     capture_output=True,
                     text=True,
                     timeout=5,
                 )
-                if result.returncode != 0:
-                    return CheckResults(eslint=result.stdout + "\n\n" + result.stderr)
-                return CheckResults()
-    return CheckResults(
-        parse_error_message=error_message,
-        pylint=pylint_output.getvalue(),
-        eslint=result.stdout,
-    )
+                error_message = (result.stdout + "\n\n" + result.stderr).strip().replace(new_file, file_path)
+                return CheckResults(eslint=error_message)
+    return CheckResults()
 
 def check_code(file_path: str, code: str) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
@@ -542,6 +586,12 @@ describe('CallToAction component', () => {
 });
 """
 
+test_code = """
+x = "test"
+
+import numpy
+"""
+
 if __name__ == "__main__":
-    print(check_code("main.tsx", test_code))
-    # print(check_code("main.py", test_code)[1])
+    # print(check_code("main.tsx", test_code))
+    print(get_check_results("main.py", test_code))
