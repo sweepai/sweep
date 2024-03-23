@@ -324,6 +324,8 @@ DEFAULT_ESLINTRC = """{
   ]
 }"""
 
+# Need to add "no-unused-vars": "error"
+
 DEFAULT_ESLINTRC = """{
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
@@ -338,7 +340,7 @@ DEFAULT_ESLINTRC = """{
   "rules": {
     "no-undef": "error",
     "no-const-assign": "error",
-    "no-redeclare": "error"
+    "no-redeclare": "error",
   },
   "settings": {
     "import/resolver": {
