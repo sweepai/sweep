@@ -19,7 +19,7 @@ from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
-from sweepai.utils import fuzzy_diff
+from sweepai.utils.fuzzy_diff import patience_fuzzy_diff
 from sweepai.utils.diff import generate_diff
 
 
@@ -215,11 +215,11 @@ class CheckResults:
             # return f"The code has the following pylint errors:\n\n{self.pylint}"
             if not other.pylint:
                 return f"The code has the following pylint errors:\n\n{self.pylint}"
-            return f"The following new pylint errors have appeared. Here is the diff:\n\n{fuzzy_diff(other.pylint, self.pylint)}"
+            return f"The following new pylint errors have appeared. Here is the diff:\n\n{patience_fuzzy_diff(other.pylint, self.pylint)}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
             if not other.eslint:
                 return f"The code has the following eslint errors:\n\n{self.eslint}"
-            return f"The following new eslint errors have appeared. Here is the diff:\n\n{fuzzy_diff(other.eslint, self.eslint)}"
+            return f"The following new eslint errors have appeared. Here is the diff:\n\n{patience_fuzzy_diff(other.eslint, self.eslint)}"
         return ""
 
 
