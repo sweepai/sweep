@@ -239,10 +239,7 @@ def function_modify(
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        initial_code_valid, _ = check_code(file_path, current_contents)
-        initial_code_valid = initial_code_valid or (
-            "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
-        )
+        initial_check_results = get_check_results(file_path, current_contents)
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
@@ -415,20 +412,17 @@ def function_modify(
 
                             # Check if the changes are valid
                             if not error_message:
-                                is_valid, message = (
-                                    (True, "")
-                                    if not initial_code_valid
-                                    else check_code(file_path, current_new_contents)
-                                )
+                                check_results = get_check_results(file_path, new_contents)
+                                check_results_message = check_results.is_worse_than_message(initial_check_results)
                                 current_diff = generate_diff(
-                                    new_contents, current_new_contents
+                                    current_contents, new_contents
                                 )
-                                if is_valid:
+                                if not check_results_message:
                                     success_messages.append(
-                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
                                     )
                                 else:
-                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{check_results_message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                     break
                                 new_contents = current_new_contents
 
@@ -483,17 +477,22 @@ def function_modify(
                             break
 
                     if not error_message:
-                        keyword = tool_call["keyword"]
+                        keyword = tool_call["keyword"].strip()
                         match_indices = []
+                        match_context_indices = []
                         relevant_file_match_indices: dict[str, list[int]] = defaultdict(
+                            list
+                        )
+                        relevant_file_match_context_indices: dict[str, list[int]] = defaultdict(
                             list
                         )
                         # search current code file
                         for i, chunk in enumerate(chunks):
                             if keyword in chunk:
-                                match_indices.append(max(0, i - 1))
                                 match_indices.append(i)
-                                match_indices.append(min(len(chunks) - 1, i + 1))
+                                match_context_indices.append(max(0, i - 1))
+                                match_context_indices.append(i)
+                                match_context_indices.append(min(len(chunks) - 1, i + 1))
                         # search all relevant code files
                         for (
                             relevant_file_path,
@@ -503,23 +502,31 @@ def function_modify(
                                 if keyword in chunk:
                                     relevant_file_match_indices[
                                         relevant_file_path
+                                    ].append(i)
+                                    relevant_file_match_context_indices[
+                                        relevant_file_path
                                     ].append(max(0, i - 1))
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(i)
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(
                                         min(len(relevant_file_chunk_group) - 1, i + 1)
                                     )
 
                         match_indices = sorted(list(set(match_indices)))
+                        match_context_indices = sorted(list(set(match_context_indices)))
                         relevant_file_match_indices = {
                             k: sorted(list(set(v)))
                             for k, v in relevant_file_match_indices.items()
                         }
+                        relevant_file_match_context_indices = {
+                            k: sorted(list(set(v)))
+                            for k, v in relevant_file_match_context_indices.items()
+                        }
                         if not match_indices and not relevant_file_match_indices:
-                            error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
+                            error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             # for matches inside current code file
                             if match_indices:
@@ -531,12 +538,12 @@ def function_modify(
                                 )
                                 starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
-                                    match_indices, chunks, keyword, starter_message
+                                    match_context_indices, chunks, keyword, starter_message
                                 )
                                 if relevant_file_match_indices:
                                     success_message += "\n\n"
                             else:
-                                success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
+                                success_message += f"The keyword {keyword} was not found in the current file. However, it was found in the following relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
                                 sections_message = english_join(
@@ -549,7 +556,10 @@ def function_modify(
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
-                                ) in relevant_file_match_indices.items():
+                                ), (
+                                    _,
+                                    relevant_file_match_context_indices,
+                                ) in zip(relevant_file_match_indices.items(), relevant_file_match_context_indices.items()):
                                     sections_message = english_join(
                                         [
                                             int_to_excel_col(match_index + 1)
@@ -559,7 +569,7 @@ def function_modify(
                                     starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
-                                            relevant_file_match_indices,
+                                            relevant_file_match_context_indices,
                                             relevant_file_chunks[relevant_file_path],
                                             keyword,
                                             starter_message,
