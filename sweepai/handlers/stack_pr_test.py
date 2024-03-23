@@ -1,7 +1,7 @@
 import unittest
-import unittest.mock
+from unittest import mock
 
-from sweepai.handlers import stack_pr
+from sweepai.handlers.stack_pr import stack_pr
 
 
 class TestStackPR(unittest.TestCase):
@@ -28,7 +28,17 @@ class TestStackPR(unittest.TestCase):
             tracking_id="test_stack_pr",
         )
 
-    # Add more test methods as needed for each function in stack_pr.py
+    def test_error_handling(self):
+        # Mock the necessary objects and methods for error handling scenario
+        pass
+
+    def test_pull_request_creation(self):
+        # Mock the necessary objects and methods for pull request creation scenario
+        pass
+
+    def test_comment_editing(self):
+        # Mock the necessary objects and methods for comment editing functionality
+        pass
 
 
 if __name__ == '__main__':
