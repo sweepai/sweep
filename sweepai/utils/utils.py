@@ -19,6 +19,7 @@ from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
+from sweepai.utils import fuzzy_diff
 from sweepai.utils.diff import generate_diff
 
 
@@ -214,17 +215,11 @@ class CheckResults:
             # return f"The code has the following pylint errors:\n\n{self.pylint}"
             if not other.pylint:
                 return f"The code has the following pylint errors:\n\n{self.pylint}"
-            old_pylint_lines = other.pylint.splitlines()
-            old_pylint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in old_pylint_lines])
-            new_pylint_lines = self.pylint.splitlines()
-            new_pylint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in new_pylint_lines])
-            return f"The following new pylint errors have appeared. Here is the diff:\n\n{generate_diff(old_pylint_cleaned, new_pylint_cleaned)}"
+            return f"The following new pylint errors have appeared. Here is the diff:\n\n{fuzzy_diff(other.pylint, self.pylint)}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
-            old_eslint_lines = other.eslint.strip().splitlines()
-            old_eslint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in old_eslint_lines])
-            new_eslint_lines = self.eslint.strip().splitlines()
-            new_eslint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in new_eslint_lines])
-            return f"The following new eslint errors have appeared. Here is the diff:\n\n{generate_diff(old_eslint_cleaned, new_eslint_cleaned)}"
+            if not other.eslint:
+                return f"The code has the following eslint errors:\n\n{self.eslint}"
+            return f"The following new eslint errors have appeared. Here is the diff:\n\n{fuzzy_diff(other.eslint, self.eslint)}"
         return ""
 
 
