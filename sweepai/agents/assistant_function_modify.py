@@ -18,7 +18,7 @@ from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.utils import check_code, chunk_code
+from sweepai.utils.utils import check_code, chunk_code, get_check_results
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -36,6 +36,20 @@ keyword to search for in order to get more additional context. This will search 
 """
 
 instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
+You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
+You NEVER leave comments describing code without implementing it!
+Your job is to make edits to the file to complete the user "# Request".
+# Instructions
+1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
+2. Use the keyword_search function to find the right places to make changes.
+3. Use the search_and_replace function to make the changes.
+    - Keep whitespace and comments.
+    - Make the minimum necessary search_and_replaces to make changes to the snippets.
+    - Write multiple small changes instead of a single large change.
+When you have completed the task, call the submit function.
+"""
+
+new_instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
@@ -109,6 +123,9 @@ Justification for why you are finished with your task.
 </Justification>
 </SubmitSolution>
 """
+
+if not USE_ASSISTANT:
+    instructions = new_instructions
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
 # - Make one change at a time.
@@ -268,13 +285,13 @@ def function_modify(
         code_sections.append(current_code_section)
         code_sections_string = "\n".join(code_sections)
         additional_messages += [
-            *[
+            *reversed([
                 Message(
                     role="user",
                     content=code_section,
                 )
                 for code_section in code_sections
-            ],
+            ]),
             Message(
                 role="user",
                 content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
@@ -409,7 +426,7 @@ def function_modify(
                                         f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                                     )
                                 else:
-                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
                                     break
                                 new_contents = current_new_contents
 
@@ -431,7 +448,7 @@ def function_modify(
                     #         success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                     #     else:
                     #         diff = generate_diff(current_contents, new_contents)
-                    #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                    #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
                     if not error_message:
                         success_message = (
                             "The following changes have been applied:\n\n"
@@ -677,10 +694,7 @@ def function_modify_unstable(
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        initial_code_valid, _ = check_code(file_path, current_contents)
-        initial_code_valid = initial_code_valid or (
-            "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
-        )
+        initial_check_results = get_check_results(file_path, current_contents)
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
@@ -725,13 +739,13 @@ def function_modify_unstable(
         code_sections.append(current_code_section)
         code_sections_string = "\n".join(code_sections)
         additional_messages += [
-            *[
+            *reversed([
                 Message(
                     role="user",
                     content=code_section,
                 )
                 for code_section in code_sections
-            ],
+            ]),
             Message(
                 role="user",
                 content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
@@ -850,20 +864,17 @@ def function_modify_unstable(
                         
                         # Check if the changes are valid
                         if not error_message:
-                            is_valid, message = (
-                                (True, "")
-                                if not initial_code_valid
-                                else check_code(file_path, new_contents)
-                            )
+                            check_results = get_check_results(file_path, new_contents)
+                            check_results_message = check_results.is_worse_than_message(initial_check_results)
                             current_diff = generate_diff(
                                 current_contents, new_contents
                             )
-                            if is_valid:
+                            if not check_results_message:
                                 success_messages.append(
                                     f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
                                 )
                             else:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{check_results_message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                 break
                     if error_message:
                         logger.error(f"Error occured in SearchAndReplace tool: {error_message}")
@@ -1312,7 +1323,13 @@ if not USE_ASSISTANT:
     function_modify = function_modify_unstable  # noqa
 
 if __name__ == "__main__":
-    request = "Convert any all logger.errors to logger.exceptions in api.py"
+    from sweepai.utils.github_utils import MockClonedRepo
+    import os
+    # request = "Convert any all logger.errors to logger.exceptions in on_ticket.py"
+    request = """Split any logger.errors to:
+logger = Logger()
+logger.errors()
+in on_ticket.py""" # this causes a pylint error so it's great for testing
     additional_messages = [
         Message(
             role="user",
@@ -1330,7 +1347,7 @@ if __name__ == "__main__":
         chat_logger=ChatLogger(
             {
                 "username": "kevinlu1248",
-                "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
+                "title": request
             }
         ),
         additional_messages=additional_messages,

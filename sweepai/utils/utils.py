@@ -19,6 +19,7 @@ from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
+from sweepai.utils.diff import generate_diff
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -33,7 +34,6 @@ def get_line_number(index: int, source_code: str) -> int:
         if total_chars > index:
             return line_number - 1
     return line_number
-
 
 @dataclass
 class Span:
@@ -190,6 +190,39 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
     return chunks
 
+@dataclass
+class CheckResults:
+    # Experimental feature, we'll see how this does.
+    # TODO: smart parsing
+    parse_error_message: str = ""
+    pylint: str = ""
+    eslint: str = ""
+
+    def is_worse_than(self, other: CheckResults) -> bool:
+        if self.parse_error_message:
+            return True
+        if other.parse_error_message:
+            return False
+        return len(self.pylint.splitlines()) > len(other.pylint.splitlines()) or len(self.eslint.splitlines()) > len(other.eslint.splitlines())
+    
+    def is_worse_than_message(self, other: CheckResults) -> str:
+        if self.parse_error_message:
+            return self.parse_error_message
+        if other.parse_error_message:
+            return other.parse_error_message
+        if len(self.pylint.splitlines()) > len(other.pylint.splitlines()):
+            # return f"The code has the following pylint errors:\n\n{self.pylint}"
+            if not other.pylint:
+                return f"The code has the following pylint errors:\n\n{self.pylint}"
+            old_pylint_lines = other.pylint.splitlines()
+            old_pylint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in old_pylint_lines])
+            new_pylint_lines = self.pylint.splitlines()
+            new_pylint_cleaned = "\n".join([" ".join(line.split()[1:]) for line in new_pylint_lines])
+            return f"The following new pylint errors have appeared:\n\n{generate_diff(old_pylint_cleaned, new_pylint_cleaned)}"
+        if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
+            return f"The code has the following eslint errors:\n\n{self.eslint}"
+        return ""
+
 
 def check_valid_typescript(code: str) -> tuple[bool, str]:
     # with tempfile.TemporaryDirectory() as temp_dir:
@@ -208,7 +241,6 @@ def check_valid_typescript(code: str) -> tuple[bool, str]:
     #     os.remove(tmp_file)
     #     return result.returncode == 0, (result.stdout + result.stderr).decode("utf-8")
     return True, ""
-
 
 def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     ext = file_path.split(".")[-1]
@@ -280,6 +312,75 @@ DEFAULT_ESLINTRC = """{
   ]
 }"""
 
+def get_check_results(file_path: str, code: str) -> CheckResults:
+    is_valid, error_message = check_syntax(file_path, code)
+    if not is_valid:
+        return CheckResults(parse_error_message=error_message)
+    ext = file_path.split(".")[-1] # noqa
+    if ext == "py":
+        file_hash = uuid.uuid4().hex
+        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        stem = os.path.splitext(os.path.basename(file_path))[0]
+        try:
+            with open(new_file, "w") as f:
+                f.write(code)
+            pylint_output = StringIO()
+            reporter = TextReporter(pylint_output)
+            Run(
+                [
+                    new_file,
+                    "--disable=C",
+                    "--disable=R",
+                    "--disable=import-error",
+                    "--disable=no-member",
+                    "--disable=unused-import" # we have a workaround for this tbh
+                ],
+                reporter=reporter,
+                do_exit=False,
+            )
+            error_message = pylint_output.getvalue().strip()
+            try:
+                os.remove(new_file)
+            except FileNotFoundError:
+                pass
+            succeeded = error_message.startswith("------------------------------------")
+            if error_message:
+                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+                error_message = error_message.split("-----------------------------------", 1)[0].strip()
+                error_message = f"> pylint {file_path}\n\n" + error_message
+            return CheckResults(pylint=error_message if not succeeded else "")
+        except Exception as e:
+            logger.exception(e)
+    if ext == "ts":
+        # see if eslint is installed
+        result = subprocess.run(
+            ["npx", "eslint", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            with TemporaryDirectory() as temp_dir:
+                new_file = os.path.join(temp_dir, "temp.ts")
+                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
+                    f.write(DEFAULT_ESLINTRC)
+                with open(new_file, "w") as f:
+                    f.write(code)
+                result = subprocess.run(
+                    ["npx", "eslint", new_file, "--config", ".eslintrc"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode != 0:
+                    return CheckResults(eslint=result.stdout + "\n\n" + result.stderr)
+                return CheckResults()
+    return CheckResults(
+        parse_error_message=error_message,
+        pylint=pylint_output.getvalue(),
+        eslint=result.stdout,
+    )
+
 def check_code(file_path: str, code: str) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
@@ -288,6 +389,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
     if ext == "py":
         file_hash = uuid.uuid4().hex
         new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        stem = os.path.splitext(os.path.basename(file_path))[0]
         try:
             with open(new_file, "w") as f:
                 f.write(code)
@@ -304,16 +406,19 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                 reporter=reporter,
                 do_exit=False,
             )
-            error_message = pylint_output.getvalue()
+            error_message = pylint_output.getvalue().strip()
             try:
                 os.remove(new_file)
             except FileNotFoundError:
                 pass
-            if error_message:
+            if not error_message.startswith("------------------------------------"):
+                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+                error_message = error_message.split("-----------------------------------", 1)[0].strip()
+                error_message = f"> pylint {file_path}\n\n" + error_message
                 return False, error_message
         except Exception as e:
             logger.exception(e)
-    if ext == "ts" and False:
+    if ext == "ts":
         # see if eslint is installed
         result = subprocess.run(
             ["npx", "eslint", "--version"],
@@ -437,6 +542,6 @@ describe('CallToAction component', () => {
 });
 """
 
-
 if __name__ == "__main__":
-    print(check_syntax("CallToAction.test.tsx", test_code))
+    print(check_code("main.tsx", test_code))
+    # print(check_code("main.py", test_code)[1])
