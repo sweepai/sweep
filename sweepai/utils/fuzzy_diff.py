@@ -67,12 +67,12 @@ def patience_fuzzy_diff_lines(
 ) -> str:
     # Assumes new string has a few lines added from old string.
     # There's probably a better implementation but we'll do this for now.
-    if all(similar(old_line, new_line) for old_line, new_line in zip(old_lines, new_lines)):
-        return [f"  {line}" for line in new_lines]
     if not old_lines:
         return [f"+ {line}" for line in new_lines]
     if not new_lines:
         return [f"- {line}" for line in old_lines]
+    if all(similar(old_line, new_line) for old_line, new_line in zip(old_lines, new_lines)):
+        return [f"  {line}" for line in new_lines]
     diff_lines = []
     matches = find_unique_matches(old_lines, new_lines)
     match_indices = lis([right for _left, right in matches])
@@ -97,7 +97,6 @@ def patience_fuzzy_diff_lines(
             diff_lines.append(f"+ {new_lines[0]}")
         diff_lines.extend(patience_fuzzy_diff_lines(old_lines[1:], new_lines[1:]))
     return diff_lines
-
 
 def patience_fuzzy_diff(
     old_string: str,
@@ -154,13 +153,12 @@ stress_test_new = "AAGTCCGTAACCTGACATCTGAGGCTAATCACTGAGGCGTATGCGCGATATGCGTATGCGC
 if __name__ == "__main__":
     import time
     start = time.time()
-    # print(patience_fuzzy_diff(old_lint_results, new_lint_results))
-    print(patience_fuzzy_diff_lines(
-        old_lint_results.splitlines(),
-        new_lint_results.splitlines()
+    print(patience_fuzzy_diff(
+        old_lint_results,
+        new_lint_results
     ))
-    print(patience_fuzzy_diff_lines(
-        stress_test_old,
-        stress_test_new
-    ))
-    print(time.time() - start)
+    # print(patience_fuzzy_diff_lines(
+    #     stress_test_old,
+    #     stress_test_new
+    # ))
+    print(f"Time taken: {time.time() - start} seconds.")
