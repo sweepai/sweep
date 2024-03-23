@@ -49,6 +49,8 @@ Your job is to make edits to the file to complete the user "# Request".
 When you have completed the task, call the submit function.
 """
 
+# Add COT to each tool
+
 new_instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
@@ -815,7 +817,7 @@ def function_modify_unstable(
                     if "newcode" not in tool_call:
                         error_message += "No NewCode was provided in the tool call. Call the tool again but this time provide the NewCode.\n"
                     for _ in range(1): # this is super jank code but it works for now
-                        section_letter = tool_call["sectionid"]
+                        section_letter = tool_call["sectionid"].strip()
                         section_id = excel_col_to_int(section_letter)
                         old_code = tool_call["originalcode"].strip("\n")
                         new_code = tool_call["newcode"].strip("\n")
