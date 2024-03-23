@@ -272,7 +272,6 @@ class ModifyBot:
             start_line=file_change_request.start_line,
             end_line=file_change_request.end_line,
             relevant_filepaths=relevant_filepaths,
-            cwd=cloned_repo.repo_dir
         )
         if new_file is not None:
             posthog.capture(
