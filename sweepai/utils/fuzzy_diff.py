@@ -2,8 +2,10 @@
 # It's a bit broken so if you have a better implementation, please replace this.
 # Based on https://blog.jcoglan.com/2017/09/19/the-patience-diff-algorithm/
 
-# TODO: Improve this with bipartite matching to find the best matches.
-# Minimize the fuzziness product
+# TODO: Improve this with Hungarian method to find the best matches
+# treating the matches as an assignment problem.
+# Minimize the product of the fuzziness scores. We can take the negative
+# log of the fuzziness scores and use that as the cost matrix.
 
 from rapidfuzz import fuzz
 
@@ -22,6 +24,8 @@ def lis(lst: list):
     buckets = [[lst[0]]]
     
     for i, x in enumerate(lst[1:]):
+        # Should use binary search here for O(nlogn) but quadratic for now
+        # Haven't seen performance issues yet
         for j, bucket in enumerate(buckets):
             if x < bucket[-1]:
                 buckets[j].append(x)
