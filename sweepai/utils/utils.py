@@ -281,49 +281,8 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         return (False, error_message)
     return True, ""
 
-DEFAULT_ESLINTRC = """{
-  "parser": "@typescript-eslint/parser",
-  "parserOptions": {
-    "ecmaVersion": 2020,
-    "sourceType": "module",
-    "project": "./tsconfig.json"
-  },
-  "plugins": ["@typescript-eslint", "import"],
-  "extends": [
-    "plugin:@typescript-eslint/recommended",
-    "plugin:import/typescript"
-  ],
-  "rules": {
-    "no-undef": "error",
-    "no-const-assign": "error",
-    "no-redeclare": "error",
-    "@typescript-eslint/no-unused-vars": ["error", { "vars": "all", "args": "all", "ignoreRestSiblings": false }],
-    "no-unused-vars": "off",
-    "@typescript-eslint/explicit-function-return-type": ["error", { "allowExpressions": false }],
-    "@typescript-eslint/no-explicit-any": "error",
-    "@typescript-eslint/strict-boolean-expressions": "error",
-    "import/no-unresolved": "error",
-    "import/named": "error",
-    "import/namespace": "error",
-    "import/default": "error",
-    "import/export": "error"
-  },
-  "settings": {
-    "import/resolver": {
-      "typescript": {}
-    }
-  },
-  "overrides": [
-    {
-      "files": ["*.ts", "*.tsx"],
-      "rules": {
-        "no-undef": "off"
-      }
-    }
-  ]
-}"""
-
 # Need to add "no-unused-vars": "error"
+# Need to add "import/first": "error"
 
 DEFAULT_ESLINTRC = """{
   "parser": "@typescript-eslint/parser",
@@ -331,21 +290,28 @@ DEFAULT_ESLINTRC = """{
     "ecmaVersion": 2020,
     "sourceType": "module"
   },
-  "plugins": ["@typescript-eslint"],
-  "extends": [
-    "plugin:@typescript-eslint/recommended",
-    "plugin:import/typescript"
+  "plugins": [
+    "@typescript-eslint",
+    "import"
   ],
   "rules": {
     "no-undef": "error",
     "no-const-assign": "error",
     "no-redeclare": "error",
+    "no-unused-vars": "error",
+    "no-use-before-define": ["error", { "functions": true, "classes": true, "variables": true }],
+    "import/first": "error"
   },
   "settings": {
     "import/resolver": {
       "typescript": {}
     }
   },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:import/typescript"
+  ],
   "overrides": [
     {
       "files": ["*.ts", "*.tsx"],
