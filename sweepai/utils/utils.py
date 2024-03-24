@@ -20,7 +20,6 @@ from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.fuzzy_diff import patience_fuzzy_diff
-from sweepai.utils.diff import generate_diff
 
 
 def non_whitespace_len(s: str) -> int:  # new len function

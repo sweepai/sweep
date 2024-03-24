@@ -20,7 +20,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.utils import check_code, chunk_code, get_check_results
+from sweepai.utils.utils import chunk_code, get_check_results
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -1004,6 +1004,7 @@ def function_modify_unstable(
                                         for match_index in match_indices
                                     ]
                                 )
+                                also_keyword = "also " if match_indices else ""
                                 starter_message = f"READONLY FILES\n\nThe keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}, which you MAY NOT modify. They appear in the following places:\n\n"
                                 success_message += (
                                     build_keyword_search_match_results(
@@ -1388,7 +1389,6 @@ if not USE_ASSISTANT:
     function_modify = function_modify_unstable  # noqa
 
 if __name__ == "__main__":
-    from sweepai.utils.github_utils import MockClonedRepo
     import os
     # request = "Convert any all logger.errors to logger.exceptions in on_ticket.py"
     request = """Split any logger.errors to:
