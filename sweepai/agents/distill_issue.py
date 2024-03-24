@@ -21,6 +21,7 @@ Things to keep:
 - The root cause.
 - The fix.
 - Additional crucial details for solving the issue.
+- Copy all the links to one area at the end, such as backlinks to issues, references to files and PRs.
 
 Things to remove:
 - The summary, unless it contains crucial details.
