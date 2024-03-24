@@ -104,7 +104,7 @@ To call this tool you MUST respond in the following xml format:
 List out the changes that need to be made to the CURRENT FILE ONLY. List out all locations that should recieve these changes and what the changes should be.
 </AnalysisAndIdentification>
 
-SearchAndReplace - Use this tool to apply the changes one by one listed out in the AnalysisAndIdentification tool.
+SearchAndReplace - Use this tool to apply the changes one by one listed out in the AnalysisAndIdentification tool. This tool is great for when you change the function signature and want to update all the usages to that function.
 If multiple SearchAndReplace calls are needed, call this tool multiple times. To call this tool you MUST respond in the following xml format:
 
 <SearchAndReplace>
@@ -367,6 +367,7 @@ def function_modify(
                     new_contents = current_contents
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
                     success_messages = []
+                    warning_message = ""
                     error_index = 0
                     if "replaces_to_make" not in tool_call:
                         error_message = "No replaces_to_make found in tool call."
@@ -443,14 +444,11 @@ def function_modify(
                                     current_contents, new_contents
                                 )
                                 if not failing_parse:
-                                    if not check_results_message:
-                                        success_messages.append(
-                                            f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
-                                        )
-                                    else:
-                                        success_messages.append(
-                                            f"The following changes have been applied:\n```diff\n{current_diff}\n```\nHowever, the following new warnings have appeared:\n\n```\n{check_results_message}\n```\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
-                                        )
+                                    success_messages.append(
+                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
+                                    )
+                                    if check_results_message:
+                                        warning_message = f"\n\nWARNING\n\n{check_results_message}"
                                 else:
                                     error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                     break
@@ -477,9 +475,10 @@ def function_modify(
                     #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
                     if not error_message:
                         success_message = (
-                            "The following changes have been applied:\n\n"
+                            "SUCCESS\n\nThe following changes have been applied:\n\n"
                             + generate_diff(current_contents, new_contents)
-                        )
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again, or go back to searching for keywords using the KeywordSearch tool, which is great for finding all definitions or usages of a function or class."
+                        # set contents
                         current_contents = new_contents
 
                     if error_message:
@@ -709,6 +708,7 @@ def function_modify_unstable(
     request: str,
     file_path: str,
     file_contents: str,
+    cloned_repo: ClonedRepo,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = None,
@@ -735,7 +735,7 @@ def function_modify_unstable(
         try:
             for relevant_file_path in relevant_filepaths:
                 relevant_file_content = read_file_with_fallback_encodings(
-                    relevant_file_path
+                    os.path.join(cloned_repo.repo_dir, relevant_file_path)
                 )
                 relevant_file_contents[relevant_file_path] = relevant_file_content
         except Exception as e:
@@ -857,6 +857,7 @@ def function_modify_unstable(
                     success_message = ""
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
                     success_messages = []
+                    warning_message = ""
                     if "sectionid" not in tool_call:
                         error_message = "No SectionId was provided in the tool call. Call the tool again but this time provide the SectionId.\n"
                     if "originalcode" not in tool_call:
@@ -923,14 +924,11 @@ def function_modify_unstable(
                                 current_contents, new_contents
                             )
                             if not failing_parse:
-                                if not check_results_message:
-                                    success_messages.append(
-                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
-                                    )
-                                else:
-                                    success_messages.append(
-                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nHowever, the following new warnings have appeared:\n\n```\n{check_results_message}\n```\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
-                                    )
+                                success_messages.append(
+                                    f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
+                                )
+                                if check_results_message:
+                                    warning_message = f"\n\nWARNING\n\n{check_results_message}"
                             else:
                                 error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                 break
@@ -942,9 +940,9 @@ def function_modify_unstable(
 
                     if not error_message:
                         success_message = (
-                            "The following changes have been applied:\n\n"
+                            "SUCCESS\n\nThe following changes have been applied:\n\n"
                             + generate_diff(current_contents, new_contents)
-                        )
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again, or go back to searching for keywords using the KeywordSearch tool, which is great for finding all definitions or usages of a function or class."
                         # set contents
                         current_contents = new_contents
 
@@ -1013,7 +1011,7 @@ def function_modify_unstable(
                             for k, v in relevant_file_match_context_indices.items()
                         }
                         if not match_indices and not relevant_file_match_indices:
-                            error_message = f"CURRENT_FILE\n\nThe keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
+                            error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             # for matches inside current code file
                             if match_indices:
@@ -1023,12 +1021,11 @@ def function_modify_unstable(
                                         for match_index in match_indices
                                     ]
                                 )
-                                also_keyword = "also " if match_indices else ""
-                                starter_message = f"READONLY FILES\n\nThe keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}, which you MAY NOT modify. They appear in the following places:\n\n"
+                                starter_message = f"CURRENT FILE\n\nThe keyword {keyword} was found in sections {sections_message} of the CURRENT file {file_path}, which you MAY modify. They appear in the following places:\n\n"
                                 success_message += (
                                     build_keyword_search_match_results(
-                                        relevant_file_match_context_indices,
-                                        relevant_file_chunks[relevant_file_path],
+                                        match_indices,
+                                        chunks,
                                         keyword,
                                         starter_message,
                                         readonly=True
@@ -1046,7 +1043,6 @@ def function_modify_unstable(
                                         for match_index in match_indices
                                     ]
                                 )
-                                also_keyword = "also " if match_indices else ""
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
@@ -1060,13 +1056,15 @@ def function_modify_unstable(
                                             for match_index in relevant_file_match_indices
                                         ]
                                     )
-                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
+                                    also_keyword = "also " if match_indices else ""
+                                    starter_message = f"READONLY FILES\n\nThe keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}, which you MAY NOT modify. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
                                             relevant_file_match_context_indices,
                                             relevant_file_chunks[relevant_file_path],
                                             keyword,
                                             starter_message,
+                                            readonly=True
                                         )
                                     )
 
