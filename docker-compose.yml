@@ -15,6 +15,8 @@ services:
       sh -c ". bin/startup.sh"
     stdin_open: true
     tty: true
+    ports:
+      - "${PORT:-8080}:8080"
     restart: unless-stopped
   hosted-legacy:
     env_file:
