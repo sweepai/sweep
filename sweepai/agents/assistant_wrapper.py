@@ -758,13 +758,13 @@ def run_until_complete_unstable(
                         tool_output = yield tool_name, tool_args
                         if not tool_output:
                             break
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "name": tool_name,
-                        "content": tool_output,
-                    }
-                )  # extend conversation with function response
+                        messages.append(
+                            {
+                                "role": "assistant",
+                                "name": tool_name,
+                                "content": tool_output,
+                            }
+                        )  # extend conversation with function response
                 
         else:  # no tool call being made implies either an error or a success
             logger.error(
