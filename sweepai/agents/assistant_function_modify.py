@@ -1,3 +1,4 @@
+import os
 import json
 import subprocess
 import traceback
@@ -16,12 +17,13 @@ from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_len
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.context_pruning import post_process_rg_output
-from sweepai.core.entities import AssistantRaisedException, Message, Snippet
+from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.utils import check_code, chunk_code
+from sweepai.utils.utils import chunk_code, get_check_results
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -29,8 +31,25 @@ from sweepai.utils.utils import check_code, chunk_code
 instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
+Your job is to make edits to the file to complete the user "# Request".
+# Instructions
+1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
+2. Use the keyword_search function to find the right places to make changes.
+3. Use the search_and_replace function to make the changes.
+    - Keep whitespace and comments.
+    - Make the minimum necessary search_and_replaces to make changes to the snippets.
+    - Write multiple small changes instead of a single large change.
+When you have completed the task, call the submit function.
+"""
+
+# Add COT to each tool
+
+new_instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
+You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
+You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
 Respect and use existing conventions, libraries, etc that are already present in the code base.
+
 Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
@@ -78,7 +97,7 @@ To call this tool you MUST respond in the following xml format:
 List out the changes that need to be made to the CURRENT FILE ONLY. List out all locations that should recieve these changes and what the changes should be.
 </AnalysisAndIdentification>
 
-SearchAndReplace - Use this tool to apply the changes one by one listed out in the AnalysisAndIdentification tool.
+SearchAndReplace - Use this tool to apply the changes one by one listed out in the AnalysisAndIdentification tool. This tool is great for when you change the function signature and want to update all the usages to that function.
 If multiple SearchAndReplace calls are needed, call this tool multiple times. To call this tool you MUST respond in the following xml format:
 
 <SearchAndReplace>
@@ -111,6 +130,9 @@ keyword to search for in order to get more additional context. This will search 
 </Keyword>
 </GetAdditionalContext>
 """
+
+if not USE_ASSISTANT:
+    instructions = new_instructions
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
 # - Make one change at a time.
@@ -183,12 +205,32 @@ def english_join(items: list[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
+def generate_status_message(file_path: str, fcrs: list[FileChangeRequest]) -> str:
+    if not fcrs or len(fcrs) == 1:
+        return f"You will resolve the issue by editing {file_path}."
+    index = -1
+    for i, fcr in enumerate(fcrs):
+        if fcr.filename == file_path:
+            index = i
+            break
+    else:
+        logger.warning(f"Could not find file {file_path} in list of FCRs.")
+        return f"You will resolve the issue by editing {file_path}."
+    message = ""
+    if index > 1:
+        message += f"You have already made changes to {english_join([fcr.filename for fcr in fcrs[:index]])}. "
+    message += f"You will resolve the issue by editing {file_path}. "
+    if index < len(fcrs) - 1:
+        message += f"You will edit the files {english_join([fcr.filename for fcr in fcrs[index + 1:]])} later."
+    return message.strip()
+
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
     request: str,
     file_path: str,
     file_contents: str,
+    cloned_repo: ClonedRepo,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = None,
@@ -198,7 +240,7 @@ def function_modify(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
-    cwd: str | None = None,
+    fcrs: list[FileChangeRequest]=[]
 ):
     try:
 
@@ -215,17 +257,14 @@ def function_modify(
         try:
             for relevant_file_path in relevant_filepaths:
                 relevant_file_content = read_file_with_fallback_encodings(
-                    relevant_file_path
+                    os.path.join(cloned_repo.repo_dir, relevant_file_path)
                 )
                 relevant_file_contents[relevant_file_path] = relevant_file_content
         except Exception as e:
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        initial_code_valid, _ = check_code(file_path, current_contents)
-        initial_code_valid = initial_code_valid or (
-            "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
-        )
+        initial_check_results = get_check_results(file_path, current_contents)
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
@@ -267,21 +306,22 @@ def function_modify(
                 current_code_section = section_display
             else:
                 current_code_section += "\n" + section_display
-        code_sections.append(current_code_section)
-        code_sections_string = "\n".join(code_sections)
-        additional_messages += [
-            *[
+        current_code_section = current_code_section.strip("\n")
+        code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
+        fcrs_message = generate_status_message(file_path, fcrs)
+        additional_messages = [
+            Message(
+                role="user",
+                content=f"# Request\n{request}\n\n{fcrs_message}",
+            ),
+            *reversed([
                 Message(
                     role="user",
                     content=code_section,
                 )
                 for code_section in code_sections
-            ],
-            Message(
-                role="user",
-                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
-            ),
-        ]
+            ]),
+        ] + additional_messages
         tools = [
             {"type": "function", "function": chain_of_thought_schema},
             {"type": "function", "function": keyword_search_schema},
@@ -308,7 +348,7 @@ def function_modify(
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(100):  # TODO: tune this parameter
                 print(tool_name, json.dumps(tool_call, indent=2))
-                if tool_name == "done":
+                if tool_name == "done" or tool_name == "submit":
                     diff = generate_diff(file_contents, current_contents)
                     if diff:
                         break
@@ -329,6 +369,7 @@ def function_modify(
                     new_contents = current_contents
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
                     success_messages = []
+                    warning_message = ""
                     error_index = 0
                     if "replaces_to_make" not in tool_call:
                         error_message = "No replaces_to_make found in tool call."
@@ -398,20 +439,20 @@ def function_modify(
 
                             # Check if the changes are valid
                             if not error_message:
-                                is_valid, message = (
-                                    (True, "")
-                                    if not initial_code_valid
-                                    else check_code(file_path, current_new_contents)
-                                )
+                                check_results = get_check_results(file_path, new_contents)
+                                check_results_message = check_results.is_worse_than_message(initial_check_results)
+                                failing_parse = check_results.parse_error_message if not initial_check_results.parse_error_message else ""
                                 current_diff = generate_diff(
-                                    new_contents, current_new_contents
+                                    current_contents, new_contents
                                 )
-                                if is_valid:
+                                if not failing_parse:
                                     success_messages.append(
-                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
+                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
                                     )
+                                    if check_results_message:
+                                        warning_message = f"\n\nWARNING\n\n{check_results_message}"
                                 else:
-                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                     break
                                 new_contents = current_new_contents
 
@@ -433,12 +474,13 @@ def function_modify(
                     #         success_message = f"The following changes have been applied:\n```diff\n{diff}\n```\nYou can continue to make changes to the code sections and call the `search_and_replace` function again."
                     #     else:
                     #         diff = generate_diff(current_contents, new_contents)
-                    #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
+                    #         error_message = f"No changes have been applied becuase invalid code changes have been applied. You requested the following changes:\n\n```diff\n{diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the search_and_replace with different changes that yield valid code."
                     if not error_message:
                         success_message = (
-                            "The following changes have been applied:\n\n"
+                            "SUCCESS\n\nThe following changes have been applied:\n\n"
                             + generate_diff(current_contents, new_contents)
-                        )
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again, or go back to searching for keywords using the KeywordSearch tool, which is great for finding all definitions or usages of a function or class."
+                        # set contents
                         current_contents = new_contents
 
                     if error_message:
@@ -466,17 +508,22 @@ def function_modify(
                             break
 
                     if not error_message:
-                        keyword = tool_call["keyword"]
+                        keyword = tool_call["keyword"].strip()
                         match_indices = []
+                        match_context_indices = []
                         relevant_file_match_indices: dict[str, list[int]] = defaultdict(
+                            list
+                        )
+                        relevant_file_match_context_indices: dict[str, list[int]] = defaultdict(
                             list
                         )
                         # search current code file
                         for i, chunk in enumerate(chunks):
                             if keyword in chunk:
-                                match_indices.append(max(0, i - 1))
                                 match_indices.append(i)
-                                match_indices.append(min(len(chunks) - 1, i + 1))
+                                match_context_indices.append(max(0, i - 1))
+                                match_context_indices.append(i)
+                                match_context_indices.append(min(len(chunks) - 1, i + 1))
                         # search all relevant code files
                         for (
                             relevant_file_path,
@@ -486,23 +533,31 @@ def function_modify(
                                 if keyword in chunk:
                                     relevant_file_match_indices[
                                         relevant_file_path
+                                    ].append(i)
+                                    relevant_file_match_context_indices[
+                                        relevant_file_path
                                     ].append(max(0, i - 1))
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(i)
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(
                                         min(len(relevant_file_chunk_group) - 1, i + 1)
                                     )
 
                         match_indices = sorted(list(set(match_indices)))
+                        match_context_indices = sorted(list(set(match_context_indices)))
                         relevant_file_match_indices = {
                             k: sorted(list(set(v)))
                             for k, v in relevant_file_match_indices.items()
                         }
+                        relevant_file_match_context_indices = {
+                            k: sorted(list(set(v)))
+                            for k, v in relevant_file_match_context_indices.items()
+                        }
                         if not match_indices and not relevant_file_match_indices:
-                            error_message = f"The keyword {keyword} does not appear to be present in the code. Consider missing or misplaced whitespace, comments or delimiters."
+                            error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             # for matches inside current code file
                             if match_indices:
@@ -512,14 +567,14 @@ def function_modify(
                                         for match_index in match_indices
                                     ]
                                 )
-                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
+                                starter_message = f"CURRENT FILE\n\nThe keyword {keyword} was found in sections {sections_message} of the CURRENT file {file_path}, which you MAY modify. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
-                                    match_indices, chunks, keyword, starter_message
+                                    match_context_indices, chunks, keyword, starter_message
                                 )
                                 if relevant_file_match_indices:
                                     success_message += "\n\n"
                             else:
-                                success_message += f"The keyword {keyword} was not found in the current file. However, it is found in relevant READONLY file(s).\n\n"
+                                success_message += f"The keyword {keyword} was not found in the current file. However, it was found in the following relevant READONLY file(s).\n\n"
                             # for matches inside relevant code files
                             if relevant_file_match_indices:
                                 sections_message = english_join(
@@ -532,20 +587,24 @@ def function_modify(
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
-                                ) in relevant_file_match_indices.items():
+                                ), (
+                                    _,
+                                    relevant_file_match_context_indices,
+                                ) in zip(relevant_file_match_indices.items(), relevant_file_match_context_indices.items()):
                                     sections_message = english_join(
                                         [
                                             int_to_excel_col(match_index + 1)
                                             for match_index in relevant_file_match_indices
                                         ]
                                     )
-                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
+                                    starter_message = f"READONLY FILES\n\nThe keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}, which you MAY NOT modify. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
-                                            relevant_file_match_indices,
+                                            relevant_file_match_context_indices,
                                             relevant_file_chunks[relevant_file_path],
                                             keyword,
                                             starter_message,
+                                            readonly=True
                                         )
                                     )
 
@@ -556,8 +615,12 @@ def function_modify(
                         )
                     else:
                         logger.debug(success_message)
+                        if relevant_filepaths:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path} and may not edit any of the READONLY files {english_join(relevant_filepaths)}."
+                        else:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path}."
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function."
+                            f"{success_message}{suffix}"
                         )
                 elif tool_name == "view_sections":
                     error_message = ""
@@ -647,6 +710,7 @@ def function_modify_unstable(
     request: str,
     file_path: str,
     file_contents: str,
+    cloned_repo: ClonedRepo,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = None,
@@ -657,6 +721,7 @@ def function_modify_unstable(
     seed: int = None,
     relevant_filepaths: list[str] = [],
     cwd: str | None = None,
+    fcrs: list[FileChangeRequest]=[]
 ):
     try:
         logger.info("Starting function_modify_unstable")
@@ -674,17 +739,14 @@ def function_modify_unstable(
         try:
             for relevant_file_path in relevant_filepaths:
                 relevant_file_content = read_file_with_fallback_encodings(
-                    relevant_file_path
+                    os.path.join(cloned_repo.repo_dir, relevant_file_path)
                 )
                 relevant_file_contents[relevant_file_path] = relevant_file_content
         except Exception as e:
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        initial_code_valid, _ = check_code(file_path, current_contents)
-        initial_code_valid = initial_code_valid or (
-            "<<<<<<<" in current_contents and ">>>>>>>" in current_contents
-        )
+        initial_check_results = get_check_results(file_path, current_contents)
 
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
@@ -726,21 +788,22 @@ def function_modify_unstable(
                 current_code_section = section_display
             else:
                 current_code_section += "\n" + section_display
-        code_sections.append(current_code_section)
-        code_sections_string = "\n".join(code_sections)
-        additional_messages += [
-            *[
+        current_code_section = current_code_section.strip("\n")
+        code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
+        fcrs_message = generate_status_message(file_path, fcrs)
+        additional_messages = [
+            Message(
+                role="user",
+                content=f"# Request\n{request}\n\n{fcrs_message}",
+            ),
+            *reversed([
                 Message(
                     role="user",
                     content=code_section,
                 )
                 for code_section in code_sections
-            ],
-            Message(
-                role="user",
-                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
-            ),
-        ]
+            ]),
+        ] + additional_messages
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
@@ -798,6 +861,7 @@ def function_modify_unstable(
                     success_message = ""
                     new_chunks = [chunk for chunk in chunks]  # deepcopy
                     success_messages = []
+                    warning_message = ""
                     if "sectionid" not in tool_call:
                         error_message = "No SectionId was provided in the tool call. Call the tool again but this time provide the SectionId.\n"
                     if "originalcode" not in tool_call:
@@ -811,6 +875,9 @@ def function_modify_unstable(
                         new_code = tool_call["newcode"].strip("\n")
                         if section_id >= len(chunks):
                             error_message = f"Could not find section {section_letter} in file {file_path}, which has {len(chunks)} sections."
+                            break
+                        elif section_id < 0:
+                            error_message = f"The section ID {section_letter} can not be parsed."
                             break
 
                         # fetch the chunk of code we will be modifying
@@ -858,20 +925,20 @@ def function_modify_unstable(
                         
                         # Check if the changes are valid
                         if not error_message:
-                            is_valid, message = (
-                                (True, "")
-                                if not initial_code_valid
-                                else check_code(file_path, new_contents)
-                            )
+                            check_results = get_check_results(file_path, new_contents)
+                            check_results_message = check_results.is_worse_than_message(initial_check_results)
+                            failing_parse = check_results.parse_error_message if not initial_check_results.parse_error_message else ""
                             current_diff = generate_diff(
                                 current_contents, new_contents
                             )
-                            if is_valid:
+                            if not failing_parse:
                                 success_messages.append(
                                     f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
                                 )
+                                if check_results_message:
+                                    warning_message = f"\n\nWARNING\n\n{check_results_message}"
                             else:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{message}\n```\n\nFirst, identify where the broken Typescript code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                 break
                     if error_message:
                         logger.error(f"Error occured in SearchAndReplace tool: {error_message}")
@@ -881,9 +948,9 @@ def function_modify_unstable(
 
                     if not error_message:
                         success_message = (
-                            "The following changes have been applied:\n\n"
+                            "SUCCESS\n\nThe following changes have been applied:\n\n"
                             + generate_diff(current_contents, new_contents)
-                        )
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again, or go back to searching for keywords using the KeywordSearch tool, which is great for finding all definitions or usages of a function or class."
                         # set contents
                         current_contents = new_contents
 
@@ -926,15 +993,20 @@ def function_modify_unstable(
                     if not error_message:
                         keyword = tool_call["keyword"].strip()
                         match_indices = []
+                        match_context_indices = []
                         relevant_file_match_indices: dict[str, list[int]] = defaultdict(
+                            list
+                        )
+                        relevant_file_match_context_indices: dict[str, list[int]] = defaultdict(
                             list
                         )
                         # search current code file
                         for i, chunk in enumerate(chunks):
                             if keyword in chunk:
-                                match_indices.append(max(0, i - 1))
                                 match_indices.append(i)
-                                match_indices.append(min(len(chunks) - 1, i + 1))
+                                match_context_indices.append(max(0, i - 1))
+                                match_context_indices.append(i)
+                                match_context_indices.append(min(len(chunks) - 1, i + 1))
                         # search all relevant code files
                         for (
                             relevant_file_path,
@@ -944,20 +1016,28 @@ def function_modify_unstable(
                                 if keyword in chunk:
                                     relevant_file_match_indices[
                                         relevant_file_path
+                                    ].append(i)
+                                    relevant_file_match_context_indices[
+                                        relevant_file_path
                                     ].append(max(0, i - 1))
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(i)
-                                    relevant_file_match_indices[
+                                    relevant_file_match_context_indices[
                                         relevant_file_path
                                     ].append(
                                         min(len(relevant_file_chunk_group) - 1, i + 1)
                                     )
 
                         match_indices = sorted(list(set(match_indices)))
+                        match_context_indices = sorted(list(set(match_context_indices)))
                         relevant_file_match_indices = {
                             k: sorted(list(set(v)))
                             for k, v in relevant_file_match_indices.items()
+                        }
+                        relevant_file_match_context_indices = {
+                            k: sorted(list(set(v)))
+                            for k, v in relevant_file_match_context_indices.items()
                         }
                         if not match_indices and not relevant_file_match_indices:
                             error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
@@ -970,9 +1050,15 @@ def function_modify_unstable(
                                         for match_index in match_indices
                                     ]
                                 )
-                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
-                                success_message += build_keyword_search_match_results(
-                                    match_indices, chunks, keyword, starter_message
+                                starter_message = f"CURRENT FILE\n\nThe keyword {keyword} was found in sections {sections_message} of the CURRENT file {file_path}, which you MAY modify. They appear in the following places:\n\n"
+                                success_message += (
+                                    build_keyword_search_match_results(
+                                        match_indices,
+                                        chunks,
+                                        keyword,
+                                        starter_message,
+                                        readonly=True
+                                    )
                                 )
                                 if relevant_file_match_indices:
                                     success_message += "\n\n"
@@ -986,24 +1072,28 @@ def function_modify_unstable(
                                         for match_index in match_indices
                                     ]
                                 )
-                                also_keyword = "also " if match_indices else ""
                                 for (
                                     relevant_file_path,
                                     relevant_file_match_indices,
-                                ) in relevant_file_match_indices.items():
+                                ), (
+                                    _,
+                                    relevant_file_match_context_indices,
+                                ) in zip(relevant_file_match_indices.items(), relevant_file_match_context_indices.items()):
                                     sections_message = english_join(
                                         [
                                             int_to_excel_col(match_index + 1)
-                                            for match_index in match_indices
+                                            for match_index in relevant_file_match_indices
                                         ]
                                     )
-                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
+                                    also_keyword = "also " if match_indices else ""
+                                    starter_message = f"READONLY FILES\n\nThe keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}, which you MAY NOT modify. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
-                                            relevant_file_match_indices,
+                                            relevant_file_match_context_indices,
                                             relevant_file_chunks[relevant_file_path],
                                             keyword,
                                             starter_message,
+                                            readonly=True
                                         )
                                     )
 
@@ -1014,8 +1104,12 @@ def function_modify_unstable(
                         )
                     else:
                         logger.debug(success_message)
+                        if relevant_filepaths:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path} and may not edit any of the READONLY files {english_join(relevant_filepaths)}."
+                        else:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path}."
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional KeywordSearch tool calls to find other keywords or start making changes by calling the SearchAndReplace tool."
+                            f"{success_message}{suffix}"
                         )
                 elif tool_name == "view_sections":
                     error_message = ""
@@ -1341,7 +1435,12 @@ if not USE_ASSISTANT:
     function_modify = function_modify_unstable  # noqa
 
 if __name__ == "__main__":
-    request = "Convert any all logger.errors to logger.exceptions in api.py"
+    import os
+    # request = "Convert any all logger.errors to logger.exceptions in on_ticket.py"
+    request = """Split any logger.errors to:
+logger = Logger()
+logger.errors()
+in on_ticket.py""" # this causes a pylint error so it's great for testing
     additional_messages = [
         Message(
             role="user",
@@ -1359,7 +1458,7 @@ if __name__ == "__main__":
         chat_logger=ChatLogger(
             {
                 "username": "kevinlu1248",
-                "title": "Convert any all logger.errors to logger.exceptions in on_ticket.py",
+                "title": request
             }
         ),
         additional_messages=additional_messages,
