@@ -13,7 +13,7 @@ from sweepai.agents.assistant_functions import (
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
 from sweepai.config.server import USE_ASSISTANT
-from sweepai.core.entities import AssistantRaisedException, Message, Snippet
+from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
@@ -56,6 +56,7 @@ You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
 Respect and use existing conventions, libraries, etc that are already present in the code base.
+
 Your job is to make edits to the file to complete the user "# Request".
 
 # Instructions
@@ -216,6 +217,7 @@ def function_modify(
     seed: int = None,
     relevant_filepaths: list[str] = [],
     cwd: str | None = None,
+    remaining_fcrs: list[FileChangeRequest]=[]
 ):
     try:
 
@@ -281,9 +283,14 @@ def function_modify(
                 current_code_section = section_display
             else:
                 current_code_section += "\n" + section_display
-        code_sections.append(current_code_section)
-        code_sections_string = "\n".join(code_sections)
-        additional_messages += [
+        current_code_section = current_code_section.strip("\n")
+        code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
+        remaining_fcrs_message = f" and will edit the files {english_join([fcr.filename for fcr in remaining_fcrs])} later" if remaining_fcrs else ""
+        additional_messages = [
+            Message(
+                role="user",
+                content=f"# Request\n{request}\n\nYou are currently editing {file_path}{remaining_fcrs_message}.",
+            ),
             *reversed([
                 Message(
                     role="user",
@@ -291,11 +298,7 @@ def function_modify(
                 )
                 for code_section in code_sections
             ]),
-            Message(
-                role="user",
-                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
-            ),
-        ]
+        ] + additional_messages
         tools = [
             {"type": "function", "function": chain_of_thought_schema},
             {"type": "function", "function": keyword_search_schema},
@@ -322,7 +325,7 @@ def function_modify(
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(100):  # TODO: tune this parameter
                 print(tool_name, json.dumps(tool_call, indent=2))
-                if tool_name == "done":
+                if tool_name == "done" or tool_name == "submit":
                     diff = generate_diff(file_contents, current_contents)
                     if diff:
                         break
@@ -414,15 +417,21 @@ def function_modify(
                             if not error_message:
                                 check_results = get_check_results(file_path, new_contents)
                                 check_results_message = check_results.is_worse_than_message(initial_check_results)
+                                failing_parse = check_results.parse_error_message if not initial_check_results.parse_error_message else ""
                                 current_diff = generate_diff(
                                     current_contents, new_contents
                                 )
-                                if not check_results_message:
-                                    success_messages.append(
-                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
-                                    )
+                                if not failing_parse:
+                                    if not check_results_message:
+                                        success_messages.append(
+                                            f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
+                                        )
+                                    else:
+                                        success_messages.append(
+                                            f"The following changes have been applied:\n```diff\n{current_diff}\n```\nHowever, the following new warnings have appeared:\n\n```\n{check_results_message}\n```\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
+                                        )
                                 else:
-                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{check_results_message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                     break
                                 new_contents = current_new_contents
 
@@ -536,7 +545,7 @@ def function_modify(
                                         for match_index in match_indices
                                     ]
                                 )
-                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
+                                starter_message = f"CURRENT FILE\n\nThe keyword {keyword} was found in sections {sections_message} of the CURRENT file {file_path}, which you MAY modify. They appear in the following places:\n\n"
                                 success_message += build_keyword_search_match_results(
                                     match_context_indices, chunks, keyword, starter_message
                                 )
@@ -566,13 +575,14 @@ def function_modify(
                                             for match_index in relevant_file_match_indices
                                         ]
                                     )
-                                    starter_message = f"The keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}. They appear in the following places:\n\n"
+                                    starter_message = f"READONLY FILES\n\nThe keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}, which you MAY NOT modify. They appear in the following places:\n\n"
                                     success_message += (
                                         build_keyword_search_match_results(
                                             relevant_file_match_context_indices,
                                             relevant_file_chunks[relevant_file_path],
                                             keyword,
                                             starter_message,
+                                            readonly=True
                                         )
                                     )
 
@@ -583,8 +593,12 @@ def function_modify(
                         )
                     else:
                         logger.debug(success_message)
+                        if relevant_filepaths:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path} and may not edit any of the READONLY files {english_join(relevant_filepaths)}."
+                        else:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path}."
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function."
+                            f"{success_message}{suffix}"
                         )
                 elif tool_name == "view_sections":
                     error_message = ""
@@ -683,6 +697,7 @@ def function_modify_unstable(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
+    remaining_fcrs: list[FileChangeRequest]=[]
 ):
     try:
         logger.info("Starting function_modify_unstable")
@@ -748,9 +763,14 @@ def function_modify_unstable(
                 current_code_section = section_display
             else:
                 current_code_section += "\n" + section_display
-        code_sections.append(current_code_section)
-        code_sections_string = "\n".join(code_sections)
-        additional_messages += [
+        current_code_section = current_code_section.strip("\n")
+        code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
+        remaining_fcrs_message = f" and will edit the files {english_join([fcr.filename for fcr in remaining_fcrs])} later" if remaining_fcrs else ""
+        additional_messages = [
+            Message(
+                role="user",
+                content=f"# Request\n{request}\n\nYou are currently editing {file_path}{remaining_fcrs_message}.",
+            ),
             *reversed([
                 Message(
                     role="user",
@@ -758,11 +778,7 @@ def function_modify_unstable(
                 )
                 for code_section in code_sections
             ]),
-            Message(
-                role="user",
-                content=f"# Request\n{request}\n\nYou are currently editing {file_path}.",
-            ),
-        ]
+        ] + additional_messages
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
@@ -881,15 +897,21 @@ def function_modify_unstable(
                         if not error_message:
                             check_results = get_check_results(file_path, new_contents)
                             check_results_message = check_results.is_worse_than_message(initial_check_results)
+                            failing_parse = check_results.parse_error_message if not initial_check_results.parse_error_message else ""
                             current_diff = generate_diff(
                                 current_contents, new_contents
                             )
-                            if not check_results_message:
-                                success_messages.append(
-                                    f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
-                                )
+                            if not failing_parse:
+                                if not check_results_message:
+                                    success_messages.append(
+                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
+                                    )
+                                else:
+                                    success_messages.append(
+                                        f"The following changes have been applied:\n```diff\n{current_diff}\n```\nHowever, the following new warnings have appeared:\n\n```\n{check_results_message}\n```\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
+                                    )
                             else:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{check_results_message}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                 break
                     if error_message:
                         logger.error(f"Error occured in SearchAndReplace tool: {error_message}")
@@ -970,7 +992,7 @@ def function_modify_unstable(
                             for k, v in relevant_file_match_context_indices.items()
                         }
                         if not match_indices and not relevant_file_match_indices:
-                            error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
+                            error_message = f"CURRENT_FILE\n\nThe keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             # for matches inside current code file
                             if match_indices:
@@ -980,9 +1002,15 @@ def function_modify_unstable(
                                         for match_index in match_indices
                                     ]
                                 )
-                                starter_message = f"The keyword {keyword} was found in sections {sections_message} of the current file {file_path}. They appear in the following places:\n\n"
-                                success_message += build_keyword_search_match_results(
-                                    match_context_indices, chunks, keyword, starter_message
+                                starter_message = f"READONLY FILES\n\nThe keyword {keyword} was {also_keyword}found in sections {sections_message} of the READONLY file {relevant_file_path}, which you MAY NOT modify. They appear in the following places:\n\n"
+                                success_message += (
+                                    build_keyword_search_match_results(
+                                        relevant_file_match_context_indices,
+                                        relevant_file_chunks[relevant_file_path],
+                                        keyword,
+                                        starter_message,
+                                        readonly=True
+                                    )
                                 )
                                 if relevant_file_match_indices:
                                     success_message += "\n\n"
@@ -1027,8 +1055,12 @@ def function_modify_unstable(
                         )
                     else:
                         logger.debug(success_message)
+                        if relevant_filepaths:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path} and may not edit any of the READONLY files {english_join(relevant_filepaths)}."
+                        else:
+                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path}."
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n{success_message}\n\nMake additional KeywordSearch tool calls to find other keywords or start making changes by calling the SearchAndReplace tool."
+                            f"{success_message}{suffix}"
                         )
                 elif tool_name == "view_sections":
                     error_message = ""
