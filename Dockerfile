@@ -33,12 +33,12 @@ RUN npm install -g prettier @types/react @types/react-dom typescript eslint @typ
 COPY sweepai /app/sweepai
 COPY tests /app/tests
 ENV PYTHONPATH=.
-COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
-RUN chmod u+x /app/startup.sh
+COPY bin /app/bin
+RUN chmod a+x /app/bin/startup.sh
 
-EXPOSE $PORT
-CMD ["/app/startup.sh"]
+EXPOSE 8080
+CMD ["bash", "-c", "chmod a+x /app/bin/startup.sh && /app/bin/startup.sh"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"
