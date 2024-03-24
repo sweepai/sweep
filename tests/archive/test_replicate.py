@@ -1,6 +1,7 @@
 import json
 
 import replicate
+from loguru import logger
 
 REPLICATE_API_KEY = "r8_Zw5bOTnKa2xhtWLQGKOrVmJUSDvWJTC0vRDkY"
 client = replicate.Client(api_token=REPLICATE_API_KEY)
@@ -9,4 +10,6 @@ prediction = deployment.predictions.create(
     input={"text_batch": json.dumps(["Hello world!"])}
 )
 prediction.wait()
-print([output["embedding"] for output in prediction.output])
+logger.info(
+    f"Prediction output: {[output['embedding'] for output in prediction.output]}"
+)
