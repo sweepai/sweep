@@ -1,4 +1,5 @@
 import json
+import subprocess
 import traceback
 from collections import defaultdict
 
@@ -12,7 +13,9 @@ from sweepai.agents.assistant_functions import (
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
+from sweepai.config.client import SweepConfig
 from sweepai.config.server import USE_ASSISTANT
+from sweepai.core.context_pruning import post_process_rg_output
 from sweepai.core.entities import AssistantRaisedException, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
@@ -22,18 +25,6 @@ from sweepai.utils.utils import check_code, chunk_code
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
-
-add_later = """
-IMPORTANT: If you believe you are missing important information or context in any of the steps above use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary.
-<GetAdditionalContext>
-<Justification>
-Provide justification for why you need additional context
-</Justification>
-<Keyword>
-keyword to search for in order to get more additional context. This will search the entire codebase for this keyword
-</Keyword>
-</GetAdditionalContext>
-"""
 
 instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
@@ -50,6 +41,8 @@ Your job is to make edits to the file to complete the user "# Request".
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
+
+IMPORTANT: If you believe you are missing important information or context in any of the steps above use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary.
 
 You have access to the following tools:
 
@@ -108,6 +101,15 @@ To call this tool you MUST respond in the following xml format:
 Justification for why you are finished with your task.
 </Justification>
 </SubmitSolution>
+
+<GetAdditionalContext>
+<Justification>
+Provide justification for why you need additional context
+</Justification>
+<Keyword>
+keyword to search for in order to get more additional context. This will search the entire codebase for this keyword
+</Keyword>
+</GetAdditionalContext>
 """
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
@@ -654,6 +656,7 @@ def function_modify_unstable(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
+    cwd: str | None = None,
 ):
     try:
         logger.info("Starting function_modify_unstable")
@@ -666,6 +669,7 @@ def function_modify_unstable(
 
         current_contents = file_contents
         relevant_file_contents = defaultdict(str)
+        sweep_config: SweepConfig = SweepConfig()
         # get code for relevant filepaths
         try:
             for relevant_file_path in relevant_filepaths:
@@ -768,7 +772,7 @@ def function_modify_unstable(
                         )
                 elif tool_name == "no_tool_call":
                     tool_name, tool_call = assistant_generator.send(
-                        "ERROR\n No tool calls were made. If you are done, please use the SubmitSolution tool to indicate that you have completed the task."
+                        "ERROR\n No tool calls were made. If you are done, please use the SubmitSolution tool to indicate that you have completed the task. If you believe you are stuck, use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary."
                     )
                 elif tool_name == "SubmitSolution":
                     diff = generate_diff(file_contents, current_contents)
@@ -801,7 +805,7 @@ def function_modify_unstable(
                     if "newcode" not in tool_call:
                         error_message += "No NewCode was provided in the tool call. Call the tool again but this time provide the NewCode.\n"
                     for _ in range(1): # this is super jank code but it works for now
-                        section_letter = tool_call["sectionid"]
+                        section_letter = tool_call["sectionid"].strip()
                         section_id = excel_col_to_int(section_letter)
                         old_code = tool_call["originalcode"].strip("\n")
                         new_code = tool_call["newcode"].strip("\n")
@@ -810,7 +814,11 @@ def function_modify_unstable(
                             break
 
                         # fetch the chunk of code we will be modifying
-                        chunk = chunks[section_id]
+                        try:
+                            chunk = chunks[section_id]
+                        except Exception as e:
+                            error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_path}. Make sure you are ONLY modifying the current file {file_path} and NOT a READ ONLY file."
+                            break
 
                         # if the old_code couldn't be found in the chunk we need to let the llm know
                         if old_code not in chunk:
@@ -883,8 +891,29 @@ def function_modify_unstable(
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\n\n{success_message}"
                         )
-                # elif tool_name == "GetAdditionalContext":
-                #     import pdb; pdb.set_trace()
+                elif tool_name == "GetAdditionalContext":
+                    error_message = ""
+                    keyword = tool_call["keyword"].strip()
+                    rg_command = ["rg", "-n", "-i" , keyword, cwd]
+                    try:
+                        result = subprocess.run(rg_command, text=True, capture_output=True)
+                        output = result.stdout
+                        if output:
+                            # post process rip grep output to be more condensed
+                            rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
+                        else:
+                            error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
+                    except Exception as e:
+                        logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
+                        error_message = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
+                    if error_message:
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n{error_message}"
+                        )
+                    else:
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n You can use the new context to revise your plan by calling the ProposeProblemAnalysisAndPlan tool again. You can also call the AnalysisAndIdentification tool again."
+                        )
                 elif tool_name == "KeywordSearch":
                     error_message = ""
                     success_message = ""

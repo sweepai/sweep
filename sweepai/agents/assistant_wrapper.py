@@ -774,7 +774,6 @@ def run_until_complete_unstable(
                 "status": "",
                 "message": "",
             }
-            # done_response = "If you are done, please use the SubmitSolution tool to indicate that you have completed the task. If you believe you are stuck, use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary."
             normal_messages_remaining -= 1
             if normal_messages_remaining < 0:
                 return
