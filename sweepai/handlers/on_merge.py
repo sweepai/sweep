@@ -12,6 +12,10 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 
+# Debounce time in seconds
+DEBOUNCE_TIME = 120
+DEBOUNCE_TIME = 120
+
 # change threshold for number of lines changed
 CHANGE_BOUNDS = (10, 1500)
 
