@@ -265,6 +265,7 @@ class ModifyBot:
             request=file_change_request.instructions,
             file_path=file_path,
             file_contents=file_contents,
+            cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,

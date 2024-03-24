@@ -1,3 +1,4 @@
+import os
 import json
 import traceback
 from collections import defaultdict
@@ -17,6 +18,7 @@ from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, M
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import check_code, chunk_code, get_check_results
 
@@ -207,6 +209,7 @@ def function_modify(
     request: str,
     file_path: str,
     file_contents: str,
+    cloned_repo: ClonedRepo,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
     assistant_id: str = None,
@@ -216,7 +219,6 @@ def function_modify(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
-    cwd: str | None = None,
     remaining_fcrs: list[FileChangeRequest]=[]
 ):
     try:
@@ -234,7 +236,7 @@ def function_modify(
         try:
             for relevant_file_path in relevant_filepaths:
                 relevant_file_content = read_file_with_fallback_encodings(
-                    relevant_file_path
+                    os.path.join(cloned_repo.repo_dir, relevant_file_path)
                 )
                 relevant_file_contents[relevant_file_path] = relevant_file_content
         except Exception as e:
