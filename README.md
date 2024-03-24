@@ -133,3 +133,10 @@ Contributions are welcome and greatly appreciated! To get set up, see [Developme
 <p align="center">
     and, of course, Sweep!
 </p>
+
+---
+
+## Footer
+Copyright © 2022 SweepAI. All rights reserved.
+
+For more information, visit our [website](https://sweep.ai) or reach out to us on [Twitter](https://twitter.com/sweepai).
