@@ -258,7 +258,7 @@ class ModifyBot:
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
         relevant_filepaths: list[str] = [],
-        remaining_fcrs: list[FileChangeRequest]=[],
+        fcrs: list[FileChangeRequest]=[],
     ):
         new_file = function_modify(
             request=file_change_request.instructions,
@@ -273,7 +273,7 @@ class ModifyBot:
             start_line=file_change_request.start_line,
             end_line=file_change_request.end_line,
             relevant_filepaths=relevant_filepaths,
-            remaining_fcrs=remaining_fcrs,
+            fcrs=fcrs,
         )
         if new_file is not None:
             posthog.capture(

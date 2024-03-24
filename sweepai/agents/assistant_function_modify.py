@@ -203,6 +203,25 @@ def english_join(items: list[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
+def generate_status_message(file_path: str, fcrs: list[FileChangeRequest]) -> str:
+    if not fcrs or len(fcrs) == 1:
+        return f"You will resolve the issue by editing {file_path}."
+    index = -1
+    for i, fcr in enumerate(fcrs):
+        if fcr.filename == file_path:
+            index = i
+            break
+    else:
+        logger.warning(f"Could not find file {file_path} in list of FCRs.")
+        return f"You will resolve the issue by editing {file_path}."
+    message = ""
+    if index > 1:
+        message += f"You have already made changes to {english_join([fcr.filename for fcr in fcrs[:index]])}. "
+    message += f"You will resolve the issue by editing {file_path}. "
+    if index < len(fcrs) - 1:
+        message += f"You will edit the files {english_join([fcr.filename for fcr in fcrs[index + 1:]])} later."
+    return message.strip()
+
 
 # @file_cache(ignore_params=["file_path", "chat_logger"])
 def function_modify(
@@ -219,7 +238,7 @@ def function_modify(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
-    remaining_fcrs: list[FileChangeRequest]=[]
+    fcrs: list[FileChangeRequest]=[]
 ):
     try:
 
@@ -287,11 +306,11 @@ def function_modify(
                 current_code_section += "\n" + section_display
         current_code_section = current_code_section.strip("\n")
         code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
-        remaining_fcrs_message = f" and will edit the files {english_join([fcr.filename for fcr in remaining_fcrs])} later" if remaining_fcrs else ""
+        fcrs_message = generate_status_message(file_path, fcrs)
         additional_messages = [
             Message(
                 role="user",
-                content=f"# Request\n{request}\n\nYou are currently editing {file_path}{remaining_fcrs_message}.",
+                content=f"# Request\n{request}\n\n{fcrs_message}",
             ),
             *reversed([
                 Message(
@@ -699,7 +718,7 @@ def function_modify_unstable(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
-    remaining_fcrs: list[FileChangeRequest]=[]
+    fcrs: list[FileChangeRequest]=[]
 ):
     try:
         logger.info("Starting function_modify_unstable")
@@ -767,11 +786,11 @@ def function_modify_unstable(
                 current_code_section += "\n" + section_display
         current_code_section = current_code_section.strip("\n")
         code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
-        remaining_fcrs_message = f" and will edit the files {english_join([fcr.filename for fcr in remaining_fcrs])} later" if remaining_fcrs else ""
+        fcrs_message = generate_status_message(file_path, fcrs)
         additional_messages = [
             Message(
                 role="user",
-                content=f"# Request\n{request}\n\nYou are currently editing {file_path}{remaining_fcrs_message}.",
+                content=f"# Request\n{request}\n\n{fcrs_message}",
             ),
             *reversed([
                 Message(
