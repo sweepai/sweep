@@ -28,7 +28,7 @@ COPY requirements.txt ./
 
 RUN /root/.cargo/bin/uv pip install --no-cache -r requirements.txt
 
-RUN npm install -g prettier @types/react @types/react-dom typescript
+RUN npm install -g prettier @types/react @types/react-dom typescript eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-plugin-import
 
 COPY sweepai /app/sweepai
 COPY tests /app/tests
