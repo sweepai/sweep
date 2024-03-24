@@ -111,7 +111,7 @@ class PruneModifySnippets(ChatGPT):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            logger.exception(f"An error occurred: {e}")
             return []
 
 
