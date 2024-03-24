@@ -1,4 +1,3 @@
-import os
 import re
 from dataclasses import dataclass
 
@@ -259,11 +258,13 @@ class ModifyBot:
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
         relevant_filepaths: list[str] = [],
+        fcrs: list[FileChangeRequest]=[],
     ):
         new_file = function_modify(
             request=file_change_request.instructions,
-            file_path=os.path.join(cloned_repo.repo_dir, file_path),
+            file_path=file_path,
             file_contents=file_contents,
+            cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,
@@ -272,7 +273,7 @@ class ModifyBot:
             start_line=file_change_request.start_line,
             end_line=file_change_request.end_line,
             relevant_filepaths=relevant_filepaths,
-            cwd=cloned_repo.repo_dir
+            fcrs=fcrs,
         )
         if new_file is not None:
             posthog.capture(

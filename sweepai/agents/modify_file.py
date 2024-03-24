@@ -149,6 +149,7 @@ def modify_file(
             file_change_request.instructions,
             file_change_request.filename,
             contents or cloned_repo.get_file_contents(file_change_request.filename),
+            cloned_repo,
             additional_messages,
             chat_logger,
             start_line=file_change_request.start_line,
