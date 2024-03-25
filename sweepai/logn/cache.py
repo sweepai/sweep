@@ -165,8 +165,8 @@ if __name__ == "__main__":
         time.sleep(3)
         return a + b
 
-    print(f"Running...")
+    print("Running...")
     print(test_func(1, 1))
-    print(f"Running again")
+    print("Running again")
     print(test_func(1, 1))
-    print(f"Done")
+    print("Done")
