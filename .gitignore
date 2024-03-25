@@ -206,3 +206,4 @@ ee/**
 eval/**/*.txt
 eval/**/*.csv
 eval/**/*.jsonl
+.worktrees
