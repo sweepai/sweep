@@ -14,6 +14,7 @@ on:
       - 'tests/**'
       - pyproject.toml
       - requirements.txt
+      - "**/*"
   push:
     branches:
       - main
