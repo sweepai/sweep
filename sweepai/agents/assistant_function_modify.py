@@ -954,8 +954,31 @@ def function_modify_unstable(
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\n\n{success_message}"
                         )
-                # elif tool_name == "GetAdditionalContext":
-                #     import pdb; pdb.set_trace()
+                elif tool_name == "GetAdditionalContext":
+                    error_message = ""
+                    keyword = tool_call["keyword"].strip()
+                    rg_command = ["rg", "-n", "-i" , keyword, cwd]
+                    try:
+                        result = subprocess.run(rg_command, text=True, capture_output=True)
+                        output = result.stdout
+                        if output:
+                            # post process rip grep output to be more condensed
+                            rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
+                        else:
+                            error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces."
+                    except Exception as e:
+                        logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
+                        error_message = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
+                    if error_message:
+                        logger.debug(f"ERROR in GetAdditionalContext\n\n{error_message}")
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n{error_message}"
+                        )
+                    else:
+                        logger.debug(f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}")
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n You can use the new context to revise your plan by calling the ProposeProblemAnalysisAndPlan tool again. You can also call the AnalysisAndIdentification tool again."
+                        )
                 elif tool_name == "KeywordSearch":
                     error_message = ""
                     success_message = ""

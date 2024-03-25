@@ -24,7 +24,8 @@ from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.openai_proxy import OpenAIProxy, get_client
-
+from anthropic import Anthropic
+import copy
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     """
@@ -687,15 +688,39 @@ def run_until_complete_unstable(
             )
         # get the response from openai
         try:
-            openai_proxy = OpenAIProxy()
-            response = openai_proxy.call_openai(
-                model,
-                messages,
-                tools,
-                max_tokens=2048,
-                temperature=0.2,
-                # set max tokens later
-            )
+            if True:
+                client = Anthropic()
+                model="claude-3-opus-20240229"
+                for message in messages:
+                    if message["role"] == "system":
+                        message["role"] = "user"
+                # messages must alternate between user and assistant
+                new_messages = []
+                for message in messages:
+                    if new_messages and new_messages[-1]["role"] == message["role"]:
+                        new_messages[-1]["content"] += "\n\n" + message["content"]
+                    else:
+                        new_messages.append(copy.deepcopy(message))
+                messages = new_messages
+                
+                response = client.messages.create(
+                    model=model,
+                    messages=messages,
+                    max_tokens=2048,
+                    temperature=0.2,
+                    # set max tokens later
+                )
+                use_anthropic = True
+            else: 
+                openai_proxy = OpenAIProxy()
+                response = openai_proxy.call_openai(
+                    model,
+                    messages,
+                    tools,
+                    max_tokens=2048,
+                    temperature=0.2,
+                    # set max tokens later
+                )
         # sometimes deployment for opennai is not found, retry after a minute
         except openai.NotFoundError as e:
             logger.error(
@@ -707,13 +732,24 @@ def run_until_complete_unstable(
             logger.error(f"chat completions failed on interation {i} with error: {e}")
             sleep(sleep_time)
             continue
-
-        response_message = response.choices[0].message
+        if use_anthropic:
+            response_message = response
+        else:
+            response_message = response.choices[0].message
         # tool_calls = fix_tool_calls(response_message.tool_calls)
         # response_message.tool_calls = tool_calls
         # extend conversation
         response_message_dict = response_message.model_dump()
-        response_contents = response_message_dict.get("content", "")
+        if use_anthropic:
+            if response_message_dict.get("content", ""):
+                response_contents = response_message_dict.get("content", "")[0]['text']
+            else:
+                done_response = yield "done", {
+                    "status": "completed",
+                    "message": response_message_dict.get("stop_reason", ""),
+                }
+        else:
+            response_contents = response_message_dict.get("content", "")
         # in some cases the fields are None and we must replace these with empty strings
         for key, value in response_message_dict.items():
             if value is None:
@@ -723,7 +759,10 @@ def run_until_complete_unstable(
             response_message_dict.pop("function_call")
         if response_message_dict.get("tool_calls", "not in dict") == "":
             response_message_dict.pop("tool_calls")
-        messages.append(response_message_dict)
+        if use_anthropic:
+            messages.append({"role":response_message_dict["role"], "content":response_contents})
+        else:
+            messages.append(response_message_dict)
         tool_calls = parse_tool_calls(response_contents)
         # if a tool call was made
         done_response = None
@@ -758,13 +797,21 @@ def run_until_complete_unstable(
                         tool_output = yield tool_name, tool_args
                         if not tool_output:
                             break
-                        messages.append(
-                            {
-                                "role": "assistant",
-                                "name": tool_name,
-                                "content": tool_output,
-                            }
-                        )  # extend conversation with function response
+                        if use_anthropic:
+                            messages.append(
+                                {
+                                    "role": "user",
+                                    "content": f"{tool_name}: {tool_output}",
+                                }
+                            )  # extend conversation with function response
+                        else:
+                            messages.append(
+                                {
+                                    "role": "assistant",
+                                    "name": tool_name,
+                                    "content": tool_output,
+                                }
+                            )  # extend conversation with function response
                 
         else:  # no tool call being made implies either an error or a success
             logger.error(
@@ -827,7 +874,6 @@ def openai_assistant_call_helper_unstable(
     messages = [{"role": "system", "content": instructions}]
     for message in additional_messages:
         messages.append({"role": message.role, "content": message.content})
-
     return run_until_complete_unstable(
         tools=tools,
         messages=messages,

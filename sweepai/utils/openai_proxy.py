@@ -18,6 +18,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.timer import Timer
+from anthropic import Anthropic
 
 if BASERUN_API_KEY is not None:
     pass
@@ -271,7 +272,9 @@ def get_client():
     OPENAI_API_VERSION = os.environ.get(
         "OPENAI_API_VERSION", None
     )
-
+    if OPENAI_API_TYPE == "anthropic":
+        client = Anthropic()
+        model="claude-3-opus-20240229"
     if OPENAI_API_TYPE == "openai" or True: # only supported endpoint for now for assistant
         client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
         model = DEFAULT_GPT4_32K_MODEL
