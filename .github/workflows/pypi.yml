@@ -59,6 +59,6 @@ jobs:
           python -m twine upload dist/* --repository testpypi --non-interactive 
       - run: |
           sleep 15
-          uv pip install sweepai --index-url https://test.pypi.org/simple/
+          uv pip install sweepai --index-url https://test.pypi.org/simple/ --prerelease=allow
       - run: sweep test
 
