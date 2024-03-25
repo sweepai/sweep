@@ -834,7 +834,7 @@ def on_ticket(
                         chat_logger,
                         ticket_progress,
                     )
-                except Exception:
+                except Exception as e:
                     edit_sweep_comment(
                         (
                             "It looks like an issue has occurred around fetching the files."
@@ -843,7 +843,7 @@ def on_ticket(
                         ),
                         -1,
                     )
-                    raise Exception("Failed to fetch files")
+                    raise Exception("Failed to fetch files") from e
                 _user_token, g = get_github_client(installation_id)
                 user_token, g, repo = refresh_token()
                 cloned_repo.token = user_token
