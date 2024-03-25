@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = { find = { where = ["."], exclude = ["tests", "sdk", "benchmark", "docs", "tests.*", "sdk.*", "benchmark.*", "docs.*"] } }
 
+
 [project.scripts]
 sweep = "sweepai.cli:main"
 sweepai = "sweepai.cli:main"
