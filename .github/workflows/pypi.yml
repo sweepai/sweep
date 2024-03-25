@@ -75,7 +75,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
+          export version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
+          export commit_hash=$(git rev-parse --short HEAD)
+          export commit_hash_mod=$(printf "%d" 0x${commit_hash: -4})
           python -m pip install --upgrade pip
-          pip install sweepai --index-url https://test.pypi.org/simple/ --pre
+          pip install sweepai==$version.dev$commit_hash_mod --index-url https://test.pypi.org/simple/ --pre
       - name: Test installation
         run: sweep test
