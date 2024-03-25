@@ -470,8 +470,6 @@ def on_ticket(
             branch_match = re.search(
                 r"([B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
             )
-            if username.endswith("[bot]"):
-                summary = distill_issue(summary)
             overrided_branch_name = None
             if branch_match and "branch_name" in branch_match.groupdict():
                 overrided_branch_name = (
