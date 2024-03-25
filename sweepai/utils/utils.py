@@ -114,7 +114,14 @@ def chunk_tree(
     current_chunk = Span(0, 0)
     for chunk in chunks:
         current_chunk += chunk
-        if non_whitespace_len(
+        # if the current chunk starts with a closing parenthesis, bracket, or brace, we coalesce it with the previous chunk
+        stripped_contents = current_chunk.extract(source_code.decode("utf-8")).strip()
+        first_char = stripped_contents[0] if stripped_contents else ''
+        if first_char in [")", "}", "]"] and new_chunks:
+            new_chunks[-1] += chunk
+            current_chunk = Span(chunk.end, chunk.end)
+        # if the current chunk is too large, create a new chunk, otherwise, combine the chunks
+        elif non_whitespace_len(
             current_chunk.extract(source_code.decode("utf-8"))
         ) > coalesce and "\n" in current_chunk.extract(source_code.decode("utf-8")):
             new_chunks.append(current_chunk)
@@ -556,4 +563,9 @@ import numpy
 
 if __name__ == "__main__":
     # print(check_code("main.tsx", test_code))
-    print(get_check_results("main.py", test_code))
+    # print(get_check_results("main.py", test_code))
+    file_path = "/mnt/sweep_benchmark/3999_error_external_qc/backend/src/lambda/common-libraries/nodejs/src/utils/fetch-utils.ts"
+    with open(file_path) as f:
+        code = f.read()
+    chunks = chunk_code(code, file_path, 700, 200)
+    import pdb; pdb.set_trace()

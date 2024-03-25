@@ -754,14 +754,14 @@ def function_modify_unstable(
             )
         initial_check_results = get_check_results(file_path, current_contents)
 
-        original_snippets = chunk_code(current_contents, file_path, 700, 200)
+        original_snippets = chunk_code(current_contents, file_path, 1400, 500)
         # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
 
         relevant_file_snippets: dict[str, list[Snippet]] = defaultdict(list)
         # now we chunk relevant file contents
         for relevant_file_path, relevant_file_content in relevant_file_contents.items():
             relevant_file_snippet = chunk_code(
-                relevant_file_content, relevant_file_path, 700, 200
+                relevant_file_content, relevant_file_path, 1400, 500
             )
             relevant_file_snippets[relevant_file_path] = relevant_file_snippet
 
