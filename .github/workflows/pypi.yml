@@ -49,6 +49,10 @@ jobs:
       - run: pip install uv
       - run: uv pip install -r requirements.txt
       - run: uv pip install twine build
+      - run: |
+          commit_hash=$(git rev-parse --short HEAD)
+          commit_hash_mod=$(printf "%d" 0x${commit_hash: -2})
+          sed -i "s/version = \"1.1.9\"/version = \"1.1.9.dev$commit_hash_mod\"/" pyproject.toml
       - run: python -m build
       - run: |
           export TWINE_USERNAME=__token__
