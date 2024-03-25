@@ -47,7 +47,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
       - run: pip install uv
-      - run: uv pip install -r requirements.txt
       - run: uv pip install twine build
       - run: |
           commit_hash=$(git rev-parse --short HEAD)
