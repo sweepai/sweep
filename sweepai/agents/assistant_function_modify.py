@@ -17,7 +17,7 @@ from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import USE_ASSISTANT
-from sweepai.core.context_pruning import post_process_rg_output
+from sweepai.utils.str_utils import post_process_rg_output
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
