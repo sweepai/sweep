@@ -48,7 +48,7 @@ jobs:
       - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
       - run: pip install uv
       - run: uv pip install -r requirements.txt
-      - run: uv pip install twine
+      - run: uv pip install twine build
       - run: export HASH=$(git rev-parse --short=7 HEAD) && sed -i "s/version = \"1.1.9\"/version = \"1.1.9-$HASH\"/" pyproject.toml
       - run: python -m build
       - run: |
