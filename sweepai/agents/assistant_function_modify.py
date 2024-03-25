@@ -969,7 +969,7 @@ def function_modify_unstable(
                             # post process rip grep output to be more condensed
                             rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
                         else:
-                            error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
+                            error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces."
                     except Exception as e:
                         logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
                         error_message = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
