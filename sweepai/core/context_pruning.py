@@ -316,18 +316,18 @@ class RepoContextManager:
         return highest_scoring_snippet
 
     def add_snippets(self, snippets_to_add: list[Snippet]):
-        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
+        # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
     
     def add_read_only_snippets(self, snippets_to_add: list[Snippet]):
-        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
+        # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.read_only_snippets.append(snippet)
 
     # does the same thing as add_snippets but adds it to the beginning of the list
     def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
-        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_boost])
+        # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_boost])
         for snippet in snippets_to_boost:
             self.current_top_snippets.insert(0, snippet)
 
@@ -600,9 +600,8 @@ def get_relevant_context(
         return repo_context_manager
 
 # post process rip grep output to be more condensed
-def post_process_rg_output(rcm: RepoContextManager, sweep_config: SweepConfig, output: str):
+def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
     processed_output = ""
-    root_directory = rcm.cloned_repo.repo_dir
     output_lines = output.split("\n")
     # empty lines are present at end of output
     output_lines = [line for line in output_lines if line]
@@ -767,7 +766,7 @@ def modify_context(
                     output = result.stdout
                     if output:
                         # post process rip grep output to be more condensed
-                        rg_output_pretty = post_process_rg_output(repo_context_manager, sweep_config, output)
+                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output)
                     else:
                         error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
                 except Exception as e:
