@@ -79,6 +79,6 @@ jobs:
           export commit_hash=$(git rev-parse --short HEAD)
           export commit_hash_mod=$(printf "%d" 0x${commit_hash: -4})
           python -m pip install --upgrade pip
-          pip install sweepai==$version.dev$commit_hash_mod --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre
+          pip install sweepai --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre
       - name: Test installation
         run: sweep test
