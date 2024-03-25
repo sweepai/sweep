@@ -226,3 +226,4 @@ AWS_REGION=os.environ.get("AWS_REGION")
 ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
 
 USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)

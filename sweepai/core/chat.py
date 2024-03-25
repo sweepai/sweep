@@ -3,7 +3,7 @@ import time
 import traceback
 from typing import Any, Literal
 
-from anthropic import AnthropicBedrock
+from anthropic import Anthropic
 import backoff
 from loguru import logger
 from pydantic import BaseModel
@@ -16,6 +16,7 @@ from sweepai.config.server import (
     AWS_REGION,
     AWS_SECRET_KEY,
     DEFAULT_GPT4_32K_MODEL,
+    ANTHROPIC_API_KEY
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
@@ -49,6 +50,9 @@ model_to_max_tokens = {
     "claude-instant-v1.3-100k": 100000,
     "anthropic.claude-3-haiku-20240229-v1:0": 200000,
     "anthropic.claude-3-sonnet-20240229-v1:0": 200000,
+    "claude-3-opus-20240229": 200000,
+    "claude-3-sonnet-20240229": 200000,
+    "claude-3-haiku-20240229": 200000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 default_temperature = 0.1
@@ -317,21 +321,25 @@ class ChatGPT(MessageList):
     def chat_anthropic(
         self,
         content: str,
-        model: ChatModel = "anthropic.claude-3-sonnet-20240229-v1:0",
+        # model: ChatModel = "anthropic.claude-3-sonnet-20240229-v1:0",
+        model: ChatModel = "claude-3-sonnet-20240229",
         message_key: str | None = None,
         temperature: float | None = None,
         max_tokens: int = 4096,
     ):
-        assert ANTHROPIC_AVAILABLE
+        assert ANTHROPIC_API_KEY
         self.messages.append(Message(role="user", content=content, key=message_key))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:{content}")
-        with AnthropicBedrock(
-            aws_access_key=AWS_ACCESS_KEY,
-            aws_secret_key=AWS_SECRET_KEY,
-            aws_region=AWS_REGION,
+        with Anthropic(
+            api_key=ANTHROPIC_API_KEY
         ) as anthropic_client:
+        # with AnthropicBedrock(
+        #     aws_access_key=AWS_ACCESS_KEY,
+        #     aws_secret_key=AWS_SECRET_KEY,
+        #     aws_region=AWS_REGION,
+        # ) as anthropic_client:
             content = ""
             e = None
             for i in range(4):
