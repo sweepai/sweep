@@ -128,6 +128,8 @@ def openai_with_expo_backoff(batch: tuple[str]):
             )
             batch = [tiktoken_client.truncate_string(text) for text in batch]
             new_embeddings = openai_call_embedding(batch)
+        else:
+            raise e
     # get all indices where embeddings are None
     indices = [i for i, emb in enumerate(embeddings) if emb is None]
     # store the new embeddings in the correct position
