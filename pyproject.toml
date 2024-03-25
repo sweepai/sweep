@@ -51,6 +51,7 @@ dependencies = [
   "pyflakes==3.2.0",
   "networkx==3.2.1",
   "attrs==23.2.0",
+  "pytest==8.1.1",
   "redis==5.0.3",
   "numpy==1.26.4",
   "markdown==3.5.2",

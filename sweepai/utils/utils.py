@@ -347,7 +347,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
                     "--disable=unused-import" # we have a workaround for this tbh
                 ],
                 reporter=reporter,
-                do_exit=False,
+                exit=False,
             )
             error_message = pylint_output.getvalue().strip()
             try:
@@ -410,7 +410,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                     "--disable=relative-beyond-top-level",
                 ],
                 reporter=reporter,
-                do_exit=False,
+                exit=False,
             )
             error_message = pylint_output.getvalue().strip()
             try:
