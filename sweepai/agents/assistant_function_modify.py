@@ -889,7 +889,7 @@ def function_modify_unstable(
                         # fetch the chunk of code we will be modifying
                         try:
                             chunk = chunks[section_id]
-                        except Exception as e:
+                        except Exception:
                             error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_path}. Make sure you are ONLY modifying the current file {file_path} and NOT a READ ONLY file."
                             break
 
