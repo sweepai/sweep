@@ -105,6 +105,21 @@ We only support GitHub at the moment. We're currently focused on delivering more
 </details>
 
 <details>
+<summary>Do you guys support other models, such as GPT-3.5, Claude and Gemini as well as open-source models like Deepseek and CodeLlama?</summary>
+
+We currently only support GPT-4 but are actively testing on Claude v3 which is looking promising -- it's faster, less expensive and smarter with using the tool calls. Gemini also looks promising with long-context multi-file reasoning but we have tested on it less. We just moved off function calls for our code modification agent so this is now possible.
+
+All our prompts are currently tuned for GPT-4 so exploring a new model involves re-tuning all the prompts and re-benchmarking each component -- from code search / reranking to planning to code editing. This is why reason you can't just plug LiteLLM. The majority of models out there, including even GPT-3.5, struggle to respond in the right format given or current prompts. Migrating the clients over is the trivial part. 
+
+This is also why we stopped supporting GPT-3.5: it's simply too unreliable and can't respond with our format consistently. It's not a matter of generating buggy or incorrect code but more of a matter of making any valid code edits at all.
+
+We currently don't support or plan on supporting any open-source models. The only model that is viable is Deepseek but we have found that it's very hard to prompt-tune to use our diff format (or any viable diff format).
+
+We're currently focused on building the most capable coding agent with the models available today, rather than building the most accessible or least expensive agent, or the one that runs on the lowest possible hardware requirements.
+
+</details>
+
+<details>
 <summary>Do you store our code?</summary>
 
 We access your GitHub repository at runtime. At the end of execution, your code is deleted from the server. To perform search over your codebase, we use the hashed contents along with the embeddings. This allows us to avoid storing any code as plaintext. Read more about it here: [https://docs.sweep.dev/blogs/search-infra](https://docs.sweep.dev/blogs/search-infra).
