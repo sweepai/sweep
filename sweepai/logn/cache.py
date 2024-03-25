@@ -2,10 +2,12 @@ import hashlib
 import inspect
 import os
 import pickle
+import time
 
 from loguru import logger
+from redis import Redis
 
-from sweepai.config.server import DEBUG
+from sweepai.config.server import DEBUG, REDIS_URL
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
@@ -104,3 +106,67 @@ def file_cache(ignore_params=[], verbose=False):
         return wrapper
 
     return decorator
+
+redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
+
+
+def redis_cache(ignore_params=[], verbose=False):
+    """Decorator to cache function output based on its inputs, using Redis.
+    Ignores specified parameters for caching purposes."""
+
+    def decorator(func):
+        if not redis_client and DEBUG:
+            return func  # Skip caching if in debug mode
+
+        func_source_code_hash = hash_code(inspect.getsource(func))
+
+        def wrapper(*args, **kwargs):
+            # Prepare args and kwargs for hashing
+            args_names = func.__code__.co_varnames[: func.__code__.co_argcount]
+            args_dict = dict(zip(args_names, args))
+
+            # Remove ignored params from args and kwargs
+            for param in ignore_params:
+                args_dict.pop(param, None)
+                kwargs.pop(param, None)
+
+            # Create a unique cache key
+            cache_key = (
+                func.__module__ + ":" + func.__name__ + ":"
+                + recursive_hash((args_dict, kwargs), ignore_params=ignore_params)
+                + ":" + func_source_code_hash
+            )
+
+            # Attempt to retrieve the cached result
+            cached_result = redis_client.get(cache_key)
+            if cached_result:
+                if verbose:
+                    print("Used cache for function: " + func.__name__)
+                return pickle.loads(cached_result)
+
+            # Execute the function and cache the result if no cache is found
+            result = func(*args, **kwargs)
+            try:
+                # Cache the result using the unique cache key
+                redis_client.set(cache_key, pickle.dumps(result))
+            except Exception as e:
+                if verbose:
+                    print(f"Caching failed for function: {func.__name__}, Error: {e}")
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+if __name__ == "__main__":
+    @redis_cache()
+    def test_func(a, b):
+        time.sleep(3)
+        return a + b
+
+    print("Running...")
+    print(test_func(1, 1))
+    print("Running again")
+    print(test_func(1, 1))
+    print("Done")
