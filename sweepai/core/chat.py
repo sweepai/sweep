@@ -1,4 +1,5 @@
 from math import inf
+import time
 import traceback
 from typing import Any, Literal
 
@@ -331,15 +332,28 @@ class ChatGPT(MessageList):
             aws_secret_key=AWS_SECRET_KEY,
             aws_region=AWS_REGION,
         ) as anthropic_client:
-            self.messages.append(
-                Message(
-                    role="assistant",
-                    content=anthropic_client.messages.create(
+            content = ""
+            e = None
+            for i in range(4):
+                try:
+                    content = anthropic_client.messages.create(
                         model=model,
                         temperature=temperature,
                         max_tokens=max_tokens,
                         messages=self.messages_dicts,
-                    ).content[0].text,
+                        max_retries=3
+                    ).content[0].text
+                    break
+                except Exception as e_:
+                    logger.exception(e_)
+                    e = e_
+                    time.sleep(5 * 2 ** i)
+            else:
+                raise Exception("Anthropic call failed") from e
+            self.messages.append(
+                Message(
+                    role="assistant",
+                    content=content,
                     key=message_key,
                 )
             )
