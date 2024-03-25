@@ -18,7 +18,7 @@ Homepage = "https://sweep.dev"
 
 [project]
 name = "sweepai"
-version = "1.1.9"
+version = "1.1.9-66f781e"
 description = "Sweep fixes GitHub issues"
 authors = [
     {name = "Kevin Lu", email = "kevin@sweep.dev"},
