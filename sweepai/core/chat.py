@@ -326,23 +326,23 @@ class ChatGPT(MessageList):
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:{content}")
-        anthropic_client = AnthropicBedrock(
+        with AnthropicBedrock(
             aws_access_key=AWS_ACCESS_KEY,
             aws_secret_key=AWS_SECRET_KEY,
             aws_region=AWS_REGION,
-        )
-        self.messages.append(
-            Message(
-                role="assistant",
-                content=anthropic_client.messages.create(
-                    model=model,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    messages=self.messages_dicts,
-                ).content[0].text,
-                key=message_key,
+        ) as anthropic_client:
+            self.messages.append(
+                Message(
+                    role="assistant",
+                    content=anthropic_client.messages.create(
+                        model=model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        messages=self.messages_dicts,
+                    ).content[0].text,
+                    key=message_key,
+                )
             )
-        )
         logger.debug(f"Anthropic response: {self.messages[-1].content}")
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
