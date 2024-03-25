@@ -13,6 +13,7 @@ async-timeout==4.0.3
     # via redis
 attrs==23.2.0
 backoff==2.2.1
+beautifulsoup4==4.12.3
 certifi==2024.2.2
     # via
     #   httpcore
@@ -37,13 +38,22 @@ distro==1.9.0
 dnspython==2.6.1
     # via pymongo
 exceptiongroup==1.2.0
-    # via anyio
+    # via
+    #   anyio
+    #   pytest
 fastapi==0.110.0
 gitdb==4.0.11
     # via gitpython
 gitpython==3.1.42
+grpcio==1.62.1
+    # via
+    #   grpcio-tools
+    #   hatchet-sdk
+grpcio-tools==1.62.1
+    # via hatchet-sdk
 h11==0.14.0
     # via httpcore
+hatchet-sdk==0.18.0
 httpcore==1.0.4
     # via httpx
 httpx==0.26.0
@@ -54,11 +64,14 @@ idna==3.6
     #   httpx
     #   requests
 importmagic==0.1.7
+iniconfig==2.0.0
+    # via pytest
 isort==5.13.2
     # via pylint
 jinja2==3.1.3
 logtail==1.0.1
 loguru==0.7.2
+    # via hatchet-sdk
 markdown==3.5.2
 markdown-it-py==3.0.0
     # via rich
@@ -71,19 +84,28 @@ mdurl==0.1.2
 networkx==3.2.1
 numpy==1.26.4
 openai==1.13.3
+packaging==24.0
+    # via pytest
 pathspec==0.12.1
     # via yamllint
 platformdirs==4.2.0
     # via pylint
+pluggy==1.4.0
+    # via pytest
 prometheus-client==0.20.0
     # via prometheus-fastapi-instrumentator
 prometheus-fastapi-instrumentator==7.0.0
+protobuf==4.25.3
+    # via
+    #   grpcio-tools
+    #   hatchet-sdk
 psutil==5.9.8
 pycparser==2.21
     # via cffi
 pydantic==2.6.3
     # via
     #   fastapi
+    #   hatchet-sdk
     #   openai
 pydantic-core==2.16.3
     # via pydantic
@@ -97,9 +119,15 @@ pylint==3.1.0
 pymongo==4.6.2
 pynacl==1.5.0
     # via pygithub
+pytest==8.1.1
+python-dateutil==2.9.0.post0
+    # via hatchet-sdk
 python-dotenv==1.0.1
+    # via hatchet-sdk
 pyyaml==6.0.1
-    # via yamllint
+    # via
+    #   hatchet-sdk
+    #   yamllint
 rapidfuzz==3.6.2
 redis==5.0.3
 regex==2023.12.25
@@ -112,7 +140,11 @@ requests==2.31.0
 resend==0.8.0
 rich==13.7.1
 setuptools==69.1.1
-    # via importmagic
+    # via
+    #   grpcio-tools
+    #   importmagic
+six==1.16.0
+    # via python-dateutil
 smmap==5.0.1
     # via gitdb
 sniffio==1.3.1
@@ -120,6 +152,8 @@ sniffio==1.3.1
     #   anyio
     #   httpx
     #   openai
+soupsieve==2.5
+    # via beautifulsoup4
 starlette==0.36.3
     # via
     #   fastapi
@@ -127,7 +161,9 @@ starlette==0.36.3
 tabulate==0.9.0
 tiktoken==0.6.0
 tomli==2.0.1
-    # via pylint
+    # via
+    #   pylint
+    #   pytest
 tomlkit==0.12.3
     # via pylint
 tqdm==4.66.2
@@ -148,6 +184,7 @@ typing-extensions==4.10.0
     #   typer
 urllib3==2.2.1
     # via
+    #   hatchet-sdk
     #   pygithub
     #   requests
 wrapt==1.16.0
