@@ -48,6 +48,7 @@ dependencies = [
   "rapidfuzz==3.6.2",
   "importmagic==0.1.7",
   "pyflakes==3.2.0",
+  "beautifulsoup4==4.12.3",
   "networkx==3.2.1",
   "attrs==23.2.0",
   "redis==5.0.3",
