@@ -49,7 +49,7 @@ jobs:
       - run: pip install uv
       - run: uv pip install -r requirements.txt
       - run: uv pip install twine build
-      - run: export HASH=$(git rev-parse --short=7 HEAD) && sed -i "s/version = \"1.1.9\"/version = \"1.1.9-$HASH\"/" pyproject.toml
+      - run: export HASH=$(git rev-parse --short=7 HEAD) && sed -i "s/version = \"1.1.9\"/version = \"1.1.9+$HASH\"/" pyproject.toml
       - run: python -m build
       - run: |
           export TWINE_USERNAME=__token__
