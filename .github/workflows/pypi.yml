@@ -52,7 +52,7 @@ jobs:
       - run: |
           commit_hash=$(git rev-parse --short HEAD)
           commit_hash_mod=$(printf "%d" 0x${commit_hash: -2})
-          sed -i "s/version = \"\([0-9]\+\.\)\{2\}[0-9]\+\"/version = \"\1$((\${\MATCH[3]} + 1)).dev$commit_hash_mod\"/" pyproject.toml
+          sed -i "s/version = \"\([^\"]*\)\"/version = \"\1.dev$commit_hash_mod\"/" pyproject.toml
           python -m build
       - run: |
           export TWINE_USERNAME=__token__
