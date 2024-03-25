@@ -7,7 +7,6 @@ from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, Ra
 from sweepai.config.server import (
     AZURE_API_KEY,
     AZURE_OPENAI_DEPLOYMENT,
-    BASERUN_API_KEY,
     DEFAULT_GPT4_32K_MODEL,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
