@@ -13,6 +13,7 @@ async-timeout==4.0.3
     # via redis
 attrs==23.2.0
 backoff==2.2.1
+beautifulsoup4==4.12.3
 certifi==2024.2.2
     # via
     #   httpcore
@@ -151,6 +152,8 @@ sniffio==1.3.1
     #   anyio
     #   httpx
     #   openai
+soupsieve==2.5
+    # via beautifulsoup4
 starlette==0.36.3
     # via
     #   fastapi
