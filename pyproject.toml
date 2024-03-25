@@ -50,6 +50,7 @@ dependencies = [
   "importmagic==0.1.7",
   "hatchet-sdk==0.18.0",
   "pyflakes==3.2.0",
+  "beautifulsoup4==4.12.3",
   "networkx==3.2.1",
   "attrs==23.2.0",
   "pytest==8.1.1",
