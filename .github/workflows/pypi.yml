@@ -58,3 +58,8 @@ jobs:
           export TWINE_USERNAME=__token__
           export TWINE_PASSWORD=${{ secrets.TEST_PYPI_TOKEN }}
           python -m twine upload dist/* --repository testpypi --non-interactive 
+      - run: |
+          sleep 15
+          uv pip install sweepai
+      - run: echo "${{ secrets.OPENAI_API_KEY }}\n${{ secrets.PAT }}\n" sweep init
+
