@@ -400,6 +400,20 @@ class ClonedRepo:
         )
         all_files = files_with_matching_name + files_without_matching_name
         return all_files[:limit]
+    
+    def update_file(self, file_path: str, new_contents: str):
+        local_path = (
+            f"{self.repo_dir}{file_path}"
+            if file_path.startswith("/")
+            else f"{self.repo_dir}/{file_path}"
+        )
+        try:
+            with open(local_path, "w", encoding="utf-8", errors="replace") as f:
+                f.write(new_contents)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update file: {e}")
+            return False
 
 
 @dataclass
