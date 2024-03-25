@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = { find = { where = ["."], exclude = ["tests", "sdk", "benchmark", "docs", "tests.*", "sdk.*", "benchmark.*", "docs.*"] } }
 
+
 [project.scripts]
 sweep = "sweepai.cli:main"
 sweepai = "sweepai.cli:main"
@@ -18,7 +19,7 @@ Homepage = "https://sweep.dev"
 
 [project]
 name = "sweepai"
-version = "1.1.9"
+version = "1.1.10"
 description = "Sweep fixes GitHub issues"
 authors = [
     {name = "Kevin Lu", email = "kevin@sweep.dev"},
@@ -32,7 +33,7 @@ classifiers = [
 ]
 dependencies = [
   "beautifulsoup4==4.12.3",
-  "typer==0.9.0",
+  "typer==0.10.0",
   "pygithub==2.2.0",
   "loguru==0.7.2",
   "rich==13.7.1",
