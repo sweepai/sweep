@@ -2,6 +2,7 @@ from math import inf
 import traceback
 from typing import Any, Literal
 
+from anthropic import AnthropicBedrock
 import backoff
 from loguru import logger
 from pydantic import BaseModel
@@ -9,6 +10,9 @@ from pydantic import BaseModel
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    AWS_ACCESS_KEY,
+    AWS_REGION,
+    AWS_SECRET_KEY,
     DEFAULT_GPT4_32K_MODEL,
 )
 from sweepai.core.entities import Message
@@ -41,9 +45,20 @@ model_to_max_tokens = {
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
+    "anthropic.claude-3-haiku-20240229-v1:0": 200000,
+    "anthropic.claude-3-sonnet-20240229-v1:0": 200000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 default_temperature = 0.1
+
+if AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION:
+    anthropic_client = AnthropicBedrock(
+        aws_access_key=AWS_ACCESS_KEY,
+        aws_secret_key=AWS_SECRET_KEY,
+        aws_region=AWS_REGION,
+    )
+else:
+    anthropic_client = None
 
 class MessageList(BaseModel):
     messages: list[Message] = [
@@ -305,6 +320,34 @@ class ChatGPT(MessageList):
         result = fetch()
         logger.info(f"Output to call openai:\n{result}")
         return result
+    
+    def chat_anthropic(
+        self,
+        content: str,
+        model: ChatModel = "anthropic.claude-3-sonnet-20240229-v1:0",
+        message_key: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int = 4096,
+    ):
+        self.messages.append(Message(role="user", content=content, key=message_key))
+        temperature = temperature or self.temperature or default_temperature
+        messages_string = '\n\n'.join([message.content for message in self.messages])
+        logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:{content}")
+        self.messages.append(
+            Message(
+                role="assistant",
+                content=anthropic_client.messages.create(
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    messages=self.messages_dicts,
+                ).content[0].text,
+                key=message_key,
+            )
+        )
+        logger.debug(f"Anthropic response: {self.messages[-1].content}")
+        self.prev_message_states.append(self.messages)
+        return self.messages[-1].content
 
     @property
     def messages_dicts(self):
