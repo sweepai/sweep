@@ -24,7 +24,7 @@ from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code, get_check_results
-from sweepai.utils.modify_utils import post_process_rg_output
+from sweepai.utils.modify_utils import post_process_rg_output, variable_indentation_check
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -270,7 +270,6 @@ def function_modify(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
         initial_check_results = get_check_results(file_path, current_contents)
-
         original_snippets = chunk_code(current_contents, file_path, 700, 200)
         # original_snippets = chunk_code(current_contents, file_path, 1500, 200)
 
@@ -892,9 +891,11 @@ def function_modify_unstable(
                         except Exception:
                             error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_path}. Make sure you are ONLY modifying the current file {file_path} and NOT a READ ONLY file."
                             break
-
+                        
+                        # check to see that the old_code is in the new_code by trying all possible indentations
+                        correct_indent = variable_indentation_check(old_code, chunk)
                         # if the old_code couldn't be found in the chunk we need to let the llm know
-                        if old_code not in chunk:
+                        if old_code not in chunk and correct_indent == -1:
                             chunks_with_old_code = [
                                 index
                                 for index, chunk in enumerate(chunks)
@@ -913,6 +914,11 @@ def function_modify_unstable(
                             else:
                                 error_message += "\n\nMake another replacement. It seems there may be a spelling or indentation error as the OriginalCode could not be found in the code file. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct OriginalCode should be, and make another replacement with the corrected OriginalCode."
                             break
+                        # ensure old_code and new_code has the correct indents
+                        new_code_lines = new_code.split("\n")
+                        new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
+                        old_code_lines = old_code.split("\n")
+                        old_code = "\n".join(f'{correct_indent*" "}{line}' for line in old_code_lines)
                         # apply changes
                         new_chunk = chunk.replace(old_code, new_code, 1)
                         if new_chunk == chunk:
