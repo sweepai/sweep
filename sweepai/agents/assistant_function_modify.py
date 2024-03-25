@@ -1,6 +1,7 @@
 from copy import deepcopy
 import os
 import json
+import subprocess
 import traceback
 from collections import defaultdict
 
@@ -14,6 +15,7 @@ from sweepai.agents.assistant_functions import (
 )
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
+from sweepai.config.client import SweepConfig
 from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -22,21 +24,10 @@ from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code, get_check_results
+from sweepai.utils.modify_utils import post_process_rg_output
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
-
-add_later = """
-IMPORTANT: If you believe you are missing important information or context in any of the steps above use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary.
-<GetAdditionalContext>
-<Justification>
-Provide justification for why you need additional context
-</Justification>
-<Keyword>
-keyword to search for in order to get more additional context. This will search the entire codebase for this keyword
-</Keyword>
-</GetAdditionalContext>
-"""
 
 instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
@@ -70,6 +61,8 @@ Your job is to make edits to the file to complete the user "# Request".
     - Keep whitespace and comments.
     - Make the minimum necessary search_and_replaces to make changes to the snippets.
     - Write multiple small changes instead of a single large change.
+
+IMPORTANT: If you believe you are missing important information or context in any of the steps above use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary.
 
 You have access to the following tools:
 
@@ -118,6 +111,9 @@ The original lines of code. Be sure to add lines before and after to disambiguat
 <NewCode>
 The new code to replace the old code.
 </NewCode>
+<Justification>
+Why this change is being made
+</Justification>
 </SearchAndReplace>
 
 SubmitSolution - Use this tool to let the user know that you have completed all necessary steps in order to satisfy their request.
@@ -128,6 +124,15 @@ To call this tool you MUST respond in the following xml format:
 Justification for why you are finished with your task.
 </Justification>
 </SubmitSolution>
+
+<GetAdditionalContext>
+<Justification>
+Provide justification for why you need additional context
+</Justification>
+<Keyword>
+keyword to search for in order to get more additional context. This will search the entire codebase for this keyword
+</Keyword>
+</GetAdditionalContext>
 """
 
 if not USE_ASSISTANT:
@@ -239,7 +244,8 @@ def function_modify(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
-    fcrs: list[FileChangeRequest]=[]
+    fcrs: list[FileChangeRequest]=[],
+    cwd: str | None = None,
 ):
     try:
 
@@ -720,6 +726,7 @@ def function_modify_unstable(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
+    cwd: str | None = None,
     fcrs: list[FileChangeRequest]=[]
 ):
     try:
@@ -733,6 +740,7 @@ def function_modify_unstable(
 
         current_contents = file_contents
         relevant_file_contents = defaultdict(str)
+        sweep_config: SweepConfig = SweepConfig()
         # get code for relevant filepaths
         try:
             for relevant_file_path in relevant_filepaths:
@@ -833,7 +841,7 @@ def function_modify_unstable(
                         )
                 elif tool_name == "no_tool_call":
                     tool_name, tool_call = assistant_generator.send(
-                        "ERROR\n No tool calls were made. If you are done, please use the SubmitSolution tool to indicate that you have completed the task."
+                        "ERROR\n No tool calls were made. If you are done, please use the SubmitSolution tool to indicate that you have completed the task. If you believe you are stuck, use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary."
                     )
                 elif tool_name == "SubmitSolution":
                     diff = generate_diff(file_contents, current_contents)
@@ -879,7 +887,11 @@ def function_modify_unstable(
                             break
 
                         # fetch the chunk of code we will be modifying
-                        chunk = chunks[section_id]
+                        try:
+                            chunk = chunks[section_id]
+                        except Exception:
+                            error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_path}. Make sure you are ONLY modifying the current file {file_path} and NOT a READ ONLY file."
+                            break
 
                         # if the old_code couldn't be found in the chunk we need to let the llm know
                         if old_code not in chunk:
@@ -932,7 +944,7 @@ def function_modify_unstable(
                                 if check_results_message:
                                     warning_message = f"\n\nWARNING\n\n{check_results_message}"
                             else:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                 break
                     if not error_message:
                         chunks = new_chunks
@@ -954,8 +966,31 @@ def function_modify_unstable(
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\n\n{success_message}"
                         )
-                # elif tool_name == "GetAdditionalContext":
-                #     import pdb; pdb.set_trace()
+                elif tool_name == "GetAdditionalContext":
+                    error_message = ""
+                    keyword = tool_call["keyword"].strip()
+                    rg_command = ["rg", "-n", "-i" , keyword, cwd]
+                    try:
+                        result = subprocess.run(rg_command, text=True, capture_output=True)
+                        output = result.stdout
+                        if output:
+                            # post process rip grep output to be more condensed
+                            rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
+                        else:
+                            error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces."
+                    except Exception as e:
+                        logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
+                        error_message = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
+                    if error_message:
+                        logger.debug(f"ERROR in GetAdditionalContext\n\n{error_message}")
+                        tool_name, tool_call = assistant_generator.send(
+                            f"ERROR\n\n{error_message}"
+                        )
+                    else:
+                        logger.debug(f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n")
+                        tool_name, tool_call = assistant_generator.send(
+                            f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n You can use the new context to revise your plan by calling the ProposeProblemAnalysisAndPlan tool again. You can also call the AnalysisAndIdentification tool again."
+                        )
                 elif tool_name == "KeywordSearch":
                     error_message = ""
                     success_message = ""
@@ -1015,7 +1050,8 @@ def function_modify_unstable(
                             for k, v in relevant_file_match_context_indices.items()
                         }
                         if not match_indices and not relevant_file_match_indices:
-                            error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
+                            relevant_filepaths_string = ", ".join(relevant_filepaths)
+                            error_message = f"The keyword {keyword} does not appear to be present in the CURRENT code file to modify: {file_path} and relevant READ ONLY code files: {relevant_filepaths_string}. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             # for matches inside current code file
                             if match_indices:
