@@ -19,10 +19,7 @@ from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.timer import Timer
 
-if BASERUN_API_KEY is not None:
-    pass
-
-OPENAI_TIMEOUT = 60  # one minute
+OPENAI_TIMEOUT = 30
 
 OPENAI_EXCLUSIVE_MODELS = [
     "gpt-3.5-turbo-1106",
