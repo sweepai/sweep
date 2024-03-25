@@ -10,6 +10,7 @@ from redis import Redis
 from tqdm import tqdm
 
 from sweepai.config.server import BATCH_SIZE, REDIS_URL
+from sweepai.logn.cache import redis_cache
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
@@ -59,6 +60,7 @@ def normalize_l2(x):
 
 
 # lru_cache(maxsize=20)
+@redis_cache()
 def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
@@ -76,6 +78,7 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     return embeddings
 
 
+@redis_cache()
 def openai_call_embedding(batch):
     client = get_embeddings_client()
     response = client.embeddings.create(
@@ -148,5 +151,5 @@ def openai_with_expo_backoff(batch: tuple[str]):
 
 
 if __name__ == "__main__":
-    texts = ["sasxt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
+    texts = ["sasxtt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
     embeddings = embed_text_array(texts)

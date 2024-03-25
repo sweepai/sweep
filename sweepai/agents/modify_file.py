@@ -157,6 +157,7 @@ def modify_file(
             ticket_progress=ticket_progress,
             assistant_conversation=assistant_conversation,
             relevant_filepaths=relevant_filepaths,
+            cwd=cloned_repo.repo_dir,
         )
 
     except Exception as e:  # Check for max tokens error
