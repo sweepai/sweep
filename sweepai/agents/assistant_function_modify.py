@@ -818,7 +818,6 @@ def function_modify_unstable(
             done_counter = 0
             tool_name, tool_call = assistant_generator.send(None)
             for i in range(100):  # TODO: tune this parameter
-                # update the file state here
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "done":
                     diff = generate_diff(file_contents, current_contents)
