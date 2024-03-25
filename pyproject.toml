@@ -47,6 +47,7 @@ dependencies = [
   "tree-sitter-languages==1.10.2",
   "rapidfuzz==3.6.2",
   "importmagic==0.1.7",
+  "hatchet-sdk==0.18.0",
   "pyflakes==3.2.0",
   "beautifulsoup4==4.12.3",
   "networkx==3.2.1",
