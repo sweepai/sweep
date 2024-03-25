@@ -341,7 +341,6 @@ class ChatGPT(MessageList):
                         temperature=temperature,
                         max_tokens=max_tokens,
                         messages=self.messages_dicts,
-                        max_retries=3
                     ).content[0].text
                     break
                 except Exception as e_:
