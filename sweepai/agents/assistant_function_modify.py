@@ -111,6 +111,9 @@ The original lines of code. Be sure to add lines before and after to disambiguat
 <NewCode>
 The new code to replace the old code.
 </NewCode>
+<Justification>
+Why this change is being made
+</Justification>
 </SearchAndReplace>
 
 SubmitSolution - Use this tool to let the user know that you have completed all necessary steps in order to satisfy their request.
@@ -241,7 +244,8 @@ def function_modify(
     assistant_conversation: AssistantConversation | None = None,
     seed: int = None,
     relevant_filepaths: list[str] = [],
-    fcrs: list[FileChangeRequest]=[]
+    fcrs: list[FileChangeRequest]=[],
+    cwd: str | None = None,
 ):
     try:
 
@@ -940,7 +944,7 @@ def function_modify_unstable(
                                 if check_results_message:
                                     warning_message = f"\n\nWARNING\n\n{check_results_message}"
                             else:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                 break
                     if not error_message:
                         chunks = new_chunks
@@ -978,10 +982,12 @@ def function_modify_unstable(
                         logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
                         error_message = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
                     if error_message:
+                        logger.debug(f"ERROR in GetAdditionalContext\n\n{error_message}")
                         tool_name, tool_call = assistant_generator.send(
                             f"ERROR\n\n{error_message}"
                         )
                     else:
+                        logger.debug(f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n")
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n You can use the new context to revise your plan by calling the ProposeProblemAnalysisAndPlan tool again. You can also call the AnalysisAndIdentification tool again."
                         )
@@ -1044,7 +1050,8 @@ def function_modify_unstable(
                             for k, v in relevant_file_match_context_indices.items()
                         }
                         if not match_indices and not relevant_file_match_indices:
-                            error_message = f"The keyword {keyword} does not appear to be present in the current and relevant code files. Consider missing or misplaced whitespace, comments or delimiters."
+                            relevant_filepaths_string = ", ".join(relevant_filepaths)
+                            error_message = f"The keyword {keyword} does not appear to be present in the CURRENT code file to modify: {file_path} and relevant READ ONLY code files: {relevant_filepaths_string}. Consider missing or misplaced whitespace, comments or delimiters."
                         else:
                             # for matches inside current code file
                             if match_indices:

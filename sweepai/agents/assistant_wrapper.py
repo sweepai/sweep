@@ -597,7 +597,7 @@ def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
     plan_regex = r'<ProposeProblemAnalysisAndPlan>\s*<Analysis>(?P<analysis>.*?)<\/Analysis>\s*<ProposedPlan>(?P<plan>.*?)<\/ProposedPlan>\s*<\/ProposeProblemAnalysisAndPlan>'
     keyword_search_regex = r'<KeywordSearch>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/KeywordSearch>'   
     search_and_replace_regex = (
-        r'<SearchAndReplace>\s*<SectionId>(?P<sectionid>.*?)<\/SectionId>\s*<OriginalCode>(?P<originalcode>.*?)<\/OriginalCode>\s*<NewCode>(?P<newcode>.*?)<\/NewCode>\s*<\/SearchAndReplace>'
+        r'<SearchAndReplace>\s*<SectionId>(?P<sectionid>.*?)<\/SectionId>\s*<OriginalCode>(?P<originalcode>.*?)<\/OriginalCode>\s*<NewCode>(?P<newcode>.*?)<\/NewCode>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<\/SearchAndReplace>'
     )
     analysis_and_identification_regex = r'<AnalysisAndIdentification>\s*(?P<analysisandidentification>.*?)\s*<\/AnalysisAndIdentification>'
     submit_solution_regex = r'<SubmitSolution>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<\/SubmitSolution>'
@@ -633,7 +633,8 @@ def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
             "arguments": {
                 "sectionid": match.group("sectionid"),
                 "originalcode": match.group("originalcode"),
-                "newcode": match.group("newcode")
+                "newcode": match.group("newcode"),
+                "justification": match.group("justification")
             }
         })
     
