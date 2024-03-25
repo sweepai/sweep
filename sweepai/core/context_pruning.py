@@ -1,4 +1,3 @@
-from collections import defaultdict
 import json
 import os
 import re
@@ -25,7 +24,8 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE, post_process_rg_output
+from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE
+from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.tree_utils import DirectoryTree
 from sweepai.config.client import SweepConfig
 

@@ -17,7 +17,6 @@ from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import USE_ASSISTANT
-from sweepai.utils.str_utils import post_process_rg_output
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message, Snippet
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
@@ -25,6 +24,7 @@ from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code, get_check_results
+from sweepai.utils.modify_utils import post_process_rg_output
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
