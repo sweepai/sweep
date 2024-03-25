@@ -347,7 +347,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
                     "--disable=unused-import" # we have a workaround for this tbh
                 ],
                 reporter=reporter,
-                do_exit=False,
+                exit=False,
             )
             error_message = pylint_output.getvalue().strip()
             try:
@@ -368,7 +368,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
             ["npx", "eslint", "--version"],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=20,
         )
         if result.returncode == 0:
             with TemporaryDirectory() as temp_dir:
@@ -377,14 +377,18 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
                     f.write(DEFAULT_ESLINTRC)
                 with open(new_file, "w") as f:
                     f.write(code)
-                result = subprocess.run(
-                    ["npx", "eslint", new_file],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                error_message = (result.stdout + "\n\n" + result.stderr).strip().replace(new_file, file_path)
-                return CheckResults(eslint=error_message)
+                try:
+                    result = subprocess.run(
+                        ["npx", "eslint", new_file],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    error_message = (result.stdout + "\n\n" + result.stderr).strip().replace(new_file, file_path)
+                    return CheckResults(eslint=error_message)
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"ESLint timed out after 30s for {file_path}")
+                    pass
     return CheckResults()
 
 def check_code(file_path: str, code: str) -> tuple[bool, str]:
@@ -410,7 +414,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                     "--disable=relative-beyond-top-level",
                 ],
                 reporter=reporter,
-                do_exit=False,
+                exit=False,
             )
             error_message = pylint_output.getvalue().strip()
             try:
