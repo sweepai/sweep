@@ -70,19 +70,6 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 * We focus on Python but support all languages GPT-4 can write. This includes JS/TS, Rust, Go, Java, C# and C++.
 
-### Self-Hosting
-
-You can self-host Sweep with our Docker image (`https://hub.docker.com/r/sweepai/sweep`). Please check out our deployment instructions here! https://docs.sweep.dev/deployment
-
-## Development
-
-### Starting the Webhook
-1. Clone the repo with `git clone https://github.com/sweepai/sweep`.
-2. Create `.env` according to https://docs.sweep.dev/deployment.
-3. Run `docker compose up --build`. This will take a few moments to start.
-
-To build our Docker images, run `docker compose build`.
-
 ---
 
 ## Story
@@ -99,7 +86,7 @@ Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. For
 
 For more GPT-4 tickets visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>!
 
-You can [self-host](https://docs.sweep.dev/deployment) Sweep's docker image on any machine (AWS, Azure, your laptop) for free. You can get enterprise support by [contacting us](https://form.typeform.com/to/wliuvyWE).
+You can get enterprise support by [contacting us](https://form.typeform.com/to/wliuvyWE).
 
 ---
 
