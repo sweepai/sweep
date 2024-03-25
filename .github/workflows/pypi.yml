@@ -50,7 +50,7 @@ jobs:
       - run: uv pip install twine build
       - run: |
           commit_hash=$(git rev-parse --short HEAD)
-          commit_hash_mod=$(printf "%d" 0x${commit_hash: -2})
+          commit_hash_mod=$(printf "%d" 0x${commit_hash: -4})
           sed -i "s/version = \"\([^\"]*\)\"/version = \"\1.dev$commit_hash_mod\"/" pyproject.toml
           python -m build
       - run: |
