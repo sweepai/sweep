@@ -1,0 +1,57 @@
+name: Pypi Test Deploy
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+      - pyproject.toml
+      - requirements.txt
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+      - pyproject.toml
+      - requirements.txt
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
+    outputs:
+      cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.67.0
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+      - run: pip install uv
+      - run: uv pip install -r requirements.txt
+      - run: uv pip install twine
+      - run: export HASH=$(git rev-parse --short=7 HEAD) && sed -i "s/version = \"1.1.9\"/version = \"1.1.9-$HASH\"/" pyproject.toml
+      - run: python -m build
+      - run: |
+        export TWINE_USERNAME=__token__
+        export TWINE_PASSWORD=${{ secrets.TEST_PYPI_TOKEN }}
+        python -m twine upload dist/* --repository testpypi --non-interactive 
