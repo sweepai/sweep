@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    ANTHROPIC_AVAILABLE,
     AWS_ACCESS_KEY,
     AWS_REGION,
     AWS_SECRET_KEY,
@@ -50,15 +51,6 @@ model_to_max_tokens = {
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 default_temperature = 0.1
-
-if AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION:
-    anthropic_client = AnthropicBedrock(
-        aws_access_key=AWS_ACCESS_KEY,
-        aws_secret_key=AWS_SECRET_KEY,
-        aws_region=AWS_REGION,
-    )
-else:
-    anthropic_client = None
 
 class MessageList(BaseModel):
     messages: list[Message] = [
@@ -329,10 +321,16 @@ class ChatGPT(MessageList):
         temperature: float | None = None,
         max_tokens: int = 4096,
     ):
+        assert ANTHROPIC_AVAILABLE
         self.messages.append(Message(role="user", content=content, key=message_key))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:{content}")
+        anthropic_client = AnthropicBedrock(
+            aws_access_key=AWS_ACCESS_KEY,
+            aws_secret_key=AWS_SECRET_KEY,
+            aws_region=AWS_REGION,
+        )
         self.messages.append(
             Message(
                 role="assistant",
