@@ -91,14 +91,14 @@ class RerankSnippetsBot(ChatGPT):
         # if we add duplicate snippets, we remove the duplicates
         ranking_pattern = r"<ranking>\n(.*?)\n</ranking>"
         formatted_code_snippets = self.format_code_snippets(code_snippets)
-        if ANTHROPIC_AVAILABLE:
+        try:
             ranking_response = self.chat_anthropic(
                 content=reranking_prompt.format(
                     user_query=user_query,
                     formatted_code_snippets=formatted_code_snippets,
                 ),
             )
-        else:
+        except Exception as e:
             ranking_response = self.chat(
                 content=reranking_prompt.format(
                     user_query=user_query,
