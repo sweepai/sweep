@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import json
 import subprocess
@@ -367,7 +368,7 @@ def function_modify(
                     error_message = ""
                     success_message = ""
                     new_contents = current_contents
-                    new_chunks = [chunk for chunk in chunks]  # deepcopy
+                    new_chunks = deepcopy(chunks)  # deepcopy
                     success_messages = []
                     warning_message = ""
                     error_index = 0
@@ -456,6 +457,7 @@ def function_modify(
                                     break
                                 new_contents = current_new_contents
 
+                    chunks = new_chunks
                     if not error_message and new_contents == current_contents:
                         error_message = "No changes were made, make sure old_code and new_code are not the same."
 
@@ -859,7 +861,7 @@ def function_modify_unstable(
                 elif tool_name == "SearchAndReplace":
                     error_message = ""
                     success_message = ""
-                    new_chunks = [chunk for chunk in chunks]  # deepcopy
+                    new_chunks = deepcopy(chunks)  # deepcopy
                     success_messages = []
                     warning_message = ""
                     if "sectionid" not in tool_call:
@@ -940,6 +942,7 @@ def function_modify_unstable(
                             else:
                                 error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error message:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
                                 break
+                    chunks = new_chunks
                     if error_message:
                         logger.error(f"Error occured in SearchAndReplace tool: {error_message}")
                         tool_name, tool_call = assistant_generator.send(
