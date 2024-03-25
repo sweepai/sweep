@@ -60,7 +60,7 @@ def normalize_l2(x):
 
 
 # lru_cache(maxsize=20)
-@redis_cache()
+# @redis_cache()
 def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
@@ -78,7 +78,7 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     return embeddings
 
 
-@redis_cache()
+# @redis_cache()
 def openai_call_embedding(batch):
     client = get_embeddings_client()
     response = client.embeddings.create(
