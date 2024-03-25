@@ -77,6 +77,7 @@ class RerankSnippetsBot(ChatGPT):
                 formatted_code_snippets=formatted_code_snippets,
             ),
         )
+        import pdb; pdb.set_trace()
         ranking_matches = re.search(ranking_pattern, ranking_response, re.DOTALL)
         if ranking_matches is None:
             return code_snippets
