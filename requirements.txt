@@ -171,7 +171,7 @@ tqdm==4.66.2
 tree-sitter==0.21.0
     # via tree-sitter-languages
 tree-sitter-languages==1.10.2
-typer==0.9.0
+typer==0.10.0
 typing-extensions==4.10.0
     # via
     #   anyio
