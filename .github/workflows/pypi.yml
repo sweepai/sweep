@@ -61,5 +61,5 @@ jobs:
       - run: |
           sleep 15
           uv pip install sweepai
-      - run: echo "${{ secrets.OPENAI_API_KEY }}\n${{ secrets.PAT }}\n\n" | sweep init
+      - run: echo "${{ secrets.OPENAI_API_KEY }}\n${{ secrets.PAT }}\n\n\n\n" | sweep init
 
