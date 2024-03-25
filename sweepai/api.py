@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# Do not save logs for main process
 import ctypes
 import json
 import subprocess
