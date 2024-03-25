@@ -14,7 +14,6 @@ on:
       - 'tests/**'
       - pyproject.toml
       - requirements.txt
-      - "**/*"
   push:
     branches:
       - main
@@ -53,6 +52,6 @@ jobs:
       - run: export HASH=$(git rev-parse --short=7 HEAD) && sed -i "s/version = \"1.1.9\"/version = \"1.1.9-$HASH\"/" pyproject.toml
       - run: python -m build
       - run: |
-        export TWINE_USERNAME=__token__
-        export TWINE_PASSWORD=${{ secrets.TEST_PYPI_TOKEN }}
-        python -m twine upload dist/* --repository testpypi --non-interactive 
+          export TWINE_USERNAME=__token__
+          export TWINE_PASSWORD=${{ secrets.TEST_PYPI_TOKEN }}
+          python -m twine upload dist/* --repository testpypi --non-interactive 
