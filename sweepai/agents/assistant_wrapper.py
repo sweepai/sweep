@@ -24,7 +24,7 @@ from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.openai_proxy import OpenAIProxy, get_client
-from anthropic import Anthropic
+from anthropic import AnthropicBedrock
 import copy
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
@@ -690,8 +690,15 @@ def run_until_complete_unstable(
         # get the response from openai
         try:
             if True:
-                client = Anthropic()
-                model="claude-3-opus-20240229"
+                AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY", "")
+                AWS_SECRET_KEY= os.environ.get("AWS_SECRET_KEY", "")
+                AWS_REGION = os.environ.get("AWS_REGION", "")
+                client = AnthropicBedrock(
+                    aws_access_key=AWS_ACCESS_KEY,
+                    aws_secret_key=AWS_SECRET_KEY,
+                    aws_region=AWS_REGION,
+                )
+                model="anthropic.claude-3-sonnet-20240229-v1:0"
                 for message in messages:
                     if message["role"] == "system":
                         message["role"] = "user"
