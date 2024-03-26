@@ -270,8 +270,6 @@ class ModifyBot:
             ticket_progress=self.ticket_progress,
             assistant_conversation=assistant_conversation,
             seed=seed,
-            start_line=file_change_request.start_line,
-            end_line=file_change_request.end_line,
             relevant_filepaths=relevant_filepaths,
             fcrs=fcrs,
             cwd=cloned_repo.repo_dir,

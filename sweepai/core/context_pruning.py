@@ -627,7 +627,7 @@ def modify_context(
     run: Run,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
-    model: str = "gpt-4-1106-preview",
+    model: str = "gpt-4-0125-preview",
 ) -> bool | None:
     sweep_config = SweepConfig()
     max_iterations = 200

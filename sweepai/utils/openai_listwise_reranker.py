@@ -4,6 +4,7 @@ import re
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Snippet
+from sweepai.logn.cache import file_cache
 
 # use this later
 # # Contextual Request Analysis:
@@ -136,7 +137,8 @@ f"""{snippet.denotation}
             result_str += snippet_str + "\n"
         result_removed_trailing_newlines = result_str.rstrip("\n")
         return result_removed_trailing_newlines
-        
+
+@file_cache()
 def listwise_rerank_snippets(
     user_query,
     code_snippets,
