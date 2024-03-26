@@ -19,7 +19,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.timer import Timer
 from anthropic import Anthropic
 
-OPENAI_TIMEOUT = 30
+OPENAI_TIMEOUT = 120
 
 OPENAI_EXCLUSIVE_MODELS = [
     "gpt-3.5-turbo-1106",
@@ -77,10 +77,10 @@ class OpenAIProxy:
                 or len(MULTI_REGION_CONFIG) == 0
                 or not isinstance(MULTI_REGION_CONFIG[0], list)
             ):
-                logger.info(
-                    f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
-                )
                 if OPENAI_API_TYPE == "azure":
+                    logger.info(
+                        f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
+                    )
                     try:
                         with Timer():
                             response = self.call_azure_api(
@@ -93,14 +93,18 @@ class OpenAIProxy:
                             return response
                     except RateLimitError as e:
                         logger.exception(f"Rate Limit Error calling Azure: {e}")
-                with Timer():
-                    return self.set_openai_default_api_parameters(
-                        model=model,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        tools=tools,
+                else:
+                    logger.info(
+                        f"Calling OpenAI with model {model}."
                     )
+                    with Timer():
+                        return self.set_openai_default_api_parameters(
+                            model=model,
+                            messages=messages,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            tools=tools,
+                        )
             # multi region config is a list of tuples of (region_url, api_key)
             # we will try each region in order until we get a response
             # randomize the order of the list
