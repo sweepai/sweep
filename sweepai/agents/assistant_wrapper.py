@@ -24,7 +24,7 @@ from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.openai_proxy import OpenAIProxy, get_client
-from anthropic import Anthropic
+from sweepai.utils.anthropic_client import AnthropicClient
 import copy
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
@@ -689,47 +689,8 @@ def run_until_complete_unstable(
             )
         # get the response from openai
         try:
-            if True:
-                # AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY", "")
-                # AWS_SECRET_KEY= os.environ.get("AWS_SECRET_KEY", "")
-                # AWS_REGION = os.environ.get("AWS_REGION", "")
-                # client = AnthropicBedrock(
-                #     aws_access_key=AWS_ACCESS_KEY,
-                #     aws_secret_key=AWS_SECRET_KEY,
-                #     aws_region=AWS_REGION,
-                # )
-                client = Anthropic()
-                model="claude-3-opus-20240229"
-                for message in messages:
-                    if message["role"] == "system":
-                        message["role"] = "user"
-                # messages must alternate between user and assistant
-                new_messages = []
-                for message in messages:
-                    if new_messages and new_messages[-1]["role"] == message["role"]:
-                        new_messages[-1]["content"] += "\n\n" + message["content"]
-                    else:
-                        new_messages.append(copy.deepcopy(message))
-                messages = new_messages
-                
-                response = client.messages.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=2048,
-                    temperature=0.2,
-                    # set max tokens later
-                )
-                use_anthropic = True
-            else: 
-                openai_proxy = OpenAIProxy()
-                response = openai_proxy.call_openai(
-                    model,
-                    messages,
-                    tools,
-                    max_tokens=2048,
-                    temperature=0.2,
-                    # set max tokens later
-                )
+            client = AnthropicClient()                
+            response = client.get_response_message(messages, max_tokens=2048, temperature=0.2)
         # sometimes deployment for opennai is not found, retry after a minute
         except openai.NotFoundError as e:
             logger.error(
@@ -741,37 +702,17 @@ def run_until_complete_unstable(
             logger.error(f"chat completions failed on interation {i} with error: {e}")
             sleep(sleep_time)
             continue
-        if use_anthropic:
-            response_message = response
-        else:
-            response_message = response.choices[0].message
         # tool_calls = fix_tool_calls(response_message.tool_calls)
         # response_message.tool_calls = tool_calls
         # extend conversation
-        response_message_dict = response_message.model_dump()
-        if use_anthropic:
-            if response_message_dict.get("content", ""):
-                response_contents = response_message_dict.get("content", "")[0]['text']
-            else:
-                done_response = yield "done", {
-                    "status": "completed",
-                    "message": response_message_dict.get("stop_reason", ""),
-                }
-        else:
-            response_contents = response_message_dict.get("content", "")
-        # in some cases the fields are None and we must replace these with empty strings
-        for key, value in response_message_dict.items():
-            if value is None:
-                response_message_dict[key] = ""
-        # if function_call is None we must remove it or else openai will throw an error
-        if response_message_dict.get("function_call", "not in dict") == "":
-            response_message_dict.pop("function_call")
-        if response_message_dict.get("tool_calls", "not in dict") == "":
-            response_message_dict.pop("tool_calls")
-        if use_anthropic:
-            messages.append({"role":response_message_dict["role"], "content":response_contents})
-        else:
-            messages.append(response_message_dict)
+        response_role, response_contents = client.parse_role_content_from_response(response)
+        if not response_contents:
+            done_response = yield "done", {
+                "status": "completed",
+                "message": "Run completed",
+            }
+        # extend conversation with llm
+        messages.append({"role": response_role, "content": response_contents})
         tool_calls = parse_tool_calls(response_contents)
         # if a tool call was made
         done_response = None
@@ -806,21 +747,12 @@ def run_until_complete_unstable(
                         tool_output = yield tool_name, tool_args
                         if not tool_output:
                             break
-                        if use_anthropic:
-                            messages.append(
-                                {
-                                    "role": "user",
-                                    "content": f"{tool_name}: {tool_output}",
-                                }
-                            )  # extend conversation with function response
-                        else:
-                            messages.append(
-                                {
-                                    "role": "assistant",
-                                    "name": tool_name,
-                                    "content": tool_output,
-                                }
-                            )  # extend conversation with function response
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": f"{tool_name}: {tool_output}",
+                            }
+                        )  # extend conversation with function response
                 
         else:  # no tool call being made implies either an error or a success
             logger.error(
