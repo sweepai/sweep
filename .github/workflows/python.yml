@@ -104,12 +104,8 @@ jobs:
           GITHUB_PAT: ${{ secrets.PAT }}
           GITHUB_APP_ID: ${{ secrets.APP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
           GITHUB_APP_PEM: ${{ secrets.APP_PEM }}
           MULTI_REGION_CONFIG: ${{ secrets.MULTI_REGION_CONFIG}}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_TYPE: azure
-          OPENAI_API_VERSION: 2024-02-15-preview
-          AZURE_OPENAI_DEPLOYMENT: sweep-gpt-4-turbo
         run: PYTHONPATH=. pytest -n 4 tests/e2e -s
         timeout-minutes: 30

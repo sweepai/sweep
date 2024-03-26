@@ -54,10 +54,6 @@ Continue repeating steps 1, 2, and 3 to get every file you need to solve the use
 To do this use the submit_report_and_plan tool."""
 
 unformatted_user_prompt = """\
-<repo_tree>
-{repo_tree}
-</repo_tree>
-
 ## Relevant Snippets
 Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
 {snippets_in_repo}
