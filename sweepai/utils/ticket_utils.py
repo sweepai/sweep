@@ -125,7 +125,7 @@ def prep_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    skip_reranking: bool = True,
+    skip_reranking: bool = False,
 ):
     ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
         cloned_repo, query, ticket_progress, k, skip_reranking

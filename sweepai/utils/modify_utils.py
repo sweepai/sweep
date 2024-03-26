@@ -41,10 +41,10 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
             processed_output += "\n"
     return processed_output
 
-# try and find code inside chunk given various levels of indentation
+# try and find code inside chunk given various levels of indentation, and right strip the lines of code
 # if successful returns the num of spaces required to find the code match
-def variable_indentation_check(chunk: str, code: str) -> int:
-    code_lines = code.split("\n")
+def manual_code_check(chunk: str, code: str) -> int:
+    code_lines = [line.rstrip() for line in code.split("\n")]
     # assume one indent is two spaces and check max 10 indents
     for indent in range(0, 40, 2):
         new_code_lines = [f"{' ' * indent}{line}" for line in code_lines]

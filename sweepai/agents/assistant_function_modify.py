@@ -25,7 +25,7 @@ from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code, get_check_results
-from sweepai.utils.modify_utils import post_process_rg_output, variable_indentation_check
+from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -891,7 +891,7 @@ def function_modify_unstable(
                             break
                         
                         # check to see that the old_code is in the new_code by trying all possible indentations
-                        correct_indent = variable_indentation_check(old_code, chunk)
+                        correct_indent = manual_code_check(chunk, old_code)
                         # if the old_code couldn't be found in the chunk we need to let the llm know
                         if old_code not in chunk and correct_indent == -1:
                             chunks_with_old_code = [
@@ -910,12 +910,12 @@ def function_modify_unstable(
                                     ]
                                 )
                             else:
-                                error_message += "\n\nMake another replacement. It seems there may be a spelling or indentation error as the OriginalCode could not be found in the code file. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct OriginalCode should be, and make another replacement with the corrected OriginalCode."
+                                error_message += "\n\nNo changes were applied due to this error. Make another replacement. It seems there may be a spelling or indentation error as the OriginalCode could not be found in the code file. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct OriginalCode should be, and make another replacement with the corrected OriginalCode."
                             break
                         # ensure old_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
                         new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
-                        old_code_lines = old_code.split("\n")
+                        old_code_lines = [line.rstrip() for line in old_code.split("\n")]
                         old_code = "\n".join(f'{correct_indent*" "}{line}' for line in old_code_lines)
                         # apply changes
                         new_chunk = chunk.replace(old_code, new_code, 1)
@@ -1246,3 +1246,86 @@ in on_ticket.py""" # this causes a pylint error so it's great for testing
         additional_messages=additional_messages,
         ticket_progress=TicketProgress(tracking_id="test_remove_assistant_1"),
     )
+    # old_code = """  } catch (error) {
+    # if (error instanceof TransactionCanceledException && error.CancellationReasons) {
+    #   if (error.CancellationReasons[0]?.Code === 'ConditionalCheckFailed') {
+    #     // Race condition. The task was assigned to someone before we could.
+    #     // There is no error
+    #     return null
+    #   } else if (error.CancellationReasons[1]?.Code === 'ConditionalCheckFailed') {
+    #     // We shouldn't get here, the checks had been done before the transaction
+    #     // but if it failed, then the situation has changed, and we need to re-get the assigned tasks
+    #     const taskService = new TaskService(ddbDocClient, PULSE_TABLE_NAME)
+    #     const newAssignedTasks = await taskService.findAssignedTasks(companyId, username)
+    #     if (newAssignedTasks) {
+    #       logger.error({ newAssignedTasks }, 'Something got assigned mean time')
+    #       throw new Error(Messages.Task.alreadyAssignedTasks(username, JSON.stringify(newAssignedTasks.map(task_ => task_.id))))
+    #     } else {
+    #       logger.error({ assignmentItem }, 'Stale or other assignment')
+    #       throw new StaleAssignmentError(Messages.Generic.retryApiCall())
+    #     }
+    #   }
+    # }
+    # // None of the known error situations occurred
+    # logger.error(
+    #   { error: getErrorDetail(error), taskId: task.id, username, taskType: task.taskType, companyId, workProductId: task.workProductId },
+    #   'error while assigning in fetch'
+    # )
+    # return null"""
+    # new_code = """  } catch (error) {
+    # if (error instanceof TransactionCanceledException && error.CancellationReasons) {
+    #   if (error.CancellationReasons[0]?.Code === 'ConditionalCheckFailed') {
+    #     // Race condition. The task was assigned to someone before we could.
+    #     // There is no error
+    #     return null
+    #   } else if (error.CancellationReasons[1]?.Code === 'ConditionalCheckFailed') {
+    #     // We shouldn't get here, the checks had been done before the transaction
+    #     // but if it failed, then the situation has changed, and we need to re-get the assigned tasks
+    #     const taskService = new TaskService(ddbDocClient, PULSE_TABLE_NAME)
+    #     const newAssignedTasks = await taskService.findAssignedTasks(companyId, username)
+    #     if (newAssignedTasks) {
+    #       logger.error({ newAssignedTasks }, 'Something got assigned mean time')
+    #       throw new Error(Messages.Task.alreadyAssignedTasks(username, JSON.stringify(newAssignedTasks.map(task_ => task_.id))))
+    #     } else {
+    #       logger.error({ assignmentItem }, 'Stale or other assignment')
+    #       throw new StaleAssignmentError(Messages.Generic.retryApiCall())
+    #     }
+    #   } else if (error.CancellationReasons.slice(2).some(r => r.Code === 'ConditionalCheckFailed')) {
+    #     // User already has another task in progress
+    #     throw new Error(Messages.Task.alreadyAssignedTasks(username, ''))
+    #   }
+    # }
+    # // None of the known error situations occurred 
+    # logger.error(
+    #   { error: getErrorDetail(error), taskId: task.id, username, taskType: task.taskType, companyId, workProductId: task.workProductId },
+    #   'error while assigning in fetch'
+    # )"""
+    # file_path = "/mnt/sweep_benchmark/3999_error_external_qc/backend/src/lambda/common-libraries/nodejs/src/utils/fetch-utils.ts"
+    # # get file contents
+    # with open(file_path, "r") as f:
+    #     current_contents = f.read()
+    # section_letter = "H"
+    # section_id = excel_col_to_int(section_letter)
+    # original_snippets = chunk_code(current_contents, file_path, 1400, 500)
+    # file_contents_lines = current_contents.split("\n")
+    # chunks = [
+    #         "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
+    #         for snippet in original_snippets
+    #     ]
+    # new_chunks = deepcopy(chunks)  # deepcopy
+    # chunk = chunks[section_id]
+    # import pdb; pdb.set_trace()
+    # new_chunk = chunk.replace(old_code, new_code, 1)
+    # if new_chunk == chunk:
+    #     logger.warning("No changes were made to the code.")
+    
+    # new_chunks[section_id] = new_chunk
+    # new_contents = current_contents.replace(
+    #     chunk, new_chunk, 1
+    # )
+
+    # # Check if changes were made
+    # if new_contents == current_contents:
+    #     logger.warning("No changes were made to the code.")
+    #     error_message = "No changes were made, make sure old_code and new_code are not the same."
+    
