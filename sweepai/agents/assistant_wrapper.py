@@ -23,9 +23,8 @@ from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, USE_AS
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.openai_proxy import OpenAIProxy, get_client
+from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.anthropic_client import AnthropicClient
-import copy
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     """
