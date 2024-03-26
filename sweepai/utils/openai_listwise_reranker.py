@@ -17,6 +17,16 @@ from sweepai.logn.cache import file_cache
 
 reranking_prompt = """You are a powerful code search engine. You must order the list of code snippets from the most relevant to the least relevant to the user's query.
 
+The most relevant files are the ones we need to edit to resolve the user's issue. The next most relevant snippets are the ones that are crucial to read while editing the other code files to correctly resolve the user's issue.
+
+And the response format is:
+<ranking>
+most_relevant_file_path:start_line-end_line
+second_most_relevant_file_path:start_line-end_line
+...
+least_relevant_file_path:start_line_end_line
+</ranking>
+
 Here is an example:
 <example>
 User query: I want to add two numbers.
@@ -51,10 +61,20 @@ This is the list of code snippets:
 {formatted_code_snippets}
 </code_snippets>
 
+Remember: The most relevant files are the ones we need to edit to resolve the user's issue. The next most relevant snippets are the ones that are crucial to read while editing the other code files to correctly resolve the user's issue.
+
 As a reminder the user query is:
 <user_query>
 {user_query}
 </user_query>
+
+And the response format is:
+<ranking>
+most_relevant_file_path:start_line-end_line
+second_most_relevant_file_path:start_line-end_line
+...
+least_relevant_file_path:start_line_end_line
+</ranking>
 
 Return the correct ranking of the code snippets below:"""
 
@@ -72,12 +92,20 @@ class RerankSnippetsBot(ChatGPT):
         # if we add duplicate snippets, we remove the duplicates
         ranking_pattern = r"<ranking>\n(.*?)\n</ranking>"
         formatted_code_snippets = self.format_code_snippets(code_snippets)
-        ranking_response = self.chat(
-            content=reranking_prompt.format(
-                user_query=user_query,
-                formatted_code_snippets=formatted_code_snippets,
-            ),
-        )
+        try:
+            ranking_response = self.chat_anthropic(
+                content=reranking_prompt.format(
+                    user_query=user_query,
+                    formatted_code_snippets=formatted_code_snippets,
+                ),
+            )
+        except Exception:
+            ranking_response = self.chat(
+                content=reranking_prompt.format(
+                    user_query=user_query,
+                    formatted_code_snippets=formatted_code_snippets,
+                ),
+            )
         ranking_matches = re.search(ranking_pattern, ranking_response, re.DOTALL)
         if ranking_matches is None:
             return code_snippets
