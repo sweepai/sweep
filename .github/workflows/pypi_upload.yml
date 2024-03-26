@@ -37,7 +37,7 @@ jobs:
     - name: Bump version
       run: |
         echo "Bumping version..."
-        old_version=${{ steps.get-current-version.outputs.version }}
+        old_version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
         new_version=$(echo $old_version | awk -F'.' '{$NF+=1; print $0}' OFS='.')
         sed -i "s/version = \\"$old_version\\"/version = \\"$new_version\\"/" pyproject.toml
         echo "New version: $new_version"
