@@ -45,7 +45,7 @@ class AnthropicClient:
             response_message = response.choices[0].message
             response_message_dict = response_message.model_dump()
             response_contents = response_message_dict.get("content", "")
-            return response_contents['role'], response_contents
+            return response_message_dict['role'], response_contents
         else:
             response_message_dict = response.model_dump()
             if response_message_dict.get("content", ""):
