@@ -220,4 +220,10 @@ GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
 MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)
 INSTALLATION_ID = os.environ.get("INSTALLATION_ID", None)
 
+AWS_ACCESS_KEY=os.environ.get("AWS_ACCESS_KEY")
+AWS_SECRET_KEY=os.environ.get("AWS_SECRET_KEY")
+AWS_REGION=os.environ.get("AWS_REGION")
+ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
+
 USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
