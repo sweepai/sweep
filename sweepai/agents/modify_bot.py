@@ -259,11 +259,12 @@ class ModifyBot:
         seed: str | None = None,
         relevant_filepaths: list[str] = [],
         fcrs: list[FileChangeRequest]=[],
+        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
         new_file = function_modify(
             request=file_change_request.instructions,
             file_path=file_path,
-            file_contents=file_contents,
+            contents_of_file=file_contents,
             cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
@@ -273,6 +274,7 @@ class ModifyBot:
             relevant_filepaths=relevant_filepaths,
             fcrs=fcrs,
             cwd=cloned_repo.repo_dir,
+            previous_modify_files_dict=previous_modify_files_dict,
         )
         if new_file is not None:
             posthog.capture(
@@ -288,9 +290,10 @@ class ModifyBot:
                     "repo_full_name": cloned_repo.repo_full_name,
                 },
             )
-            return add_auto_imports(
-                file_path, cloned_repo.repo_dir, new_file, run_isort=False
-            )
+            # new_file is now a dictionary
+            for file_path, new_file_data in new_file.items():
+                new_file_data["contents"] = add_auto_imports(file_path, cloned_repo.repo_dir, new_file_data["contents"], run_isort=False)
+            return new_file
         posthog.capture(
             (
                 self.chat_logger.data["username"]
@@ -643,6 +646,8 @@ class ModifyBot:
             update_snippets_code = result  # make sure prompt uses the updated code
 
         return result, _
+
+
 
 
 if __name__ == "__main__":

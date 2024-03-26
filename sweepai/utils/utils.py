@@ -568,9 +568,9 @@ import numpy
 if __name__ == "__main__":
     # print(check_code("main.tsx", test_code))
     # print(get_check_results("main.py", test_code))
-    file_path = "/mnt/sweep_benchmark/3999_error_external_qc/backend/src/lambda/common-libraries/nodejs/src/utils/fetch-utils.ts"
+    file_path = "sweepai/core/context_pruning.py"
     with open(file_path) as f:
         code = f.read()
-    chunks = chunk_code(code, file_path, 700, 200)
+    chunks = chunk_code(code, file_path, 1400, 500)
     import pdb
     pdb.set_trace()

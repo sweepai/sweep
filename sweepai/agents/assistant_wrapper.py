@@ -595,20 +595,24 @@ def openai_assistant_call(
 def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
     tool_calls = []
     plan_regex = r'<ProposeProblemAnalysisAndPlan>\s*<Analysis>(?P<analysis>.*?)<\/Analysis>\s*<ProposedPlan>(?P<plan>.*?)<\/ProposedPlan>\s*<\/ProposeProblemAnalysisAndPlan>'
-    keyword_search_regex = r'<KeywordSearch>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/KeywordSearch>'   
+    keyword_search_regex = r'<KeywordSearch>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<FileName>(?P<filename>.*?)<\/FileName>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/KeywordSearch>'   
     search_and_replace_regex = (
-        r'<SearchAndReplace>\s*<SectionId>(?P<sectionid>.*?)<\/SectionId>\s*<OriginalCode>(?P<originalcode>.*?)<\/OriginalCode>\s*<NewCode>(?P<newcode>.*?)<\/NewCode>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<\/SearchAndReplace>'
+        r'<SearchAndReplace>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<FileName>(?P<filename>.*?)<\/FileName>\s*<SectionId>(?P<sectionid>.*?)<\/SectionId>\s*<OriginalCode>(?P<originalcode>.*?)<\/OriginalCode>\s*<NewCode>(?P<newcode>.*?)<\/NewCode>\s*<\/SearchAndReplace>'
     )
     analysis_and_identification_regex = r'<AnalysisAndIdentification>\s*(?P<analysisandidentification>.*?)\s*<\/AnalysisAndIdentification>'
     submit_solution_regex = r'<SubmitSolution>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<\/SubmitSolution>'
+    view_file_regex = r'<ViewFile>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<FileName>(?P<filename>.*?)<\/FileName>\s*<\/ViewFile>'
     get_additional_context_regex = r'<GetAdditionalContext>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/GetAdditionalContext>'
+    # get all tool matches
     plan_matches = re.finditer(plan_regex, response_contents, re.DOTALL)
     keyword_matches = re.finditer(keyword_search_regex, response_contents, re.DOTALL)
     search_and_replace_matches = re.finditer(search_and_replace_regex, response_contents, re.DOTALL)
     analysis_and_identification_matches = re.finditer(analysis_and_identification_regex, response_contents, re.DOTALL)
     submit_solution_matches = re.finditer(submit_solution_regex, response_contents, re.DOTALL)
+    view_file_matches = re.finditer(view_file_regex, response_contents, re.DOTALL)
     get_additional_context_matches = re.finditer(get_additional_context_regex, response_contents, re.DOTALL)
 
+    # add tool calls to list
     for match in plan_matches:
         tool_calls.append({
             "tool": "ProposeProblemAnalysisAndPlan",
@@ -622,6 +626,7 @@ def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
         tool_calls.append({
             "tool": "KeywordSearch",
             "arguments": {
+                "filename": match.group("filename"),
                 "justification": match.group("justification"),
                 "keyword": match.group("keyword")
             }
@@ -631,6 +636,7 @@ def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
         tool_calls.append({
             "tool": "SearchAndReplace",
             "arguments": {
+                "filename": match.group("filename"),
                 "sectionid": match.group("sectionid"),
                 "originalcode": match.group("originalcode"),
                 "newcode": match.group("newcode"),
@@ -660,6 +666,15 @@ def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
             "arguments": {
                 "justification": match.group("justification"),
                 "keyword": match.group("keyword")
+            }
+        })
+    
+    for match in view_file_matches:
+        tool_calls.append({
+            "tool": "ViewFile",
+            "arguments": {
+                "justification": match.group("justification"),
+                "filename": match.group("filename")
             }
         })
     return tool_calls
