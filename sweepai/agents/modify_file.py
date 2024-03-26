@@ -152,8 +152,6 @@ def modify_file(
             cloned_repo,
             additional_messages,
             chat_logger,
-            start_line=file_change_request.start_line,
-            end_line=file_change_request.end_line,
             ticket_progress=ticket_progress,
             assistant_conversation=assistant_conversation,
             relevant_filepaths=relevant_filepaths,

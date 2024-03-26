@@ -45,6 +45,7 @@ suffix_adjustment = {
     ".generated.ts": -1.5,
     ".generated.graphql": -1.5,
     ".generated.js": -1.5,
+    "ChangeLog": -1.5,
 }
 
 substring_adjustment = {
@@ -124,7 +125,7 @@ def prep_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    skip_reranking: bool = True,
+    skip_reranking: bool = False,
 ):
     ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
         cloned_repo, query, ticket_progress, k, skip_reranking
