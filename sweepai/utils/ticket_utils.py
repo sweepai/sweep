@@ -45,6 +45,7 @@ suffix_adjustment = {
     ".generated.ts": -1.5,
     ".generated.graphql": -1.5,
     ".generated.js": -1.5,
+    "ChangeLog": -1.5,
 }
 
 substring_adjustment = {
