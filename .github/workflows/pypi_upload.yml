@@ -44,7 +44,9 @@ jobs:
         echo "version=$new_version" >> $GITHUB_OUTPUT
 
     - name: Build package
-      run: python -m build
+      run: |
+        cat pyproject.toml
+        python -m build
 
     - name: Publish to PyPI
       env:
