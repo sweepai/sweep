@@ -225,10 +225,12 @@ class OpenAIProxy:
         exception=(RateLimitError, APITimeoutError, InternalServerError),
         max_tries=3,
         jitter=backoff.random_jitter,
-        initial=10,
         on_backoff=lambda details: logger.error(
             f"Rate Limit or Timeout Error: {details['tries']} tries. Waiting {details['wait']:.2f} seconds."
         ),
+        base=10,
+        factor=2,
+        max_value=40,
     )
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature, tools=[]
