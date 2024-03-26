@@ -1,7 +1,7 @@
 """This should take a list of snippets and rerank them"""
 import re
 
-from sweepai.config.server import ANTHROPIC_AVAILABLE, DEFAULT_GPT4_32K_MODEL
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Snippet
 
@@ -98,7 +98,7 @@ class RerankSnippetsBot(ChatGPT):
                     formatted_code_snippets=formatted_code_snippets,
                 ),
             )
-        except Exception as e:
+        except Exception:
             ranking_response = self.chat(
                 content=reranking_prompt.format(
                     user_query=user_query,
