@@ -5,6 +5,9 @@ on:
     types: [closed]
     branches:
       - main
+  push:
+    branches:
+      - kevinlu1248-patch-4
 
 jobs:
   release:
