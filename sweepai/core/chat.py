@@ -321,8 +321,7 @@ class ChatGPT(MessageList):
     def chat_anthropic(
         self,
         content: str,
-        # model: ChatModel = "anthropic.claude-3-sonnet-20240229-v1:0",
-        model: ChatModel = "claude-3-sonnet-20240229",
+        model: ChatModel = "claude-3-haiku-20240307",
         message_key: str | None = None,
         temperature: float | None = None,
         max_tokens: int = 4096,
@@ -334,12 +333,7 @@ class ChatGPT(MessageList):
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:{content}")
         with Anthropic(
             api_key=ANTHROPIC_API_KEY
-        ) as anthropic_client:
-        # with AnthropicBedrock(
-        #     aws_access_key=AWS_ACCESS_KEY,
-        #     aws_secret_key=AWS_SECRET_KEY,
-        #     aws_region=AWS_REGION,
-        # ) as anthropic_client:
+        ) as anthropic_client: # can fallback to bedrock
             content = ""
             e = None
             for i in range(4):
