@@ -54,10 +54,6 @@ Continue repeating steps 1, 2, and 3 to get every file you need to solve the use
 To do this use the submit_report_and_plan tool."""
 
 unformatted_user_prompt = """\
-<repo_tree>
-{repo_tree}
-</repo_tree>
-
 ## Relevant Snippets
 Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
 {snippets_in_repo}
@@ -316,18 +312,18 @@ class RepoContextManager:
         return highest_scoring_snippet
 
     def add_snippets(self, snippets_to_add: list[Snippet]):
-        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
+        # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
     
     def add_read_only_snippets(self, snippets_to_add: list[Snippet]):
-        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
+        # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.read_only_snippets.append(snippet)
 
     # does the same thing as add_snippets but adds it to the beginning of the list
     def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
-        self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_boost])
+        # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_boost])
         for snippet in snippets_to_boost:
             self.current_top_snippets.insert(0, snippet)
 
