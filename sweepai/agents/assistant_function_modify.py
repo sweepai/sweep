@@ -1254,6 +1254,7 @@ def function_modify_unstable(
             for i in range(100):  # TODO: tune this parameter
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "done":
+                    changes_made = False
                     # iterate through modify_files_dict and generate diffs
                     diffs_made = defaultdict(str)
                     for file_name, file_data in modify_files_dict.items():
