@@ -32,7 +32,6 @@ from sweepai.config.client import SweepConfig
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
-initial_prompt = """Please begin using the tools to gather all relevant information to solve the user request. You should use multiple attempts to call the tools."""
 # generated using the convert_openai_function_to_anthropic_prompt
 anthropic_function_calls = """<tool_description>
 <tool_name>file_search</tool_name>
@@ -719,7 +718,7 @@ def get_relevant_context(
         ]
         try:
             modify_context(
-                chat_gpt, repo_context_manager, ticket_progress, model=model
+                chat_gpt, user_prompt, repo_context_manager, ticket_progress, model=model
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
@@ -771,6 +770,7 @@ def update_assistant_conversation(
 
 def modify_context(
     chat_gpt: ChatGPT,
+    user_prompt: str,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
     model: str = "gpt-4-0125-preview",
@@ -782,7 +782,9 @@ def modify_context(
     initial_file_paths = repo_context_manager.top_snippet_paths
     paths_to_add = []
     num_tool_calls_made = 0
-    function_calls_string = chat_gpt.chat_anthropic(initial_prompt)
+    function_calls_string = chat_gpt.chat_anthropic(
+        content=user_prompt,
+    )
     breakpoint() # check output
     function_outputs = []
     for iter in range(max_iterations):
