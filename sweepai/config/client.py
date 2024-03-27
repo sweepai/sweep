@@ -30,7 +30,8 @@ class SweepConfig(BaseModel):
         "integration",
         ".spec",
         ".test",
-        ".json"
+        ".json",
+        "test"
     ]
     include_exts: list[str] = [
         ".cs",

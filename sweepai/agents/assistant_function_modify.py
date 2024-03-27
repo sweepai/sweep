@@ -93,7 +93,7 @@ Provide justification for searching the keyword in the given file.
 Name of the file to search in. Ensure correct spelling. This is case sensitive.
 </FileName>
 <Keyword>
-keyword to search for - e.g. function name, class name, variable name
+keyword to search for - e.g. function name, class name, variable name, ONLY SEARCH FOR ONE AT A TIME
 </Keyword>
 </KeywordSearch>
 
@@ -105,7 +105,8 @@ List out the changes that need to be made to the CURRENT FILE ONLY. List out all
 </AnalysisAndIdentification>
 
 SearchAndReplace - Use this tool to apply the changes one by one listed out in the AnalysisAndIdentification tool. This tool is great for when you change the function signature and want to update all the usages to that function.
-If multiple SearchAndReplace calls are needed, call this tool multiple times. To call this tool you MUST respond in the following xml format:
+If multiple SearchAndReplace calls are needed, call this tool multiple times. They will be applied one at a time.
+To call this tool you MUST respond in the following xml format:
 
 <SearchAndReplace>
 <Justification>
@@ -134,6 +135,9 @@ Justification for why you are finished with your task.
 </Justification>
 </SubmitSolution>
 
+ViewFile - Use this tool to view a file in the codebase.
+To call this tool you MUST respond in the following xml format:
+
 <ViewFile>
 <Justification>
 Justification for why you need to view this file
@@ -143,12 +147,15 @@ Name of the file, ensure correct spelling. This is case sensitive.
 </FileName>
 </ViewFile>
 
+GetAdditionalContext - Use this tool to search the entire codebase for a keyword. This tool is useful when you need to find where a function is defined or used in the codebase.
+To call this tool you MUST respond in the following xml format:
+
 <GetAdditionalContext>
 <Justification>
 Provide justification for why you need additional context
 </Justification>
 <Keyword>
-keyword to search for in order to get more additional context. This will search the entire codebase for this keyword
+keyword to search for in order to get more additional context. This will search the entire codebase for this keyword, ONLY SEARCH FOR ONE KEYWORD AT A TIME
 </Keyword>
 </GetAdditionalContext>
 """
@@ -1205,7 +1212,7 @@ def function_modify_unstable(
             )
         code_sections = []  # TODO: do this for the new sections after modifications
         current_code_section = ""
-        for i, chunk in enumerate(chunks):
+        for i, chunk in enumerate(modify_files_dict[file_path]["chunks"]):
             idx = int_to_excel_col(i + 1)
             section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
             if len(current_code_section) + len(section_display) > MAX_CHARS - 1000:
@@ -1320,10 +1327,9 @@ def function_modify_unstable(
                                     for snippet in file_original_snippets
                                 ]
                                 # update chunks for this file inside modify_files_dict unless it already exists
-                                if file_name not in modify_files_dict:
-                                    modify_files_dict[file_name]["chunks"] = copy.deepcopy(file_chunks)
-                                    modify_files_dict[file_name]["contents"] = file_contents
-                                    modify_files_dict[file_name]["original_contents"] = file_contents
+                                modify_files_dict[file_name]["chunks"] = copy.deepcopy(file_chunks)
+                                modify_files_dict[file_name]["contents"] = file_contents
+                                modify_files_dict[file_name]["original_contents"] = file_contents
                                 chunked_file_contents = ""
                                 for i, chunk in enumerate(file_chunks):
                                     idx = int_to_excel_col(i + 1)
@@ -1336,7 +1342,7 @@ def function_modify_unstable(
                                     for i, chunk in enumerate(modify_files_dict[file_name]["chunks"])
                                 ]
                             )
-
+                        logger.debug(f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{chunked_file_contents}\n</file filename="{file_name}">')
                         tool_name, tool_call = assistant_generator.send(
                             f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{chunked_file_contents}\n</file filename="{file_name}">'
                         )
@@ -1391,26 +1397,32 @@ def function_modify_unstable(
                             chunks_with_old_code = [
                                 index
                                 for index, chunk in enumerate(file_chunks)
-                                if old_code in chunk
+                                if old_code in chunk or manual_code_check(chunk, old_code) != -1
                             ]
                             chunks_with_old_code = chunks_with_old_code[:5]
-                            error_message = f"The OriginalCode provided does not appear to be present in section {section_letter}. The OriginalCode contains:\n```\n{old_code}\n```\nBut section {section_letter} in {file_name} has code:\n```\n{chunk}\n```"
+                            error_message = f"The OriginalCode provided does not appear to be present in section {section_letter}. The OriginalCode contains:\n```\n{old_code}\n```\nBut section {section_letter} in {file_name} has code:\n```\n{current_chunk}\n```"
                             if chunks_with_old_code:
                                 error_message += "\n\nDid you mean one of the following sections?"
                                 error_message += "\n".join(
                                     [
-                                        f'\n<section id="{int_to_excel_col(index + 1)}">\n{chunks[index]}\n</section>\n```'
+                                        f'\n<section id="{int_to_excel_col(index + 1)}">\n{file_chunks[index]}\n</section>\n```'
                                         for index in chunks_with_old_code
                                     ]
                                 )
                             else:
-                                error_message += "\n\nNo changes were applied due to this error. Make another replacement. It seems there may be a spelling or indentation error as the OriginalCode could not be found in the code file. Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct OriginalCode should be, and make another replacement with the corrected OriginalCode."
+                                error_message += "\n\nNo changes were applied due to this error. Make another replacement. It seems there may be a spelling or indentation error as the OriginalCode could not be found in the code file. Ensure that your indents have the correct amount of spaces (e.g. 2 or 4). Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct OriginalCode should be, and make another replacement with the corrected OriginalCode."
                             break
                         # ensure old_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
                         new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
                         old_code_lines = [line.rstrip() for line in old_code.split("\n")]
                         old_code = "\n".join(f'{correct_indent*" "}{line}' for line in old_code_lines)
+                        # before we apply changes make sure old_code is unique inside current_chunk
+                        current_chunk_occurences = current_chunk.count(old_code)
+                        if current_chunk_occurences > 1:
+                            error_message = f"The OriginalCode is not unique in the section {section_letter}. It appears {current_chunk_occurences} times! Make sure the OriginalCode is unique in the section you are modifying!"
+                            break
+
                         # apply changes
                         new_chunk = current_chunk.replace(old_code, new_code, 1)
                         if new_chunk == current_chunk:
@@ -1429,20 +1441,14 @@ def function_modify_unstable(
                         
                         # Check if the changes are valid
                         if not error_message:
-                            check_results = get_check_results(file_path, new_contents)
-                            check_results_message = check_results.is_worse_than_message(initial_check_results)
+                            check_results = get_check_results(file_name, new_contents) # the filename may be wrong here
+                            # check_results_message = check_results.is_worse_than_message(initial_check_results) - currently unused
                             failing_parse = check_results.parse_error_message if not initial_check_results.parse_error_message else ""
                             current_diff = generate_diff(
                                 file_contents, new_contents
                             )
-                            if not failing_parse:
-                                success_messages.append(
-                                    f"The following changes have been applied:\n```diff\n{current_diff}\n```\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again."
-                                )
-                                if check_results_message:
-                                    warning_message = f"\n\nWARNING\n\n{check_results_message}"
-                            else:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code."
+                            if failing_parse:
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code. HINT: To ensure the changes are being applied in the correct place, make sure OriginalCode is descriptive enough!"
                                 break
                     if error_message:
                         logger.error(f"Error occured in SearchAndReplace tool: {error_message}")
@@ -1452,14 +1458,14 @@ def function_modify_unstable(
 
                     if not error_message:
                         success_message = (
-                            "SUCCESS\n\nThe following changes have been applied:\n\n"
-                            + generate_diff(current_contents, new_contents)
+                            f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
+                            + generate_diff(file_contents, new_contents)
                         ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again, or go back to searching for keywords using the KeywordSearch tool, which is great for finding all definitions or usages of a function or class."
                         # set contents
                         modify_files_dict[file_name]['contents'] = new_contents
                         modify_files_dict[file_name]['chunks'] = file_chunks
-
                         logger.info(success_message)
+                        
                         tool_name, tool_call = assistant_generator.send(
                             f"SUCCESS\n\n{success_message}"
                         )
@@ -1612,6 +1618,7 @@ def function_modify_unstable(
         else:
             logger.warning("No changes were made.")
         if changes_made:
+            logger.info("Finished modifying files!")
             return modify_files_dict
     except AssistantRaisedException as e:
         logger.exception(e)
