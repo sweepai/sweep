@@ -375,7 +375,6 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
             ["npx", "eslint", "--version"],
             capture_output=True,
             text=True,
-            timeout=20,
         )
         if result.returncode == 0:
             with TemporaryDirectory() as temp_dir:

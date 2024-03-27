@@ -1,6 +1,7 @@
 import os
 import random
 
+import backoff
 from loguru import logger
 from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, RateLimitError
 
@@ -17,6 +18,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.timer import Timer
+from anthropic import Anthropic
 
 OPENAI_TIMEOUT = 120
 
@@ -218,18 +220,18 @@ class OpenAIProxy:
             )
         return response
 
-    # @backoff.on_exception(
-    #     backoff.expo(
-    #         base=5,
-    #         factor=2,
-    #         max_value=120,
-    #     ),
-    #     exception=(RateLimitError, APITimeoutError, InternalServerError),
-    #     jitter=backoff.full_jitter,
-    #     on_backoff=lambda details: logger.error(
-    #         f"Rate Limit or Timeout Error: {details['tries']} tries. Waiting {details['wait']:.2f} seconds."
-    #     ),
-    # )
+    @backoff.on_exception(
+        backoff.expo,
+        exception=(RateLimitError, APITimeoutError, InternalServerError),
+        max_tries=3,
+        jitter=backoff.random_jitter,
+        on_backoff=lambda details: logger.error(
+            f"Rate Limit or Timeout Error: {details['tries']} tries. Waiting {details['wait']:.2f} seconds."
+        ),
+        base=10,
+        factor=2,
+        max_value=40,
+    )
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature, tools=[]
     ):
@@ -271,7 +273,9 @@ def get_client():
     OPENAI_API_VERSION = os.environ.get(
         "OPENAI_API_VERSION", None
     )
-
+    if OPENAI_API_TYPE == "anthropic":
+        client = Anthropic()
+        model="claude-3-opus-20240229"
     if OPENAI_API_TYPE == "openai" or True: # only supported endpoint for now for assistant
         client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
         model = DEFAULT_GPT4_32K_MODEL

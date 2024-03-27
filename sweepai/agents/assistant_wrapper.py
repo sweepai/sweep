@@ -23,8 +23,8 @@ from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, USE_AS
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.openai_proxy import OpenAIProxy, get_client
-
+from sweepai.utils.openai_proxy import get_client
+from sweepai.utils.anthropic_client import AnthropicClient
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     """
@@ -703,15 +703,8 @@ def run_until_complete_unstable(
             )
         # get the response from openai
         try:
-            openai_proxy = OpenAIProxy()
-            response = openai_proxy.call_openai(
-                model,
-                messages,
-                tools,
-                max_tokens=2048,
-                temperature=0.2,
-                # set max tokens later
-            )
+            client = AnthropicClient()                
+            response = client.get_response_message(messages, max_tokens=2048, temperature=0.2)
         # sometimes deployment for opennai is not found, retry after a minute
         except openai.NotFoundError as e:
             logger.error(
@@ -723,23 +716,17 @@ def run_until_complete_unstable(
             logger.error(f"chat completions failed on interation {i} with error: {e}")
             sleep(sleep_time)
             continue
-
-        response_message = response.choices[0].message
         # tool_calls = fix_tool_calls(response_message.tool_calls)
         # response_message.tool_calls = tool_calls
         # extend conversation
-        response_message_dict = response_message.model_dump()
-        response_contents = response_message_dict.get("content", "")
-        # in some cases the fields are None and we must replace these with empty strings
-        for key, value in response_message_dict.items():
-            if value is None:
-                response_message_dict[key] = ""
-        # if function_call is None we must remove it or else openai will throw an error
-        if response_message_dict.get("function_call", "not in dict") == "":
-            response_message_dict.pop("function_call")
-        if response_message_dict.get("tool_calls", "not in dict") == "":
-            response_message_dict.pop("tool_calls")
-        messages.append(response_message_dict)
+        response_role, response_contents = client.parse_role_content_from_response(response)
+        if not response_contents:
+            done_response = yield "done", {
+                "status": "completed",
+                "message": "Run completed",
+            }
+        # extend conversation with llm
+        messages.append({"role": response_role, "content": response_contents})
         tool_calls = parse_tool_calls(response_contents)
         # if a tool call was made
         done_response = None
@@ -776,9 +763,8 @@ def run_until_complete_unstable(
                             break
                         messages.append(
                             {
-                                "role": "assistant",
-                                "name": tool_name,
-                                "content": tool_output,
+                                "role": "user",
+                                "content": f"{tool_name}: {tool_output}",
                             }
                         )  # extend conversation with function response
                 
@@ -842,7 +828,6 @@ def openai_assistant_call_helper_unstable(
     messages = [{"role": "system", "content": instructions}]
     for message in additional_messages:
         messages.append({"role": message.role, "content": message.content})
-
     return run_until_complete_unstable(
         tools=tools,
         messages=messages,
