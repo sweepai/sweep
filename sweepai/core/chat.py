@@ -327,6 +327,7 @@ class ChatGPT(MessageList):
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:{content}")
+        system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         with Anthropic(
             api_key=ANTHROPIC_API_KEY
         ) as anthropic_client: # can fallback to bedrock
@@ -338,7 +339,11 @@ class ChatGPT(MessageList):
                         model=model,
                         temperature=temperature,
                         max_tokens=max_tokens,
-                        messages=self.messages_dicts,
+                        messages=[{
+                            "role": message.role,
+                            "content": message.content,
+                        } for message in self.messages if message.role != "system"],
+                        system=system_message,
                     ).content[0].text
                     break
                 except Exception as e_:
