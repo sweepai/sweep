@@ -5,10 +5,9 @@ import subprocess
 import textwrap
 import time
 import urllib
-
+from dataclasses import dataclass
 import networkx as nx
 import openai
-from attr import dataclass
 from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
@@ -20,6 +19,7 @@ from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
+from sweepai.utils.convert_openai_anthropic import MockFunctionCall
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.openai_proxy import get_client
@@ -108,8 +108,8 @@ functions = [
             "required": ["file_path", "justification"],
         },
         "description": """Use this to view a file. You may use this tool multiple times. 
-        After you are finished using this tool, you should use keyword_search on relevant entities inside the file in order to find their definitions. 
-        You may use the store_relevant_file_to_modify or store_relevant_file_to_read tool to store the file to solve the user request.""",
+After you are finished using this tool, you should use keyword_search on relevant entities inside the file in order to find their definitions. 
+You may use the store_relevant_file_to_modify or store_relevant_file_to_read tool to store the file to solve the user request.""",
     },
     {
         "name": "store_relevant_file_to_modify",
@@ -128,7 +128,7 @@ functions = [
             "required": ["file_path", "justification"],
         },
         "description": """Use this to store a file that will be MODIFIED. Only store files you are CERTAIN are relevant to solving the user request.
-        Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition for in this file. This will search the entire codebase and allow you to find these definitions.""",
+Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition for in this file. This will search the entire codebase and allow you to find these definitions.""",
     },
     {
         "name": "store_relevant_file_to_read",
@@ -147,7 +147,7 @@ functions = [
             "required": ["file_path", "justification"],
         },
         "description": """Use this to store a READ ONLY file. Only store paths you are CERTAIN are relevant and will help solve the user request, such as functions referenced in the modified files. 
-        Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition for in this file. This will search the entire codebase and allow you to find these definitions.""",
+Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition of in this file. This will search the entire codebase and allow you to find these definitions.""",
     },
     {
         "name": "expand_directory",
@@ -185,7 +185,7 @@ If you are looking for a function call, search for it's respective language's de
             "required": ["keyword", "justification"],
         },
         "description": """Use this to get a list of files with the corresponding lines of code where the keyword is present. 
-        Use the view_file tool on each file to determine if they are relevant or not. Pay extra attention to definitions of classes, functions, and variable types.""",
+Use the view_file tool on each file to determine if they are relevant or not. Pay extra attention to definitions of classes, functions, and variable types.""",
     },
     {
         "name": "submit_report_and_plan",
@@ -204,9 +204,144 @@ If you are looking for a function call, search for it's respective language's de
             "required": ["snippet_path", "justification"],
         },
         "description": """Use this tool to submit a report of the issue and a corresponding plan of how to fix it. The report should mention the root cause of the issue, what the intended behaviour should be and which files should be editted and which files should be read only. 
-        The plan should provide a high level overview of what changes need to occur in each file as well as what look ups need to occur in each read only file.""",
+The plan should provide a high level overview of what changes need to occur in each file as well as what look ups need to occur in each read only file.""",
     },
 ]
+
+# generated using the convert_openai_function_to_anthropic_prompt
+anthropic_function_calls = """<tool_description>
+<tool_name>file_search</tool_name>
+<description>
+Use this to find the most similar file paths to the search query.
+</description>
+<parameters>
+<parameter>
+<name>file_path</name>
+<type>string</type>
+<description>The search query. You can search like main.py to find src/main.py.</description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>string</type>
+<description>Justification for searching for the file.</description>
+</parameter>
+</parameters>
+</tool_description>
+<tool_description>
+<tool_name>view_file</tool_name>
+<description>
+Use this to view a file. You may use this tool multiple times. 
+After you are finished using this tool, you should use keyword_search on relevant entities inside the file in order to find their definitions. 
+You may use the store_relevant_file_to_modify or store_relevant_file_to_read tool to store the file to solve the user request.
+</description>
+<parameters>
+<parameter>
+<name>file_path</name>
+<type>string</type>
+<description>File to view.</description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>string</type>
+<description>Justification for viewing the file_path.</description>
+</parameter>
+</parameters>
+</tool_description>
+<tool_description>
+<tool_name>store_relevant_file_to_modify</tool_name>
+<description>
+Use this to store a file that will be MODIFIED. Only store files you are CERTAIN are relevant to solving the user request.
+Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition for in this file. This will search the entire codebase and allow you to find these definitions.
+</description>
+<parameters>
+<parameter>
+<name>file_path</name>
+<type>string</type>
+<description>File or directory to store.</description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>string</type>
+<description>Justification for why file_path is relevant and what functions we must change in this file.</description>
+</parameter>
+</parameters>
+</tool_description>
+<tool_description>
+<tool_name>store_relevant_file_to_read</tool_name>
+<description>
+Use this to store a READ ONLY file. Only store paths you are CERTAIN are relevant and will help solve the user request, such as functions referenced in the modified files. 
+Once you have stored a file, use the keyword_search tool on any entities that you do not know the definition of in this file. This will search the entire codebase and allow you to find these definitions.
+</description>
+<parameters>
+<parameter>
+<name>file_path</name>
+<type>string</type>
+<description>File or directory to store.</description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>string</type>
+<description>Justification for why file_path is a relevant read only file and what functions we must read in this file.</description>
+</parameter>
+</parameters>
+</tool_description>
+<tool_description>
+<tool_name>expand_directory</tool_name>
+<description>
+Expand an existing directory that is closed. This is used for exploration and will not modify the stored files. If you expand a directory, you automatically expand all of its subdirectories, so do not list its subdirectories.
+</description>
+<parameters>
+<parameter>
+<name>directory_path</name>
+<type>string</type>
+<description>Directory to expand</description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>string</type>
+<description>Justification for expanding the directory.</description>
+</parameter>
+</parameters>
+</tool_description>
+<tool_description>
+<tool_name>keyword_search</tool_name>
+<description>
+Use this to get a list of files with the corresponding lines of code where the keyword is present. 
+Use the view_file tool on each file to determine if they are relevant or not. Pay extra attention to definitions of classes, functions, and variable types.
+</description>
+<parameters>
+<parameter>
+<name>keyword</name>
+<type>string</type>
+<description>Keyword to search for. This will search the entire code base for the keyword so make sure that the keyword you search for is descriptive. Avoid searching for generic words like: 'if' or 'else'.
+If you are looking for a function call, search for it's respective language's definition like 'def foo(' in Python or 'function bar' in Javascript. </description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>string</type>
+<description>Justification for why you are searching for this keyword and what it will provide. Example: I need to know the properties of this type in order to figure out what methods/properties are available for a certain variable.</description>
+</parameter>
+</parameters>
+</tool_description>
+<tool_description>
+<tool_name>submit_report_and_plan</tool_name>
+<description>
+Use this tool to submit a report of the issue and a corresponding plan of how to fix it. The report should mention the root cause of the issue, what the intended behaviour should be and which files should be editted and which files should be read only. 
+The plan should provide a high level overview of what changes need to occur in each file as well as what look ups need to occur in each read only file.
+</description>
+<parameters>
+<parameter>
+<name>report</name>
+<type>string</type>
+<description>Report of the issue. The report must contain enough information so that an outside contractor with no prior knowledge of the code base or issue can solve this problem.</description>
+</parameter>
+<parameter>
+<name>plan</name>
+<type>string</type>
+<description>High level plan on how to fix the issue.</description>
+</parameter>
+</parameters>
+</tool_description>"""
 
 tools = [{"type": "function", "function": function} for function in functions]
 
@@ -618,6 +753,18 @@ def update_assistant_conversation(
         ticket_progress.save()
 
 
+# tools for claude should be called like this:
+# You may call them like this:
+# <function_calls>
+# <invoke>
+# <tool_name>$TOOL_NAME</tool_name>
+# <parameters>
+# <$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+# ...
+# </parameters>
+# </invoke>
+# </function_calls>
+
 def modify_context(
     thread: Thread,
     run: Run,
@@ -632,46 +779,53 @@ def modify_context(
     initial_file_paths = repo_context_manager.top_snippet_paths
     paths_to_add = []
     num_tool_calls_made = 0
-    model, client = get_client()
+    # model, client = get_client()
     for iter in range(max_iterations):
-        run = openai_retry_with_timeout(
-            client.beta.threads.runs.retrieve,
-            thread_id=thread.id,
-            run_id=run.id,
-        )
-        if iter % 5 == 0:
-            update_assistant_conversation(
-                run, thread, ticket_progress, repo_context_manager
-            )
-            logger.info("iteration: " + str(iter) + f" run status {run.status}")
-        if run.status == "completed" or run.status == "failed":
-            break
-        if (
-            run.status != "requires_action"
-            or run.required_action is None
-            or run.required_action.submit_tool_outputs is None
-            or run.required_action.submit_tool_outputs.tool_calls is None
-        ):
-            time.sleep(3)
-            continue
+        # run = openai_retry_with_timeout( # haiku
+        #     client.beta.threads.runs.retrieve,
+        #     thread_id=thread.id,
+        #     run_id=run.id,
+        # )
+        # ranking_response = self.chat_anthropic(
+        #         content=reranking_prompt.format(
+        #             user_query=user_query,
+        #             formatted_code_snippets=formatted_code_snippets,
+        #         ),
+        #     )
+        # if iter % 5 == 0: # haiku
+        #     update_assistant_conversation(
+        #         run, thread, ticket_progress, repo_context_manager
+        #     )
+        #     logger.info("iteration: " + str(iter) + f" run status {run.status}")
+        # if run.status == "completed" or run.status == "failed":
+        #     break
+        # if (
+        #     run.status != "requires_action"
+        #     or run.required_action is None
+        #     or run.required_action.submit_tool_outputs is None
+        #     or run.required_action.submit_tool_outputs.tool_calls is None
+        # ):
+        #     time.sleep(3)
+        #     continue
         num_tool_calls_made += 1
-        tool_calls = run.required_action.submit_tool_outputs.tool_calls
+        function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string)
+        # tool_calls = run.required_action.submit_tool_outputs.tool_calls # haiku
         tool_outputs = []
-        for tool_call in tool_calls:
-            try:
-                tool_call_arguments = re.sub(r"\\+'", "", tool_call.function.arguments)
-                function_input = json.loads(tool_call_arguments)
-            except Exception:
-                logger.warning(
-                    f"Could not parse function arguments: {tool_call_arguments}"
-                )
-                tool_outputs.append(
-                    {
-                        "tool_call_id": tool_call.id,
-                        "output": "FAILURE: Could not parse function arguments.",
-                    }
-                )
-                continue
+        for function_call in function_calls:
+            # try: # haiku
+            #     tool_call_arguments = re.sub(r"\\+'", "", tool_call.function.arguments)
+            #     function_input = json.loads(tool_call_arguments)
+            # except Exception:
+            #     logger.warning(
+            #         f"Could not parse function arguments: {tool_call_arguments}"
+            #     )
+            #     tool_outputs.append(
+            #         {
+            #             "tool_call_id": tool_call.id,
+            #             "output": "FAILURE: Could not parse function arguments.",
+            #         }
+            #     )
+            #     continue
             current_top_snippets_string = "\n".join(
                 [
                     "- " + snippet.xml
@@ -684,13 +838,16 @@ def modify_context(
                     for snippet in repo_context_manager.read_only_snippets
                 ]
             )
-            logger.info(f"Tool Call: {tool_call.function.name} {function_input}")
+            # logger.info(f"Tool Call: {function_name} {function_input}") # haiku
+            function_name = function_call.function_name
+            function_input = function_call.function_parameters
+            logger.info(f"Tool Call: {function_name} {function_input}")
             function_path_or_dir = function_input.get(
                 "file_path"
             ) or function_input.get("directory_path")
             valid_path = False
             output = ""
-            if tool_call.function.name == "file_search":
+            if function_name == "file_search":
                 error_message = ""
                 try:
                     similar_file_paths = "\n".join(
@@ -713,7 +870,7 @@ def modify_context(
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
-            elif tool_call.function.name == "keyword_search":
+            elif function_name == "keyword_search":
                 error_message = ""
                 keyword = function_input["keyword"]
                 rg_command = ["rg", "-n", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
@@ -735,16 +892,8 @@ def modify_context(
                         f"SUCCESS: Here are the keyword_search results:\n\n{rg_output_pretty}"
                     )
                     
-            elif tool_call.function.name == "view_file":
+            elif function_name == "view_file":
                 error_message = ""
-                # for key in ["start_line", "end_line"]:
-                #     if key not in function_input:
-                #         logger.warning(
-                #             f"Key {key} not in function input {function_input}"
-                #         )
-                #         error_message = "FAILURE: Please provide a start and end line."
-                # start_line = int(function_input["start_line"])
-                # end_line = int(function_input["end_line"])
                 try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
                         function_path_or_dir
@@ -761,49 +910,15 @@ def modify_context(
                         ]
                     )
                     error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                # if start_line >= end_line:
-                #     error_message = "FAILURE: Start line must be less than end line."
                 if error_message:
                     output = error_message
                 else:
-                    # end_line = min(end_line, len(file_contents.splitlines()))
-                    # logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                    # selected_file_contents = ""
-                    # lines = file_contents.splitlines()
-                    # expansion_width = 25
-                    # start_index = max(0, start_line - expansion_width)
-                    # for i, line in enumerate(lines[start_index:start_line]):
-                    #     selected_file_contents += f"{i + start_index} | {line}\n"
-                    # selected_file_contents += "\n===START OF SNIPPET===\n"
-                    # for i, line in enumerate(lines[start_line:end_line]):
-                    #     selected_file_contents += f"{i + start_line} | {line}\n"
-                    # selected_file_contents += "\n===END OF SNIPPET===\n"
-                    # for i, line in enumerate(
-                    #     lines[end_line : end_line + expansion_width]
-                    # ):
-                    #     selected_file_contents += f"{i + end_line} | {line}\n"
                     output = (
                         f'Here are the contents of `{function_path_or_dir}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_relevant_file_to_modify or store_relevant_file_to_read with the same parameters ({{"file_path": "{function_path_or_dir}"}}).'
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
-            elif tool_call.function.name == "store_relevant_file_to_modify":
-                error_message = ""
-                # for key in ["start_line", "end_line"]:
-                #     if key not in function_input:
-                #         logger.warning(
-                #             f"Key {key} not in function input {function_input}"
-                #         )
-                #         error_message = "FAILURE: Please provide a start and end line."
-                # start_line = int(function_input["start_line"])
-                # end_line = int(function_input["end_line"])
-                # if end_line - start_line > 1000:
-                #     error_message = (
-                #         "FAILURE: Please provide a snippet of 1000 lines or less."
-                #     )
-                # if start_line >= end_line:
-                #     error_message = "FAILURE: Start line must be less than end line."
-
+            elif function_name == "store_relevant_file_to_modify":
                 try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
                         function_path_or_dir
@@ -823,8 +938,6 @@ def modify_context(
                 if error_message:
                     output = error_message
                 else:
-                    # end_line = min(end_line, len(file_contents.splitlines()))
-                    # logger.info(f"start_line: {start_line}, end_line: {end_line}")
                     snippet = Snippet(
                         file_path=function_path_or_dir,
                         start=0,
@@ -838,23 +951,8 @@ def modify_context(
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )
-            elif tool_call.function.name == "store_relevant_file_to_read":
+            elif function_name == "store_relevant_file_to_read":
                 error_message = ""
-                # for key in ["start_line", "end_line"]:
-                #     if key not in function_input:
-                #         logger.warning(
-                #             f"Key {key} not in function input {function_input}"
-                #         )
-                #         error_message = "FAILURE: Please provide a start and end line."
-                # start_line = int(function_input["start_line"])
-                # end_line = int(function_input["end_line"])
-                # if end_line - start_line > 1000:
-                #     error_message = (
-                #         "FAILURE: Please provide a snippet of 1000 lines or less."
-                #     )
-                # if start_line >= end_line:
-                #     error_message = "FAILURE: Start line must be less than end line."
-
                 try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
                         function_path_or_dir
@@ -889,7 +987,7 @@ def modify_context(
                         if valid_path
                         else "FAILURE: This file path does not exist. Please try a new path."
                     )           
-            elif tool_call.function.name == "expand_directory":
+            elif function_name == "expand_directory":
                 valid_path = repo_context_manager.is_path_valid(
                     function_path_or_dir, directory=True
                 )
@@ -902,7 +1000,7 @@ def modify_context(
                 )
                 if valid_path:
                     directories_to_expand.append(function_path_or_dir)
-            elif tool_call.function.name == "preview_file":
+            elif function_name == "preview_file":
                 error_message = ""
                 try:
                     code = repo_context_manager.cloned_repo.get_file_contents(
@@ -925,7 +1023,7 @@ def modify_context(
                 else:
                     file_preview = CodeTree.from_code(code).get_preview()
                     output = f"SUCCESS: Previewing file {function_path_or_dir}:\n\n{file_preview}"
-            elif tool_call.function.name == "submit_report_and_plan":
+            elif function_name == "submit_report_and_plan":
                 error_message = ""
                 if "report" not in function_input or "plan" not in function_input:
                     error_message = "FAILURE: Please provide a report and a plan."
@@ -937,7 +1035,7 @@ def modify_context(
                 else:
                     output = "SUCCESS: Report and plan submitted."
             else:
-                output = f"FAILURE: Invalid tool name {tool_call.function.name}"
+                output = f"FAILURE: Invalid tool name {function_name}"
             logger.info(output)
             logger.info("Current top snippets:")
             for snippet in repo_context_manager.current_top_snippets:
@@ -945,26 +1043,26 @@ def modify_context(
             logger.info("Paths to add:")
             for snippet in paths_to_add:
                 logger.info(snippet)
-            tool_outputs.append(
-                {
-                    "tool_call_id": tool_call.id,
-                    "output": output,
-                }
-            )
+            # tool_outputs.append( # haiku
+            #     {
+            #         "tool_call_id": tool_call.id,
+            #         "output": output,
+            #     }
+            # )
             justification = (
                 function_input["justification"]
                 if "justification" in function_input
                 else ""
             )
             logger.info(
-                f"Tool Call: {tool_call.function.name} {function_path_or_dir} {justification} Valid Tool Call: {valid_path}"
+                f"Tool Call: {function_name} {function_path_or_dir} {justification} Valid Tool Call: {valid_path}"
             )
-        run = openai_retry_with_timeout(
-            client.beta.threads.runs.submit_tool_outputs,
-            thread_id=thread.id,
-            run_id=run.id,
-            tool_outputs=tool_outputs,
-        )
+        # run = openai_retry_with_timeout( # this should be a chat
+        #     client.beta.threads.runs.submit_tool_outputs,
+        #     thread_id=thread.id,
+        #     run_id=run.id,
+        #     tool_outputs=tool_outputs,
+        # )
     else:
         logger.warning(
             f"Context pruning iteration taking too long. Status: {run.status}"
@@ -996,11 +1094,33 @@ def modify_context(
         for snippet in repo_context_manager.current_top_snippets
         if snippet.file_path != "sweep.yaml"
     ]
-    # if the paths have not changed or all tools were empty, we are done
     return not (paths_changed and (paths_to_add or directories_to_expand))
 
 
 if __name__ == "__main__":
+    function_calls_string = '''
+Example function call:
+<function_calls>
+<invoke>
+<tool_name>ExampleTool</tool_name>
+<parameters>
+<$PARAM1>value1</$PARAM1>
+<$PARAM2>value2</$PARAM2>
+</parameters>
+</invoke>
+<invoke>
+<tool_name>AnotherTool</tool_name>
+<parameters>
+<$PARAM3>value3</$PARAM3>
+</parameters>
+</invoke>
+</function_calls>
+'''
+    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string)
+    assert len(function_calls) == 2
+    assert function_calls[0].function_name == "ExampleTool"
+    assert function_calls[0].function_parameters == {"$PARAM1": "value1", "$PARAM2": "value2"}
+    breakpoint()
     try:
         import os
 
