@@ -5,7 +5,7 @@ import subprocess
 import textwrap
 import time
 import urllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import networkx as nx
 import openai
 from loguru import logger
@@ -15,7 +15,8 @@ from openai.types.beta.threads.run import Run
 from sweepai.agents.assistant_function_modify import MAX_CHARS
 from sweepai.agents.assistant_wrapper import openai_retry_with_timeout
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
-from sweepai.core.entities import Snippet
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message, Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
@@ -31,6 +32,7 @@ from sweepai.config.client import SweepConfig
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
+initial_prompt = """Please begin using the tools to gather all relevant information to solve the user request. You should use multiple attempts to call the tools."""
 # generated using the convert_openai_function_to_anthropic_prompt
 anthropic_function_calls = """<tool_description>
 <tool_name>file_search</tool_name>
@@ -164,7 +166,23 @@ The plan should provide a high level overview of what changes need to occur in e
 <description>High level plan on how to fix the issue.</description>
 </parameter>
 </parameters>
-</tool_description>"""
+</tool_description>
+
+You may call them like this:
+<function_calls>
+<invoke>
+<tool_name>file_search</tool_name>
+<parameters>
+<file_path>utils.py</file_path>
+<justification>This is a dependency for the user request.</justification>
+</parameters>
+<tool_name>keyword_search</tool_name>
+<parameters>
+<keyword>def important_function(</keyword>
+<justification>I don't know how exactly to call this function, but it's necessary.</justification>
+</parameters>
+</invoke>
+</function_calls>"""
 
 # 4. After you have stored a file snippet, use the keyword_search tool on any entities that appear but are not defined in the file snippet. For example, if the variable myUnit has type WorkUnit, you should keyword search for "WorkUnit" in order to find all filepaths where the keyword WorkUnit appears. You are then to iterate over the relevant filepaths to determine where the entities are defined. YOU MUST DO THIS. Once you have a list of relevant filepaths where the keyword is present, repeat the previous steps to determine if these filepaths should be added or dropped. Use the keyword_search tool to find the relevant files that the keyword shows up in. Repeat until you are certain that you have ALL relevant files you need.
 # hypothesis tool, after each 1-3 do you have all info if it's missing a fn defn, you should use kw_search again
@@ -188,7 +206,8 @@ Continue repeating steps 1, 2, and 3 to get every file you need to solve the use
 4. Finally, you can create a report and provide a plan to solve this code issue. Be sure to include enough detail as you will be passing this report onto an outside contractor who has zero prior knowledge of the code base or this issue. 
 To do this use the submit_report_and_plan tool.
 
-Here is a list of tools you may use to solve the issue:""" + anthropic_function_calls
+Here is a list of tools you may use to solve the issue. Continue calling them in succession until you are certain you have all the relevant information to solve the user request:
+""" + anthropic_function_calls
 
 unformatted_user_prompt = """\
 ## Relevant Snippets
@@ -200,12 +219,7 @@ Here are the code files mentioned in the user request, these code files are very
 <code_files_in_query>
 {file_paths_in_query}
 </code_files_in_query>
-
-## Import trees for code files in the user request
-<import_trees>
-{import_trees}
-</import_trees>
-
+{import_tree_prompt}
 ## User Request
 {query}"""
 
@@ -363,13 +377,13 @@ class RepoContextManager:
     snippets: list[Snippet]
     snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
-    current_top_snippets: list[Snippet] = []
-    read_only_snippets: list[Snippet] = []
+    current_top_snippets: list[Snippet] = field(default_factory=list)
+    read_only_snippets: list[Snippet] = field(default_factory=list)
     issue_report_and_plan: str = ""
     import_trees: str = ""
     relevant_file_paths: list[
         str
-    ] = []  # a list of file paths that appear in the user query
+    ] = field(default_factory=list)  # a list of file paths that appear in the user query
 
     @property
     def top_snippet_paths(self):
@@ -417,11 +431,18 @@ class RepoContextManager:
         snippets_in_repo_str = "\n".join(top_snippets_str)
         logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
         repo_tree = str(self.dir_obj)
+        import_tree_prompt = """
+## Import trees for code files in the user request
+<import_trees>
+{import_trees}
+</import_trees>
+"""
+        import_tree_prompt = import_tree_prompt.format(import_trees=self.import_trees)
         user_prompt = unformatted_user_prompt.format(
             query=query,
             snippets_in_repo=snippets_in_repo_str,
             repo_tree=repo_tree,
-            import_trees=self.import_trees,
+            import_tree_prompt=import_tree_prompt,
             file_paths_in_query=", ".join(self.relevant_file_paths),
         )
         return user_prompt
@@ -691,33 +712,14 @@ def get_relevant_context(
             query=query,
         )
         wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
-        messages = wrapper.wrap(user_prompt)
-        assistant = openai_retry_with_timeout(
-            client.beta.assistants.create,
-            name="Relevant Files Assistant",
-            instructions=sys_prompt,
-            tools=tools,
-            model=model,
-        )
-        thread = openai_retry_with_timeout(client.beta.threads.create)
-        for content in messages:
-            _ = openai_retry_with_timeout(
-                client.beta.threads.messages.create,
-                thread.id,
-                role="user",
-                content=content,
-            )
-        run = openai_retry_with_timeout(
-            client.beta.threads.runs.create,
-            thread_id=thread.id,
-            assistant_id=assistant.id,
-        )
+        chat_gpt = ChatGPT()
+        chat_gpt.messages.append(Message(role="system", content=sys_prompt))
         old_top_snippets = [
             snippet for snippet in repo_context_manager.current_top_snippets
         ]
         try:
             modify_context(
-                thread, run, repo_context_manager, ticket_progress, model=model
+                chat_gpt, repo_context_manager, ticket_progress, model=model
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
@@ -768,8 +770,7 @@ def update_assistant_conversation(
 # </function_calls>
 
 def modify_context(
-    thread: Thread,
-    run: Run,
+    chat_gpt: ChatGPT,
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress,
     model: str = "gpt-4-0125-preview",
@@ -781,53 +782,13 @@ def modify_context(
     initial_file_paths = repo_context_manager.top_snippet_paths
     paths_to_add = []
     num_tool_calls_made = 0
-    # model, client = get_client()
+    function_calls_string = chat_gpt.chat_anthropic(initial_prompt)
+    breakpoint() # check output
+    function_outputs = []
     for iter in range(max_iterations):
-        # run = openai_retry_with_timeout( # haiku
-        #     client.beta.threads.runs.retrieve,
-        #     thread_id=thread.id,
-        #     run_id=run.id,
-        # )
-        # ranking_response = self.chat_anthropic(
-        #         content=reranking_prompt.format(
-        #             user_query=user_query,
-        #             formatted_code_snippets=formatted_code_snippets,
-        #         ),
-        #     )
-        # if iter % 5 == 0: # haiku
-        #     update_assistant_conversation(
-        #         run, thread, ticket_progress, repo_context_manager
-        #     )
-        #     logger.info("iteration: " + str(iter) + f" run status {run.status}")
-        # if run.status == "completed" or run.status == "failed":
-        #     break
-        # if (
-        #     run.status != "requires_action"
-        #     or run.required_action is None
-        #     or run.required_action.submit_tool_outputs is None
-        #     or run.required_action.submit_tool_outputs.tool_calls is None
-        # ):
-        #     time.sleep(3)
-        #     continue
         num_tool_calls_made += 1
         function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string)
-        # tool_calls = run.required_action.submit_tool_outputs.tool_calls # haiku
-        tool_outputs = []
         for function_call in function_calls:
-            # try: # haiku
-            #     tool_call_arguments = re.sub(r"\\+'", "", tool_call.function.arguments)
-            #     function_input = json.loads(tool_call_arguments)
-            # except Exception:
-            #     logger.warning(
-            #         f"Could not parse function arguments: {tool_call_arguments}"
-            #     )
-            #     tool_outputs.append(
-            #         {
-            #             "tool_call_id": tool_call.id,
-            #             "output": "FAILURE: Could not parse function arguments.",
-            #         }
-            #     )
-            #     continue
             current_top_snippets_string = "\n".join(
                 [
                     "- " + snippet.xml
@@ -848,6 +809,7 @@ def modify_context(
                 "file_path"
             ) or function_input.get("directory_path")
             valid_path = False
+            output_prefix = f"Output for {function_name}:\n"
             output = ""
             if function_name == "file_search":
                 error_message = ""
@@ -878,10 +840,10 @@ def modify_context(
                 rg_command = ["rg", "-n", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
                 try:
                     result = subprocess.run(rg_command, text=True, capture_output=True)
-                    output = result.stdout
-                    if output:
+                    rg_output = result.stdout
+                    if rg_output:
                         # post process rip grep output to be more condensed
-                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output)
+                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, rg_output)
                     else:
                         error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
                 except Exception as e:
@@ -1029,9 +991,10 @@ def modify_context(
                 error_message = ""
                 if "report" not in function_input or "plan" not in function_input:
                     error_message = "FAILURE: Please provide a report and a plan."
-                issue_report = function_input["report"]
-                issue_plan = function_input["plan"]
-                repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
+                else:
+                    issue_report = function_input["report"]
+                    issue_plan = function_input["plan"]
+                    repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
                 if error_message:
                     output = error_message
                 else:
@@ -1045,12 +1008,7 @@ def modify_context(
             logger.info("Paths to add:")
             for snippet in paths_to_add:
                 logger.info(snippet)
-            # tool_outputs.append( # haiku
-            #     {
-            #         "tool_call_id": tool_call.id,
-            #         "output": output,
-            #     }
-            # )
+            function_outputs.append(output_prefix + output)
             justification = (
                 function_input["justification"]
                 if "justification" in function_input
@@ -1059,27 +1017,14 @@ def modify_context(
             logger.info(
                 f"Tool Call: {function_name} {function_path_or_dir} {justification} Valid Tool Call: {valid_path}"
             )
-        # run = openai_retry_with_timeout( # this should be a chat
-        #     client.beta.threads.runs.submit_tool_outputs,
-        #     thread_id=thread.id,
-        #     run_id=run.id,
-        #     tool_outputs=tool_outputs,
-        # )
+        breakpoint() # check output
+        function_calls_string = chat_gpt.chat_anthropic(
+            content="\n".join(function_outputs),
+        )
     else:
         logger.warning(
-            f"Context pruning iteration taking too long. Status: {run.status}"
+            f"Context pruning iteration taking too long. Stopping after {max_iterations} iterations."
         )
-    assistant_conversation = AssistantConversation.from_ids(
-        assistant_id=run.assistant_id,
-        run_id=run.id,
-        thread_id=thread.id,
-    )
-    if ticket_progress:
-        if assistant_conversation:
-            ticket_progress.search_progress.pruning_conversation = (
-                assistant_conversation
-            )
-        ticket_progress.save()
     logger.info(
         f"Context Management End:\npaths_to_add: {paths_to_add}\ndirectories_to_expand: {directories_to_expand}"
     )
@@ -1122,7 +1067,6 @@ Example function call:
     assert len(function_calls) == 2
     assert function_calls[0].function_name == "ExampleTool"
     assert function_calls[0].function_parameters == {"$PARAM1": "value1", "$PARAM2": "value2"}
-    breakpoint()
     try:
         import os
 
