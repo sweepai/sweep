@@ -1,6 +1,8 @@
 """This should take a list of snippets and rerank them"""
 import re
 
+from loguru import logger
+
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Snippet
@@ -15,11 +17,11 @@ from sweepai.logn.cache import file_cache
 
 # this is roughly 66% of it's optimal performance - it's worth optimizing more in the future
 
-reranking_prompt = """You are a powerful code search engine. You must order the list of code snippets from the most relevant to the least relevant to the user's query.
+reranking_prompt = """You are a powerful code search engine. You must order the list of code snippets from most relevant to least relevant to the user's query.
 
-The most relevant files are the ones we need to edit to resolve the user's issue. The next most relevant snippets are the ones that are crucial to read while editing the other code files to correctly resolve the user's issue.
+The most relevant code snippets are the ones we need to edit to resolve the user's issue. The next most relevant snippets are the ones that are crucial to read to make valid code changes to correctly resolve the user's issue.
 
-And the response format is:
+Respond in the following format:
 <ranking>
 most_relevant_file_path:start_line-end_line
 second_most_relevant_file_path:start_line-end_line
@@ -29,34 +31,79 @@ least_relevant_file_path:start_line_end_line
 
 Here is an example:
 <example>
-User query: I want to add two numbers.
+<example_input>
+<user_query>
+I want to add two numbers in my Flask app.
+</user_query>
 <code_snippets>
-add.py:0-1
+<code_snippet>
+<code_snippet_source>
+utils/add.py:0-1
+</code_snippet_source>
+<code_snippet_content>
 ```
 def add(a: int, b: int) -> int:
     return a + b
 ```
+</code_snippet_content>
+</code_snippet>
 
-subtract.py:0-1
+<code_snippet>
+<code_snippet_source>
+utils/subtract.py:0-1
+</code_snippet_source>
+<code_snippet_content>
 ```
 def subtract(a: int, b: int) -> int:
     return a - b
 ```
+</code_snippet_content>
+</code_snippet>
 </code_snippets>
+<code_snippet>
+<code_snippet_source>
+app.py:0-12
+</code_snippet_source>
+<code_snippet_content>
+```
+from flask import Flask, request, jsonify
 
-If add.py is more relevant than subtract.py, rank it as:
+app = Flask(__name__)
+
+@app.route('/add', methods=['GET'])
+def add():
+    a = float(request.args.get('a', 0))
+    b = float(request.args.get('b', 0))
+    result = a * b
+    return jsonify({{'result': result}})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```
+</code_snippet_content>
+</code_snippet>
+</code_snippets>
+</example_input>
+
+<example_output>
+We would like to make the change in the Flask app, which is in app.py. We must use the helper function, which is crucial for us to read when we make edits to app.py. This function is defined in utils/add.py, so it must also be relevant.
+
 <ranking>
-add.py:0-1
-subtract.py:0-1
+app.py:0-12
+utils/add.py:0-1
+utils/subtract.py:0-1
 </ranking>
+</example_output>
 </example>
 
 This is the user's query: 
+
 <user_query>
 {user_query}
 </user_query>
 
-This is the list of code snippets:
+Here is a list of code snippets:
+
 <code_snippets>
 {formatted_code_snippets}
 </code_snippets>
@@ -99,7 +146,8 @@ class RerankSnippetsBot(ChatGPT):
                     formatted_code_snippets=formatted_code_snippets,
                 ),
             )
-        except Exception:
+        except Exception as e:
+            logger.error(e)
             ranking_response = self.chat(
                 content=reranking_prompt.format(
                     user_query=user_query,
@@ -129,10 +177,15 @@ class RerankSnippetsBot(ChatGPT):
         result_str = ""
         for snippet in code_snippets:
             snippet_str = \
-f"""{snippet.denotation}
+f"""<code_snippet>
+<code_snippet_source>
+{snippet.denotation}
+</code_snippet_source>
+<code_snippet_content>
 ```
 {snippet.get_snippet(False, False)}
 ```
+</code_snippet_content>
 """
             result_str += snippet_str + "\n"
         result_removed_trailing_newlines = result_str.rstrip("\n")
