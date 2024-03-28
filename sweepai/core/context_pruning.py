@@ -10,6 +10,7 @@ from openai.types.beta.threads.run import Run
 
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
+from sweepai.core.context_dfs import modify_context
 from sweepai.core.entities import Message, Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -145,24 +146,29 @@ You must call one tool at a time using the specified XML format. Here are some g
 
 Example 1:
 <function_call>
+<invoke>
 <tool_name>file_search</tool_name>
 <parameters>
 <query>user_controller.py</query>
 <justification>The user request mentions the UserController class, so I need to find the file that defines it. Searching for 'user_controller.py' is likely to locate this file.</justification>
 </parameters>
+</invoke>
 </function_call>
 
 Example 2:
 <function_call>
+<invoke>
 <tool_name>view_file</tool_name>
 <parameters>
 <file_path>src/controllers/user_controller.py</file_path>
 <justification>I found the user_controller.py file in the previous search. I now need to view its contents to understand the UserController class implementation and determine if it needs to be modified to resolve the issue.</justification>
 </parameters>
+</invoke>
 </function_call>
 
 Example 3:
 <function_call>
+<invoke>
 <tool_name>store_relevant_file_to_modify</tool_name>
 <parameters>
 <file_path>src/controllers/user_controller.py</file_path>
@@ -176,15 +182,18 @@ def create_user(self, name, email):
 ```
 </justification>
 </parameters>
+</invoke>
 </function_call>
 
 Example 4:
 <function_call>
+<invoke>
 <tool_name>keyword_search</tool_name>
 <parameters>
 <keyword>class User(db.Model):</keyword>
 <justification>The user_controller.py file references the User class, but I don't see its definition in this file. I need to search for 'class User(db.Model):' to find where the User model is defined, as this will provide necessary context about the User class to properly fix the create_user bug.</justification>
 </parameters>
+</invoke>
 </function_call>
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
@@ -212,7 +221,7 @@ Here are the tools at your disposal. Call them one at a time as needed until you
 
 unformatted_user_prompt = """\
 ## Relevant Snippets
-Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
+Here are potentially relevant snippets in the repo in decreasing relevance that you should use the `view_file` tool to review:
 {snippets_in_repo}
 
 ## Code files mentioned in the user request
@@ -223,6 +232,8 @@ Here are the code files mentioned in the user request, these code files are very
 {import_tree_prompt}
 ## User Request
 {query}"""
+
+PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
 @staticmethod
 def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
@@ -273,10 +284,7 @@ class RepoContextManager:
             if True:
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
-        top_snippets_str = [
-            f"- {snippet.denotation}" for snippet in self.current_top_snippets
-        ]
-        [snippet.file_path for snippet in self.current_top_snippets]
+        top_snippets_str = [snippet.file_path for snippet in self.current_top_snippets]
         snippets_in_repo_str = "\n".join(top_snippets_str)
         logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
         repo_tree = str(self.dir_obj)
@@ -614,293 +622,231 @@ def validate_and_parse_function_calls(function_calls_string: str, chat_gpt: Chat
     if len(function_calls) > 0:
         chat_gpt.messages[-1].content = chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>" # add end tag to assistant message
         return function_calls
-    # try adding </parameters> tag as well
-    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</parameters>\n</function_call>")
+    
+    # try adding </invoke> tag as well
+    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</invoke>\n</function_call>")
     if len(function_calls) > 0:
         # update state of chat_gpt
-        chat_gpt.messages[-1].content = chat_gpt.messages[-1].content.rstrip("\n") + "\n</parameters>\n</function_call>"
+        chat_gpt.messages[-1].content = chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
+        return function_calls
+    # try adding </parameters> tag as well
+    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</parameters>\n</invoke>\n</function_call>")
+    if len(function_calls) > 0:
+        # update state of chat_gpt
+        chat_gpt.messages[-1].content = chat_gpt.messages[-1].content.rstrip("\n") + "\n</parameters>\n</invoke>\n</function_call>"
     return function_calls
 
-
-def modify_context(
-    chat_gpt: ChatGPT,
-    user_prompt: str,
-    repo_context_manager: RepoContextManager,
-    ticket_progress: TicketProgress,
-    model: str = "gpt-4-0125-preview",
-) -> bool | None:
-    sweep_config = SweepConfig()
-    max_iterations = 40
-    directories_to_expand = []
-    repo_context_manager.current_top_snippets = []
-    initial_file_paths = repo_context_manager.top_snippet_paths
-    paths_to_add = []
-    num_tool_calls_made = 0
-    function_calls_string = chat_gpt.chat_anthropic(
-        content=user_prompt,
-        stop_sequences=["</function_call>"],
-        model = CLAUDE_MODEL,
-        message_key="user_request",
-    )
-    current_top_snippets_string = ""
-    current_read_only_snippets_string = ""
-    bad_call_count = 0
-    message_key = ""
-    for iter in range(max_iterations):
-        num_tool_calls_made += 1
-        function_outputs = []
-        function_calls = validate_and_parse_function_calls(function_calls_string, chat_gpt)
-        for function_call in function_calls:
-            message_key = ""
-            # logger.info(f"Tool Call: {function_name} {function_input}") # haiku
-            function_name = function_call.function_name
-            function_input = function_call.function_parameters
-            logger.info(f"Tool Call: {function_name} {function_input}")
-            file_path = function_input.get("file_path")
-            valid_path = False
-            output_prefix = f"Output for {function_name}:\n"
-            output = ""
-            if function_name == "file_search":
-                error_message = ""
-                try:
-                    file_path = function_input.get("query")
-                    similar_file_paths = "\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                file_path
-                            )
-                        ]
-                    )
-                    valid_path = True
-                    output = (
-                        f"SUCCESS: Here are the most similar file paths to {file_path}:\n{similar_file_paths}"
-                        if valid_path
-                        else "FAILURE: This file path does not exist. Please try a new path."
-                    )
-                except Exception:
-                    similar_file_paths = ""
-                    output = "FAILURE: This file path does not exist."
-            elif function_name == "keyword_search":
-                message_key = "keyword_search"
-                error_message = ""
-                keyword = f'"{function_input["keyword"]}"' # handles cases with two words
-                rg_command = ["rg", "-n", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
-                try:
-                    result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
-                    rg_output = result.stdout
-                    if rg_output:
-                        # post process rip grep output to be more condensed
-                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, rg_output)
-                    else:
-                        error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
-                except Exception as e:
-                    logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
-                    error_message = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
-                if error_message:
-                    output = error_message
-                else:
-                    output = (
-                        f"SUCCESS: Here are the keyword_search results:\n\n{rg_output_pretty}"
-                    )
-                    
-            elif function_name == "view_file":
-                error_message = ""
-                try:
-                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
+def handle_function_call(repo_context_manager: RepoContextManager, function_call: MockFunctionCall):
+    function_name = function_call.function_name
+    function_input = function_call.function_parameters
+    logger.info(f"Tool Call: {function_name} {function_input}")
+    file_path = function_input.get("file_path")
+    valid_path = False
+    output_prefix = f"Output for {function_name}:\n"
+    output = ""
+    current_read_only_snippets_string = "\n".join(
+                    [
+                        snippet.denotation
+                        for snippet in repo_context_manager.read_only_snippets
+                    ]
+                )
+    current_top_snippets_string = "\n".join(
+                    [
+                        snippet.denotation
+                        for snippet in repo_context_manager.current_top_snippets
+                    ]
+                )
+    if function_name == "file_search":
+        try:
+            file_path = function_input.get("query")
+            similar_file_paths = "\n".join(
+                [
+                    f"- {path}"
+                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
                         file_path
                     )
-                    valid_path = True
-                    message_key = f"{file_path}"
-                    if file_path in current_read_only_snippets_string and file_path in current_top_snippets_string and valid_path:
-                        output = f"FAILURE: {file_path} is already in the selected snippets."
-                    elif valid_path:
-                        output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_relevant_file_to_modify or store_relevant_file_to_read with the same parameters ({{"file_path": "{file_path}"}}).'
-                    else:
-                        output = "FAILURE: This file path does not exist. Please try a new path."
-                except Exception:
-                    file_contents = ""
-                    similar_file_paths = "\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                file_path
-                            )
-                        ]
-                    )
-                    output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-            elif function_name == "store_relevant_file_to_modify":
-                try:
-                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                        file_path
-                    )
-                    valid_path = True
-                except Exception:
-                    file_contents = ""
-                    similar_file_paths = "\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                file_path
-                            )
-                        ]
-                    )
-                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                if error_message:
-                    output = error_message
-                else:
-                    snippet = Snippet(
-                        file_path=file_path,
-                        start=0,
-                        end=len(file_contents.splitlines()),
-                        content=file_contents,
-                    )
-                    if snippet.denotation in current_top_snippets_string:
-                        output = f"FAILURE: {file_path} is already in the selected snippets."
-                    else:
-                        repo_context_manager.add_snippets([snippet])
-                        paths_to_add.append(file_path)
-                        current_top_snippets_string = "\n".join(
-                            [
-                                snippet.denotation
-                                for snippet in repo_context_manager.current_top_snippets
-                            ]
-                        )
-                        output = (
-                            f"SUCCESS: {file_path} was added. Here are the current selected snippets that will be MODIFIED:\n{current_top_snippets_string}"
-                            if valid_path
-                            else "FAILURE: This file path does not exist. Please try a new path."
-                        )
-            elif function_name == "store_relevant_file_to_read":
-                error_message = ""
-                try:
-                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                        file_path
-                    )
-                    valid_path = True
-                except Exception:
-                    file_contents = ""
-                    similar_file_paths = "\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                file_path
-                            )
-                        ]
-                    )
-                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                if error_message:
-                    output = error_message
-                else:
-                    # end_line = min(end_line, len(file_contents.splitlines()))
-                    # logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                    snippet = Snippet(
-                        file_path=file_path,
-                        start=0,
-                        end=len(file_contents.splitlines()),
-                        content=file_contents,
-                    )
-                    if snippet.denotation in current_read_only_snippets_string:
-                        output = f"FAILURE: {file_path} is already in the selected READ ONLY files."
-                    else:
-                        repo_context_manager.add_read_only_snippets([snippet])
-                        paths_to_add.append(file_path)
-                        current_read_only_snippets_string = "\n".join(
-                            [
-                                snippet.denotation
-                                for snippet in repo_context_manager.read_only_snippets
-                            ]
-                        )
-                        output = (
-                            f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
-                            if valid_path
-                            else "FAILURE: This file path does not exist. Please try a new path."
-                        )           
-            elif function_name == "preview_file":
-                error_message = ""
-                try:
-                    code = repo_context_manager.cloned_repo.get_file_contents(
-                        file_path
-                    )
-                    valid_path = True
-                except Exception:
-                    code = ""
-                    similar_file_paths = "\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                file_path
-                            )
-                        ]
-                    )
-                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                if error_message:
-                    output = error_message
-                else:
-                    file_preview = CodeTree.from_code(code).get_preview()
-                    output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
-            elif function_name == "submit_report_and_plan":
-                error_message = ""
-                if "report" not in function_input or "plan" not in function_input:
-                    error_message = "FAILURE: Please provide a report and a plan."
-                else:
-                    issue_report = function_input["report"]
-                    issue_plan = function_input["plan"]
-                    repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
-                if error_message:
-                    output = error_message
-                else:
-                    output = "SUCCESS: Report and plan submitted."
-                    return True
+                ]
+            )
+            valid_path = True
+            output = (
+                f"SUCCESS: Here are the most similar file paths to {file_path}:\n{similar_file_paths}"
+                if valid_path
+                else "FAILURE: This file path does not exist. Please try a new path."
+            )
+        except Exception:
+            similar_file_paths = ""
+            output = "FAILURE: This file path does not exist."
+    elif function_name == "keyword_search":
+        keyword = f'"{function_input["keyword"]}"' # handles cases with two words
+        rg_command = ["rg", "-n", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
+        try:
+            result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
+            rg_output = result.stdout
+            if rg_output:
+                # post process rip grep output to be more condensed
+                rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output)
             else:
-                output = f"FAILURE: Invalid tool name {function_name}"
-            logger.info("Current top snippets: " + current_top_snippets_string)
-            function_outputs.append(output_prefix + output)
-            justification = (
-                function_input["justification"]
-                if "justification" in function_input
-                else ""
+                output = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
+        except Exception as e:
+            logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
+            output = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
+        else:
+            output = (
+                f"SUCCESS: Here are the keyword_search results:\n\n{rg_output_pretty}"
             )
-            logger.info(
-                f"Tool Call: {function_name} {justification} Valid Tool Call: {valid_path}"
+            
+    elif function_name == "view_file":
+        try:
+            file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                file_path
             )
-        if len(function_calls) == 0:
-            function_outputs.append("No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n"
-                + "<function_call>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</function_calls>")
-            bad_call_count += 1
-            if bad_call_count > 3:
-                return True
-        function_calls_string = chat_gpt.chat_anthropic(
-            content="\n\n".join(function_outputs),
-            message_key=message_key,
-            model=CLAUDE_MODEL,
-            stop_sequences=["</function_call>"],
-        )
-        # if there is a message with a non-null key that's not saved, we can delete both it and it's preceding message
+            valid_path = True
+            if file_path in current_read_only_snippets_string and file_path in current_top_snippets_string and valid_path:
+                output = f"FAILURE: {file_path} is already in the selected snippets."
+            elif valid_path:
+                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_relevant_file_to_modify or store_relevant_file_to_read with the same parameters ({{"file_path": "{file_path}"}}).'
+            else:
+                output = "FAILURE: This file path does not exist. Please try a new path."
+        except Exception:
+            file_contents = ""
+            similar_file_paths = "\n".join(
+                [
+                    f"- {path}"
+                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                        file_path
+                    )
+                ]
+            )
+            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+    elif function_name == "store_relevant_file_to_modify":
+        try:
+            file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                file_path
+            )
+            valid_path = True
+        except Exception:
+            file_contents = ""
+            similar_file_paths = "\n".join(
+                [
+                    f"- {path}"
+                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                        file_path
+                    )
+                ]
+            )
+            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+        else:
+            snippet = Snippet(
+                file_path=file_path,
+                start=0,
+                end=len(file_contents.splitlines()),
+                content=file_contents,
+            )
+            if snippet.denotation in current_top_snippets_string:
+                output = f"FAILURE: {file_path} is already in the selected snippets."
+            else:
+                repo_context_manager.add_snippets([snippet])
+                current_top_snippets_string = "\n".join(
+                    [
+                        snippet.denotation
+                        for snippet in repo_context_manager.current_top_snippets
+                    ]
+                )
+                output = (
+                    f"SUCCESS: {file_path} was added. Here are the current selected snippets that will be MODIFIED:\n{current_top_snippets_string}"
+                    if valid_path
+                    else "FAILURE: This file path does not exist. Please try a new path."
+                )
+    elif function_name == "store_relevant_file_to_read":
+        try:
+            file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                file_path
+            )
+            valid_path = True
+        except Exception:
+            file_contents = ""
+            similar_file_paths = "\n".join(
+                [
+                    f"- {path}"
+                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                        file_path
+                    )
+                ]
+            )
+            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+        else:
+            # end_line = min(end_line, len(file_contents.splitlines()))
+            # logger.info(f"start_line: {start_line}, end_line: {end_line}")
+            snippet = Snippet(
+                file_path=file_path,
+                start=0,
+                end=len(file_contents.splitlines()),
+                content=file_contents,
+            )
+            if snippet.denotation in current_read_only_snippets_string:
+                output = f"FAILURE: {file_path} is already in the selected READ ONLY files."
+            else:
+                repo_context_manager.add_read_only_snippets([snippet])
+                current_read_only_snippets_string = "\n".join(
+                    [
+                        snippet.denotation
+                        for snippet in repo_context_manager.read_only_snippets
+                    ]
+                )
+                output = (
+                    f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
+                    if valid_path
+                    else "FAILURE: This file path does not exist. Please try a new path."
+                )           
+    elif function_name == "preview_file":
+        try:
+            code = repo_context_manager.cloned_repo.get_file_contents(
+                file_path
+            )
+            valid_path = True
+        except Exception:
+            code = ""
+            similar_file_paths = "\n".join(
+                [
+                    f"- {path}"
+                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                        file_path
+                    )
+                ]
+            )
+            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+        else:
+            file_preview = CodeTree.from_code(code).get_preview()
+            output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
+    elif function_name == "submit_report_and_plan":
+
+        if "report" not in function_input or "plan" not in function_input:
+            output = "FAILURE: Please provide a report and a plan."
+        else:
+            issue_report = function_input["report"]
+            issue_plan = function_input["plan"]
+            repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
+            output = PLAN_SUBMITTED_MESSAGE
     else:
-        logger.warning(
-            f"Context pruning iteration taking too long. Stopping after {max_iterations} iterations."
-        )
-    if directories_to_expand:
-        repo_context_manager.expand_all_directories(directories_to_expand)
+        output = f"FAILURE: Invalid tool name {function_name}"
+    justification = (
+        function_input["justification"]
+        if "justification" in function_input
+        else ""
+    )
     logger.info(
-        f"Context Management End:\ncurrent snippets to modify: {repo_context_manager.top_snippet_paths}\n current read only snippets: {repo_context_manager.relevant_read_only_snippet_paths}"
+        f"Tool Call: {function_name} {justification} Valid Tool Call: {valid_path}"
     )
-    paths_changed = set(initial_file_paths) != set(
-        repo_context_manager.top_snippet_paths
-    )
-    repo_context_manager.current_top_snippets = [
-        snippet
-        for snippet in repo_context_manager.current_top_snippets
-        if snippet.file_path != "sweep.yaml"
-    ]
-    return not (paths_changed and (paths_to_add or directories_to_expand))
+    return output_prefix + output
+
+
 
 
 if __name__ == "__main__":
     function_calls_string = '''
 Example function call:
 <function_call>
+<invoke>
 <tool_name>ExampleTool</tool_name>
 <parameters>
 <$PARAM1>value1</$PARAM1>
@@ -913,6 +859,7 @@ Another function call:
 <parameters>
 <$PARAM3>value3</$PARAM3>
 </parameters>
+</invoke>
 </function_call>
 '''
     function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string)
