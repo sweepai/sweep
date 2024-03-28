@@ -34,7 +34,8 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         if file[len(directory) + 1 :].startswith(dir_name):
             return False
     for dir_name in sweep_config.exclude_path_dirs:
-        if dir_name in file:
+        file_parts = file.split(os.path.sep)
+        if dir_name in file_parts:
             return False
     try:
         if os.stat(file).st_size > 240000:
@@ -55,8 +56,6 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         if is_binary:
             return False
         f.close()
-
-    
     try:
         # fetch file
         data = read_file_with_fallback_encodings(file)
