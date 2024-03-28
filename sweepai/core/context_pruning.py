@@ -13,7 +13,6 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.agents.assistant_function_modify import MAX_CHARS
-from sweepai.agents.assistant_wrapper import openai_retry_with_timeout
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
@@ -677,7 +676,6 @@ def get_relevant_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
-        wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
         chat_gpt = ChatGPT()
         chat_gpt.messages.append(Message(role="system", content=sys_prompt))
         old_top_snippets = [
@@ -986,10 +984,6 @@ def modify_context(
             stop_sequences=["</function_call>"],
         )
         # if there is a message with a non-null key that's not saved, we can delete both it and it's preceding message
-        all_snippet_file_paths_for_state_cleanup = set(
-            [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
-            + [snippet.file_path for snippet in repo_context_manager.read_only_snippets]
-        )
     else:
         logger.warning(
             f"Context pruning iteration taking too long. Stopping after {max_iterations} iterations."
