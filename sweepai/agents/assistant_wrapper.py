@@ -1,13 +1,10 @@
 import json
-import os
 import re
-import time
 import traceback
 from time import sleep
 from typing import Callable, Optional
 
 import openai
-from anyio import Path
 from loguru import logger
 from openai.pagination import SyncCursorPage
 from openai.types.beta.threads.thread_message import ThreadMessage
@@ -17,9 +14,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 )
 from pydantic import BaseModel
 
-from sweepai.agents.agent_utils import ensure_additional_messages_length
-from sweepai.agents.assistant_functions import raise_error_schema
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED, USE_ASSISTANT
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, IS_SELF_HOSTED
 from sweepai.core.entities import AssistantRaisedException, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog

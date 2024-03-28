@@ -670,7 +670,7 @@ add an import math statement at the top of the api.py file""",
         modify_bot = ModifyBot(
             additional_messages=additional_messages
         )
-        new_file = modify_bot.try_update_file(
+        new_files = modify_bot.try_update_file(
             "sweepai/api.py",
             open(cloned_repo.repo_dir + '/' + 'sweepai/api.py').read(),
             FileChangeRequest(
@@ -680,6 +680,7 @@ add an import math statement at the top of the api.py file""",
             ),
             cloned_repo,
         )
+        new_file = new_files["sweepai/api.py"]["contents"]
         assert("import math" in new_file)
         response = """
 ```python

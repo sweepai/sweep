@@ -3,7 +3,6 @@ import copy
 import re
 import time
 import traceback
-from collections import OrderedDict, defaultdict
 from typing import Dict, Generator
 
 from github.ContentFile import ContentFile
@@ -34,13 +33,12 @@ from sweepai.core.prompts import (
     create_file_prompt,
     files_to_change_prompt,
     pull_request_prompt,
-    sandbox_files_to_change_prompt,
     subissues_prompt,
     files_to_change_system_prompt
 )
 from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.chat_logger import discord_log_error
-from sweepai.utils.diff import format_contents, generate_diff, is_markdown
+from sweepai.utils.diff import format_contents, is_markdown
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,

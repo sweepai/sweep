@@ -8,12 +8,6 @@ from collections import defaultdict
 
 from loguru import logger
 
-from sweepai.agents.assistant_functions import (
-    chain_of_thought_schema,
-    keyword_search_schema,
-    search_and_replace_schema,
-    submit_schema,
-)
 from sweepai.agents.assistant_wrapper import openai_assistant_call
 from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
 from sweepai.config.client import SweepConfig

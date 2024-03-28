@@ -1,12 +1,10 @@
 import traceback
-from collections import OrderedDict
 
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.agents.assistant_function_modify import function_modify
 from sweepai.core.entities import FileChangeRequest, MaxTokensExceeded, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import logger
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -89,7 +87,6 @@ def modify_file(
     additional_messages: list[Message] = [],
     previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
 ):
-    new_file = None
     try:
         relevant_file_messages, relevant_filepaths = create_additional_messages(
             metadata,
