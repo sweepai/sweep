@@ -918,13 +918,13 @@ def function_modify(
                             break
                         
                         # check to see that the old_code is in the new_code by trying all possible indentations
-                        correct_indent = manual_code_check(current_chunk, old_code)
+                        correct_indent, rstrip_old_code = manual_code_check(current_chunk, old_code)
                         # if the old_code couldn't be found in the chunk we need to let the llm know
                         if old_code not in current_chunk and correct_indent == -1:
                             chunks_with_old_code = [
                                 index
                                 for index, chunk in enumerate(file_chunks)
-                                if old_code in chunk or manual_code_check(chunk, old_code) != -1
+                                if old_code in chunk or manual_code_check(chunk, old_code)[0] != -1
                             ]
                             chunks_with_old_code = chunks_with_old_code[:5]
                             error_message = f"The OriginalCode provided does not appear to be present in section {section_letter}. The OriginalCode contains:\n```\n{old_code}\n```\nBut section {section_letter} in {file_name} has code:\n```\n{current_chunk}\n```"
@@ -942,7 +942,10 @@ def function_modify(
                         # ensure old_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
                         new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
-                        old_code_lines = [line.rstrip() for line in old_code.split("\n")]
+                        if rstrip_old_code:
+                            old_code_lines = [line.rstrip() for line in old_code.split("\n")]
+                        else:
+                            old_code_lines = old_code.split("\n")
                         old_code = "\n".join(f'{correct_indent*" "}{line}' for line in old_code_lines)
                         # before we apply changes make sure old_code is unique inside current_chunk
                         current_chunk_occurences = current_chunk.count(old_code)
