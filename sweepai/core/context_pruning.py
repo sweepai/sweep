@@ -698,7 +698,6 @@ def modify_context(
                 message_key = "keyword_search"
                 error_message = ""
                 keyword = f'"{function_input["keyword"]}"' # handles cases with two words
-                import pdb; pdb.set_trace()
                 rg_command = ["rg", "-n", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
                 try:
                     result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)

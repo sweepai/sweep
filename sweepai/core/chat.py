@@ -324,7 +324,6 @@ class ChatGPT(MessageList):
         logger.info(f"Output to call openai:\n{result}")
         return result
     
-    @file_cache()
     def chat_anthropic(
         self,
         content: str,
@@ -347,17 +346,23 @@ class ChatGPT(MessageList):
         e = None
         for i in range(4):
             try:
-                content = anthropic_client.messages.create(
-                    model=model,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    messages=[{
+                @file_cache() # must be in the inner scope because this entire function manages state
+                def chat_anthropic(message_dicts: list[dict[str, str]]):
+                    return anthropic_client.messages.create(
+                        model=model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        messages=message_dicts,
+                        system=system_message,
+                        stop_sequences=stop_sequences,
+                    ).content[0].text
+                message_dicts = [
+                    {
                         "role": message.role,
                         "content": message.content,
-                    } for message in self.messages if message.role != "system"],
-                    system=system_message,
-                    stop_sequences=stop_sequences,
-                ).content[0].text
+                    } for message in self.messages if message.role != "system"
+                ]
+                content = chat_anthropic(message_dicts)
                 break
             except Exception as e_:
                 breakpoint()
