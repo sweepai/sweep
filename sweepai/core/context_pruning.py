@@ -1,3 +1,4 @@
+from dataclasses import field
 import json
 import os
 import re
@@ -226,8 +227,8 @@ class RepoContextManager:
     snippets: list[Snippet]
     snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
-    current_top_snippets: list[Snippet] = []
-    read_only_snippets: list[Snippet] = []
+    current_top_snippets: list[Snippet] = field(default_factory=list)
+    read_only_snippets: list[Snippet] = field(default_factory=list)
     issue_report_and_plan: str = ""
     import_trees: str = ""
     relevant_file_paths: list[
