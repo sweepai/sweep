@@ -9,7 +9,7 @@ import urllib
 
 import networkx as nx
 import openai
-from attr import dataclass
+from attr import define, field
 from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
@@ -220,20 +220,20 @@ def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
     )
 
 
-@dataclass
+@define
 class RepoContextManager:
     dir_obj: DirectoryTree
     current_top_tree: str
     snippets: list[Snippet]
     snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
-    current_top_snippets: list[Snippet] = []
-    read_only_snippets: list[Snippet] = []
+    current_top_snippets: list[Snippet] = field(factory=list)
+    read_only_snippets: list[Snippet] = field(factory=list)
     issue_report_and_plan: str = ""
     import_trees: str = ""
     relevant_file_paths: list[
         str
-    ] = []  # a list of file paths that appear in the user query
+    ] = field(factory=list) # a list of file paths that appear in the user query
 
     @property
     def top_snippet_paths(self):
