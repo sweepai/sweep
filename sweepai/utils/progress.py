@@ -64,12 +64,6 @@ class AssistantConversation(BaseModel):
             run = client.beta.threads.runs.retrieve(
                 run_id=run_id, thread_id=thread_id, timeout=1.5
             )
-            step_objects = client.beta.threads.runs.steps.list(
-                run_id=run_id, thread_id=thread_id, timeout=1.5
-            ).data
-            thread_messages = client.beta.threads.messages.list(
-                thread_id=thread_id, timeout=1.5
-            ).data
         except Exception:
             return None
         messages: list[AssistantAPIMessage] = [
