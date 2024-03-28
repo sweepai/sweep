@@ -4,13 +4,12 @@ import re
 import time
 import traceback
 from time import sleep
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import openai
 from anyio import Path
 from loguru import logger
 from openai.pagination import SyncCursorPage
-from openai.types.beta.threads.thread_message import ThreadMessage
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
     Function,
@@ -103,7 +102,7 @@ save_ticket_progress_type = Callable[[str, str, str], None]
 
 
 class AssistantResponse(BaseModel):
-    messages: SyncCursorPage[ThreadMessage]
+    messages: SyncCursorPage[Any]
     assistant_id: str
     run_id: str
     thread_id: str
@@ -592,7 +591,7 @@ def openai_assistant_call(
             raise e
 
 # parse llm response for tool calls in xml format
-def parse_tool_calls(response_contents: str) -> list[dict[str, any]]:
+def parse_tool_calls(response_contents: str) -> list[dict[str, Any]]:
     tool_calls = []
     plan_regex = r'<ProposeProblemAnalysisAndPlan>\s*<Analysis>(?P<analysis>.*?)<\/Analysis>\s*<ProposedPlan>(?P<plan>.*?)<\/ProposedPlan>\s*<\/ProposeProblemAnalysisAndPlan>'
     keyword_search_regex = r'<KeywordSearch>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/KeywordSearch>'   
