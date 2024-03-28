@@ -5,9 +5,6 @@ from enum import Enum
 from threading import Thread
 
 from openai import OpenAI
-from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
-from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
-from openai.types.beta.threads.thread_message import ThreadMessage
 from pydantic import BaseModel, ConfigDict, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
@@ -67,12 +64,6 @@ class AssistantConversation(BaseModel):
             run = client.beta.threads.runs.retrieve(
                 run_id=run_id, thread_id=thread_id, timeout=1.5
             )
-            step_objects = client.beta.threads.runs.steps.list(
-                run_id=run_id, thread_id=thread_id, timeout=1.5
-            ).data
-            thread_messages = client.beta.threads.messages.list(
-                thread_id=thread_id, timeout=1.5
-            ).data
         except Exception:
             return None
         messages: list[AssistantAPIMessage] = [
@@ -81,78 +72,6 @@ class AssistantConversation(BaseModel):
                 content=assistant.instructions,
             )
         ]
-        all_messages = sorted(
-            list(thread_messages + step_objects),
-            key=lambda x: x.created_at,
-            reverse=True,
-        )
-        for message_obj in list(all_messages)[::-1]:
-            if isinstance(message_obj, ThreadMessage):
-                if len(message_obj.content) == 0:
-                    continue
-                text = message_obj.content[0].text.value
-                if text.strip():
-                    messages.append(
-                        AssistantAPIMessage(
-                            role=message_obj.role,
-                            content=message_obj.content[0].text.value,
-                        )
-                    )
-            else:
-                if message_obj.type == "message_creation":
-                    message_id = message_obj.step_details.message_creation.message_id
-                    try:
-                        message_content = (
-                            client.beta.threads.messages.retrieve(
-                                message_id=message_id, thread_id=thread_id, timeout=1.5
-                            )
-                            .content[0]
-                            .text.value
-                        )
-                    except Exception:
-                        return None
-                    messages.append(
-                        AssistantAPIMessage(
-                            role=AssistantAPIMessageRole.ASSISTANT,
-                            content=message_content,
-                        )
-                    )
-                    # TODO: handle annotations
-                elif message_obj.type == "tool_calls":
-                    for tool_call in message_obj.step_details.tool_calls:
-                        if isinstance(tool_call, CodeToolCall):
-                            code_interpreter = tool_call.code_interpreter
-                            input_ = code_interpreter.input
-                            if not input_:
-                                continue
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.CODE_INTERPRETER_INPUT,
-                                    content=input_,
-                                )
-                            )
-                            outputs = code_interpreter.outputs
-                            output = outputs[0].logs if outputs else "__No output__"
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.CODE_INTERPRETER_OUTPUT,
-                                    content=output,
-                                )
-                            )
-                        elif isinstance(tool_call, FunctionToolCall):
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.FUNCTION_CALL_INPUT,
-                                    content=tool_call.function.arguments,
-                                )
-                            )
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.FUNCTION_CALL_OUTPUT,
-                                    content=tool_call.function.output
-                                    or "__No output__",
-                                )
-                            )
         return cls(
             messages=messages,
             status=run.status,
