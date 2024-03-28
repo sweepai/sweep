@@ -12,7 +12,8 @@ from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
-    ANTHROPIC_API_KEY
+    ANTHROPIC_API_KEY,
+    PAREA_API_KEY
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
@@ -23,6 +24,14 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.utils import Tiktoken
+from parea import Parea
+
+parea_client = None
+try:
+    if PAREA_API_KEY:
+        parea_client = Parea(api_key=PAREA_API_KEY)
+except Exception as e:
+    logger.info(f"Failed to initialize Parea client: {e}")
 
 openai_proxy = OpenAIProxy()
 
@@ -331,39 +340,39 @@ class ChatGPT(MessageList):
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
-        with Anthropic(
-            api_key=ANTHROPIC_API_KEY
-        ) as anthropic_client: # can fallback to bedrock
-            content = ""
-            e = None
-            for i in range(4):
-                try:
-                    content = anthropic_client.messages.create(
-                        model=model,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        messages=[{
-                            "role": message.role,
-                            "content": message.content,
-                        } for message in self.messages if message.role != "system"],
-                        system=system_message,
-                        stop_sequences=stop_sequences,
-                    ).content[0].text
-                    break
-                except Exception as e_:
-                    breakpoint()
-                    logger.exception(e_)
-                    e = e_
-                    time.sleep(5 * 2 ** i)
-            else:
-                raise Exception("Anthropic call failed") from e
-            self.messages.append(
-                Message(
-                    role="assistant",
-                    content=content,
-                    key=message_key,
-                )
+        anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if parea_client:
+            parea_client.wrap_anthropic_client(anthropic_client)
+        content = ""
+        e = None
+        for i in range(4):
+            try:
+                content = anthropic_client.messages.create(
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    messages=[{
+                        "role": message.role,
+                        "content": message.content,
+                    } for message in self.messages if message.role != "system"],
+                    system=system_message,
+                    stop_sequences=stop_sequences,
+                ).content[0].text
+                break
+            except Exception as e_:
+                breakpoint()
+                logger.exception(e_)
+                e = e_
+                time.sleep(5 * 2 ** i)
+        else:
+            raise Exception("Anthropic call failed") from e
+        self.messages.append(
+            Message(
+                role="assistant",
+                content=content,
+                key=message_key,
             )
+        )
         logger.debug(f"Anthropic response: {self.messages[-1].content}")
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content

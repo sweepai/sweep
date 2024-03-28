@@ -381,6 +381,13 @@ class ClonedRepo:
         # Fuzzy search over file names
         file_name = os.path.basename(file_path)
         all_file_paths = self.get_file_list()
+        # filter for matching extensions if both have extensions
+        if "." in file_name:
+            all_file_paths = [
+                file
+                for file in all_file_paths
+                if "." in file and file.split(".")[-1] == file_name.split(".")[-1]
+            ]
         files_with_matching_name = []
         files_without_matching_name = []
         for file_path in all_file_paths:
@@ -388,17 +395,20 @@ class ClonedRepo:
                 files_with_matching_name.append(file_path)
             else:
                 files_without_matching_name.append(file_path)
+        file_path_to_ratio = {file: ratio(file_name, file) for file in all_file_paths}
         files_with_matching_name = sorted(
             files_with_matching_name,
-            key=lambda file_path: ratio(file_name, file_path),
+            key=lambda file_path: file_path_to_ratio[file_path],
             reverse=True,
         )
         files_without_matching_name = sorted(
             files_without_matching_name,
-            key=lambda file_path: ratio(file_name, file_path),
+            key=lambda file_path: file_path_to_ratio[file_path],
             reverse=True,
         )
-        all_files = files_with_matching_name + files_without_matching_name
+        # this allows 'config.py' to return 'sweepai/config/server.py', 'sweepai/config/client.py', 'sweepai/config/__init__.py' and no more
+        filtered_files_without_matching_name = list(filter(lambda file_path: file_path_to_ratio[file_path] > 50, files_without_matching_name))
+        all_files = files_with_matching_name + filtered_files_without_matching_name
         return all_files[:limit]
     
     def update_file(self, file_path: str, new_contents: str):
@@ -614,7 +624,7 @@ if __name__ == "__main__":
         cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
         dir_ojb = cloned_repo.list_directory_tree()
         commit_history = cloned_repo.get_commit_history()
-        similar_file_paths = cloned_repo.get_similar_file_paths("README.md")
+        similar_file_paths = cloned_repo.get_similar_file_paths("config.py")
         # ensure no similar file_paths are sweep excluded
         assert(not any([file for file in similar_file_paths if sweep_config.is_file_excluded(file)]))
         print(f"similar_file_paths: {similar_file_paths}")
