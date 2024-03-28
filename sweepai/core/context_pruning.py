@@ -170,7 +170,7 @@ Example 2:
 
 # 4. After you have stored a file snippet, use the keyword_search tool on any entities that appear but are not defined in the file snippet. For example, if the variable myUnit has type WorkUnit, you should keyword search for "WorkUnit" in order to find all filepaths where the keyword WorkUnit appears. You are then to iterate over the relevant filepaths to determine where the entities are defined. YOU MUST DO THIS. Once you have a list of relevant filepaths where the keyword is present, repeat the previous steps to determine if these filepaths should be added or dropped. Use the keyword_search tool to find the relevant files that the keyword shows up in. Repeat until you are certain that you have ALL relevant files you need.
 # hypothesis tool, after each 1-3 do you have all info if it's missing a fn defn, you should use kw_search again
-sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather ALL RELEVANT information from the codebase that allows you to completely solve the issue. It is very important that you get this right and do not miss any relevant lines of code.
+sys_prompt = """You are a brilliant engineer assigned to the following Github issue. You must gather ALL RELEVANT code snippets from the codebase that allows you to completely solve the issue. It is very important that you get this right and do not miss any relevant lines of code.
 
 ## Instructions
 You initially start with no snippets and must use the store_relevant_file_to_modify, store_relevant_file_to_read to add code snippets to the context. You must iteratively use the keyword_search, file_search and view_file tools to help you find the relevant snippets to store.
@@ -185,9 +185,9 @@ If you don't know the full file path, use file_search with the file name. Ensure
 2. Now use the keyword_search tool on any variables, class and function calls that you do not have the definitions for. 
 For example if the method foo(param1: typeX, param2: typeY) -> typeZ: is defined be sure to search for the keywords typeX, typeY and typeZ and find the files that contain their definitions.
 This will return a list of file paths where the keyword shows up in. You MUST view the relevant files that the keyword shows up in.
-3. When you have a relevant file, use the store_relevant_file_to_modify, store_relevant_file_to_read tools until you are completely sure about how to solve the user request. 
+3. When you have a relevant file, use the store_relevant_file_to_modify, store_relevant_file_to_read tools to store it.
 Continue repeating steps 1, 2, and 3 to get every file you need to solve the user request.
-4. Finally, you can create a report and provide a plan to solve this code issue. Be sure to include enough detail as you will be passing this report onto an outside contractor who has zero prior knowledge of the code base or this issue. 
+4. Finally, you must create a report and provide a plan to solve this code issue. You will be passing this report onto an outside contractor who has zero prior knowledge of the code base or this issue. 
 To do this use the submit_report_and_plan tool.
 
 Here is a list of tools you may use to solve the issue. Continue calling them in succession until you are certain you have all the relevant information to solve the user request:
@@ -723,7 +723,7 @@ def update_assistant_conversation(
         ticket_progress.save()
 
 
-CLAUDE_MODEL = "claude-3-sonnet-20240229"
+CLAUDE_MODEL = "claude-3-haiku-20240307"
 
 def modify_context(
     chat_gpt: ChatGPT,
@@ -733,7 +733,7 @@ def modify_context(
     model: str = "gpt-4-0125-preview",
 ) -> bool | None:
     sweep_config = SweepConfig()
-    max_iterations = 20
+    max_iterations = 40
     directories_to_expand = []
     repo_context_manager.current_top_snippets = []
     initial_file_paths = repo_context_manager.top_snippet_paths
