@@ -2,15 +2,16 @@ import os
 import subprocess
 import urllib
 from dataclasses import dataclass, field
+
 import networkx as nx
 import openai
 from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
+from sweepai.config.client import SweepConfig
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
-from sweepai.core.context_dfs import modify_context
 from sweepai.core.entities import Message, Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -18,12 +19,11 @@ from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE
-from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.tree_utils import DirectoryTree
-from sweepai.config.client import SweepConfig
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
@@ -92,13 +92,13 @@ Adds a read-only file to the context that provides necessary information to reso
 </description>
 <parameters>
 <parameter>
-<name>file_path</name>  
+<name>file_path</name>
 <type>string</type>
 <description>The path of the file to store.</description>
 </parameter>
 <parameter>
 <name>justification</name>
-<type>string</type>  
+<type>string</type>
 <description>Explain why this read-only file is relevant and what information it provides. Include a supporting code excerpt.</description>
 </parameter>
 </parameters>
@@ -124,7 +124,7 @@ Searches the entire codebase for the given keyword and returns a list of files a
 </tool_description>
 
 <tool_description>
-<tool_name>submit_report_and_plan</tool_name>  
+<tool_name>submit_report_and_plan</tool_name>
 <description>
 Provides a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and which files need to be modified or referenced. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue.
 </description>
@@ -134,7 +134,7 @@ Provides a detailed report of the issue and a high-level plan to resolve it. The
 <type>string</type>
 <description>A detailed report providing background information and explaining the issue so that someone with no context can understand it.</description>
 </parameter>
-<parameter>  
+<parameter>
 <name>plan</name>
 <type>string</type>
 <description>A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each relevant file.</description>
@@ -175,7 +175,7 @@ Example 3:
 <justification>The user_controller.py file contains the UserController class referenced in the user request. The create_user method inside this class needs to be updated to fix the bug, as evidenced by this excerpt:
 ```python
 def create_user(self, name, email):
-    # BUG: User is created without validating email 
+    # BUG: User is created without validating email
     user = User(name, email)
     db.session.add(user)
     db.session.commit()
@@ -198,10 +198,11 @@ Example 4:
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following Github issue. Your task is to gather all relevant code snippets from the codebase that are necessary to completely resolve the issue. It is critical that you identify and include every relevant line of code.
+sys_prompt = (
+    """You are a brilliant engineer assigned to solve the following Github issue. Your task is to gather all relevant code snippets from the codebase that are necessary to completely resolve the issue. It is critical that you identify and include every relevant line of code.
 
 ## Instructions
-- You start with no code snippets. Use the store_relevant_file_to_modify and store_relevant_file_to_read tools to incrementally add relevant code to the context. 
+- You start with no code snippets. Use the store_relevant_file_to_modify and store_relevant_file_to_read tools to incrementally add relevant code to the context.
 - Utilize the keyword_search, file_search and view_file tools to methodically find the code snippets you need to store.
 - "Relevant Snippets" provides code snippets found via lexical search that may be relevant to the issue. However, these are not automatically added to the context.
 
@@ -210,14 +211,16 @@ Use the following iterative process:
 
 2. Use keyword_search to find definitions for any unknown variables, classes and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY and typeZ to find where they are defined. View the relevant files containing those definitions.
 
-3. When you identify a relevant file, use store_relevant_file_to_modify or store_relevant_file_to_read to add it to the context. 
+3. When you identify a relevant file, use store_relevant_file_to_modify or store_relevant_file_to_read to add it to the context.
 
 Repeat steps 1-3 until you are confident you have all necessary code to resolve the issue.
 
 4. Lastly, generate a detailed report explaining the issue and outlining a plan to resolve it. Write it for an outside contractor with no prior knowledge of the codebase or issue. Use the submit_report_and_plan tool for this.
 
 Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
-""" + anthropic_function_calls
+"""
+    + anthropic_function_calls
+)
 
 unformatted_user_prompt = """\
 ## Relevant Snippets
@@ -234,6 +237,7 @@ Here are the code files mentioned in the user request, these code files are very
 {query}"""
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
+
 
 @staticmethod
 def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
@@ -254,12 +258,14 @@ class RepoContextManager:
     read_only_snippets: list[Snippet] = field(default_factory=list)
     issue_report_and_plan: str = ""
     import_trees: str = ""
-    relevant_file_paths: list[str] = field(default_factory=list)  # a list of file paths that appear in the user query
+    relevant_file_paths: list[str] = field(
+        default_factory=list
+    )  # a list of file paths that appear in the user query
 
     @property
     def top_snippet_paths(self):
         return [snippet.file_path for snippet in self.current_top_snippets]
-    
+
     @property
     def relevant_read_only_snippet_paths(self):
         return [snippet.file_path for snippet in self.read_only_snippets]
@@ -294,7 +300,11 @@ class RepoContextManager:
 {import_trees}
 </import_trees>
 """
-        import_tree_prompt = import_tree_prompt.format(import_trees=self.import_trees) if self.import_trees else ""
+        import_tree_prompt = (
+            import_tree_prompt.format(import_trees=self.import_trees)
+            if self.import_trees
+            else ""
+        )
         user_prompt = unformatted_user_prompt.format(
             query=query,
             snippets_in_repo=snippets_in_repo_str,
@@ -330,7 +340,7 @@ class RepoContextManager:
         # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
-    
+
     def add_read_only_snippets(self, snippets_to_add: list[Snippet]):
         # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
@@ -351,7 +361,7 @@ class RepoContextManager:
 
     def set_relevant_paths(self, relevant_file_paths: list[str]):
         self.relevant_file_paths = relevant_file_paths
-    
+
     def update_issue_report_and_plan(self, new_issue_report_and_plan: str):
         self.issue_report_and_plan = new_issue_report_and_plan
 
@@ -438,7 +448,9 @@ def load_graph_from_file(filename):
 
 # add import trees for any relevant_file_paths (code files that appear in query)
 def build_import_trees(
-    rcm: RepoContextManager, import_graph: nx.DiGraph, override_import_graph: nx.DiGraph = None
+    rcm: RepoContextManager,
+    import_graph: nx.DiGraph,
+    override_import_graph: nx.DiGraph = None,
 ) -> tuple[RepoContextManager]:
     if import_graph is None and override_import_graph is None:
         return rcm
@@ -536,7 +548,7 @@ def get_relevant_context(
     repo_context_manager: RepoContextManager,
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger = None,
-    override_import_graph: nx.DiGraph = None, # optional override import graph
+    override_import_graph: nx.DiGraph = None,  # optional override import graph
     seed: int = None,
 ):
     logger.info("Seed: " + str(seed))
@@ -558,7 +570,11 @@ def get_relevant_context(
             query, repo_context_manager
         )
         # for any code file mentioned in the query, build its import tree - This is currently not used
-        repo_context_manager = build_import_trees(repo_context_manager, import_graph, override_import_graph=override_import_graph)
+        repo_context_manager = build_import_trees(
+            repo_context_manager,
+            import_graph,
+            override_import_graph=override_import_graph,
+        )
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         # add relevant files to dir_obj inside repo_context_manager, this is in case dir_obj is too large when as a string
@@ -577,7 +593,11 @@ def get_relevant_context(
         ]
         try:
             modify_context(
-                chat_gpt, user_prompt, repo_context_manager, ticket_progress, model=model
+                chat_gpt,
+                user_prompt,
+                repo_context_manager,
+                ticket_progress,
+                model=model,
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
@@ -591,6 +611,7 @@ def get_relevant_context(
     except Exception as e:
         logger.exception(e)
         return repo_context_manager
+
 
 def update_assistant_conversation(
     run: Run,
@@ -617,26 +638,46 @@ def update_assistant_conversation(
 
 CLAUDE_MODEL = "claude-3-haiku-20240307"
 
-def validate_and_parse_function_calls(function_calls_string: str, chat_gpt: ChatGPT) -> list[MockFunctionCall]:
-    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</function_call>") # add end tag
+
+def validate_and_parse_function_calls(
+    function_calls_string: str, chat_gpt: ChatGPT
+) -> list[MockFunctionCall]:
+    function_calls = MockFunctionCall.mock_function_calls_from_string(
+        function_calls_string.strip("\n") + "\n</function_call>"
+    )  # add end tag
     if len(function_calls) > 0:
-        chat_gpt.messages[-1].content = chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>" # add end tag to assistant message
+        chat_gpt.messages[-1].content = (
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
+        )  # add end tag to assistant message
         return function_calls
-    
+
     # try adding </invoke> tag as well
-    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</invoke>\n</function_call>")
+    function_calls = MockFunctionCall.mock_function_calls_from_string(
+        function_calls_string.strip("\n") + "\n</invoke>\n</function_call>"
+    )
     if len(function_calls) > 0:
         # update state of chat_gpt
-        chat_gpt.messages[-1].content = chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
+        chat_gpt.messages[-1].content = (
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
+        )
         return function_calls
     # try adding </parameters> tag as well
-    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</parameters>\n</invoke>\n</function_call>")
+    function_calls = MockFunctionCall.mock_function_calls_from_string(
+        function_calls_string.strip("\n")
+        + "\n</parameters>\n</invoke>\n</function_call>"
+    )
     if len(function_calls) > 0:
         # update state of chat_gpt
-        chat_gpt.messages[-1].content = chat_gpt.messages[-1].content.rstrip("\n") + "\n</parameters>\n</invoke>\n</function_call>"
+        chat_gpt.messages[-1].content = (
+            chat_gpt.messages[-1].content.rstrip("\n")
+            + "\n</parameters>\n</invoke>\n</function_call>"
+        )
     return function_calls
 
-def handle_function_call(repo_context_manager: RepoContextManager, function_call: MockFunctionCall):
+
+def handle_function_call(
+    repo_context_manager: RepoContextManager, function_call: MockFunctionCall
+):
     function_name = function_call.function_name
     function_input = function_call.function_parameters
     logger.info(f"Tool Call: {function_name} {function_input}")
@@ -645,17 +686,11 @@ def handle_function_call(repo_context_manager: RepoContextManager, function_call
     output_prefix = f"Output for {function_name}:\n"
     output = ""
     current_read_only_snippets_string = "\n".join(
-                    [
-                        snippet.denotation
-                        for snippet in repo_context_manager.read_only_snippets
-                    ]
-                )
+        [snippet.denotation for snippet in repo_context_manager.read_only_snippets]
+    )
     current_top_snippets_string = "\n".join(
-                    [
-                        snippet.denotation
-                        for snippet in repo_context_manager.current_top_snippets
-                    ]
-                )
+        [snippet.denotation for snippet in repo_context_manager.current_top_snippets]
+    )
     if function_name == "file_search":
         try:
             file_path = function_input.get("query")
@@ -677,36 +712,54 @@ def handle_function_call(repo_context_manager: RepoContextManager, function_call
             similar_file_paths = ""
             output = "FAILURE: This file path does not exist."
     elif function_name == "keyword_search":
-        keyword = f'"{function_input["keyword"]}"' # handles cases with two words
-        rg_command = ["rg", "-n", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
+        keyword = f'"{function_input["keyword"]}"'  # handles cases with two words
+        rg_command = [
+            "rg",
+            "-n",
+            "-i",
+            keyword,
+            repo_context_manager.cloned_repo.repo_dir,
+        ]
         try:
-            result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
+            result = subprocess.run(
+                " ".join(rg_command), text=True, shell=True, capture_output=True
+            )
             rg_output = result.stdout
             if rg_output:
                 # post process rip grep output to be more condensed
-                rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output)
+                rg_output_pretty = post_process_rg_output(
+                    repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
+                )
             else:
                 output = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
         except Exception as e:
-            logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
+            logger.error(
+                f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
+            )
             output = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
         else:
             output = (
                 f"SUCCESS: Here are the keyword_search results:\n\n{rg_output_pretty}"
             )
-            
+
     elif function_name == "view_file":
         try:
             file_contents = repo_context_manager.cloned_repo.get_file_contents(
                 file_path
             )
             valid_path = True
-            if file_path in current_read_only_snippets_string and file_path in current_top_snippets_string and valid_path:
+            if (
+                file_path in current_read_only_snippets_string
+                and file_path in current_top_snippets_string
+                and valid_path
+            ):
                 output = f"FAILURE: {file_path} is already in the selected snippets."
             elif valid_path:
                 output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_relevant_file_to_modify or store_relevant_file_to_read with the same parameters ({{"file_path": "{file_path}"}}).'
             else:
-                output = "FAILURE: This file path does not exist. Please try a new path."
+                output = (
+                    "FAILURE: This file path does not exist. Please try a new path."
+                )
         except Exception:
             file_contents = ""
             similar_file_paths = "\n".join(
@@ -784,7 +837,9 @@ def handle_function_call(repo_context_manager: RepoContextManager, function_call
                 content=file_contents,
             )
             if snippet.denotation in current_read_only_snippets_string:
-                output = f"FAILURE: {file_path} is already in the selected READ ONLY files."
+                output = (
+                    f"FAILURE: {file_path} is already in the selected READ ONLY files."
+                )
             else:
                 repo_context_manager.add_read_only_snippets([snippet])
                 current_read_only_snippets_string = "\n".join(
@@ -797,12 +852,10 @@ def handle_function_call(repo_context_manager: RepoContextManager, function_call
                     f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
                     if valid_path
                     else "FAILURE: This file path does not exist. Please try a new path."
-                )           
+                )
     elif function_name == "preview_file":
         try:
-            code = repo_context_manager.cloned_repo.get_file_contents(
-                file_path
-            )
+            code = repo_context_manager.cloned_repo.get_file_contents(file_path)
             valid_path = True
         except Exception:
             code = ""
@@ -819,20 +872,19 @@ def handle_function_call(repo_context_manager: RepoContextManager, function_call
             file_preview = CodeTree.from_code(code).get_preview()
             output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
     elif function_name == "submit_report_and_plan":
-
         if "report" not in function_input or "plan" not in function_input:
             output = "FAILURE: Please provide a report and a plan."
         else:
             issue_report = function_input["report"]
             issue_plan = function_input["plan"]
-            repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
+            repo_context_manager.update_issue_report_and_plan(
+                f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n"
+            )
             output = PLAN_SUBMITTED_MESSAGE
     else:
         output = f"FAILURE: Invalid tool name {function_name}"
     justification = (
-        function_input["justification"]
-        if "justification" in function_input
-        else ""
+        function_input["justification"] if "justification" in function_input else ""
     )
     logger.info(
         f"Tool Call: {function_name} {justification} Valid Tool Call: {valid_path}"
@@ -840,10 +892,64 @@ def handle_function_call(repo_context_manager: RepoContextManager, function_call
     return output_prefix + output
 
 
+def modify_context(
+    chat_gpt: ChatGPT,
+    user_prompt: str,
+    repo_context_manager: RepoContextManager,
+    ticket_progress: TicketProgress,
+    model: str = "gpt-4-0125-preview",
+) -> bool | None:
+    max_iterations = 40
+    repo_context_manager.current_top_snippets = []
+    bad_call_count = 0
+    # initial function call
+    function_calls_string = chat_gpt.chat_anthropic(
+        content=user_prompt,
+        stop_sequences=["</function_call>"],
+        model=CLAUDE_MODEL,
+        message_key="user_request",
+    )
+    for _ in range(max_iterations):
+        function_outputs = []
+        function_calls = validate_and_parse_function_calls(
+            function_calls_string, chat_gpt
+        )
+        for function_call in function_calls:
+            function_output = handle_function_call(repo_context_manager, function_call)
+            if PLAN_SUBMITTED_MESSAGE in function_output:
+                return
+            function_outputs.append(function_output)
+        if len(function_calls) == 0:
+            function_outputs.append(
+                "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n"
+                + "<function_call>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</function_calls>"
+            )
+            bad_call_count += 1
+            if bad_call_count >= 3:
+                return
+        function_calls_string = chat_gpt.chat_anthropic(
+            content="\n\n".join(function_outputs),
+            model=CLAUDE_MODEL,
+            stop_sequences=["</function_call>"],
+        )
+        # if there is a message with a non-null key that's not saved, we can delete both it and it's preceding message
+    else:
+        logger.warning(
+            f"Context pruning iteration taking too long. Stopping after {max_iterations} iterations."
+        )
+    logger.info(
+        f"Context Management End:\ncurrent snippets to modify: {repo_context_manager.top_snippet_paths}\n current read only snippets: {repo_context_manager.relevant_read_only_snippet_paths}"
+    )
+    repo_context_manager.current_top_snippets = [
+        snippet
+        for snippet in repo_context_manager.current_top_snippets
+        if snippet.file_path != "sweep.yaml"
+    ]
+    return
 
 
 if __name__ == "__main__":
-    function_calls_string = '''
+    function_calls_string = """
 Example function call:
 <function_call>
 <invoke>
@@ -861,22 +967,26 @@ Another function call:
 </parameters>
 </invoke>
 </function_call>
-'''
-    function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string)
+"""
+    function_calls = MockFunctionCall.mock_function_calls_from_string(
+        function_calls_string
+    )
     assert len(function_calls) == 2
     assert function_calls[0].function_name == "ExampleTool"
-    assert function_calls[0].function_parameters == {"$PARAM1": "value1", "$PARAM2": "value2"}
+    assert function_calls[0].function_parameters == {
+        "$PARAM1": "value1",
+        "$PARAM2": "value2",
+    }
     try:
         import os
 
-        from sweepai.utils.ticket_utils import prep_snippets
         from sweepai.utils.github_utils import get_installation_id
+        from sweepai.utils.ticket_utils import prep_snippets
+
         organization_name = "sweepai"
         installation_id = get_installation_id(organization_name)
         cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-        query = (
-            "allow sweep.yaml to be read from the user/organization's .github repository. this is found in client.py and we need to change this to optionally read from .github/sweep.yaml if it exists there"
-        )
+        query = "allow sweep.yaml to be read from the user/organization's .github repository. this is found in client.py and we need to change this to optionally read from .github/sweep.yaml if it exists there"
         # golden response is
         # sweepai/handlers/create_pr.py:401-428
         # sweepai/config/client.py:178-282
