@@ -15,7 +15,7 @@ from typing import Any
 
 import git
 import requests
-from github import Github, PullRequest
+from github import Github, PullRequest, Repository, InputGitTreeElement
 from jwt import encode
 from loguru import logger
 
@@ -116,6 +116,29 @@ def get_installation_id(username: str) -> str:
             logger.error(e)
             logger.error(response.text)
         raise Exception("Could not get installation id, probably not installed")
+
+# commits multiple files in a single commit, returns the commit object
+def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
+    blobs_to_commit = []
+    # convert to blob
+    for path, content in file_changes.items():
+        blob = repo.create_git_blob(content, "utf-8")
+        blobs_to_commit.append(InputGitTreeElement(path=path, mode="100644", type="blob", sha=blob.sha))
+    latest_commit = repo.get_branch(branch).commit
+    base_tree = latest_commit.commit.tree
+    # create new git tree
+    new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
+    # commit the changes
+    parent = repo.get_git_commit(latest_commit.sha)
+    commit = repo.create_git_commit(
+        commit_message,
+        new_tree,
+        [parent],
+    )
+    # update ref of branch
+    ref = f"heads/{branch}"
+    repo.get_git_ref(ref).edit(sha=commit.sha)
+    return commit
 
 
 REPO_CACHE_BASE_DIR = "/tmp/cache/repos"

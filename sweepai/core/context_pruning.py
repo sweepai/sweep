@@ -1,3 +1,4 @@
+
 import json
 import os
 import re
@@ -8,7 +9,7 @@ import urllib
 
 import networkx as nx
 import openai
-from attr import dataclass
+from dataclasses import dataclass, field
 from loguru import logger
 from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
@@ -226,13 +227,13 @@ class RepoContextManager:
     snippets: list[Snippet]
     snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
-    current_top_snippets: list[Snippet] = []
-    read_only_snippets: list[Snippet] = []
+    current_top_snippets: list[Snippet] = field(default_factory=list)
+    read_only_snippets: list[Snippet] = field(default_factory=list)
     issue_report_and_plan: str = ""
     import_trees: str = ""
     relevant_file_paths: list[
         str
-    ] = []  # a list of file paths that appear in the user query
+    ] = field(default_factory=list) # a list of file paths that appear in the user query
 
     @property
     def top_snippet_paths(self):
@@ -241,17 +242,6 @@ class RepoContextManager:
     @property
     def relevant_read_only_snippet_paths(self):
         return [snippet.file_path for snippet in self.read_only_snippets]
-
-    def remove_all_non_kept_paths(self, paths_to_keep: list[str]):
-        self.current_top_snippets = [
-            snippet
-            for snippet in self.current_top_snippets
-            if any(
-                snippet.file_path.startswith(path_to_keep)
-                for path_to_keep in paths_to_keep
-            )
-        ]
-        self.dir_obj.remove_all_not_included(paths_to_keep)
 
     def expand_all_directories(self, directories_to_expand: list[str]):
         self.dir_obj.expand_directory(directories_to_expand)

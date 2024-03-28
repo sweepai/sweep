@@ -259,11 +259,12 @@ class ModifyBot:
         seed: str | None = None,
         relevant_filepaths: list[str] = [],
         fcrs: list[FileChangeRequest]=[],
+        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
-        new_file = function_modify(
+        new_files = function_modify(
             request=file_change_request.instructions,
             file_path=file_path,
-            file_contents=file_contents,
+            contents_of_file=file_contents,
             cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
@@ -273,8 +274,9 @@ class ModifyBot:
             relevant_filepaths=relevant_filepaths,
             fcrs=fcrs,
             cwd=cloned_repo.repo_dir,
+            previous_modify_files_dict=previous_modify_files_dict,
         )
-        if new_file is not None:
+        if new_files:
             posthog.capture(
                 (
                     self.chat_logger.data["username"]
@@ -288,9 +290,10 @@ class ModifyBot:
                     "repo_full_name": cloned_repo.repo_full_name,
                 },
             )
-            return add_auto_imports(
-                file_path, cloned_repo.repo_dir, new_file, run_isort=False
-            )
+            # new_file is now a dictionary
+            for file_path, new_file_data in new_files.items():
+                new_file_data["contents"] = add_auto_imports(file_path, cloned_repo.repo_dir, new_file_data["contents"], run_isort=False)
+            return new_files
         posthog.capture(
             (
                 self.chat_logger.data["username"]
@@ -645,6 +648,8 @@ class ModifyBot:
         return result, _
 
 
+
+
 if __name__ == "__main__":
     try: 
         from sweepai.utils.github_utils import get_installation_id, ClonedRepo
@@ -665,7 +670,7 @@ add an import math statement at the top of the api.py file""",
         modify_bot = ModifyBot(
             additional_messages=additional_messages
         )
-        new_file = modify_bot.try_update_file(
+        new_files = modify_bot.try_update_file(
             "sweepai/api.py",
             open(cloned_repo.repo_dir + '/' + 'sweepai/api.py').read(),
             FileChangeRequest(
@@ -675,6 +680,7 @@ add an import math statement at the top of the api.py file""",
             ),
             cloned_repo,
         )
+        new_file = new_files["sweepai/api.py"]["contents"]
         assert("import math" in new_file)
         response = """
 ```python
