@@ -729,10 +729,11 @@ class SweepBot(CodeGenBot, GithubBot):
                             previous_modify_files_dict=previous_modify_files_dict,
                         )
                         # update previous_modify_files_dict
-                        if previous_modify_files_dict is None:
+                        if not previous_modify_files_dict:
                             previous_modify_files_dict = {}
-                        for key, value in new_file_contents.items():
-                            previous_modify_files_dict[key] = value
+                        if new_file_contents:
+                            for key, value in new_file_contents.items():
+                                previous_modify_files_dict[key] = value
                         file_change_requests[i].status = "succeeded"
                         file_change_requests[i].commit_hash_url = commit.html_url
                         if i + 1 < len(file_change_requests):
@@ -788,10 +789,11 @@ class SweepBot(CodeGenBot, GithubBot):
                             previous_modify_files_dict=previous_modify_files_dict,
                         )
                         # update previous_modify_files_dict
-                        if previous_modify_files_dict is None:
+                        if not previous_modify_files_dict:
                             previous_modify_files_dict = {}
-                        for key, value in new_file_contents.items():
-                            previous_modify_files_dict[key] = value
+                        if new_file_contents:
+                            for key, value in new_file_contents.items():
+                                previous_modify_files_dict[key] = value
                         file_change_requests[i].status = (
                             "succeeded" if changed_file else "failed"
                         )
