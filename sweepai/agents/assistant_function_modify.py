@@ -135,7 +135,7 @@ To call this tool you MUST respond in the following xml format:
 Provide justification for why you need additional context
 </Justification>
 <Keyword>
-keyword to search for in order to get more additional context. This will search the entire codebase for this keyword, ONLY SEARCH FOR ONE KEYWORD AT A TIME
+keyword to search for in order to get more additional context. This is case insensitive This will search the entire codebase for this keyword, ONLY SEARCH FOR ONE KEYWORD AT A TIME
 </Keyword>
 </GetAdditionalContext>
 
@@ -983,7 +983,7 @@ def function_modify(
                             cloned_repo.update_file(file_name, file_data["original_contents"])
                         
                     try:
-                        result = subprocess.run(rg_command, text=True, capture_output=True)
+                        result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
                         output = result.stdout
                         if output:
                             # post process rip grep output to be more condensed
