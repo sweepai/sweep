@@ -5,7 +5,7 @@ from loguru import logger
 
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Snippet
+from sweepai.core.entities import Message, Snippet
 from sweepai.logn.cache import file_cache
 
 # use this later
