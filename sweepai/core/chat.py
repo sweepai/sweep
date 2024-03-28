@@ -16,6 +16,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -48,7 +49,7 @@ model_to_max_tokens = {
     "anthropic.claude-3-sonnet-20240229-v1:0": 200000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
-    "claude-3-haiku-20240229": 200000,
+    "claude-3-haiku-20240307": 200000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 default_temperature = 0.1
@@ -314,19 +315,21 @@ class ChatGPT(MessageList):
         logger.info(f"Output to call openai:\n{result}")
         return result
     
+    @file_cache()
     def chat_anthropic(
         self,
         content: str,
         model: ChatModel = "claude-3-haiku-20240307",
         message_key: str | None = None,
         temperature: float | None = None,
+        stop_sequences: list[str] = [],
         max_tokens: int = 4096,
     ):
         assert ANTHROPIC_API_KEY
         self.messages.append(Message(role="user", content=content, key=message_key))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
-        logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:{content}")
+        logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         with Anthropic(
             api_key=ANTHROPIC_API_KEY
@@ -344,9 +347,11 @@ class ChatGPT(MessageList):
                             "content": message.content,
                         } for message in self.messages if message.role != "system"],
                         system=system_message,
+                        stop_sequences=stop_sequences,
                     ).content[0].text
                     break
                 except Exception as e_:
+                    breakpoint()
                     logger.exception(e_)
                     e = e_
                     time.sleep(5 * 2 ** i)
