@@ -653,7 +653,7 @@ def modify_context(
         content=user_prompt,
         stop_sequences=["</function_call>"],
         model = CLAUDE_MODEL,
-        key="user_request",
+        message_key="user_request",
     )
     current_top_snippets_string = ""
     current_read_only_snippets_string = ""
