@@ -7,15 +7,41 @@ anyio==4.3.0
     # via
     #   anthropic
     #   httpx
+    #   jupyter-server
     #   openai
     #   starlette
+argon2-cffi==23.1.0
+    # via jupyter-server
+argon2-cffi-bindings==21.2.0
+    # via argon2-cffi
+arrow==1.3.0
+    # via isoduration
 astroid==3.1.0
     # via pylint
+asttokens==2.4.1
+    # via stack-data
+async-lru==2.0.4
+    # via jupyterlab
 async-timeout==4.0.3
     # via redis
 attrs==23.2.0
+    # via
+    #   cattrs
+    #   jsonschema
+    #   referencing
+babel==2.14.0
+    # via jupyterlab-server
 backoff==2.2.1
 beautifulsoup4==4.12.3
+    # via nbconvert
+bleach==6.1.0
+    # via nbconvert
+build==1.2.1
+    # via poetry
+cachecontrol==0.14.0
+    # via poetry
+cattrs==23.2.3
+    # via parea-ai
 certifi==2024.2.2
     # via
     #   httpcore
@@ -23,33 +49,71 @@ certifi==2024.2.2
     #   requests
 cffi==1.16.0
     # via
+    #   argon2-cffi-bindings
     #   cryptography
     #   pynacl
 charset-normalizer==3.3.2
     # via requests
+cleo==2.1.0
+    # via poetry
 click==8.1.7
     # via
     #   typer
     #   uvicorn
+comm==0.2.2
+    # via
+    #   ipykernel
+    #   ipywidgets
+contextvars==2.4
+    # via parea-ai
+crashtest==0.4.1
+    # via
+    #   cleo
+    #   poetry
 cryptography==42.0.5
-    # via pyjwt
+    # via
+    #   pyjwt
+    #   secretstorage
+debugpy==1.8.1
+    # via ipykernel
+decorator==5.1.1
+    # via ipython
+defusedxml==0.7.1
+    # via nbconvert
 deprecated==1.2.14
     # via pygithub
 dill==0.3.8
     # via pylint
+distlib==0.3.8
+    # via virtualenv
 distro==1.9.0
     # via
     #   anthropic
     #   openai
 dnspython==2.6.1
     # via pymongo
+dulwich==0.21.7
+    # via poetry
 exceptiongroup==1.2.0
     # via
     #   anyio
+    #   cattrs
+    #   ipython
     #   pytest
+executing==2.0.1
+    # via stack-data
 fastapi==0.110.0
+fastjsonschema==2.19.1
+    # via
+    #   nbformat
+    #   poetry
 filelock==3.13.3
-    # via huggingface-hub
+    # via
+    #   cachecontrol
+    #   huggingface-hub
+    #   virtualenv
+fqdn==1.5.1
+    # via jsonschema
 fsspec==2024.3.1
     # via huggingface-hub
 gitdb==4.0.11
@@ -71,20 +135,117 @@ httpcore==1.0.4
 httpx==0.26.0
     # via
     #   anthropic
+    #   jupyterlab
     #   openai
+    #   parea-ai
 huggingface-hub==0.22.0
     # via tokenizers
 idna==3.6
     # via
     #   anyio
     #   httpx
+    #   jsonschema
     #   requests
+immutables==0.20
+    # via contextvars
+importlib-metadata==7.1.0
+    # via keyring
 importmagic==0.1.7
 iniconfig==2.0.0
     # via pytest
+installer==0.7.0
+    # via poetry
+ipykernel==6.29.4
+    # via
+    #   jupyter
+    #   jupyter-console
+    #   jupyterlab
+    #   qtconsole
+ipython==8.22.2
+    # via
+    #   ipykernel
+    #   ipywidgets
+    #   jupyter-console
+ipywidgets==8.1.2
+    # via jupyter
+isoduration==20.11.0
+    # via jsonschema
 isort==5.13.2
     # via pylint
+jaraco-classes==3.3.1
+    # via keyring
+jedi==0.19.1
+    # via ipython
+jeepney==0.8.0
+    # via
+    #   keyring
+    #   secretstorage
 jinja2==3.1.3
+    # via
+    #   jupyter-server
+    #   jupyterlab
+    #   jupyterlab-server
+    #   nbconvert
+json5==0.9.24
+    # via jupyterlab-server
+jsonpointer==2.4
+    # via jsonschema
+jsonschema==4.21.1
+    # via
+    #   jupyter-events
+    #   jupyterlab-server
+    #   nbformat
+jsonschema-specifications==2023.12.1
+    # via jsonschema
+jupyter==1.0.0
+    # via parea-ai
+jupyter-client==8.6.1
+    # via
+    #   ipykernel
+    #   jupyter-console
+    #   jupyter-server
+    #   nbclient
+    #   qtconsole
+jupyter-console==6.6.3
+    # via jupyter
+jupyter-core==5.7.2
+    # via
+    #   ipykernel
+    #   jupyter-client
+    #   jupyter-console
+    #   jupyter-server
+    #   jupyterlab
+    #   nbclient
+    #   nbconvert
+    #   nbformat
+    #   qtconsole
+jupyter-events==0.10.0
+    # via jupyter-server
+jupyter-lsp==2.2.4
+    # via jupyterlab
+jupyter-server==2.13.0
+    # via
+    #   jupyter-lsp
+    #   jupyterlab
+    #   jupyterlab-server
+    #   notebook
+    #   notebook-shim
+jupyter-server-terminals==0.5.3
+    # via jupyter-server
+jupyterlab==4.1.5
+    # via notebook
+jupyterlab-pygments==0.3.0
+    # via nbconvert
+jupyterlab-server==2.25.4
+    # via
+    #   jupyterlab
+    #   notebook
+jupyterlab-widgets==3.0.10
+    # via ipywidgets
+keyring==24.3.1
+    # via poetry
+levenshtein==0.25.0
+    # via parea-ai
 logtail==1.0.1
 loguru==0.7.2
     # via hatchet-sdk
@@ -92,32 +253,115 @@ markdown==3.5.2
 markdown-it-py==3.0.0
     # via rich
 markupsafe==2.1.5
-    # via jinja2
+    # via
+    #   jinja2
+    #   nbconvert
+matplotlib-inline==0.1.6
+    # via
+    #   ipykernel
+    #   ipython
 mccabe==0.7.0
     # via pylint
 mdurl==0.1.2
     # via markdown-it-py
+mistune==3.0.2
+    # via nbconvert
+more-itertools==10.2.0
+    # via jaraco-classes
+msgpack==1.0.8
+    # via cachecontrol
+nbclient==0.10.0
+    # via nbconvert
+nbconvert==7.16.3
+    # via
+    #   jupyter
+    #   jupyter-server
+nbformat==5.10.3
+    # via
+    #   jupyter-server
+    #   nbclient
+    #   nbconvert
+nest-asyncio==1.6.0
+    # via ipykernel
 networkx==3.2.1
+notebook==7.1.2
+    # via jupyter
+notebook-shim==0.2.4
+    # via
+    #   jupyterlab
+    #   notebook
 numpy==1.26.4
 openai==1.13.3
+    # via parea-ai
+overrides==7.7.0
+    # via jupyter-server
 packaging==24.0
     # via
+    #   build
     #   huggingface-hub
+    #   ipykernel
+    #   jupyter-server
+    #   jupyterlab
+    #   jupyterlab-server
+    #   nbconvert
+    #   poetry
     #   pytest
+    #   qtconsole
+    #   qtpy
+pandocfilters==1.5.1
+    # via nbconvert
+parea-ai==0.2.114
+parso==0.8.3
+    # via jedi
 pathspec==0.12.1
     # via yamllint
+pexpect==4.9.0
+    # via
+    #   ipython
+    #   poetry
+pkginfo==1.10.0
+    # via poetry
 platformdirs==4.2.0
-    # via pylint
+    # via
+    #   jupyter-core
+    #   poetry
+    #   pylint
+    #   virtualenv
 pluggy==1.4.0
     # via pytest
+poetry==1.8.2
+    # via
+    #   poetry-plugin-dotenv
+    #   poetry-plugin-export
+poetry-core==1.9.0
+    # via
+    #   poetry
+    #   poetry-plugin-export
+poetry-plugin-dotenv==0.6.28
+    # via parea-ai
+poetry-plugin-export==1.7.1
+    # via poetry
 prometheus-client==0.20.0
-    # via prometheus-fastapi-instrumentator
+    # via
+    #   jupyter-server
+    #   prometheus-fastapi-instrumentator
 prometheus-fastapi-instrumentator==7.0.0
+prompt-toolkit==3.0.43
+    # via
+    #   ipython
+    #   jupyter-console
 protobuf==4.25.3
     # via
     #   grpcio-tools
     #   hatchet-sdk
 psutil==5.9.8
+    # via ipykernel
+ptyprocess==0.7.0
+    # via
+    #   pexpect
+    #   terminado
+pure-eval==0.2.2
+    # via stack-data
 pycparser==2.21
     # via cffi
 pydantic==2.6.3
@@ -131,41 +375,112 @@ pydantic-core==2.16.3
 pyflakes==3.2.0
 pygithub==2.2.0
 pygments==2.17.2
-    # via rich
+    # via
+    #   ipython
+    #   jupyter-console
+    #   nbconvert
+    #   qtconsole
+    #   rich
 pyjwt==2.8.0
     # via pygithub
 pylint==3.1.0
 pymongo==4.6.2
 pynacl==1.5.0
     # via pygithub
+pyproject-hooks==1.0.0
+    # via
+    #   build
+    #   poetry
+pysbd==0.3.4
+    # via parea-ai
 pytest==8.1.1
 python-dateutil==2.9.0.post0
-    # via hatchet-sdk
+    # via
+    #   arrow
+    #   hatchet-sdk
+    #   jupyter-client
 python-dotenv==1.0.1
-    # via hatchet-sdk
+    # via
+    #   hatchet-sdk
+    #   parea-ai
+python-json-logger==2.0.7
+    # via jupyter-events
+pytz==2024.1
+    # via parea-ai
+pyupgrade==3.15.2
+    # via parea-ai
 pyyaml==6.0.1
     # via
     #   hatchet-sdk
     #   huggingface-hub
+    #   jupyter-events
     #   yamllint
+pyzmq==25.1.2
+    # via
+    #   ipykernel
+    #   jupyter-client
+    #   jupyter-console
+    #   jupyter-server
+    #   qtconsole
+qtconsole==5.5.1
+    # via jupyter
+qtpy==2.4.1
+    # via qtconsole
 rapidfuzz==3.6.2
+    # via
+    #   cleo
+    #   levenshtein
 redis==5.0.3
+    # via parea-ai
+referencing==0.34.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
+    #   jupyter-events
 regex==2023.12.25
     # via tiktoken
 requests==2.31.0
     # via
+    #   cachecontrol
     #   huggingface-hub
+    #   jupyterlab-server
+    #   poetry
     #   pygithub
+    #   requests-toolbelt
     #   resend
     #   tiktoken
+requests-toolbelt==1.0.0
+    # via poetry
 resend==0.8.0
+rfc3339-validator==0.1.4
+    # via
+    #   jsonschema
+    #   jupyter-events
+rfc3986-validator==0.1.1
+    # via
+    #   jsonschema
+    #   jupyter-events
 rich==13.7.1
+rpds-py==0.18.0
+    # via
+    #   jsonschema
+    #   referencing
+secretstorage==3.3.3
+    # via keyring
+send2trash==1.8.2
+    # via jupyter-server
 setuptools==69.1.1
     # via
     #   grpcio-tools
     #   importmagic
+shellingham==1.5.4
+    # via poetry
 six==1.16.0
-    # via python-dateutil
+    # via
+    #   asttokens
+    #   bleach
+    #   python-dateutil
+    #   rfc3339-validator
 smmap==5.0.1
     # via gitdb
 sniffio==1.3.1
@@ -176,33 +491,81 @@ sniffio==1.3.1
     #   openai
 soupsieve==2.5
     # via beautifulsoup4
+stack-data==0.6.3
+    # via ipython
 starlette==0.36.3
     # via
     #   fastapi
     #   prometheus-fastapi-instrumentator
 tabulate==0.9.0
+terminado==0.18.1
+    # via
+    #   jupyter-server
+    #   jupyter-server-terminals
 tiktoken==0.6.0
+    # via parea-ai
+tinycss2==1.2.1
+    # via nbconvert
+tokenize-rt==5.2.0
+    # via pyupgrade
 tokenizers==0.15.2
     # via anthropic
 tomli==2.0.1
     # via
+    #   build
+    #   jupyterlab
+    #   poetry
     #   pylint
+    #   pyproject-hooks
     #   pytest
 tomlkit==0.12.3
-    # via pylint
+    # via
+    #   poetry
+    #   pylint
+tornado==6.4
+    # via
+    #   ipykernel
+    #   jupyter-client
+    #   jupyter-server
+    #   jupyterlab
+    #   notebook
+    #   terminado
 tqdm==4.66.2
     # via
     #   huggingface-hub
     #   openai
+traitlets==5.14.2
+    # via
+    #   comm
+    #   ipykernel
+    #   ipython
+    #   ipywidgets
+    #   jupyter-client
+    #   jupyter-console
+    #   jupyter-core
+    #   jupyter-events
+    #   jupyter-server
+    #   jupyterlab
+    #   matplotlib-inline
+    #   nbclient
+    #   nbconvert
+    #   nbformat
+    #   qtconsole
 tree-sitter==0.21.0
     # via tree-sitter-languages
 tree-sitter-languages==1.10.2
+trove-classifiers==2024.3.25
+    # via poetry
 typer==0.10.0
+types-python-dateutil==2.9.0.20240316
+    # via arrow
 typing-extensions==4.10.0
     # via
     #   anthropic
     #   anyio
     #   astroid
+    #   async-lru
+    #   cattrs
     #   fastapi
     #   huggingface-hub
     #   openai
@@ -211,12 +574,31 @@ typing-extensions==4.10.0
     #   pygithub
     #   typer
     #   uvicorn
+uri-template==1.3.0
+    # via jsonschema
 urllib3==2.2.1
     # via
+    #   dulwich
     #   hatchet-sdk
     #   pygithub
     #   requests
 uvicorn==0.29.0
+virtualenv==20.25.1
+    # via poetry
+wcwidth==0.2.13
+    # via prompt-toolkit
+webcolors==1.13
+    # via jsonschema
+webencodings==0.5.1
+    # via
+    #   bleach
+    #   tinycss2
+websocket-client==1.7.0
+    # via jupyter-server
+widgetsnbextension==4.0.10
+    # via ipywidgets
 wrapt==1.16.0
     # via deprecated
 yamllint==1.35.1
+zipp==3.18.1
+    # via importlib-metadata
