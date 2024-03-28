@@ -261,7 +261,7 @@ class ModifyBot:
         fcrs: list[FileChangeRequest]=[],
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
-        new_file = function_modify(
+        new_files = function_modify(
             request=file_change_request.instructions,
             file_path=file_path,
             contents_of_file=file_contents,
@@ -276,7 +276,7 @@ class ModifyBot:
             cwd=cloned_repo.repo_dir,
             previous_modify_files_dict=previous_modify_files_dict,
         )
-        if new_file is not None:
+        if new_files:
             posthog.capture(
                 (
                     self.chat_logger.data["username"]
@@ -291,9 +291,9 @@ class ModifyBot:
                 },
             )
             # new_file is now a dictionary
-            for file_path, new_file_data in new_file.items():
+            for file_path, new_file_data in new_files.items():
                 new_file_data["contents"] = add_auto_imports(file_path, cloned_repo.repo_dir, new_file_data["contents"], run_isort=False)
-            return new_file
+            return new_files
         posthog.capture(
             (
                 self.chat_logger.data["username"]

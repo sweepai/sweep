@@ -44,8 +44,15 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
 # try and find code inside chunk given various levels of indentation, and right strip the lines of code
 # if successful returns the num of spaces required to find the code match
 def manual_code_check(chunk: str, code: str) -> int:
-    code_lines = [line.rstrip() for line in code.split("\n")]
+    code_lines = [line for line in code.split("\n")]
     # assume one indent is two spaces and check max 10 indents
+    for indent in range(0, 40, 2):
+        new_code_lines = [f"{' ' * indent}{line}" for line in code_lines]
+        new_code = "\n".join(new_code_lines)
+        if new_code in chunk:
+            return indent
+    # sometimes llm returns code with trailing whitespace, if we have reached here check again but strip all trailing whitespace
+    code_lines = [line.rstrip() for line in code.split("\n")]
     for indent in range(0, 40, 2):
         new_code_lines = [f"{' ' * indent}{line}" for line in code_lines]
         new_code = "\n".join(new_code_lines)
