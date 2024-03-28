@@ -17,11 +17,14 @@ from sweepai.logn.cache import file_cache
 
 # this is roughly 66% of it's optimal performance - it's worth optimizing more in the future
 
-reranking_prompt = """You are a powerful code search engine. You must order the list of code snippets from most relevant to least relevant to the user's query.
+reranking_system_prompt = """You are a powerful code search engine. You must order the list of code snippets from most relevant to least relevant for resolving the user's query, which is part of a GitHub issue.
 
 The most relevant code snippets are the ones we need to edit to resolve the user's issue. The next most relevant snippets are the ones that are crucial to read to make valid code changes to correctly resolve the user's issue.
 
 Respond in the following format:
+<analysis>
+Analyze the user's request to determine which modules must be edited to resolve the GitHub Issue. Then determine all modules that must be read or used to resolve the user's request, such as crucial helper functions or backend services.
+</analysis>
 <ranking>
 most_relevant_file_path:start_line-end_line
 second_most_relevant_file_path:start_line-end_line
@@ -33,7 +36,7 @@ Here is an example:
 <example>
 <example_input>
 <user_query>
-I want to add two numbers in my Flask app.
+Correct the Flask app's add endpoint to use add instead of multiply.
 </user_query>
 <code_snippets>
 <code_snippet>
@@ -86,7 +89,9 @@ if __name__ == '__main__':
 </example_input>
 
 <example_output>
-We would like to make the change in the Flask app, which is in app.py. We must use the helper function, which is crucial for us to read when we make edits to app.py. This function is defined in utils/add.py, so it must also be relevant.
+<analysis>
+We need to make the change in the Flask app, which is in app.py. We must use the helper function add, which is defined in utils/add.py, so it must also be relevant.
+</analysis>
 
 <ranking>
 app.py:0-12
@@ -94,8 +99,9 @@ utils/add.py:0-1
 utils/subtract.py:0-1
 </ranking>
 </example_output>
-</example>
+</example>"""
 
+reranking_user_prompt = """
 This is the user's query: 
 
 <user_query>
@@ -116,6 +122,10 @@ As a reminder the user query is:
 </user_query>
 
 And the response format is:
+<analysis>
+Analyze the user's request to determine which modules must be edited to resolve the GitHub Issue. Then determine all modules that must be read or used to resolve the user's request, such as crucial helper functions or backend services.
+</analysis>
+
 <ranking>
 most_relevant_file_path:start_line-end_line
 second_most_relevant_file_path:start_line-end_line
@@ -133,7 +143,10 @@ class RerankSnippetsBot(ChatGPT):
         code_snippets,
     ):
         self.model = DEFAULT_GPT4_32K_MODEL
-        self.messages = []
+        self.messages = [Message(
+            role="system",
+            content=reranking_system_prompt
+        )]
         # if the regex match fails return the original list
         # gpt doesn't add all snippets, we move all of the dropped snippets to the end in the original order
         # if we add duplicate snippets, we remove the duplicates
@@ -141,7 +154,7 @@ class RerankSnippetsBot(ChatGPT):
         formatted_code_snippets = self.format_code_snippets(code_snippets)
         try:
             ranking_response = self.chat_anthropic(
-                content=reranking_prompt.format(
+                content=reranking_user_prompt.format(
                     user_query=user_query,
                     formatted_code_snippets=formatted_code_snippets,
                 ),
@@ -149,7 +162,7 @@ class RerankSnippetsBot(ChatGPT):
         except Exception as e:
             logger.error(e)
             ranking_response = self.chat(
-                content=reranking_prompt.format(
+                content=reranking_user_prompt.format(
                     user_query=user_query,
                     formatted_code_snippets=formatted_code_snippets,
                 ),
