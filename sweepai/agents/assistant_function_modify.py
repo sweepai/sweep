@@ -621,7 +621,7 @@ def build_keyword_search_match_results(
         if not readonly:
             success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
         else:
-            success_message += f"<readonly_section>{num_matches_message}\n{match_display}\n</readonly_section>\n"
+            success_message += f"<readonly_section id='{int_to_excel_col(match_index + 1)}>{num_matches_message}\n{match_display}\n</readonly_section>\n"
     return success_message
 
 
@@ -720,38 +720,31 @@ def function_modify(
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        code_sections = []  # TODO: do this for the new sections after modifications
-        current_code_section = ""
-        for i, chunk in enumerate(modify_files_dict[file_path]["chunks"]):
-            idx = int_to_excel_col(i + 1)
-            section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-            if len(current_code_section) + len(section_display) > MAX_CHARS - 1000:
-                code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
-                code_sections.append(code_sections_string)
-                current_code_section = section_display
-            else:
-                current_code_section += "\n" + section_display
-        current_code_section = current_code_section.strip("\n")
-        code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
+        chunked_file_contents = "\n".join(
+            [
+                f'<section id="{int_to_excel_col(i + 1)}">\n{chunk}\n</section id="{int_to_excel_col(i + 1)}>'
+                for i, chunk in enumerate(modify_files_dict[file_path]["chunks"])
+            ]
+        )
+        current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
         fcrs_message = generate_status_message(file_path, fcrs)
         relevant_file_paths_string = ", ". join(relevant_filepaths) 
-        additional_messages = [
+        new_additional_messages = [
             Message(
                 role="user",
                 content=f"# Request\n{request}\n\n{fcrs_message}",
             ),
-            *reversed([
-                Message(
-                    role="user",
-                    content=code_section,
-                )
-                for code_section in code_sections
-            ]),
             Message(
                 role="user",
+                content=current_file_to_modify_contents,
+            ),
+        ]
+        if relevant_file_paths_string:
+            new_additional_messages.append(Message(
+                role="user",
                 content=f'You should view the following relevant files: {relevant_file_paths_string}'
-            )
-        ] + additional_messages
+            ))
+        additional_messages = new_additional_messages + additional_messages
         # add any already made changes to the additional_messages
         for file_path, file_data in modify_files_dict.items():
             diff = generate_diff(file_data["original_contents"], file_data["contents"])
