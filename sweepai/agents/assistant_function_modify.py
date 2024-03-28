@@ -25,23 +25,9 @@ from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
 
-instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
-You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
-You NEVER leave comments describing code without implementing it!
-Your job is to make edits to the file to complete the user "# Request".
-# Instructions
-1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes.
-3. Use the search_and_replace function to make the changes.
-    - Keep whitespace and comments.
-    - Make the minimum necessary search_and_replaces to make changes to the snippets.
-    - Write multiple small changes instead of a single large change.
-When you have completed the task, call the submit function.
-"""
-
 # Add COT to each tool
 
-new_instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
+instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
@@ -153,8 +139,7 @@ Provide justification for why you need additional context
 keyword to search for in order to get more additional context. This will search the entire codebase for this keyword, ONLY SEARCH FOR ONE KEYWORD AT A TIME
 </Keyword>
 </GetAdditionalContext>
-"""
-few_shot = """
+
 Here is an example:
 user:
 # Request
@@ -559,9 +544,6 @@ A new parameter 'truncate_output' has been added to the function post_process_rg
 
 End of example.
 """
-
-if not USE_ASSISTANT:
-    instructions = new_instructions + few_shot
 
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
 # - Make one change at a time.
