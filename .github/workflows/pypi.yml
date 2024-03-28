@@ -75,6 +75,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
+          sleep 15
           export version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
           export commit_hash=$(git rev-parse --short HEAD)
           export commit_hash_mod=$(printf "%d" 0x${commit_hash: -4})

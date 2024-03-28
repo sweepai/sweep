@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import urllib
@@ -243,9 +244,7 @@ class RepoContextManager:
     read_only_snippets: list[Snippet] = field(default_factory=list)
     issue_report_and_plan: str = ""
     import_trees: str = ""
-    relevant_file_paths: list[
-        str
-    ] = field(default_factory=list)  # a list of file paths that appear in the user query
+    relevant_file_paths: list[str] = field(default_factory=list)  # a list of file paths that appear in the user query
 
     @property
     def top_snippet_paths(self):
@@ -254,17 +253,6 @@ class RepoContextManager:
     @property
     def relevant_read_only_snippet_paths(self):
         return [snippet.file_path for snippet in self.read_only_snippets]
-
-    def remove_all_non_kept_paths(self, paths_to_keep: list[str]):
-        self.current_top_snippets = [
-            snippet
-            for snippet in self.current_top_snippets
-            if any(
-                snippet.file_path.startswith(path_to_keep)
-                for path_to_keep in paths_to_keep
-            )
-        ]
-        self.dir_obj.remove_all_not_included(paths_to_keep)
 
     def expand_all_directories(self, directories_to_expand: list[str]):
         self.dir_obj.expand_directory(directories_to_expand)
