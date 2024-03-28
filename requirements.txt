@@ -28,7 +28,9 @@ cffi==1.16.0
 charset-normalizer==3.3.2
     # via requests
 click==8.1.7
-    # via typer
+    # via
+    #   typer
+    #   uvicorn
 cryptography==42.0.5
     # via pyjwt
 deprecated==1.2.14
@@ -60,7 +62,9 @@ grpcio==1.62.1
 grpcio-tools==1.62.1
     # via hatchet-sdk
 h11==0.14.0
-    # via httpcore
+    # via
+    #   httpcore
+    #   uvicorn
 hatchet-sdk==0.18.0
 httpcore==1.0.4
     # via httpx
@@ -206,11 +210,13 @@ typing-extensions==4.10.0
     #   pydantic-core
     #   pygithub
     #   typer
+    #   uvicorn
 urllib3==2.2.1
     # via
     #   hatchet-sdk
     #   pygithub
     #   requests
+uvicorn==0.29.0
 wrapt==1.16.0
     # via deprecated
 yamllint==1.35.1
