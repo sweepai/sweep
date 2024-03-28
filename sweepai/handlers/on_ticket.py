@@ -1834,7 +1834,7 @@ def handle_sandbox_mode(
         1,
     )
     updated_contents, sandbox_response = sweep_bot.check_sandbox(
-        file_name, file_contents, []
+        file_name, file_contents
     )
     logger.info("Sandbox finished")
     logs = (
