@@ -28,8 +28,13 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
+# TODO:
+# - Add self-evaluation / chain-of-verification
+
 # generated using the convert_openai_function_to_anthropic_prompt
-anthropic_function_calls = """<tool_description>
+
+"""
+<tool_description>
 <tool_name>file_search</tool_name>
 <description>
 Searches for file paths that match the given query. Useful for finding files when you don't know the exact path. Returns a list of matching file paths.
@@ -47,11 +52,14 @@ Searches for file paths that match the given query. Useful for finding files whe
 </parameter>
 </parameters>
 </tool_description>
+"""
 
-<tool_description>
+# Adds a read-only file to the context that provides necessary information to resolve the issue, such as functions or classes we need to use when implementing the change.. Provide a code excerpt in the justification indicating why it needs to be used. After using this tool, use `keyword_search` to find definitions of additional unknown functions / classes in the file.
+
+anthropic_function_calls = """<tool_description>
 <tool_name>view_file</tool_name>
 <description>
-Retrieves the contents of the specified file. After viewing a file, use `keyword_search` on relevant entities to find their definitions. Use `store_relevant_file_to_modify` or `store_relevant_file_to_read` to add the file to the context if it's relevant to solving the issue.
+Retrieves the contents of the specified file. After viewing a file, use `keyword_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
 </description>
 <parameters>
 <parameter>
@@ -68,9 +76,9 @@ Retrieves the contents of the specified file. After viewing a file, use `keyword
 </tool_description>
 
 <tool_description>
-<tool_name>store_relevant_file_to_modify</tool_name>
+<tool_name>store_file</tool_name>
 <description>
-Adds a file to the context that needs to be modified to resolve the issue. Only store files that are definitely required. Provide a code excerpt in the justification proving the file's relevance. After using this tool, use `keyword_search` to find definitions of unknown functions/classes in the file.
+Adds a file to the context that needs to be modified or used to resolve the issue. Provide a code excerpt in the justification showcasing the file's relevance, i.e. how it should be fixed or another part of the codebase that is relevant and uses this module. After using this tool, use `keyword_search` to find definitions of unknown functions /classes in the file to add to files to use.
 </description>
 <parameters>
 <parameter>
@@ -81,25 +89,12 @@ Adds a file to the context that needs to be modified to resolve the issue. Only 
 <parameter>
 <name>justification</name>
 <type>string</type>
-<description>Explain why this file is relevant and what needs to be modified. Include a supporting code excerpt.</description>
+<description>Explain why this file is should be modified or used and what needs to be modified. Include a supporting code excerpt.</description>
 </parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>store_relevant_file_to_read</tool_name>
-<description>
-Adds a read-only file to the context that provides necessary information to resolve the issue, such as referenced functions. Only store files that are definitely required. Provide a code excerpt in the justification proving the file's relevance. After using this tool, use `keyword_search` to find definitions of unknown functions/classes in the file.
-</description>
-<parameters>
-<parameter>
-<name>file_path</name>
-<type>string</type>
-<description>The path of the file to store.</description>
 </parameter>
 <parameter>
 <name>justification</name>
-<type>string</type>
+<type>string</type>  
 <description>Explain why this read-only file is relevant and what information it provides. Include a supporting code excerpt.</description>
 </parameter>
 </parameters>
@@ -138,7 +133,7 @@ Provides a detailed report of the issue and a high-level plan to resolve it. The
 <parameter>
 <name>plan</name>
 <type>string</type>
-<description>A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each relevant file.</description>
+<description>A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and file to use.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -169,6 +164,7 @@ Example 2:
 
 Example 3:
 <function_call>
+<tool_name>store_file</tool_name>
 <invoke>
 <tool_name>store_relevant_file_to_modify</tool_name>
 <parameters>
@@ -182,6 +178,7 @@ def create_user(self, name, email):
     db.session.commit()
 ```
 </justification>
+<type>to_modify</type>
 </parameters>
 </invoke>
 </function_call>
@@ -199,29 +196,25 @@ Example 4:
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = (
-    """You are a brilliant engineer assigned to solve the following Github issue. Your task is to gather all relevant code snippets from the codebase that are necessary to completely resolve the issue. It is critical that you identify and include every relevant line of code.
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
+
+You will gather two lists of relevant file paths. One list contains files to modify, and another contains a list of file paths to use that are needed to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, a file path to modify would be the file containing the endpoint, and file paths to use would be the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type.
 
 ## Instructions
-- You start with no code snippets. Use the store_relevant_file_to_modify and store_relevant_file_to_read tools to incrementally add relevant code to the context.
-- Utilize the keyword_search, file_search and view_file tools to methodically find the code snippets you need to store.
-- "Relevant Snippets" provides code snippets found via lexical search that may be relevant to the issue. However, these are not automatically added to the context.
+- You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
+- Utilize the keyword_search, file_search, and view_file tools to methodically find the code snippets you need to store.
+- "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
 
 Use the following iterative process:
 1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
-
-2. Use keyword_search to find definitions for any unknown variables, classes and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY and typeZ to find where they are defined. View the relevant files containing those definitions.
-
-3. When you identify a relevant file, use store_relevant_file_to_modify or store_relevant_file_to_read to add it to the context.
-
-Repeat steps 1-3 until you are confident you have all necessary code to resolve the issue.
-
-4. Lastly, generate a detailed report explaining the issue and outlining a plan to resolve it. Write it for an outside contractor with no prior knowledge of the codebase or issue. Use the submit_report_and_plan tool for this.
+2. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
+3. When you identify a relevant file, use store_file to add it to the context.
+Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
+4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
 
 Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
-"""
-    + anthropic_function_calls
-)
+
+""" + anthropic_function_calls
 
 unformatted_user_prompt = """\
 ## Relevant Snippets
@@ -543,7 +536,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -750,7 +743,7 @@ def handle_function_call(
                 ]
             )
             output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-    elif function_name == "store_relevant_file_to_modify":
+    elif function_name == "store_file":
         try:
             file_contents = repo_context_manager.cloned_repo.get_file_contents(
                 file_path
@@ -786,49 +779,6 @@ def handle_function_call(
                 )
                 output = (
                     f"SUCCESS: {file_path} was added. Here are the current selected snippets that will be MODIFIED:\n{current_top_snippets_string}"
-                    if valid_path
-                    else "FAILURE: This file path does not exist. Please try a new path."
-                )
-    elif function_name == "store_relevant_file_to_read":
-        try:
-            file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                file_path
-            )
-            valid_path = True
-        except Exception:
-            file_contents = ""
-            similar_file_paths = "\n".join(
-                [
-                    f"- {path}"
-                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                        file_path
-                    )
-                ]
-            )
-            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-        else:
-            # end_line = min(end_line, len(file_contents.splitlines()))
-            # logger.info(f"start_line: {start_line}, end_line: {end_line}")
-            snippet = Snippet(
-                file_path=file_path,
-                start=0,
-                end=len(file_contents.splitlines()),
-                content=file_contents,
-            )
-            if snippet.denotation in current_read_only_snippets_string:
-                output = (
-                    f"FAILURE: {file_path} is already in the selected READ ONLY files."
-                )
-            else:
-                repo_context_manager.add_read_only_snippets([snippet])
-                current_read_only_snippets_string = "\n".join(
-                    [
-                        snippet.denotation
-                        for snippet in repo_context_manager.read_only_snippets
-                    ]
-                )
-                output = (
-                    f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
                     if valid_path
                     else "FAILURE: This file path does not exist. Please try a new path."
                 )

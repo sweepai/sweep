@@ -9,9 +9,8 @@ from collections import defaultdict
 from loguru import logger
 
 from sweepai.agents.assistant_wrapper import openai_assistant_call
-from sweepai.agents.agent_utils import MAX_CHARS, ensure_additional_messages_length
+from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import USE_ASSISTANT
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -25,23 +24,9 @@ from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
 
-instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
-You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
-You NEVER leave comments describing code without implementing it!
-Your job is to make edits to the file to complete the user "# Request".
-# Instructions
-1. Use the propose_problem_analysis_and_plan function to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the keyword_search function to find the right places to make changes.
-3. Use the search_and_replace function to make the changes.
-    - Keep whitespace and comments.
-    - Make the minimum necessary search_and_replaces to make changes to the snippets.
-    - Write multiple small changes instead of a single large change.
-When you have completed the task, call the submit function.
-"""
-
 # Add COT to each tool
 
-new_instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
+instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
 You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
 You NEVER leave comments describing code without implementing it!
 Always use best practices when coding.
@@ -153,8 +138,7 @@ Provide justification for why you need additional context
 keyword to search for in order to get more additional context. This will search the entire codebase for this keyword, ONLY SEARCH FOR ONE KEYWORD AT A TIME
 </Keyword>
 </GetAdditionalContext>
-"""
-few_shot = """
+
 Here is an example:
 user:
 # Request
@@ -560,9 +544,6 @@ A new parameter 'truncate_output' has been added to the function post_process_rg
 End of example.
 """
 
-if not USE_ASSISTANT:
-    instructions = new_instructions + few_shot
-
 # 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
 # - Make one change at a time.
 
@@ -621,7 +602,7 @@ def build_keyword_search_match_results(
         if not readonly:
             success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
         else:
-            success_message += f"<readonly_section>{num_matches_message}\n{match_display}\n</readonly_section>\n"
+            success_message += f"<readonly_section id='{int_to_excel_col(match_index + 1)}>{num_matches_message}\n{match_display}\n</readonly_section>\n"
     return success_message
 
 
@@ -720,38 +701,31 @@ def function_modify(
             logger.error(
                 f"Error occured while attempting to fetch contents for relevant file: {e}"
             )
-        code_sections = []  # TODO: do this for the new sections after modifications
-        current_code_section = ""
-        for i, chunk in enumerate(modify_files_dict[file_path]["chunks"]):
-            idx = int_to_excel_col(i + 1)
-            section_display = f'<section id="{idx}">\n{chunk}\n</section id="{idx}">'
-            if len(current_code_section) + len(section_display) > MAX_CHARS - 1000:
-                code_sections_string = f"# Code\nFile path:{file_path}\n<sections>\n{current_code_section}\n</sections>"
-                code_sections.append(code_sections_string)
-                current_code_section = section_display
-            else:
-                current_code_section += "\n" + section_display
-        current_code_section = current_code_section.strip("\n")
-        code_sections.append(f"<current_file_to_modify filename=\"{file_path}\">\n{current_code_section}\n</current_file_to_modify>")
+        chunked_file_contents = "\n".join(
+            [
+                f'<section id="{int_to_excel_col(i + 1)}">\n{chunk}\n</section id="{int_to_excel_col(i + 1)}>'
+                for i, chunk in enumerate(modify_files_dict[file_path]["chunks"])
+            ]
+        )
+        current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
         fcrs_message = generate_status_message(file_path, fcrs)
         relevant_file_paths_string = ", ". join(relevant_filepaths) 
-        additional_messages = [
+        new_additional_messages = [
             Message(
                 role="user",
                 content=f"# Request\n{request}\n\n{fcrs_message}",
             ),
-            *reversed([
-                Message(
-                    role="user",
-                    content=code_section,
-                )
-                for code_section in code_sections
-            ]),
             Message(
                 role="user",
+                content=current_file_to_modify_contents,
+            ),
+        ]
+        if relevant_file_paths_string:
+            new_additional_messages.append(Message(
+                role="user",
                 content=f'You should view the following relevant files: {relevant_file_paths_string}'
-            )
-        ] + additional_messages
+            ))
+        additional_messages = new_additional_messages + additional_messages
         # add any already made changes to the additional_messages
         for file_path, file_data in modify_files_dict.items():
             diff = generate_diff(file_data["original_contents"], file_data["contents"])
