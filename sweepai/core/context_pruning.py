@@ -195,19 +195,19 @@ Example 4:
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used. 
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
 
 You will gather two lists of relevant file paths. One list contains files to modify, and another contains a list of file paths to use that are needed to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, a file path to modify would be the file containing the endpoint, and file paths to use would be the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type.
 
 ## Instructions
-- You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.  
+- You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
 - Utilize the keyword_search, file_search, and view_file tools to methodically find the code snippets you need to store.
 - "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
 
 Use the following iterative process:
 1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
 2. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
-3. When you identify a relevant file, use store_file to add it to the context.  
+3. When you identify a relevant file, use store_file to add it to the context.
 Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
 4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
 
