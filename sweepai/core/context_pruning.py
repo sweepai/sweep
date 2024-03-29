@@ -30,27 +30,6 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
 # generated using the convert_openai_function_to_anthropic_prompt
 
-"""
-<tool_description>
-<tool_name>file_search</tool_name>
-<description>
-Searches for file paths that match the given query. Useful for finding files when you don't know the exact path. Returns a list of matching file paths.
-</description>
-<parameters>
-<parameter>
-<name>query</name>
-<type>string</type>
-<description>The search query. "main.py" will return "main.py" if it exists as well as matches like "src/main.py".</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>string</type>
-<description>Explain why searching for this file is necessary to solve the issue.</description>
-</parameter>
-</parameters>
-</tool_description>
-"""
-
 # Adds a read-only file to the context that provides necessary information to resolve the issue, such as functions or classes we need to use when implementing the change.. Provide a code excerpt in the justification indicating why it needs to be used. After using this tool, use `keyword_search` to find definitions of additional unknown functions / classes in the file.
 
 anthropic_function_calls = """<tool_description>
@@ -86,23 +65,7 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <parameter>
 <name>justification</name>
 <type>string</type>
-<description>Explain why this file is should be modified or used and what needs to be modified. Include a supporting code excerpt.</description>
-</parameter>
-</parameter>
-<parameter>
-<name>type</name>
-<enum_options>
-<type>enum</type>
-<description>
-<enum_option>
-<name>to_modify</name>
-<description>Store the file as a file to modify.</description>
-</enum_option>
-<enum_option>
-<name>to_use</name>
-<description>Store the file as a read-only file to use. Examples include required helper functions, backend services or type hints etc.</description>
-</enum_option>
-</enum_options>
+<description>Explain why this file is should be modified or used and what needs to be modified or why it needs to be used. Include a supporting code excerpt.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -179,7 +142,6 @@ def create_user(self, name, email):
     db.session.commit()
 ```
 </justification>
-<type>to_modify</type>
 </parameters>
 </function_call>
 
@@ -196,11 +158,11 @@ I will provide the tool's response after each call, then you may call another to
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
 
-You will gather two lists of relevant file paths. One list contains files to modify, and another contains a list of file paths to use that are needed to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, a file path to modify would be the file containing the endpoint, and file paths to use would be the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type.
+You will gather a list of relevant file paths of files to modify, and or modules that need to be used to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, we would need the file containing the endpoint, the file containing the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type so we know how to use the response of the DB service.
 
 ## Instructions
 - You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
-- Utilize the keyword_search, file_search, and view_file tools to methodically find the code snippets you need to store.
+- Utilize the keyword_search, and view_file tools to methodically find the code snippets you need to store.
 - "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
 
 Use the following iterative process:
@@ -733,96 +695,97 @@ def modify_context(
                     )
                     output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
             elif function_name == "store_file":
-                type_ = function_input.get("type")
-                if type_ == "to_modify":
-                    try:
-                        file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                            file_path
-                        )
-                        valid_path = True
-                    except Exception:
-                        file_contents = ""
-                        similar_file_paths = "\n".join(
-                            [
-                                f"- {path}"
-                                for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                    file_path
-                                )
-                            ]
-                        )
-                        error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                    if error_message:
-                        output = error_message
-                    else:
-                        snippet = Snippet(
-                            file_path=file_path,
-                            start=0,
-                            end=len(file_contents.splitlines()),
-                            content=file_contents,
-                        )
-                        if snippet.denotation in current_top_snippets_string:
-                            output = f"FAILURE: {file_path} is already in the selected snippets."
-                        else:
-                            repo_context_manager.add_snippets([snippet])
-                            paths_to_add.append(file_path)
-                            current_top_snippets_string = "\n".join(
-                                [
-                                    snippet.denotation
-                                    for snippet in repo_context_manager.current_top_snippets
-                                ]
+                # if type_ == "to_modify":
+                try:
+                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                        file_path
+                    )
+                    valid_path = True
+                except Exception:
+                    file_contents = ""
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                file_path
                             )
-                            output = (
-                                f"SUCCESS: {file_path} was added. Here are the current selected snippets that will be MODIFIED:\n{current_top_snippets_string}"
-                                if valid_path
-                                else "FAILURE: This file path does not exist. Please try a new path."
-                            )
-                elif type_ == "to_use":
-                    error_message = ""
-                    try:
-                        file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                            file_path
-                        )
-                        valid_path = True
-                    except Exception:
-                        file_contents = ""
-                        similar_file_paths = "\n".join(
-                            [
-                                f"- {path}"
-                                for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                    file_path
-                                )
-                            ]
-                        )
-                        error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                    if error_message:
-                        output = error_message
-                    else:
-                        # end_line = min(end_line, len(file_contents.splitlines()))
-                        # logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                        snippet = Snippet(
-                            file_path=file_path,
-                            start=0,
-                            end=len(file_contents.splitlines()),
-                            content=file_contents,
-                        )
-                        if snippet.denotation in current_read_only_snippets_string:
-                            output = f"FAILURE: {file_path} is already in the selected READ ONLY files."
-                        else:
-                            repo_context_manager.add_read_only_snippets([snippet])
-                            paths_to_add.append(file_path)
-                            current_read_only_snippets_string = "\n".join(
-                                [
-                                    snippet.denotation
-                                    for snippet in repo_context_manager.read_only_snippets
-                                ]
-                            )
-                            output = (
-                                f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
-                                if valid_path
-                                else "FAILURE: This file path does not exist. Please try a new path."
-                            )           
+                        ]
+                    )
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+                if error_message:
+                    output = error_message
                 else:
-                    output = "FAILURE: Invalid type. Please specify either 'to_modify' or 'to_use'."
+                    snippet = Snippet(
+                        file_path=file_path,
+                        start=0,
+                        end=len(file_contents.splitlines()),
+                        content=file_contents,
+                    )
+                    if snippet.denotation in current_top_snippets_string:
+                        output = f"FAILURE: {file_path} is already in the selected snippets."
+                    else:
+                        repo_context_manager.add_snippets([snippet])
+                        repo_context_manager.add_read_only_snippets([snippet])
+                        paths_to_add.append(file_path)
+                        current_top_snippets_string = "\n".join(
+                            [
+                                snippet.denotation
+                                for snippet in repo_context_manager.current_top_snippets
+                            ]
+                        )
+                        output = (
+                            f"SUCCESS: {file_path} was added. Here are the current selected snippets in the context:\n{current_top_snippets_string}"
+                            if valid_path
+                            else "FAILURE: This file path does not exist. Please try a new path."
+                            )
+                # # elif type_ == "to_use":
+                # if True:
+                #     error_message = ""
+                #     try:
+                #         file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                #             file_path
+                #         )
+                #         valid_path = True
+                #     except Exception:
+                #         file_contents = ""
+                #         similar_file_paths = "\n".join(
+                #             [
+                #                 f"- {path}"
+                #                 for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                #                     file_path
+                #                 )
+                #             ]
+                #         )
+                #         error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+                #     if error_message:
+                #         output = error_message
+                #     else:
+                #         # end_line = min(end_line, len(file_contents.splitlines()))
+                #         # logger.info(f"start_line: {start_line}, end_line: {end_line}")
+                #         snippet = Snippet(
+                #             file_path=file_path,
+                #             start=0,
+                #             end=len(file_contents.splitlines()),
+                #             content=file_contents,
+                #         )
+                #         if snippet.denotation in current_read_only_snippets_string:
+                #             output = f"FAILURE: {file_path} is already in the selected READ ONLY files."
+                #         else:
+                #             repo_context_manager.add_read_only_snippets([snippet])
+                #             paths_to_add.append(file_path)
+                #             current_read_only_snippets_string = "\n".join(
+                #                 [
+                #                     snippet.denotation
+                #                     for snippet in repo_context_manager.read_only_snippets
+                #                 ]
+                #             )
+                #             output = (
+                #                 f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
+                #                 if valid_path
+                #                 else "FAILURE: This file path does not exist. Please try a new path."
+                #             )           
+                # else:
+                #     output = "FAILURE: Invalid type. Please specify either 'to_modify' or 'to_use'."
             elif function_name == "preview_file":
                 error_message = ""
                 try:
