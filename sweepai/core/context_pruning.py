@@ -189,7 +189,9 @@ Example 4:
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following Github issue. Your task is to gather a list of file paths to modify and a list of file paths to use needed to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, a file path to modify would be the file containing the endpoint and a file path to use would be the DB service that fetches the vendor information. It is critical that you identify and include every relevant line of code for modifying and using.
+sys_prompt = """You are a brilliant engineer assigned to solve the following Github issue. Your task is retrieve relevant files to resolve the GitHub issue. It is critical that you identify and include every relevant line of code for that should be modified or used.
+
+You will gather a two lists of relevant file paths. One list contains files to modify and another contains list of file paths to use needed to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, a file path to modify would be the file containing the endpoint and a file path to use would be the DB service that fetches the vendor information.
 
 ## Instructions
 - You start with no code snippets. Use the store_file_to_modify and store_file_to_use tools to incrementally add relevant code to the context. 
