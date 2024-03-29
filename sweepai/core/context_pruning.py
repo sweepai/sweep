@@ -677,28 +677,7 @@ def modify_context(
             valid_path = False
             output_prefix = f"Output for {function_name}:\n"
             output = ""
-            if function_name == "file_search":
-                error_message = ""
-                try:
-                    file_path = function_input.get("query")
-                    similar_file_paths = "\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                file_path
-                            )
-                        ]
-                    )
-                    valid_path = True
-                    output = (
-                        f"SUCCESS: Here are the most similar file paths to {file_path}:\n{similar_file_paths}"
-                        if valid_path
-                        else "FAILURE: This file path does not exist. Please try a new path."
-                    )
-                except Exception:
-                    similar_file_paths = ""
-                    output = "FAILURE: This file path does not exist."
-            elif function_name == "keyword_search":
+            if function_name == "keyword_search":
                 message_key = "keyword_search"
                 error_message = ""
                 keyword = f'"{function_input["keyword"]}"' # handles cases with two words
