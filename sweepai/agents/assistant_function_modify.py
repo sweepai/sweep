@@ -871,7 +871,7 @@ def function_modify(
                         )
                     else:
                         logger.debug(success_message)
-                        suffix = f"\n\nMake additional search_codebase calls to find other keywords or start making changes by calling the make_change tool."
+                        suffix = "\n\nMake additional search_codebase calls to find other keywords or start making changes by calling the make_change tool."
                         success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}{suffix}")
                         tool_name, tool_call = assistant_generator.send(
                             success_message
