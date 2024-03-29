@@ -87,7 +87,7 @@ Adds a file to the context that needs to be modified to resolve the issue. Only 
 <tool_description>
 <tool_name>store_relevant_file_to_read</tool_name>
 <description>
-Adds a read-only file to the context that provides necessary information to resolve the issue, such as referenced functions. Only store files that are definitely required. Provide a code excerpt in the justification proving the file's relevance. After using this tool, use `keyword_search` to find definitions of unknown functions/classes in the file.
+Adds a read-only file to the context that provides necessary information to resolve the issue, such as referenced functions. Only store files that are definitely required. Provide a code excerpt in the justification proving the file's relevance.
 </description>
 <parameters>
 <parameter>
