@@ -34,10 +34,11 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 # Adds a read-only file to the context that provides necessary information to resolve the issue, such as functions or classes we need to use when implementing the change.. Provide a code excerpt in the justification indicating why it needs to be used. After using this tool, use `keyword_search` to find definitions of additional unknown functions / classes in the file.
 
 anthropic_function_calls = """<tool_description>
-<tool_description>
 <tool_name>draft_plan</tool_name>  
 <description>
 Draft a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and list each file that needs to be edited and exactly how it should be edited. Write it for a new intern with no prior knowledge of the codebase or issue.
+
+You should always call this function first
 </description>
 <parameters>
 <parameter>  
@@ -121,6 +122,8 @@ Submit the final proposed plan.
 
 You must call one tool at a time using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
+<examples>
+
 Example 1:
 <function_call>
 <tool_name>draft_plan</tool_name>
@@ -174,6 +177,8 @@ Example 4:
 </parameters>
 </function_call>
 
+</examples>
+
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
 # sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
@@ -196,34 +201,43 @@ I will provide the tool's response after each call, then you may call another to
 
 # """ + anthropic_function_calls
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed, plan to fully resolve a GitHub issue and retrieve relevant files for this. We consider a file RELEVANT if it must either be modified or contains a function or class that must used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed, plan to fully resolve a GitHub issue and retrieve relevant files for this. We consider a file RELEVANT if it must either be modified or contains a function or class that must used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used and validate ALL changes.
 
 Your goal is to generate an extremely detailed and accurate plan of code changes for an intern and a list of relevant files who is unfamliar with the codebase. You will do this by first drafting an initial plan, then validating the plan by searching and viewing for files in the codebase to draft a refined plan. You will do this until you have a finished complete plan where every detail is fully validated.
 
-Use the following iterative process:
-1. First, use the draft_plan function to draft a detailed plan that is complete and indicates every detail that should be used.
+Your plan should be complete but should not include tests.
 
-2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
-3. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
+INSTRUCTIONS
+
+Use the following iterative process:
+1. First, summarize the "User Request" and "Relevant Snippets" use the draft_plan function to draft a detailed plan that is complete and indicates every detail that should be used.
+
+<example_draft_plan>
+Modify the file user_service.py with the following changes:
+* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
+* Add a new optional parameter called `include_deleted` with a default value of `False`.
+* Inside the method, add a condition to check the value of `include_deleted`.
+* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
+* If `include_deleted` is `True`, no changes are needed to the query.
+* Update the method's docstring to reflect the new parameter and its behavior.
+
+Modify the file app.py with the following changes:
+* Locate the `get_user` route handler in the Flask app.
+* Find the call to `UserService.get_user_by_id()` within the route handler.
+* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
+</example_draft_plan>
+
+Only after you have completed the initial draft plan using the draft_plan function should you proceed to view and search for relevant files.
+
+2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request.
+3. Use keyword_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. If you want to use `user.deleted`, check that the `deleted` attribute exists on the entity. View the relevant files containing those definitions. Make sure to view ALL files when using or changing any function input parameters and accessing methods and attributes.
 4. When you identify a relevant file, use store_file to add it to the context.
 5. When you have retrieved new information, update the drafted plan by using the draft_plan function again.
 
 Repeat steps 1-3 until you are confident you have drafted a plan and have validated all the details, such as all the entities used and the variable and attribute names required.
 5. Submit the plan with the submit function.
 
-Here's an example of a great plan:
-
-<example_final_plan>
-Modify the file user_service.py with the following changes:
-* Go to the `getUserById` method from the class `UserService` that fetches a user by user ID in the user services.
-* Add a flag called `include_deleted` that defaults to True.
-* If the flag is set, check if the `user.deleted` property is also set. If so, we should return None here.
-
-Modify the file app.py with the following changes:
-* Locate the `get_user` method in the Flask app.
-* Locate the call to `getUserById`.
-* Set the newly created flag `include_deleted` property is set to True.
-</example_final_plan>
+It is crucial that you follow the steps in the specified order, starting with drafting an initial plan using the draft_plan function before proceeding to view and search for files.
 
 Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
 
@@ -627,6 +641,7 @@ def update_assistant_conversation(
 
 
 CLAUDE_MODEL = "claude-3-haiku-20240307"
+# CLAUDE_MODEL = "claude-3-sonnet-20240229"
 
 def validate_and_parse_function_calls(function_calls_string: str, chat_gpt: ChatGPT) -> list[MockFunctionCall]:
     function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</function_call>") # add end tag
@@ -733,7 +748,7 @@ def modify_context(
                     if file_path in current_read_only_snippets_string and file_path in current_top_snippets_string and valid_path:
                         output = f"FAILURE: {file_path} is already in the selected snippets."
                     elif valid_path:
-                        output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                        output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf this file should be modified or used to resolve the issue, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                     else:
                         output = "FAILURE: This file path does not exist. Please try a new path."
                 except Exception:
@@ -866,22 +881,22 @@ def modify_context(
                 output = f"SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
             # elif function_name == "submit_report_and_plan":
             elif function_name == "submit":
-                error_message = ""
-                if "report" not in function_input or "plan" not in function_input:
-                    error_message = "FAILURE: Please provide a report and a plan."
-                else:
-                    issue_report = function_input["report"]
-                    issue_plan = function_input["plan"]
-                    repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
-                if error_message:
-                    output = error_message
-                else:
-                    output = "SUCCESS: Report and plan submitted."
-                    return True
+                # error_message = ""
+                # if "report" not in function_input or "plan" not in function_input:
+                #     error_message = "FAILURE: Please provide a report and a plan."
+                # else:
+                #     issue_report = function_input["report"]
+                #     issue_plan = function_input["plan"]
+                #     repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
+                # if error_message:
+                #     output = error_message
+                # else:
+                #     output = "SUCCESS: Report and plan submitted."
+                return True
             else:
                 output = f"FAILURE: Invalid tool name {function_name}"
             logger.info("Current top snippets: " + current_top_snippets_string)
-            breakpoint()
+            # breakpoint()
             function_outputs.append(output_prefix + output)
             justification = (
                 function_input["justification"]
