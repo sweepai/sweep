@@ -791,7 +791,7 @@ def modify_context(
                     file_preview = CodeTree.from_code(code).get_preview()
                     output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
             elif function_name == "draft_plan":
-                output = f"SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
+                output = "SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
             elif function_name == "submit":
                 plan = function_calls.get("plan")
                 repo_context_manager.update_issue_report_and_plan(f"# High Suggested Plan:\n\n{plan}\n\n")
