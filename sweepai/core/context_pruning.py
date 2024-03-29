@@ -770,13 +770,11 @@ reflection_prompt = """<run_and_feedback>
 </run_and_feedback>"""
 
 
-@trace
 def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    trace_insert({"trace_name": f"context_dfs_{problem_statement[:30]}"})
     max_iterations = 40
     repo_context_manager.current_top_snippets = []
     # initial function call
