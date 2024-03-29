@@ -120,7 +120,7 @@ class EvaluatorAgent(ChatGPT):
         self.messages = [Message(role="system", content=state_eval_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to research:\n<task_to_research>\n{problem_statement}\n</task_to_research>"
         evaluate_response = self.chat_anthropic(
-            content=formatted_problem_statement + "\n\n" + f"<contractor_attempt>\n{run_text}\n<\contractor_attempt>" + "\n\n" + response_format,
+            content=formatted_problem_statement + "\n\n" + f"<contractor_attempt>\n{run_text}\n</contractor_attempt>" + "\n\n" + response_format,
             stop_sequences=["</message_to_contractor>"],
             model=CLAUDE_MODEL,
             message_key="user_request",

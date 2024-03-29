@@ -775,7 +775,7 @@ def context_dfs(
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    max_iterations = 40
+    max_iterations = 40 # TODO: consider tuning this
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
@@ -814,7 +814,7 @@ def context_dfs(
                     + "<function_call>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</function_calls>"
                 bad_call_count += 1
                 if bad_call_count >= 2:
-                    return chat_gpt.messages
+                    return chat_gpt.messages # TODO: check on this exit condition
             function_calls_string = chat_gpt.chat_anthropic(
                 content=function_output,
                 model=CLAUDE_MODEL,
