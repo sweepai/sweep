@@ -166,7 +166,6 @@ Example 3:
 <function_call>
 <tool_name>store_file</tool_name>
 <invoke>
-<tool_name>store_relevant_file_to_modify</tool_name>
 <parameters>
 <file_path>src/controllers/user_controller.py</file_path>
 <justification>The user_controller.py file contains the UserController class referenced in the user request. The create_user method inside this class needs to be updated to fix the bug, as evidenced by this excerpt:
@@ -727,7 +726,7 @@ def handle_function_call(
             ):
                 output = f"FAILURE: {file_path} is already in the selected snippets."
             elif valid_path:
-                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_relevant_file_to_modify or store_relevant_file_to_read with the same parameters ({{"file_path": "{file_path}"}}).'
+                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
             else:
                 output = (
                     "FAILURE: This file path does not exist. Please try a new path."
