@@ -11,18 +11,14 @@ from openai.types.beta.thread import Thread
 from openai.types.beta.threads.run import Run
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import reflections_prompt, EvaluatorAgent
-from sweepai.logn.cache import file_cache
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall
-from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
-from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
 
@@ -31,35 +27,10 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 # TODO:
 # - Add self-evaluation / chain-of-verification
 
-# generated using the convert_openai_function_to_anthropic_prompt
-
-"""
-<tool_description>
-<tool_name>file_search</tool_name>
-<description>
-Searches for file paths that match the given query. Useful for finding files when you don't know the exact path. Returns a list of matching file paths.
-</description>
-<parameters>
-<parameter>
-<name>query</name>
-<type>string</type>
-<description>The search query. "main.py" will return "main.py" if it exists as well as matches like "src/main.py".</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>string</type>
-<description>Explain why searching for this file is necessary to solve the issue.</description>
-</parameter>
-</parameters>
-</tool_description>
-"""
-
-# Adds a read-only file to the context that provides necessary information to resolve the issue, such as functions or classes we need to use when implementing the change.. Provide a code excerpt in the justification indicating why it needs to be used. After using this tool, use `keyword_search` to find definitions of additional unknown functions / classes in the file.
-
 anthropic_function_calls = """<tool_description>
 <tool_name>view_file</tool_name>
 <description>
-Retrieves the contents of the specified file. After viewing a file, use `keyword_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
+Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
 </description>
 <parameters>
 <parameter>
@@ -78,7 +49,7 @@ Retrieves the contents of the specified file. After viewing a file, use `keyword
 <tool_description>
 <tool_name>store_file</tool_name>
 <description>
-Adds a file to the context that needs to be modified or used to resolve the issue. Provide a code excerpt in the justification showcasing the file's relevance, i.e. how it should be fixed or another part of the codebase that is relevant and uses this module. After using this tool, use `keyword_search` to find definitions of unknown functions /classes in the file to add to files to use.
+Adds a file to the context that needs to be modified or used to resolve the issue. Provide a code excerpt in the justification showcasing the file's relevance, i.e. how it should be fixed or another part of the codebase that is relevant and uses this module. After using this tool, use `code_search` to find definitions of unknown functions /classes in the file to add to files to use.
 </description>
 <parameters>
 <parameter>
@@ -101,15 +72,15 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 </tool_description>
 
 <tool_description>
-<tool_name>keyword_search</tool_name>
+<tool_name>code_search</tool_name>
 <description>
-Searches the entire codebase for the given keyword and returns a list of files and line numbers where it appears. Useful for finding definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
+Searches the entire codebase for the given code_entity and returns a list of files and line numbers where it appears. Use this to find definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
 </description>
 <parameters>
 <parameter>
-<name>keyword</name>
+<name>code_entity</name>
 <type>string</type>
-<description>The keyword to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' in JavaScript.</description>
+<description>The code_entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' in JavaScript.</description>
 </parameter>
 <parameter>
 <name>justification</name>
@@ -143,17 +114,6 @@ You must call one tool at a time using the specified XML format. Here are some g
 Example 1:
 <function_call>
 <invoke>
-<tool_name>file_search</tool_name>
-<parameters>
-<query>user_controller.py</query>
-<justification>The user request mentions the UserController class, so I need to find the file that defines it. Searching for 'user_controller.py' is likely to locate this file.</justification>
-</parameters>
-</invoke>
-</function_call>
-
-Example 2:
-<function_call>
-<invoke>
 <tool_name>view_file</tool_name>
 <parameters>
 <file_path>src/controllers/user_controller.py</file_path>
@@ -162,7 +122,7 @@ Example 2:
 </invoke>
 </function_call>
 
-Example 3:
+Example 2:
 <function_call>
 <tool_name>store_file</tool_name>
 <invoke>
@@ -182,12 +142,12 @@ def create_user(self, name, email):
 </invoke>
 </function_call>
 
-Example 4:
+Example 3:
 <function_call>
 <invoke>
-<tool_name>keyword_search</tool_name>
+<tool_name>code_search</tool_name>
 <parameters>
-<keyword>class User(db.Model):</keyword>
+<code_entity>class User(db.Model):</code_entity>
 <justification>The user_controller.py file references the User class, but I don't see its definition in this file. I need to search for 'class User(db.Model):' to find where the User model is defined, as this will provide necessary context about the User class to properly fix the create_user bug.</justification>
 </parameters>
 </invoke>
@@ -201,12 +161,12 @@ You will gather two lists of relevant file paths. One list contains files to mod
 
 ## Instructions
 - You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
-- Utilize the keyword_search, file_search, and view_file tools to methodically find the code snippets you need to store.
-- "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
+- Utilize the code_search and view_file tools to methodically find the code snippets you need to store.
+- "Relevant Snippets" provides code snippets that may be relevant to the issue. However, these are not automatically added to the context.
 
 Use the following iterative process:
-1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
-2. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
+1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files.
+2. Use code_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
 3. When you identify a relevant file, use store_file to add it to the context.
 Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
 4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
@@ -284,6 +244,8 @@ class RepoContextManager:
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
         top_snippets_str = [snippet.file_path for snippet in self.current_top_snippets]
+        # dedupe the list inplace
+        top_snippets_str = list(dict.fromkeys(top_snippets_str))
         snippets_in_repo_str = "\n".join(top_snippets_str)
         logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
         repo_tree = str(self.dir_obj)
@@ -664,33 +626,13 @@ def handle_function_call(
     current_top_snippets_string = "\n".join(
         [snippet.denotation for snippet in repo_context_manager.current_top_snippets]
     )
-    if function_name == "file_search":
-        try:
-            file_path = function_input.get("query")
-            similar_file_paths = "\n".join(
-                [
-                    f"- {path}"
-                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                        file_path
-                    )
-                ]
-            )
-            valid_path = bool(similar_file_paths)
-            output = (
-                f"SUCCESS: Here are the most similar file paths to {file_path}:\n{similar_file_paths}"
-                if valid_path
-                else "FAILURE: This file path does not exist. Please try a new path."
-            )
-        except Exception:
-            similar_file_paths = ""
-            output = "FAILURE: This file path does not exist."
-    elif function_name == "keyword_search":
-        keyword = f'"{function_input["keyword"]}"'  # handles cases with two words
+    if function_name == "code_search":
+        code_entity = f'"{function_input["code_entity"]}"'  # handles cases with two words
         rg_command = [
             "rg",
             "-n",
             "-i",
-            keyword,
+            code_entity,
             repo_context_manager.cloned_repo.repo_dir,
         ]
         try:
@@ -704,15 +646,15 @@ def handle_function_call(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
                 output = (
-                    f"SUCCESS: Here are the keyword_search results:\n\n{rg_output_pretty}"
+                    f"SUCCESS: Here are the code_search results:\n\n{rg_output_pretty}"
                 )
             else:
-                output = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
+                output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. If you are searching for a function defintion try again with different whitespaces."
         except Exception as e:
             logger.error(
-                f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
+                f"FAILURE: An Error occured while trying to find the code_entity {code_entity}: {e}"
             )
-            output = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
+            output = f"FAILURE: An Error occured while trying to find the code_entity {code_entity}: {e}"
     elif function_name == "view_file":
         try:
             file_contents = repo_context_manager.cloned_repo.get_file_contents(
@@ -835,7 +777,6 @@ def context_dfs(
         chat_gpt.messages = [Message(role="system", content=sys_prompt)]
         if reflections:
             updated_user_prompt = user_prompt + "\n" + reflections_prompt.format(reflections_string="\n".join(reflections))
-            import pdb; pdb.set_trace()
         else:
             updated_user_prompt = user_prompt
         function_calls_string = chat_gpt.chat_anthropic(
@@ -876,17 +817,19 @@ def context_dfs(
             run_text=joined_messages
         )
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
-        breakpoint()
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        if overall_score >= 8:
-            return copied_repo_context_manager # done
         reflections.append(message_to_contractor)
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
+        if overall_score > 8:
+            break
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout
-    best_score, best_rcm = max(rollouts_to_scores_and_rcms, key=lambda x: rollouts_to_scores_and_rcms[x][0])
+    all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
+    best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0])
     logger.info(f"Best score: {best_score}")
+    with open("tmp.txt", "a") as f:
+        f.write(f"{best_score}\n")
     return best_rcm
 
 if __name__ == "__main__":

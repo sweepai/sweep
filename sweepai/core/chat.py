@@ -353,7 +353,7 @@ class ChatGPT(MessageList):
         for i in range(4):
             try:
                 @file_cache() # must be in the inner scope because this entire function manages state
-                def chat_anthropic(message_dicts: list[dict[str, str]]):
+                def chat_anthropic(message_dicts: list[dict[str, str]], system_message_for_cache: str, model_for_cache: str): # add system message and model to cache
                     return anthropic_client.messages.create(
                         model=model,
                         temperature=temperature,
@@ -368,7 +368,7 @@ class ChatGPT(MessageList):
                         "content": message.content,
                     } for message in self.messages if message.role != "system"
                 ]
-                content = chat_anthropic(message_dicts)
+                content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
                 break
             except Exception as e_:
                 breakpoint()
