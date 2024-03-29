@@ -793,7 +793,7 @@ def modify_context(
             elif function_name == "draft_plan":
                 output = "SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
             elif function_name == "submit":
-                plan = function_calls.get("plan")
+                plan = function_input.get("plan")
                 repo_context_manager.update_issue_report_and_plan(f"# High Suggested Plan:\n\n{plan}\n\n")
                 return True
             else:
