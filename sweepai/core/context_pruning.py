@@ -34,6 +34,20 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 # Adds a read-only file to the context that provides necessary information to resolve the issue, such as functions or classes we need to use when implementing the change.. Provide a code excerpt in the justification indicating why it needs to be used. After using this tool, use `keyword_search` to find definitions of additional unknown functions / classes in the file.
 
 anthropic_function_calls = """<tool_description>
+<tool_description>
+<tool_name>draft_plan</tool_name>  
+<description>
+Draft a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and list each file that needs to be edited and exactly how it should be edited. Write it for a new intern with no prior knowledge of the codebase or issue.
+</description>
+<parameters>
+<parameter>  
+<name>plan</name>
+<type>string</type>
+<description>A detailed report providing background information and explaining the issue so that someone with no context can understand it. A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and file to use.</description>
+</parameter>
+</parameters>
+</tool_description>
+
 <tool_name>view_file</tool_name>
 <description>
 Retrieves the contents of the specified file. After viewing a file, use `keyword_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
@@ -91,20 +105,16 @@ Searches the entire codebase for the given keyword and returns a list of files a
 </tool_description>
 
 <tool_description>
-<tool_name>submit_report_and_plan</tool_name>  
+<tool_name>submit</tool_name>  
 <description>
-Provides a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and which files need to be modified or referenced. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue.
+Submit the final proposed plan.
 </description>
 <parameters>
 <parameter>
-<name>report</name>
-<type>string</type>
-<description>A detailed report providing background information and explaining the issue so that someone with no context can understand it.</description>
-</parameter>
 <parameter>  
 <name>plan</name>
 <type>string</type>
-<description>A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and file to use.</description>
+<description>Copy the final plan drafted using the draft_plan function.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -113,10 +123,19 @@ You must call one tool at a time using the specified XML format. Here are some g
 
 Example 1:
 <function_call>
-<tool_name>file_search</tool_name>
+<tool_name>draft_plan</tool_name>
 <parameters>
-<query>user_controller.py</query>
-<justification>The user request mentions the UserController class, so I need to find the file that defines it. Searching for 'user_controller.py' is likely to locate this file.</justification>
+<plan>
+Modify the file user_service.py with the following changes:
+* Go to the `getUserById` method from the class `UserService` that fetches a user by user ID in the user services.
+* Add a flag called `include_deleted` that defaults to True.
+* If the flag is set, check if the `user.deleted` property is also set. If so, we should return None here.
+
+Modify the file app.py with the following changes:
+* Locate the `get_user` method in the Flask app.
+* Locate the call to `getUserById`.
+* Set the newly created flag `include_deleted` property is set to True.
+</plan>
 </parameters>
 </function_call>
 
@@ -157,21 +176,54 @@ Example 4:
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
+# sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
 
-You will gather a list of relevant file paths of files to modify, and or modules that need to be used to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, we would need the file containing the endpoint, the file containing the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type so we know how to use the response of the DB service.
+# You will gather a list of relevant file paths of files to modify, and or modules that need to be used to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, we would need the file containing the endpoint, the file containing the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type so we know how to use the response of the DB service.
 
-## Instructions
-- You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
-- Utilize the keyword_search, and view_file tools to methodically find the code snippets you need to store.
-- "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
+# ## Instructions
+# - You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
+# - Utilize the keyword_search, and view_file tools to methodically find the code snippets you need to store.
+# - "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
+
+# Use the following iterative process:
+# 1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
+# 2. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
+# 3. When you identify a relevant file, use store_file to add it to the context.
+# Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
+# 4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
+
+# Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
+
+# """ + anthropic_function_calls
+
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed, plan to fully resolve a GitHub issue and retrieve relevant files for this. We consider a file RELEVANT if it must either be modified or contains a function or class that must used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
+
+Your goal is to generate an extremely detailed and accurate plan of code changes for an intern and a list of relevant files who is unfamliar with the codebase. You will do this by first drafting an initial plan, then validating the plan by searching and viewing for files in the codebase to draft a refined plan. You will do this until you have a finished complete plan where every detail is fully validated.
 
 Use the following iterative process:
-1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
-2. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
-3. When you identify a relevant file, use store_file to add it to the context.
-Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
-4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
+1. First, use the draft_plan function to draft a detailed plan that is complete and indicates every detail that should be used.
+
+2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
+3. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
+4. When you identify a relevant file, use store_file to add it to the context.
+5. When you have retrieved new information, update the drafted plan by using the draft_plan function again.
+
+Repeat steps 1-3 until you are confident you have drafted a plan and have validated all the details, such as all the entities used and the variable and attribute names required.
+5. Submit the plan with the submit function.
+
+Here's an example of a great plan:
+
+<example_final_plan>
+Modify the file user_service.py with the following changes:
+* Go to the `getUserById` method from the class `UserService` that fetches a user by user ID in the user services.
+* Add a flag called `include_deleted` that defaults to True.
+* If the flag is set, check if the `user.deleted` property is also set. If so, we should return None here.
+
+Modify the file app.py with the following changes:
+* Locate the `get_user` method in the Flask app.
+* Locate the call to `getUserById`.
+* Set the newly created flag `include_deleted` property is set to True.
+</example_final_plan>
 
 Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
 
@@ -489,7 +541,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -810,7 +862,10 @@ def modify_context(
                 else:
                     file_preview = CodeTree.from_code(code).get_preview()
                     output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
-            elif function_name == "submit_report_and_plan":
+            elif function_name == "draft_plan":
+                output = f"SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
+            # elif function_name == "submit_report_and_plan":
+            elif function_name == "submit":
                 error_message = ""
                 if "report" not in function_input or "plan" not in function_input:
                     error_message = "FAILURE: Please provide a report and a plan."
@@ -826,6 +881,7 @@ def modify_context(
             else:
                 output = f"FAILURE: Invalid tool name {function_name}"
             logger.info("Current top snippets: " + current_top_snippets_string)
+            breakpoint()
             function_outputs.append(output_prefix + output)
             justification = (
                 function_input["justification"]
