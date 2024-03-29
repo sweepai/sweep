@@ -19,7 +19,7 @@ Go through the contractor's process step-by-step. For anything they did slightly
 
 <overall_score>
 Provide a clear, specific rubric for the 1-10 scale, erring on the low side:
-1-2: Completely failed to identify relevant files, trace dependencies, or understand the issue 
+1-2: Completely failed to identify relevant files, trace dependencies, or understand the issue
 3-4: Identified some but definitely not all required files. Significant gaps in dependency tracing and usage finding.
 5-6: Found many relevant files but missed some critical dependencies or included multiple unnecessary ones
 7-8: Found most relevant files and usages but still had a few gaps in dependency coverage or codebase understanding
@@ -27,10 +27,11 @@ Provide a clear, specific rubric for the 1-10 scale, erring on the low side:
 </overall_score>
 
 <message_to_contractor>
-Provide a single sentence of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor:
-9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! 
-5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. Your understanding of [A, B, C] dependencies is lacking.
-1-4: [Specific files] are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely.
+Provide 1-2 sentences of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor:
+9-10: Flawless work using [Specific files] and [X, Y, Z] critical dependencies.
+7-8: Missed [X, Y, Z] dependencies. Search for [A, B, C] to find remaining relevant files. Look into [area].
+5-6: Failed to search for critical [X, Y, Z] classes/functions. Included irrelevant [A, B] files.
+1-4: [X, Y, Z] files are irrelevant. Search [A, B, C] directories for actual relevant code.
 </message_to_contractor>
 
 Do not give any positive feedback unless the contractor literally achieved perfection. Be extremely harsh and critical in your evaluation. Assume incompetence until proven otherwise. Make the contractor work hard to get a high score."""
@@ -56,7 +57,7 @@ No unnecessary files were included, and no relevant files seem to have been miss
 </judgement_on_task>
 <overall_score>9</overall_score>
 <message_to_contractor>
-Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, and all critical dependencies.
+Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, PaymentRepository.java, PaymentNotificationListener.java, PaymentValidator.java, and PaymentSecurityFilter.java. No unnecessary files were included and these are all of the critical dependencies.
 </message_to_contractor>
 
 Example 2 (Score: 4): 
