@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import subprocess
 import urllib
@@ -13,6 +14,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
+from sweepai.core.reflection_utils import reflections_prompt, EvaluatorAgent
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
@@ -22,7 +24,6 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.openai_proxy import get_client
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE
 from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
@@ -546,24 +547,11 @@ def parse_query_for_files(
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
-    ticket_progress: TicketProgress | None = None,
-    chat_logger: ChatLogger = None,
-    override_import_graph: nx.DiGraph = None,  # optional override import graph
     seed: int = None,
+    ticket_progress: TicketProgress = None,
+    chat_logger: ChatLogger = None,
 ):
     logger.info("Seed: " + str(seed))
-    if chat_logger and chat_logger.use_faster_model():
-        raise Exception(FASTER_MODEL_MESSAGE)
-    model = DEFAULT_GPT4_32K_MODEL
-    model, client = get_client()
-    posthog.capture(
-        chat_logger.data.get("username") if chat_logger is not None else "anonymous",
-        "call_assistant_api",
-        {
-            "query": query,
-            "model": model,
-        },
-    )
     try:
         # attempt to get import tree for relevant snippets that show up in the query
         repo_context_manager, import_graph = parse_query_for_files(
@@ -573,7 +561,6 @@ def get_relevant_context(
         repo_context_manager = build_import_trees(
             repo_context_manager,
             import_graph,
-            override_import_graph=override_import_graph,
         )
         # for any code file mentioned in the query add it to the top relevant snippets
         repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
@@ -592,21 +579,15 @@ def get_relevant_context(
             snippet for snippet in repo_context_manager.current_top_snippets
         ]
         try:
-            modify_context(
-                chat_gpt,
+            repo_context_manager = context_dfs(
                 user_prompt,
                 repo_context_manager,
-                ticket_progress,
-                model=model,
+                problem_statement=query,
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
         if len(repo_context_manager.current_top_snippets) == 0:
             repo_context_manager.current_top_snippets = old_top_snippets
-            if ticket_progress:
-                discord_log_error(
-                    f"Context manager empty ({ticket_progress.tracking_id})"
-                )
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -890,61 +871,74 @@ def handle_function_call(
     return output_prefix + output
 
 
-def modify_context(
-    chat_gpt: ChatGPT,
+def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
-    ticket_progress: TicketProgress,
-    model: str = "gpt-4-0125-preview",
+    problem_statement: str,
 ) -> bool | None:
     max_iterations = 40
     repo_context_manager.current_top_snippets = []
-    bad_call_count = 0
     # initial function call
-    function_calls_string = chat_gpt.chat_anthropic(
-        content=user_prompt,
-        stop_sequences=["</function_call>"],
-        model=CLAUDE_MODEL,
-        message_key="user_request",
-    )
-    for _ in range(max_iterations):
-        function_outputs = []
-        function_calls = validate_and_parse_function_calls(
-            function_calls_string, chat_gpt
-        )
-        for function_call in function_calls:
-            function_output = handle_function_call(repo_context_manager, function_call)
-            if PLAN_SUBMITTED_MESSAGE in function_output:
-                return
-            function_outputs.append(function_output)
-        if len(function_calls) == 0:
-            function_outputs.append(
-                "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n"
-                + "<function_call>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</function_calls>"
-            )
-            bad_call_count += 1
-            if bad_call_count >= 3:
-                return
+    reflections = []
+    rollouts_to_scores_and_rcms = {}
+    def perform_rollout(repo_context_manager: RepoContextManager, reflections: list[str] = []):
+        chat_gpt = ChatGPT()
+        chat_gpt.messages = [Message(role="system", content=sys_prompt)]
+        if reflections:
+            updated_user_prompt = user_prompt + "\n" + reflections_prompt.format(reflections_string="\n".join(reflections))
+            import pdb; pdb.set_trace()
+        else:
+            updated_user_prompt = user_prompt
         function_calls_string = chat_gpt.chat_anthropic(
-            content="\n\n".join(function_outputs),
-            model=CLAUDE_MODEL,
+            content=updated_user_prompt,
             stop_sequences=["</function_call>"],
+            model=CLAUDE_MODEL,
+            message_key="user_request",
         )
-        # if there is a message with a non-null key that's not saved, we can delete both it and it's preceding message
-    else:
-        logger.warning(
-            f"Context pruning iteration taking too long. Stopping after {max_iterations} iterations."
+        bad_call_count = 0
+        for _ in range(max_iterations):
+            function_calls = validate_and_parse_function_calls(
+                function_calls_string, chat_gpt
+            )
+            for function_call in function_calls:
+                function_output = handle_function_call(repo_context_manager, function_call)
+                if PLAN_SUBMITTED_MESSAGE in function_output:
+                    return chat_gpt.messages
+            if len(function_calls) == 0:
+                function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
+                    + "<function_call>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</function_calls>"
+                bad_call_count += 1
+                if bad_call_count >= 2:
+                    return chat_gpt.messages
+            function_calls_string = chat_gpt.chat_anthropic(
+                content=function_output,
+                model=CLAUDE_MODEL,
+                stop_sequences=["</function_call>"],
+            )
+        return chat_gpt.messages
+    for rollout_idx in range(2):
+        # operate on a deep copy of the repo context manager
+        copied_repo_context_manager = deepcopy(repo_context_manager)
+        message_results = perform_rollout(copied_repo_context_manager)
+        truncated_message_results = message_results[1:] # skip system prompt
+        joined_messages = "\n\n".join([message.content for message in truncated_message_results])
+        overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
+            problem_statement=problem_statement, 
+            run_text=joined_messages
         )
-    logger.info(
-        f"Context Management End:\ncurrent snippets to modify: {repo_context_manager.top_snippet_paths}\n current read only snippets: {repo_context_manager.relevant_read_only_snippet_paths}"
-    )
-    repo_context_manager.current_top_snippets = [
-        snippet
-        for snippet in repo_context_manager.current_top_snippets
-        if snippet.file_path != "sweep.yaml"
-    ]
-    return
-
+        logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
+        breakpoint()
+        if overall_score is None or message_to_contractor is None:
+            continue # can't get any reflections here
+        if overall_score >= 8:
+            return copied_repo_context_manager # done
+        reflections.append(message_to_contractor)
+        rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
+    # if we reach here, we have not found a good enough solution
+    # select rcm from the best rollout
+    best_score, best_rcm = max(rollouts_to_scores_and_rcms, key=lambda x: rollouts_to_scores_and_rcms[x][0])
+    logger.info(f"Best score: {best_score}")
+    return best_rcm
 
 if __name__ == "__main__":
     function_calls_string = """
