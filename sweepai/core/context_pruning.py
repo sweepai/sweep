@@ -13,7 +13,7 @@ from openai.types.beta.threads.run import Run
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
-from sweepai.core.reflection_utils import reflections_prompt, EvaluatorAgent
+from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall
@@ -21,6 +21,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
+from parea import trace, trace_insert
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
@@ -295,11 +296,6 @@ class RepoContextManager:
         # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
-
-    def add_read_only_snippets(self, snippets_to_add: list[Snippet]):
-        # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_add])
-        for snippet in snippets_to_add:
-            self.read_only_snippets.append(snippet)
 
     # does the same thing as add_snippets but adds it to the beginning of the list
     def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
@@ -762,21 +758,42 @@ def handle_function_call(
     return output_prefix + output
 
 
+reflections_prompt_prefix = """Here are some tips from previous attempts for you:"""
+
+reflection_prompt = """<run_and_feedback>
+<files_stored_in_run>
+{files_read}
+</files_stored_in_run>
+<feedback>
+{reflections_string}
+</feedback>
+</run_and_feedback>"""
+
+
+@trace
 def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
+    trace_insert({"trace_name": f"context_dfs_{problem_statement[:30]}"})
     max_iterations = 40
     repo_context_manager.current_top_snippets = []
     # initial function call
-    reflections = []
+    reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
-    def perform_rollout(repo_context_manager: RepoContextManager, reflections: list[str] = []):
+    def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, list[str]] = {}):
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt)]
-        if reflections:
-            updated_user_prompt = user_prompt + "\n" + reflections_prompt.format(reflections_string="\n".join(reflections))
+        if reflections_to_gathered_files:
+            formatted_reflections_prompt = reflections_prompt_prefix
+            for reflection, gathered_files in reflections_to_gathered_files.items():
+                formatted_reflection = reflection_prompt.format(
+                    files_read="\n".join(gathered_files),
+                    reflections_string=reflection,
+                )
+                formatted_reflections_prompt += f"\n\n{formatted_reflection}"
+            updated_user_prompt = user_prompt + "\n" + formatted_reflections_prompt
         else:
             updated_user_prompt = user_prompt
         function_calls_string = chat_gpt.chat_anthropic(
@@ -809,7 +826,7 @@ def context_dfs(
     for rollout_idx in range(2):
         # operate on a deep copy of the repo context manager
         copied_repo_context_manager = deepcopy(repo_context_manager)
-        message_results = perform_rollout(copied_repo_context_manager)
+        message_results = perform_rollout(copied_repo_context_manager, reflections_to_read_files)
         truncated_message_results = message_results[1:] # skip system prompt
         joined_messages = "\n\n".join([message.content for message in truncated_message_results])
         overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
@@ -819,7 +836,7 @@ def context_dfs(
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        reflections.append(message_to_contractor)
+        reflections_to_read_files[message_to_contractor] = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
         if overall_score > 8:
             break
@@ -828,39 +845,9 @@ def context_dfs(
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
     best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0])
     logger.info(f"Best score: {best_score}")
-    with open("tmp.txt", "a") as f:
-        f.write(f"{best_score}\n")
     return best_rcm
 
 if __name__ == "__main__":
-    function_calls_string = """
-Example function call:
-<function_call>
-<invoke>
-<tool_name>ExampleTool</tool_name>
-<parameters>
-<$PARAM1>value1</$PARAM1>
-<$PARAM2>value2</$PARAM2>
-</parameters>
-</function_call>
-Another function call:
-<function_call>
-<tool_name>AnotherTool</tool_name>
-<parameters>
-<$PARAM3>value3</$PARAM3>
-</parameters>
-</invoke>
-</function_call>
-"""
-    function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string
-    )
-    assert len(function_calls) == 2
-    assert function_calls[0].function_name == "ExampleTool"
-    assert function_calls[0].function_parameters == {
-        "$PARAM1": "value1",
-        "$PARAM2": "value2",
-    }
     try:
         import os
 
@@ -870,7 +857,7 @@ Another function call:
         organization_name = "sweepai"
         installation_id = get_installation_id(organization_name)
         cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
-        query = "allow sweep.yaml to be read from the user/organization's .github repository. this is found in client.py and we need to change this to optionally read from .github/sweep.yaml if it exists there"
+        query = "allow 'sweep.yaml' to be read from the user/organization's .github repository. this is found in client.py and we need to change this to optionally read from .github/sweep.yaml if it exists there"
         # golden response is
         # sweepai/handlers/create_pr.py:401-428
         # sweepai/config/client.py:178-282
@@ -886,12 +873,6 @@ Another function call:
         )
         for snippet in rcm.current_top_snippets:
             print(snippet.denotation)
-        # run with no chat_logger and ticket_progress
-        repo_context_manager = prep_snippets(cloned_repo, query)
-        rcm = get_relevant_context(
-            query,
-            repo_context_manager,
-        )
     except Exception as e:
         logger.error(f"context_pruning.py failed to run successfully with error: {e}")
         raise e

@@ -7,75 +7,103 @@ from sweepai.core.entities import Message
 response_format = """Respond using the following structured format:
 
 <judgement_on_task>
-Provide clear criteria for evaluating the contractor's performance:
-- Did they use code searches to find all instances where a class, type, or function is used, not just where it is defined?
-- Did they carefully trace dependencies and imports to find related files?
-- Did they avoid including unnecessary or unrelated files?
-- If they modified a class, did they identify all usages of that class? Example: if they modified the Booking class, did they search for "Booking" to find all usages in the codebase?
-- Did they identify all relevant files needed to solve the issue? 
+Provide extensive, highly detailed criteria for evaluating the contractor's performance, such as:
+- Did they identify every single relevant file needed to solve the issue, including all transitive dependencies?
+- Did they use multiple code/function/class searches to exhaustively trace every usage and dependency of relevant classes/functions?
+- Did they justify why each file is relevant and needed to solve the issue?
+- Did they avoid including any unnecessary or unrelated files whatsoever?
+- Did they demonstrate a complete, comprehensive understanding of the entire relevant codebase and architecture?
 
-Examine each file read and step taken by the contractor. Call out anything done incorrectly or any files/usages that were missed, being specific. Provide a detailed explanation of the correct approach.
+Go through the contractor's process step-by-step. For anything they did slightly wrong or non-optimally, call it out and explain the correct approach. Be extremely harsh and scrutinizing. If they failed to use enough code/function/class searches to find 100% of relevant usages, if they included any files that aren't needed, or if they missed any files that are needed, point these out as critical mistakes. Do not give them the benefit of the doubt on anything.
 </judgement_on_task>
 
 <overall_score>
-Provide a clear rubric for the 1-10 scale:
-1-3: Completely failed to identify relevant files or understand the issue. Focused on irrelevant code. 
-4-5: Identified some but not all required files. Only found definitions, not all usages. Missed key dependencies.
-6-7: Found most but not all relevant files and usages. Included some unnecessary files. Understanding of issue is incomplete.
-8-10: Successfully identified all and only the files and code usages needed to resolve the issue. Demonstrated deep understanding.
+Provide a clear, specific rubric for the 1-10 scale, erring on the low side:
+1-2: Completely failed to identify relevant files, trace dependencies, or understand the issue 
+3-4: Identified some but definitely not all required files. Significant gaps in dependency tracing and usage finding.
+5-6: Found many relevant files but missed some critical dependencies or included multiple unnecessary ones
+7-8: Found most relevant files and usages but still had a few gaps in dependency coverage or codebase understanding
+9-10: Exhaustively and perfectly used code/function/class searches to identify all necessary files and code usages with flawless justification
 </overall_score>
 
 <message_to_contractor>
-Provide direct, specific and actionable feedback to the contractor in 1-2 sentences:
-9-10: Excellent work identifying all necessary files and code usages! Your understanding of the codebase and issue is top-notch.
-6-8: Good effort, but make sure to use code searches to find all usages of [specific class/function]. Don't forget to trace [specific dependency/import] as well.
-1-5: The files you identified, such as [irrelevant files], are not actually relevant to this [specific issue]. Focus your search on [specific directory/file] instead. Use code searches to find all instances where [specific class/function] is used.
-</message_to_contractor>"""
+Provide a single sentence of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor:
+9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! 
+5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. Your understanding of [A, B, C] dependencies is lacking.
+1-4: [Specific files] are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely.
+</message_to_contractor>
 
-state_eval_prompt = """You are helping contractors on a task that involves finding all of the relevant files needed to resolve an issue. This task does not involve writing or modifying code. The contractors' goal is to identify all necessary files, not actually implement the solution. The contractor should not be coding. Be extremely critical and thorough in your evaluation. The contractor will often think and say they've succeeded, but you must evaluate them based on the criteria provided.
+Do not give any positive feedback unless the contractor literally achieved perfection. Be extremely harsh and critical in your evaluation. Assume incompetence until proven otherwise. Make the contractor work hard to get a high score."""
+
+state_eval_prompt = """You are helping contractors on a task that involves finding all of the relevant files needed to resolve a github issue. You are an expert at this task and have solved it hundreds of times. This task does not involve writing or modifying code. The contractors' goal is to identify all necessary files, not actually implement the solution. The contractor should not be coding at all. 
+
+Your job is to review the contractor's work with an extremely critical eye. Leave no stone unturned in your evaluation. Read through every single step the contractor took and analyze it in depth.
 
 """ + response_format + \
 """
 
 Example 1 (Score: 9):
 <judgement_on_task>
-The contractor did an excellent job identifying all the relevant files needed to resolve the booking confirmation email issue. They correctly identified the Booking.java model where the core booking data is defined. 
+The contractor did an outstanding job identifying all of the relevant files needed to resolve the payment processing issue. They correctly identified the core Payment.java model where the payment data is defined, and used extensive code searches for "Payment", "pay", "process", "transaction", etc. to exhaustively trace every single usage and dependency.
 
-They also used code searches for "Booking" to find the BookingController.java and BookingService.java files where Booking objects are created and processed. This shows they traced the usage and dependencies thoroughly.
+They found the PaymentController.java and PaymentService.java files where Payment objects are created and processed, and justified how these are critical for the payment flow. They also identified the PaymentRepository.java DAO that interacts with the payments database.
 
-Furthermore, they searched for "sendEmail" to identify the EmailService.java file responsible for actually sending the confirmation emails, and the booking-confirmation.html template that provides the email content. They even checked the application.properties config file to verify the email server settings.
+The contractor demonstrated a deep understanding of the payment processing architecture by tracing the dependencies of the PaymentService on external payment gateways like StripeGateway.java and PayPalGateway.java. They even found the PaymentNotificationListener.java that handles webhook events from these gateways.
 
-No unnecessary files were included, and the contractor demonstrated a thorough understanding of the booking flow and email dependencies by tracing the code paths completely.
+To round out their analysis, the contractor identified the PaymentValidator.java and PaymentSecurityFilter.java as crucial parts of the payment processing pipeline for validation and security. They justified the relevance of each file with clear explanations tied to the reported payment bug.
+
+No unnecessary files were included, and no relevant files seem to have been missed. The contractor used a comprehensive set of searches for relevant classes, functions, and terms to systematically map out the entire payment processing codebase. Overall, this shows an excellent understanding of the payment architecture and all its nuances.
 </judgement_on_task>
 <overall_score>9</overall_score>
 <message_to_contractor>
-Great work using code searches to identify all the files involved in the booking confirmation email flow, tracing the code from the core Booking model to the email service and HTML template!
+Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, and all critical dependencies.
 </message_to_contractor>
 
-Example 2 (Score: 5): 
+Example 2 (Score: 4): 
 <judgement_on_task>
-The contractor identified the UserAccount.java file where the login bug is occurring, but failed to use code searches to find several other critical files. While they noted that the LoginController.java file calls the authenticateUser() method in UserAccount, they didn't search for "authenticateUser" to identify the LoginService.java file which is actually responsible for orchestrating the whole login flow.  
+The contractor identified the UserAccount.java file where the login bug is occurring, but failed to use nearly enough code/function/class searches to find many other critical files. While they noted that LoginController.java calls UserAccount.authenticateUser(), they didn't search for the "authenticateUser" function to identify LoginService.java which orchestrates the login flow.  
 
-They also missed using a search for "UserAccount" to find the UserRepository.java file which loads the user data from the database and is used by UserAccount.authenticateUser(). Additionally, searching for "hash" or "encrypt" should have revealed the PasswordEncryptor.java that handles password salt and hashing during authentication.
+They completely missed using searches for the "UserAccount" class, "credentials", "principal", "login", etc. to find the UserRepository.java file that loads user data from the database and many other files involved in authentication. Searching for "hash", "encrypt", "password", etc. should have revealed the critical PasswordEncryptor.java that handles password hashing.
 
-So while the contractor identified the core UserAccount class, they failed to use code searches to trace its dependencies and usages, missing several other key files that would likely need to be investigated and possibly modified to fully resolve the login issue.
+The contractor claimed UserForgotPasswordController.java and UserCreateController.java are relevant, but failed to justify this at all. These files are not directly related to the login bug.
+
+In general, the contractor seemed to stumble upon a couple relevant files, but failed to systematically trace the login code path and its dependencies. They showed a superficial and incomplete understanding of the login architecture and process. Many critical files were completely missed and the scope was not properly focused on login.
 </judgement_on_task>
-<overall_score>5</overall_score>  
+<overall_score>4</overall_score>  
 <message_to_contractor>
-Use code searches for "UserAccount", "authenticateUser", "hash", etc to find all relevant files involved in the login process, not just the UserAccount definition, to improve.
+Failed to search for "authenticateUser", "UserAccount", "login", "credentials". Missed LoginService.java, UserRepository.java, PasswordEncryptor.java.
 </message_to_contractor>
 
 Example 3 (Score: 2):
 <judgement_on_task>
-The files identified by the contractor, like index.html, styles.css, and ProductList.vue, are not relevant to resolving the API issue with product pricing. The front-end product list display code does not interact with the actual price calculation logic.
+The files identified by the contractor, like index.html, styles.css, and ProductList.vue, are completely irrelevant for resolving the API issue with product pricing. The front-end product list display code does not interact with the pricing calculation logic whatsoever.
 
-The contractor should have focused their investigation on the backend api/products/ directory, especially searching for keywords like "price", "cost" or "discount" to find the ProductController.java API endpoint and the PriceCalculator.java service it depends on. Searching for "Product" should have also revealed the Product.java model and ProductRepository.java database access code as relevant.  
+The contractor completely failed to focus their investigation on the backend api/products/ directory where the pricing bug actually occurs. They did not perform any searches for relevant classes/functions like "Product", "Price", "Discount", etc. to find the ProductController.java API endpoint and the PriceCalculator.java service it depends on.
 
-Additionally, the contractor failed to look for any configuration files that provide pricing data, which could have been found by searching for "price" in JSON or properties files. By focusing solely on irrelevant front-end code and not using code searches to trace the actual pricing logic, the contractor demonstrated a complete lack of understanding of the actual bug and API architecture.
+Basic searches for the "Product" class should have revealed the Product.java model and ProductRepository.java database access code as highly relevant, but these were missed. The contractor failed to demonstrate any understanding of the API architecture and the flow of pricing data from the database to the API response.
+
+The contractor also did not look for any configuration files that provide pricing data, which would be critical for the pricing calculation. They did not search for "price", "cost", etc. in JSON or properties files.
+
+Overall, the contractor seemed to have no clue about the actual pricing bug or the backend API codebase. They looked in completely the wrong places, failed to perform any relevant code/function/class searches, and did not identify a single relevant file for the reported bug. This shows a fundamental lack of understanding of the pricing feature and backend architecture.
 </judgement_on_task>
-<overall_score>2</overall_score>  
-<message_to_contractor>  
-The front-end ProductList.vue file is not relevant for an API pricing bug. Code search for "price", "cost", "discount" etc to find the relevant backend code in the api/products/ directory instead.
+<overall_score>2</overall_score>
+<message_to_contractor>
+index.html, styles.css, ProductList.vue are irrelevant. Search api/products/ for "Product", "Price", "Discount" classes/functions.
+</message_to_contractor>
+
+Example 4 (Score: 7):
+<judgement_on_task>
+The contractor identified most of the key files involved in the user profile update process, including UserProfileController.java, UserProfileService.java, and UserProfile.java. They correctly traced the flow of data from the API endpoint to the service layer and model.
+
+However, they missed a few critical dependencies. They did not search for "UserProfile" to find the UserProfileRepository.java DAO that loads and saves user profiles to the database. This is a significant omission in their understanding of the data persistence layer.
+
+The contractor also failed to look for configuration files related to user profiles. Searching for "profile" in YAML or properties files should have revealed application-profiles.yml which contains important profile settings. 
+
+While the contractor had a decent high-level understanding of the user profile update process, they showed some gaps in their low-level understanding of the data flow and configuration. They needed to be more thorough in tracing code dependencies to uncover the complete set of relevant files.
+</judgement_on_task>
+<overall_score>7</overall_score>
+<message_to_contractor>
+Missed UserProfileRepository.java and application-profiles.yml dependencies. Search for "UserProfile" and "profile" to find remaining relevant files.
 </message_to_contractor>"""
 
 # general framework for a dfs search
@@ -84,7 +112,7 @@ The front-end ProductList.vue file is not relevant for an API pricing bug. Code 
 #    - in either case perform self-reflection
 #    - update reflections section with current reflections
 # 3. update the reflections section with the new reflections
-CLAUDE_MODEL = "claude-3-sonnet-20240229"
+CLAUDE_MODEL = "claude-3-haiku-20240307"
 
 class EvaluatorAgent(ChatGPT):
     def evaluate_run(self, problem_statement: str, run_text: str):
@@ -118,9 +146,6 @@ class EvaluatorAgent(ChatGPT):
 
         message_to_contractor = message_to_contractor_match.group(1).strip()
         return overall_score, message_to_contractor
-
-reflections_prompt = """Here are some tips from previous attempts for you:
-{reflections_string}"""
 
 if __name__ == "__main__":
     try:
