@@ -346,7 +346,7 @@ class ChatGPT(MessageList):
         e = None
         for i in range(4):
             try:
-                @file_cache() # must be in the inner scope because this entire function manages state
+                # @file_cache() # must be in the inner scope because this entire function manages state
                 def chat_anthropic(message_dicts: list[dict[str, str]]):
                     return anthropic_client.messages.create(
                         model=model,
