@@ -6,7 +6,16 @@ from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
+    PAREA_API_KEY,
 )
+from parea import Parea
+
+parea_client = None
+try:
+    if PAREA_API_KEY:
+        parea_client = Parea(api_key=PAREA_API_KEY)
+except Exception as e:
+    logger.info(f"Failed to initialize Parea client: {e}")
 
 # falls back to openai if model is not available
 class AnthropicClient:
@@ -17,11 +26,14 @@ class AnthropicClient:
             logger.info(f"Using OpenAI model: {self.model}")
         else:
             self.client = Anthropic()
+            if parea_client:
+                parea_client.wrap_anthropic_client(self.client)
+            self.model = "claude-3-haiku-20240307"
             self.model = "claude-3-opus-20240229"
             logger.info(f"Using Anthropic model: {self.model}")
 
     # returns the clients response object
-    def get_response_message(self, messages: list[dict[str, str]], model: str = "", **kwargs):
+    def get_response_message(self, messages: list[dict[str, str]], model: str = "", stop_sequences: list[str] = [], **kwargs):
         model = model or self.model
         # for anthropic the messages must be alternating user and assistant and we cannot have system as a role
         if OPENAI_API_TYPE == "anthropic":
@@ -34,9 +46,9 @@ class AnthropicClient:
                 else:
                     new_messages.append(copy.deepcopy(message))
             messages = new_messages
-            response = self.client.messages.create(messages=messages, model=model, **kwargs)
+            response = self.client.messages.create(messages=messages, model=model, stop_sequences=stop_sequences, **kwargs)
         else:
-            response = self.client.chat.completions.create(messages=messages, model=model, **kwargs)
+            response = self.client.chat.completions.create(messages=messages, model=model, stop=stop_sequences, **kwargs)
         return response
     
     # returns the role and content from the response

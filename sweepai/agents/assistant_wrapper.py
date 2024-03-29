@@ -133,6 +133,15 @@ allowed_exts = [
     "elm",
 ]
 
+tool_call_parameters = {
+    "analyze_problem_and_propose_plan": ["problem_analysis", "proposed_plan"],
+    "search_codebase": ["justification", "file_name", "keyword"],
+    "analyze_and_identify_changes": ["file_name", "changes"],
+    "view_file": ["justification", "file_name"],
+    "make_change": ["justification", "file_name", "section_id", "original_code", "new_code"],
+    "create_file": ["justification", "file_name", "file_path", "contents"],
+    "submit_result": ["justification"],
+}
 
 def get_json_messages(
     thread_id: str,
@@ -224,93 +233,39 @@ def get_json_messages(
                         )
     return messages_json
 
+# returns a dictionary of the tool call parameters, assumes correct
+def parse_tool_call_parameters(tool_call_contents: str, parameters: list[str]) -> dict[str, Any]:
+    tool_args = {}
+    for param in parameters:
+        param_regex = rf'<{param}>\s*(?P<{param}>.*?)\s*<\/{param}>'
+        match = re.search(param_regex, tool_call_contents, re.DOTALL)
+        if match:
+            param_contents = match.group(param)
+            tool_args[param] = param_contents
+    return tool_args
 
 # parse llm response for tool calls in xml format
 def parse_tool_calls(response_contents: str) -> list[dict[str, Any]]:
     tool_calls = []
-    plan_regex = r'<ProposeProblemAnalysisAndPlan>\s*<Analysis>(?P<analysis>.*?)<\/Analysis>\s*<ProposedPlan>(?P<plan>.*?)<\/ProposedPlan>\s*<\/ProposeProblemAnalysisAndPlan>'
-    keyword_search_regex = r'<KeywordSearch>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<FileName>(?P<filename>.*?)<\/FileName>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/KeywordSearch>'   
-    search_and_replace_regex = (
-        r'<SearchAndReplace>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<FileName>(?P<filename>.*?)<\/FileName>\s*<SectionId>(?P<sectionid>.*?)<\/SectionId>\s*<OriginalCode>(?P<originalcode>.*?)<\/OriginalCode>\s*<NewCode>(?P<newcode>.*?)<\/NewCode>\s*<\/SearchAndReplace>'
-    )
-    analysis_and_identification_regex = r'<AnalysisAndIdentification>\s*(?P<analysisandidentification>.*?)\s*<\/AnalysisAndIdentification>'
-    submit_solution_regex = r'<SubmitSolution>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<\/SubmitSolution>'
-    view_file_regex = r'<ViewFile>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<FileName>(?P<filename>.*?)<\/FileName>\s*<\/ViewFile>'
-    get_additional_context_regex = r'<GetAdditionalContext>\s*<Justification>(?P<justification>.*?)<\/Justification>\s*<Keyword>(?P<keyword>.*?)<\/Keyword>\s*<\/GetAdditionalContext>'
-    # get all tool matches
-    plan_matches = re.finditer(plan_regex, response_contents, re.DOTALL)
-    keyword_matches = re.finditer(keyword_search_regex, response_contents, re.DOTALL)
-    search_and_replace_matches = re.finditer(search_and_replace_regex, response_contents, re.DOTALL)
-    analysis_and_identification_matches = re.finditer(analysis_and_identification_regex, response_contents, re.DOTALL)
-    submit_solution_matches = re.finditer(submit_solution_regex, response_contents, re.DOTALL)
-    view_file_matches = re.finditer(view_file_regex, response_contents, re.DOTALL)
-    get_additional_context_matches = re.finditer(get_additional_context_regex, response_contents, re.DOTALL)
+    # first get all tool calls
+    tool_call_regex = r'<invoke>\s*(?P<function_call>.*?)\s*<\/invoke>'
+    tool_call_matches = re.finditer(tool_call_regex, response_contents, re.DOTALL)
 
-    # add tool calls to list
-    for match in plan_matches:
-        tool_calls.append({
-            "tool": "ProposeProblemAnalysisAndPlan",
-            "arguments": {
-                "analysis": match.group("analysis"),
-                "plan": match.group("plan")
-            }
-        })
-    
-    for match in keyword_matches:
-        tool_calls.append({
-            "tool": "KeywordSearch",
-            "arguments": {
-                "filename": match.group("filename"),
-                "justification": match.group("justification"),
-                "keyword": match.group("keyword")
-            }
-        })
-
-    for match in search_and_replace_matches:
-        tool_calls.append({
-            "tool": "SearchAndReplace",
-            "arguments": {
-                "filename": match.group("filename"),
-                "sectionid": match.group("sectionid"),
-                "originalcode": match.group("originalcode"),
-                "newcode": match.group("newcode"),
-                "justification": match.group("justification")
-            }
-        })
-    
-    for match in analysis_and_identification_matches:
-        tool_calls.append({
-            "tool": "AnalysisAndIdentification",
-            "arguments": {
-                "analysisandidentification": match.group("analysisandidentification"),
-            }
-        })
-
-    for match in submit_solution_matches:
-        tool_calls.append({
-            "tool": "SubmitSolution",
-            "arguments": {
-                "justification": match.group("justification"),
-            }
-        })
-    
-    for match in get_additional_context_matches:
-        tool_calls.append({
-            "tool": "GetAdditionalContext",
-            "arguments": {
-                "justification": match.group("justification"),
-                "keyword": match.group("keyword")
-            }
-        })
-    
-    for match in view_file_matches:
-        tool_calls.append({
-            "tool": "ViewFile",
-            "arguments": {
-                "justification": match.group("justification"),
-                "filename": match.group("filename")
-            }
-        })
+    # now we extract each tool name and its parameters
+    for tool_call_match in tool_call_matches:
+        tool_name_regex = r'<tool_name>\s*(?P<tool_name>.*?)\s*<\/tool_name>'
+        tool_call_contents = tool_call_match.group("function_call")
+        tool_name = re.search(tool_name_regex, tool_call_contents).group("tool_name").strip()
+        # now we extract the arguments based on the tool name
+        if tool_name in tool_call_parameters:
+            # get parameters based off of tool name
+            parameters = tool_call_parameters[tool_name]
+            tool_call = { "tool": tool_name, 
+                         "arguments": parse_tool_call_parameters(tool_call_contents, parameters) 
+                        }
+            tool_calls.append(tool_call)
+        else:
+            logger.debug(f"WARNING! Tool name {tool_name} not recognized")
     return tool_calls
 
 def run_until_complete(
@@ -338,7 +293,7 @@ def run_until_complete(
         # get the response from openai
         try:
             client = AnthropicClient()                
-            response = client.get_response_message(messages, max_tokens=2048, temperature=0.2)
+            response = client.get_response_message(messages, max_tokens=3072, temperature=0.2, stop_sequences=["</invoke>"])
         # sometimes deployment for opennai is not found, retry after a minute
         except openai.NotFoundError as e:
             logger.error(
@@ -350,8 +305,6 @@ def run_until_complete(
             logger.error(f"chat completions failed on interation {i} with error: {e}")
             sleep(sleep_time)
             continue
-        # tool_calls = fix_tool_calls(response_message.tool_calls)
-        # response_message.tool_calls = tool_calls
         # extend conversation
         response_role, response_contents = client.parse_role_content_from_response(response)
         if not response_contents:
@@ -359,11 +312,17 @@ def run_until_complete(
                 "status": "completed",
                 "message": "Run completed",
             }
-        # extend conversation with llm
-        messages.append({"role": response_role, "content": response_contents})
+        # if a function call was made
+        if "<invoke>" in response_contents:
+            response_contents += "</invoke>\n</function_calls>"
         tool_calls = parse_tool_calls(response_contents)
+        # extend conversation with llm, must rstrip to remove trailing whitespace or else anthropic complains
+        messages.append({"role": response_role, "content": response_contents.rstrip()})
         # if a tool call was made
         done_response = None
+        if len(tool_calls) > 1:
+            logger.debug(f"WARNING MULTIPLE TOOL CALLS MADE: {len(tool_calls)}")
+
         if tool_calls:
             for tool_call in tool_calls:
                 tool_name = tool_call['tool']
@@ -375,14 +334,20 @@ def run_until_complete(
                     )
                     tool_output = f"ERROR\nCould not decode function arguments:\n{e}"
                 else:
-                    if tool_name == "SubmitSolution":
+                    if tool_name == "submit_result":
                         logger.info(
                             "Submit function was called"
                         )
-                        done_response = yield "done", {
-                            "status": "completed",
-                            "message": tool_args["justification"],
-                        }
+                        if "justification" in tool_args:
+                            done_response = yield "done", {
+                                "status": "completed",
+                                "message": tool_args["justification"],
+                            }
+                        else:
+                            done_response = yield "done", {
+                                "status": "completed",
+                                "message": "No justification provided",
+                            }
                         logger.info(
                             f"run_until_complete done_response: {done_response} completed after {i} iterations"
                         )
@@ -392,13 +357,13 @@ def run_until_complete(
                         logger.debug(
                             f"tool_call: {tool_name} with args: {tool_args}"
                         )
-                        tool_output = yield tool_name, tool_args
+                        tool_output: str = yield tool_name, tool_args
                         if not tool_output:
                             break
                         messages.append(
                             {
                                 "role": "user",
-                                "content": f"{tool_name}: {tool_output}",
+                                "content": f"{tool_output.rstrip()}",
                             }
                         )  # extend conversation with function response
                 
