@@ -27,7 +27,7 @@ from sweepai.config.client import SweepConfig
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
 # TODO:
-# - Add self-evaluation / chain-of-verification
+# - Add self-evaluation
 
 # generated using the convert_openai_function_to_anthropic_prompt
 
@@ -130,14 +130,17 @@ Example 1:
 <parameters>
 <plan>
 Modify the file user_service.py with the following changes:
-* Go to the `getUserById` method from the class `UserService` that fetches a user by user ID in the user services.
-* Add a flag called `include_deleted` that defaults to True.
-* If the flag is set, check if the `user.deleted` property is also set. If so, we should return None here.
+* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
+* Add a new optional parameter called `include_deleted` with a default value of `False`.
+* Inside the method, add a condition to check the value of `include_deleted`.
+* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
+* If `include_deleted` is `True`, no changes are needed to the query.
+* Update the method's docstring to reflect the new parameter and its behavior.
 
 Modify the file app.py with the following changes:
-* Locate the `get_user` method in the Flask app.
-* Locate the call to `getUserById`.
-* Set the newly created flag `include_deleted` property is set to True.
+* Locate the `get_user` route handler in the Flask app.
+* Find the call to `UserService.get_user_by_id()` within the route handler.
+* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
 </plan>
 </parameters>
 </function_call>
@@ -181,26 +184,6 @@ Example 4:
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-# sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
-
-# You will gather a list of relevant file paths of files to modify, and or modules that need to be used to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, we would need the file containing the endpoint, the file containing the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type so we know how to use the response of the DB service.
-
-# ## Instructions
-# - You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
-# - Utilize the keyword_search, and view_file tools to methodically find the code snippets you need to store.
-# - "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
-
-# Use the following iterative process:
-# 1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
-# 2. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
-# 3. When you identify a relevant file, use store_file to add it to the context.
-# Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
-# 4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
-
-# Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
-
-# """ + anthropic_function_calls
-
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed, plan to fully resolve a GitHub issue and retrieve relevant files for this. We consider a file RELEVANT if it must either be modified or contains a function or class that must used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used and validate ALL changes.
 
 Your goal is to generate an extremely detailed and accurate plan of code changes for an intern and a list of relevant files who is unfamliar with the codebase. You will do this by first drafting an initial plan, then validating the plan by searching and viewing for files in the codebase to draft a refined plan. You will do this until you have a finished complete plan where every detail is fully validated.
@@ -229,7 +212,7 @@ Modify the file app.py with the following changes:
 
 Only after you have completed the initial draft plan using the draft_plan function should you proceed to view and search for relevant files.
 
-2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request.
+2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request. Check also all potentially useful helper functions and backend services in the "Relevant files".
 3. Use keyword_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. If you want to use `user.deleted`, check that the `deleted` attribute exists on the entity. View the relevant files containing those definitions. Make sure to view ALL files when using or changing any function input parameters and accessing methods and attributes.
 4. When you identify a relevant file, use store_file to add it to the context.
 5. When you have retrieved new information, update the drafted plan by using the draft_plan function again.
@@ -763,7 +746,6 @@ def modify_context(
                     )
                     output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
             elif function_name == "store_file":
-                # if type_ == "to_modify":
                 try:
                     file_contents = repo_context_manager.cloned_repo.get_file_contents(
                         file_path
@@ -806,54 +788,6 @@ def modify_context(
                             if valid_path
                             else "FAILURE: This file path does not exist. Please try a new path."
                             )
-                # # elif type_ == "to_use":
-                # if True:
-                #     error_message = ""
-                #     try:
-                #         file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                #             file_path
-                #         )
-                #         valid_path = True
-                #     except Exception:
-                #         file_contents = ""
-                #         similar_file_paths = "\n".join(
-                #             [
-                #                 f"- {path}"
-                #                 for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                #                     file_path
-                #                 )
-                #             ]
-                #         )
-                #         error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                #     if error_message:
-                #         output = error_message
-                #     else:
-                #         # end_line = min(end_line, len(file_contents.splitlines()))
-                #         # logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                #         snippet = Snippet(
-                #             file_path=file_path,
-                #             start=0,
-                #             end=len(file_contents.splitlines()),
-                #             content=file_contents,
-                #         )
-                #         if snippet.denotation in current_read_only_snippets_string:
-                #             output = f"FAILURE: {file_path} is already in the selected READ ONLY files."
-                #         else:
-                #             repo_context_manager.add_read_only_snippets([snippet])
-                #             paths_to_add.append(file_path)
-                #             current_read_only_snippets_string = "\n".join(
-                #                 [
-                #                     snippet.denotation
-                #                     for snippet in repo_context_manager.read_only_snippets
-                #                 ]
-                #             )
-                #             output = (
-                #                 f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
-                #                 if valid_path
-                #                 else "FAILURE: This file path does not exist. Please try a new path."
-                #             )           
-                # else:
-                #     output = "FAILURE: Invalid type. Please specify either 'to_modify' or 'to_use'."
             elif function_name == "preview_file":
                 error_message = ""
                 try:
@@ -879,24 +813,13 @@ def modify_context(
                     output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
             elif function_name == "draft_plan":
                 output = f"SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
-            # elif function_name == "submit_report_and_plan":
             elif function_name == "submit":
-                # error_message = ""
-                # if "report" not in function_input or "plan" not in function_input:
-                #     error_message = "FAILURE: Please provide a report and a plan."
-                # else:
-                #     issue_report = function_input["report"]
-                #     issue_plan = function_input["plan"]
-                #     repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
-                # if error_message:
-                #     output = error_message
-                # else:
-                #     output = "SUCCESS: Report and plan submitted."
+                plan = function_calls.get("plan")
+                repo_context_manager.update_issue_report_and_plan(f"# High Suggested Plan:\n\n{plan}\n\n")
                 return True
             else:
                 output = f"FAILURE: Invalid tool name {function_name}"
             logger.info("Current top snippets: " + current_top_snippets_string)
-            # breakpoint()
             function_outputs.append(output_prefix + output)
             justification = (
                 function_input["justification"]
