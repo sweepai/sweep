@@ -122,6 +122,7 @@ def context_dfs(
         copied_repo_context_manager = deepcopy(repo_context_manager)
         message_results = perform_rollout(copied_repo_context_manager)
         truncated_message_results = message_results[1:] # skip system prompt
+        breakpoint()
         overall_score, message_to_contractor = EvaluatorAgent().evaluate_run("\n\n".join([truncated_message_results]))
         import pdb; pdb.set_trace()
     return
