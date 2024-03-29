@@ -11,6 +11,7 @@ from openai.types.beta.threads.run import Run
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall
@@ -26,34 +27,28 @@ from sweepai.config.client import SweepConfig
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
 # TODO:
-# - Add self-evaluation / chain-of-verification
+# - Add self-evaluation
 
 # generated using the convert_openai_function_to_anthropic_prompt
-
-"""
-<tool_description>
-<tool_name>file_search</tool_name>
-<description>
-Searches for file paths that match the given query. Useful for finding files when you don't know the exact path. Returns a list of matching file paths.
-</description>
-<parameters>
-<parameter>
-<name>query</name>
-<type>string</type>
-<description>The search query. "main.py" will return "main.py" if it exists as well as matches like "src/main.py".</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>string</type>
-<description>Explain why searching for this file is necessary to solve the issue.</description>
-</parameter>
-</parameters>
-</tool_description>
-"""
 
 # Adds a read-only file to the context that provides necessary information to resolve the issue, such as functions or classes we need to use when implementing the change.. Provide a code excerpt in the justification indicating why it needs to be used. After using this tool, use `keyword_search` to find definitions of additional unknown functions / classes in the file.
 
 anthropic_function_calls = """<tool_description>
+<tool_name>draft_plan</tool_name>  
+<description>
+Draft a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and list each file that needs to be edited and exactly how it should be edited. Write it for a new intern with no prior knowledge of the codebase or issue.
+
+You should always call this function first
+</description>
+<parameters>
+<parameter>  
+<name>plan</name>
+<type>string</type>
+<description>A detailed report providing background information and explaining the issue so that someone with no context can understand it. A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and file to use.</description>
+</parameter>
+</parameters>
+</tool_description>
+
 <tool_name>view_file</tool_name>
 <description>
 Retrieves the contents of the specified file. After viewing a file, use `keyword_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
@@ -86,23 +81,7 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <parameter>
 <name>justification</name>
 <type>string</type>
-<description>Explain why this file is should be modified or used and what needs to be modified. Include a supporting code excerpt.</description>
-</parameter>
-</parameter>
-<parameter>
-<name>type</name>
-<enum_options>
-<type>enum</type>
-<description>
-<enum_option>
-<name>to_modify</name>
-<description>Store the file as a file to modify.</description>
-</enum_option>
-<enum_option>
-<name>to_use</name>
-<description>Store the file as a read-only file to use. Examples include required helper functions, backend services or type hints etc.</description>
-</enum_option>
-</enum_options>
+<description>Explain why this file is should be modified or used and what needs to be modified or why it needs to be used. Include a supporting code excerpt.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -127,32 +106,42 @@ Searches the entire codebase for the given keyword and returns a list of files a
 </tool_description>
 
 <tool_description>
-<tool_name>submit_report_and_plan</tool_name>  
+<tool_name>submit</tool_name>  
 <description>
-Provides a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and which files need to be modified or referenced. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue.
+Submit the final proposed plan.
 </description>
 <parameters>
 <parameter>
-<name>report</name>
-<type>string</type>
-<description>A detailed report providing background information and explaining the issue so that someone with no context can understand it.</description>
-</parameter>
 <parameter>  
 <name>plan</name>
 <type>string</type>
-<description>A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and file to use.</description>
+<description>Copy the final plan drafted using the draft_plan function.</description>
 </parameter>
 </parameters>
 </tool_description>
 
 You must call one tool at a time using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
+<examples>
+
 Example 1:
 <function_call>
-<tool_name>file_search</tool_name>
+<tool_name>draft_plan</tool_name>
 <parameters>
-<query>user_controller.py</query>
-<justification>The user request mentions the UserController class, so I need to find the file that defines it. Searching for 'user_controller.py' is likely to locate this file.</justification>
+<plan>
+Modify the file user_service.py with the following changes:
+* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
+* Add a new optional parameter called `include_deleted` with a default value of `False`.
+* Inside the method, add a condition to check the value of `include_deleted`.
+* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
+* If `include_deleted` is `True`, no changes are needed to the query.
+* Update the method's docstring to reflect the new parameter and its behavior.
+
+Modify the file app.py with the following changes:
+* Locate the `get_user` route handler in the Flask app.
+* Find the call to `UserService.get_user_by_id()` within the route handler.
+* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
+</plan>
 </parameters>
 </function_call>
 
@@ -179,7 +168,6 @@ def create_user(self, name, email):
     db.session.commit()
 ```
 </justification>
-<type>to_modify</type>
 </parameters>
 </function_call>
 
@@ -192,23 +180,47 @@ Example 4:
 </parameters>
 </function_call>
 
+</examples>
+
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed, plan to fully resolve a GitHub issue and retrieve relevant files for this. We consider a file RELEVANT if it must either be modified or contains a function or class that must used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used and validate ALL changes.
 
-You will gather two lists of relevant file paths. One list contains files to modify, and another contains a list of file paths to use that are needed to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, a file path to modify would be the file containing the endpoint, and file paths to use would be the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type.
+Your goal is to generate an extremely detailed and accurate plan of code changes for an intern and a list of relevant files who is unfamliar with the codebase. You will do this by first drafting an initial plan, then validating the plan by searching and viewing for files in the codebase to draft a refined plan. You will do this until you have a finished complete plan where every detail is fully validated.
 
-## Instructions
-- You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
-- Utilize the keyword_search, file_search, and view_file tools to methodically find the code snippets you need to store.
-- "Relevant Snippets" provides code snippets found via search that may be relevant to the issue. However, these are not automatically added to the context.
+Your plan should be complete but should not include tests.
+
+INSTRUCTIONS
 
 Use the following iterative process:
-1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. If the full path is unknown, use file_search with the file name. Make sure to check all files referenced in the user request.
-2. Use keyword_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
-3. When you identify a relevant file, use store_file to add it to the context.
-Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
-4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
+1. First, summarize the "User Request" and "Relevant Snippets" use the draft_plan function to draft a detailed plan that is complete and indicates every detail that should be used.
+
+<example_draft_plan>
+Modify the file user_service.py with the following changes:
+* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
+* Add a new optional parameter called `include_deleted` with a default value of `False`.
+* Inside the method, add a condition to check the value of `include_deleted`.
+* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
+* If `include_deleted` is `True`, no changes are needed to the query.
+* Update the method's docstring to reflect the new parameter and its behavior.
+
+Modify the file app.py with the following changes:
+* Locate the `get_user` route handler in the Flask app.
+* Find the call to `UserService.get_user_by_id()` within the route handler.
+* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
+</example_draft_plan>
+
+Only after you have completed the initial draft plan using the draft_plan function should you proceed to view and search for relevant files.
+
+2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request. Check also all potentially useful helper functions and backend services in the "Relevant files".
+3. Use keyword_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. If you want to use `user.deleted`, check that the `deleted` attribute exists on the entity. View the relevant files containing those definitions. Make sure to view ALL files when using or changing any function input parameters and accessing methods and attributes.
+4. When you identify a relevant file, use store_file to add it to the context.
+5. When you have retrieved new information, update the drafted plan by using the draft_plan function again.
+
+Repeat steps 1-3 until you are confident you have drafted a plan and have validated all the details, such as all the entities used and the variable and attribute names required.
+5. Submit the plan with the submit function.
+
+It is crucial that you follow the steps in the specified order, starting with drafting an initial plan using the draft_plan function before proceeding to view and search for files.
 
 Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
 
@@ -526,7 +538,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -612,6 +624,7 @@ def update_assistant_conversation(
 
 
 CLAUDE_MODEL = "claude-3-haiku-20240307"
+# CLAUDE_MODEL = "claude-3-sonnet-20240229"
 
 def validate_and_parse_function_calls(function_calls_string: str, chat_gpt: ChatGPT) -> list[MockFunctionCall]:
     function_calls = MockFunctionCall.mock_function_calls_from_string(function_calls_string.strip("\n") + "\n</function_call>") # add end tag
@@ -664,28 +677,7 @@ def modify_context(
             valid_path = False
             output_prefix = f"Output for {function_name}:\n"
             output = ""
-            if function_name == "file_search":
-                error_message = ""
-                try:
-                    file_path = function_input.get("query")
-                    similar_file_paths = "\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                file_path
-                            )
-                        ]
-                    )
-                    valid_path = True
-                    output = (
-                        f"SUCCESS: Here are the most similar file paths to {file_path}:\n{similar_file_paths}"
-                        if valid_path
-                        else "FAILURE: This file path does not exist. Please try a new path."
-                    )
-                except Exception:
-                    similar_file_paths = ""
-                    output = "FAILURE: This file path does not exist."
-            elif function_name == "keyword_search":
+            if function_name == "keyword_search":
                 message_key = "keyword_search"
                 error_message = ""
                 keyword = f'"{function_input["keyword"]}"' # handles cases with two words
@@ -718,7 +710,7 @@ def modify_context(
                     if file_path in current_read_only_snippets_string and file_path in current_top_snippets_string and valid_path:
                         output = f"FAILURE: {file_path} is already in the selected snippets."
                     elif valid_path:
-                        output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                        output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf this file should be modified or used to resolve the issue, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                     else:
                         output = "FAILURE: This file path does not exist. Please try a new path."
                 except Exception:
@@ -733,96 +725,48 @@ def modify_context(
                     )
                     output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
             elif function_name == "store_file":
-                type_ = function_input.get("type")
-                if type_ == "to_modify":
-                    try:
-                        file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                            file_path
-                        )
-                        valid_path = True
-                    except Exception:
-                        file_contents = ""
-                        similar_file_paths = "\n".join(
-                            [
-                                f"- {path}"
-                                for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                    file_path
-                                )
-                            ]
-                        )
-                        error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                    if error_message:
-                        output = error_message
-                    else:
-                        snippet = Snippet(
-                            file_path=file_path,
-                            start=0,
-                            end=len(file_contents.splitlines()),
-                            content=file_contents,
-                        )
-                        if snippet.denotation in current_top_snippets_string:
-                            output = f"FAILURE: {file_path} is already in the selected snippets."
-                        else:
-                            repo_context_manager.add_snippets([snippet])
-                            paths_to_add.append(file_path)
-                            current_top_snippets_string = "\n".join(
-                                [
-                                    snippet.denotation
-                                    for snippet in repo_context_manager.current_top_snippets
-                                ]
+                try:
+                    file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                        file_path
+                    )
+                    valid_path = True
+                except Exception:
+                    file_contents = ""
+                    similar_file_paths = "\n".join(
+                        [
+                            f"- {path}"
+                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                                file_path
                             )
-                            output = (
-                                f"SUCCESS: {file_path} was added. Here are the current selected snippets that will be MODIFIED:\n{current_top_snippets_string}"
-                                if valid_path
-                                else "FAILURE: This file path does not exist. Please try a new path."
-                            )
-                elif type_ == "to_use":
-                    error_message = ""
-                    try:
-                        file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                            file_path
-                        )
-                        valid_path = True
-                    except Exception:
-                        file_contents = ""
-                        similar_file_paths = "\n".join(
-                            [
-                                f"- {path}"
-                                for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                    file_path
-                                )
-                            ]
-                        )
-                        error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-                    if error_message:
-                        output = error_message
-                    else:
-                        # end_line = min(end_line, len(file_contents.splitlines()))
-                        # logger.info(f"start_line: {start_line}, end_line: {end_line}")
-                        snippet = Snippet(
-                            file_path=file_path,
-                            start=0,
-                            end=len(file_contents.splitlines()),
-                            content=file_contents,
-                        )
-                        if snippet.denotation in current_read_only_snippets_string:
-                            output = f"FAILURE: {file_path} is already in the selected READ ONLY files."
-                        else:
-                            repo_context_manager.add_read_only_snippets([snippet])
-                            paths_to_add.append(file_path)
-                            current_read_only_snippets_string = "\n".join(
-                                [
-                                    snippet.denotation
-                                    for snippet in repo_context_manager.read_only_snippets
-                                ]
-                            )
-                            output = (
-                                f"SUCCESS: {file_path} was added. Here are the current selected READ ONLY files:\n{current_read_only_snippets_string}"
-                                if valid_path
-                                else "FAILURE: This file path does not exist. Please try a new path."
-                            )           
+                        ]
+                    )
+                    error_message = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+                if error_message:
+                    output = error_message
                 else:
-                    output = "FAILURE: Invalid type. Please specify either 'to_modify' or 'to_use'."
+                    snippet = Snippet(
+                        file_path=file_path,
+                        start=0,
+                        end=len(file_contents.splitlines()),
+                        content=file_contents,
+                    )
+                    if snippet.denotation in current_top_snippets_string:
+                        output = f"FAILURE: {file_path} is already in the selected snippets."
+                    else:
+                        repo_context_manager.add_snippets([snippet])
+                        repo_context_manager.add_read_only_snippets([snippet])
+                        paths_to_add.append(file_path)
+                        current_top_snippets_string = "\n".join(
+                            [
+                                snippet.denotation
+                                for snippet in repo_context_manager.current_top_snippets
+                            ]
+                        )
+                        output = (
+                            f"SUCCESS: {file_path} was added. Here are the current selected snippets in the context:\n{current_top_snippets_string}"
+                            if valid_path
+                            else "FAILURE: This file path does not exist. Please try a new path."
+                            )
             elif function_name == "preview_file":
                 error_message = ""
                 try:
@@ -846,19 +790,12 @@ def modify_context(
                 else:
                     file_preview = CodeTree.from_code(code).get_preview()
                     output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
-            elif function_name == "submit_report_and_plan":
-                error_message = ""
-                if "report" not in function_input or "plan" not in function_input:
-                    error_message = "FAILURE: Please provide a report and a plan."
-                else:
-                    issue_report = function_input["report"]
-                    issue_plan = function_input["plan"]
-                    repo_context_manager.update_issue_report_and_plan(f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n")
-                if error_message:
-                    output = error_message
-                else:
-                    output = "SUCCESS: Report and plan submitted."
-                    return True
+            elif function_name == "draft_plan":
+                output = "SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
+            elif function_name == "submit":
+                plan = function_input.get("plan")
+                repo_context_manager.update_issue_report_and_plan(f"# High Suggested Plan:\n\n{plan}\n\n")
+                return True
             else:
                 output = f"FAILURE: Invalid tool name {function_name}"
             logger.info("Current top snippets: " + current_top_snippets_string)
