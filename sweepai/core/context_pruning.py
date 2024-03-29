@@ -702,7 +702,7 @@ def handle_function_call(
                     )
                 ]
             )
-            valid_path = True
+            valid_path = bool(similar_file_paths)
             output = (
                 f"SUCCESS: Here are the most similar file paths to {file_path}:\n{similar_file_paths}"
                 if valid_path
@@ -730,6 +730,9 @@ def handle_function_call(
                 rg_output_pretty = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
+                output = (
+                    f"SUCCESS: Here are the keyword_search results:\n\n{rg_output_pretty}"
+                )
             else:
                 output = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
         except Exception as e:
@@ -737,11 +740,6 @@ def handle_function_call(
                 f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
             )
             output = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
-        else:
-            output = (
-                f"SUCCESS: Here are the keyword_search results:\n\n{rg_output_pretty}"
-            )
-
     elif function_name == "view_file":
         try:
             file_contents = repo_context_manager.cloned_repo.get_file_contents(

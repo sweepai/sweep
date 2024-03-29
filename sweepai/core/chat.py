@@ -44,7 +44,13 @@ OpenAIModel = (
     | Literal["gpt-4-0125-preview"]
 )
 
-ChatModel = OpenAIModel
+AnthropicModel = (
+    Literal["claude-3-haiku-20240307"]
+    | Literal["claude-3-sonnet-20240229"]
+    | Literal["claude-3-opus-20240229"]
+)
+
+ChatModel = OpenAIModel | AnthropicModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
     "gpt-3.5-turbo-1106": 16385,
