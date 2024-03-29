@@ -11,6 +11,7 @@ from openai.types.beta.threads.run import Run
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall
@@ -488,7 +489,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
