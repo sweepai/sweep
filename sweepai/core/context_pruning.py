@@ -61,13 +61,7 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <parameter>
 <name>justification</name>
 <type>string</type>
-<description>Explain why this file is should be modified or used and what needs to be modified. Include a supporting code excerpt.</description>
-</parameter>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>string</type>  
-<description>Explain why this read-only file is relevant and what information it provides. Include a supporting code excerpt.</description>
+<description>Explain why this file should be modified or read and what needs to be modified. Include a supporting code excerpt.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -138,7 +132,6 @@ def create_user(self, name, email):
     db.session.commit()
 ```
 </justification>
-<type>to_modify</type>
 </parameters>
 </invoke>
 </function_call>
@@ -158,7 +151,7 @@ I will provide the tool's response after each call, then you may call another to
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
 
-You will gather two lists of relevant file paths. One list contains files to modify, and another contains a list of file paths to use that are needed to completely resolve this issue. For example, if the user reports that there is a bug with the getVendor() backend endpoint, a file path to modify would be the file containing the endpoint, and file paths to use would be the DB service that fetches the vendor information and the type stub file containing the type definitions for a Vendor type.
+You will gather all of the relevant file paths.
 
 ## Instructions
 - You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
