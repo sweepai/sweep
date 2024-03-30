@@ -767,7 +767,7 @@ def context_dfs(
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    max_iterations = 40 # TODO: consider tuning this
+    max_iterations = 20 # TODO: consider tuning this
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
