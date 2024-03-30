@@ -768,26 +768,8 @@ def handle_function_call(
                     if valid_path
                     else "FAILURE: This file path does not exist. Please try a new path."
                 )
-    elif function_name == "preview_file":
-        try:
-            code = repo_context_manager.cloned_repo.get_file_contents(file_path)
-            valid_path = True
-        except Exception:
-            code = ""
-            similar_file_paths = "\n".join(
-                [
-                    f"- {path}"
-                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                        file_path
-                    )
-                ]
-            )
-            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-        else:
-            file_preview = CodeTree.from_code(code).get_preview()
-            output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
     elif function_name == "draft_plan":
-            output = "SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
+            output = "SUCCESS: Let's validate this plan's details by searching the codebase for all mentioned entities."
     elif function_name == "submit":
         plan = function_input.get("plan")
         repo_context_manager.update_issue_report_and_plan(f"# Highly Suggested Plan:\n\n{plan}\n\n")
@@ -821,6 +803,7 @@ def context_dfs(
     problem_statement: str,
 ) -> bool | None:
     max_iterations = 40 # TODO: consider tuning this
+    NUM_ROLLOUTS = 5
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
@@ -866,7 +849,7 @@ def context_dfs(
                 stop_sequences=["</function_call>"],
             )
         return chat_gpt.messages
-    for rollout_idx in range(2):
+    for rollout_idx in range(NUM_ROLLOUTS):
         # operate on a deep copy of the repo context manager
         copied_repo_context_manager = deepcopy(repo_context_manager)
         message_results = perform_rollout(copied_repo_context_manager, reflections_to_read_files)

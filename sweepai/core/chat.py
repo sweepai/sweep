@@ -340,6 +340,7 @@ class ChatGPT(MessageList):
         max_tokens: int = 4096,
     ):
         assert ANTHROPIC_API_KEY
+        self.model = model
         self.messages.append(Message(role="user", content=content, key=message_key))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
@@ -368,7 +369,7 @@ class ChatGPT(MessageList):
                         "content": message.content,
                     } for message in self.messages if message.role != "system"
                 ]
-                content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
+                content = chat_anthropic(message_dicts, self.messages[0].content, model)
                 break
             except Exception as e_:
                 breakpoint()
