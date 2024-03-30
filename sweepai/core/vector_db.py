@@ -8,13 +8,14 @@ import requests
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
+import voyageai
 
-from sweepai.config.server import BATCH_SIZE, REDIS_URL
+from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_KEY
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
 
-CACHE_VERSION = "v1.3.04"
+CACHE_VERSION = "v2.0.04" # Now uses Voyage AI if available, asymmetric embedding
 redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 
@@ -42,7 +43,7 @@ def get_query_texts_similarity(query: str, texts: str) -> list[float]:
         return []
     embeddings = embed_text_array(texts)
     embeddings = np.concatenate(embeddings)
-    query_embedding = np.array(embed_text_array([query])[0])
+    query_embedding = np.array(openai_call_embedding([query], input_type="query")[0])
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
@@ -66,21 +67,31 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
-    with multiprocessing.Pool(
-        processes=max(1, multiprocessing.cpu_count() // 4)
-    ) as pool:
-        embeddings = list(
-            tqdm(
-                pool.imap(openai_with_expo_backoff, batches),
-                total=len(batches),
-                desc="openai embedding",
+    workers = max(1, multiprocessing.cpu_count() // 4)
+    if workers > 1 or VOYAGE_API_KEY:
+        with multiprocessing.Pool(
+            processes=workers
+        ) as pool:
+            embeddings = list(
+                tqdm(
+                    pool.imap(openai_with_expo_backoff, batches),
+                    total=len(batches),
+                    desc="openai embedding",
+                )
             )
-        )
+    else:
+        embeddings = [openai_with_expo_backoff(batch) for batch in tqdm(batches, desc="openai embedding")]
     return embeddings
 
 
 # @redis_cache()
-def openai_call_embedding(batch):
+def openai_call_embedding(batch, input_type: str="document"): # input_type can be query or document
+    if VOYAGE_API_KEY:
+        client = voyageai.Client()
+        result = client.embed(batch, model="voyage-code-2", input_type=input_type)
+        cut_dim = np.array([data for data in result.embeddings])
+        normalized_dim = normalize_l2(cut_dim)
+        return normalized_dim
     client = get_embeddings_client()
     response = client.embeddings.create(
         input=batch, model="text-embedding-3-small", encoding_format="float"
@@ -89,6 +100,7 @@ def openai_call_embedding(batch):
     normalized_dim = normalize_l2(cut_dim)
     # save results to redis
     return normalized_dim
+
 
 
 @backoff.on_exception(
@@ -154,5 +166,5 @@ def openai_with_expo_backoff(batch: tuple[str]):
 
 
 if __name__ == "__main__":
-    texts = ["sasxtt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
+    texts = ["sasxtt " * 1000 for i in range(10)] + ["abb " * 1 for i in range(10)]
     embeddings = embed_text_array(texts)

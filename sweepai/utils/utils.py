@@ -572,4 +572,5 @@ if __name__ == "__main__":
         code = f.read()
     chunks = chunk_code(code, file_path, 1400, 500)
     import pdb
+    # pylint: disable=no-member
     pdb.set_trace()

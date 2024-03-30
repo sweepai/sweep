@@ -182,5 +182,6 @@ if __name__ == "__main__":
         assert len(set(final_ordering)) == len(final_ordering)
     except Exception as e:
         import pdb
+        # pylint: disable=no-member
         pdb.post_mortem()
         raise e
