@@ -154,5 +154,6 @@ if __name__ == "__main__":
         import sys
         info = sys.exc_info()
         import pdb
+        # pylint: disable=no-member
         pdb.post_mortem(info[2])
         raise e
