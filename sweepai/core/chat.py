@@ -44,7 +44,13 @@ OpenAIModel = (
     | Literal["gpt-4-0125-preview"]
 )
 
-ChatModel = OpenAIModel
+AnthropicModel = (
+    Literal["claude-3-haiku-20240307"]
+    | Literal["claude-3-sonnet-20240229"]
+    | Literal["claude-3-opus-20240229"]
+)
+
+ChatModel = OpenAIModel | AnthropicModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
     "gpt-3.5-turbo-1106": 16385,
@@ -334,6 +340,7 @@ class ChatGPT(MessageList):
         max_tokens: int = 4096,
     ):
         assert ANTHROPIC_API_KEY
+        self.model = model
         self.messages.append(Message(role="user", content=content, key=message_key))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
@@ -347,11 +354,7 @@ class ChatGPT(MessageList):
         for i in range(4):
             try:
                 @file_cache() # must be in the inner scope because this entire function manages state
-                def chat_anthropic(
-                    message_dicts: list[dict[str, str]],
-                    system_message_for_cache: str,
-                    model_for_cache: str
-                ): # add system message and model to cache
+                def chat_anthropic(message_dicts: list[dict[str, str]], system_message_for_cache: str, model_for_cache: str): # add system message and model to cache
                     return anthropic_client.messages.create(
                         model=model,
                         temperature=temperature,
