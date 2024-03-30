@@ -203,8 +203,9 @@ docker-compose
 .pdbrc.py
 
 ee/**
-eval/*.txt
-eval/*.csv
-eval/*.jsonl
-
 eval/archive/**
+eval/**/*.txt
+eval/**/*.csv
+eval/**/*.jsonl
+
+.worktrees

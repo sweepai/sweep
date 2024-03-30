@@ -10,22 +10,10 @@ from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.utils import Tiktoken, chunk_code
 
 tiktoken_client = Tiktoken()
-
-def read_file_with_fallback_encodings(
-    file_path, encodings=["utf-8", "windows-1252", "iso-8859-1"]
-):
-    for encoding in encodings:
-        try:
-            with open(file_path, "r", encoding=encoding) as file:
-                return file.read()
-        except UnicodeDecodeError:
-            continue
-    raise UnicodeDecodeError(
-        f"Could not decode {file_path} with any of the specified encodings: {encodings}"
-    )
 
 
 def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
@@ -46,7 +34,8 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         if file[len(directory) + 1 :].startswith(dir_name):
             return False
     for dir_name in sweep_config.exclude_path_dirs:
-        if dir_name in file:
+        file_parts = file.split(os.path.sep)
+        if dir_name in file_parts:
             return False
     try:
         if os.stat(file).st_size > 240000:
@@ -67,8 +56,6 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         if is_binary:
             return False
         f.close()
-
-    
     try:
         # fetch file
         data = read_file_with_fallback_encodings(file)
@@ -138,3 +125,23 @@ def directory_to_chunks(
         for chunks in tqdm(pool.imap(file_path_to_chunks, file_list), total=len(file_list)):
             all_chunks.extend(chunks)
     return all_chunks, file_list
+
+if __name__ == "__main__":
+    try:
+        from sweepai.utils.github_utils import ClonedRepo, get_installation_id
+        organization_name = "sweepai"
+        
+        installation_id = get_installation_id(organization_name)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        sweep_config = SweepConfig()
+        chunks, file_list = directory_to_chunks(cloned_repo.repo_dir, sweep_config)
+        # ensure no unallowed files are let through
+        assert(not any([file for file in file_list if sweep_config.is_file_excluded(file)]))
+        # pick 10 random files and turn them to chunks
+        import random
+        for _ in range(10):
+            idx = random.randint(0, len(file_list) - 1)
+            file_chunks = file_path_to_chunks(file_list[idx])
+
+    except Exception as e:
+        logger.error(f"repo_parsing_utils.py failed to run successfully with error: {e}")

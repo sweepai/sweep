@@ -509,7 +509,7 @@ def on_ticket(
                 else None
             )
 
-            if chat_logger:
+            if chat_logger and not IS_SELF_HOSTED:
                 is_paying_user = chat_logger.is_paying_user()
                 is_consumer_tier = chat_logger.is_consumer_tier()
                 use_faster_model = chat_logger.use_faster_model()
@@ -834,7 +834,7 @@ def on_ticket(
                         chat_logger,
                         ticket_progress,
                     )
-                except Exception:
+                except Exception as e:
                     edit_sweep_comment(
                         (
                             "It looks like an issue has occurred around fetching the files."
@@ -843,7 +843,7 @@ def on_ticket(
                         ),
                         -1,
                     )
-                    raise Exception("Failed to fetch files")
+                    raise Exception("Failed to fetch files") from e
                 _user_token, g = get_github_client(installation_id)
                 user_token, g, repo = refresh_token()
                 cloned_repo.token = user_token
@@ -1351,7 +1351,7 @@ def on_ticket(
                     if new_description:
                         pr_changes.body = (
                             f"{new_description}\n\nFixes"
-                            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+                            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
                         )
 
                     edit_sweep_comment(
@@ -1834,7 +1834,7 @@ def handle_sandbox_mode(
         1,
     )
     updated_contents, sandbox_response = sweep_bot.check_sandbox(
-        file_name, file_contents, []
+        file_name, file_contents
     )
     logger.info("Sandbox finished")
     logs = (

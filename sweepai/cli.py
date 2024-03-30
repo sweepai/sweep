@@ -117,6 +117,9 @@ def get_event_type(event: Event | IssueEvent):
     else:
         return pascal_to_snake(event.type)[: -len("_event")]
 
+@app.command()
+def test():
+    cprint("Sweep AI is installed correctly and ready to go!", style="yellow")
 
 @app.command()
 def watch(
@@ -337,7 +340,7 @@ def run(issue_url: str):
 
 def main():
     cprint(
-        "By using the Sweep CLI, you agree to the Sweep AI Terms of Service at https://sweep.dev/tos.pdf.",
+        "By using the Sweep CLI, you agree to the Sweep AI Terms of Service at https://sweep.dev/tos.pdf",
         style="cyan",
     )
     load_config()

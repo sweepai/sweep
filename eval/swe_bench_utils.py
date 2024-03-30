@@ -1,26 +1,12 @@
 from __future__ import annotations
-from collections import defaultdict
-import glob
-import subprocess
-import sys
 from time import time
-from unittest.mock import MagicMock
-from loguru import logger
-from tqdm import tqdm
-import typer
-import yaml
 
-import git
 import os
-from github import Github
 
 from rich.console import Console
-from rich.progress import track
 from rich import print
 
-from math import inf
 from sweepai.agents.modify_bot import ModifyBot
-from sweepai.agents.modify_file import modify_file
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -28,49 +14,31 @@ from sweepai.core.entities import (
     PullRequest,
 )
 from sweepai.logn.cache import file_cache
-from sweepai.utils import openai_proxy
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
 
 from sweepai.utils.github_utils import (
     MockClonedRepo,
-    TemporarilyCopiedClonedRepo,
 )
 
 from sweepai.utils.ticket_utils import prep_snippets
-from rich.console import Console
-import datetime
-import copy
-import hashlib
-import os
 import re
-import git
-import requests
 
-from typing import Literal
 import backoff
-from pydantic import BaseModel, Field
-import yaml
 from sweepai.core.entities import (
-    FileChangeRequest,
-    Message,
-    PullRequest,
     RegexMatchError,
     Snippet,
 )
-from sweepai.logn.cache import file_cache
 from sweepai.utils.openai_proxy import OpenAIProxy
-from sweepai.utils.github_utils import MockClonedRepo
 from sweepai.core.prompts import files_to_change_prompt, files_to_change_system_prompt
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, INSTALLATION_ID
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+from benchmark.repo_imports.build_tree_for_python import build_import_graph
 
-from rich.console import Console
 
 def cprint(*args, **kwargs):
     try:
         Console().print(*args, **kwargs)
-    except Exception as e:
+    except Exception:
         print(*args, **kwargs)
 debug = True
 verbose = False
@@ -85,18 +53,13 @@ def checkout_to_pr_ref(
         print(f"Exception occured while attempting to checkout to pr ref: {e}")
         raise e
 
-# @file_cache()
-def run_search_test(
-    cloned_repo: MockClonedRepo,
+def evaluate_search(
+    rcm: RepoContextManager,
+    resolution_files: list[str],
     problem_statement: str,
-    commit_hash: str,
-    k: int = 15,
-    resolution_files: list[str] = [],
-    name: str = ""
-) -> tuple[int, int, RepoContextManager, PullRequest]:
-    start = time()
-    checkout_to_pr_ref(commit_hash, cloned_repo)
-    rcm = prep_snippets(cloned_repo, problem_statement, ticket_progress=None, k=k)
+    k: int,
+    name: str,
+):
     selected_snippets, all_snippets = rcm.current_top_snippets, rcm.snippets
     content_to_lexical_score = rcm.snippet_scores
     sorted_snippets = sorted(
@@ -104,12 +67,7 @@ def run_search_test(
         key=lambda snippet: content_to_lexical_score[snippet.denotation],
         reverse=True,
     )
-    # rcm = get_relevant_context(problem_statement, rcm, chat_logger=ChatLogger({
-    #         "username": "__swe_bench_benchmark__",
-    #         "title": f"Benchmarking context {instance_id}",
-    #     }))
     sorted_snippet_paths = [snippet.file_path for snippet in sorted_snippets]
-    # # sort all snippets by score inside of content_to_lexical_score
     top_k_paths = [
         snippet.file_path for snippet in selected_snippets
     ]  # NOTE: a false positive will hurt the score badly - need to fix
@@ -117,7 +75,7 @@ def run_search_test(
     accuracy = 1
     positions = []
     for resolution_file in resolution_files:
-        if not (resolution_file in sorted_snippet_paths):
+        if resolution_file not in sorted_snippet_paths:
             cprint(
                 f"Resolution file {resolution_file} is NOT reachable!", style="bold red"
             )
@@ -128,20 +86,18 @@ def run_search_test(
         else:
             positions.append(9999)
         # if a resolution file is not in the top k, accuracy is 0
-        if not (resolution_file in top_k_paths):
+        if resolution_file not in top_k_paths:
             accuracy = 0
     max_mrr_score = sum([1 / (i + 1) for i in range(len(resolution_files))])
     mrr /= max_mrr_score
 
-    end = time()
-    cprint(f"Total elapsed time: {end - start} seconds")
     cprint(
         f"MRR at {k}: {mrr}\ntest {name}"
     )
     if debug:
         cprint(f"Query: {problem_statement}")
-    with open(f"test_outputs.txt", "a") as f:
-        test_config_string = f"Total elapsed time: {end - start} seconds\nMRR at {k}: {mrr}\ntest {name}"
+    with open("test_outputs.txt", "a") as f:
+        test_config_string = f"MRR at {k}: {mrr}\ntest {name}"
         f.write(f"{test_config_string}\n")
         f.close()
     # print the top k snippets and highlight the ones that are in the resolution files
@@ -157,7 +113,7 @@ def run_search_test(
             if verbose:
                 cprint(f"{snippet.denotation}: {snippet.content}")
             with open(
-                f"output_scores.txt", "a"
+                "output_scores.txt", "a"
             ) as f:
                 snippet_string = f"snippet_score {snippet_score}: {snippet.denotation}\n {snippet.denotation}: {snippet.content}"
                 f.write(f"{snippet_string}\n")
@@ -170,11 +126,53 @@ def run_search_test(
                 if snippet.file_path == resolution_file
             ][0]
             snippet_score = round(content_to_lexical_score[snippet.denotation], 4)
-            if not (resolution_file in top_k_paths):
+            if resolution_file not in top_k_paths:
                 cprint(
                     f"snippet_score {snippet_score}: [red]{resolution_file} MISSED at rank {sorted_snippet_paths.index(resolution_file) + 1}/{len(sorted_snippet_paths)}[/red]"
                 )
-    return mrr, accuracy, rcm, positions
+    return mrr, accuracy, positions
+
+# @file_cache()
+def run_search_test(
+    cloned_repo: MockClonedRepo,
+    problem_statement: str,
+    commit_hash: str,
+    k: int = 15,
+    resolution_files: list[str] = [],
+    name: str = ""
+) -> tuple[int, int, RepoContextManager, PullRequest]:
+    start = time()
+    checkout_to_pr_ref(commit_hash, cloned_repo)
+    rcm = prep_snippets(cloned_repo, problem_statement, ticket_progress=None, k=k)
+    end = time()
+    cprint(f"Search elapsed time: {end - start} seconds")
+
+    search_mrr, search_accuracy, search_positions = evaluate_search(
+        rcm,
+        resolution_files,
+        problem_statement,
+        k,
+        name,
+    )
+    import_graph = build_import_graph(f"{cloned_repo.repo_dir}/")
+    rcm = get_relevant_context(problem_statement, rcm, chat_logger=ChatLogger({
+        "username": "__swe_bench_benchmark__",
+        "title": f"Benchmarking context {name}",
+    }))
+    # # sort all snippets by score inside of content_to_lexical_score
+
+    end = time()
+    cprint(f"Total elapsed time: {end - start} seconds")
+
+    mrr, accuracy, positions = evaluate_search(
+        rcm,
+        resolution_files,
+        problem_statement,
+        k,
+        name,
+    )
+
+    return rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions
 
 @file_cache()
 def chat(

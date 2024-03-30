@@ -15,7 +15,7 @@ from typing import Any
 
 import git
 import requests
-from github import Github, PullRequest
+from github import Github, PullRequest, Repository, InputGitTreeElement
 from jwt import encode
 from loguru import logger
 
@@ -116,6 +116,29 @@ def get_installation_id(username: str) -> str:
             logger.error(e)
             logger.error(response.text)
         raise Exception("Could not get installation id, probably not installed")
+
+# commits multiple files in a single commit, returns the commit object
+def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
+    blobs_to_commit = []
+    # convert to blob
+    for path, content in file_changes.items():
+        blob = repo.create_git_blob(content, "utf-8")
+        blobs_to_commit.append(InputGitTreeElement(path=path, mode="100644", type="blob", sha=blob.sha))
+    latest_commit = repo.get_branch(branch).commit
+    base_tree = latest_commit.commit.tree
+    # create new git tree
+    new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
+    # commit the changes
+    parent = repo.get_git_commit(latest_commit.sha)
+    commit = repo.create_git_commit(
+        commit_message,
+        new_tree,
+        [parent],
+    )
+    # update ref of branch
+    ref = f"heads/{branch}"
+    repo.get_git_ref(ref).edit(sha=commit.sha)
+    return commit
 
 
 REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
@@ -309,7 +332,7 @@ class ClonedRepo:
                 item_path = os.path.join(directory, item)
                 if os.path.isfile(item_path):
                     # make sure the item_path is not in one of the banned directories
-                    if len([banned_dir for banned_dir in sweep_config.exclude_dirs if banned_dir in item_path.split(os.path.sep)]) == 0:
+                    if not sweep_config.is_file_excluded(item_path):
                         files.append(item_path)  # Add the file to the list
                 elif os.path.isdir(item_path):
                     dfs_helper(item_path)  # Recursive call to explore subdirectory
@@ -381,6 +404,13 @@ class ClonedRepo:
         # Fuzzy search over file names
         file_name = os.path.basename(file_path)
         all_file_paths = self.get_file_list()
+        # filter for matching extensions if both have extensions
+        if "." in file_name:
+            all_file_paths = [
+                file
+                for file in all_file_paths
+                if "." in file and file.split(".")[-1] == file_name.split(".")[-1]
+            ]
         files_with_matching_name = []
         files_without_matching_name = []
         for file_path in all_file_paths:
@@ -388,18 +418,35 @@ class ClonedRepo:
                 files_with_matching_name.append(file_path)
             else:
                 files_without_matching_name.append(file_path)
+        file_path_to_ratio = {file: ratio(file_name, file) for file in all_file_paths}
         files_with_matching_name = sorted(
             files_with_matching_name,
-            key=lambda file_path: ratio(file_name, file_path),
+            key=lambda file_path: file_path_to_ratio[file_path],
             reverse=True,
         )
         files_without_matching_name = sorted(
             files_without_matching_name,
-            key=lambda file_path: ratio(file_name, file_path),
+            key=lambda file_path: file_path_to_ratio[file_path],
             reverse=True,
         )
-        all_files = files_with_matching_name + files_without_matching_name
+        # this allows 'config.py' to return 'sweepai/config/server.py', 'sweepai/config/client.py', 'sweepai/config/__init__.py' and no more
+        filtered_files_without_matching_name = list(filter(lambda file_path: file_path_to_ratio[file_path] > 50, files_without_matching_name))
+        all_files = files_with_matching_name + filtered_files_without_matching_name
         return all_files[:limit]
+    
+    def update_file(self, file_path: str, new_contents: str):
+        local_path = (
+            f"{self.repo_dir}{file_path}"
+            if file_path.startswith("/")
+            else f"{self.repo_dir}/{file_path}"
+        )
+        try:
+            with open(local_path, "w", encoding="utf-8", errors="replace") as f:
+                f.write(new_contents)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update file: {e}")
+            return False
 
 
 @dataclass
@@ -592,12 +639,26 @@ except Exception:
         CURRENT_USERNAME = GITHUB_BOT_USERNAME
 
 if __name__ == "__main__":
-    # str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
-    # str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
-    # print(get_hunks(str1, str2, 1))
-    mocked_repo = MockClonedRepo.from_dir(
-        "benchmark/data/repos/pulse-alp",
-        repo_full_name="sweepai/sweep",
-    )
-    temp_repo = TemporarilyCopiedClonedRepo.copy_from_cloned_repo(mocked_repo)
-    print(mocked_repo)
+    try:
+        organization_name = "sweepai"
+        sweep_config = SweepConfig()
+        installation_id = get_installation_id(organization_name)
+        user_token, g = get_github_client(installation_id)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        dir_ojb = cloned_repo.list_directory_tree()
+        commit_history = cloned_repo.get_commit_history()
+        similar_file_paths = cloned_repo.get_similar_file_paths("config.py")
+        # ensure no similar file_paths are sweep excluded
+        assert(not any([file for file in similar_file_paths if sweep_config.is_file_excluded(file)]))
+        print(f"similar_file_paths: {similar_file_paths}")
+        str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
+        str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
+        print(get_hunks(str1, str2, 1))
+        mocked_repo = MockClonedRepo.from_dir(
+            cloned_repo.repo_dir,
+            repo_full_name="sweepai/sweep",
+        )
+        temp_repo = TemporarilyCopiedClonedRepo.copy_from_cloned_repo(mocked_repo)
+        print(f"mocked repo: {mocked_repo}")
+    except Exception as e:
+        logger.error(f"github_utils.py failed to run successfully with error: {e}")

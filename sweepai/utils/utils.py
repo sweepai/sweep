@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 import ast
+from io import StringIO
+import os
 import re
+import subprocess
+from tempfile import TemporaryDirectory
 import traceback
 from dataclasses import dataclass
 from typing import Optional
+import uuid
 
+from pylint.lint import Run
+from pylint.reporters.text import TextReporter
 import tiktoken
 from loguru import logger
 from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
+from sweepai.utils.fuzzy_diff import patience_fuzzy_diff
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -27,7 +34,6 @@ def get_line_number(index: int, source_code: str) -> int:
         if total_chars > index:
             return line_number - 1
     return line_number
-
 
 @dataclass
 class Span:
@@ -108,7 +114,14 @@ def chunk_tree(
     current_chunk = Span(0, 0)
     for chunk in chunks:
         current_chunk += chunk
-        if non_whitespace_len(
+        # if the current chunk starts with a closing parenthesis, bracket, or brace, we coalesce it with the previous chunk
+        stripped_contents = current_chunk.extract(source_code.decode("utf-8")).strip()
+        first_char = stripped_contents[0] if stripped_contents else ''
+        if first_char in [")", "}", "]"] and new_chunks:
+            new_chunks[-1] += chunk
+            current_chunk = Span(chunk.end, chunk.end)
+        # if the current chunk is too large, create a new chunk, otherwise, combine the chunks
+        elif non_whitespace_len(
             current_chunk.extract(source_code.decode("utf-8"))
         ) > coalesce and "\n" in current_chunk.extract(source_code.decode("utf-8")):
             new_chunks.append(current_chunk)
@@ -184,6 +197,37 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
     return chunks
 
+@dataclass
+class CheckResults:
+    # Experimental feature, we'll see how this does.
+    # TODO: smart parsing
+    parse_error_message: str = ""
+    pylint: str = ""
+    eslint: str = ""
+
+    def is_worse_than(self, other: CheckResults) -> bool:
+        if self.parse_error_message:
+            return True
+        if other.parse_error_message:
+            return False
+        return len(self.pylint.splitlines()) > len(other.pylint.splitlines()) or len(self.eslint.splitlines()) > len(other.eslint.splitlines())
+    
+    def is_worse_than_message(self, other: CheckResults) -> str:
+        if self.parse_error_message:
+            return self.parse_error_message
+        if other.parse_error_message:
+            return other.parse_error_message
+        if len(self.pylint.splitlines()) > len(other.pylint.splitlines()):
+            # return f"The code has the following pylint errors:\n\n{self.pylint}"
+            if not other.pylint:
+                return f"The code has the following pylint errors:\n\n{self.pylint}"
+            return f"The following new pylint errors have appeared. Here is the diff:\n\n{patience_fuzzy_diff(other.pylint, self.pylint)}"
+        if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
+            if not other.eslint:
+                return f"The code has the following eslint errors:\n\n{self.eslint}"
+            return f"The following new eslint errors have appeared. Here is the diff:\n\n{patience_fuzzy_diff(other.eslint, self.eslint)}"
+        return ""
+
 
 def check_valid_typescript(code: str) -> tuple[bool, str]:
     # with tempfile.TemporaryDirectory() as temp_dir:
@@ -202,7 +246,6 @@ def check_valid_typescript(code: str) -> tuple[bool, str]:
     #     os.remove(tmp_file)
     #     return result.returncode == 0, (result.stdout + result.stderr).decode("utf-8")
     return True, ""
-
 
 def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     ext = file_path.split(".")[-1]
@@ -245,44 +288,179 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         return (False, error_message)
     return True, ""
 
+# Need to add "no-unused-vars": "error"
+# Need to add "import/first": "error"
+
+DEFAULT_ESLINTRC = """{
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "import"
+  ],
+  "rules": {
+    "no-undef": "error",
+    "no-const-assign": "error",
+    "no-redeclare": "error",
+    "no-unused-vars": "error",
+    "no-use-before-define": ["error", { "functions": true, "classes": true, "variables": true }],
+    "import/first": "error"
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {}
+    }
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:import/typescript"
+  ],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "no-undef": "off"
+      }
+    }
+  ]
+}"""
+
+def get_check_results(file_path: str, code: str) -> CheckResults:
+    is_valid, error_message = check_syntax(file_path, code)
+    if not is_valid:
+        return CheckResults(parse_error_message=error_message)
+    ext = file_path.split(".")[-1] # noqa
+    if ext == "py":
+        file_hash = uuid.uuid4().hex
+        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        stem = os.path.splitext(os.path.basename(file_path))[0]
+        try:
+            with open(new_file, "w") as f:
+                f.write(code)
+            pylint_output = StringIO()
+            reporter = TextReporter(pylint_output)
+            Run(
+                [
+                    new_file,
+                    "--disable=C",
+                    "--enable=C0413",  # Enable only the check for imports not at the top
+                    "--disable=R",
+                    "--disable=import-error",
+                    "--disable=no-member",
+                    "--disable=unused-import" # we have a workaround for this tbh
+                ],
+                reporter=reporter,
+                exit=False,
+            )
+            error_message = pylint_output.getvalue().strip()
+            try:
+                os.remove(new_file)
+            except FileNotFoundError:
+                pass
+            succeeded = error_message.startswith("------------------------------------")
+            if error_message:
+                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+                error_message = error_message.split("-----------------------------------", 1)[0].strip()
+                error_message = f"> pylint {file_path}\n\n" + error_message
+            return CheckResults(pylint=error_message if not succeeded else "")
+        except Exception as e:
+            logger.exception(e)
+    if ext == "ts":
+        # see if eslint is installed
+        result = subprocess.run(
+            ["npx", "eslint", "--version"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            with TemporaryDirectory() as temp_dir:
+                new_file = os.path.join(temp_dir, "temp.ts")
+                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
+                    f.write(DEFAULT_ESLINTRC)
+                with open(new_file, "w") as f:
+                    f.write(code)
+                try:
+                    result = subprocess.run(
+                        ["npx", "eslint", new_file],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    error_message = (result.stdout + "\n\n" + result.stderr).strip().replace(new_file, file_path)
+                    return CheckResults(eslint=error_message)
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"ESLint timed out after 30s for {file_path}")
+                    pass
+    return CheckResults()
 
 def check_code(file_path: str, code: str) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return is_valid, error_message
     ext = file_path.split(".")[-1] # noqa
-    # if ext == "py":
-    #     file_hash = uuid.uuid4().hex
-    #     new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
-    #     try:
-    #         with open(new_file, "w") as f:
-    #             f.write(code)
-    #         pylint_output = StringIO()
-    #         reporter = TextReporter(pylint_output)
-    #         Run(
-    #             [
-    #                 new_file,
-    #                 "--errors-only",
-    #                 "--disable=import-error",
-    #                 "--disable=no-member",
-    #                 "--disable=relative-beyond-top-level",
-    #             ],
-    #             reporter=reporter,
-    #             do_exit=False,
-    #         )
-    #         error_message = pylint_output.getvalue()
-    #         try:
-    #             os.remove(new_file)
-    #         except FileNotFoundError:
-    #             pass
-    #         if error_message:
-    #             return False, error_message
-    #     except Exception as e:
-    #         discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
+    if ext == "py":
+        file_hash = uuid.uuid4().hex
+        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        stem = os.path.splitext(os.path.basename(file_path))[0]
+        try:
+            with open(new_file, "w") as f:
+                f.write(code)
+            pylint_output = StringIO()
+            reporter = TextReporter(pylint_output)
+            Run(
+                [
+                    new_file,
+                    "--errors-only",
+                    "--disable=import-error",
+                    "--disable=no-member",
+                    "--disable=relative-beyond-top-level",
+                ],
+                reporter=reporter,
+                exit=False,
+            )
+            error_message = pylint_output.getvalue().strip()
+            try:
+                os.remove(new_file)
+            except FileNotFoundError:
+                pass
+            if not error_message.startswith("------------------------------------"):
+                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+                error_message = error_message.split("-----------------------------------", 1)[0].strip()
+                error_message = f"> pylint {file_path}\n\n" + error_message
+                return False, error_message
+        except Exception as e:
+            logger.exception(e)
+    if ext == "ts":
+        # see if eslint is installed
+        result = subprocess.run(
+            ["npx", "eslint", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            with TemporaryDirectory() as temp_dir:
+                new_file = os.path.join(temp_dir, "temp.ts")
+                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
+                    f.write(DEFAULT_ESLINTRC)
+                with open(new_file, "w") as f:
+                    f.write(code)
+                result = subprocess.run(
+                    ["npx", "eslint", new_file, "--config", ".eslintrc"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode != 0:
+                    return False, result.stdout + "\n\n" + result.stderr
     return True, ""
 
 
-@file_cache()
+# @file_cache()
 def chunk_code(
     code: str,
     path: str,
@@ -380,6 +558,19 @@ describe('CallToAction component', () => {
 });
 """
 
+test_code = """
+x = "test"
+
+import numpy
+"""
 
 if __name__ == "__main__":
-    print(check_syntax("CallToAction.test.tsx", test_code))
+    # print(check_code("main.tsx", test_code))
+    # print(get_check_results("main.py", test_code))
+    file_path = "sweepai/core/context_pruning.py"
+    with open(file_path) as f:
+        code = f.read()
+    chunks = chunk_code(code, file_path, 1400, 500)
+    import pdb
+    # pylint: disable=no-member
+    pdb.set_trace()

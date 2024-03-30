@@ -1,55 +1,71 @@
 from math import inf
+import time
 import traceback
 from typing import Any, Literal
 
+from anthropic import Anthropic
 import backoff
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.agents.assistant_function_modify import ensure_additional_messages_length
+from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
+    ANTHROPIC_API_KEY,
+    PAREA_API_KEY
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.utils import Tiktoken
+from parea import Parea
+
+parea_client = None
+try:
+    if PAREA_API_KEY:
+        parea_client = Parea(api_key=PAREA_API_KEY)
+except Exception as e:
+    logger.info(f"Failed to initialize Parea client: {e}")
 
 openai_proxy = OpenAIProxy()
 
 OpenAIModel = (
     Literal["gpt-3.5-turbo"]
     | Literal["gpt-3.5-turbo-1106"]
-    | Literal["gpt-4"]
-    | Literal["gpt-4-1106-preview"]
-    | Literal["gpt-4-0613"]
     | Literal["gpt-3.5-turbo-16k"]
     | Literal["gpt-3.5-turbo-16k-0613"]
-    | Literal["gpt-4-32k"]
-    | Literal["gpt-4-32k-0613"]
+    | Literal["gpt-4-1106-preview"]
     | Literal["gpt-4-0125-preview"]
 )
 
-ChatModel = OpenAIModel
+AnthropicModel = (
+    Literal["claude-3-haiku-20240307"]
+    | Literal["claude-3-sonnet-20240229"]
+    | Literal["claude-3-opus-20240229"]
+)
+
+ChatModel = OpenAIModel | AnthropicModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
     "gpt-3.5-turbo-1106": 16385,
     "gpt-3.5-turbo-16k": 16385,
-    "gpt-4": 8192,
     "gpt-4-1106-preview": 128000,
     "gpt-4-0125-preview": 128000,
-    "gpt-4-0613": 8192,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
+    "anthropic.claude-3-haiku-20240229-v1:0": 200000,
+    "anthropic.claude-3-sonnet-20240229-v1:0": 200000,
+    "claude-3-opus-20240229": 200000,
+    "claude-3-sonnet-20240229": 200000,
+    "claude-3-haiku-20240307": 200000,
     "gpt-3.5-turbo-16k-0613": 16000,
-    "gpt-4-32k-0613": 32000,
-    "gpt-4-32k": 32000,
 }
 default_temperature = 0.1
 
@@ -84,6 +100,36 @@ class MessageList(BaseModel):
             )  # Only delete if message matches key to delete and role should be deleted
         ]
 
+def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
+    if chat_logger is not None:
+        if (
+            chat_logger.active is False
+            and not chat_logger.is_paying_user()
+            and not chat_logger.is_consumer_tier()
+        ):
+            raise ValueError(
+                "You have no more tickets! Please upgrade to a paid plan."
+            )
+        else:
+            tickets_allocated = inf if chat_logger.is_paying_user() else 5
+            tickets_count = chat_logger.get_ticket_count()
+            purchased_tickets = chat_logger.get_ticket_count(purchased=True)
+            if tickets_count < tickets_allocated:
+                logger.info(
+                    f"{tickets_count} tickets found in MongoDB, using {model}"
+                )
+                return model
+            elif purchased_tickets > 0:
+                
+                logger.info(
+                    f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
+                )
+                return model
+            else:
+                raise ValueError(
+                    f"Tickets allocated: {tickets_allocated}, tickets found: {tickets_count}. You have no more tickets!"
+                )
+    return model
 
 class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
@@ -188,34 +234,9 @@ class ChatGPT(MessageList):
         temperature=temperature,
         requested_max_tokens: int | None = None,
     ):
-        if self.chat_logger is not None:
-            if (
-                self.chat_logger.active is False
-                and not self.chat_logger.is_paying_user()
-                and not self.chat_logger.is_consumer_tier()
-            ):
-                raise ValueError(
-                    "You have no more tickets! Please upgrade to a paid plan."
-                )
-            else:
-                tickets_allocated = inf if self.chat_logger.is_paying_user() else 5
-                tickets_count = self.chat_logger.get_ticket_count()
-                purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
-                if tickets_count < tickets_allocated:
-                    model = model or self.model
-                    logger.info(
-                        f"{tickets_count} tickets found in MongoDB, using {model}"
-                    )
-                elif purchased_tickets > 0:
-                    model = model or self.model
-                    logger.info(
-                        f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
-                    )
-                else:
-                    raise ValueError(
-                        f"Tickets allocated: {tickets_allocated}, tickets found: {tickets_count}. You have no more tickets!"
-                    )
-
+        model = determine_model_from_chat_logger(chat_logger=self.chat_logger, model=model)
+        if model not in model_to_max_tokens:
+            raise ValueError(f"Model {model} not supported")
         count_tokens = Tiktoken().count
         messages_length = sum(
             [count_tokens(message.content or "") for message in self.messages]
@@ -223,7 +244,6 @@ class ChatGPT(MessageList):
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
-        logger.info("file_change_paths" + str(self.file_change_paths))
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
         if len(self.file_change_paths) > 0:
@@ -233,19 +253,11 @@ class ChatGPT(MessageList):
                 pass
             else:
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
-
         messages_dicts = [self.messages_dicts[0]]
         for message_dict in self.messages_dicts[:1]:
             if message_dict["role"] == messages_dicts[-1]["role"]:
                 messages_dicts[-1]["content"] += "\n" + message_dict["content"]
             messages_dicts.append(message_dict)
-
-        gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )  # this is for the function tokens
         max_tokens = min(max_tokens, 4096)
         max_tokens = (
             min(requested_max_tokens, max_tokens)
@@ -317,6 +329,65 @@ class ChatGPT(MessageList):
         result = fetch()
         logger.info(f"Output to call openai:\n{result}")
         return result
+    
+    def chat_anthropic(
+        self,
+        content: str,
+        model: ChatModel = "claude-3-haiku-20240307",
+        message_key: str | None = None,
+        temperature: float | None = None,
+        stop_sequences: list[str] = [],
+        max_tokens: int = 4096,
+    ):
+        assert ANTHROPIC_API_KEY
+        self.model = model
+        self.messages.append(Message(role="user", content=content, key=message_key))
+        temperature = temperature or self.temperature or default_temperature
+        messages_string = '\n\n'.join([message.content for message in self.messages])
+        logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
+        system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
+        anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if parea_client:
+            parea_client.wrap_anthropic_client(anthropic_client)
+        content = ""
+        e = None
+        for i in range(4):
+            try:
+                @file_cache() # must be in the inner scope because this entire function manages state
+                def chat_anthropic(message_dicts: list[dict[str, str]], system_message_for_cache: str, model_for_cache: str): # add system message and model to cache
+                    return anthropic_client.messages.create(
+                        model=model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        messages=message_dicts,
+                        system=system_message,
+                        stop_sequences=stop_sequences,
+                    ).content[0].text
+                message_dicts = [
+                    {
+                        "role": message.role,
+                        "content": message.content,
+                    } for message in self.messages if message.role != "system"
+                ]
+                content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
+                break
+            except Exception as e_:
+                breakpoint()
+                logger.exception(e_)
+                e = e_
+                time.sleep(5 * 2 ** i)
+        else:
+            raise Exception("Anthropic call failed") from e
+        self.messages.append(
+            Message(
+                role="assistant",
+                content=content,
+                key=message_key,
+            )
+        )
+        logger.debug(f"Anthropic response: {self.messages[-1].content}")
+        self.prev_message_states.append(self.messages)
+        return self.messages[-1].content
 
     @property
     def messages_dicts(self):

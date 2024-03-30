@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# Do not save logs for main process
 import ctypes
 import json
 import subprocess
@@ -39,6 +38,7 @@ from sweepai.config.client import (
     get_rules,
 )
 from sweepai.config.server import (
+    BLACKLISTED_USERS,
     DISABLED_REPOS,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
@@ -651,6 +651,7 @@ def handle_event(request_dict, event):
                     and request.changes.body_from is not None
                     and button_title_match
                     and request.sender.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                 ):
                     run_on_button_click(request_dict)
 
@@ -666,6 +667,7 @@ def handle_event(request_dict, event):
                     )
                     and sweep_labeled_issue
                     and request.sender.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                 ):
                     # Restart Sweep on this issue
                     restart_sweep = True
@@ -674,6 +676,7 @@ def handle_event(request_dict, event):
                     request.issue is not None
                     and sweep_labeled_issue
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not request.comment.user.login.startswith("sweep")
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
@@ -711,7 +714,9 @@ def handle_event(request_dict, event):
                         edited=True,
                     )
                 elif (
-                    request.issue.pull_request and request.comment.user.type == "User"
+                    request.issue.pull_request
+                    and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                 ):  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
@@ -744,6 +749,7 @@ def handle_event(request_dict, event):
                     GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.sender.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
@@ -791,6 +797,7 @@ def handle_event(request_dict, event):
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
                     )
@@ -826,6 +833,7 @@ def handle_event(request_dict, event):
                 elif (
                     request.issue.pull_request
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and BOT_SUFFIX not in request.comment.body
                 ):  # TODO(sweep): set a limit
                     _, g = get_github_client(request.installation.id)
@@ -866,6 +874,7 @@ def handle_event(request_dict, event):
                         or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and BOT_SUFFIX not in comment
                 ):
                     pr_change_request = PRChangeRequest(
@@ -896,6 +905,7 @@ def handle_event(request_dict, event):
                         or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and BOT_SUFFIX not in comment
                 ):
                     pr_change_request = PRChangeRequest(
@@ -1075,10 +1085,17 @@ def handle_event(request_dict, event):
                     pr = g.get_repo(pr_request.repository.full_name).get_pull(
                         pr_request.number
                     )
+                    
+                    total_lines_in_commit = 0
+                    total_lines_edited_by_developer = 0
+                    edited_by_developers = False
                     for commit in pr.get_commits():
+                        lines_modified = commit.stats.additions + commit.stats.deletions
+                        total_lines_in_commit += lines_modified
                         if commit.author.login != CURRENT_USERNAME:
-                            edited_by_developers = True
-                            break
+                            total_lines_edited_by_developer += lines_modified
+                    # this was edited by a developer if at least 25% of the lines were edited by a developer
+                    edited_by_developers = total_lines_in_commit > 0 and (total_lines_edited_by_developer / total_lines_in_commit) >= 0.25
                     posthog.capture(
                         merged_by,
                         event_name,
@@ -1092,6 +1109,8 @@ def handle_event(request_dict, event):
                             "total_changes": pr_request.pull_request.additions
                             + pr_request.pull_request.deletions,
                             "edited_by_developers": edited_by_developers,
+                            "total_lines_in_commit": total_lines_in_commit,
+                            "total_lines_edited_by_developer": total_lines_edited_by_developer,
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})

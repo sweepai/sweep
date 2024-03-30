@@ -36,14 +36,23 @@ suffix_adjustment = {
     ".md": -0.5,
     ".html": -0.5,
     ".po": -1,
-    ".json": -0.25,
-    ".toml": -0.25,
-    ".yaml": -0.25,
-    ".yml": -0.25,
+    ".json": -0.5,
+    ".toml": -0.5,
+    ".yaml": -0.5,
+    ".yml": -0.5,
+    ".spec.ts": -1,
+    ".spec.js": -1,
+    ".generated.ts": -1.5,
+    ".generated.graphql": -1.5,
+    ".generated.js": -1.5,
+    "ChangeLog": -1.5,
 }
 
 substring_adjustment = {
-    "test": -1,
+    "tests/": -1,
+    "test_": -1,
+    "_test": -1,
+    "migrations/": -1.5,
 }
 
 @file_cache()
@@ -52,6 +61,7 @@ def get_top_k_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    skip_reranking: bool = False,
 ):
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
@@ -103,7 +113,8 @@ def get_top_k_snippets(
     # sort the top 30 using listwise reranking
     # you can use snippet.denotation and snippet.get_snippet()
     NUM_SNIPPETS_TO_RERANK = 30
-    ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+    if not skip_reranking:
+        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     # TODO: we should rescore the snippets after reranking by interpolating their new scores between the 0th and 30th previous scores
     ranked_snippets = ranked_snippets[:k]
     return ranked_snippets, snippets, content_to_lexical_score
@@ -114,9 +125,10 @@ def prep_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    skip_reranking: bool = False,
 ):
     ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-        cloned_repo, query, ticket_progress, k
+        cloned_repo, query, ticket_progress, k, skip_reranking
     )
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets

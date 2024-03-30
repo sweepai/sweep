@@ -1,4 +1,3 @@
-import os
 import re
 from dataclasses import dataclass
 
@@ -259,21 +258,25 @@ class ModifyBot:
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
         relevant_filepaths: list[str] = [],
+        fcrs: list[FileChangeRequest]=[],
+        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
-        new_file = function_modify(
+        new_files = function_modify(
             request=file_change_request.instructions,
-            file_path=os.path.join(cloned_repo.repo_dir, file_path),
-            file_contents=file_contents,
+            file_path=file_path,
+            contents_of_file=file_contents,
+            cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
             ticket_progress=self.ticket_progress,
             assistant_conversation=assistant_conversation,
             seed=seed,
-            start_line=file_change_request.start_line,
-            end_line=file_change_request.end_line,
             relevant_filepaths=relevant_filepaths,
+            fcrs=fcrs,
+            cwd=cloned_repo.repo_dir,
+            previous_modify_files_dict=previous_modify_files_dict,
         )
-        if new_file is not None:
+        if new_files:
             posthog.capture(
                 (
                     self.chat_logger.data["username"]
@@ -287,9 +290,10 @@ class ModifyBot:
                     "repo_full_name": cloned_repo.repo_full_name,
                 },
             )
-            return add_auto_imports(
-                file_path, cloned_repo.repo_dir, new_file, run_isort=False
-            )
+            # new_file is now a dictionary
+            for file_path, new_file_data in new_files.items():
+                new_file_data["contents"] = add_auto_imports(file_path, cloned_repo.repo_dir, new_file_data["contents"], run_isort=False)
+            return new_files
         posthog.capture(
             (
                 self.chat_logger.data["username"]
@@ -644,9 +648,44 @@ class ModifyBot:
         return result, _
 
 
+
+
 if __name__ == "__main__":
-    response = """
+    try: 
+        from sweepai.utils.github_utils import get_installation_id, ClonedRepo
+        from loguru import logger
+        organization_name = "sweepai"
+        installation_id = get_installation_id(organization_name)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        additional_messages = [Message(
+                role="user",
+                content="""# Repo & Issue Metadata
+Repo: sweepai/sweep: sweep
+add an import math statement at the top of the api.py file""",
+            ), Message(
+                role="user",
+                content=f"<relevant_file file_path='sweepai/api.py'>\n{open(cloned_repo.repo_dir + '/' + 'sweepai/api.py').read()}\n</relevant_file>",
+                key="instructions",
+            )]
+        modify_bot = ModifyBot(
+            additional_messages=additional_messages
+        )
+        new_files = modify_bot.try_update_file(
+            "sweepai/api.py",
+            open(cloned_repo.repo_dir + '/' + 'sweepai/api.py').read(),
+            FileChangeRequest(
+                filename="sweepai/api.py",
+                instructions="add an import math statement at the top of the api.py file",
+                change_type="modify"
+            ),
+            cloned_repo,
+        )
+        new_file = new_files["sweepai/api.py"]["contents"]
+        assert("import math" in new_file)
+        response = """
 ```python
 ```"""
-    stripped = strip_backticks(response)
-    print(stripped)
+        stripped = strip_backticks(response)
+        print(stripped)
+    except Exception as e:
+        logger.error(f"sweep_bot.py failed to run successfully with error: {e}")

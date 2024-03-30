@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = { find = { where = ["."], exclude = ["tests", "sdk", "benchmark", "docs", "tests.*", "sdk.*", "benchmark.*", "docs.*"] } }
 
+
 [project.scripts]
 sweep = "sweepai.cli:main"
 sweepai = "sweepai.cli:main"
@@ -18,7 +19,7 @@ Homepage = "https://sweep.dev"
 
 [project]
 name = "sweepai"
-version = "1.1.6"
+version = "1.1.12"
 description = "Sweep fixes GitHub issues"
 authors = [
     {name = "Kevin Lu", email = "kevin@sweep.dev"},
@@ -31,7 +32,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10"
 ]
 dependencies = [
-  "typer==0.9.0",
+  "anthropic==0.21.3",
+  "beautifulsoup4==4.12.3",
+  "typer==0.10.0",
   "pygithub==2.2.0",
   "loguru==0.7.2",
   "rich==13.7.1",
@@ -47,20 +50,27 @@ dependencies = [
   "tree-sitter-languages==1.10.2",
   "rapidfuzz==3.6.2",
   "importmagic==0.1.7",
+  "hatchet-sdk==0.18.0",
   "pyflakes==3.2.0",
+  "beautifulsoup4==4.12.3",
   "networkx==3.2.1",
   "attrs==23.2.0",
+  "pytest==8.1.1",
   "redis==5.0.3",
   "numpy==1.26.4",
   "markdown==3.5.2",
   "yamllint==1.35.1",
   "logtail==1.0.1",
   "tabulate==0.9.0",
+  "rapidfuzz==3.6.2",
   "resend==0.8.0",
   "psutil==5.9.8",
   "jinja2==3.1.3",
   "tiktoken==0.6.0",
-  "pylint==3.1.0"
+  "uvicorn==0.29.0",
+  "pylint==3.1.0",
+  "parea-ai==0.2.114",
+  "voyageai==0.2.1",
 ]
 
 [tool.isort]
