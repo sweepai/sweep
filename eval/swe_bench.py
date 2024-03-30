@@ -89,8 +89,8 @@ test_data = load_swebench_test_data()
 cprint("Loaded test data", style="green")
 
 seed = 0
-proportion = 0.1
-k = int(os.environ.get("k", 10))
+proportion = 0.05
+k = int(os.environ.get("k", 15))
 test_data = test_data.sample(frac=proportion, random_state=seed)
 name = f"sweep-03-18-k-{k}"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
