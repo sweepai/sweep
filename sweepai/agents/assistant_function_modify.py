@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from loguru import logger
 
-from sweepai.agents.assistant_wrapper import openai_assistant_call
+from sweepai.agents.assistant_wrapper import openai_assistant_call, tool_call_parameters
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
@@ -26,528 +26,244 @@ from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 
 # Add COT to each tool
 
-instructions = """You are an expert software developer and your job is to edit code to complete the user's request.
-You are diligent and tireless and always COMPLETELY IMPLEMENT the needed code!
-You NEVER leave comments describing code without implementing it!
-Always use best practices when coding.
-Respect and use existing conventions, libraries, etc that are already present in the code base.
+instructions = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
 
-Your job is to make edits to the file to complete the user "# Request".
+To complete the task, follow these steps:
 
-# Instructions
-1. Use the ProposeProblemAnalysisAndPlan tool to analyze the user's request and construct a plan of keywords to search for and the changes to make.
-2. Use the KeywordSearch tool to find the right places to make changes.
-3. Use the AnalysisAndIdentification tool to determine which sections should be changed.
-4. Use the SearchAndReplace tool to make the changes.
-    - Keep whitespace and comments.
-    - Make the minimum necessary search_and_replaces to make changes to the snippets.
-    - Write multiple small changes instead of a single large change.
+1. Carefully analyze the user's request to identify the key requirements and changes needed. Break down the problem into smaller sub-tasks.
 
+2. Search the codebase for relevant files, functions, classes, and variables related to the task at hand. Use the search results to determine where changes need to be made. 
 
-IMPORTANT: ONLY CALL ONE TOOL AT A TIME, WAIT UNTIL YOU SEE IF YOUR TOOL CALL SUCCEEDED OR FAILED BEFORE CALLING THE NEXT ONE.
+3. For each relevant file, identify the minimal code changes required to implement the desired functionality. Consider edge cases, error handling, and necessary imports.
 
-You have access to the following tools:
+4. If new functionality is required that doesn't fit into existing files, create a new file with an appropriate name and location.
 
-# Tools
-ProposeProblemAnalysisAndPlan - Break down the problem and identify important pieces of information that will be needed to solve the problem, such as the relevant keywords, the intended behavior, and the required imports. Describe the plan for the task, including the keywords to search and the modifications to make. Be sure to consider all imports that are required to complete the task.
-To call this tool you MUST respond in the following xml format:
+5. Make the code changes in a targeted way:
+   - Preserve existing whitespace, comments and code style
+   - Make surgical edits to only the required lines of code
+   - If a change is complex, break it into smaller incremental changes
+   - Ensure each change is complete and functional before moving on
 
-<ProposeProblemAnalysisAndPlan>
-<Analysis>
-Break down the problem and identify important pieces of information that will be needed to solve the problem, such as the relevant keywords, the intended behavior, and the required imports.
-</Analysis>
-<ProposedPlan>
-Describe the plan for the task, including the keywords to search and the modifications to make. Be sure to consider all imports that are required to complete the task.
-</ProposedPlan>
-</ProposeProblemAnalysisAndPlan>
+6. When providing code snippets, be extremely precise with indentation:
+   - Count the exact number of spaces used for indentation
+   - If tabs are used, specify that explicitly 
+   - Ensure the indentation of the code snippet matches the original file exactly
+7. After making all the changes, review the modified code to verify it fully satisfies the original request.
+8. Once you are confident the task is complete, submit the final solution.
 
-KeywordSearch - Use this tool to search for a keyword in the current code file as well as all relevant read-only code files. This is the keyword itself that you want to search for in the contents of the file, not the name of the file itself.
-To call this tool you MUST respond in the following xml format:
+In this environment, you have access to the following tools to assist in fulfilling the user request:
 
-<KeywordSearch>
-<Justification>
-Provide justification for searching the keyword in the given file.
-</Justification>
-<FileName>
-Name of the file to search in. Ensure correct spelling. This is case sensitive.
-</FileName>
-<Keyword>
-keyword to search for - e.g. function name, class name, variable name, ONLY SEARCH FOR ONE AT A TIME
-</Keyword>
-</KeywordSearch>
+You may call them like this:
+<function_calls>
+<invoke>
+<tool_name>$TOOL_NAME</tool_name>
+<parameters>
+<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+...
+</parameters>
+</invoke>
+</function_calls>
 
-AnalysisAndIdentification - Identify and list the minimal changes that need to be made to the file, by listing all locations that should receive these changes and the changes to be made. Be sure to consider all imports that are required to complete the task.
-To call this tool you MUST respond in the following xml format:
+Here are the tools available:
+<tools>
+<tool_description>
+<tool_name>analyze_problem_and_propose_plan</tool_name>
+<description>
+Carefully analyze the user's request to identify the key requirements, changes needed, and any constraints or considerations. Break down the problem into sub-tasks.
+</description>
+<parameters>
+<parameter>
+<name>problem_analysis</name>
+<type>str</type>
+<description>
+Provide a thorough analysis of the user's request, identifying key details, requirements, intended behavior changes, and any other relevant information. Organize and prioritize the sub-tasks needed to fully address the request.
+</description>
+</parameter>
+<parameter>
+<name>proposed_plan</name>
+<type>str</type>
+<description>
+Describe the plan to solve the problem, including the keywords to search, modifications to make, and all required imports to complete the task.
+</description>
+</parameter>
+</parameters>
+</tool_description>
 
-<AnalysisAndIdentification>
-List out the changes that need to be made to the CURRENT FILE ONLY. List out all locations that should recieve these changes and what the changes should be.
-</AnalysisAndIdentification>
+<tool_description>
+<tool_name>search_codebase</tool_name>
+<description>
+Search the codebase for files, functions, classes, or variables relevant to a task. Searches can be scoped to a single file or across the entire codebase.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain why searching for this query is relevant to the task and how the results will inform the code changes.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+(Optional) The name of a specific file to search within. If not provided, the entire codebase will be searched.
+</description>
+</parameter>
+<parameter>
+<name>keyword</name>
+<type>str</type>
+<description>
+The search query, such as a function name, class name, or variable. Provide only one query term per search.
+</description>
+</parameter>
+</parameters>
+</tool_description>
 
-SearchAndReplace - Use this tool to apply the changes one by one listed out in the AnalysisAndIdentification tool. This tool is great for when you change the function signature and want to update all the usages to that function.
-If multiple SearchAndReplace calls are needed, call this tool multiple times. If you are going to call this tool multiple times, make sure to do it in seperate calls and wait for a SUCCESS or ERROR response from the user
-before continuing to the next call.
-To call this tool you MUST respond in the following xml format:
+<tool_description>
+<tool_name>analyze_and_identify_changes</tool_name>
+<description>
+Determine the minimal code changes required in a file to implement a piece of the functionality. Consider edge cases, error handling, and necessary imports.
+</description>
+<parameters>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+The name of the file where changes need to be made.
+</description>
+</parameter>
+<name>changes</name>
+<type>str</type>
+<description>
+Describe the changes to make in the file. Specify the location of each change and provide the code modifications. Include any required imports or updates to existing code.
+</description>
+</parameter>
+</parameters>
+</tool_description>
 
-<SearchAndReplace>
-<Justification>
-Why this change is being made
-</Justification>
-<FileName>
-Name of the file to make changes in. Ensure correct spelling. This is case sensitive.
-</FileName>
-<SectionId>
-The section ID the original code belongs to.
-</SectionId>
-<OriginalCode>
-The original lines of code. Be sure to add lines before and after to disambiguate the change.
-</OriginalCode>
-<NewCode>
-The new code to replace the old code.
-</NewCode>
-</SearchAndReplace>
+<tool_description>
+<tool_name>view_file</tool_name>
+<description>
+View the contents of a file from the codebase. Useful for viewing code in context before making changes.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain why viewing this file is necessary to complete the task or better understand the existing code.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+The name of the file to retrieve, including the extension. File names are case-sensitive.
+</description>
+</parameter>
+</parameters>
+</tool_description>
 
-SubmitSolution - Use this tool to let the user know that you have completed all necessary steps in order to satisfy their request.
-To call this tool you MUST respond in the following xml format:
+<tool_description>
+<tool_name>make_change</tool_name>
+<description>
+Make a single code change in a file. Preserve whitespace, comments and style. Changes should be minimal and targeted.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain how this change contributes to fulfilling the user's request.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+Name of the file to make changes in. Ensure correct spelling as this is case-sensitive.
+</description>
+</parameter>
+<parameter>
+<name>section_id</name>
+<type>str</type>
+<description>
+The section ID where the original code belongs to, helping to locate the specific area within the file.
+</description>
+</parameter>
+<parameter>
+<name>original_code</name>
+<type>str</type>
+<description>
+The existing lines of code that need to be modified or replaced. Include unchanged surrounding lines for context.
+</description>
+</parameter>
+<parameter>
+<name>new_code</name>
+<type>str</type>
+<description>
+The new lines of code to replace the original code, implementing the desired change.
+</description>
+</parameter>
+</parameters>
+</tool_description>
 
-<SubmitSolution>
-<Justification>
-Justification for why you are finished with your task.
-</Justification>
-</SubmitSolution>
+<tool_description>
+<tool_name>create_file</tool_name>
+<description>
+Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
+</description>
+<parameters>
+<parameter>
+<name>file_path</name>
+<type>str</type>
+<description>
+The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+The name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
+</description>
+</parameter>
+<parameter>
+<parameter>
+<name>contents</name>
+<type>str</type>
+<description>
+The contents of this new file.
+</description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain why creating this new file is necessary to complete the task and how it fits into the existing codebase structure.
+</description>
+</parameter>
+</parameters>
+</tool_description>
 
-ViewFile - Use this tool to view a file in the codebase.
-To call this tool you MUST respond in the following xml format:
-
-<ViewFile>
-<Justification>
-Justification for why you need to view this file
-</Justification>
-<FileName>
-Name of the file, ensure correct spelling. This is case sensitive.
-</FileName>
-</ViewFile>
-
-GetAdditionalContext - Use this tool to search the entire codebase for a keyword. This tool is useful when you need to find where a function is defined or used in the codebase.
-To call this tool you MUST respond in the following xml format:
-
-<GetAdditionalContext>
-<Justification>
-Provide justification for why you need additional context
-</Justification>
-<Keyword>
-keyword to search for in order to get more additional context. This will search the entire codebase for this keyword, ONLY SEARCH FOR ONE KEYWORD AT A TIME
-</Keyword>
-</GetAdditionalContext>
-
-Here is an example:
-user:
-# Request
-modify the function post_process_rg_output to have a new parameter that specifies whether or not to truncate the output.
-
-assistant:
-<ProposeProblemAnalysisAndPlan>
-<Analysis>
-As I have not recieved any relevant code files to look at. I will need to locate the code file where the post_process_rg_output function is defined and add a new parameter to the function header that specifies whether or not to truncate the output.
-I will then need to modify the logic of the function post_process_rg_output to gracefully handle the case where the new parameter is set to True. Finally, I will need to locate all the places where the post_process_rg_output function is called and update the call to include the new parameter.
-</Analysis>
-<ProposedPlan>
-1. Use GetAdditionalContext with the keyword "post_process_rg_output" to find all files where the function is defined and used. From this I can extract the find the file where the function is defined.
-2. Use the ViewFile tool to view the file where the function is defined and then locate the function definition. If the function definition is not immediately obvious upon viewing the file, I will use 
-the KeywordSearch tool with the keyword "post_process_rg_output" on the file to find all occurences of the keyword in the file to locate the function definition.
-3. Once the function definition is located, use the SearchAndReplace tool on the file in order to modify the post_process_rg_output function to include a new parameter that specifies whether or not to truncate the output and update the logic of the function to handle this. It is possible that I may need multiple 
-SearchAndReplace calls to make all the necessary changes.
-4. After the function is updated, use the output from step 1 to locate all the places where the post_process_rg_output function is called and update the call to include the new parameter. I should default the value to False as this is the current behavior.
-</ProposedPlan>
-</ProposeProblemAnalysisAndPlan>
-
-user:
-ProposeProblemAnalysisAndPlan: SUCCESS
-Sounds like a great plan! Let's get started.
-
-assistant:
-<GetAdditionalContext>
-<Justification>
-I need to find where the function post_process_rg_output is defined and used in order to determine where the new parameter should be added and how it should be used.
-</Justification>
-<Keyword>
-post_process_rg_output
-</Keyword>
-</GetAdditionalContext>
-
-user:
-SUCCESS
-
-File: sweepai/core/context_pruning.py had the following matching lines of code:
-28:from sweepai.utils.modify_utils import post_process_rg_output
-729:                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output)
-
-File: sweepai/utils/modify_utils.py had the following matching lines of code:
-5:def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
-
-assistant:
-<ViewFile>
-<Justification>
-Based off of the results from the GetAdditionalContext tool, I need to view the file sweepai/utils/modify_utils.py to locate the function definition of post_process_rg_output
-</Justification>
-<FileName>
-sweepai/utils/modify_utils.py
-</FileName>
-</ViewFile>
-
-user:
-SUCCESS
-
-Here is the file:
-
-<file filename="sweepai/utils/modify_utils.py">
-<section id="A">
-from collections import defaultdict
-from sweepai.config.client import SweepConfig
-
-# post process rip grep output to be more condensed
-def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
-    processed_output = ""
-    output_lines = output.split("\\n")
-    # empty lines are present at end of output
-    output_lines = [line for line in output_lines if line]
-    file_output_dict = defaultdict(list)
-    for line in output_lines:
-        filename, content = line.split(":", 1)
-        filename = filename[len(root_directory) + 1:]
-        if not sweep_config.is_file_excluded_aggressive(root_directory, filename):
-            file_output_dict[filename].append(content)
-    
-    # determine if we need to truncate the output
-    total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
-</section id="A">
-<section id="B">
-from collections import defaultdict
-from sweepai.config.client import SweepConfig
-
-# post process rip grep output to be more condensed
-def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
-    processed_output = ""
-    output_lines = output.split("\\n")
-    # empty lines are present at end of output
-    output_lines = [line for line in output_lines if line]
-    file_output_dict = defaultdict(list)
-    for line in output_lines:
-        filename, content = line.split(":", 1)
-        filename = filename[len(root_directory) + 1:]
-        if not sweep_config.is_file_excluded_aggressive(root_directory, filename):
-            file_output_dict[filename].append(content)
-    
-    # determine if we need to truncate the output
-    total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
-(Pdb++) print(chunks[1].get_snippet(add_ellipsis=False,add_lines=False))
-    if total_output_length > 20000:
-        for filename, content in file_output_dict.items():
-            processed_output += f"File: {filename} had the following matching lines of code (some lines have been truncated):\\n"
-            if len(content) < 3:
-                for line in content:
-                    processed_output += f"{line}\\n"
-            else:
-                line1 = content[0]
-                line2 = content[-1]
-                if len(line1) > 200:
-                    line1 = line1[:20] + " ..."
-                if len(line2) > 200:
-                    line2 = line2[:20] + " ..."
-                processed_output += f"{line1}\\n"
-                processed_output += "...\\n"
-                processed_output += f"{line2}\\n"
-            processed_output += "\\n"
-    else:
-        for filename, content in file_output_dict.items():
-            processed_output += f"File: {filename} had the following matching lines of code:\\n"
-            for line in content:
-                processed_output += f"{line}\\n"
-            processed_output += "\\n"
-    return processed_output
-
-# try and find code inside chunk given various levels of indentation, and right strip the lines of code
-# if successful returns the num of spaces required to find the code match
-def manual_code_check(chunk: str, code: str) -> int:
-    code_lines = [line.rstrip() for line in code.split("\\n")]
-    # assume one indent is two spaces and check max 10 indents
-    for indent in range(0, 40, 2):
-        new_code_lines = [f"{' ' * indent}{line}" for line in code_lines]
-        new_code = "\\n".join(new_code_lines)
-        if new_code in chunk:
-            return indent
-    return -1
-</section id="B">
-</file filename="sweepai/utils/modify_utils.py">
-
-assistant:
-<KeywordSearch>
-<Justification>
-Search for the keyword post_process_rg_output in the file sweepai/utils/modify_utils.py to find the definition of the function.
-</Justification>
-<FileName>
-sweepai/utils/modify_utils.py
-</FileName>
-<Keyword>
-post_process_rg_output
-</Keyword>
-</KeywordSearch>
-
-user:
-SUCCESS
-
-The keyword post_process_rg_output was found in sections A of sweepai/utils/modify_utils.py. They appear in the following places:
-<section id="A"> (1 match)
-from collections import defaultdict
-from sweepai.config.client import SweepConfig
-
-# post process rip grep output to be more condensed
-def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
-    ^^^^^^^^^^^^^^^^^^^^^^
-    processed_output = ""
-    output_lines = output.split("\\n")
-    # empty lines are present at end of output
-    output_lines = [line for line in output_lines if line]
-    file_output_dict = defaultdict(list)
-    for line in output_lines:
-        filename, content = line.split(":", 1)
-        filename = filename[len(root_directory) + 1:]
-        if not sweep_config.is_file_excluded_aggressive(root_directory, filename):
-            file_output_dict[filename].append(content)
-    
-    # determine if we need to truncate the output
-    total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
-</section id="A">
-
-assistant:
-<SearchAndReplace>
-<Justification>
-Add a new parameter to the function post_process_rg_output to specify whether or not to truncate the output. The next step is to modify the logic of the function to gracefully handle the case where the new parameter is set to True.
-</Justification>
-<FileName>
-sweepai/utils/modify_utils.py
-</FileName>
-<SectionId>
-A
-</SectionId>
-<OriginalCode>
-def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
-</OriginalCode>
-<NewCode>
-def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str, truncate_output: bool):
-</NewCode>
-</SearchAndReplace>
-
-user:
-SUCCESS
-
-The following changes have been applied:
-```diff
---- 
-+++ 
-@@ -2,7 +2,7 @@
- from sweepai.config.client import SweepConfig
- 
- # post process rip grep output to be more condensed
--def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
-+def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, output: str, truncate_output: bool):
-     processed_output = ""
-     output_lines = output.split("
- ")
-```
-You can continue to make changes to the code sections and call the SearchAndReplace tool again.
-
-assistant:
-<SearchAndReplace>
-<Justification>
-Update the logic so that when truncate_output is set to True, the output is truncated. We modify the if statement so that if truncate_output is set to False the previous behaviour is kept
-</Justification>
-<FileName>
-sweepai/utils/modify_utils.py
-</FileName>
-<SectionId>
-B
-</SectionId>
-<OriginalCode>
-    if total_output_length > 20000:
-</OriginalCode>
-<NewCode>
-    if truncate_output or total_output_length > 20000:
-</NewCode>
-</SearchAndReplace>
-
-user:
-SUCCESS
-
-The following changes have been applied:
-```diff
---- 
-+++ 
-@@ -17,7 +17,7 @@
-     
-     # determine if we need to truncate the output
-     total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
--    if total_output_length > 20000:
-+    if truncate_output or total_output_length > 20000:
-         for filename, content in file_output_dict.items():
-             processed_output += f"File: {filename} had the following matching lines of code (some lines have been truncated):
- "
-```
-You can continue to make changes to the code sections and call the SearchAndReplace tool again.
-
-assistant:
-
-<KeywordSearch>
-<Justification>
-The results from the GetAdditionalContext tool indicate that post_process_rg_output is called in sweepai/core/context_pruning.py. I need to locate that call in order to update the new parameter
-</Justification>
-<FileName>
-sweepai/core/context_pruning.py
-</FileName>
-<Keyword>
-post_process_rg_output
-</Keyword>
-</KeywordSearch>
-
-user:
-SUCCESS
-
-The keyword post_process_rg_output was found in sections A and X of sweepai/core/context_pruning.py. They appear in the following places:
-<section id="A"> (1 match)
-import json
-import os
-import re
-import subprocess
-import textwrap
-import time
-import urllib
-
-import networkx as nx
-import openai
-from attr import dataclass
-from loguru import logger
-from openai.types.beta.thread import Thread
-from openai.types.beta.threads.run import Run
-
-from sweepai.agents.assistant_function_modify import MAX_CHARS
-from sweepai.agents.assistant_wrapper import openai_retry_with_timeout
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
-from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.code_tree import CodeTree
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.openai_proxy import get_client
-from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.str_utils import FASTER_MODEL_MESSAGE
-from sweepai.utils.modify_utils import post_process_rg_output
-                                       ^^^^^^^^^^^^^^^^^^^^^^
-from sweepai.utils.tree_utils import DirectoryTree
-from sweepai.config.client import SweepConfig
-
-ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
-
-</section id="A">
-<section id="X"> (1 match)
-            if tool_call.function.name == "file_search":
-                error_message = ""
-                try:
-                    similar_file_paths = "\\n".join(
-                        [
-                            f"- {path}"
-                            for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                                function_path_or_dir
-                            )
-                        ]
-                    )
-                    valid_path = True
-                except Exception:
-                    similar_file_paths = ""
-                    error_message = "FAILURE: This file path does not exist."
-                if error_message:
-                    output = error_message
-                else:
-                    output = (
-                        f"SUCCESS: Here are the most similar file paths to {function_path_or_dir}:\\n{similar_file_paths}"
-                        if valid_path
-                        else "FAILURE: This file path does not exist. Please try a new path."
-                    )
-            elif tool_call.function.name == "keyword_search":
-                error_message = ""
-                keyword = function_input["keyword"]
-                rg_command = ["rg", "-n", "-i" , keyword, repo_context_manager.cloned_repo.repo_dir]
-                try:
-                    result = subprocess.run(rg_command, text=True, capture_output=True)
-                    output = result.stdout
-                    if output:
-                        # post process rip grep output to be more condensed
-                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output)
-                                           ^^^^^^^^^^^^^^^^^^^^^^
-                    else:
-                        error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
-                except Exception as e:
-                    logger.error(f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}")
-                    error_message = f"FAILURE: An Error occured while trying to find the keyword {keyword}: {e}"
-                if error_message:
-                    output = error_message
-                else:
-                    output = (
-                        f"SUCCESS: Here are the keyword_search results:\\n\\n{rg_output_pretty}"
-                    )
-</section id="X">
-
-assistant:
-<SearchAndReplace>
-<Justification>
-We must update all function calls of post_process_rg_output to include the new parameter truncate_output. We should default the value to False as this is the current behavior.
-</Justification>
-<FileName>
-sweepai/core/context_pruning.py
-</FileName>
-<SectionId>
-X
-</SectionId>
-<OriginalCode>
-                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output)
-</OriginalCode>
-<NewCode>
-                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output, False)
-</NewCode>
-</SearchAndReplace>
-
-user:
-SUCCESS
-
-The following changes have been applied:
-```diff
---- 
-+++ 
-@@ -549,7 +549,7 @@
-                     output = result.stdout
-                     if output:
-                         # post process rip grep output to be more condensed
--                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output)
-+                        rg_output_pretty = post_process_rg_output(repo_context_manager.cloned_repo.repo_dir, sweep_config, output, False)
-                     else:
-                         error_message = f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function defintion try again with different whitespaces."
-                 except Exception as e:
-```
-You can continue to make changes to the code sections and call the SearchAndReplace tool again.
-
-assistant:
-<SubmitSolution>
-<Justification>
-A new parameter 'truncate_output' has been added to the function post_process_rg_output to specify whether or not to truncate the output. The logic of the function has been updated to gracefully handle the case where the new parameter is set to True. All function calls of post_process_rg_output have been updated to include the new parameter with a default value of False.
-</Justification>
-</SubmitSolution>
-
-End of example.
+<tool_description>
+<tool_name>submit_result</tool_name>
+<description>
+Indicate that the task is complete and all requirements have been satisfied. Provide the final code changes or solution.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Summarize the code changes made and how they fulfill the user's original request. Provide the complete, modified code if applicable.
+</description>
+</parameter>
+</parameters>
+</tool_description>
 """
 
-# 3. For each section that requires a change, use the search_and_replace function to make the changes. Use the analysis_and_identification section to determine which sections should be changed.
-# - Make one change at a time.
-
-# TODO: fuzzy search for keyword_search
+unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
 
 
 def int_to_excel_col(n):
@@ -633,6 +349,10 @@ def generate_status_message(file_path: str, fcrs: list[FileChangeRequest]) -> st
     if index < len(fcrs) - 1:
         message += f"You will edit the files {english_join([fcr.filename for fcr in fcrs[index + 1:]])} later."
     return message.strip()
+
+# returns formatted response
+def create_tool_call_response(tool_name: str, tool_call_response_contents: str) -> str:
+    return unformatted_tool_call_response.replace("{tool_name}", tool_name).replace("{tool_call_response_contents}", tool_call_response_contents)
 
 def default_dict_value():
     return {"chunks": [], "contents": "", "original_contents": ""}
@@ -774,28 +494,44 @@ def function_modify(
                         done_counter += 1
                         if done_counter >= 3:
                             break
+                        error_message = create_tool_call_response("submit_result", "ERROR\n\nNo changes were made. Please continue working on your task.")
                         tool_name, tool_call = assistant_generator.send(
-                            "ERROR\nNo changes were made. Please continue working on your task."
-                        )
-                        
+                            error_message
+                        )                  
                 elif tool_name == "no_tool_call":
                     error_message = ""
                     tool_name, tool_call = assistant_generator.send(
-                        "ERROR\n No tool calls were made. If you are done, please use the SubmitSolution tool to indicate that you have completed the task. If you believe you are stuck, use the GetAdditionalContext tool to further explore the codebase or get additional context if necessary."
+                        "ERROR\n No tool calls were made. If you are done, please use the submit_result tool to indicate that you have completed the task. If you believe you are stuck, use the search_codebase tool to further explore the codebase or get additional context if necessary."
                     )
-                elif tool_name == "ProposeProblemAnalysisAndPlan":
+                elif tool_name == "analyze_problem_and_propose_plan":
                     error_message = ""
+                    success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Let's get started.")
                     tool_name, tool_call = assistant_generator.send(
-                        "SUCCESS\nSounds like a great plan! Let's get started."
+                        success_message
                     )
-                elif tool_name == "AnalysisAndIdentification":
+                elif tool_name == "analyze_and_identify_changes":
                     error_message = ""
-                    tool_name, tool_call = assistant_generator.send(
-                        "SUCCESS\nNice work! Now use the SearchAndReplace tool to make the listed changes one at a time. If there are multiple changes required, call the SearchAndReplace tool multiple times."
-                    )
-                elif tool_name == "ViewFile":
+                    # make sure the change is for an existing or newly created file
+                    if "file_name" not in tool_call:
+                        error_message = "Missing file_name in tool call. Call the tool again but this time provide the file_name."
+                    
+                    file_name = tool_call["file_name"].strip()
+                    if not os.path.exists(os.path.join(cwd, file_name)) and file_name not in modify_files_dict:
+                        error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
+                    
+                    if not error_message:
+                        success_message = create_tool_call_response(tool_name, "SUCCESS\n\nNice work! Now use the make_change tool to make the listed changes one at a time. If there are multiple changes required, call the make_change tool multiple times.")
+                        tool_name, tool_call = assistant_generator.send(
+                            success_message
+                        )
+                    else:
+                        error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
+                        tool_name, tool_call = assistant_generator.send(
+                            error_message
+                        )
+                elif tool_name == "view_file":
                     error_message = ""
-                    file_name = tool_call["filename"].strip()
+                    file_name = tool_call["file_name"].strip()
                     full_file_name = os.path.join(cwd, file_name)
                     # not in code base and not created
                     if not os.path.exists(full_file_name) and file_name not in modify_files_dict:
@@ -838,35 +574,37 @@ def function_modify(
                                 ]
                             )
                         logger.debug(f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{chunked_file_contents}\n</file filename="{file_name}">')
+                        success_message = create_tool_call_response(tool_name, f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{chunked_file_contents}\n</file filename="{file_name}">')
                         tool_name, tool_call = assistant_generator.send(
-                            f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{chunked_file_contents}\n</file filename="{file_name}">'
+                            success_message
                         )
                     if error_message:
                         logger.debug(f"ERROR in ViewFile\n\n{error_message}")
+                        error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n{error_message}"
+                            error_message
                         )
-                elif tool_name == "SearchAndReplace":
+                elif tool_name == "make_change":
                     error_message = ""
-                    for key in ["filename", "sectionid", "originalcode", "newcode"]:
+                    for key in ["file_name", "section_id", "original_code", "new_code"]:
                         if key not in tool_call:
                             error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
                     for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                         # ensure the file we are editting exists and is in modify_files_dict
-                        if "filename" in tool_call:
-                            file_name = tool_call["filename"].strip()
+                        if "file_name" in tool_call:
+                            file_name = tool_call["file_name"].strip()
                             # if not in codebase or has not been created
                             if not os.path.exists(os.path.join(cwd, file_name)) and file_name not in modify_files_dict:
                                 error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                             if file_name not in modify_files_dict:
-                                error_message += f"You have not viewed {file_name} yet! Are you CERTAIN this is the file you want to modify? If so, view the file first with the ViewFile tool and then call the SearchAndReplace tool again.\n"
+                                error_message += f"You have not viewed {file_name} yet! Are you CERTAIN this is the file you want to modify? If so, view the file first with the view_file tool and then call the make_change tool again.\n"
                         if error_message:
                             break
                         success_message = ""
-                        section_letter = tool_call["sectionid"].strip()
+                        section_letter = tool_call["section_id"].strip()
                         section_id = excel_col_to_int(section_letter)
-                        old_code = tool_call["originalcode"].strip("\n")
-                        new_code = tool_call["newcode"].strip("\n")
+                        original_code = tool_call["original_code"].strip("\n")
+                        new_code = tool_call["new_code"].strip("\n")
                         # get the chunks and contents for the file
                         file_chunks = deepcopy(modify_files_dict[file_name]['chunks'])  
                         file_contents = modify_files_dict[file_name]['contents']
@@ -875,54 +613,57 @@ def function_modify(
                             error_message = f"Could not find section {section_letter} in file {file_name}, which has {len(file_chunks)} sections."
                             break
                         elif section_id < 0:
-                            error_message = f"The section ID {section_letter} can not be parsed."
+                            error_message = f"The section id {section_letter} can not be parsed."
                             break
 
                         # fetch the chunk of code we will be modifying
                         try:
                             current_chunk = file_chunks[section_id]
                         except Exception:
-                            error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_name}. Make sure you are modifying the correct file {file_name}"
+                            error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_name}. Make sure you are modifying the correct file: {file_name}"
                             break
                         
-                        # check to see that the old_code is in the new_code by trying all possible indentations
-                        correct_indent, rstrip_old_code = manual_code_check(current_chunk, old_code)
-                        # if the old_code couldn't be found in the chunk we need to let the llm know
-                        if old_code not in current_chunk and correct_indent == -1:
-                            chunks_with_old_code = [
+                        # check to see that the original_code is in the new_code by trying all possible indentations
+                        correct_indent, rstrip_original_code = manual_code_check(current_chunk, original_code)
+                        # if the original_code couldn't be found in the chunk we need to let the llm know
+                        if original_code not in current_chunk and correct_indent == -1:
+                            chunks_with_original_code = [
                                 index
                                 for index, chunk in enumerate(file_chunks)
-                                if old_code in chunk or manual_code_check(chunk, old_code)[0] != -1
+                                if original_code in chunk or manual_code_check(chunk, original_code)[0] != -1
                             ]
-                            chunks_with_old_code = chunks_with_old_code[:5]
-                            error_message = f"The OriginalCode provided does not appear to be present in section {section_letter}. The OriginalCode contains:\n```\n{old_code}\n```\nBut section {section_letter} in {file_name} has code:\n```\n{current_chunk}\n```"
-                            if chunks_with_old_code:
+                            chunks_with_original_code = chunks_with_original_code[:5]
+
+                            error_message = f"The original_code provided does not appear to be present in section {section_letter}. The original_code contains:\n```\n{original_code}\n```\nBut section {section_letter} in {file_name} has code:\n```\n{current_chunk}\n```"
+                            if chunks_with_original_code:
                                 error_message += "\n\nDid you mean one of the following sections?"
                                 error_message += "\n".join(
                                     [
                                         f'\n<section id="{int_to_excel_col(index + 1)}">\n{file_chunks[index]}\n</section>\n```'
-                                        for index in chunks_with_old_code
+                                        for index in chunks_with_original_code
                                     ]
                                 )
                             else:
-                                error_message += "\n\nNo changes were applied due to this error. Make another replacement. It seems there may be a spelling or indentation error as the OriginalCode could not be found in the code file. Ensure that your indents have the correct amount of spaces (e.g. 2 or 4). Consider missing or misplaced whitespace, comments or delimiters. Then, identify what should be the correct OriginalCode should be, and make another replacement with the corrected OriginalCode."
+                                # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                                chunk_original_code_diff = generate_diff(current_chunk, original_code)
+                                error_message += f"\n\nHere is the diff between the original_code you provided and what is actually in section {section_letter}:\n\n{chunk_original_code_diff}\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code."
                             break
-                        # ensure old_code and new_code has the correct indents
+                        # ensure original_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
                         new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
-                        if rstrip_old_code:
-                            old_code_lines = [line.rstrip() for line in old_code.split("\n")]
+                        if rstrip_original_code:
+                            original_code_lines = [line.rstrip() for line in original_code.split("\n")]
                         else:
-                            old_code_lines = old_code.split("\n")
-                        old_code = "\n".join(f'{correct_indent*" "}{line}' for line in old_code_lines)
-                        # before we apply changes make sure old_code is unique inside current_chunk
-                        current_chunk_occurences = current_chunk.count(old_code)
+                            original_code_lines = original_code.split("\n")
+                        original_code = "\n".join(f'{correct_indent*" "}{line}' for line in original_code_lines)
+                        # before we apply changes make sure original_code is unique inside current_chunk
+                        current_chunk_occurences = current_chunk.count(original_code)
                         if current_chunk_occurences > 1:
-                            error_message = f"The OriginalCode is not unique in the section {section_letter}. It appears {current_chunk_occurences} times! Make sure the OriginalCode is unique in the section you are modifying!"
+                            error_message = f"The original_code is not unique in the section {section_letter}. It appears {current_chunk_occurences} times! Make sure the original_code is unique in section {section_letter}!"
                             break
 
                         # apply changes
-                        new_chunk = current_chunk.replace(old_code, new_code, 1)
+                        new_chunk = current_chunk.replace(original_code, new_code, 1)
                         if new_chunk == current_chunk:
                             logger.warning("No changes were made to the code.")
                         
@@ -934,7 +675,7 @@ def function_modify(
                         # Check if changes were made
                         if new_contents == file_contents:
                             logger.warning("No changes were made to the code.")
-                            error_message = "No changes were made, make sure OriginalCode and NewCode are not the same."
+                            error_message = "No changes were made, make sure original_code and new_code are not the same."
                             break
                         
                         # Check if the changes are valid
@@ -946,12 +687,13 @@ def function_modify(
                                 file_contents, new_contents
                             )
                             if failing_parse:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the SearchAndReplace with different changes that yield valid code. HINT: To ensure the changes are being applied in the correct place, make sure OriginalCode is descriptive enough!"
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
                                 break
                     if error_message:
-                        logger.error(f"Error occured in SearchAndReplace tool: {error_message}")
+                        logger.error(f"ERROR occured in make_change tool: {error_message}")
+                        error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n {error_message}"
+                            error_message
                         )
 
                     if not error_message:
@@ -963,137 +705,181 @@ def function_modify(
                         modify_files_dict[file_name]['contents'] = new_contents
                         modify_files_dict[file_name]['chunks'] = file_chunks
                         logger.info(success_message)
+
+                        success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}")
                         
                         tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n\n{success_message}"
+                            success_message
                         )
-                elif tool_name == "GetAdditionalContext":
-                    error_message = ""
-                    keyword = tool_call["keyword"].strip()
-                    rg_command = ["rg", "-n", "-i" , f'"{keyword}"', cwd]
-                    try:
-                        # update the cloned repo before running ripgrep as it is possible some of the files have been editted
-                        for file_name, file_data in modify_files_dict.items():
-                            cloned_repo.update_file(file_name, file_data["contents"])
-                    except Exception as e:
-                        logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
-                        error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}\n"
-                        # attempt to undo the updates
-                        for file_name, file_data in modify_files_dict.items():
-                            cloned_repo.update_file(file_name, file_data["original_contents"])
-                        
-                    try:
-                        result = subprocess.run(rg_command, text=True, capture_output=True)
-                        output = result.stdout
-                        if output:
-                            # post process rip grep output to be more condensed
-                            rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
-                        else:
-                            error_message += f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces.\n"
-                    except Exception as e:
-                        logger.error(f"FAILURE: An Error occured while trying to reset the cloned repo on file {file_name}: {e}\n")
-                        error_message += f"FAILURE: An Error occured while trying to rest the cloned repo on file {file_name}: {e}\n"
-
-                    try:
-                        # reset cloned_repo to original state
-                        for file_name, file_data in modify_files_dict.items():
-                            cloned_repo.update_file(file_name, file_data["original_contents"])
-                    except Exception as e:
-                        logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
-                        error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}"
-
-                    if error_message:
-                        logger.debug(f"ERROR in GetAdditionalContext\n\n{error_message}")
-                        tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n{error_message}"
-                        )
-                    else:
-                        logger.debug(f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n")
-                        tool_name, tool_call = assistant_generator.send(
-                            f"SUCCESS\n\nHere are the GetAdditionalContext results:\n{rg_output_pretty}\n\n You can use the new context to revise your plan by calling the ProposeProblemAnalysisAndPlan tool again. You can also call the AnalysisAndIdentification tool again."
-                        )
-                elif tool_name == "KeywordSearch":
+                elif tool_name == "create_file":
                     error_message = ""
                     success_message = ""
-                    for key in ["filename", "justification", "keyword"]:
+                    for key in tool_call_parameters[tool_name]:
                         if key not in tool_call:
-                            logger.debug(f"No {key} was provided in the KeywordSearch tool call. Call the tool again but this time provide the {key}.")
-                            error_message = f"No {key} was provided in the KeywordSearch tool call. Call the tool again but this time provide the {key}."
-                            break
+                            logger.debug(f"No {key} was provided in the {tool_name} tool call. Call the tool again but this time provide the {key}.")
+                            error_message += f"No {key} was provided in the {tool_name} tool call. Call the tool again but this time provide the {key}.\n"
+                    if not error_message:
+                        new_file_path = tool_call["file_path"].strip()
+                        new_file_name = tool_call["file_name"].strip()
+                        new_file_contents = tool_call["contents"].strip()
+                        new_file_dir = os.path.join(cwd, new_file_path)
+                        new_full_file_path = os.path.join(new_file_path, new_file_name)
+                        new_full_file_path_with_cwd = os.path.join(cwd, new_file_path, new_file_name)
+                        # ensure file doesn't already exist
+                        if os.path.exists(new_full_file_path_with_cwd):
+                            error_message = f"The file {new_file_name} already exists. Modify this existing file instead of attempting to create a new one!"
+                        # ensure directory is valid
+                        if not os.path.isdir(new_file_dir):
+                            error_message = f"The directory {new_file_path} is not valid. Make sure you have the correct directory path!"
+                        # ensure that the directory of the new full path exists, in case the file name is weird
+                        if not os.path.exists(os.path.dirname(new_full_file_path_with_cwd)):
+                            error_message = f"The directory {os.path.dirname(new_full_file_path_with_cwd)} does not exist. Make sure you the new file you want to create exists within an existing directory!"
+                        # if no issues, create the file by placing it in modify_files_dict
+                        if not error_message:
+                            new_file_snippets = chunk_code(new_file_contents, new_full_file_path, 1400, 500)
+                            new_file_contents_lines = new_file_contents.split("\n")
+                            new_file_chunks = [
+                                "\n".join(new_file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
+                                for snippet in new_file_snippets
+                            ]
+                            modify_files_dict[new_full_file_path] = {"chunks": new_file_chunks, "contents": new_file_contents, "original_contents": new_file_contents}
+                            success_message = f"The new file {new_full_file_path} has been created successfully with the following contents:\n\n{new_file_contents}"
+                    if error_message:
+                        logger.debug(f"ERROR occured in create_file tool: {error_message}")
+                        error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
+                        tool_name, tool_call = assistant_generator.send(
+                            error_message
+                        )
+                    else:
+                        logger.debug(f"SUCCESS\n\n{success_message}")
+                        success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}")
+                        tool_name, tool_call = assistant_generator.send(
+                            success_message
+                        )
+                elif tool_name == "search_codebase":
+                    error_message = ""
+                    success_message = ""
+                    for key in ["keyword"]:
+                        if key not in tool_call:
+                            logger.debug(f"No {key} was provided in the search_codebase tool call. Call the tool again but this time provide the {key}.")
+                            error_message += f"No {key} was provided in the search_codebase tool call. Call the tool again but this time provide the {key}.\n"
 
-                    if "filename" in tool_call:
-                        file_name = tool_call["filename"].strip()
-                        full_file_path = os.path.join(cwd, file_name)
-                        # not in codebase and also not a newly created file
-                        if not os.path.exists(full_file_path) and file_name not in modify_files_dict:
-                            logger.debug(f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!")
-                            error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
-                    
+                    file_name = ""
+                    if "file_name" in tool_call:
+                        file_name = tool_call["file_name"].strip()
+                        # see if we are searching the whole codebase or not
+                        if file_name: # search specific file
+                            full_file_path = os.path.join(cwd, file_name)
+                            # not in codebase and also not a newly created file
+                            if not os.path.exists(full_file_path) and file_name not in modify_files_dict:
+                                logger.debug(f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!")
+                                error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
+                            
                     # if no issues continue with search
                     if not error_message:
                         keyword = tool_call["keyword"].strip()
-                        match_indices = []
-                        match_context_indices = []
-                        # if the current code file is not in the modify_files_dict, add it
-                        if file_name not in modify_files_dict:
-                            file_contents = read_file_with_fallback_encodings(full_file_path)
-                            file_contents_lines = file_contents.split("\n")
-                            original_file_snippets = chunk_code(file_contents, file_name, 1400, 500)
-                            file_chunks = [
-                                "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
-                                for snippet in original_file_snippets
-                            ]
-                            modify_files_dict[file_name] = {"chunks": copy.deepcopy(file_chunks), "contents": file_contents, "original_contents": file_contents}
-                        # search current code file
-                        file_chunks = modify_files_dict[file_name]["chunks"]
-                        for i, chunk in enumerate(file_chunks):
-                            if keyword in chunk:
-                                match_indices.append(i)
-                                match_context_indices.append(max(0, i - 1))
-                                match_context_indices.append(i)
-                                match_context_indices.append(min(len(file_chunks) - 1, i + 1))
-
-                        match_indices = sorted(list(set(match_indices)))
-                        match_context_indices = sorted(list(set(match_context_indices)))
-                        if not match_indices:
-                            logger.debug(f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword.")
-                            error_message = f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword."
-                        else:
-                            # for matches inside current code file
-                            sections_message = english_join(
-                                [
-                                    int_to_excel_col(match_index + 1)
-                                    for match_index in match_indices
+                        # search specific file
+                        if file_name:
+                            logger.info(f"Searching for keyword {keyword} in file {file_name}")
+                            match_indices = []
+                            match_context_indices = []
+                            # if the current code file is not in the modify_files_dict, add it
+                            if file_name not in modify_files_dict:
+                                file_contents = read_file_with_fallback_encodings(full_file_path)
+                                file_contents_lines = file_contents.split("\n")
+                                original_file_snippets = chunk_code(file_contents, file_name, 1400, 500)
+                                file_chunks = [
+                                    "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
+                                    for snippet in original_file_snippets
                                 ]
-                            )
-                            starter_message = f"The keyword {keyword} was found in sections {sections_message} of {file_name}. They appear in the following places:\n\n"
-                            success_message += (
-                                build_keyword_search_match_results(
-                                    match_indices,
-                                    file_chunks,
-                                    keyword,
-                                    starter_message,
-                                    readonly=True
+                                modify_files_dict[file_name] = {"chunks": copy.deepcopy(file_chunks), "contents": file_contents, "original_contents": file_contents}
+                            # search current code file
+                            file_chunks = modify_files_dict[file_name]["chunks"]
+                            for i, chunk in enumerate(file_chunks):
+                                if keyword in chunk:
+                                    match_indices.append(i)
+                                    match_context_indices.append(max(0, i - 1))
+                                    match_context_indices.append(i)
+                                    match_context_indices.append(min(len(file_chunks) - 1, i + 1))
+
+                            match_indices = sorted(list(set(match_indices)))
+                            match_context_indices = sorted(list(set(match_context_indices)))
+                            if not match_indices:
+                                logger.debug(f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword.")
+                                error_message = f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword."
+                            else:
+                                # for matches inside current code file
+                                sections_message = english_join(
+                                    [
+                                        int_to_excel_col(match_index + 1)
+                                        for match_index in match_indices
+                                    ]
                                 )
-                            )
+                                starter_message = f"The keyword {keyword} was found in section(s) {sections_message} of {file_name}. They appear in the following places:\n\n"
+                                success_message += (
+                                    build_keyword_search_match_results(
+                                        match_indices,
+                                        file_chunks,
+                                        keyword,
+                                        starter_message,
+                                        readonly=True
+                                    )
+                                )
+                        else: # search whole codebase
+                            logger.info(f"Searching for keyword {keyword} in the entire codebase.")
+                            rg_command = ["rg", "-n", "-i" , f'"{keyword}"', cwd]
+                            try:
+                                # update the cloned repo before running ripgrep as it is possible some of the files have been editted
+                                for file_name, file_data in modify_files_dict.items():
+                                    cloned_repo.update_file(file_name, file_data["contents"])
+                            except Exception as e:
+                                logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
+                                error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}\n"
+                                # attempt to undo the updates
+                                for file_name, file_data in modify_files_dict.items():
+                                    cloned_repo.update_file(file_name, file_data["original_contents"])
+                                
+                            try:
+                                result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
+                                output = result.stdout
+                                if output:
+                                    # post process rip grep output to be more condensed
+                                    rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
+                                else:
+                                    error_message += f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces.\n"
+                            except Exception as e:
+                                logger.error(f"FAILURE: An Error occured while trying to reset the cloned repo on file {file_name}: {e}\n")
+                                error_message += f"FAILURE: An Error occured while trying to rest the cloned repo on file {file_name}: {e}\n"
+
+                            try:
+                                # reset cloned_repo to original state
+                                for file_name, file_data in modify_files_dict.items():
+                                    cloned_repo.update_file(file_name, file_data["original_contents"])
+                            except Exception as e:
+                                logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
+                                error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}"
+
+                            if not error_message:
+                                success_message = f"SUCCESS\n\nHere are the search_codebase results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
+                                logger.debug(f"SUCCESS\n\nHere are the search_codebase results:\n{rg_output_pretty}\n\n")
 
                     if error_message:
-                        logger.debug(error_message)
+                        logger.debug(f"ERROR in search_codebase\n\n{error_message}")
+                        error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
                         tool_name, tool_call = assistant_generator.send(
-                            f"ERROR\n\n{error_message}"
+                            error_message
                         )
                     else:
                         logger.debug(success_message)
-                        if relevant_filepaths:
-                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path} and may not edit any of the READONLY files {english_join(relevant_filepaths)}."
-                        else:
-                            suffix = f"\n\nMake additional keyword_search calls to find other keywords or start making changes by calling the search_and_replace function. Remember that you may only edit the CURRENT file {file_path}."
+                        suffix = "\n\nMake additional search_codebase calls to find other keywords or start making changes by calling the make_change tool."
+                        success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}{suffix}")
                         tool_name, tool_call = assistant_generator.send(
-                            f"{success_message}{suffix}"
+                            success_message
                         )
                 else:
+                    error_message = create_tool_call_response("UNKNOWN TOOL NAME", f"ERROR\nUnexpected tool name: {tool_name}")
                     tool_name, tool_call = assistant_generator.send(
-                        f"ERROR\nUnexpected tool name: {tool_name}"
+                        error_message
                     )
             else:
                 logger.error("Too many iterations.")
