@@ -38,7 +38,7 @@ You should always call this function first
 <parameter>  
 <name>plan</name>
 <type>string</type>
-<description>A detailed report providing background information and explaining the issue so that someone with no context can understand it. A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and file to use.</description>
+<description>A report providing background information and explaining the issue for a new intern who is new to the codebase, and a extremely-detailed plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and which files to use.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -83,13 +83,13 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <tool_description>
 <tool_name>code_search</tool_name>
 <description>
-Searches the entire codebase for the given keyword and returns a list of files and line numbers where it appears. Useful for finding definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
+Searches the entire codebase for the given code_entity and returns a list of files and line numbers where it appears. Use this to find definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
 </description>
 <parameters>
 <parameter>
 <name>code_entity</name>
 <type>string</type>
-<description>The code entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' in JavaScript.</description>
+<description>The code_entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' in JavaScript.</description>
 </parameter>
 <parameter>
 <name>justification</name>
@@ -229,7 +229,7 @@ Here are the tools at your disposal. Call them one at a time as needed until you
 
 unformatted_user_prompt = """\
 ## Relevant Snippets
-Here are potentially relevant snippets in the repo in decreasing relevance that you should use the view_file tool for:
+Here are potentially relevant snippets in the repo in decreasing relevance that you should use the `view_file` tool to review:
 {snippets_in_repo}
 
 ## Code files mentioned in the user request
