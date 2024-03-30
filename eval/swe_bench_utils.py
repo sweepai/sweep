@@ -103,7 +103,7 @@ def evaluate_search(
     # print the top k snippets and highlight the ones that are in the resolution files
     if debug:
         for snippet in selected_snippets:
-            snippet_score = round(content_to_lexical_score[snippet.denotation], 4)
+            snippet_score = round(content_to_lexical_score.get(snippet.denotation, 0), 4)
             if snippet.file_path in resolution_files:
                 cprint(
                     f"snippet_score {snippet_score}: [green]{snippet.denotation}[/green]"
