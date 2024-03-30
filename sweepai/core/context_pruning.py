@@ -681,7 +681,6 @@ def parse_query_for_files(
             f"{repo_group_name}_import_graphs/{repo_name}/{repo_name}_import_tree.txt"
         )
         if not os.path.exists(pathing):
-        # if True:
             return rcm, None
         graph = load_graph_from_file(pathing)
     except Exception as e:
