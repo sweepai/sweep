@@ -209,4 +209,4 @@ eval/**/*.jsonl
 
 .worktrees
 
-*-import_graphs/**
+*-import_graphs
