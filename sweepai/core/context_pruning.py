@@ -212,7 +212,7 @@ Modify the file app.py with the following changes:
 
 Only after you have completed the initial draft plan using the draft_plan function should you proceed to view and search for relevant files.
 
-2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request. Check also all potentially useful helper functions and backend services in the "Relevant files".
+2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request. If you can't find a service, you can also check the "Common modules section".
 3. Use keyword_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. If you want to use `user.deleted`, check that the `deleted` attribute exists on the entity. View the relevant files containing those definitions. Make sure to view ALL files when using or changing any function input parameters and accessing methods and attributes.
 4. When you identify a relevant file, use store_file to add it to the context.
 5. When you have retrieved new information, update the drafted plan by using the draft_plan function again.
@@ -228,7 +228,7 @@ Here are the tools at your disposal. Call them one at a time as needed until you
 
 unformatted_user_prompt = """\
 ## Relevant Snippets
-Here are potentially relevant snippets in the repo in decreasing relevance that you should use the preview_file tool for:
+Here are potentially relevant snippets in the repo in decreasing relevance that you should use the view_file tool for:
 {snippets_in_repo}
 
 ## Code files mentioned in the user request
@@ -793,7 +793,7 @@ def modify_context(
             elif function_name == "draft_plan":
                 output = "SUCCESS: The plan sounds great! Now let's validate all the details by searching the codebase."
             elif function_name == "submit":
-                plan = function_calls.get("plan")
+                plan = function_input.get("plan")
                 repo_context_manager.update_issue_report_and_plan(f"# High Suggested Plan:\n\n{plan}\n\n")
                 return True
             else:
