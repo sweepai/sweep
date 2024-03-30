@@ -24,9 +24,6 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
-# TODO:
-# - Add self-evaluation / chain-of-verification
-
 anthropic_function_calls = """<tool_description>
 <tool_name>view_file</tool_name>
 <description>
@@ -656,7 +653,10 @@ def handle_function_call(
             ):
                 output = f"FAILURE: {file_path} is already in the selected snippets."
             elif valid_path:
-                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
+                if snippet.denotation not in current_top_snippets_string:
+                    output += suffix
             else:
                 output = (
                     "FAILURE: This file path does not exist. Please try a new path."
@@ -767,7 +767,7 @@ def context_dfs(
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    max_iterations = 40 # TODO: consider tuning this
+    max_iterations = 30 # TODO: consider tuning this
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
