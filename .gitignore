@@ -206,3 +206,5 @@ ee/**
 eval/*.txt
 eval/*.csv
 eval/*.jsonl
+
+eval/archive/**
