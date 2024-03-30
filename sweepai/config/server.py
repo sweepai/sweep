@@ -31,8 +31,8 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
 BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 256)
-)  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
+    os.environ.get("BATCH_SIZE", 48) # Voyage only allows 128 items per batch and 120000 tokens per batch
+)
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
 ENV = os.environ.get("ENV", "dev")
@@ -227,4 +227,5 @@ ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
 
 USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
+VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
 PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
