@@ -26,6 +26,7 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 
 # TODO:
 # - Add self-evaluation / chain-of-verification
+# - Add list of tricks for finding definitions
 
 anthropic_function_calls = """<tool_description>
 <tool_name>draft_plan</tool_name>  
@@ -83,13 +84,13 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <tool_description>
 <tool_name>code_search</tool_name>
 <description>
-Searches the entire codebase for the given code_entity and returns a list of files and line numbers where it appears. Use this to find definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
+Searches the entire codebase for the given code entity and returns a list of files and line numbers where it appears. Useful for finding definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
 </description>
 <parameters>
 <parameter>
 <name>code_entity</name>
 <type>string</type>
-<description>The code_entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' in JavaScript.</description>
+<description>The code entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' or 'const bar' in JavaScript.</description>
 </parameter>
 <parameter>
 <name>justification</name>
