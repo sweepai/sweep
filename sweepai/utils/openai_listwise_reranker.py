@@ -21,31 +21,26 @@ The checkout process is broken. After entering payment info, the order doesn't g
 </user_query>
 
 <code_snippets>
-auth.js:5-30
-```javascript  
+<snippet>
+<snippet_path>auth.js:5-30</snippet>
+<snippet_contents>
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
-
 router.post('/register', async (req, res) => {
   const { email, password, name } = req.body;
-
   try {
     let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: 'User already exists' });
     }
-
     user = new User({
       email,
       password,
       name
     });
-
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
-
     await user.save();
-
     req.session.user = user;
     res.json({ message: 'Registration successful', user });
   } catch (err) {
@@ -75,12 +70,13 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-```
+</snippet_contents>
+</snippet>
 
-cart_model.js:1-20
-```javascript
+<snippet>
+<snippet_path>cart_model.js:1-20</snippet>
+<snippet_contents>
 const mongoose = require('mongoose');
-
 const cartSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -96,18 +92,17 @@ const cartSchema = new mongoose.Schema({
     price: Number  
   }]
 }, { timestamps: true });
-
 cartSchema.virtual('totalPrice').get(function() {
   return this.items.reduce((total, item) => total + item.price * item.quantity, 0);
 });
-
 module.exports = mongoose.model('Cart', cartSchema);
-```
+</snippet_contents>
+</snippet>
 
-order.js:5-25
-```javascript
+<snippet>
+<snippet_path>order.js:5-25</snippet>
+<snippet_contents>
 const Order = require('../models/order');
-
 router.get('/', async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id }).sort('-createdAt');
@@ -117,7 +112,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 router.get('/:id', async (req, res) => {
   try {
     const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
@@ -130,41 +124,40 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }  
 });
-```
+</snippet_contents>
+</snippet>
 
-checkout.js:5-30
-```javascript
+<snippet>
+<snippet_path>checkout.js:5-30</snippet>
+<snippet_contents>
 router.post('/submit', async (req, res) => {
   const { cartId, paymentInfo } = req.body;
-
   try {
     const cart = await Cart.findById(cartId).populate('items.product');
     if (!cart) {
       return res.status(404).json({ message: 'Cart not found' });
     }
-
     const order = new Order({
       user: req.user._id,
       items: cart.items,
       total: cart.totalPrice,
       paymentInfo,
     });
-
     await order.save();
     await Cart.findByIdAndDelete(cartId);
-
     res.json({ message: 'Order placed successfully', orderId: order._id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 });
-```
+</snippet_contents>
+</snippet>
 
-user_model.js:1-10  
-```javascript
+<snippet>
+<snippet_path>user_model.js:1-10</snippet>
+<snippet_contents>
 const mongoose = require('mongoose');
-
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -183,24 +176,22 @@ const userSchema = new mongoose.Schema({
     default: false  
   }
 }, { timestamps: true });
-
 module.exports = mongoose.model('User', userSchema);
-```
+</snippet_contents>
+</snippet>
 
-index.js:10-25
-```javascript
+<snippet>
+<snippet_path>index.js:10-25</snippet>
+<snippet_contents>
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
-
 const app = express();
-
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
-
 app.use(express.json());
 app.use(session({
   secret: process.env.SESSION_SECRET,
@@ -208,29 +199,26 @@ app.use(session({
   saveUninitialized: true,
   store: new MongoStore({ mongooseConnection: mongoose.connection })
 }));
-
 app.use('/auth', require('./routes/auth'));
 app.use('/cart', require('./routes/cart'));  
 app.use('/checkout', require('./routes/checkout'));
 app.use('/orders', require('./routes/order'));
 app.use('/products', require('./routes/product'));
-
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ message: 'Server error' });
 });
-
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
-```
+</snippet_contents>
+</snippet>
 
-payment.js:3-20
-```javascript
+<snippet>
+<snippet_path>payment.js:3-20</snippet>
+<snippet_contents>
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-
 router.post('/charge', async (req, res) => {
   const { amount, token } = req.body;
-
   try {
     const charge = await stripe.charges.create({
       amount,
@@ -238,19 +226,19 @@ router.post('/charge', async (req, res) => {
       source: token,
       description: 'Example charge'
     });
-
     res.json({ message: 'Payment successful', charge });
   } catch (err) {
     console.error(err);  
     res.status(500).json({ message: 'Payment failed' });
   }
 });
-```
+</snippet_contents>
+</snippet>
 
-product_model.js:1-12
-```javascript
+<snippet>
+<snippet_path>product_model.js:1-12</snippet>
+<snippet_contents>
 const mongoose = require('mongoose');
-
 const productSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -273,14 +261,14 @@ const productSchema = new mongoose.Schema({
     min: 0
   }
 });
-
 module.exports = mongoose.model('Product', productSchema);
-```
+</snippet_contents>
+</snippet>
 
-order_model.js:1-15
-```javascript
+<snippet>
+<snippet_path>order_model.js:1-15</snippet>
+<snippet_contents>
 const mongoose = require('mongoose');
-
 const orderSchema = new mongoose.Schema({
   user: { 
     type: mongoose.Schema.Types.ObjectId,
@@ -309,18 +297,18 @@ const orderSchema = new mongoose.Schema({
     default: 'pending'
   }
 }, { timestamps: true });
-
 module.exports = mongoose.model('Order', orderSchema);
-```
+</snippet_contents>
+</snippet>
 
-cart.js:5-20
-```javascript
+<snippet>
+<snippet_path>cart.js:5-20</snippet>
+<snippet_contents>
 router.post('/add', async (req, res) => {
   const { productId, quantity } = req.body;
   
   try {
     let cart = await Cart.findOne({ user: req.user._id });
-
     if (cart) {
       const itemIndex = cart.items.findIndex(item => item.product == productId);
       if (itemIndex > -1) {
@@ -335,14 +323,14 @@ router.post('/add', async (req, res) => {
         items: [{ product: productId, quantity, price: product.price }]
       });
     }
-
     res.json(cart);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });  
   }
 });
-```
+</snippet_contents>
+</snippet>
 </code_snippets>
 
 <explanations>
@@ -545,10 +533,13 @@ class RerankSnippetsBot(ChatGPT):
         result_str = ""
         for snippet in code_snippets:
             snippet_str = \
-f"""{snippet.denotation}
-```
+f"""
+<snippet>
+<snippet_path>{snippet.denotation}</snippet>
+<snippet_contents>
 {snippet.get_snippet(False, False)}
-```
+</snippet_contents>
+</snippet>
 """
             result_str += snippet_str + "\n"
         result_removed_trailing_newlines = result_str.rstrip("\n")
