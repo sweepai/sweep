@@ -662,7 +662,7 @@ def handle_function_call(
             elif valid_path:
                 suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                 output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
-                if snippet.denotation not in current_top_snippets_string:
+                if file_path not in [snippet.file_path for snippet in rcm.current_top_snippets]:
                     output += suffix
             else:
                 output = (
@@ -782,7 +782,8 @@ def context_dfs(
     problem_statement: str,
 ) -> bool | None:
     max_iterations = 30 # Tuned to 30 because haiku is cheap
-    NUM_ROLLOUTS = 5
+    # NUM_ROLLOUTS = 5
+    NUM_ROLLOUTS = 2
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
