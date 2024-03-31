@@ -1,6 +1,8 @@
 
 import re
 
+from loguru import logger
+
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
@@ -115,12 +117,16 @@ Missed UserProfileRepository.java and application-profiles.yml dependencies. Sea
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class EvaluatorAgent(ChatGPT):
-    def evaluate_run(self, problem_statement: str, run_text: str):
+    def evaluate_run(self, problem_statement: str, run_text: str, stored_files: list[str]):
         self.model = CLAUDE_MODEL
         self.messages = [Message(role="system", content=state_eval_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to research:\n<task_to_research>\n{problem_statement}\n</task_to_research>"
+        contractor_stored_files = "\n".join([file for file in stored_files])
+        stored_files_section = f"""The contractor stored these files:\n<stored_files>\n{contractor_stored_files}\n</stored_files>"""
+        content = formatted_problem_statement + "\n\n" + f"<contractor_attempt>\n{run_text}\n</contractor_attempt>"\
+             + f"\n\n{stored_files_section}\n\n" + response_format
         evaluate_response = self.chat_anthropic(
-            content=formatted_problem_statement + "\n\n" + f"<contractor_attempt>\n{run_text}\n</contractor_attempt>" + "\n\n" + response_format,
+            content=content,
             stop_sequences=["</message_to_contractor>"],
             model=CLAUDE_MODEL,
             message_key="user_request",
@@ -128,24 +134,29 @@ class EvaluatorAgent(ChatGPT):
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
         overall_score = None
         message_to_contractor = None
-        overall_score_pattern = r"<overall_score>(.*?)</overall_score>"
-        message_to_contractor_pattern = r"<message_to_contractor>(.*?)</message_to_contractor>"
+        try:
+            overall_score_pattern = r"<overall_score>(.*?)</overall_score>"
+            message_to_contractor_pattern = r"<message_to_contractor>(.*?)</message_to_contractor>"
 
-        overall_score_match = re.search(overall_score_pattern, evaluate_response, re.DOTALL)
-        message_to_contractor_match = re.search(message_to_contractor_pattern, evaluate_response, re.DOTALL)
+            overall_score_match = re.search(overall_score_pattern, evaluate_response, re.DOTALL)
+            message_to_contractor_match = re.search(message_to_contractor_pattern, evaluate_response, re.DOTALL)
 
-        if overall_score_match is None or message_to_contractor_match is None:
+            if overall_score_match is None or message_to_contractor_match is None:
+                return overall_score, message_to_contractor
+
+            overall_score = overall_score_match.group(1).strip()
+            # check if 1 through 10 are a match
+            if not re.match(r"^[1-9]|10$", overall_score):
+                return None, None
+            else:
+                overall_score_match = re.match(r"^[1-9]|10$", overall_score)
+                overall_score = overall_score_match.group(0).strip()
+            overall_score = int(overall_score)
+            message_to_contractor = message_to_contractor_match.group(1).strip()
             return overall_score, message_to_contractor
-
-        overall_score = overall_score_match.group(1).strip()
-        # check if 1 through 10 are a match
-        if not re.match(r"^[1-9]|10$", overall_score):
-            return None, None
-        
-        overall_score = int(overall_score)
-
-        message_to_contractor = message_to_contractor_match.group(1).strip()
-        return overall_score, message_to_contractor
+        except Exception as e:
+            logger.info(f"Error evaluating response: {e}")
+            return overall_score, message_to_contractor
 
 if __name__ == "__main__":
     try:
