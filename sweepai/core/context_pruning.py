@@ -750,16 +750,19 @@ def handle_function_call(
     return output_prefix + output
 
 
-reflections_prompt_prefix = """Here are some tips from previous attempts for you:"""
+reflections_prompt_prefix = """CRITICAL FEEDBACK - READ CAREFULLY AND ADDRESS ALL POINTS
+Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, store and view all of those first. If you do not fully address this feedback you will fail to retrieve all of the relevant files."""
 
-reflection_prompt = """<run_and_feedback>
-<files_stored_in_run>
+reflection_prompt = """<attempt_and_feedback>
+<previous_files_stored>
+Files stored from previous attempt:
 {files_read}
-</files_stored_in_run>
+</previous_files_stored>
 <feedback>
+Reviewer feedback on previous attempt:
 {reflections_string}
 </feedback>
-</run_and_feedback>"""
+</attempt_and_feedback>"""
 
 
 def context_dfs(
@@ -767,7 +770,8 @@ def context_dfs(
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    max_iterations = 20 # TODO: consider tuning this
+    max_iterations = 30 # TODO: consider tuning this
+    NUM_ROLLOUTS = 5
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
@@ -813,7 +817,7 @@ def context_dfs(
                 stop_sequences=["</function_call>"],
             )
         return chat_gpt.messages
-    for rollout_idx in range(2):
+    for rollout_idx in range(NUM_ROLLOUTS):
         # operate on a deep copy of the repo context manager
         copied_repo_context_manager = deepcopy(repo_context_manager)
         message_results = perform_rollout(copied_repo_context_manager, reflections_to_read_files)
@@ -823,6 +827,7 @@ def context_dfs(
             problem_statement=problem_statement, 
             run_text=joined_messages
         )
+        breakpoint()
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here

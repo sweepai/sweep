@@ -14,7 +14,7 @@ Provide extensive, highly detailed criteria for evaluating the contractor's perf
 - Did they avoid including any unnecessary or unrelated files whatsoever?
 - Did they demonstrate a complete, comprehensive understanding of the entire relevant codebase and architecture?
 
-Go through the contractor's process step-by-step. For anything they did slightly wrong or non-optimally, call it out and explain the correct approach. Be extremely harsh and scrutinizing. If they failed to use enough code/function/class searches to find 100% of relevant usages, if they included any files that aren't needed, or if they missed any files that are needed, point these out as critical mistakes. Do not give them the benefit of the doubt on anything.
+Go through the contractor's process step-by-step. For anything they did even slightly wrong or non-optimally, call it out and explain the correct approach. Be extremely harsh and scrutinizing. If they failed to use enough code/function/class searches to find 100% of relevant usages, if they included any files that aren't needed, or if they missed any files that are needed, point these out as critical mistakes. Do not give them the benefit of the doubt on anything.
 </judgement_on_task>
 
 <overall_score>
@@ -27,10 +27,10 @@ Provide a clear, specific rubric for the 1-10 scale, erring on the low side:
 </overall_score>
 
 <message_to_contractor>
-Provide a single sentence of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor:
-9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! 
-5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. Your understanding of [A, B, C] dependencies is lacking.
-1-4: [Specific files] are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely.
+Provide a single sentence of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor. Regardless of score, tell the contractor which specific files they should store to build on their work:
+9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! Store [file1, file2, etc.] in future attempts.
+5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. Your understanding of [A, B, C] dependencies is lacking. Store [file1, file2, etc.] in future attempts.
+1-4: [Specific files] are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely. Store [file1, file2, etc.] in future attempts.
 </message_to_contractor>
 
 Do not give any positive feedback unless the contractor literally achieved perfection. Be extremely harsh and critical in your evaluation. Assume incompetence until proven otherwise. Make the contractor work hard to get a high score."""
@@ -56,7 +56,7 @@ No unnecessary files were included, and no relevant files seem to have been miss
 </judgement_on_task>
 <overall_score>9</overall_score>
 <message_to_contractor>
-Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, and all critical dependencies.
+Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, and all critical dependencies. Store these files again in future attempts.
 </message_to_contractor>
 
 Example 2 (Score: 4): 
@@ -71,7 +71,7 @@ In general, the contractor seemed to stumble upon a couple relevant files, but f
 </judgement_on_task>
 <overall_score>4</overall_score>  
 <message_to_contractor>
-Failed to search for "authenticateUser", "UserAccount", "login", "credentials". Missed LoginService.java, UserRepository.java, PasswordEncryptor.java.
+Failed to search for "authenticateUser", "UserAccount", "login", "credentials". Missed LoginService.java, UserRepository.java, PasswordEncryptor.java. Store UserAccount.java and LoginController.java in your future attempts.
 </message_to_contractor>
 
 Example 3 (Score: 2):
@@ -88,7 +88,7 @@ Overall, the contractor seemed to have no clue about the actual pricing bug or t
 </judgement_on_task>
 <overall_score>2</overall_score>
 <message_to_contractor>
-index.html, styles.css, ProductList.vue are irrelevant. Search api/products/ for "Product", "Price", "Discount" classes/functions.
+index.html, styles.css, ProductList.vue are irrelevant. Search api/products/ for "Product", "Price", "Discount" classes/functions. Store none of the files you stored in this attempt, start over in the api/products directory for future attempts.
 </message_to_contractor>
 
 Example 4 (Score: 7):
@@ -103,7 +103,7 @@ While the contractor had a decent high-level understanding of the user profile u
 </judgement_on_task>
 <overall_score>7</overall_score>
 <message_to_contractor>
-Missed UserProfileRepository.java and application-profiles.yml dependencies. Search for "UserProfile" and "profile" to find remaining relevant files.
+Missed UserProfileRepository.java and application-profiles.yml dependencies. Search for "UserProfile" and "profile" to find remaining relevant files. Store UserProfileController.java, UserProfileService.java, and UserProfile.java in your future attempts.
 </message_to_contractor>"""
 
 # general framework for a dfs search
@@ -112,7 +112,7 @@ Missed UserProfileRepository.java and application-profiles.yml dependencies. Sea
 #    - in either case perform self-reflection
 #    - update reflections section with current reflections
 # 3. update the reflections section with the new reflections
-CLAUDE_MODEL = "claude-3-haiku-20240307"
+CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class EvaluatorAgent(ChatGPT):
     def evaluate_run(self, problem_statement: str, run_text: str):
