@@ -3,7 +3,7 @@ import time
 import traceback
 from typing import Any, Literal
 
-from anthropic import Anthropic
+from anthropic import Anthropic, BadRequestError
 import backoff
 from loguru import logger
 from pydantic import BaseModel
@@ -371,6 +371,9 @@ class ChatGPT(MessageList):
                 ]
                 content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
                 break
+            except BadRequestError as e_:
+                e = e_ # sometimes prompt is too long
+                raise e_
             except Exception as e_:
                 breakpoint()
                 logger.exception(e_)
