@@ -446,7 +446,7 @@ user_query_prompt = """This is the user's query:
 {user_query}
 </user_query>
 
-This is the list of code snippets:
+This is the list of ten code snippets that you must order by relevance:
 <code_snippets>
 {formatted_code_snippets}
 </code_snippets>
@@ -515,7 +515,6 @@ class RerankSnippetsBot(ChatGPT):
                     formatted_code_snippets=formatted_code_snippets,
                 ),
             )
-            import pdb; pdb.set_trace()
         except Exception:
             ranking_response = self.chat(
                 content=user_query_prompt.format(
