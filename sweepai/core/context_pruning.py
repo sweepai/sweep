@@ -108,7 +108,6 @@ Provides a detailed report of the issue and a high-level plan to resolve it. The
 </description>
 <parameters>
 <parameter>
-<parameter>  
 <name>plan</name>
 <type>string</type>
 <description>Copy the final plan drafted using the draft_plan function.</description>
@@ -799,7 +798,9 @@ def handle_function_call(
     elif function_name == "submit":
         plan = function_input.get("plan")
         repo_context_manager.update_issue_report_and_plan(f"# Highly Suggested Plan:\n\n{plan}\n\n")
-        output = plan
+        issue_report = ""
+        issue_plan = function_input.get("plan")
+        output = PLAN_SUBMITTED_MESSAGE
     elif function_name == "submit_report_and_plan":
         if "report" not in function_input or "plan" not in function_input:
             output = "FAILURE: Please provide a report and a plan."
@@ -886,7 +887,7 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>"
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you would like to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
