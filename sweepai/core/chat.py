@@ -375,7 +375,6 @@ class ChatGPT(MessageList):
                 e = e_ # sometimes prompt is too long
                 raise e_
             except Exception as e_:
-                breakpoint()
                 logger.exception(e_)
                 e = e_
                 time.sleep(5 * 2 ** i)
