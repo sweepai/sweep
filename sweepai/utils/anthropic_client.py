@@ -42,10 +42,13 @@ class AnthropicClient:
                 if message["role"] == "system":
                     message["role"] = "user"
                 if new_messages and new_messages[-1]["role"] == message["role"]:
-                    new_messages[-1]["content"] += "\n\n" + message["content"]
+                    new_messages[-1]["content"] += "\n\n" + message["content"].rstrip()
                 else:
+                    message["content"] = message["content"].rstrip()
                     new_messages.append(copy.deepcopy(message))
             messages = new_messages
+            for message in messages:
+                message["content"] = message["content"].rstrip()
             response = self.client.messages.create(messages=messages, model=model, stop_sequences=stop_sequences, **kwargs)
         else:
             response = self.client.chat.completions.create(messages=messages, model=model, stop=stop_sequences, **kwargs)
