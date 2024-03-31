@@ -660,7 +660,10 @@ def handle_function_call(
             ):
                 output = f"FAILURE: {file_path} is already in the selected snippets."
             elif valid_path:
-                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
+                if snippet.denotation not in current_top_snippets_string:
+                    output += suffix
             else:
                 output = (
                     "FAILURE: This file path does not exist. Please try a new path."
