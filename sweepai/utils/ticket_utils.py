@@ -55,6 +55,8 @@ substring_adjustment = {
     "migrations/": -1.5,
 }
 
+NUM_SNIPPETS_TO_RERANK = 50
+
 @file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
@@ -112,7 +114,6 @@ def get_top_k_snippets(
     )
     # sort the top 30 using listwise reranking
     # you can use snippet.denotation and snippet.get_snippet()
-    NUM_SNIPPETS_TO_RERANK = 30
     if not skip_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     # TODO: we should rescore the snippets after reranking by interpolating their new scores between the 0th and 30th previous scores
