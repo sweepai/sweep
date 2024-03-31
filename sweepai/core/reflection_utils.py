@@ -29,7 +29,7 @@ Provide a clear, specific rubric for the 1-10 scale, erring on the low side:
 <message_to_contractor>
 Provide a single sentence of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor. Regardless of score, tell the contractor which specific files they should store to build on their work:
 9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! Store [file1, file2, etc.] in future attempts.
-5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. Your understanding of [A, B, C] dependencies is lacking. Store [file1, file2, etc.] in future attempts.
+5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. You need to understand [A, B, C] dependencies. Store [file1, file2, etc.] in future attempts.
 1-4: [Specific files] are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely. Store [file1, file2, etc.] in future attempts.
 </message_to_contractor>
 
