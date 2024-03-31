@@ -329,6 +329,8 @@ class ClonedRepo:
             for item in os.listdir(directory):
                 if item == ".git":
                     continue
+                if item in sweep_config.exclude_dirs: # this saves a lot of time
+                    continue
                 item_path = os.path.join(directory, item)
                 if os.path.isfile(item_path):
                     # make sure the item_path is not in one of the banned directories
