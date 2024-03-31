@@ -862,8 +862,6 @@ def context_dfs(
 
 if __name__ == "__main__":
     try:
-        import os
-
         from sweepai.utils.github_utils import get_installation_id
         from sweepai.utils.ticket_utils import prep_snippets
 
