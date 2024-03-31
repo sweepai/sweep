@@ -1151,7 +1151,6 @@ def function_modify(
     return None
 
 if __name__ == "__main__":
-    import os
     # request = "Convert any all logger.errors to logger.exceptions in on_ticket.py"
     request = """Split any logger.errors to:
 logger = Logger()

@@ -70,6 +70,7 @@ dependencies = [
   "uvicorn==0.29.0",
   "pylint==3.1.0",
   "parea-ai==0.2.114",
+  "voyageai==0.2.1",
 ]
 
 [tool.isort]
