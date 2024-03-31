@@ -53,7 +53,7 @@ To complete the task, follow these steps:
 
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
-You may call them like this:
+You MUST call them like this:
 <function_calls>
 <invoke>
 <tool_name>$TOOL_NAME</tool_name>
@@ -397,30 +397,6 @@ def function_modify(
             ]
             modify_files_dict[file_path] = {"chunks": copy.deepcopy(chunks), "contents": current_contents, "original_contents": current_contents}
         sweep_config: SweepConfig = SweepConfig()
-        try:
-            for relevant_file_path in relevant_filepaths:
-                relevant_file_contents = read_file_with_fallback_encodings(
-                    os.path.join(cloned_repo.repo_dir, relevant_file_path)
-                )
-                relevant_file_snippets = chunk_code(
-                    relevant_file_contents, relevant_file_path, 1400, 500
-                )
-                relevant_file_contents_lines = relevant_file_contents.split("\n")
-                # store relevant_file_path in modify_files_dict
-                modify_files_dict[relevant_file_path]["chunks"] = [
-                    "\n".join(
-                        relevant_file_contents_lines[
-                            max(snippet.start - 1, 0) : snippet.end
-                        ]
-                    )
-                    for snippet in relevant_file_snippets
-                ]
-                modify_files_dict[relevant_file_path]["contents"] = relevant_file_contents
-                modify_files_dict[relevant_file_path]["original_contents"] = relevant_file_contents
-        except Exception as e:
-            logger.error(
-                f"Error occured while attempting to fetch contents for relevant file: {e}"
-            )
         chunked_file_contents = "\n".join(
             [
                 f'<section id="{int_to_excel_col(i + 1)}">\n{chunk}\n</section id="{int_to_excel_col(i + 1)}>'
@@ -514,11 +490,10 @@ def function_modify(
                     # make sure the change is for an existing or newly created file
                     if "file_name" not in tool_call:
                         error_message = "Missing file_name in tool call. Call the tool again but this time provide the file_name."
-                    
-                    file_name = tool_call["file_name"].strip()
-                    if not os.path.exists(os.path.join(cwd, file_name)) and file_name not in modify_files_dict:
-                        error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
-                    
+                    if not error_message:
+                        file_name = tool_call["file_name"].strip()
+                        if not os.path.exists(os.path.join(cwd, file_name)) and file_name not in modify_files_dict:
+                            error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
                     if not error_message:
                         success_message = create_tool_call_response(tool_name, "SUCCESS\n\nNice work! Now use the make_change tool to make the listed changes one at a time. If there are multiple changes required, call the make_change tool multiple times.")
                         tool_name, tool_call = assistant_generator.send(
@@ -644,9 +619,13 @@ def function_modify(
                                     ]
                                 )
                             else:
-                                # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                                chunk_original_code_diff = generate_diff(current_chunk, original_code)
-                                error_message += f"\n\nHere is the diff between the original_code you provided and what is actually in section {section_letter}:\n\n{chunk_original_code_diff}\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code."
+                                # first check the lines in original_code, if it is too long, ask for smaller changes
+                                if len(original_code.split("\n")) > 7:
+                                    error_message += f"\n\nThe original_code seems to be quite long. Break this large change up into a series of SMALLER changes!"
+                                else:
+                                    # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                                    chunk_original_code_diff = generate_diff(original_code, current_chunk)
+                                    error_message += f"\n\nHere is the diff between the original_code you provided and what is actually in section {section_letter}:\n\n{chunk_original_code_diff}\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code."
                             break
                         # ensure original_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
@@ -727,13 +706,13 @@ def function_modify(
                         new_full_file_path_with_cwd = os.path.join(cwd, new_file_path, new_file_name)
                         # ensure file doesn't already exist
                         if os.path.exists(new_full_file_path_with_cwd):
-                            error_message = f"The file {new_file_name} already exists. Modify this existing file instead of attempting to create a new one!"
+                            error_message = f"The file {new_full_file_path} already exists. Modify this existing file instead of attempting to create a new one!"
                         # ensure directory is valid
                         if not os.path.isdir(new_file_dir):
                             error_message = f"The directory {new_file_path} is not valid. Make sure you have the correct directory path!"
                         # ensure that the directory of the new full path exists, in case the file name is weird
                         if not os.path.exists(os.path.dirname(new_full_file_path_with_cwd)):
-                            error_message = f"The directory {os.path.dirname(new_full_file_path_with_cwd)} does not exist. Make sure you the new file you want to create exists within an existing directory!"
+                            error_message = f"The directory {os.path.dirname(new_full_file_path)} does not exist. Make sure you the new file you want to create exists within an existing directory!"
                         # if no issues, create the file by placing it in modify_files_dict
                         if not error_message:
                             new_file_snippets = chunk_code(new_file_contents, new_full_file_path, 1400, 500)
