@@ -317,12 +317,11 @@ def run_until_complete(
             response_contents += "</invoke>\n</function_calls>"
         tool_calls = parse_tool_calls(response_contents)
         # extend conversation with llm, must rstrip to remove trailing whitespace or else anthropic complains
-        messages.append({"role": response_role, "content": response_contents.rstrip()})
+        messages.append({"role": response_role, "content": response_contents.rstrip() or  "No tool call made!"})
         # if a tool call was made
         done_response = None
         if len(tool_calls) > 1:
             logger.debug(f"WARNING MULTIPLE TOOL CALLS MADE: {len(tool_calls)}")
-
         if tool_calls:
             for tool_call in tool_calls:
                 tool_name = tool_call['tool']
