@@ -372,7 +372,6 @@ class ChatGPT(MessageList):
                 content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
                 break
             except Exception as e_:
-                breakpoint()
                 logger.exception(e_)
                 e = e_
                 time.sleep(5 * 2 ** i)

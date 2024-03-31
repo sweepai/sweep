@@ -23,6 +23,7 @@ from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
+NUM_SNIPPETS_TO_SHOW_AT_START = 15
 
 # TODO:
 # - Add self-evaluation / chain-of-verification
@@ -87,7 +88,7 @@ Searches the entire codebase for the given code_entity and returns a list of fil
 <tool_description>
 <tool_name>submit_report_and_plan</tool_name>
 <description>
-Provides a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and which files need to be modified or referenced. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue.
+Provides a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and which files need to be modified or referenced. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue. You may only call this tool once when you are absolutely certain you have all the necessary information.
 </description>
 <parameters>
 <parameter>
@@ -180,7 +181,9 @@ Here are the code files mentioned in the user request, these code files are very
 </code_files_in_query>
 {import_tree_prompt}
 ## User Request
-{query}"""
+<user_request>
+{query}
+<user_request>"""
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
@@ -239,6 +242,7 @@ class RepoContextManager:
         top_snippets_str = [snippet.file_path for snippet in self.current_top_snippets]
         # dedupe the list inplace
         top_snippets_str = list(dict.fromkeys(top_snippets_str))
+        top_snippets_str = top_snippets_str[:NUM_SNIPPETS_TO_SHOW_AT_START]
         snippets_in_repo_str = "\n".join(top_snippets_str)
         logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
         repo_tree = str(self.dir_obj)
@@ -750,16 +754,23 @@ def handle_function_call(
     return output_prefix + output
 
 
-reflections_prompt_prefix = """Here are some tips from previous attempts for you:"""
+reflections_prompt_prefix = """
+CRITICAL FEEDBACK - READ CAREFULLY AND ADDRESS ALL POINTS
+<critical_feedback_to_address>
+Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, store and view all of those first. If you do not fully address this feedback you will fail to retrieve all of the relevant files.
+{all_reflections}
+</critical_feedback_to_address>"""
 
-reflection_prompt = """<run_and_feedback>
-<files_stored_in_run>
+reflection_prompt = """<attempt_and_feedback_{idx}>
+<previous_files_stored>
+Files stored from previous attempt:
 {files_read}
-</files_stored_in_run>
+</previous_files_stored>
 <feedback>
+Reviewer feedback on previous attempt:
 {reflections_string}
 </feedback>
-</run_and_feedback>"""
+</attempt_and_feedback_{idx}>"""
 
 
 def context_dfs(
@@ -767,7 +778,8 @@ def context_dfs(
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    max_iterations = 40 # TODO: consider tuning this
+    max_iterations = 30 # Tuned to 30 because haiku is cheap
+    NUM_ROLLOUTS = 5
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
@@ -776,13 +788,17 @@ def context_dfs(
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt)]
         if reflections_to_gathered_files:
-            formatted_reflections_prompt = reflections_prompt_prefix
-            for reflection, gathered_files in reflections_to_gathered_files.items():
+            all_reflections_string = ""
+            for idx, (reflection, gathered_files) in enumerate(reflections_to_gathered_files.items()):
                 formatted_reflection = reflection_prompt.format(
                     files_read="\n".join(gathered_files),
                     reflections_string=reflection,
+                    idx=str(idx + 1),
                 )
-                formatted_reflections_prompt += f"\n\n{formatted_reflection}"
+                all_reflections_string += f"\n{formatted_reflection}"
+            formatted_reflections_prompt = reflections_prompt_prefix.format(
+                all_reflections=all_reflections_string
+            )
             updated_user_prompt = user_prompt + "\n" + formatted_reflections_prompt
         else:
             updated_user_prompt = user_prompt
@@ -803,32 +819,39 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</function_calls>"
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>"
                 bad_call_count += 1
-                if bad_call_count >= 2:
-                    return chat_gpt.messages # TODO: check on this exit condition
-            function_calls_string = chat_gpt.chat_anthropic(
-                content=function_output,
-                model=CLAUDE_MODEL,
-                stop_sequences=["</function_call>"],
-            )
+                if bad_call_count >= 3:
+                    return chat_gpt.messages # set to three, which seems alright
+            try:
+                function_calls_string = chat_gpt.chat_anthropic(
+                    content=function_output,
+                    model=CLAUDE_MODEL,
+                    stop_sequences=["</function_call>"],
+                )
+            except Exception as e:
+                logger.error(f"Error in chat_anthropic: {e}")
+                # return all but the last message because it likely causes an error
+                return chat_gpt.messages[:-1]
         return chat_gpt.messages
-    for rollout_idx in range(2):
+    for rollout_idx in range(NUM_ROLLOUTS):
         # operate on a deep copy of the repo context manager
         copied_repo_context_manager = deepcopy(repo_context_manager)
         message_results = perform_rollout(copied_repo_context_manager, reflections_to_read_files)
+        rollout_stored_files = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
         truncated_message_results = message_results[1:] # skip system prompt
         joined_messages = "\n\n".join([message.content for message in truncated_message_results])
         overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
             problem_statement=problem_statement, 
-            run_text=joined_messages
+            run_text=joined_messages,
+            stored_files=rollout_stored_files,
         )
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        reflections_to_read_files[message_to_contractor] = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
+        reflections_to_read_files[message_to_contractor] = rollout_stored_files
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
-        if overall_score > 8:
+        if overall_score >= 8:
             break
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout
@@ -839,8 +862,6 @@ def context_dfs(
 
 if __name__ == "__main__":
     try:
-        import os
-
         from sweepai.utils.github_utils import get_installation_id
         from sweepai.utils.ticket_utils import prep_snippets
 
