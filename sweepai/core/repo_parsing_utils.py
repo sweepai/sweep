@@ -126,7 +126,7 @@ def directory_to_chunks(
                     yield sub_file_path
         else:
             yield file_path
-    with Timer() as timer:
+    with Timer():
         file_list = dfs()
         file_list = [
             file_name
