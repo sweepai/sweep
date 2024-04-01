@@ -9,6 +9,7 @@ from loguru import logger
 from redis import Redis
 from tqdm import tqdm
 import voyageai
+from voyageai import error as voyageai_error
 
 from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_KEY
 from sweepai.utils.hash import hash_sha256
@@ -88,11 +89,20 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
 # @redis_cache()
 def openai_call_embedding(batch, input_type: str="document"): # input_type can be query or document
     if VOYAGE_API_KEY:
-        client = voyageai.Client()
-        result = client.embed(batch, model="voyage-code-2", input_type=input_type)
-        cut_dim = np.array([data for data in result.embeddings])
-        normalized_dim = normalize_l2(cut_dim)
-        return normalized_dim
+        try:
+            client = voyageai.Client()
+            result = client.embed(batch, model="voyage-code-2", input_type=input_type)
+            cut_dim = np.array([data for data in result.embeddings])
+            normalized_dim = normalize_l2(cut_dim)
+            return normalized_dim
+        except voyageai.error.InvalidRequestError as e:
+            if len(batch) > 1:
+                mid = len(batch) // 2
+                left = openai_call_embedding(batch[:mid], input_type)
+                right = openai_call_embedding(batch[mid:], input_type)
+                return np.concatenate((left, right))
+            else:
+                raise e
     client = get_embeddings_client()
     response = client.embeddings.create(
         input=batch, model="text-embedding-3-small", encoding_format="float"
