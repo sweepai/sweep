@@ -833,9 +833,9 @@ def context_dfs(
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    max_iterations = 30 # Tuned to 30 because haiku is cheap
-    # NUM_ROLLOUTS = 5
-    NUM_ROLLOUTS = 2
+    max_iterations = 40 # Tuned to 30 because haiku is cheap
+    NUM_ROLLOUTS = 5
+    # NUM_ROLLOUTS = 2
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
