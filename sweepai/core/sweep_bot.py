@@ -171,9 +171,14 @@ class CodeGenBot(ChatGPT):
             self.messages[0].content = files_to_change_system_prompt
             # pylint: enable=no-member
             # pylint: enable=access-member-before-definition
-            files_to_change_response = self.chat(
-                files_to_change_prompt, message_key="files_to_change"
-            )
+            try:
+                files_to_change_response = self.chat_anthropic(
+                    files_to_change_prompt, message_key="files_to_change", model="claude-3-opus-20240229"
+                )
+            except Exception:
+                files_to_change_response = self.chat(
+                    files_to_change_prompt, message_key="files_to_change"
+                )
             self.messages[0].content = old_system_prompt
             if self.ticket_progress is not None:
                 self.ticket_progress.planning_progress.assistant_conversation.messages.append(
@@ -718,7 +723,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 ]
                 # add context on which fcr it is currently on and how many are left
                 all_fcrs_strings = ", ".join(file_change_request.relevant_files)
-                current_fcr_strings = f"To solve the user's request you will modify/create the following {len(file_change_request.relevant_files)} files: {all_fcrs_strings}. You are currently modifying {file_change_request.relevant_files[i]}!"
+                current_fcr_strings = f"To solve the user's request you will modify/create the following {len(file_change_request.relevant_files)} files: {all_fcrs_strings}. You are currently modifying {file_change_request.filename}!"
                 additional_messages += [
                     Message(
                         role="user",
