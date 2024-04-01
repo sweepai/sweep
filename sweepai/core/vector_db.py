@@ -15,7 +15,7 @@ from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
 
-CACHE_VERSION = "v2.0.04" # Now uses Voyage AI if available, asymmetric embedding
+CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else "" # Now uses Voyage AI if available, asymmetric embedding
 redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 
