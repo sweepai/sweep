@@ -29,23 +29,7 @@ NUM_SNIPPETS_TO_SHOW_AT_START = 15
 # - Add self-evaluation / chain-of-verification
 # - Add list of tricks for finding definitions
 
-anthropic_function_calls = """<tool_description>
-<tool_name>draft_plan</tool_name>  
-<description>
-Draft a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and list each file that needs to be edited and exactly how it should be edited. Write it for a new intern with no prior knowledge of the codebase or issue.
-
-You should always call this function first
-</description>
-<parameters>
-<parameter>  
-<name>plan</name>
-<type>string</type>
-<description>A report providing background information and explaining the issue for a new intern who is new to the codebase, and a extremely-detailed plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and which files to use.</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_name>view_file</tool_name>
+anthropic_function_calls = """<tool_name>view_file</tool_name>
 <description>
 Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
 </description>
@@ -66,7 +50,7 @@ Retrieves the contents of the specified file. After viewing a file, use `code_se
 <tool_description>
 <tool_name>store_file</tool_name>
 <description>
-Adds a file to the context that needs to be modified or used to resolve the issue. Provide a code excerpt in the justification showcasing the file's relevance, i.e. how it should be fixed or another part of the codebase that is relevant and uses this module. After using this tool, use `code_search` to find definitions of unknown functions /classes in the file to add to files to use.
+Adds a file to the context that needs to be read for context or modified to resolve the issue. Provide a code excerpt in the justification showcasing the file's relevance, i.e. how it provides important context or should be fixed. After using this tool, use `code_search` to find definitions of unknown functions/classes in the file.
 </description>
 <parameters>
 <parameter>
@@ -77,7 +61,7 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <parameter>
 <name>justification</name>
 <type>string</type>
-<description>Explain why this file is should be modified or used and what needs to be modified or why it needs to be used. Include a supporting code excerpt.</description>
+<description>Explain why this file should be read for context or modified and what needs to be modified. Include a supporting code excerpt.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -85,13 +69,13 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <tool_description>
 <tool_name>code_search</tool_name>
 <description>
-Searches the entire codebase for the given code entity and returns a list of files and line numbers where it appears. Useful for finding definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
+Passes the code_entity into ripgrep to search the entire codebase and return a list of files and line numbers where it appears. Useful for finding definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
 </description>
 <parameters>
 <parameter>
 <name>code_entity</name>
 <type>string</type>
-<description>The code entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' or 'const bar' in JavaScript.</description>
+<description>The code entity to search for. Should be a distinctive name, not a generic term. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' or 'const bar' in JavaScript.</description>
 </parameter>
 <parameter>
 <name>justification</name>
@@ -102,15 +86,15 @@ Searches the entire codebase for the given code entity and returns a list of fil
 </tool_description>
 
 <tool_description>
-<tool_name>submit</tool_name>  
+<tool_name>submit</tool_name>
 <description>
-Provides a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and which files need to be modified or referenced. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue. You may only call this tool once when you are absolutely certain you have all the necessary information.
+Provides a detailed report of the issue and a complete plan to resolve it. The report should explain the root cause, expected behavior, files to read for context, and files to modify. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue. Only call this tool once when you are absolutely certain you have all the necessary information.
 </description>
 <parameters>
 <parameter>
 <name>plan</name>
 <type>string</type>
-<description>Copy the final plan drafted using the draft_plan function.</description>
+<description>The complete, detailed plan including background information, files to read for context, files to change, and the specific changes to make in each file.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -118,36 +102,32 @@ Provides a detailed report of the issue and a high-level plan to resolve it. The
 You must call one tool at a time using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
 <examples>
-
 Example 1:
 <function_call>
 <invoke>
-<tool_name>draft_plan</tool_name>
+<tool_name>view_file</tool_name>
 <parameters>
-<plan>
-Modify the file user_service.py with the following changes:
-* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
-* Add a new optional parameter called `include_deleted` with a default value of `False`.
-* Inside the method, add a condition to check the value of `include_deleted`.
-* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
-* If `include_deleted` is `True`, no changes are needed to the query.
-* Update the method's docstring to reflect the new parameter and its behavior.
-Modify the file app.py with the following changes:
-* Locate the `get_user` route handler in the Flask app.
-* Find the call to `UserService.get_user_by_id()` within the route handler.
-* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
-</plan>
+<file_path>services/user_service.py</file_path>
+<justification>The user request mentions modifying the get_user_by_id method in the UserService class. I need to view the user_service.py file to locate this method and determine what changes are needed.</justification>
 </parameters>
 </invoke>
 </function_call>
 
 Example 2:
 <function_call>
-<invoke>
-<tool_name>view_file</tool_name>
+<invoke>  
+<tool_name>store_file</tool_name>
 <parameters>
-<file_path>src/controllers/user_controller.py</file_path>
-<justification>I found the user_controller.py file in the previous search. I now need to view its contents to understand the UserController class implementation and determine if it needs to be modified to resolve the issue.</justification>
+<file_path>models/user.py</file_path>
+<justification>The User model is relevant for understanding the attributes of a User, especially the `deleted` flag that indicates if a user is soft-deleted. This excerpt shows the key parts of the model:
+```python
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))  
+    email = db.Column(db.String(100), unique=True)
+    deleted = db.Column(db.Boolean, default=False)
+```
+</justification>
 </parameters>
 </invoke>
 </function_call>
@@ -155,18 +135,10 @@ Example 2:
 Example 3:
 <function_call>
 <invoke>
-<tool_name>store_file</tool_name>
+<tool_name>code_search</tool_name>
 <parameters>
-<file_path>src/controllers/user_controller.py</file_path>
-<justification>The user_controller.py file contains the UserController class referenced in the user request. The create_user method inside this class needs to be updated to fix the bug, as evidenced by this excerpt:
-```python
-def create_user(self, name, email):
-    # BUG: User is created without validating email 
-    user = User(name, email)
-    db.session.add(user)
-    db.session.commit()
-```
-</justification>
+<code_entity>def get_user_by_id(</code_entity>
+<justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
 </parameters>
 </invoke>
 </function_call>
@@ -174,55 +146,59 @@ def create_user(self, name, email):
 Example 4:
 <function_call>
 <invoke>
-<tool_name>code_search</tool_name>
+<tool_name>submit</tool_name>
 <parameters>
-<code_entity>class User(db.Model):</code_entity>
-<justification>The user_controller.py file references the User class, but I don't see its definition in this file. I need to search for 'class User(db.Model):' to find where the User model is defined, as this will provide necessary context about the User class to properly fix the create_user bug.</justification>
+<plan>
+To fix the issue of being able to access deleted users via the API:
+
+Read the following files for context:
+- models/user.py: Understand the User model and its `deleted` attribute. Key excerpt:
+```python 
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False) 
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    deleted = db.Column(db.Boolean, default=False)
+```
+
+Modify user_service.py:
+- In the `UserService` class, find the `get_user_by_id` method that fetches a user by ID
+- Add a new optional parameter `include_deleted` with a default of `False` 
+- In the method, check the value of `include_deleted`
+- If `False`, update the database query to filter out users where `deleted` is `True`
+- If `True`, no query changes needed
+- Update the method's docstring for the new parameter and behavior
+
+Modify app.py: 
+- Find the `get_user` route handler
+- Locate the call to `UserService.get_user_by_id()` in the route handler 
+- Add `include_deleted=True` to the `get_user_by_id()` call to include deleted users
+</plan>
 </parameters>
 </invoke>
 </function_call>
-
 </examples>
 
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed, plan to fully resolve a GitHub issue and retrieve relevant files for this. We consider a file RELEVANT if it must either be modified or contains a function or class that must used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used and validate ALL changes.
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed plan to fully resolve the issue and identify all relevant files. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
 
-Your goal is to generate an extremely detailed and accurate plan of code changes for an intern and a list of relevant files who is unfamliar with the codebase. You will do this by first drafting an initial plan, then validating the plan by searching and viewing for files in the codebase to draft a refined plan. You will do this until you have a finished complete plan where every detail is fully validated.
+It is critical that you identify and include every relevant line of code that should be either modified or used as a reference. Your goal is to generate an extremely detailed and accurate plan of code changes and relevant files for an intern who is unfamiliar with the codebase. 
 
-Your plan should be complete but should not include tests.
+You will do this by searching for and viewing files in the codebase to gather all the necessary information.
 
 INSTRUCTIONS
 
 Use the following iterative process:
-1. First, summarize the "User Request" and "Relevant Snippets" use the draft_plan function to draft a detailed plan that is complete and indicates every detail that should be used.
+1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Check all files referenced in the user request. If you can't find a specific module, also check the "Common modules" section.
 
-<example_draft_plan>
-Modify the file user_service.py with the following changes:
-* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
-* Add a new optional parameter called `include_deleted` with a default value of `False`.
-* Inside the method, add a condition to check the value of `include_deleted`.
-* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
-* If `include_deleted` is `True`, no changes are needed to the query.
-* Update the method's docstring to reflect the new parameter and its behavior.
+2. Use code_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find their definitions. If you want to use `user.deleted`, verify that the `deleted` attribute exists on the entity. View the relevant definition files. Make sure to view ALL files when using or changing any function input parameters, methods or attributes.
 
-Modify the file app.py with the following changes:
-* Locate the `get_user` route handler in the Flask app.
-* Find the call to `UserService.get_user_by_id()` within the route handler.
-* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
-</example_draft_plan>
+3. When you identify a relevant file, use store_file to add it to the context. 
 
-Only after you have completed the initial draft plan using the draft_plan function should you proceed to view and search for relevant files.
+Repeat steps 1-3 until you are fully confident you have gathered all the necessary information detailing all entities used, variable names, attribute names, and files to read and modify.
 
-2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request. If you can't find a service, you can also check the "Common modules section".
-3. Use code_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. If you want to use `user.deleted`, check that the `deleted` attribute exists on the entity. View the relevant files containing those definitions. Make sure to view ALL files when using or changing any function input parameters and accessing methods and attributes.
-4. When you identify a relevant file, use store_file to add it to the context.
-5. When you have retrieved new information, update the drafted plan by using the draft_plan function again.
-
-Repeat steps 1-3 until you are confident you have drafted a plan and have validated all the details, such as all the entities used and the variable and attribute names required.
-5. Submit the plan with the submit function.
-
-It is crucial that you follow the steps in the specified order, starting with drafting an initial plan using the draft_plan function before proceeding to view and search for files.
+4. Submit the final plan with the submit function. 
 
 Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
 
@@ -662,7 +638,7 @@ def validate_and_parse_function_calls(
 
 
 def handle_function_call(
-    repo_context_manager: RepoContextManager, function_call: MockFunctionCall
+    repo_context_manager: RepoContextManager, function_call: MockFunctionCall, llm_state: dict[str, str]
 ):
     function_name = function_call.function_name
     function_input = function_call.function_parameters
@@ -677,6 +653,7 @@ def handle_function_call(
     current_top_snippets_string = "\n".join(
         [snippet.denotation for snippet in repo_context_manager.current_top_snippets]
     )
+    breakpoint()
     if function_name == "code_search":
         code_entity = f'"{function_input["code_entity"]}"'  # handles cases with two words
         rg_command = [
@@ -697,15 +674,16 @@ def handle_function_call(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
                 output = (
-                    f"SUCCESS: Here are the code_search results:\n\n{rg_output_pretty}"
+                    f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
+                    "Review each search result using the `view_file` tool to determine which files are most relevant to solving the issue. Use `store_file` to add important files to the context."
                 )
             else:
-                output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. If you are searching for a function defintion try again with different whitespaces."
+                output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or case variations."
         except Exception as e:
             logger.error(
                 f"FAILURE: An Error occured while trying to find the code_entity {code_entity}: {e}"
             )
-            output = f"FAILURE: An Error occured while trying to find the code_entity {code_entity}: {e}"
+            output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or case variations."
     elif function_name == "view_file":
         try:
             file_contents = repo_context_manager.cloned_repo.get_file_contents(
@@ -721,11 +699,11 @@ def handle_function_call(
             elif valid_path:
                 suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                 output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
-                if file_path not in [snippet.file_path for snippet in rcm.current_top_snippets]:
+                if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
                     output += suffix
             else:
                 output = (
-                    "FAILURE: This file path does not exist. Please try a new path."
+                    f"FAILURE: The file path '{file_path}' does not exist. Please check the path and try again."
                 )
         except Exception:
             file_contents = ""
@@ -773,54 +751,23 @@ def handle_function_call(
                     ]
                 )
                 output = (
-                    f"SUCCESS: {file_path} was added. Here are the current selected snippets that will either be modified or use in the code change:\n{current_top_snippets_string}"
+                    f"SUCCESS: {file_path} was added to the context. It will be used as a reference or modified to resolve the issue. Here are the current selected snippets:\n{current_top_snippets_string}"
                     if valid_path
-                    else "FAILURE: This file path does not exist. Please try a new path."
+                    else f"FAILURE: The file path '{file_path}' does not exist. Please check the path and try again."
                 )
-    elif function_name == "preview_file":
-        try:
-            code = repo_context_manager.cloned_repo.get_file_contents(file_path)
-            valid_path = True
-        except Exception:
-            code = ""
-            similar_file_paths = "\n".join(
-                [
-                    f"- {path}"
-                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                        file_path
-                    )
-                ]
-            )
-            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
-        else:
-            file_preview = CodeTree.from_code(code).get_preview()
-            output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
-    elif function_name == "draft_plan":
-        output = "SUCCESS: Now let's validate all the details such as the signatures of functions and classes and names of attributes by searching the codebase."
     elif function_name == "submit":
         plan = function_input.get("plan")
         repo_context_manager.update_issue_report_and_plan(f"# Highly Suggested Plan:\n\n{plan}\n\n")
-        issue_report = ""
-        issue_plan = function_input.get("plan")
         output = PLAN_SUBMITTED_MESSAGE
-    elif function_name == "submit_report_and_plan":
-        if "report" not in function_input or "plan" not in function_input:
-            output = "FAILURE: Please provide a report and a plan."
-        else:
-            issue_report = function_input["report"]
-            issue_plan = function_input["plan"]
-            repo_context_manager.update_issue_report_and_plan(
-                f"#Report of Issue:\n\n{issue_report}\n\n#High Level Plan:\n\n{issue_plan}\n\n"
-            )
-            output = PLAN_SUBMITTED_MESSAGE
     else:
         output = f"FAILURE: Invalid tool name {function_name}"
     justification = (
         function_input["justification"] if "justification" in function_input else ""
     )
     logger.info(
-        f"Tool Call: {function_name} {justification} Valid Tool Call: {valid_path}"
+        f"Tool Call: {function_name}\n{justification}\n{output}"
     )
+    breakpoint()
     return output_prefix + output
 
 
@@ -849,8 +796,7 @@ def context_dfs(
     problem_statement: str,
 ) -> bool | None:
     max_iterations = 30 # Tuned to 30 because haiku is cheap
-    # NUM_ROLLOUTS = 5
-    NUM_ROLLOUTS = 2
+    NUM_ROLLOUTS = 5
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
@@ -880,17 +826,18 @@ def context_dfs(
             message_key="user_request",
         )
         bad_call_count = 0
+        llm_state = {} # persisted across one rollout
         for _ in range(max_iterations):
             function_calls = validate_and_parse_function_calls(
                 function_calls_string, chat_gpt
             )
             for function_call in function_calls:
-                function_output = handle_function_call(repo_context_manager, function_call)
+                function_output = handle_function_call(repo_context_manager, function_call, llm_state)
                 if PLAN_SUBMITTED_MESSAGE in function_output:
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you would like to submit the plan, call the submit function."
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you are ready to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
@@ -918,6 +865,7 @@ def context_dfs(
             stored_files=rollout_stored_files,
         )
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
+        breakpoint()
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
         reflections_to_read_files[message_to_contractor] = rollout_stored_files
