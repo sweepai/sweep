@@ -114,7 +114,9 @@ previously_finished_tasks = set(
 )
 
 for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
-    if i == 66 or i == 2:
+    # if row.instance_id != "django__django-12747":
+    #     continue
+    if i == 66 or i == 2 or row.instance_id.startswith("pytest"):
         continue # this task is blocked by Anthropic's content filtering policy for some reason
     instance_id = row.instance_id
     repo_identifier = row["repo"]
