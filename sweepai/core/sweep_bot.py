@@ -721,6 +721,16 @@ class SweepBot(CodeGenBot, GithubBot):
                 first_chars_in_instructions = first_chars_in_instructions[
                     : min(60, len(first_chars_in_instructions))
                 ]
+                # add context on which fcr it is currently on and how many are left
+                all_fcrs_strings = ", ".join(file_change_request.relevant_files)
+                current_fcr_strings = f"To solve the user's request you will modify/create the following {len(file_change_request.relevant_files)} files: {all_fcrs_strings}. You are currently modifying {file_change_request.relevant_files[i]}!"
+                additional_messages += [
+                    Message(
+                        role="user",
+                        content=current_fcr_strings,
+                        key="instructions",
+                    )
+                ]
                 match file_change_request.change_type:
                     case "create":
                         (

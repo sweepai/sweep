@@ -84,6 +84,38 @@ def get_github_client(installation_id: int):
     token: str = get_token(installation_id)
     return token, Github(token)
 
+# fetch installation object
+def get_installation(username: str): 
+    jwt = get_jwt()
+    try:
+        # Try user
+        response = requests.get(
+            f"https://api.github.com/users/{username}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        obj = response.json()
+        return obj
+    except Exception:
+        # Try org
+        response = requests.get(
+            f"https://api.github.com/orgs/{username}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        try:
+            obj = response.json()
+            return obj["id"]
+        except Exception as e:
+            logger.error(e)
+            logger.error(response.text)
+        raise Exception("Could not get installation, probably not installed")
 
 def get_installation_id(username: str) -> str:
     jwt = get_jwt()
