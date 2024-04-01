@@ -1,8 +1,6 @@
-import glob
 import logging
 import multiprocessing
 
-# import multiprocessing
 import os
 
 from loguru import logger
@@ -12,6 +10,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.utils import Tiktoken, chunk_code
+from sweepai.utils.timer import Timer
 
 tiktoken_client = Tiktoken()
 
@@ -111,14 +110,29 @@ def directory_to_chunks(
         return dir_file_count[dir_name] > FILE_THRESHOLD
 
     logger.info(f"Reading files from {directory}")
-    file_list = glob.iglob(f"{directory}/**", recursive=True)
-    file_list = [
-        file_name
-        for file_name in file_list
-        if os.path.isfile(file_name)
-        and filter_file(directory, file_name, sweep_config)
-        and not is_dir_too_big(file_name)
-    ]
+    vis = set()
+    def dfs(file_path: str = directory):
+        only_file_name = os.path.basename(file_path)
+        if only_file_name in ("node_modules", "venv", "patch"):
+            return
+        if file_path in vis:
+            return
+        vis.add(file_path)
+        if os.path.isdir(file_path):
+            for file_name in os.listdir(file_path):
+                for sub_file_path in dfs(os.path.join(file_path, file_name)):
+                    yield sub_file_path
+        else:
+            yield file_path
+    with Timer() as timer:
+        file_list = dfs()
+        file_list = [
+            file_name
+            for file_name in file_list
+            if filter_file(directory, file_name, sweep_config)
+            and os.path.isfile(file_name)
+            and not is_dir_too_big(file_name)
+        ]
     logger.info("Done reading files")
     all_chunks = []
     with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
