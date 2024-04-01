@@ -659,7 +659,7 @@ def handle_function_call(
             elif valid_path:
                 suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                 output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
-                if snippet.denotation not in current_top_snippets_string:
+                if file_path not in [snippet.file_path for snippet in rcm.current_top_snippets]:
                     output += suffix
             else:
                 output = (
@@ -711,7 +711,7 @@ def handle_function_call(
                     ]
                 )
                 output = (
-                    f"SUCCESS: {file_path} was added. Here are the current selected snippets that will be MODIFIED:\n{current_top_snippets_string}"
+                    f"SUCCESS: {file_path} was added. Here are the current selected snippets that will either be modified or use in the code change:\n{current_top_snippets_string}"
                     if valid_path
                     else "FAILURE: This file path does not exist. Please try a new path."
                 )
@@ -779,7 +779,8 @@ def context_dfs(
     problem_statement: str,
 ) -> bool | None:
     max_iterations = 30 # Tuned to 30 because haiku is cheap
-    NUM_ROLLOUTS = 5
+    # NUM_ROLLOUTS = 5
+    NUM_ROLLOUTS = 2
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
@@ -819,7 +820,7 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>"
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you would like to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
