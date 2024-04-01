@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ctypes
 import json
-import subprocess
 import threading
 import time
 from typing import Any, Optional
