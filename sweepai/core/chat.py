@@ -351,8 +351,8 @@ class ChatGPT(MessageList):
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         if ANTHROPIC_AVAILABLE:
-            model = f"anthropic.{model}-v1:0"
-            self.model = f"anthropic.{self.model}-v1:0"
+            model = f"anthropic.{model}-v1:0:200k"
+            self.model = f"anthropic.{self.model}-v1:0:200k"
             anthropic_client = AnthropicBedrock(
                 aws_access_key=AWS_ACCESS_KEY,
                 aws_secret_key=AWS_SECRET_KEY,
