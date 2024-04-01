@@ -9,6 +9,7 @@ from loguru import logger
 from redis import Redis
 from tqdm import tqdm
 import voyageai
+from voyageai import InvalidRequestError
 
 from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_KEY
 from sweepai.utils.hash import hash_sha256
@@ -129,21 +130,35 @@ def openai_with_expo_backoff(batch: tuple[str]):
         embeddings = np.array(embeddings)
         return embeddings  # all embeddings are in cache
     try:
-        # make sure all token counts are within model params (max: 8192)
+        try:
+            # make sure all token counts are within model params (max: 8192)
 
-        new_embeddings = openai_call_embedding(batch)
-    except requests.exceptions.Timeout as e:
-        logger.exception(f"Timeout error occured while embedding: {e}")
-    except Exception as e:
-        logger.exception(e)
-        if any(tiktoken_client.count(text) > 8192 for text in batch):
-            logger.warning(
-                f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens."
-            )
-            batch = [tiktoken_client.truncate_string(text) for text in batch]
             new_embeddings = openai_call_embedding(batch)
-        else:
-            raise e
+        except requests.exceptions.Timeout as e:
+            logger.exception(f"Timeout error occured while embedding: {e}")
+        except Exception as e:
+            logger.exception(e)
+            if any(tiktoken_client.count(text) > 8192 for text in batch):
+                logger.warning(
+                    f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens."
+                )
+                batch = [tiktoken_client.truncate_string(text) for text in batch]
+                new_embeddings = openai_call_embedding(batch)
+            else:
+                raise e
+    except InvalidRequestError:
+        # Split the batch in half
+        half = len(batch) // 2
+        first_half = batch[:half]
+        second_half = batch[half:]
+
+        # Recursively call on each half
+        first_half_embeddings = openai_with_expo_backoff(first_half)
+        second_half_embeddings = openai_with_expo_backoff(second_half)
+
+        # Concatenate the results and return
+        new_embeddings = np.concatenate((first_half_embeddings, second_half_embeddings))
+        return new_embeddings
     # get all indices where embeddings are None
     indices = [i for i, emb in enumerate(embeddings) if emb is None]
     # store the new embeddings in the correct position
