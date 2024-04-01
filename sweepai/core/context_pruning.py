@@ -3,6 +3,7 @@ import os
 import subprocess
 import urllib
 from dataclasses import dataclass, field
+from math import inf, log
 
 import networkx as nx
 import openai
@@ -180,7 +181,7 @@ Here are the code files mentioned in the user request, these code files are very
 ## User Request
 <user_request>
 {query}
-<user_request>"""
+</user_request>"""
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
@@ -244,13 +245,12 @@ class RepoContextManager:
         logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
         repo_tree = str(self.dir_obj)
         import_tree_prompt = """
-## Import trees for code files in the user request
-<import_trees>
+## Import trees and relevant metadata for code files in the user request
+
 {import_trees}
-</import_trees>
 """
         import_tree_prompt = (
-            import_tree_prompt.format(import_trees=self.import_trees)
+            import_tree_prompt.format(import_trees=self.import_trees.strip("\n"))
             if self.import_trees
             else ""
         )
@@ -389,6 +389,56 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
+def graph_retrieval(top_k_paths, rcm, G):
+    # TODO: tune these params
+    top_paths_cutoff = 10
+    selected_paths = rcm.top_snippet_paths[:10]
+    top_k_paths = top_k_paths[:top_paths_cutoff]
+
+    snippet_scores = rcm.snippet_scores
+    for snippet, score in snippet_scores.items():
+        if snippet.split(":")[0] in top_k_paths:
+            snippet_scores[snippet] += 1
+
+    personalization = {}
+
+    for snippet in selected_paths:
+        personalization[snippet] = 1
+
+    try:
+        personalized_pagerank_scores = nx.pagerank(G, personalization=personalization, alpha=0.85)
+        unpersonalized_pagerank_scores = nx.pagerank(G, alpha=0.85)
+
+        # tfidf style
+        normalized_pagerank_scores = {path: score * log(1 / (1e-6 + unpersonalized_pagerank_scores[path])) for path, score in personalized_pagerank_scores.items()}
+
+        top_pagerank_scores = sorted(normalized_pagerank_scores.items(), key=lambda x: x[1], reverse=True)
+        
+        top_pagerank_paths = [path for path, _score in top_pagerank_scores]
+
+        distilled_file_path_list = []
+
+        for file_path, score in top_pagerank_scores:
+            if file_path.endswith(".js") and file_path.replace(".js", ".ts") in top_pagerank_paths:
+                continue
+            if file_path in selected_paths:
+                continue
+            if "generated" in file_path or "mock" in file_path or "test" in file_path:
+                continue
+            min_path_length = inf
+            # check if within distance two of selected paths
+            for parent_file_path in selected_paths:
+                try:
+                    min_path_length = min(min_path_length, nx.shortest_path_length(G, parent_file_path, file_path))
+                except (nx.NetworkXNoPath, nx.NodeNotFound):
+                    pass
+            if min_path_length > 2:
+                continue
+            distilled_file_path_list.append(file_path)
+        return distilled_file_path_list
+    except Exception as e:
+        logger.error(e)
+        return []
 
 # add import trees for any relevant_file_paths (code files that appear in query)
 def build_import_trees(
@@ -402,6 +452,7 @@ def build_import_trees(
         import_graph = override_import_graph
     # if we have found relevant_file_paths in the query, we build their import trees
     code_files_in_query = rcm.relevant_file_paths
+    graph_retrieved_files = graph_retrieval(rcm.top_snippet_paths, rcm, import_graph)[:15]
     if code_files_in_query:
         for file in code_files_in_query:
             # fetch direct parent and children
@@ -409,6 +460,8 @@ def build_import_trees(
                 f"\nThe file '{file}' has the following import structure: \n"
                 + build_full_hierarchy(import_graph, file, 2)
             )
+            if graph_retrieved_files:
+                representation += f"\n\nThe following modules may contain helpful services or utility functions:\n- " + "\n- ".join(graph_retrieved_files)
             rcm.add_import_trees(representation)
     # if there are no code_files_in_query, we build import trees for the top 5 snippets
     else:
@@ -418,6 +471,8 @@ def build_import_trees(
                 f"\nThe file '{file_path}' has the following import structure: \n"
                 + build_full_hierarchy(import_graph, file_path, 2)
             )
+            if graph_retrieved_files:
+                representation += f"\n\nThe following modules may contain helpful services or utility functions:\n- " + "\n-".join(graph_retrieved_files)
             rcm.add_import_trees(representation)
     return rcm
 
@@ -659,13 +714,13 @@ def handle_function_call(
             elif valid_path:
                 suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                 output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
-                if file_path not in [snippet.file_path for snippet in rcm.current_top_snippets]:
+                if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
                     output += suffix
             else:
                 output = (
                     "FAILURE: This file path does not exist. Please try a new path."
                 )
-        except Exception:
+        except FileNotFoundError:
             file_contents = ""
             similar_file_paths = "\n".join(
                 [
