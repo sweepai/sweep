@@ -29,6 +29,7 @@ def test_e2e_pr_comment():
             headers={"X-GitHub-Event": "pull_request_review_comment"},
         )
         print(f"Completed in {time.time() - start_time}s")
+
         assert response
         assert response.text
         response_text = json.loads(response.text)
@@ -70,3 +71,6 @@ def test_e2e_pr_comment():
             thread.join()
         print(f"Failed with error: {e}")
         sys.exit(1)
+
+if __name__ == "__main__":
+    test_e2e_pr_comment()
