@@ -10,6 +10,7 @@ from redis import Redis
 from tqdm import tqdm
 import voyageai
 import boto3
+from voyageai import error as voyageai_error
 
 from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_AWS_ACCESS_KEY, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_AWS_REGION, VOYAGE_API_AWS_SECRET_KEY, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
@@ -89,7 +90,7 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
 
 
 # @redis_cache()
-def openai_call_embedding(batch: list[str], input_type: str="document"): # input_type can be query or document
+def openai_call_embedding_router(batch: list[str], input_type: str="document"): # input_type can be query or document
     if VOYAGE_API_USE_AWS:
         sm_runtime = boto3.client(
             "sagemaker-runtime",
@@ -125,6 +126,20 @@ def openai_call_embedding(batch: list[str], input_type: str="document"): # input
         normalized_dim = normalize_l2(cut_dim)
         # save results to redis
         return normalized_dim
+
+def openai_call_embedding(batch: list[str], input_type: str="document"):
+    # Backoff on batch size by splitting the batch in half
+    try:
+        return openai_call_embedding_router(batch, input_type)
+    except voyageai_error.InvalidRequestError as e:
+        if len(batch) > 1 and "too many tokens" in str(e):
+            logger.exception(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} splitting batch in half.")
+            mid = len(batch) // 2
+            left = openai_call_embedding(batch[:mid], input_type)
+            right = openai_call_embedding(batch[mid:], input_type)
+            return np.concatenate((left, right))
+        else:
+            raise e
 
 
 @backoff.on_exception(
@@ -190,5 +205,5 @@ def openai_with_expo_backoff(batch: tuple[str]):
 
 
 if __name__ == "__main__":
-    texts = ["sasxtt " * 1000 for i in range(10)] + ["abb " * 1 for i in range(10)]
+    texts = ["sasxtt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
     embeddings = embed_text_array(texts)
