@@ -3,7 +3,7 @@ import time
 import traceback
 from typing import Any, Literal
 
-from anthropic import Anthropic
+from anthropic import Anthropic, AnthropicBedrock
 import backoff
 from loguru import logger
 from pydantic import BaseModel
@@ -11,6 +11,10 @@ from pydantic import BaseModel
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    ANTHROPIC_AVAILABLE,
+    AWS_ACCESS_KEY,
+    AWS_REGION,
+    AWS_SECRET_KEY,
     DEFAULT_GPT4_32K_MODEL,
     ANTHROPIC_API_KEY,
     PAREA_API_KEY
@@ -227,7 +231,7 @@ class ChatGPT(MessageList):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
-    # @file_cache(ignore_params=["chat_logger", "cloned_repo"])
+    @file_cache(ignore_params=["chat_logger", "cloned_repo"])
     def call_openai(
         self,
         model: ChatModel | None = None,
@@ -346,7 +350,15 @@ class ChatGPT(MessageList):
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
-        anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if ANTHROPIC_AVAILABLE:
+            model = f"anthropic.{model}-v1:0"
+            anthropic_client = AnthropicBedrock(
+                aws_access_key=AWS_ACCESS_KEY,
+                aws_secret_key=AWS_SECRET_KEY,
+                aws_region=AWS_REGION,
+            )
+        else:
+            anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
         if parea_client:
             parea_client.wrap_anthropic_client(anthropic_client)
         content = ""
@@ -354,7 +366,11 @@ class ChatGPT(MessageList):
         for i in range(4):
             try:
                 @file_cache() # must be in the inner scope because this entire function manages state
-                def chat_anthropic(message_dicts: list[dict[str, str]], system_message_for_cache: str, model_for_cache: str): # add system message and model to cache
+                def chat_anthropic(
+                    message_dicts: list[dict[str, str]], 
+                    system_message: str=system_message, 
+                    model: str=model
+                ): # add system message and model to cache
                     return anthropic_client.messages.create(
                         model=model,
                         temperature=temperature,
