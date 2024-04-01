@@ -346,7 +346,15 @@ class ChatGPT(MessageList):
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
-        anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        if ANTHROPIC_AVAILABLE:
+            model = f"anthropic.{model}-v1:0"
+            anthropic_client = AnthropicBedrock(
+                aws_access_key=AWS_ACCESS_KEY,
+                aws_secret_key=AWS_SECRET_KEY,
+                aws_region=AWS_REGION,
+            )
+        else:
+            anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
         if parea_client:
             parea_client.wrap_anthropic_client(anthropic_client)
         content = ""
