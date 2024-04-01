@@ -719,8 +719,10 @@ def handle_function_call(
             ):
                 output = f"FAILURE: {file_path} is already in the selected snippets."
             elif valid_path:
-                # TODO: this can be optimized to not show the suffix if it's already in the list
-                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
+                if file_path not in [snippet.file_path for snippet in rcm.current_top_snippets]:
+                    output += suffix
             else:
                 output = (
                     "FAILURE: This file path does not exist. Please try a new path."
@@ -847,7 +849,8 @@ def context_dfs(
     problem_statement: str,
 ) -> bool | None:
     max_iterations = 30 # Tuned to 30 because haiku is cheap
-    NUM_ROLLOUTS = 5
+    # NUM_ROLLOUTS = 5
+    NUM_ROLLOUTS = 2
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
