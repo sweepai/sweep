@@ -91,12 +91,13 @@ def openai_call_embedding(batch, input_type: str="document"): # input_type can b
     if VOYAGE_API_KEY:
         try:
             client = voyageai.Client()
-            result = client.embed(batch, model="voyage-code-2", input_type=input_type)
+            result = client.embed(batch, model="voyage-code-2", input_type=input_type, truncation=True)
             cut_dim = np.array([data for data in result.embeddings])
             normalized_dim = normalize_l2(cut_dim)
             return normalized_dim
-        except voyageai.error.InvalidRequestError as e:
-            if len(batch) > 1:
+        except voyageai_error.InvalidRequestError as e:
+            if len(batch) > 1 and "too many tokens" in str(e):
+                logger.exception(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} splitting batch in half.")
                 mid = len(batch) // 2
                 left = openai_call_embedding(batch[:mid], input_type)
                 right = openai_call_embedding(batch[mid:], input_type)
@@ -177,5 +178,5 @@ def openai_with_expo_backoff(batch: tuple[str]):
 
 
 if __name__ == "__main__":
-    texts = ["sasxtt " * 1000 for i in range(10)] + ["abb " * 1 for i in range(10)]
+    texts = ["sasxtt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
     embeddings = embed_text_array(texts)
