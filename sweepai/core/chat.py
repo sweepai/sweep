@@ -3,7 +3,7 @@ import time
 import traceback
 from typing import Any, Literal
 
-from anthropic import Anthropic, AnthropicBedrock
+from anthropic import Anthropic, BadRequestError, AnthropicBedrock
 import backoff
 from loguru import logger
 from pydantic import BaseModel
@@ -22,6 +22,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
 from sweepai.logn.cache import file_cache
+from sweepai.utils.anthropic_client import sanitize_anthropic_messages
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -386,8 +387,12 @@ class ChatGPT(MessageList):
                         "content": message.content,
                     } for message in self.messages if message.role != "system"
                 ]
+                message_dicts = sanitize_anthropic_messages(message_dicts)
                 content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
                 break
+            except BadRequestError as e_:
+                e = e_ # sometimes prompt is too long
+                raise e_
             except Exception as e_:
                 logger.exception(e_)
                 e = e_
