@@ -52,8 +52,7 @@ class MockFunctionCall:
         parameter_pattern = r'<(.*?)>(.*?)<\/\1>'
         
         # Extract function calls
-        function_call_matches = re.findall(r'<function_call>(.*?)</function_call>', function_calls_string, re.DOTALL)
-
+        function_call_matches = re.findall(r'<invoke>(.*?)</invoke>', function_calls_string, re.DOTALL)
         for function_call_match in function_call_matches:
             # Extract function name
             function_name_match = re.search(function_name_pattern, function_call_match)
@@ -78,6 +77,7 @@ class MockFunctionCall:
 
 if __name__ == "__main__":    
     test_str = """<function_call>
+<invoke>
 <tool_name>submit_report_and_plan</tool_name>
 <parameters>
 <report>
@@ -102,6 +102,8 @@ To solve the user request, the following plan should be followed:
 5. Thoroughly test the changes to ensure that all relevant cases are covered, including edge cases and error handling. This may involve writing additional unit tests or integration tests to validate the functionality.
 6. Once the changes have been implemented and tested, submit the modified `sweepai/api.py` file for review and deployment.
 </plan>
+</parameters>
+</invoke>
 </function_call>"""
 
     function_calls = MockFunctionCall.mock_function_calls_from_string(test_str)
