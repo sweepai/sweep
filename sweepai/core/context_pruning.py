@@ -27,6 +27,21 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 
 anthropic_function_calls = """<tool_description>
+<tool_name>draft_plan</tool_name>  
+<description>
+Draft a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and list each file that needs to be edited and exactly how it should be edited. Write it for a new intern with no prior knowledge of the codebase or issue.
+
+You should always call this function first
+</description>
+<parameters>
+<parameter>  
+<name>plan</name>
+<type>string</type>
+<description>A report providing background information and explaining the issue for a new intern who is new to the codebase, and a extremely-detailed plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and which files to use.</description>
+</parameter>
+</parameters>
+</tool_description>
+
 <tool_name>view_file</tool_name>
 <description>
 Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
@@ -59,7 +74,7 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <parameter>
 <name>justification</name>
 <type>string</type>
-<description>Explain why this file should be modified or read and what needs to be modified. Include a supporting code excerpt.</description>
+<description>Explain why this file is should be modified or used and what needs to be modified or why it needs to be used. Include a supporting code excerpt.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -67,13 +82,13 @@ Adds a file to the context that needs to be modified or used to resolve the issu
 <tool_description>
 <tool_name>code_search</tool_name>
 <description>
-Searches the entire codebase for the given code_entity and returns a list of files and line numbers where it appears. Use this to find definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
+Searches the entire codebase for the given code entity and returns a list of files and line numbers where it appears. Useful for finding definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
 </description>
 <parameters>
 <parameter>
 <name>code_entity</name>
 <type>string</type>
-<description>The code_entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' in JavaScript.</description>
+<description>The code entity to search for. Should be a distinctive name, not a generic term like 'if' or 'else'. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' or 'const bar' in JavaScript.</description>
 </parameter>
 <parameter>
 <name>justification</name>
@@ -84,27 +99,46 @@ Searches the entire codebase for the given code_entity and returns a list of fil
 </tool_description>
 
 <tool_description>
-<tool_name>submit_report_and_plan</tool_name>
+<tool_name>submit</tool_name>  
 <description>
 Provides a detailed report of the issue and a high-level plan to resolve it. The report should explain the root cause, expected behavior, and which files need to be modified or referenced. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue. You may only call this tool once when you are absolutely certain you have all the necessary information.
 </description>
 <parameters>
 <parameter>
-<name>report</name>
-<type>string</type>
-<description>A detailed report providing background information and explaining the issue so that someone with no context can understand it.</description>
-</parameter>
-<parameter>
 <name>plan</name>
 <type>string</type>
-<description>A high-level plan outlining the steps to resolve the issue, including what needs to be modified in each file to modify and file to use.</description>
+<description>Copy the final plan drafted using the draft_plan function.</description>
 </parameter>
 </parameters>
 </tool_description>
 
 You must call one tool at a time using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
+<examples>
+
 Example 1:
+<function_call>
+<invoke>
+<tool_name>draft_plan</tool_name>
+<parameters>
+<plan>
+Modify the file user_service.py with the following changes:
+* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
+* Add a new optional parameter called `include_deleted` with a default value of `False`.
+* Inside the method, add a condition to check the value of `include_deleted`.
+* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
+* If `include_deleted` is `True`, no changes are needed to the query.
+* Update the method's docstring to reflect the new parameter and its behavior.
+Modify the file app.py with the following changes:
+* Locate the `get_user` route handler in the Flask app.
+* Find the call to `UserService.get_user_by_id()` within the route handler.
+* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
+</plan>
+</parameters>
+</invoke>
+</function_call>
+
+Example 2:
 <function_call>
 <invoke>
 <tool_name>view_file</tool_name>
@@ -115,16 +149,16 @@ Example 1:
 </invoke>
 </function_call>
 
-Example 2:
+Example 3:
 <function_call>
-<tool_name>store_file</tool_name>
 <invoke>
+<tool_name>store_file</tool_name>
 <parameters>
 <file_path>src/controllers/user_controller.py</file_path>
 <justification>The user_controller.py file contains the UserController class referenced in the user request. The create_user method inside this class needs to be updated to fix the bug, as evidenced by this excerpt:
 ```python
 def create_user(self, name, email):
-    # BUG: User is created without validating email
+    # BUG: User is created without validating email 
     user = User(name, email)
     db.session.add(user)
     db.session.commit()
@@ -134,7 +168,7 @@ def create_user(self, name, email):
 </invoke>
 </function_call>
 
-Example 3:
+Example 4:
 <function_call>
 <invoke>
 <tool_name>code_search</tool_name>
@@ -145,23 +179,47 @@ Example 3:
 </invoke>
 </function_call>
 
+</examples>
+
 I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to retrieve relevant files to resolve the GitHub issue. We consider a file RELEVANT if it must either be modified or used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used.
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed, plan to fully resolve a GitHub issue and retrieve relevant files for this. We consider a file RELEVANT if it must either be modified or contains a function or class that must used as part of the issue resolution process. It is critical that you identify and include every relevant line of code that should either be modified or used and validate ALL changes.
 
-You will gather all of the relevant file paths.
+Your goal is to generate an extremely detailed and accurate plan of code changes for an intern and a list of relevant files who is unfamliar with the codebase. You will do this by first drafting an initial plan, then validating the plan by searching and viewing for files in the codebase to draft a refined plan. You will do this until you have a finished complete plan where every detail is fully validated.
 
-## Instructions
-- You start with no code snippets. Use the store_file tool to incrementally add relevant code to the context.
-- Utilize the code_search and view_file tools to methodically find the code snippets you need to store.
-- "Relevant Snippets" provides code snippets that may be relevant to the issue. However, these are not automatically added to the context.
+Your plan should be complete but should not include tests.
+
+INSTRUCTIONS
 
 Use the following iterative process:
-1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files.
-2. Use code_search to find definitions for any unknown variables, classes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. View the relevant files containing those definitions.
-3. When you identify a relevant file, use store_file to add it to the context.
-Repeat steps 1-3 until you are confident you have all the necessary code to resolve the issue.
-4. Lastly, generate a detailed plan of attack explaining the issue and outlining a plan to resolve it. List each file that should be modified, what should be modified about it, and which modules we need to use. Write in extreme detail, since it is for an intern who is new to the codebase and project. Use the submit_report_and_plan tool for this.
+1. First, summarize the "User Request" and "Relevant Snippets" use the draft_plan function to draft a detailed plan that is complete and indicates every detail that should be used.
+
+<example_draft_plan>
+Modify the file user_service.py with the following changes:
+* Go to the `get_user_by_id` method in the `UserService` class that fetches a user by user ID.
+* Add a new optional parameter called `include_deleted` with a default value of `False`.
+* Inside the method, add a condition to check the value of `include_deleted`.
+* If `include_deleted` is `False`, modify the database query to filter out users where the `deleted` column is set to `True`.
+* If `include_deleted` is `True`, no changes are needed to the query.
+* Update the method's docstring to reflect the new parameter and its behavior.
+
+Modify the file app.py with the following changes:
+* Locate the `get_user` route handler in the Flask app.
+* Find the call to `UserService.get_user_by_id()` within the route handler.
+* Add the `include_deleted=True` argument to the `get_user_by_id()` call to include deleted users.
+</example_draft_plan>
+
+Only after you have completed the initial draft plan using the draft_plan function should you proceed to view and search for relevant files.
+
+2. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Make sure to check all files referenced in the user request. If you can't find a service, you can also check the "Common modules section".
+3. Use code_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find where they are defined. If you want to use `user.deleted`, check that the `deleted` attribute exists on the entity. View the relevant files containing those definitions. Make sure to view ALL files when using or changing any function input parameters and accessing methods and attributes.
+4. When you identify a relevant file, use store_file to add it to the context.
+5. When you have retrieved new information, update the drafted plan by using the draft_plan function again.
+
+Repeat steps 1-3 until you are confident you have drafted a plan and have validated all the details, such as all the entities used and the variable and attribute names required.
+5. Submit the plan with the submit function.
+
+It is crucial that you follow the steps in the specified order, starting with drafting an initial plan using the draft_plan function before proceeding to view and search for files.
 
 Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
 
@@ -182,6 +240,7 @@ Here are the code files mentioned in the user request, these code files are very
 <user_request>
 {query}
 </user_request>"""
+
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
@@ -233,7 +292,6 @@ class RepoContextManager:
         new_top_snippets: list[Snippet] = []
         for snippet in self.current_top_snippets:
             # if can_add_snippet(snippet, new_top_snippets):
-            #     new_top_snippets.append(snippet)
             if True:
                 new_top_snippets.append(snippet)
         self.current_top_snippets = new_top_snippets
@@ -788,6 +846,14 @@ def handle_function_call(
         else:
             file_preview = CodeTree.from_code(code).get_preview()
             output = f"SUCCESS: Previewing file {file_path}:\n\n{file_preview}"
+    elif function_name == "draft_plan":
+        output = "SUCCESS: Now let's validate all the details such as the signatures of functions and classes and names of attributes by searching the codebase."
+    elif function_name == "submit":
+        plan = function_input.get("plan")
+        repo_context_manager.update_issue_report_and_plan(f"# Highly Suggested Plan:\n\n{plan}\n\n")
+        issue_report = ""
+        issue_plan = function_input.get("plan")
+        output = PLAN_SUBMITTED_MESSAGE
     elif function_name == "submit_report_and_plan":
         if "report" not in function_input or "plan" not in function_input:
             output = "FAILURE: Please provide a report and a plan."

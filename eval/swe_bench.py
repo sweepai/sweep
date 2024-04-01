@@ -154,7 +154,7 @@ for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
         with open(search_positions_file, "a") as f:
             f.write(f"{instance_id},{search_positions}\n")
         with open(context_results_file, "a") as f:
-            f.write(f"{instance_id},{mrr},{acc}\n")
+            f.write(f"{instance_id},{mrr},{accuracy}\n")
         with open(context_positions_file, "a") as f:
             f.write(f"{instance_id},{positions}\n")
         fcrs, plan = get_files_to_change(

@@ -231,7 +231,7 @@ class ChatGPT(MessageList):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
-    # @file_cache(ignore_params=["chat_logger", "cloned_repo"])
+    @file_cache(ignore_params=["chat_logger", "cloned_repo"])
     def call_openai(
         self,
         model: ChatModel | None = None,
@@ -350,8 +350,9 @@ class ChatGPT(MessageList):
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
-        if ANTHROPIC_AVAILABLE:
+        if ANTHROPIC_AVAILABLE and "opus" not in model:
             model = f"anthropic.{model}-v1:0"
+            self.model = f"anthropic.{self.model}-v1:0"
             anthropic_client = AnthropicBedrock(
                 aws_access_key=AWS_ACCESS_KEY,
                 aws_secret_key=AWS_SECRET_KEY,
@@ -367,7 +368,11 @@ class ChatGPT(MessageList):
             try:
                 logger.info(f"Calling anthropic with model {model}...")
                 @file_cache() # must be in the inner scope because this entire function manages state
-                def chat_anthropic(message_dicts: list[dict[str, str]], system_message_for_cache: str, model_for_cache: str): # add system message and model to cache
+                def chat_anthropic(
+                    message_dicts: list[dict[str, str]], 
+                    system_message: str=system_message, 
+                    model: str=model
+                ): # add system message and model to cache
                     return anthropic_client.messages.create(
                         model=model,
                         temperature=temperature,
