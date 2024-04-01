@@ -598,6 +598,13 @@ def function_modify(
                             error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_name}. Make sure you are modifying the correct file: {file_name}"
                             break
                         
+                        # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
+                        carriage_return = False
+                        if "\r\n" in current_chunk:
+                            # replace in current chunk
+                            previous_chunk = current_chunk
+                            current_chunk = current_chunk.replace("\r\n", "\n")
+                            carriage_return = True
                         # check to see that the original_code is in the new_code by trying all possible indentations
                         correct_indent, rstrip_original_code = manual_code_check(current_chunk, original_code)
                         # if the original_code couldn't be found in the chunk we need to let the llm know
@@ -605,7 +612,7 @@ def function_modify(
                             chunks_with_original_code = [
                                 index
                                 for index, chunk in enumerate(file_chunks)
-                                if original_code in chunk or manual_code_check(chunk, original_code)[0] != -1
+                                if original_code in chunk.replace("\r\n", "\n") or manual_code_check(chunk.replace("\r\n", "\n"), original_code)[0] != -1
                             ]
                             chunks_with_original_code = chunks_with_original_code[:5]
 
@@ -648,6 +655,9 @@ def function_modify(
                             logger.warning("No changes were made to the code.")
                         
                         file_chunks[section_id] = new_chunk
+                        # if we had carriage returns, we need to update file_contents to remove them also from current_chunk
+                        if carriage_return:
+                            file_contents = file_contents.replace(previous_chunk, current_chunk, 1)
                         new_contents = file_contents.replace(
                             current_chunk, new_chunk, 1
                         )
