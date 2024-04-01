@@ -14,7 +14,7 @@ from sweepai.core.lexical_search import (
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import TicketProgress
 
@@ -279,3 +279,15 @@ def fire_and_forget_wrapper(call):
         # thread.start()
 
     return wrapper
+
+if __name__ == "__main__":
+    cloned_repo = MockClonedRepo(
+        "/tmp/sweep",
+        "sweepai/sweep",
+    )
+    prep_snippets(
+        cloned_repo=cloned_repo,
+        query="Where do I find the main api endpoints?",
+        k=15,
+        skip_reranking=True
+    )

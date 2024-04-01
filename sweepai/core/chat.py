@@ -64,7 +64,7 @@ model_to_max_tokens = {
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
-    "anthropic.claude-3-haiku-20240229-v1:0": 200000,
+    "anthropic.claude-3-haiku-20240307-v1:0": 200000,
     "anthropic.claude-3-sonnet-20240229-v1:0": 200000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
