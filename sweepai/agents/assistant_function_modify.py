@@ -16,7 +16,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code, get_check_results
 from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
@@ -385,6 +385,7 @@ def function_modify(
             ticket_progress.save()
         # dictionary mapping a file path to various data used in modify, this needs to be stateful, so it is possible that previous_modify_files_dict
         modify_files_dict = previous_modify_files_dict or defaultdict(default_dict_value)
+        cwd = cwd or cloned_repo.repo_dir
         current_contents = contents_of_file
         initial_check_results = get_check_results(file_path, current_contents)
         # save chunks and contents of file if its not already present
@@ -927,11 +928,16 @@ def function_modify(
     return None
 
 if __name__ == "__main__":
+    from sweepai.config.server import INSTALLATION_ID
     # request = "Convert any all logger.errors to logger.exceptions in on_ticket.py"
     request = """Split any logger.errors to:
 logger = Logger()
 logger.errors()
 in on_ticket.py""" # this causes a pylint error so it's great for testing
+    cloned_repo = ClonedRepo(
+        repo_full_name="sweepai/sweep",
+        installation_id=INSTALLATION_ID
+    )
     additional_messages = [
         Message(
             role="user",
@@ -946,6 +952,7 @@ in on_ticket.py""" # this causes a pylint error so it's great for testing
         request=request,
         file_path="sweepai/handlers/on_ticket.py",
         contents_of_file=file_contents,
+        cloned_repo=cloned_repo,
         chat_logger=ChatLogger(
             {
                 "username": "kevinlu1248",
