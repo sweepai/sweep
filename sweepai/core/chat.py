@@ -3,7 +3,7 @@ import time
 import traceback
 from typing import Any, Literal
 
-from anthropic import Anthropic
+from anthropic import Anthropic, AnthropicBedrock
 import backoff
 from loguru import logger
 from pydantic import BaseModel
@@ -11,6 +11,10 @@ from pydantic import BaseModel
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    ANTHROPIC_AVAILABLE,
+    AWS_ACCESS_KEY,
+    AWS_REGION,
+    AWS_SECRET_KEY,
     DEFAULT_GPT4_32K_MODEL,
     ANTHROPIC_API_KEY,
     PAREA_API_KEY
