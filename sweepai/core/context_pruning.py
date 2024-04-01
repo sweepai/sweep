@@ -711,7 +711,7 @@ def handle_function_call(
                     ]
                 )
                 output = (
-                    f"SUCCESS: {file_path} was added. Here are the current selected snippets that will either be modified or use in the code change:\n{current_top_snippets_string}"
+                    f"SUCCESS: {file_path} was added. Here are the current selected snippets that will either be modified or be used in the code change:\n{current_top_snippets_string}"
                     if valid_path
                     else "FAILURE: This file path does not exist. Please try a new path."
                 )
@@ -820,7 +820,7 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you would like to submit the plan, call the submit function."
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>"
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright

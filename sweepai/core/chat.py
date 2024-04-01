@@ -353,6 +353,7 @@ class ChatGPT(MessageList):
         e = None
         for i in range(4):
             try:
+                logger.info(f"Calling anthropic with model {model}...")
                 @file_cache() # must be in the inner scope because this entire function manages state
                 def chat_anthropic(message_dicts: list[dict[str, str]], system_message_for_cache: str, model_for_cache: str): # add system message and model to cache
                     return anthropic_client.messages.create(
@@ -370,6 +371,7 @@ class ChatGPT(MessageList):
                     } for message in self.messages if message.role != "system"
                 ]
                 content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
+                logger.info(f"Response received from anthropic with model {model}")
                 break
             except Exception as e_:
                 logger.exception(e_)
