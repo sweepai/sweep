@@ -860,7 +860,7 @@ def context_dfs(
             stored_files=rollout_stored_files,
         )
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
-        breakpoint()
+        # breakpoint()
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
         reflections_to_read_files[message_to_contractor] = rollout_stored_files
@@ -872,6 +872,7 @@ def context_dfs(
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
     best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0])
     logger.info(f"Best score: {best_score}")
+    # breakpoint()
     return best_rcm
 
 if __name__ == "__main__":
