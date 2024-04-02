@@ -282,7 +282,6 @@ def fire_and_forget_wrapper(call):
     return wrapper
 
 if __name__ == "__main__":
-    from sweepai.config.server import INSTALLATION_ID
     from sweepai.utils.github_utils import MockClonedRepo
 
     cloned_repo = MockClonedRepo(

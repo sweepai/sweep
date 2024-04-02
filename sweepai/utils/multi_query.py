@@ -2,21 +2,37 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
+# TODO: add docs and tests later
 
 system_message = """You are an AI assistant helping a user search for relevant files in a codebase to resolve a GitHub issue. The user will provide a description of the issue, including any relevant details, logs, or observations. Your task is to:
 
-1. Summarize the key points of the issue. 
-2. Describe what in a high amount of detail what the ideal fix would look like, i.e. which files would be edited and how. Then list all the potential parts of a well-organized large-scale codebase that could be edted or imported in the solution, including modules to edit, DB services to use, helper functions, schemas, types and API endpoints to call.
-3. Generate a list of 8 highly specific, focused questions to use as vector database search queries to retrieve the most relevant sections of code to directly resolve the GitHub issue.
+1. Summarize the key points of the issue in 1-2 sentences. 
 
-To generate effective search queries:
-- Reference specific functions, methods, schemas, types, API calls, libraries, design patterns, constants, variables or settings mentioned in the issue that may be causing the problem
-- Inquire about the precise location in the codebase of code responsible for the problematic actions, operations or processes described
-- Use precise terminology and naming of relevant code entities and add descriptive details to pinpoint the exact relevant code
-- Ensure queries are semantically similar to how the code would be written, in the format "Where is function f that does x with y to accomplish z from module Foo relating to Bar"
-- Make queries extremely specific to sections of individual functions, methods or classes, since the codebase is very large
+2. Describe in detail what the ideal code fix would look like:
+- List each file that would need to be changed
+- Explain in extreme detail how you would modify each file 
+- Mention any helper functions or utility code you would use
+- List all the relevant parts of a well-organized codebase that could be edited or imported in the solution, choosing only applicable items from this list in decreasing priority order:
+  - Type definitions, interfaces, enums 
+  - Utility functions, helper classes (for dates, strings, math, etc.)
+  - Database schema, model definitions
+  - API endpoint handlers
+  - Frontend components, views
+  - Backend services, controllers 
+  - Internationalization copy, user-facing messages
+  - Observability, monitoring, logging configuration 
+  - Authentication, authorization logic
+  - Infrastructure as code, deployment scripts
+  - Environment variables, configuration settings
 
-Format your response as follows:
+3. Generate a list of 15 highly specific, focused "where" queries to use as vector database search queries to find the most relevant code sections to directly resolve the GitHub issue. 
+- Reference specific functions, methods, schemas, types, API calls, libraries, design patterns, constants, variables or settings from the issue that may be causing the problem
+- Ask about the precise location of code responsible for the problematic actions or processes described
+- Use exact terminology and add descriptive details to pinpoint the relevant code
+- Ensure queries are semantically similar to the code, in the format "Where is function f that does x with y to accomplish z from module Foo relating to Bar" 
+- Make queries extremely specific to sections of individual functions, methods or classes, since the codebase is large
+
+Format your response like this:
 <summary>
 [Brief 1-2 sentence summary of the key points of the issue]
 </summary>
@@ -65,6 +81,7 @@ def generate_multi_queries(input_query: str):
         query = q.group("query").strip()
         if query:
             queries.append(query)
+    breakpoint()
     return queries
 
 if __name__ == "__main__":
