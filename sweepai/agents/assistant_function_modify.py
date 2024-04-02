@@ -633,11 +633,11 @@ def function_modify(
                                 # first check the lines in original_code, if it is too long, ask for smaller changes
                                 original_code_lines_length = len(original_code.split("\n"))
                                 if original_code_lines_length > 7:
-                                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines."
+                                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                                 else:
                                     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                                    chunk_original_code_diff = generate_diff(original_code, current_chunk)
-                                    error_message += f"\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. To ensure that your original_code exists in section A, double check that it is in there before resubmitting, you can do this by attempting a search_codebase tool call with your original_code: \n{original_code}\n as the search term."
+                                    # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                                    error_message += f"\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                             break
                         # ensure original_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
