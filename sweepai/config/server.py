@@ -227,6 +227,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
 PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
 
+# TODO: we need to ake this dynamic + backoff
 BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 48 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
+    os.environ.get("BATCH_SIZE", 24 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
 )
