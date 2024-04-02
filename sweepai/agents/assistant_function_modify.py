@@ -16,7 +16,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.github_utils import ClonedRepo, update_file
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code, get_check_results
 from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
@@ -825,13 +825,15 @@ def function_modify(
                             try:
                                 # update the cloned repo before running ripgrep as it is possible some of the files have been editted
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["contents"])
+                                    updated = update_file(cloned_repo.repo_dir, file_name, file_data["contents"])
+                                    if not updated:
+                                        raise Exception(f"Failed to update file {file_name} in the cloned repo.")
                             except Exception as e:
                                 logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}\n"
                                 # attempt to undo the updates
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["original_contents"])
+                                    update_file(cloned_repo.repo_dir, file_data["original_contents"])
                                 
                             try:
                                 result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
@@ -848,13 +850,15 @@ def function_modify(
                             try:
                                 # reset cloned_repo to original state
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["original_contents"])
+                                    updated = update_file(cloned_repo.repo_dir, file_name, file_data["original_contents"])
+                                    if not updated:
+                                        raise Exception(f"Failed to update file {file_name} in the cloned repo.")
                             except Exception as e:
                                 logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}"
 
                             if not error_message:
-                                success_message = f"SUCCESS\n\nHere are the search_codebase results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
+                                success_message = f"Here are the search_codebase results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
                                 logger.debug(f"SUCCESS\n\nHere are the search_codebase results:\n{rg_output_pretty}\n\n")
 
                     if error_message:
