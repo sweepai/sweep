@@ -278,7 +278,10 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     if error_location:
         start = error_location.start_point
         end = error_location.end_point
-        error_code_lines = code.split("\n")[start[0]:end[0]]
+        if start[0] == end[0]:
+            error_code_lines = code.split("\n")[start[0]]
+        else:
+            error_code_lines = code.split("\n")[start[0]:end[0] + 1]
         error_code_lines[0] = error_code_lines[0][start[1]:]
         error_code_lines[-1] = error_code_lines[-1][:end[1]]
         error_span = "\n".join(error_code_lines)
