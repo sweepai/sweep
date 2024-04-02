@@ -205,13 +205,11 @@ def prep_snippets(
 ):
     if use_multi_query:
         queries = [query, *generate_multi_queries(query)]
-        return multi_prep_snippets(
-            cloned_repo, queries, ticket_progress, k, skip_reranking, use_multi_query
-        )
     else:
-        return multi_prep_snippets(
-            cloned_repo, [query], ticket_progress, k, skip_reranking, use_multi_query
-        )
+        queries = [query]
+    return multi_prep_snippets(
+        cloned_repo, queries, ticket_progress, k, skip_reranking
+    )
 
 def fetch_relevant_files(
     cloned_repo,
@@ -343,9 +341,15 @@ if __name__ == "__main__":
         _repo_dir="/tmp/sweep",
         repo_full_name="sweepai/sweep",
     )
+    cloned_repo = MockClonedRepo(
+        _repo_dir="/tmp/pulse-alp",
+        repo_full_name="trilogy-group/pulse-alp",
+    )
     rcm = prep_snippets(
         cloned_repo,
-        "I am trying to set up payment processing in my app using Stripe, but I keep getting a 400 error when I try to create a payment intent. I have checked the API key and the request body, but I can't figure out what's wrong. Here is the error message I'm getting: 'Invalid request: request parameters are invalid'. I have attached the relevant code snippets below. Can you help me find the part of the code that is causing this error?",
+        # "I am trying to set up payment processing in my app using Stripe, but I keep getting a 400 error when I try to create a payment intent. I have checked the API key and the request body, but I can't figure out what's wrong. Here is the error message I'm getting: 'Invalid request: request parameters are invalid'. I have attached the relevant code snippets below. Can you help me find the part of the code that is causing this error?",
+        "Where can I find the section that checks if assembly line workers are active or disabled?",
+        use_multi_query=False,
         skip_reranking=True
     )
     breakpoint()

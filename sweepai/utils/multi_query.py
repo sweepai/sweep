@@ -21,6 +21,7 @@ Describe thoroughly in extreme detail what the ideal code fix would look like:
   - Database schemas, models, and query logic 
   - Type definitions, interfaces, enums, constants
   - Shared utility code for common operations
+  - Exception handling, error recovery, retries, fallbacks
   - API routes, request/response handling, serialization
   - UI components, client-side logic, event handlers
   - Backend services, data processing, business logic
