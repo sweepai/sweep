@@ -728,7 +728,7 @@ def handle_function_call(
                 output = (
                     "FAILURE: This file path does not exist. Please try a new path."
                 )
-        except Exception:
+        except FileNotFoundError:
             file_contents = ""
             similar_file_paths = "\n".join(
                 [
