@@ -722,8 +722,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     : min(60, len(first_chars_in_instructions))
                 ]
                 # add context on which fcr it is currently on and how many are left
-                all_fcrs_strings = ", ".join(file_change_request.relevant_files)
-                current_fcr_strings = f"To solve the user's request you will modify/create the following {len(file_change_request.relevant_files)} files: {all_fcrs_strings}. You are currently modifying {file_change_request.filename}!"
+                all_fcrs_strings = ", ".join([file.filename for file in file_change_requests])
+                current_fcr_strings = f"To solve the user's request you will modify/create the following {len(file_change_requests)} files: {all_fcrs_strings}. You are currently modifying {file_change_request.filename}!"
                 additional_messages += [
                     Message(
                         role="user",
