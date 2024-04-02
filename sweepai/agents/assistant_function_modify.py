@@ -16,7 +16,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.github_utils import ClonedRepo, update_file
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.utils import chunk_code, get_check_results
 from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
@@ -581,6 +581,9 @@ def function_modify(
                         section_id = excel_col_to_int(section_letter)
                         original_code = tool_call["original_code"].strip("\n")
                         new_code = tool_call["new_code"].strip("\n")
+                        if new_code == original_code:
+                            error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
+                            break
                         # get the chunks and contents for the file
                         file_chunks = deepcopy(modify_files_dict[file_name]['chunks'])  
                         file_contents = modify_files_dict[file_name]['contents']
@@ -691,7 +694,7 @@ def function_modify(
                         success_message = (
                             f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                             + generate_diff(file_contents, new_contents)
-                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again, or go back to searching for keywords using the KeywordSearch tool, which is great for finding all definitions or usages of a function or class."
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class."
                         # set contents
                         modify_files_dict[file_name]['contents'] = new_contents
                         modify_files_dict[file_name]['chunks'] = file_chunks
@@ -822,13 +825,15 @@ def function_modify(
                             try:
                                 # update the cloned repo before running ripgrep as it is possible some of the files have been editted
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["contents"])
+                                    updated = update_file(cloned_repo.repo_dir, file_name, file_data["contents"])
+                                    if not updated:
+                                        raise Exception(f"Failed to update file {file_name} in the cloned repo.")
                             except Exception as e:
                                 logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}\n"
                                 # attempt to undo the updates
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["original_contents"])
+                                    update_file(cloned_repo.repo_dir, file_name, file_data["original_contents"])
                                 
                             try:
                                 result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
@@ -845,13 +850,15 @@ def function_modify(
                             try:
                                 # reset cloned_repo to original state
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["original_contents"])
+                                    updated = update_file(cloned_repo.repo_dir, file_name, file_data["original_contents"])
+                                    if not updated:
+                                        raise Exception(f"Failed to update file {file_name} in the cloned repo.")
                             except Exception as e:
                                 logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}"
 
                             if not error_message:
-                                success_message = f"SUCCESS\n\nHere are the search_codebase results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
+                                success_message = f"Here are the search_codebase results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
                                 logger.debug(f"SUCCESS\n\nHere are the search_codebase results:\n{rg_output_pretty}\n\n")
 
                     if error_message:

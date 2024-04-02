@@ -467,21 +467,17 @@ class ClonedRepo:
         filtered_files_without_matching_name = list(filter(lambda file_path: file_path_to_ratio[file_path] > 50, files_without_matching_name))
         all_files = files_with_matching_name + filtered_files_without_matching_name
         return all_files[:limit]
-    
-    def update_file(self, file_path: str, new_contents: str):
-        local_path = (
-            f"{self.repo_dir}{file_path}"
-            if file_path.startswith("/")
-            else f"{self.repo_dir}/{file_path}"
-        )
-        try:
-            with open(local_path, "w", encoding="utf-8", errors="replace") as f:
-                f.write(new_contents)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to update file: {e}")
-            return False
 
+# updates a file with new_contents, returns True if successful
+def update_file(root_dir: str, file_path: str, new_contents: str):
+    local_path = os.path.join(root_dir, file_path)
+    try:
+        with open(local_path, "w") as f:
+            f.write(new_contents)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update file: {e}")
+        return False
 
 @dataclass
 class MockClonedRepo(ClonedRepo):

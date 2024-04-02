@@ -559,7 +559,8 @@ def get_relevant_context(
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
         if len(repo_context_manager.current_top_snippets) == 0:
-            repo_context_manager.current_top_snippets = old_top_snippets
+            raise Exception("No snippets found")
+            repo_context_manager.current_top_snippets = old_top_snippets[:20]
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -699,7 +700,7 @@ def handle_function_call(
                 output = (
                     f"FAILURE: The file path '{file_path}' does not exist. Please check the path and try again."
                 )
-        except Exception:
+        except FileNotFoundError:
             file_contents = ""
             similar_file_paths = "\n".join(
                 [

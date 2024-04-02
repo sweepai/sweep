@@ -553,13 +553,23 @@ class SweepBot(CodeGenBot, GithubBot):
                         key="relevant_files_summary",
                     )
                 )
-        create_file_response = self.chat(
-            create_file_prompt.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-            ),
-            message_key=key,
-        )
+        try:
+            create_file_response = self.chat_anthropic(
+                create_file_prompt.format(
+                    filename=file_change_request.filename,
+                    instructions=file_change_request.instructions,
+                ),
+                message_key=key,
+                model="claude-3-opus-20240229"
+            )
+        except Exception:
+            create_file_response = self.chat(
+                create_file_prompt.format(
+                    filename=file_change_request.filename,
+                    instructions=file_change_request.instructions,
+                ),
+                message_key=key,
+            )
         # Add file to list of changed_files
         self.file_change_paths.append(file_change_request.filename)
         file_change = FileCreation.from_string(create_file_response)
@@ -722,9 +732,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     : min(60, len(first_chars_in_instructions))
                 ]
                 # add context on which fcr it is currently on and how many are left
-                all_fcrs_strings = ", ".join(file_change_request.relevant_files)
-                current_fcr_strings = f"To solve the user's request you will modify/create the following {len(file_change_request.relevant_files)} files: {all_fcrs_strings}. You are currently modifying {file_change_request.filename}!"
-                additional_messages += [
+                all_fcrs_strings = ", ".join([file.filename for file in file_change_requests])
+                current_fcr_strings = f"To solve the user's request you will modify/create the following {len(file_change_requests)} files: {all_fcrs_strings}. You are currently modifying {file_change_request.filename}!"
+                # additional_messages should be reset for each file change request
+                additional_messages_copy = copy.deepcopy(additional_messages)
+                additional_messages_copy += [
                     Message(
                         role="user",
                         content=current_fcr_strings,
@@ -800,7 +812,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 if self.ticket_progress
                                 else None
                             ),
-                            additional_messages=additional_messages,
+                            additional_messages=additional_messages_copy,
                             previous_modify_files_dict=previous_modify_files_dict,
                         )
                         # update previous_modify_files_dict

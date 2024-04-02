@@ -1,4 +1,6 @@
 import re
+
+from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
@@ -16,13 +18,14 @@ Describe thoroughly in extreme detail what the ideal code fix would look like:
 - Dive deep into the low-level implementation details of how you would change each file. Explain the logic, algorithms, data structures, etc. 
 - Explicitly call out any helper functions, utility modules, libraries or APIs you would leverage.
 - Carefully consider ALL parts of the codebase that could be relevant, including:
-  - Database schemas, models, and query logic 
   - Type definitions, interfaces, enums, constants
   - Shared utility code for common operations
+  - Database schemas, models, mutators and query logic 
+  - User-facing messages, error messages, localization, i18n
+  - Exception handling, error recovery, retries, fallbacks
   - API routes, request/response handling, serialization
   - UI components, client-side logic, event handlers
   - Backend services, data processing, business logic
-  - User-facing copy, error messages, localization, i18n
   - Logging, monitoring, metrics, error tracking, observability, o11y
   - Auth flows, session management, encryption
   - Infrastructure, CI/CD, deployments, config
@@ -31,7 +34,7 @@ Describe thoroughly in extreme detail what the ideal code fix would look like:
 
 3. Queries
 
-Generate a list of 15 highly specific, focused "where" queries to use as vector database search queries to find the most relevant code sections to directly resolve the GitHub issue.
+Generate a list of 10 diverse, highly specific, focused "where" queries to use as vector database search queries to find the most relevant code sections to directly resolve the GitHub issue.
 - Reference very specific functions, variables, classes, endpoints, etc. using exact names.
 - Describe the purpose and behavior of the code in detail to differentiate it. 
 - Ask about granular logic within individual functions/methods.
@@ -46,7 +49,9 @@ Format your response like this:
 </summary>
 
 <solution>
-[1-2 sentences describing what an ideal fix would change in the code and how] Relevant parts of the codebase that could be used in the solution include:
+[detailed sentences describing what an ideal fix would change in the code and how
+
+Exhaustive list of relevant parts of the codebase that could be used in the solution include:
 - [Module, service, function or endpoint 1] 
 - [Module, service, function or endpoint 2]
 - [etc.]
@@ -89,6 +94,7 @@ def generate_multi_queries(input_query: str):
         query = q.group("query").strip()
         if query:
             queries.append(query)
+    logger.debug(f"Generated {len(queries)} queries from the input query.")
     return queries
 
 if __name__ == "__main__":

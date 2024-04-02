@@ -318,7 +318,9 @@ notebook-shim==0.2.4
     #   jupyterlab
     #   notebook
 numpy==1.26.4
-    # via voyageai
+    # via
+    #   scipy
+    #   voyageai
 openai==1.13.3
     # via parea-ai
 overrides==7.7.0
@@ -497,6 +499,7 @@ rpds-py==0.18.0
     #   referencing
 s3transfer==0.10.1
     # via boto3
+scipy==1.12.0
 secretstorage==3.3.3
     # via keyring
 send2trash==1.8.2
