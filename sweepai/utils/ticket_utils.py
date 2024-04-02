@@ -138,17 +138,19 @@ def get_top_k_snippets(
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
 
-def prep_snippets(
+def multi_prep_snippets(
     cloned_repo: ClonedRepo,
-    query: str,
+    queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
     skip_reranking: bool = False,
-    use_multi_query: bool = True,
 ):
-    if use_multi_query:
+    """
+    Assume 0th index is the main query.
+    """
+    rank_fusion_offset = 0
+    if len(queries) > 1:
         logger.info("Using multi query...")
-        queries = [query, *generate_multi_queries(query)]
         ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
             cloned_repo, queries, ticket_progress, k * 3 # k * 3 to have enough snippets to rerank
         )
@@ -156,7 +158,7 @@ def prep_snippets(
         content_to_lexical_score = defaultdict(float)
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
-                content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / (j + 1))
+                content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / (rank_fusion_offset + j + 1))
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
@@ -164,14 +166,14 @@ def prep_snippets(
         )[:k]
     else:
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-            cloned_repo, query, ticket_progress, k
+            cloned_repo, queries[0], ticket_progress, k
         )
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking:
-        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
     prefixes = []
     for snippet_path in snippet_paths:
@@ -194,6 +196,21 @@ def prep_snippets(
     )
     return repo_context_manager
 
+def prep_snippets(
+    cloned_repo: ClonedRepo,
+    query: str,
+    ticket_progress: TicketProgress | None = None,
+    k: int = 15,
+    skip_reranking: bool = False,
+    use_multi_query: bool = True,
+):
+    if use_multi_query:
+        queries = [query, *generate_multi_queries(query)]
+    else:
+        queries = [query]
+    return multi_prep_snippets(
+        cloned_repo, queries, ticket_progress, k, skip_reranking
+    )
 
 def fetch_relevant_files(
     cloned_repo,
@@ -325,9 +342,15 @@ if __name__ == "__main__":
         _repo_dir="/tmp/sweep",
         repo_full_name="sweepai/sweep",
     )
+    cloned_repo = MockClonedRepo(
+        _repo_dir="/tmp/pulse-alp",
+        repo_full_name="trilogy-group/pulse-alp",
+    )
     rcm = prep_snippets(
         cloned_repo,
-        "I am trying to set up payment processing in my app using Stripe, but I keep getting a 400 error when I try to create a payment intent. I have checked the API key and the request body, but I can't figure out what's wrong. Here is the error message I'm getting: 'Invalid request: request parameters are invalid'. I have attached the relevant code snippets below. Can you help me find the part of the code that is causing this error?",
+        # "I am trying to set up payment processing in my app using Stripe, but I keep getting a 400 error when I try to create a payment intent. I have checked the API key and the request body, but I can't figure out what's wrong. Here is the error message I'm getting: 'Invalid request: request parameters are invalid'. I have attached the relevant code snippets below. Can you help me find the part of the code that is causing this error?",
+        "Where can I find the section that checks if assembly line workers are active or disabled?",
+        use_multi_query=False,
         skip_reranking=True
     )
     breakpoint()
