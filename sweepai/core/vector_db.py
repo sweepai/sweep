@@ -10,6 +10,7 @@ from redis import Redis
 from tqdm import tqdm
 import voyageai
 import boto3
+from botocore.exceptions import ClientError
 from voyageai import error as voyageai_error
 
 from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_AWS_ACCESS_KEY, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_AWS_REGION, VOYAGE_API_AWS_SECRET_KEY, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
@@ -91,6 +92,8 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
 
 # @redis_cache()
 def openai_call_embedding_router(batch: list[str], input_type: str="document"): # input_type can be query or document
+    if len(batch) == 0:
+        return np.array([])
     if VOYAGE_API_USE_AWS:
         sm_runtime = boto3.client(
             "sagemaker-runtime",
@@ -109,8 +112,10 @@ def openai_call_embedding_router(batch: list[str], input_type: str="document"): 
             Accept="application/json",
             Body=input_json,
         )
-        breakpoint()
-        return np.array([vector["embedding"] for vector in json.load(response["Body"])["data"]])
+        body = response["Body"]
+        obj = json.load(body)
+        data = obj["data"]
+        return np.array([vector["embedding"] for vector in data])
     elif VOYAGE_API_KEY:
         client = voyageai.Client()
         result = client.embed(batch, model="voyage-code-2", input_type=input_type)
@@ -131,8 +136,8 @@ def openai_call_embedding(batch: list[str], input_type: str="document"):
     # Backoff on batch size by splitting the batch in half
     try:
         return openai_call_embedding_router(batch, input_type)
-    except voyageai_error.InvalidRequestError as e:
-        if len(batch) > 1 and "too many tokens" in str(e):
+    except (voyageai_error.InvalidRequestError, ClientError) as e: # full error is botocore.errorfactory.ModelError: but I can't find it
+        if len(batch) > 1 and "Please lower the number of tokens in the batch." in str(e):
             logger.exception(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} splitting batch in half.")
             mid = len(batch) // 2
             left = openai_call_embedding(batch[:mid], input_type)
