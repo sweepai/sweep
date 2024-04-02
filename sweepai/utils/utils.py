@@ -264,11 +264,6 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
 
-    if ext in ("tsx", "ts"):
-        is_valid, error_message = check_valid_typescript(code)
-        if not is_valid:
-            return is_valid, error_message
-
     def find_deepest_error(node: Node) -> Optional[Node]:
         deepest_error = None
         if node.has_error:
@@ -281,10 +276,19 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
 
     error_location = find_deepest_error(tree.root_node)
     if error_location:
-        line_number, _ = error_location.start_point
-        error_start = max(0, line_number - 20)
-        error_span = "\n".join(code.split("\n")[error_start : line_number + 10])
-        error_message = f"Invalid syntax found around lines {error_start}-{line_number}, displayed below:\n{error_span}"
+        start = error_location.start_point
+        end = error_location.end_point
+        if start[0] == end[0]:
+            error_code_lines = code.split("\n")[start[0]]
+        else:
+            error_code_lines = code.split("\n")[start[0]:end[0] + 1]
+        error_code_lines[0] = error_code_lines[0][start[1]:]
+        error_code_lines[-1] = error_code_lines[-1][:end[1]]
+        error_span = "\n".join(error_code_lines)
+        if start[0] == end[0]:
+            error_message = f"Invalid syntax found at line {start[0]}, displayed below:\n{error_span}"
+        else:
+            error_message = f"Invalid syntax found from {start}-{end}, displayed below:\n{error_span}"
         return (False, error_message)
     return True, ""
 
@@ -371,10 +375,12 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
             logger.exception(e)
     if ext == "ts":
         # see if eslint is installed
+        npx_commands = ["npx", "eslint", "--version"]
         result = subprocess.run(
-            ["npx", "eslint", "--version"],
+            " ".join(npx_commands),
             capture_output=True,
             text=True,
+            shell=True,
         )
         if result.returncode == 0:
             with TemporaryDirectory() as temp_dir:
@@ -384,10 +390,12 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
                 with open(new_file, "w") as f:
                     f.write(code)
                 try:
+                    eslint_commands = ["npx", "eslint", new_file]
                     result = subprocess.run(
-                        ["npx", "eslint", new_file],
+                        " ".join(eslint_commands),
                         capture_output=True,
                         text=True,
+                        shell=True,
                         timeout=30,
                     )
                     error_message = (result.stdout + "\n\n" + result.stderr).strip().replace(new_file, file_path)
@@ -567,10 +575,36 @@ import numpy
 if __name__ == "__main__":
     # print(check_code("main.tsx", test_code))
     # print(get_check_results("main.py", test_code))
-    file_path = "sweepai/core/context_pruning.py"
-    with open(file_path) as f:
-        code = f.read()
-    chunks = chunk_code(code, file_path, 1400, 500)
+    code = """import { isPossiblyValidEmail } from '../validation-utils'
+import { PulseValidationException } from '../pulse-exceptions'
+
+export function getEmailDomain (email: string): string {
+  if (!isPossiblyValidEmail(email)) {
+    throw new PulseValidationException(`Email is invalid: ${email}`)
+  }
+  // Emails are tough. An email can contain multiple '@' symbols.
+  // Thankfully, domains cannot contain @, so the domain will be
+  // part after the last @ in the email.
+  // e.g., "steve@macbook"@trilogy.com is a valid email.
+  //
+  const tokens = email.split('@')
+  return tokens[tokens.length - 1].toLowerCase().trim()
+}
+
+export function removeEmailAlias(email: string): string {
+  if (!isPossiblyValidEmail(email)) {
+    throw new PulseValidationException(`Email is invalid: ${email}`)
+  
+  const atIndex = email.lastIndexOf('@')
+  const aliasIndex = email.lastIndexOf('+', atIndex)
+
+  if (aliasIndex > 0) {
+    return email.substring(0, aliasIndex) + email.substring(atIndex)
+  }
+
+  return email
+}"""
+    check_results = get_check_results("test.ts", code)
     import pdb
     # pylint: disable=no-member
     pdb.set_trace()

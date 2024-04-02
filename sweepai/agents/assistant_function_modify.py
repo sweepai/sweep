@@ -630,7 +630,7 @@ def function_modify(
                                 # first check the lines in original_code, if it is too long, ask for smaller changes
                                 original_code_lines_length = len(original_code.split("\n"))
                                 if original_code_lines_length > 7:
-                                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these!"
+                                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines."
                                 else:
                                     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
                                     chunk_original_code_diff = generate_diff(original_code, current_chunk)
