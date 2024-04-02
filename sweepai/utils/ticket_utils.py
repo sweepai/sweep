@@ -280,3 +280,18 @@ def fire_and_forget_wrapper(call):
         # thread.start()
 
     return wrapper
+
+if __name__ == "__main__":
+    from sweepai.config.server import INSTALLATION_ID
+    from sweepai.utils.github_utils import MockClonedRepo
+
+    cloned_repo = MockClonedRepo(
+        _repo_dir="/tmp/sweep",
+        repo_full_name="sweepai/sweep",
+    )
+    rcm = prep_snippets(
+        cloned_repo,
+        "Where is the function that compares the user-provided password hash against the stored hash from the database in the user-authentication service?",
+        skip_reranking=True
+    )
+    breakpoint()
