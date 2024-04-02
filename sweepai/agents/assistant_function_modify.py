@@ -822,7 +822,9 @@ def function_modify(
                             try:
                                 # update the cloned repo before running ripgrep as it is possible some of the files have been editted
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["contents"])
+                                    updated = cloned_repo.update_file(file_name, file_data["contents"])
+                                    if not updated:
+                                        raise Exception(f"Failed to update file {file_name}")
                             except Exception as e:
                                 logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}\n"
@@ -845,7 +847,9 @@ def function_modify(
                             try:
                                 # reset cloned_repo to original state
                                 for file_name, file_data in modify_files_dict.items():
-                                    cloned_repo.update_file(file_name, file_data["original_contents"])
+                                    updated = cloned_repo.update_file(file_name, file_data["original_contents"])
+                                    if not updated:
+                                        raise Exception(f"Failed to update file {file_name}")
                             except Exception as e:
                                 logger.error(f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}")
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}"
