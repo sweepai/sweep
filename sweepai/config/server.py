@@ -162,8 +162,8 @@ REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
 # Default OpenAI
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
 
-# Azure settings, only checked if OPENAI_API_TYPE == "azure"
-OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "anthropic")
+assert OPENAI_API_TYPE in ["anthropic", "azure", "openai"], "Invalid OPENAI_API_TYPE"
 OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
 
 AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)

@@ -1,5 +1,6 @@
 import json
 import multiprocessing
+import os
 from typing import Generator
 
 import backoff
@@ -23,7 +24,8 @@ from sweepai.utils.utils import Tiktoken
 # CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
 suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY else ""
 CACHE_VERSION = "v2.0.05" + suffix 
-redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
+redis_client: Redis = None
+# redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 
 
@@ -76,6 +78,7 @@ def normalize_l2(x):
 # lru_cache(maxsize=20)
 # @redis_cache()
 def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
+    VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
     embeddings = []
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
@@ -98,6 +101,11 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
 
 # @redis_cache()
 def openai_call_embedding_router(batch: list[str], input_type: str="document"): # input_type can be query or document
+    VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
+    VOYAGE_API_AWS_ACCESS_KEY = os.environ.get("VOYAGE_API_AWS_ACCESS_KEY", None)
+    VOYAGE_API_AWS_SECRET_KEY = os.environ.get("VOYAGE_API_AWS_SECRET_KEY", None)
+    VOYAGE_API_AWS_REGION = os.environ.get("VOYAGE_API_AWS_REGION", None)
+    VOYAGE_API_USE_AWS = VOYAGE_API_AWS_ACCESS_KEY and VOYAGE_API_AWS_SECRET_KEY and VOYAGE_API_AWS_REGION
     if len(batch) == 0:
         return np.array([])
     if VOYAGE_API_USE_AWS:
@@ -123,7 +131,7 @@ def openai_call_embedding_router(batch: list[str], input_type: str="document"): 
         data = obj["data"]
         return np.array([vector["embedding"] for vector in data])
     elif VOYAGE_API_KEY:
-        client = voyageai.Client()
+        client = voyageai.Client(api_key=VOYAGE_API_KEY)
         result = client.embed(batch, model="voyage-code-2", input_type=input_type)
         cut_dim = np.array([data for data in result.embeddings])
         normalized_dim = normalize_l2(cut_dim)
