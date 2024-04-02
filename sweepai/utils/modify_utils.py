@@ -19,7 +19,7 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     if total_output_length > sweep_config.truncation_cutoff:
         for filename, content in file_output_dict.items():
             processed_output += f"File: {filename} had the following matching lines of code"
-            if len(content) < 3:
+            if len(content) < 4:
                 processed_output += " :\n"
                 for line in content:
                     processed_output += f"{line}\n"
