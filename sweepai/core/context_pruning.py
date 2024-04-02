@@ -1,5 +1,6 @@
 from copy import deepcopy
 import os
+import re
 import subprocess
 import urllib
 from dataclasses import dataclass, field
@@ -31,7 +32,7 @@ NUM_SNIPPETS_TO_SHOW_AT_START = 15
 
 anthropic_function_calls = """<tool_name>view_file</tool_name>
 <description>
-Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
+Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Only use `store_file` to add the file to the context if you are certain it is directly relevant to solving the issue. Avoid storing files that are only tangentially related.
 </description>
 <parameters>
 <parameter>
@@ -75,7 +76,7 @@ Passes the code_entity into ripgrep to search the entire codebase and return a l
 <parameter>
 <name>code_entity</name>
 <type>string</type>
-<description>The code entity to search for. Should be a distinctive name, not a generic term. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' or 'const bar' in JavaScript.</description>
+<description>The code entity to search for. Should be a distinctive name, not a generic term. For functions, search for the definition syntax, e.g. 'def foo' in Python or 'function bar' or 'const bar' in JavaScript.</description>
 </parameter>
 <parameter>
 <name>justification</name>
@@ -121,7 +122,7 @@ Example 1 (calling multiple tools in parallel):
 <invoke>
 <tool_name>code_search</tool_name>
 <parameters>
-<code_entity>def get_user_by_id(</code_entity>
+<code_entity>def get_user_by_id</code_entity>
 <justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
 </parameters>
 </invoke>
@@ -163,7 +164,7 @@ Modify app.py:
 </function_calls>
 </examples>
 
-I will provide the tool's response after each <function_calls> block, then you may call another set of tools as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
+I will provide the tool's response after each <function_calls> block, then you may call another set of tools as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples. Try to call up to 3 tools in parallel each time to gather information efficiently."""
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed plan to fully resolve the issue and identify all relevant files. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
 
@@ -178,7 +179,7 @@ Use the following iterative process:
 
 2. Use code_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find their definitions. If you want to use `user.deleted`, verify that the `deleted` attribute exists on the entity. View the relevant definition files. Make sure to view ALL files when using or changing any function input parameters, methods or attributes.
 
-3. When you identify a relevant file, use store_file to add it to the context. 
+3. When you identify a relevant file, use store_file to add it to the context. Only store files that you are highly confident are necessary to read for context or modify to resolve the issue. Avoid storing tangentially related files.
 
 Repeat steps 1-3 until you are fully confident you have gathered all the necessary information detailing all entities used, variable names, attribute names, and files to read and modify.
 
@@ -207,6 +208,12 @@ Here are the code files mentioned in the user request, these code files are very
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
+def escape_ripgrep(text):
+    # Special characters to escape
+    special_chars = ["(", "{"]
+    for s in special_chars:
+        text = text.replace(s, "\\" + s)
+    return text
 
 @staticmethod
 def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
@@ -635,7 +642,8 @@ def handle_function_call(
         [snippet.denotation for snippet in repo_context_manager.current_top_snippets]
     )
     if function_name == "code_search":
-        code_entity = f'"{function_input["code_entity"]}"'  # handles cases with two words
+        code_entity = f'"{function_input["code_entity"]}"' # handles cases with two words
+        code_entity = escape_ripgrep(code_entity) # escape special characters
         rg_command = [
             "rg",
             "-n",
@@ -664,7 +672,7 @@ def handle_function_call(
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
                     stored_files_string + 
-                    "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. Use `store_file` to add any important non-stored files to the context."
+                    "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. You may view up to three in parallel. Use `store_file` to add any important non-stored files to the context."
                 )
             else:
                 output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or case variations."
@@ -835,7 +843,7 @@ def context_dfs(
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
             if len(function_calls) > MAX_PARALLEL_FUNCTION_CALLS:
-                function_outputs += "WARNING: You requested more than 3 function calls at once. Only the first 3 function calls have been processed. Please try again with fewer function calls.\n"
+                function_outputs += "WARNING: You requested more than 3 function calls at once. Only the first 3 function calls have been processed. Please try again with fewer function calls.\n" # TODO: extract the failed function calls
             try:
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_outputs,
@@ -860,7 +868,6 @@ def context_dfs(
             stored_files=rollout_stored_files,
         )
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
-        # breakpoint()
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
         reflections_to_read_files[message_to_contractor] = rollout_stored_files
@@ -871,8 +878,10 @@ def context_dfs(
     # select rcm from the best rollout
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
     best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0])
-    logger.info(f"Best score: {best_score}")
-    # breakpoint()
+    best_rcm_snippets = "\n".join(best_rcm.top_snippet_paths)
+    for idx, (score, rcm) in rollouts_to_scores_and_rcms.items():
+        logger.info(f"Rollout {idx} had score: {score} and snippets: {rcm.top_snippet_paths}")
+    logger.info(f"Best score: {best_score} Best snippets: {best_rcm_snippets}")
     return best_rcm
 
 if __name__ == "__main__":
