@@ -89,7 +89,6 @@ def generate_multi_queries(input_query: str):
         query = q.group("query").strip()
         if query:
             queries.append(query)
-    breakpoint()
     return queries
 
 if __name__ == "__main__":
