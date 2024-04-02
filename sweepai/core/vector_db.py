@@ -4,6 +4,7 @@ from typing import Generator
 
 import backoff
 import numpy as np
+import openai
 import requests
 from loguru import logger
 from redis import Redis
@@ -152,6 +153,12 @@ def openai_call_embedding(batch: list[str], input_type: str="document"):
             return np.concatenate((left, right))
         else:
             raise e
+    except openai.BadRequestError as e:
+        # In the future we can better handle this by averaging the embeddings of the split batch
+        if "This model's maximum context length" in str(e):
+            logger.error(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
+            batch = [tiktoken_client.truncate_string(text) for text in batch]
+            return openai_call_embedding(batch, input_type)
 
 
 @backoff.on_exception(
