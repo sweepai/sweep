@@ -138,17 +138,18 @@ def get_top_k_snippets(
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
 
-def prep_snippets(
+def multi_prep_snippets(
     cloned_repo: ClonedRepo,
-    query: str,
+    queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
     skip_reranking: bool = False,
-    use_multi_query: bool = True,
 ):
-    if use_multi_query:
+    """
+    Assume 0th index is the main query.
+    """
+    if len(queries) > 1:
         logger.info("Using multi query...")
-        queries = [query, *generate_multi_queries(query)]
         ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
             cloned_repo, queries, ticket_progress, k * 3 # k * 3 to have enough snippets to rerank
         )
@@ -164,14 +165,14 @@ def prep_snippets(
         )[:k]
     else:
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-            cloned_repo, query, ticket_progress, k
+            cloned_repo, queries[0], ticket_progress, k
         )
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking:
-        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
     prefixes = []
     for snippet_path in snippet_paths:
@@ -194,6 +195,23 @@ def prep_snippets(
     )
     return repo_context_manager
 
+def prep_snippets(
+    cloned_repo: ClonedRepo,
+    query: str,
+    ticket_progress: TicketProgress | None = None,
+    k: int = 15,
+    skip_reranking: bool = False,
+    use_multi_query: bool = True,
+):
+    if use_multi_query:
+        queries = [query, *generate_multi_queries(query)]
+        return multi_prep_snippets(
+            cloned_repo, queries, ticket_progress, k, skip_reranking, use_multi_query
+        )
+    else:
+        return multi_prep_snippets(
+            cloned_repo, [query], ticket_progress, k, skip_reranking, use_multi_query
+        )
 
 def fetch_relevant_files(
     cloned_repo,
