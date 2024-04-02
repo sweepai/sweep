@@ -167,42 +167,42 @@ The name of the file to retrieve, including the extension. File names are case-s
 <tool_description>
 <tool_name>make_change</tool_name>
 <description>
-Make a single code change in a file. Preserve whitespace, comments and style. Changes should be minimal and targeted.
+Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
 </description>
 <parameters>
 <parameter>
 <name>justification</name>
 <type>str</type>
 <description>
-Explain how this change contributes to fulfilling the user's request.
+Explain how this SINGLE change contributes to fulfilling the user's request.
 </description>
 </parameter>
 <parameter>
 <name>file_name</name>
 <type>str</type>
 <description>
-Name of the file to make changes in. Ensure correct spelling as this is case-sensitive.
+Name of the file to make the change in. Ensure correct spelling as this is case-sensitive.
 </description>
 </parameter>
 <parameter>
 <name>section_id</name>
 <type>str</type>
 <description>
-The section ID where the original code belongs to, helping to locate the specific area within the file.
+The section ID where the original code to be modified belongs to, helping to locate the specific area within the file.
 </description>
 </parameter>
 <parameter>
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. Include unchanged surrounding lines for context.
+The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
 </description>
 </parameter>
 <parameter>
 <name>new_code</name>
 <type>str</type>
 <description>
-The new lines of code to replace the original code, implementing the desired change.
+The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
 </description>
 </parameter>
 </parameters>
@@ -637,7 +637,7 @@ def function_modify(
                                 else:
                                     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
                                     chunk_original_code_diff = generate_diff(original_code, current_chunk)
-                                    error_message += f"\n\nHere is the diff between the original_code you provided and what is actually in section {section_letter}:\n\n{chunk_original_code_diff}\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code."
+                                    error_message += f"\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. To ensure that your original_code exists in section A, double check that it is in there before resubmitting, you can do this by attempting a search_codebase tool call with your original_code: \n{original_code}\n as the search term."
                             break
                         # ensure original_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
@@ -799,8 +799,8 @@ def function_modify(
                             match_indices = sorted(list(set(match_indices)))
                             match_context_indices = sorted(list(set(match_context_indices)))
                             if not match_indices:
-                                logger.debug(f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword.")
-                                error_message = f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword."
+                                logger.debug(f"The search term {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword.")
+                                error_message = f"The search term {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword."
                             else:
                                 # for matches inside current code file
                                 sections_message = english_join(
