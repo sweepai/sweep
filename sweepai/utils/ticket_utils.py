@@ -148,6 +148,7 @@ def multi_prep_snippets(
     """
     Assume 0th index is the main query.
     """
+    rank_fusion_offset = 0
     if len(queries) > 1:
         logger.info("Using multi query...")
         ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
@@ -157,7 +158,7 @@ def multi_prep_snippets(
         content_to_lexical_score = defaultdict(float)
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
-                content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / (j + 1))
+                content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / (rank_fusion_offset + j + 1))
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
