@@ -833,7 +833,7 @@ def function_modify(
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}\n"
                                 # attempt to undo the updates
                                 for file_name, file_data in modify_files_dict.items():
-                                    update_file(cloned_repo.repo_dir, file_data["original_contents"])
+                                    update_file(cloned_repo.repo_dir, file_name, file_data["original_contents"])
                                 
                             try:
                                 result = subprocess.run(" ".join(rg_command), text=True, shell=True, capture_output=True)
