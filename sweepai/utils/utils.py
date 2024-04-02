@@ -605,6 +605,6 @@ export function removeEmailAlias(email: string): string {
   return email
 }"""
     check_results = get_check_results("test.ts", code)
-    import pdb
+    import pdb # noqa: T100
     # pylint: disable=no-member
-    pdb.set_trace()
+    pdb.set_trace() # noqa: T100

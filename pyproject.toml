@@ -85,3 +85,6 @@ string-normalization = false
 disable=[
   'no-name-in-module'
 ]
+
+[tool.ruff]
+lint.select = ["T100"]

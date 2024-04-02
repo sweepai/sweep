@@ -293,4 +293,4 @@ if __name__ == "__main__":
         "Where is the function that compares the user-provided password hash against the stored hash from the database in the user-authentication service?",
         skip_reranking=True
     )
-    breakpoint()
+    breakpoint() # noqa: T100
