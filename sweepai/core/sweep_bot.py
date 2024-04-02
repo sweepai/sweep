@@ -562,7 +562,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 message_key=key,
                 model="claude-3-opus-20240229"
             )
-        except Exception as e:
+        except Exception:
             create_file_response = self.chat(
                 create_file_prompt.format(
                     filename=file_change_request.filename,
