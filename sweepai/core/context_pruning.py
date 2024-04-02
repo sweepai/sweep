@@ -925,8 +925,6 @@ def context_dfs(
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
         if overall_score >= 8:
             break
-        print([snippet.denotation for snippet in repo_context_manager.current_top_snippets])
-        breakpoint()
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
