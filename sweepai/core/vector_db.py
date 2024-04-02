@@ -133,7 +133,9 @@ def openai_call_embedding_router(batch: list[str], input_type: str="document"): 
         return normalized_dim
 
 def openai_call_embedding(batch: list[str], input_type: str="document"):
-    # Backoff on batch size by splitting the batch in half
+    # Backoff on batch size by splitting the batch in half.
+    # Better way is to download the tokenizer from https://huggingface.co/voyageai/voyage
+    # and check the token count manually, but it requires an extra dependency. 
     try:
         return openai_call_embedding_router(batch, input_type)
     except (voyageai_error.InvalidRequestError, ClientError) as e: # full error is botocore.errorfactory.ModelError: but I can't find it
