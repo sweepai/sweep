@@ -58,9 +58,9 @@ substring_adjustment = {
 NUM_SNIPPETS_TO_RERANK = 50
 
 @file_cache()
-def get_top_k_snippets(
+def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
-    query: str,
+    queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
     skip_reranking: bool = False,
@@ -82,44 +82,64 @@ def get_top_k_snippets(
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    content_to_lexical_score = search_index(query, lexical_index)
-    files_to_scores = compute_vector_search_scores(query, snippets)
-    for snippet in tqdm(snippets):
-        vector_score = files_to_scores.get(snippet.denotation, 0.04)
-        snippet_score = 0.02
-        if snippet.denotation in content_to_lexical_score:
-            # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
-            snippet_score = content_to_lexical_score[snippet.denotation] + (
-                vector_score * 3.5
-            )
-            content_to_lexical_score[snippet.denotation] = snippet_score
-        else:
-            content_to_lexical_score[snippet.denotation] = snippet_score * vector_score
-        for prefix, adjustment in prefix_adjustment.items():
-            if snippet.file_path.startswith(prefix):
-                content_to_lexical_score[snippet.denotation] += adjustment
-                break
-        for suffix, adjustment in suffix_adjustment.items():
-            if snippet.file_path.endswith(suffix):
-                content_to_lexical_score[snippet.denotation] += adjustment
-                break
-        for substring, adjustment in substring_adjustment.items():
-            if substring in snippet.file_path:
-                content_to_lexical_score[snippet.denotation] += adjustment
-                break
-    ranked_snippets = sorted(
-        snippets,
-        key=lambda snippet: content_to_lexical_score[snippet.denotation],
-        reverse=True,
-    )
+    # We can mget the lexical search scores for all queries at once
+    # But it's not that slow anyways
+    content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
+    files_to_scores_list = compute_vector_search_scores(queries, snippets)
+
+    for i, query in enumerate(queries):
+        for snippet in tqdm(snippets):
+            vector_score = files_to_scores_list[i].get(snippet.denotation, 0.04)
+            snippet_score = 0.02
+            if snippet.denotation in content_to_lexical_score_list[i]:
+                # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
+                snippet_score = content_to_lexical_score_list[i][snippet.denotation] + (
+                    vector_score * 3.5
+                )
+                content_to_lexical_score_list[i][snippet.denotation] = snippet_score
+            else:
+                content_to_lexical_score_list[i][snippet.denotation] = snippet_score * vector_score
+            for prefix, adjustment in prefix_adjustment.items():
+                if snippet.file_path.startswith(prefix):
+                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
+                    break
+            for suffix, adjustment in suffix_adjustment.items():
+                if snippet.file_path.endswith(suffix):
+                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
+                    break
+            for substring, adjustment in substring_adjustment.items():
+                if substring in snippet.file_path:
+                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
+                    break
+    
+    ranked_snippets_list = [
+        sorted(
+            snippets,
+            key=lambda snippet: content_to_lexical_score[snippet.denotation],
+            reverse=True,
+        )[:k] for content_to_lexical_score in content_to_lexical_score_list
+    ]
     # sort the top 30 using listwise reranking
     # you can use snippet.denotation and snippet.get_snippet()
-    if not skip_reranking:
-        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
-        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+    # if not skip_reranking:
+    #     ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+    #     ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     # TODO: we should rescore the snippets after reranking by interpolating their new scores between the 0th and 30th previous scores
-    ranked_snippets = ranked_snippets[:k]
-    return ranked_snippets, snippets, content_to_lexical_score
+    # ranked_snippets = ranked_snippets[:k]
+    return ranked_snippets_list, snippets, content_to_lexical_score_list
+
+@file_cache()
+def get_top_k_snippets(
+    cloned_repo: ClonedRepo,
+    query: str,
+    ticket_progress: TicketProgress | None = None,
+    k: int = 15,
+    skip_reranking: bool = False,
+):
+    ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
+        cloned_repo, [query], ticket_progress, k, skip_reranking
+    )
+    return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
 
 def prep_snippets(

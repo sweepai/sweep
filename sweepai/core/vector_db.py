@@ -27,10 +27,15 @@ tiktoken_client = Tiktoken()
 
 
 def cosine_similarity(a, B):
-    dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nx1, resulting in Mx1
-    norm_a = np.linalg.norm(a)
+    """
+    Updated to handle multi-queries.
+    """
+    dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nxq, resulting in Mxq
+    norm_a = np.linalg.norm(a, axis=1)
     norm_B = np.linalg.norm(B, axis=1)
-    return dot_product.flatten() / (norm_a * norm_B)  # Flatten to make it a 1D array
+    dot_product /= norm_a
+    dot_product = dot_product.T / norm_B
+    return dot_product
 
 
 def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]:
@@ -44,12 +49,12 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
 
 
 # @file_cache(ignore_params=["texts"])
-def get_query_texts_similarity(query: str, texts: str) -> list[float]:
-    if not texts:
+def multi_get_query_texts_similarity(queries: list[str], documents: list[str]) -> list[float]:
+    if not documents:
         return []
-    embeddings = embed_text_array(texts)
+    embeddings = embed_text_array(documents)
     embeddings = np.concatenate(embeddings)
-    query_embedding = np.array(openai_call_embedding([query], input_type="query")[0])
+    query_embedding = np.array(openai_call_embedding(queries, input_type="query"))
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
