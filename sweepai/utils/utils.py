@@ -278,7 +278,7 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     if error_location:
         start = error_location.start_point
         end = error_location.end_point
-        error_code_lines = code.split("\n")[start[0]:end[0]]
+        error_code_lines = code.split("\n")[start[0]:end[0] + 1]
         error_code_lines[0] = error_code_lines[0][start[1]:]
         error_code_lines[-1] = error_code_lines[-1][:end[1]]
         error_span = "\n".join(error_code_lines)
@@ -572,36 +572,7 @@ import numpy
 if __name__ == "__main__":
     # print(check_code("main.tsx", test_code))
     # print(get_check_results("main.py", test_code))
-    code = """import { isPossiblyValidEmail } from '../validation-utils'
-import { PulseValidationException } from '../pulse-exceptions'
-
-export function getEmailDomain (email: string): string {
-  if (!isPossiblyValidEmail(email)) {
-    throw new PulseValidationException(`Email is invalid: ${email}`)
-  }
-  // Emails are tough. An email can contain multiple '@' symbols.
-  // Thankfully, domains cannot contain @, so the domain will be
-  // part after the last @ in the email.
-  // e.g., "steve@macbook"@trilogy.com is a valid email.
-  //
-  const tokens = email.split('@')
-  return tokens[tokens.length - 1].toLowerCase().trim()
-}
-
-export function removeEmailAlias(email: string): string {
-  if (!isPossiblyValidEmail(email)) {
-    throw new PulseValidationException(`Email is invalid: ${email}`)
-  
-  const atIndex = email.lastIndexOf('@')
-  const aliasIndex = email.lastIndexOf('+', atIndex)
-
-  if (aliasIndex > 0) {
-    return email.substring(0, aliasIndex) + email.substring(atIndex)
-  }
-
-  return email
-}"""
-    check_results = get_check_results("test.ts", code)
+    # check_results = get_check_results("test.cpp", original)
     import pdb
     # pylint: disable=no-member
     pdb.set_trace()
