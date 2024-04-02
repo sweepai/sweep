@@ -65,8 +65,10 @@ def multi_get_top_k_snippets(
     queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    skip_reranking: bool = False,
 ):
+    """
+    Handles multiple queries at once now. Makes the vector search faster.
+    """
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
