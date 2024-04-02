@@ -19,6 +19,26 @@ from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
 
+import json
+import multiprocessing
+from typing import Generator
+
+import backoff
+import numpy as np
+import openai
+import requests
+from loguru import logger
+from redis import Redis
+from tqdm import tqdm
+import voyageai
+import boto3
+from botocore.exceptions import ClientError
+from voyageai import error as voyageai_error
+
+from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_AWS_ACCESS_KEY, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_AWS_REGION, VOYAGE_API_AWS_SECRET_KEY, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
+from sweepai.utils.hash import hash_sha256
+from sweepai.utils.openai_proxy import get_embeddings_client
+
 # Now uses Voyage AI if available, with asymmetric embedding
 # CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
 suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY else ""
@@ -144,13 +164,15 @@ def openai_call_embedding(batch: list[str], input_type: str="document"):
     # and check the token count manually, but it requires an extra dependency. 
     try:
         return openai_call_embedding_router(batch, input_type)
-    except (voyageai_error.InvalidRequestError, ClientError) as e: # full error is botocore.errorfactory.ModelError: but I can't find it
-        if len(batch) > 1 and "Please lower the number of tokens in the batch." in str(e):
+    except voyageai_error.InvalidRequestError as e:
+        if len(batch) > 1:
             logger.error(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} retrying by splitting batch in half.")
             mid = len(batch) // 2
-            left = openai_call_embedding(batch[:mid], input_type)
-            right = openai_call_embedding(batch[mid:], input_type)
-            return np.concatenate((left, right))
+            left_half = batch[:mid]
+            right_half = batch[mid:]
+            left_result = openai_call_embedding(left_half, input_type)
+            right_result = openai_call_embedding(right_half, input_type)
+            return np.concatenate((left_result, right_result))
         else:
             raise e
     except openai.BadRequestError as e:
