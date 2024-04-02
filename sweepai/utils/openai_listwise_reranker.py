@@ -530,16 +530,16 @@ class RerankSnippetsBot(ChatGPT):
     
     def format_code_snippets(self, code_snippets: list[Snippet]):
         result_str = ""
-        for snippet in code_snippets:
+        for idx, snippet in enumerate(code_snippets):
             snippet_str = \
-f"""
-<snippet>
+f'''
+<snippet index="{idx + 1}">
 <snippet_path>{snippet.denotation}</snippet>
-<snippet_contents>
+<source>
 {snippet.get_snippet(False, False)}
-</snippet_contents>
+</source>
 </snippet>
-"""
+'''
             result_str += snippet_str + "\n"
         result_removed_trailing_newlines = result_str.rstrip("\n")
         return result_removed_trailing_newlines
