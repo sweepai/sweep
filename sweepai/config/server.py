@@ -224,9 +224,19 @@ ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
 
 USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
+
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
+
+VOYAGE_API_AWS_ACCESS_KEY=os.environ.get("VOYAGE_API_AWS_ACCESS_KEY_ID")
+VOYAGE_API_AWS_SECRET_KEY=os.environ.get("VOYAGE_API_AWS_SECRET_KEY")
+VOYAGE_API_AWS_REGION=os.environ.get("VOYAGE_API_AWS_REGION")
+VOYAGE_API_AWS_ENDPOINT_NAME=os.environ.get("VOYAGE_API_AWS_ENDPOINT_NAME", "voyage-code-2")
+
+VOYAGE_API_USE_AWS = VOYAGE_API_AWS_ACCESS_KEY and VOYAGE_API_AWS_SECRET_KEY and VOYAGE_API_AWS_REGION
+
 PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
 
+# TODO: we need to ake this dynamic + backoff
 BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 48 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
+    os.environ.get("BATCH_SIZE", 24 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
 )

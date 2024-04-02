@@ -90,9 +90,9 @@ cprint("Loaded test data", style="green")
 
 seed = 0
 proportion = 0.05
-k = int(os.environ.get("k", 10))
+k = int(os.environ.get("k", 15))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-03-18-k-{k}-context"
+name = f"sweep-03-31-k-{k}"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
@@ -114,6 +114,10 @@ previously_finished_tasks = set(
 )
 
 for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
+    # if row.instance_id != "django__django-12747":
+    #     continue
+    if i == 66 or i == 2 or row.instance_id.startswith("pytest"):
+        continue # this task is blocked by Anthropic's content filtering policy for some reason
     instance_id = row.instance_id
     repo_identifier = row["repo"]
     commit_hash = row["base_commit"]
@@ -172,6 +176,7 @@ Repo: {repo_identifier}
         ]
         combined_diff = ""
         updated_files = {}
+        updated_files_message = []
         for fcr in fcrs:
             file_path = fcr.filename
             instructions = fcr.instructions
@@ -186,7 +191,7 @@ Repo: {repo_identifier}
                 ]
                 logger.info(f"{myfilepaths}")
                 logger.info(f"{[len(m) for m in mymessages]}")
-                updated_file = run_modify_bot(
+                new_files = run_modify_bot(
                     code=file_contents,
                     instructions=instructions,
                     file_path=file_path,
@@ -202,25 +207,17 @@ Repo: {repo_identifier}
                             )
                             for file_path in fcr.relevant_files
                         ],
+                        *updated_files_message
                     ],
                     relevant_filepaths=[
                         f"{repo_path}/{file}" for file in fcr.relevant_files
                     ],  # could be wrong
                     cloned_repo=cloned_repo,
                 )
+                updated_files.update(new_files)
             except Exception as e:
                 logger.error(f"Error modifying file {file_path} {e}")
                 continue
-            else:
-                updated_files[file_path] = updated_file
-                additional_messages.append(
-                    Message(
-                        role="user",
-                        content=f"The following changes in {fcr.filename} have already been applied to address this problem:\n```\n"
-                        + generate_diff(file_contents, updated_file)
-                        + "\n```",
-                    )
-                )
         cloned_repo.git_repo.git.checkout(commit_hash, force=True)
         if updated_files:
             old_files = {}
@@ -229,7 +226,7 @@ Repo: {repo_identifier}
                 with open(full_file_path, "r") as f:
                     old_files[file_path] = f.read()
                 with open(full_file_path, "w") as f:
-                    f.write(updated_file)
+                    f.write(updated_file["contents"])
             combined_diff = cloned_repo.git_repo.git.diff()
             for file_path, old_file in old_files.items():
                 full_file_path = os.path.join(repo_path, file_path)

@@ -7,6 +7,7 @@ from rich.console import Console
 from rich import print
 
 from sweepai.agents.modify_bot import ModifyBot
+from sweepai.agents.modify_file import modify_file
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -39,7 +40,7 @@ def cprint(*args, **kwargs):
     try:
         Console().print(*args, **kwargs)
     except Exception:
-        print(*args, **kwargs)
+        print(*args)
 debug = True
 verbose = False
 
@@ -103,7 +104,7 @@ def evaluate_search(
     # print the top k snippets and highlight the ones that are in the resolution files
     if debug:
         for snippet in selected_snippets:
-            snippet_score = round(content_to_lexical_score[snippet.denotation], 4)
+            snippet_score = round(content_to_lexical_score.get(snippet.denotation, 0), 4)
             if snippet.file_path in resolution_files:
                 cprint(
                     f"snippet_score {snippet_score}: [green]{snippet.denotation}[/green]"
@@ -120,16 +121,20 @@ def evaluate_search(
                 f.close()
         # if a resolution file is not in the top k, print it in red
         for resolution_file in resolution_files:
-            snippet = [
+            hits = [
                 snippet
-                for snippet in sorted_snippets
+                for snippet in selected_snippets
                 if snippet.file_path == resolution_file
-            ][0]
-            snippet_score = round(content_to_lexical_score[snippet.denotation], 4)
-            if resolution_file not in top_k_paths:
-                cprint(
-                    f"snippet_score {snippet_score}: [red]{resolution_file} MISSED at rank {sorted_snippet_paths.index(resolution_file) + 1}/{len(sorted_snippet_paths)}[/red]"
-                )
+            ]
+            if hits:
+                snippet = hits[0]
+                snippet_score = round(content_to_lexical_score[snippet.denotation], 4)
+                if resolution_file not in top_k_paths:
+                    cprint(
+                        f"snippet_score {snippet_score}: [red]{resolution_file} MISSED at rank {sorted_snippet_paths.index(resolution_file) + 1}/{len(sorted_snippet_paths)}[/red]"
+                    )
+            else:
+                cprint(f"[red]{resolution_file} NOT FOUND[/red]")
     return mrr, accuracy, positions
 
 # @file_cache()
@@ -294,28 +299,21 @@ def run_modify_bot(
     additional_messages: list[Message],
     relevant_filepaths: list[str] = [],
     cloned_repo: MockClonedRepo = None,
+    previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
 ):
-    modify_bot = ModifyBot(
-        additional_messages=additional_messages,
-        chat_logger=ChatLogger(
-            {
-                "username": "__swe_bench_benchmark__",
-                "title": f"Benchmarking '{file_path}'",
-            }
-        ),
-        parent_bot=None,
-        old_file_contents=code,
-    )
-    return modify_bot.try_update_file(
-        file_path=os.path.join(file_path),
-        file_contents=code,
+    return modify_file(
+        cloned_repo,
+        metadata="",
         file_change_request=FileChangeRequest(
             filename=os.path.join(file_path),
             change_type="modify",
             instructions=instructions,
             start_line=start_line,
             end_line=end_line,
+            raw_relevant_files=" ".join(relevant_filepaths),
         ),
-        cloned_repo=cloned_repo,
-        relevant_filepaths=relevant_filepaths,
+        contents=code,
+        branch=None,
+        additional_messages=additional_messages,
+        previous_modify_files_dict=previous_modify_files_dict,
     )

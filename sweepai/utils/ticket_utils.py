@@ -116,6 +116,7 @@ def get_top_k_snippets(
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
+        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     # TODO: we should rescore the snippets after reranking by interpolating their new scores between the 0th and 30th previous scores
     ranked_snippets = ranked_snippets[:k]
     return ranked_snippets, snippets, content_to_lexical_score
