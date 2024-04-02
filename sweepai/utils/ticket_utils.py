@@ -131,10 +131,9 @@ def get_top_k_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    skip_reranking: bool = False,
 ):
     ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, [query], ticket_progress, k, skip_reranking
+        cloned_repo, [query], ticket_progress, k
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
@@ -151,7 +150,7 @@ def prep_snippets(
         logger.info("Using multi query...")
         queries = [query, *generate_multi_queries(query)]
         ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-            cloned_repo, queries, ticket_progress, k * 3, skip_reranking # k * 3 to have enough snippets to rerank
+            cloned_repo, queries, ticket_progress, k * 3 # k * 3 to have enough snippets to rerank
         )
         # Use RRF to rerank snippets
         content_to_lexical_score = defaultdict(float)
@@ -165,7 +164,7 @@ def prep_snippets(
         )[:k]
     else:
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-            cloned_repo, query, ticket_progress, k, skip_reranking
+            cloned_repo, query, ticket_progress, k
         )
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
