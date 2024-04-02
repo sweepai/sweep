@@ -694,7 +694,7 @@ def function_modify(
                         success_message = (
                             f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                             + generate_diff(file_contents, new_contents)
-                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the SearchAndReplace tool again, or go back to searching for keywords using the KeywordSearch tool, which is great for finding all definitions or usages of a function or class."
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class."
                         # set contents
                         modify_files_dict[file_name]['contents'] = new_contents
                         modify_files_dict[file_name]['chunks'] = file_chunks
