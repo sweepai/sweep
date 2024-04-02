@@ -1,4 +1,6 @@
 import re
+
+from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
@@ -89,6 +91,7 @@ def generate_multi_queries(input_query: str):
         query = q.group("query").strip()
         if query:
             queries.append(query)
+    logger.debug(f"Generated {len(queries)} queries from the input query.")
     return queries
 
 if __name__ == "__main__":

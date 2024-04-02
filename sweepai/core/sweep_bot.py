@@ -553,13 +553,23 @@ class SweepBot(CodeGenBot, GithubBot):
                         key="relevant_files_summary",
                     )
                 )
-        create_file_response = self.chat(
-            create_file_prompt.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-            ),
-            message_key=key,
-        )
+        try:
+            create_file_response = self.chat_anthropic(
+                create_file_prompt.format(
+                    filename=file_change_request.filename,
+                    instructions=file_change_request.instructions,
+                ),
+                message_key=key,
+                model="claude-3-opus-20240229"
+            )
+        except Exception:
+            create_file_response = self.chat(
+                create_file_prompt.format(
+                    filename=file_change_request.filename,
+                    instructions=file_change_request.instructions,
+                ),
+                message_key=key,
+            )
         # Add file to list of changed_files
         self.file_change_paths.append(file_change_request.filename)
         file_change = FileCreation.from_string(create_file_response)

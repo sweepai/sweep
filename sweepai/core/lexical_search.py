@@ -12,7 +12,7 @@ from tqdm import tqdm
 from sweepai.config.server import DEBUG, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
-from sweepai.core.vector_db import get_query_texts_similarity
+from sweepai.core.vector_db import multi_get_query_texts_similarity
 from sweepai.logn.cache import file_cache
 from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
@@ -91,7 +91,6 @@ class CustomIndex:
         ]
 
         return results_with_metadata
-
 
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
@@ -279,21 +278,21 @@ def search_index(query, index: CustomIndex):
 
 
 @file_cache(ignore_params=["snippets"])
-def compute_vector_search_scores(query, snippets: list[Snippet]):
+def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
     # get get dict of snippet to score
     snippet_str_to_contents = {
         snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False)
         for snippet in snippets
     }
     snippet_contents_array = list(snippet_str_to_contents.values())
-    query_snippet_similarities = get_query_texts_similarity(
-        query, snippet_contents_array
+    multi_query_snippet_similarities = multi_get_query_texts_similarity(
+        queries, snippet_contents_array
     )
     snippet_denotations = [snippet.denotation for snippet in snippets]
-    snippet_denotation_to_scores = {
+    snippet_denotation_to_scores = [{
         snippet_denotations[i]: score
         for i, score in enumerate(query_snippet_similarities)
-    }
+    } for query_snippet_similarities in multi_query_snippet_similarities]
     return snippet_denotation_to_scores
 
 
