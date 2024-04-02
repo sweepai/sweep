@@ -138,7 +138,7 @@ def openai_call_embedding(batch: list[str], input_type: str="document"):
         return openai_call_embedding_router(batch, input_type)
     except (voyageai_error.InvalidRequestError, ClientError) as e: # full error is botocore.errorfactory.ModelError: but I can't find it
         if len(batch) > 1 and "Please lower the number of tokens in the batch." in str(e):
-            logger.exception(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} splitting batch in half.")
+            logger.error(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} retrying by splitting batch in half.")
             mid = len(batch) // 2
             left = openai_call_embedding(batch[:mid], input_type)
             right = openai_call_embedding(batch[mid:], input_type)
