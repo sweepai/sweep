@@ -99,11 +99,11 @@ Provides a detailed report of the issue and a complete plan to resolve it. The r
 </parameters>
 </tool_description>
 
-You must call one tool at a time using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
+You must call the tools using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
 <examples>
-Example 1:
-<function_call>
+Example 1 (calling multiple tools in parallel):
+<function_calls>
 <invoke>
 <tool_name>view_file</tool_name>
 <parameters>
@@ -111,29 +111,13 @@ Example 1:
 <justification>The user request mentions modifying the get_user_by_id method in the UserService class. I need to view the user_service.py file to locate this method and determine what changes are needed.</justification>
 </parameters>
 </invoke>
-</function_call>
-
-Example 2:
-<function_call>
-<invoke>  
-<tool_name>store_file</tool_name>
+<invoke>
+<tool_name>view_file</tool_name>
 <parameters>
 <file_path>models/user.py</file_path>
-<justification>The User model is relevant for understanding the attributes of a User, especially the `deleted` flag that indicates if a user is soft-deleted. This excerpt shows the key parts of the model:
-```python
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))  
-    email = db.Column(db.String(100), unique=True)
-    deleted = db.Column(db.Boolean, default=False)
-```
-</justification>
+<justification>The User model is likely relevant for understanding user attributes. I should view the model definition to see what fields exist on the User entity.</justification>
 </parameters>
 </invoke>
-</function_call>
-
-Example 3:
-<function_call>
 <invoke>
 <tool_name>code_search</tool_name>
 <parameters>
@@ -141,10 +125,10 @@ Example 3:
 <justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
 </parameters>
 </invoke>
-</function_call>
+</function_calls>
 
-Example 4:
-<function_call>
+Example 2 (submitting the final plan):
+<function_calls>
 <invoke>
 <tool_name>submit</tool_name>
 <parameters>
@@ -153,12 +137,12 @@ To fix the issue of being able to access deleted users via the API:
 
 Read the following files for context:
 - models/user.py: Understand the User model and its `deleted` attribute. Key excerpt:
-```python 
+```python
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) 
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    deleted = db.Column(db.Boolean, default=False)
+  id = db.Column(db.Integer, primary_key=True)
+  name = db.Column(db.String(100), nullable=False)
+  email = db.Column(db.String(100), unique=True, nullable=False)
+  deleted = db.Column(db.Boolean, default=False)
 ```
 
 Modify user_service.py:
@@ -171,15 +155,15 @@ Modify user_service.py:
 
 Modify app.py: 
 - Find the `get_user` route handler
-- Locate the call to `UserService.get_user_by_id()` in the route handler 
+- Locate the call to `UserService.get_user_by_id()` in the route handler
 - Add `include_deleted=True` to the `get_user_by_id()` call to include deleted users
 </plan>
 </parameters>
 </invoke>
-</function_call>
+</function_calls>
 </examples>
 
-I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
+I will provide the tool's response after each <function_calls> block, then you may call another set of tools as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed plan to fully resolve the issue and identify all relevant files. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
 
@@ -200,7 +184,7 @@ Repeat steps 1-3 until you are fully confident you have gathered all the necessa
 
 4. Submit the final plan with the submit function. 
 
-Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
+Here are the tools at your disposal. Call them in parallel (up to three at a time) as needed until you have gathered all relevant information:
 
 """ + anthropic_function_calls
 
@@ -605,34 +589,34 @@ def validate_and_parse_function_calls(
     function_calls_string: str, chat_gpt: ChatGPT
 ) -> list[MockFunctionCall]:
     function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</function_call>"
+        function_calls_string.strip("\n") + "\n</function_calls>"
     )  # add end tag
     if len(function_calls) > 0:
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_calls>"
         )  # add end tag to assistant message
         return function_calls
 
     # try adding </invoke> tag as well
     function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</invoke>\n</function_call>"
+        function_calls_string.strip("\n") + "\n</invoke>\n</function_calls>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_calls>"
         )
         return function_calls
     # try adding </parameters> tag as well
     function_calls = MockFunctionCall.mock_function_calls_from_string(
         function_calls_string.strip("\n")
-        + "\n</parameters>\n</invoke>\n</function_call>"
+        + "\n</parameters>\n</invoke>\n</function_calls>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
             chat_gpt.messages[-1].content.rstrip("\n")
-            + "\n</parameters>\n</invoke>\n</function_call>"
+            + "\n</parameters>\n</invoke>\n</function_calls>"
         )
     return function_calls
 
@@ -647,13 +631,9 @@ def handle_function_call(
     valid_path = False
     output_prefix = f"Output for {function_name}:\n"
     output = ""
-    current_read_only_snippets_string = "\n".join(
-        [snippet.denotation for snippet in repo_context_manager.read_only_snippets]
-    )
     current_top_snippets_string = "\n".join(
         [snippet.denotation for snippet in repo_context_manager.current_top_snippets]
     )
-    breakpoint()
     if function_name == "code_search":
         code_entity = f'"{function_input["code_entity"]}"'  # handles cases with two words
         rg_command = [
@@ -670,12 +650,21 @@ def handle_function_call(
             rg_output = result.stdout
             if rg_output:
                 # post process rip grep output to be more condensed
-                rg_output_pretty = post_process_rg_output(
+                rg_output_pretty, file_output_dict = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
+                fetched_files = [fetched_file for fetched_file in file_output_dict.keys()]
+                fetched_files_that_are_stored = [
+                    fetched_file
+                    for fetched_file in fetched_files
+                    if fetched_file in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
+                ]
+                joined_files_string = "\n".join(fetched_files_that_are_stored)
+                stored_files_string = f'The following files have been stored already:\n{joined_files_string}.\n' if fetched_files_that_are_stored else ""
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                    "Review each search result using the `view_file` tool to determine which files are most relevant to solving the issue. Use `store_file` to add important files to the context."
+                    stored_files_string + 
+                    "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. Use `store_file` to add any important non-stored files to the context."
                 )
             else:
                 output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or case variations."
@@ -690,17 +679,14 @@ def handle_function_call(
                 file_path
             )
             valid_path = True
-            if (
-                file_path in current_read_only_snippets_string
-                and file_path in current_top_snippets_string
-                and valid_path
-            ):
-                output = f"FAILURE: {file_path} is already in the selected snippets."
-            elif valid_path:
-                suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
-                output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
+            if valid_path:
+                
+                output = f'SUCCESS: Here are the contents of `{file_path}:`\n<source>\n{file_contents}\n</source>'
                 if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
-                    output += suffix
+                    suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                else:
+                    suffix = f'\nThis file has already been stored.'
+                output += suffix
             else:
                 output = (
                     f"FAILURE: The file path '{file_path}' does not exist. Please check the path and try again."
@@ -767,16 +753,16 @@ def handle_function_call(
     logger.info(
         f"Tool Call: {function_name}\n{justification}\n{output}"
     )
-    breakpoint()
-    return output_prefix + output
+    return (output_prefix + output)
 
 
 reflections_prompt_prefix = """
 CRITICAL FEEDBACK - READ CAREFULLY AND ADDRESS ALL POINTS
 <critical_feedback_to_address>
-Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, store and view all of those first. If you do not fully address this feedback you will fail to retrieve all of the relevant files.
+Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, store and view all of those in parallel first. If you do not fully address this feedback you will fail to retrieve all of the relevant files.
 {all_reflections}
-</critical_feedback_to_address>"""
+</critical_feedback_to_address>
+END OF CRITICAL FEEDBACK"""
 
 reflection_prompt = """<attempt_and_feedback_{idx}>
 <previous_files_stored>
@@ -795,15 +781,17 @@ def context_dfs(
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    max_iterations = 30 # Tuned to 30 because haiku is cheap
+    MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
     NUM_ROLLOUTS = 5
+    SCORE_THRESHOLD = 8 # good score
+    STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
+    MAX_PARALLEL_FUNCTION_CALLS = 3
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
     def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, list[str]] = {}):
-        chat_gpt = ChatGPT()
-        chat_gpt.messages = [Message(role="system", content=sys_prompt)]
+        formatted_reflections_prompt = ""
         if reflections_to_gathered_files:
             all_reflections_string = ""
             for idx, (reflection, gathered_files) in enumerate(reflections_to_gathered_files.items()):
@@ -819,33 +807,40 @@ def context_dfs(
             updated_user_prompt = user_prompt + "\n" + formatted_reflections_prompt
         else:
             updated_user_prompt = user_prompt
+
+        chat_gpt = ChatGPT()
+        chat_gpt.messages = [Message(role="system", content=sys_prompt + formatted_reflections_prompt)]
+
         function_calls_string = chat_gpt.chat_anthropic(
             content=updated_user_prompt,
-            stop_sequences=["</function_call>"],
+            stop_sequences=["</function_calls>"],
             model=CLAUDE_MODEL,
             message_key="user_request",
         )
         bad_call_count = 0
         llm_state = {} # persisted across one rollout
-        for _ in range(max_iterations):
+        for _ in range(MAX_ITERATIONS):
             function_calls = validate_and_parse_function_calls(
                 function_calls_string, chat_gpt
             )
-            for function_call in function_calls:
-                function_output = handle_function_call(repo_context_manager, function_call, llm_state)
-                if PLAN_SUBMITTED_MESSAGE in function_output:
+            function_outputs = ""
+            for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
+                function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
+                if PLAN_SUBMITTED_MESSAGE in function_outputs:
                     return chat_gpt.messages
             if len(function_calls) == 0:
-                function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you are ready to submit the plan, call the submit function."
+                function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
+                    + "<function_calls>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you are ready to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
+            if len(function_calls) > MAX_PARALLEL_FUNCTION_CALLS:
+                function_outputs += "WARNING: You requested more than 3 function calls at once. Only the first 3 function calls have been processed. Please try again with fewer function calls.\n"
             try:
                 function_calls_string = chat_gpt.chat_anthropic(
-                    content=function_output,
+                    content=function_outputs,
                     model=CLAUDE_MODEL,
-                    stop_sequences=["</function_call>"],
+                    stop_sequences=["</function_calls>"],
                 )
             except Exception as e:
                 logger.error(f"Error in chat_anthropic: {e}")
@@ -870,7 +865,7 @@ def context_dfs(
             continue # can't get any reflections here
         reflections_to_read_files[message_to_contractor] = rollout_stored_files
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
-        if overall_score >= 8:
+        if overall_score >= SCORE_THRESHOLD and len(rollout_stored_files) > STOP_AFTER_SCORE_THRESHOLD_IDX:
             break
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout

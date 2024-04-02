@@ -29,10 +29,10 @@ Provide a clear, specific rubric for the 1-10 scale, erring on the low side:
 </overall_score>
 
 <message_to_contractor>
-Provide a single sentence of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor. Regardless of score, tell the contractor which specific files they should store to build on their work:
-9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! Store [file1, file2, etc.] in future attempts.
-5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. You need to understand [A, B, C] dependencies. Store [file1, file2, etc.] in future attempts.
-1-4: [Specific files] are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely. Store [file1, file2, etc.] in future attempts.
+Provide three sentences of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor. Clearly state which files they stored. Regardless of score, tell the contractor which specific additional files they should view and store to build on their work:
+9-10: You stored [file1, file2, etc.]. Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! View [fileA, fileB, etc.] to see how these components interact. Store [file1, file2, etc.] again in future attempts.
+5-8: You stored [file1, file2, etc.]. However, you failed to search for [X, Y, Z] to find all usages of [class/function]. You need to understand [A, B, C] dependencies. View [fileA, fileB, etc.] to understand the full flow. Store [file1, file2, etc.] again and add [fileC, fileD, etc.] in future attempts.
+1-4: You stored [file1, file2, etc.], but these are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely. View [fileA, fileB, etc.] to understand the core functionality. Start over with [fileC, fileD, etc.] for future attempts.
 </message_to_contractor>
 
 Do not give any positive feedback unless the contractor literally achieved perfection. Be extremely harsh and critical in your evaluation. Assume incompetence until proven otherwise. Make the contractor work hard to get a high score."""
@@ -43,7 +43,9 @@ Your job is to review the contractor's work with an extremely critical eye. Leav
 
 """ + response_format + \
 """
+Here are some examples of how you should evaluate the contractor's work:
 
+<examples>
 Example 1 (Score: 9):
 <judgement_on_task>
 The contractor did an outstanding job identifying all of the relevant files needed to resolve the payment processing issue. They correctly identified the core Payment.java model where the payment data is defined, and used extensive code searches for "Payment", "pay", "process", "transaction", etc. to exhaustively trace every single usage and dependency.
@@ -58,7 +60,7 @@ No unnecessary files were included, and no relevant files seem to have been miss
 </judgement_on_task>
 <overall_score>9</overall_score>
 <message_to_contractor>
-Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, and all critical dependencies. Store these files again in future attempts.
+You stored Payment.java, PaymentController.java, PaymentService.java, PaymentRepository.java, StripeGateway.java, PayPalGateway.java. Excellent work identifying these and all critical dependencies. View PaymentTest.java to see examples of how these components interact. Store Payment.java, PaymentController.java, PaymentService.java, PaymentRepository.java, StripeGateway.java, PayPalGateway.java again in future attempts.
 </message_to_contractor>
 
 Example 2 (Score: 4): 
@@ -73,7 +75,7 @@ In general, the contractor seemed to stumble upon a couple relevant files, but f
 </judgement_on_task>
 <overall_score>4</overall_score>  
 <message_to_contractor>
-Failed to search for "authenticateUser", "UserAccount", "login", "credentials". Missed LoginService.java, UserRepository.java, PasswordEncryptor.java. Store UserAccount.java and LoginController.java in your future attempts.
+You stored UserAccount.java and LoginController.java. However, you failed to search for "authenticateUser", "UserAccount", "login", "credentials" to find LoginService.java, UserRepository.java, PasswordEncryptor.java. View those files to understand the full login flow. Store UserAccount.java and LoginController.java again and add LoginService.java, UserRepository.java in future attempts.
 </message_to_contractor>
 
 Example 3 (Score: 2):
@@ -90,7 +92,7 @@ Overall, the contractor seemed to have no clue about the actual pricing bug or t
 </judgement_on_task>
 <overall_score>2</overall_score>
 <message_to_contractor>
-index.html, styles.css, ProductList.vue are irrelevant. Search api/products/ for "Product", "Price", "Discount" classes/functions. Store none of the files you stored in this attempt, start over in the api/products directory for future attempts.
+You stored index.html, styles.css, ProductList.vue, but these are completely irrelevant. You need to search for "Product", "Price", "Discount" classes/functions in the api/products/ directory to find relevant files. You missed the critical ProductController.java, PriceCalculator.java, Product.java, ProductRepository.java dependencies. View those files to understand the core pricing functionality. Start over with ProductController.java, PriceCalculator.java, Product.java, ProductRepository.java for future attempts.
 </message_to_contractor>
 
 Example 4 (Score: 7):
@@ -105,8 +107,9 @@ While the contractor had a decent high-level understanding of the user profile u
 </judgement_on_task>
 <overall_score>7</overall_score>
 <message_to_contractor>
-Missed UserProfileRepository.java and application-profiles.yml dependencies. Search for "UserProfile" and "profile" to find remaining relevant files. Store UserProfileController.java, UserProfileService.java, and UserProfile.java in your future attempts.
-</message_to_contractor>"""
+You stored UserProfileController.java, UserProfileService.java, UserProfile.java. However, you missed the critical UserProfileRepository.java and application-profiles.yml dependencies. View those files to understand the data persistence and configuration layers. Search for "UserProfile" and "profile" to find remaining relevant files. Store UserProfileController.java, UserProfileService.java, UserProfile.java again and add UserProfileRepository.java, application-profiles.yml in future attempts.
+</message_to_contractor>
+</examples>"""
 
 # general framework for a dfs search
 # 1. sample trajectory
