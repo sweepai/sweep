@@ -1,3 +1,4 @@
+from collections import defaultdict
 import traceback
 from time import time
 
@@ -15,6 +16,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.multi_query import generate_multi_queries
 from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import TicketProgress
 
@@ -119,13 +121,6 @@ def multi_get_top_k_snippets(
             reverse=True,
         )[:k] for content_to_lexical_score in content_to_lexical_score_list
     ]
-    # sort the top 30 using listwise reranking
-    # you can use snippet.denotation and snippet.get_snippet()
-    # if not skip_reranking:
-    #     ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
-    #     ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
-    # TODO: we should rescore the snippets after reranking by interpolating their new scores between the 0th and 30th previous scores
-    # ranked_snippets = ranked_snippets[:k]
     return ranked_snippets_list, snippets, content_to_lexical_score_list
 
 @file_cache()
@@ -148,13 +143,34 @@ def prep_snippets(
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
     skip_reranking: bool = False,
+    use_multi_query: bool = True,
 ):
-    ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-        cloned_repo, query, ticket_progress, k, skip_reranking
-    )
+    if use_multi_query:
+        logger.info("Using multi query...")
+        queries = [query, *generate_multi_queries(query)]
+        ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
+            cloned_repo, queries, ticket_progress, k * 3, skip_reranking # k * 3 to have enough snippets to rerank
+        )
+        # Use RRF to rerank snippets
+        content_to_lexical_score = defaultdict(float)
+        for i, ordered_snippets in enumerate(ranked_snippets_list):
+            for j, snippet in enumerate(ordered_snippets):
+                content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / (j + 1))
+        ranked_snippets = sorted(
+            snippets,
+            key=lambda snippet: content_to_lexical_score[snippet.denotation],
+            reverse=True,
+        )[:k]
+    else:
+        ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
+            cloned_repo, query, ticket_progress, k, skip_reranking
+        )
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
+    # you can use snippet.denotation and snippet.get_snippet()
+    if not skip_reranking:
+        ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(query, ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
     prefixes = []
     for snippet_path in snippet_paths:
@@ -310,7 +326,7 @@ if __name__ == "__main__":
     )
     rcm = prep_snippets(
         cloned_repo,
-        "Where is the function that compares the user-provided password hash against the stored hash from the database in the user-authentication service?",
+        "I am trying to set up payment processing in my app using Stripe, but I keep getting a 400 error when I try to create a payment intent. I have checked the API key and the request body, but I can't figure out what's wrong. Here is the error message I'm getting: 'Invalid request: request parameters are invalid'. I have attached the relevant code snippets below. Can you help me find the part of the code that is causing this error?",
         skip_reranking=True
     )
     breakpoint()
