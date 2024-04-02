@@ -16,7 +16,7 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     
     # determine if we need to truncate the output
     total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
-    if total_output_length > 20000:
+    if total_output_length > sweep_config.truncation_cutoff:
         for filename, content in file_output_dict.items():
             processed_output += f"File: {filename} had the following matching lines of code (some lines have been truncated):\n"
             if len(content) < 3:
