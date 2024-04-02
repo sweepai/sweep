@@ -581,6 +581,9 @@ def function_modify(
                         section_id = excel_col_to_int(section_letter)
                         original_code = tool_call["original_code"].strip("\n")
                         new_code = tool_call["new_code"].strip("\n")
+                        if new_code == original_code:
+                            error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
+                            break
                         # get the chunks and contents for the file
                         file_chunks = deepcopy(modify_files_dict[file_name]['chunks'])  
                         file_contents = modify_files_dict[file_name]['contents']
