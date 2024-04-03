@@ -32,7 +32,7 @@ NUM_SNIPPETS_TO_SHOW_AT_START = 15
 
 anthropic_function_calls = """<tool_name>view_file</tool_name>
 <description>
-Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Only use `store_file` to add the file to the context if you are certain it is directly relevant to solving the issue. Avoid storing files that are only tangentially related.
+Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
 </description>
 <parameters>
 <parameter>
@@ -168,7 +168,7 @@ I will provide the tool's response after each <function_calls> block, then you m
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed plan to fully resolve the issue and identify all relevant files. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
 
-It is critical that you identify and include every relevant line of code that should be either modified or used as a reference. Your goal is to generate an extremely detailed and accurate plan of code changes and relevant files for an intern who is unfamiliar with the codebase. 
+It is critical that you identify and include every relevant line of code that should be either modified or read as context. Your goal is to generate an extremely detailed and accurate plan of code changes and relevant files for an intern who is unfamiliar with the codebase. 
 
 You will do this by searching for and viewing files in the codebase to gather all the necessary information.
 
@@ -179,7 +179,7 @@ Use the following iterative process:
 
 2. Use code_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find their definitions. If you want to use `user.deleted`, verify that the `deleted` attribute exists on the entity. View the relevant definition files. Make sure to view ALL files when using or changing any function input parameters, methods or attributes.
 
-3. When you identify a relevant file, use store_file to add it to the context. Only store files that you are highly confident are necessary to read for context or modify to resolve the issue. Avoid storing tangentially related files.
+3. When you identify a relevant file, use store_file to add it to the context.
 
 Repeat steps 1-3 until you are fully confident you have gathered all the necessary information detailing all entities used, variable names, attribute names, and files to read and modify.
 
@@ -746,7 +746,7 @@ def handle_function_call(
                     ]
                 )
                 output = (
-                    f"SUCCESS: {file_path} was added to the context. It will be used as a reference or modified to resolve the issue. Here are the current selected snippets:\n{current_top_snippets_string}"
+                    f"SUCCESS: {file_path} was added to the context. It will be read for context or modified to resolve the issue. Here are the current selected snippets:\n{current_top_snippets_string}"
                     if valid_path
                     else f"FAILURE: The file path '{file_path}' does not exist. Please check the path and try again."
                 )
