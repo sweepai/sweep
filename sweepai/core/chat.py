@@ -1,4 +1,5 @@
 from math import inf
+import os
 import time
 import traceback
 from typing import Any, Literal
@@ -16,7 +17,6 @@ from sweepai.config.server import (
     AWS_REGION,
     AWS_SECRET_KEY,
     DEFAULT_GPT4_32K_MODEL,
-    ANTHROPIC_API_KEY,
     PAREA_API_KEY
 )
 from sweepai.core.entities import Message
@@ -344,6 +344,7 @@ class ChatGPT(MessageList):
         stop_sequences: list[str] = [],
         max_tokens: int = 4096,
     ):
+        ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
         assert ANTHROPIC_API_KEY
         self.model = model
         self.messages.append(Message(role="user", content=content, key=message_key))
