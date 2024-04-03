@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 from tempfile import TemporaryDirectory
+import tempfile
 import traceback
 from dataclasses import dataclass
 from typing import Optional
@@ -228,24 +229,63 @@ class CheckResults:
             return f"The following new eslint errors have appeared. Here is the diff:\n\n{patience_fuzzy_diff(other.eslint, self.eslint)}"
         return ""
 
+def strip_ansi_codes(text: str) -> str:
+    # ANSI escape sequences (color codes) are often starting with ESC ([) followed by some numbers and ends with "m".
+    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
+    return ansi_escape.sub('', text)
 
-def check_valid_typescript(code: str) -> tuple[bool, str]:
-    # with tempfile.TemporaryDirectory() as temp_dir:
-    #     file_hash = uuid.uuid4().hex[:10]
-    #     tmp_file = os.path.join(temp_dir, file_hash + "_" + "temp.ts")
+def check_valid_typescript(file_path: str, code: str) -> tuple[bool, str]:
+    is_valid = True
+    message = ""
+    version_check = ["tsc", "--version"]
+    result = subprocess.run(
+        " ".join(version_check),
+        capture_output=True,
+        text=True,
+        shell=True,
+    )
+    # only run if tsc is available
+    if result.returncode == 0:
+        # Create a temporary file to hold the TypeScript code
+        with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as temp_file:
+            temp_file_path = temp_file.name
+            temp_file.write(code.encode('utf-8'))
+        
+        # Run `tsc` on the temporary file
+        try:
+            commands = ["tsc", "--pretty", "--noEmit", temp_file_path]
+            result = subprocess.run(" ".join(commands), shell=True, text=True, capture_output=True)
 
-    #     with open(tmp_file, "w") as file:
-    #         file.write(code)
+            if result.returncode != 0:
+                message = strip_ansi_codes(result.stdout)
+                index = message.index(temp_file_path)
+                full_temp_file_path = message[:index + len(temp_file_path)]
+                message = message.replace(full_temp_file_path, file_path)
 
-    #     result = subprocess.run(
-    #         ["npx", "prettier", "--parser", "babel-ts", tmp_file],
-    #         capture_output=True,
-    #         timeout=5,
-    #     )
-
-    #     os.remove(tmp_file)
-    #     return result.returncode == 0, (result.stdout + result.stderr).decode("utf-8")
-    return True, ""
+                # import error is TS2307 and should come up after the syntax check
+                import_error = "error TS2307"
+                if import_error in message:
+                    num_of_errors = message.count(import_error)
+                    # see if this matches the total amount of errors:
+                    total_error_message = f"Found {num_of_errors} error"
+                    if total_error_message in message:
+                        # if we only have import errors, we consider it a successful check
+                        return True, ""
+                    else:
+                        # there are more errors than just import errors
+                        # now attempt to parse the message so that we remove import errors
+                        message_lines = message.split("\n")
+                        while num_of_errors > 0:
+                            for line in message_lines:
+                                if import_error in line:
+                                    message_lines = message_lines[5:]
+                                    num_of_errors -= 1
+                        message = "\n".join(message_lines)
+                return False, message
+        finally:
+            # Clean up: remove the temporary file
+            os.remove(temp_file_path)
+    return is_valid, message
 
 def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     ext = file_path.split(".")[-1]
@@ -263,6 +303,11 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         except SyntaxError as e:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
+    
+    # we can't do this right now unfortunately as we don't have a way to mimic the production env for the code
+    # if ext in ["ts"]:
+    #     return check_valid_typescript(file_path, code)
+
 
     def find_deepest_error(node: Node) -> Optional[Node]:
         deepest_error = None
@@ -279,7 +324,7 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         start = error_location.start_point
         end = error_location.end_point
         if start[0] == end[0]:
-            error_code_lines = code.split("\n")[start[0]]
+            error_code_lines = list(code.split("\n")[start[0]])
         else:
             error_code_lines = code.split("\n")[start[0]:end[0] + 1]
         error_code_lines[0] = error_code_lines[0][start[1]:]
@@ -595,6 +640,7 @@ export function removeEmailAlias(email: string): string {
   if (!isPossiblyValidEmail(email)) {
     throw new PulseValidationException(`Email is invalid: ${email}`)
   
+  }
   const atIndex = email.lastIndexOf('@')
   const aliasIndex = email.lastIndexOf('+', atIndex)
 
@@ -603,8 +649,10 @@ export function removeEmailAlias(email: string): string {
   }
 
   return email
-}"""
-    check_results = get_check_results("test.ts", code)
+  }
+"""
+    new_code = """console.log("hello world")"""
+    check_results = check_valid_typescript("test.ts",new_code)
     import pdb
     # pylint: disable=no-member
     pdb.set_trace()
