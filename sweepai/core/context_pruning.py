@@ -223,6 +223,12 @@ Here are the code files mentioned in the user request, these code files are very
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
+def escape_ripgrep(text):
+    # Special characters to escape
+    special_chars = ["(", "{"]
+    for s in special_chars:
+        text = text.replace(s, "\\" + s)
+    return text
 
 @staticmethod
 def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
@@ -653,6 +659,7 @@ def handle_function_call(
     )
     if function_name == "code_search":
         code_entity = f'"{function_input["code_entity"]}"'  # handles cases with two words
+        code_entity = escape_ripgrep(code_entity) # escape special characters
         rg_command = [
             "rg",
             "-n",
