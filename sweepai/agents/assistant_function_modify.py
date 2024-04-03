@@ -167,42 +167,42 @@ The name of the file to retrieve, including the extension. File names are case-s
 <tool_description>
 <tool_name>make_change</tool_name>
 <description>
-Make a single code change in a file. Preserve whitespace, comments and style. Changes should be minimal and targeted.
+Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
 </description>
 <parameters>
 <parameter>
 <name>justification</name>
 <type>str</type>
 <description>
-Explain how this change contributes to fulfilling the user's request.
+Explain how this SINGLE change contributes to fulfilling the user's request.
 </description>
 </parameter>
 <parameter>
 <name>file_name</name>
 <type>str</type>
 <description>
-Name of the file to make changes in. Ensure correct spelling as this is case-sensitive.
+Name of the file to make the change in. Ensure correct spelling as this is case-sensitive.
 </description>
 </parameter>
 <parameter>
 <name>section_id</name>
 <type>str</type>
 <description>
-The section ID where the original code belongs to, helping to locate the specific area within the file.
+The section ID where the original code to be modified belongs to, helping to locate the specific area within the file.
 </description>
 </parameter>
 <parameter>
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. Include unchanged surrounding lines for context.
+The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
 </description>
 </parameter>
 <parameter>
 <name>new_code</name>
 <type>str</type>
 <description>
-The new lines of code to replace the original code, implementing the desired change.
+The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
 </description>
 </parameter>
 </parameters>
@@ -633,11 +633,11 @@ def function_modify(
                                 # first check the lines in original_code, if it is too long, ask for smaller changes
                                 original_code_lines_length = len(original_code.split("\n"))
                                 if original_code_lines_length > 7:
-                                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines."
+                                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                                 else:
                                     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                                    chunk_original_code_diff = generate_diff(original_code, current_chunk)
-                                    error_message += f"\n\nHere is the diff between the original_code you provided and what is actually in section {section_letter}:\n\n{chunk_original_code_diff}\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code."
+                                    # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                                    error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                             break
                         # ensure original_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
@@ -681,7 +681,7 @@ def function_modify(
                                 file_contents, new_contents
                             )
                             if failing_parse:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n{failing_parse}.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
                                 break
                     if error_message:
                         logger.error(f"ERROR occured in make_change tool: {error_message}")
@@ -799,8 +799,8 @@ def function_modify(
                             match_indices = sorted(list(set(match_indices)))
                             match_context_indices = sorted(list(set(match_context_indices)))
                             if not match_indices:
-                                logger.debug(f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword.")
-                                error_message = f"The keyword {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword."
+                                logger.debug(f"The search term {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword.")
+                                error_message = f"The search term {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword."
                             else:
                                 # for matches inside current code file
                                 sections_message = english_join(
@@ -840,7 +840,7 @@ def function_modify(
                                 output = result.stdout
                                 if output:
                                     # post process rip grep output to be more condensed
-                                    rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
+                                    rg_output_pretty, _ = post_process_rg_output(cwd, sweep_config, output)
                                 else:
                                     error_message += f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces.\n"
                             except Exception as e:

@@ -76,7 +76,7 @@ class MockFunctionCall:
         return function_calls
 
 if __name__ == "__main__":    
-    test_str = """<function_call>
+    test_str = """<function_calls>
 <invoke>
 <tool_name>submit_report_and_plan</tool_name>
 <parameters>
@@ -104,7 +104,7 @@ To solve the user request, the following plan should be followed:
 </plan>
 </parameters>
 </invoke>
-</function_call>"""
+</function_calls>"""
 
     function_calls = MockFunctionCall.mock_function_calls_from_string(test_str)
     for function_call in function_calls:
