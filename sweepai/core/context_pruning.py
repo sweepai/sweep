@@ -15,7 +15,6 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
@@ -709,7 +708,7 @@ def handle_function_call(
                 if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
                     suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                 else:
-                    suffix = f'\nThis file has already been stored.'
+                    suffix = '\nThis file has already been stored.'
                 output += suffix
             else:
                 output = (
