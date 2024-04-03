@@ -19,13 +19,14 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
     if total_output_length > sweep_config.truncation_cutoff:
         for filename, content in file_output_dict.items():
-            processed_output += f"File: {filename} had the following matching lines of code"
+            processed_output += f"File: {filename} contained the following matching lines of code"
+            content = content.split("\n")
             if len(content) < 4:
                 processed_output += " :\n"
                 for line in content:
                     processed_output += f"{line}\n"
             else:
-                processed_output += " (some lines have been truncated):\n"
+                processed_output += " (truncated):\n"
                 line1 = content[0]
                 line2 = content[-1]
                 if len(line1) > 200:
@@ -38,7 +39,7 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
             processed_output += "\n"
     else:
         for filename, content in file_output_dict.items():
-            processed_output += f"File: {filename} had the following matching lines of code:\n" + content + "\n"
+            processed_output += f"File: {filename} contained the following matching lines of code:\n" + content + "\n"
     return processed_output, file_output_dict
 
 # try and find code inside chunk given various levels of indentation, and right strip the lines of code

@@ -23,6 +23,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
+MAX_REFLECTIONS = 2
 
 # TODO:
 # - Add self-evaluation / chain-of-verification
@@ -791,11 +792,36 @@ reflection_prompt = """<attempt_and_feedback_{idx}>
 Files stored from previous attempt:
 {files_read}
 </previous_files_stored>
+<previous_files_score>
+Score from previous attempt (out of 10): {score}
+</previous_files_score>
 <feedback>
 Reviewer feedback on previous attempt:
 {reflections_string}
 </feedback>
 </attempt_and_feedback_{idx}>"""
+
+def format_reflections(reflections_to_gathered_files: dict[str, tuple[list[str], int]]) -> str:
+    formatted_reflections_prompt = ""
+    if not reflections_to_gathered_files:
+        return formatted_reflections_prompt
+    all_reflections_string = ""
+    # take only the MAX_REFLECTIONS sorted by score
+    top_reflections = sorted(
+        reflections_to_gathered_files.items(), key=lambda x: x[1][1], reverse=True
+    )[:MAX_REFLECTIONS]
+    for idx, (reflection, (gathered_files, score)) in enumerate(top_reflections):
+        formatted_reflection = reflection_prompt.format(
+            files_read="\n".join(gathered_files),
+            reflections_string=reflection,
+            score=str(score),
+            idx=str(idx + 1),
+        )
+        all_reflections_string += f"\n{formatted_reflection}"
+    formatted_reflections_prompt = reflections_prompt_prefix.format(
+        all_reflections=all_reflections_string
+    )
+    return formatted_reflections_prompt
 
 def context_dfs(
     user_prompt: str,
@@ -811,14 +837,15 @@ def context_dfs(
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
-    def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, list[str]] = {}):
+    def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]]) -> list[Message]:
         formatted_reflections_prompt = ""
         if reflections_to_gathered_files:
             all_reflections_string = ""
-            for idx, (reflection, gathered_files) in enumerate(reflections_to_gathered_files.items()):
+            for idx, (reflection, (gathered_files, score)) in enumerate(reflections_to_gathered_files.items()):
                 formatted_reflection = reflection_prompt.format(
                     files_read="\n".join(gathered_files),
                     reflections_string=reflection,
+                    score=str(score),
                     idx=str(idx + 1),
                 )
                 all_reflections_string += f"\n{formatted_reflection}"
@@ -831,7 +858,6 @@ def context_dfs(
 
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt + formatted_reflections_prompt)]
-
         function_calls_string = chat_gpt.chat_anthropic(
             content=updated_user_prompt,
             stop_sequences=["</function_call>"],
@@ -883,15 +909,17 @@ def context_dfs(
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        reflections_to_read_files[message_to_contractor] = rollout_stored_files
+        reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
         if overall_score >= SCORE_THRESHOLD and len(rollout_stored_files) > STOP_AFTER_SCORE_THRESHOLD_IDX:
             break
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
-    best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0])
-    logger.info(f"Best score: {best_score}")
+    best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0] * 100 + len(x[1].current_top_snippets)) # sort first on the highest score, break ties with length of current_top_snippets
+    for score, rcm in all_scores_and_rcms:
+        logger.info(f"Rollout score: {score}, Rollout files: {[snippet.file_path for snippet in rcm.current_top_snippets]}")
+    logger.info(f"Best score: {best_score}, Best files: {[snippet.file_path for snippet in best_rcm.current_top_snippets]}")
     return best_rcm
 
 if __name__ == "__main__":
