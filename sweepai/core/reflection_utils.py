@@ -43,7 +43,9 @@ Your job is to review the contractor's work with an extremely critical eye. Leav
 
 """ + response_format + \
 """
+Here are some examples of how you should evaluate the contractor's work:
 
+<examples>
 Example 1 (Score: 9):
 <judgement_on_task>
 The contractor did an outstanding job identifying all of the relevant files needed to resolve the payment processing issue. They correctly identified the core Payment.java model where the payment data is defined, and used extensive code searches for "Payment", "pay", "process", "transaction", etc. to exhaustively trace every single usage and dependency.
@@ -106,13 +108,13 @@ While the contractor had a decent high-level understanding of the user profile u
 <overall_score>7</overall_score>
 <message_to_contractor>
 Missed UserProfileRepository.java and application-profiles.yml dependencies. Search for "UserProfile" and "profile" to find remaining relevant files. Store UserProfileController.java, UserProfileService.java, and UserProfile.java in your future attempts.
-</message_to_contractor>"""
+</message_to_contractor>
+</examples>"""
 
 # general framework for a dfs search
 # 1. sample trajectory
 # 2. for each trajectory, run the assistant until it hits an error or end state
 #    - in either case perform self-reflection
-#    - update reflections section with current reflections
 # 3. update the reflections section with the new reflections
 CLAUDE_MODEL = "claude-3-opus-20240229"
 

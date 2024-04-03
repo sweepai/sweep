@@ -840,7 +840,7 @@ def function_modify(
                                 output = result.stdout
                                 if output:
                                     # post process rip grep output to be more condensed
-                                    rg_output_pretty = post_process_rg_output(cwd, sweep_config, output)
+                                    rg_output_pretty, _ = post_process_rg_output(cwd, sweep_config, output)
                                 else:
                                     error_message += f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces.\n"
                             except Exception as e:

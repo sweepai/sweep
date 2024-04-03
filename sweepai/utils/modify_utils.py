@@ -7,12 +7,13 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     output_lines = output.split("\n")
     # empty lines are present at end of output
     output_lines = [line for line in output_lines if line]
-    file_output_dict = defaultdict(list)
+    file_output_dict = defaultdict()
     for line in output_lines:
         filename, content = line.split(":", 1)
         filename = filename[len(root_directory) + 1:]
         if not sweep_config.is_file_excluded_aggressive(root_directory, filename):
-            file_output_dict[filename].append(content)
+            if filename not in file_output_dict: file_output_dict[filename] = ""
+            file_output_dict[filename] += (content + "\n")
     
     # determine if we need to truncate the output
     total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
@@ -37,11 +38,8 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
             processed_output += "\n"
     else:
         for filename, content in file_output_dict.items():
-            processed_output += f"File: {filename} had the following matching lines of code:\n"
-            for line in content:
-                processed_output += f"{line}\n"
-            processed_output += "\n"
-    return processed_output
+            processed_output += f"File: {filename} had the following matching lines of code:\n" + content + "\n"
+    return processed_output, file_output_dict
 
 # try and find code inside chunk given various levels of indentation, and right strip the lines of code
 # if successful returns the num of spaces required to find the code match and if we need to rstrip the old code or not
