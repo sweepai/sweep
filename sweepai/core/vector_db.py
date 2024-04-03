@@ -1,31 +1,44 @@
 import json
 import multiprocessing
+import os
 from typing import Generator
 
 import backoff
 import numpy as np
+import openai
 import requests
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
 import voyageai
+import boto3
+from botocore.exceptions import ClientError
+from voyageai import error as voyageai_error
 
-from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_KEY
+from sweepai.config.server import BATCH_SIZE, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
 
 # Now uses Voyage AI if available, with asymmetric embedding
-CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
-redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
+# CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
+suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY else ""
+CACHE_VERSION = "v2.0.05" + suffix 
+redis_client: Redis = None
+# redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 
 
 def cosine_similarity(a, B):
-    dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nx1, resulting in Mx1
-    norm_a = np.linalg.norm(a)
+    """
+    Updated to handle multi-queries.
+    """
+    dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nxq, resulting in Mxq
+    norm_a = np.linalg.norm(a, axis=1)
     norm_B = np.linalg.norm(B, axis=1)
-    return dot_product.flatten() / (norm_a * norm_B)  # Flatten to make it a 1D array
+    dot_product /= norm_a
+    dot_product = dot_product.T / norm_B
+    return dot_product
 
 
 def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]:
@@ -39,12 +52,12 @@ def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]
 
 
 # @file_cache(ignore_params=["texts"])
-def get_query_texts_similarity(query: str, texts: str) -> list[float]:
-    if not texts:
+def multi_get_query_texts_similarity(queries: list[str], documents: list[str]) -> list[float]:
+    if not documents:
         return []
-    embeddings = embed_text_array(texts)
+    embeddings = embed_text_array(documents)
     embeddings = np.concatenate(embeddings)
-    query_embedding = np.array(openai_call_embedding([query], input_type="query")[0])
+    query_embedding = np.array(openai_call_embedding(queries, input_type="query"))
     similarity = cosine_similarity(query_embedding, embeddings)
     similarity = similarity.tolist()
     return similarity
@@ -65,6 +78,7 @@ def normalize_l2(x):
 # lru_cache(maxsize=20)
 # @redis_cache()
 def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
+    VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
     embeddings = []
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
@@ -86,22 +100,73 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
 
 
 # @redis_cache()
-def openai_call_embedding(batch, input_type: str="document"): # input_type can be query or document
-    if VOYAGE_API_KEY:
-        client = voyageai.Client()
+def openai_call_embedding_router(batch: list[str], input_type: str="document"): # input_type can be query or document
+    VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
+    VOYAGE_API_AWS_ACCESS_KEY = os.environ.get("VOYAGE_API_AWS_ACCESS_KEY", None)
+    VOYAGE_API_AWS_SECRET_KEY = os.environ.get("VOYAGE_API_AWS_SECRET_KEY", None)
+    VOYAGE_API_AWS_REGION = os.environ.get("VOYAGE_API_AWS_REGION", None)
+    VOYAGE_API_USE_AWS = VOYAGE_API_AWS_ACCESS_KEY and VOYAGE_API_AWS_SECRET_KEY and VOYAGE_API_AWS_REGION
+    if len(batch) == 0:
+        return np.array([])
+    if VOYAGE_API_USE_AWS:
+        sm_runtime = boto3.client(
+            "sagemaker-runtime",
+            aws_access_key_id=VOYAGE_API_AWS_ACCESS_KEY,
+            aws_secret_access_key=VOYAGE_API_AWS_SECRET_KEY,
+            region_name=VOYAGE_API_AWS_REGION
+        )
+        input_json = json.dumps({
+            "input": batch,
+            "input_type": input_type, 
+            "truncation": "true"
+        })
+        response = sm_runtime.invoke_endpoint(
+            EndpointName=VOYAGE_API_AWS_ENDPOINT_NAME,
+            ContentType="application/json",
+            Accept="application/json",
+            Body=input_json,
+        )
+        body = response["Body"]
+        obj = json.load(body)
+        data = obj["data"]
+        return np.array([vector["embedding"] for vector in data])
+    elif VOYAGE_API_KEY:
+        client = voyageai.Client(api_key=VOYAGE_API_KEY)
         result = client.embed(batch, model="voyage-code-2", input_type=input_type)
         cut_dim = np.array([data for data in result.embeddings])
         normalized_dim = normalize_l2(cut_dim)
         return normalized_dim
-    client = get_embeddings_client()
-    response = client.embeddings.create(
-        input=batch, model="text-embedding-3-small", encoding_format="float"
-    )
-    cut_dim = np.array([data.embedding for data in response.data])[:, :512]
-    normalized_dim = normalize_l2(cut_dim)
-    # save results to redis
-    return normalized_dim
+    else:
+        client = get_embeddings_client()
+        response = client.embeddings.create(
+            input=batch, model="text-embedding-3-small", encoding_format="float"
+        )
+        cut_dim = np.array([data.embedding for data in response.data])[:, :512]
+        normalized_dim = normalize_l2(cut_dim)
+        # save results to redis
+        return normalized_dim
 
+def openai_call_embedding(batch: list[str], input_type: str="document"):
+    # Backoff on batch size by splitting the batch in half.
+    # Better way is to download the tokenizer from https://huggingface.co/voyageai/voyage
+    # and check the token count manually, but it requires an extra dependency. 
+    try:
+        return openai_call_embedding_router(batch, input_type)
+    except (voyageai_error.InvalidRequestError, ClientError) as e: # full error is botocore.errorfactory.ModelError: but I can't find it
+        if len(batch) > 1 and "Please lower the number of tokens in the batch." in str(e):
+            logger.error(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} retrying by splitting batch in half.")
+            mid = len(batch) // 2
+            left = openai_call_embedding(batch[:mid], input_type)
+            right = openai_call_embedding(batch[mid:], input_type)
+            return np.concatenate((left, right))
+        else:
+            raise e
+    except openai.BadRequestError as e:
+        # In the future we can better handle this by averaging the embeddings of the split batch
+        if "This model's maximum context length" in str(e):
+            logger.error(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
+            batch = [tiktoken_client.truncate_string(text) for text in batch]
+            return openai_call_embedding(batch, input_type)
 
 
 @backoff.on_exception(
@@ -167,5 +232,5 @@ def openai_with_expo_backoff(batch: tuple[str]):
 
 
 if __name__ == "__main__":
-    texts = ["sasxtt " * 1000 for i in range(10)] + ["abb " * 1 for i in range(10)]
+    texts = ["sasxtt " * 10000 for i in range(10)] + ["abb " * 1 for i in range(10)]
     embeddings = embed_text_array(texts)

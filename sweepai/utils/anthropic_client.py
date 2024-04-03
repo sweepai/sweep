@@ -1,4 +1,5 @@
 import copy
+import os
 from anthropic import Anthropic
 from loguru import logger
 from openai import OpenAI
@@ -34,6 +35,7 @@ def sanitize_anthropic_messages(messages: list[dict[str, str]]):
 # falls back to openai if model is not available
 class AnthropicClient:
     def __init__(self):
+        OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "anthropic")
         if OPENAI_API_TYPE != "anthropic":
             self.client = OpenAI(api_key=OPENAI_API_KEY, timeout=90)
             self.model = DEFAULT_GPT4_32K_MODEL
@@ -42,7 +44,6 @@ class AnthropicClient:
             self.client = Anthropic()
             if parea_client:
                 parea_client.wrap_anthropic_client(self.client)
-            self.model = "claude-3-haiku-20240307"
             self.model = "claude-3-opus-20240229"
             logger.info(f"Using Anthropic model: {self.model}")
 

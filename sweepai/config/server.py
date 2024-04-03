@@ -162,8 +162,8 @@ REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
 # Default OpenAI
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
 
-# Azure settings, only checked if OPENAI_API_TYPE == "azure"
-OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "anthropic")
+assert OPENAI_API_TYPE in ["anthropic", "azure", "openai"], "Invalid OPENAI_API_TYPE"
 OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
 
 AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
@@ -224,7 +224,16 @@ ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
 
 USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
+
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
+
+VOYAGE_API_AWS_ACCESS_KEY=os.environ.get("VOYAGE_API_AWS_ACCESS_KEY_ID")
+VOYAGE_API_AWS_SECRET_KEY=os.environ.get("VOYAGE_API_AWS_SECRET_KEY")
+VOYAGE_API_AWS_REGION=os.environ.get("VOYAGE_API_AWS_REGION")
+VOYAGE_API_AWS_ENDPOINT_NAME=os.environ.get("VOYAGE_API_AWS_ENDPOINT_NAME", "voyage-code-2")
+
+VOYAGE_API_USE_AWS = VOYAGE_API_AWS_ACCESS_KEY and VOYAGE_API_AWS_SECRET_KEY and VOYAGE_API_AWS_REGION
+
 PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
 
 # TODO: we need to ake this dynamic + backoff

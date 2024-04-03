@@ -19,7 +19,7 @@ Homepage = "https://sweep.dev"
 
 [project]
 name = "sweepai"
-version = "1.1.12"
+version = "2.0.0"
 description = "Sweep fixes GitHub issues"
 authors = [
     {name = "Kevin Lu", email = "kevin@sweep.dev"},
@@ -71,6 +71,8 @@ dependencies = [
   "pylint==3.1.0",
   "parea-ai==0.2.114",
   "voyageai==0.2.1",
+  "boto3==1.34.70",
+  "scipy==1.12.0"
 ]
 
 [tool.isort]

@@ -109,8 +109,12 @@ class SweepConfig(BaseModel):
         "LICENSE",
         "poetry.lock",
     ]
+    # cutoff for when we output truncated versions of strings, this is an arbitrary number and can be changed
+    truncation_cutoff: int = 20000
     # Image formats
     max_file_limit: int = 60_000
+    # github comments
+    max_github_comment_body_length: int = 65535
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(self.dict())
