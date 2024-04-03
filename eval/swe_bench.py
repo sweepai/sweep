@@ -94,7 +94,7 @@ seed = 0
 proportion = 0.05
 k = int(os.environ.get("k", 15))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-04-02"
+name = f"sweep-04-03"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"

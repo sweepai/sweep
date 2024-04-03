@@ -15,7 +15,7 @@ import boto3
 from botocore.exceptions import ClientError
 from voyageai import error as voyageai_error
 
-from sweepai.config.server import BATCH_SIZE, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
+from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
@@ -24,8 +24,7 @@ from sweepai.utils.utils import Tiktoken
 # CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
 suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY else ""
 CACHE_VERSION = "v2.0.05" + suffix 
-redis_client: Redis = None
-# redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
+redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 
 
