@@ -592,7 +592,8 @@ def get_relevant_context(
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
         if len(repo_context_manager.current_top_snippets) == 0:
-            repo_context_manager.current_top_snippets = old_top_snippets
+            raise Exception("No snippets found")
+            repo_context_manager.current_top_snippets = old_top_snippets[:20]
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -721,13 +722,13 @@ def handle_function_call(
             elif valid_path:
                 suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
                 output = f'Here are the contents of `{file_path}:`\n```\n{file_contents}\n```'
-                if file_path not in [snippet.file_path for snippet in rcm.current_top_snippets]:
+                if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
                     output += suffix
             else:
                 output = (
                     "FAILURE: This file path does not exist. Please try a new path."
                 )
-        except Exception:
+        except FileNotFoundError:
             file_contents = ""
             similar_file_paths = "\n".join(
                 [
@@ -890,7 +891,7 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_output = "No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you would like to submit the plan, call the submit function."
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\n\nIf you would like to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
