@@ -844,7 +844,7 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_calls\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\n\nIf you are ready to submit the plan, call the submit function."
+                    + "<function_call<\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\n\nIf you are ready to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
