@@ -605,34 +605,34 @@ def validate_and_parse_function_calls(
     function_calls_string: str, chat_gpt: ChatGPT
 ) -> list[MockFunctionCall]:
     function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</function_calls>"
+        function_calls_string.strip("\n") + "\n</function_call>"
     )  # add end tag
     if len(function_calls) > 0:
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_calls>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
         )  # add end tag to assistant message
         return function_calls
 
     # try adding </invoke> tag as well
     function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</invoke>\n</function_calls>"
+        function_calls_string.strip("\n") + "\n</invoke>\n</function_call>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_calls>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
         )
         return function_calls
     # try adding </parameters> tag as well
     function_calls = MockFunctionCall.mock_function_calls_from_string(
         function_calls_string.strip("\n")
-        + "\n</parameters>\n</invoke>\n</function_calls>"
+        + "\n</parameters>\n</invoke>\n</function_call>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
             chat_gpt.messages[-1].content.rstrip("\n")
-            + "\n</parameters>\n</invoke>\n</function_calls>"
+            + "\n</parameters>\n</invoke>\n</function_call>"
         )
     return function_calls
 
@@ -827,7 +827,7 @@ def context_dfs(
 
         function_calls_string = chat_gpt.chat_anthropic(
             content=updated_user_prompt,
-            stop_sequences=["</function_calls>"],
+            stop_sequences=["</function_call>"],
             model=CLAUDE_MODEL,
             message_key="user_request",
         )
@@ -854,7 +854,7 @@ def context_dfs(
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_outputs,
                     model=CLAUDE_MODEL,
-                    stop_sequences=["</function_calls>"],
+                    stop_sequences=["</function_call>"],
                 )
             except Exception as e:
                 logger.error(f"Error in chat_anthropic: {e}")
