@@ -75,7 +75,7 @@ Passes the code_entity into ripgrep to search the entire codebase and return a l
 <parameter>
 <name>code_entity</name>
 <type>string</type>
-<description>The code entity to search for. Should be a distinctive name, not a generic term. For functions, search for the definition syntax, e.g. 'def foo(' in Python or 'function bar' or 'const bar' in JavaScript.</description>
+<description>The code entity to search for. Should be a distinctive name, not a generic term. For functions, search for the definition syntax, e.g. 'def foo' in Python or 'function bar' or 'const bar' in JavaScript.</description>
 </parameter>
 <parameter>
 <name>justification</name>
@@ -137,7 +137,7 @@ Example 3:
 <invoke>
 <tool_name>code_search</tool_name>
 <parameters>
-<code_entity>def get_user_by_id(</code_entity>
+<code_entity>def get_user_by_id</code_entity>
 <justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
 </parameters>
 </invoke>
