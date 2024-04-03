@@ -1,4 +1,5 @@
 from math import inf
+import os
 import time
 import traceback
 from typing import Any, Literal
@@ -344,6 +345,7 @@ class ChatGPT(MessageList):
         stop_sequences: list[str] = [],
         max_tokens: int = 4096,
     ):
+        ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
         assert ANTHROPIC_API_KEY
         self.model = model
         self.messages.append(Message(role="user", content=content, key=message_key))
