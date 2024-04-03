@@ -99,11 +99,11 @@ Provides a detailed report of the issue and a complete plan to resolve it. The r
 </parameters>
 </tool_description>
 
-You must call the tools using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
+You must call one tool at a time using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
 <examples>
-Example 1 (calling multiple tools in parallel):
-<function_calls>
+Example 1:
+<function_call>
 <invoke>
 <tool_name>view_file</tool_name>
 <parameters>
@@ -111,13 +111,29 @@ Example 1 (calling multiple tools in parallel):
 <justification>The user request mentions modifying the get_user_by_id method in the UserService class. I need to view the user_service.py file to locate this method and determine what changes are needed.</justification>
 </parameters>
 </invoke>
-<invoke>
-<tool_name>view_file</tool_name>
+</function_call>
+
+Example 2:
+<function_call>
+<invoke>  
+<tool_name>store_file</tool_name>
 <parameters>
 <file_path>models/user.py</file_path>
-<justification>The User model is likely relevant for understanding user attributes. I should view the model definition to see what fields exist on the User entity.</justification>
+<justification>The User model is relevant for understanding the attributes of a User, especially the `deleted` flag that indicates if a user is soft-deleted. This excerpt shows the key parts of the model:
+```python
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))  
+    email = db.Column(db.String(100), unique=True)
+    deleted = db.Column(db.Boolean, default=False)
+```
+</justification>
 </parameters>
 </invoke>
+</function_call>
+
+Example 3:
+<function_call>
 <invoke>
 <tool_name>code_search</tool_name>
 <parameters>
@@ -125,10 +141,10 @@ Example 1 (calling multiple tools in parallel):
 <justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
 </parameters>
 </invoke>
-</function_calls>
+</function_call>
 
-Example 2 (submitting the final plan):
-<function_calls>
+Example 4:
+<function_call>
 <invoke>
 <tool_name>submit</tool_name>
 <parameters>
@@ -137,12 +153,12 @@ To fix the issue of being able to access deleted users via the API:
 
 Read the following files for context:
 - models/user.py: Understand the User model and its `deleted` attribute. Key excerpt:
-```python
+```python 
 class User(db.Model):
-  id = db.Column(db.Integer, primary_key=True)
-  name = db.Column(db.String(100), nullable=False)
-  email = db.Column(db.String(100), unique=True, nullable=False)
-  deleted = db.Column(db.Boolean, default=False)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False) 
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    deleted = db.Column(db.Boolean, default=False)
 ```
 
 Modify user_service.py:
@@ -155,15 +171,15 @@ Modify user_service.py:
 
 Modify app.py: 
 - Find the `get_user` route handler
-- Locate the call to `UserService.get_user_by_id()` in the route handler
+- Locate the call to `UserService.get_user_by_id()` in the route handler 
 - Add `include_deleted=True` to the `get_user_by_id()` call to include deleted users
 </plan>
 </parameters>
 </invoke>
-</function_calls>
+</function_call>
 </examples>
 
-I will provide the tool's response after each <function_calls> block, then you may call another set of tools as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
+I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed plan to fully resolve the issue and identify all relevant files. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
 
@@ -184,7 +200,7 @@ Repeat steps 1-3 until you are fully confident you have gathered all the necessa
 
 4. Submit the final plan with the submit function. 
 
-Here are the tools at your disposal. Call them in parallel (up to three at a time) as needed until you have gathered all relevant information:
+Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
 
 """ + anthropic_function_calls
 
@@ -759,10 +775,9 @@ def handle_function_call(
 reflections_prompt_prefix = """
 CRITICAL FEEDBACK - READ CAREFULLY AND ADDRESS ALL POINTS
 <critical_feedback_to_address>
-Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, store and view all of those in parallel first. If you do not fully address this feedback you will fail to retrieve all of the relevant files.
+Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, store and view all of those first. If you do not fully address this feedback you will fail to retrieve all of the relevant files.
 {all_reflections}
-</critical_feedback_to_address>
-END OF CRITICAL FEEDBACK"""
+</critical_feedback_to_address>"""
 
 reflection_prompt = """<attempt_and_feedback_{idx}>
 <previous_files_stored>
@@ -774,7 +789,6 @@ Reviewer feedback on previous attempt:
 {reflections_string}
 </feedback>
 </attempt_and_feedback_{idx}>"""
-
 
 def context_dfs(
     user_prompt: str,
@@ -830,7 +844,7 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_calls>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you are ready to submit the plan, call the submit function."
+                    + "<function_calls\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\n\nIf you are ready to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
@@ -860,7 +874,6 @@ def context_dfs(
             stored_files=rollout_stored_files,
         )
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
-        breakpoint()
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
         reflections_to_read_files[message_to_contractor] = rollout_stored_files
