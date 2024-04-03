@@ -17,7 +17,6 @@ from sweepai.config.server import (
     AWS_REGION,
     AWS_SECRET_KEY,
     DEFAULT_GPT4_32K_MODEL,
-    ANTHROPIC_API_KEY,
     PAREA_API_KEY
 )
 from sweepai.core.entities import Message
