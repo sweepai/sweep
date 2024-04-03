@@ -96,11 +96,14 @@ def file_cache(ignore_params=[], verbose=False):
 
             # Otherwise, call the function and save its result to the cache
             result = func(*args, **kwargs)
-            try:
-                with open(cache_file, "wb") as f:
-                    pickle.dump(result, f)
-            except Exception as e:
-                logger.info(f"Pickling failed: {e}")
+            if not isinstance(result, Exception):
+                try:
+                    with open(cache_file, "wb") as f:
+                        pickle.dump(result, f)
+                except Exception as e:
+                    logger.info(f"Pickling failed: {e}")
+            else:
+                logger.info(f"Function {func.__name__} returned an exception")
             return result
 
         return wrapper
