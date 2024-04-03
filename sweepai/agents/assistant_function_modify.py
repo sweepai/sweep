@@ -637,7 +637,7 @@ def function_modify(
                                 else:
                                     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
                                     # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                                    error_message += "\n\nIdentify what should be the correct original_code should be, and make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                                    error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                             break
                         # ensure original_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
