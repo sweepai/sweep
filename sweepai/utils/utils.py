@@ -304,8 +304,9 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
     
-    if ext in ["ts"]:
-        return check_valid_typescript(file_path, code)
+    # we can't do this right now unfortunately as we don't have a way to mimic the production env for the code
+    # if ext in ["ts"]:
+    #     return check_valid_typescript(file_path, code)
 
 
     def find_deepest_error(node: Node) -> Optional[Node]:
