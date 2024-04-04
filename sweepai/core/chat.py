@@ -369,7 +369,7 @@ class ChatGPT(MessageList):
         for i in range(4):
             try:
                 @file_cache() # must be in the inner scope because this entire function manages state
-                def chat_anthropic(
+                def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str=system_message, 
                     model: str=model
@@ -389,7 +389,7 @@ class ChatGPT(MessageList):
                     } for message in self.messages if message.role != "system"
                 ]
                 message_dicts = sanitize_anthropic_messages(message_dicts)
-                content = chat_anthropic(message_dicts, self.messages[0].content, self.model)
+                content = call_anthropic(message_dicts, self.messages[0].content, self.model)
                 break
             except BadRequestError as e_:
                 e = e_ # sometimes prompt is too long
