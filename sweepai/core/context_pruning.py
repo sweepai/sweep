@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import subprocess
 import urllib
@@ -15,7 +16,7 @@ from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall, mock_function_calls_to_string
-from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -352,14 +353,16 @@ class RepoContextManager:
     # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
     # other copies when one copy goes out of context since we do file operations of CloneRepo
     def copy_repo_context_manager(self):
-        new_cloned_repo = ClonedRepo(
-            self.cloned_repo.repo_full_name,
-            installation_id=self.cloned_repo.installation_id,
-            token=self.cloned_repo.token,
-            repo=self.cloned_repo.repo,
-            branch=self.cloned_repo.branch,
-        )
-        return replace(self, cloned_repo=new_cloned_repo)
+        if not isinstance(self.cloned_repo, MockClonedRepo):
+            new_cloned_repo = ClonedRepo(
+                self.cloned_repo.repo_full_name,
+                installation_id=self.cloned_repo.installation_id,
+                token=self.cloned_repo.token,
+                repo=self.cloned_repo.repo,
+                branch=self.cloned_repo.branch,
+            )
+            return replace(self, cloned_repo=new_cloned_repo)
+        return deepcopy(self)
 
 
 """
