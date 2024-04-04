@@ -502,7 +502,7 @@ def build_import_trees(
                 + build_full_hierarchy(import_graph, file, 2)
             )
             if graph_retrieved_files:
-                representation += f"\n\nThe following modules may contain helpful services or utility functions:\n- " + "\n- ".join(graph_retrieved_files)
+                representation += "\n\nThe following modules may contain helpful services or utility functions:\n- " + "\n- ".join(graph_retrieved_files)
             rcm.add_import_trees(representation)
     # if there are no code_files_in_query, we build import trees for the top 5 snippets
     else:
@@ -513,7 +513,7 @@ def build_import_trees(
                 + build_full_hierarchy(import_graph, file_path, 2)
             )
             if graph_retrieved_files:
-                representation += f"\n\nThe following modules may contain helpful services or utility functions:\n- " + "\n-".join(graph_retrieved_files)
+                representation += "\n\nThe following modules may contain helpful services or utility functions:\n- " + "\n-".join(graph_retrieved_files)
             rcm.add_import_trees(representation)
     return rcm
 
