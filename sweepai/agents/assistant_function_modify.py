@@ -18,7 +18,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo, update_file
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.utils import chunk_code, get_check_results
+from sweepai.utils.utils import CheckResults, chunk_code, get_check_results
 from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
@@ -378,9 +378,8 @@ def default_dict_value():
 # returns dictionary of all changes made
 @file_cache(ignore_params=["file_path", "chat_logger", "cloned_repo", "assistant_id", "ticket_progress", "assistant_conversation", "cwd"])
 def function_modify(
+    fcrs: list[FileChangeRequest],
     request: str,
-    file_path: str,
-    contents_of_file: str,
     cloned_repo: ClonedRepo,
     additional_messages: list[Message] = [],
     chat_logger: ChatLogger | None = None,
@@ -390,7 +389,6 @@ def function_modify(
     seed: int = None,
     relevant_filepaths: list[str] = [],
     cwd: str | None = None,
-    fcrs: list[FileChangeRequest]=[],
     previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
 ) -> dict[str, dict[str, str | list[str]]] | None:
     try:
@@ -404,43 +402,34 @@ def function_modify(
         # dictionary mapping a file path to various data used in modify, this needs to be stateful, so it is possible that previous_modify_files_dict
         modify_files_dict = previous_modify_files_dict or defaultdict(default_dict_value)
         cwd = cwd or cloned_repo.repo_dir
-        current_contents = contents_of_file
-        initial_check_results = get_check_results(file_path, current_contents)
-        # save chunks and contents of file if its not already present
-        if file_path not in modify_files_dict:
-            original_snippets = chunk_code(current_contents, file_path, 1400, 500)
-            file_contents_lines = current_contents.split("\n")
-            chunks = [
-                "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
-                for snippet in original_snippets
-            ]
-            modify_files_dict[file_path] = {"chunks": copy.deepcopy(chunks), "contents": current_contents, "original_contents": current_contents}
+        # current_contents = contents_of_file
         sweep_config: SweepConfig = SweepConfig()
-        chunked_file_contents = "\n".join(
-            [
-                f'<section id="{int_to_excel_col(i + 1)}">\n{chunk}\n</section id="{int_to_excel_col(i + 1)}>'
-                for i, chunk in enumerate(modify_files_dict[file_path]["chunks"])
-            ]
-        )
-        current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
-        fcrs_message = generate_status_message(file_path, fcrs)
+        # current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
+        # fcrs_message = generate_status_message(file_path, fcrs)
         relevant_file_paths_string = ", ". join(relevant_filepaths) 
+        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you."
+        files_to_modify = ""
+        for fcr in fcrs:
+            files_to_modify += f"You will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify)
         new_additional_messages = [
+            # Message(
+            #     role="user",
+            #     content=f"# Request\n{request}",
+            # ),
             Message(
                 role="user",
-                content=f"# Request\n{request}\n\n{fcrs_message}",
-            ),
-            Message(
-                role="user",
-                content=current_file_to_modify_contents,
-            ),
+                content=f"\n{combined_request_message}",
+            )
         ]
         if relevant_file_paths_string:
             new_additional_messages.append(Message(
                 role="user",
                 content=f'You should view the following relevant files: {relevant_file_paths_string}'
             ))
-        additional_messages = new_additional_messages + additional_messages
+        additional_messages = additional_messages + new_additional_messages
+
+        initial_check_results: dict[str, CheckResults] = {}
         # add any already made changes to the additional_messages
         for file_path, file_data in modify_files_dict.items():
             diff = generate_diff(file_data["original_contents"], file_data["contents"])
@@ -453,6 +442,8 @@ def function_modify(
                         + "\n```",
                     )
                 )
+            # go through any already made changes and generate the intial_check_results
+            initial_check_results[file_path] = get_check_results(file_path, file_data['original_contents'])
         assistant_generator = openai_assistant_call(
             request="",  # already present in additional_messages
             instructions=instructions,
@@ -555,6 +546,7 @@ def function_modify(
                                 ]
                                 # update chunks for this file inside modify_files_dict unless it already exists
                                 modify_files_dict[file_name] = {"chunks": copy.deepcopy(file_chunks), "contents": file_contents, "original_contents": file_contents}
+                                initial_check_results[file_name] = get_check_results(file_name, file_contents)
                                 chunked_file_contents = ""
                                 for i, chunk in enumerate(file_chunks):
                                     idx = int_to_excel_col(i + 1)
@@ -610,7 +602,7 @@ def function_modify(
                             error_message = f"Could not find section {section_letter} in file {file_name}, which has {len(file_chunks)} sections."
                             break
                         elif section_id < 0:
-                            error_message = f"The section id {section_letter} can not be parsed."
+                            error_message = f"The section id {section_letter} can not be parsed. MAKE SURE the section id you have provided is valid."
                             break
 
                         # fetch the chunk of code we will be modifying
@@ -694,12 +686,12 @@ def function_modify(
                         if not error_message:
                             check_results = get_check_results(file_name, new_contents) # the filename may be wrong here
                             # check_results_message = check_results.is_worse_than_message(initial_check_results) - currently unused
-                            failing_parse = check_results.parse_error_message if not initial_check_results.parse_error_message else ""
+                            failing_parse = check_results.parse_error_message if not initial_check_results[file_name].parse_error_message else ""
                             current_diff = generate_diff(
                                 file_contents, new_contents
                             )
                             if failing_parse:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n{failing_parse}.\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n{failing_parse}\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
                                 break
                     if error_message:
                         logger.error(f"ERROR occured in make_change tool: {error_message}")
@@ -754,7 +746,7 @@ def function_modify(
                                 "\n".join(new_file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
                                 for snippet in new_file_snippets
                             ]
-                            modify_files_dict[new_full_file_path] = {"chunks": new_file_chunks, "contents": new_file_contents, "original_contents": new_file_contents}
+                            modify_files_dict[new_full_file_path] = {"chunks": new_file_chunks, "contents": new_file_contents, "original_contents": ""}
                             success_message = f"The new file {new_full_file_path} has been created successfully with the following contents:\n\n{new_file_contents}"
                     if error_message:
                         logger.debug(f"ERROR occured in create_file tool: {error_message}")
@@ -805,6 +797,7 @@ def function_modify(
                                     for snippet in original_file_snippets
                                 ]
                                 modify_files_dict[file_name] = {"chunks": copy.deepcopy(file_chunks), "contents": file_contents, "original_contents": file_contents}
+                                initial_check_results[file_name] = get_check_results(file_name, file_contents)
                             # search current code file
                             file_chunks = modify_files_dict[file_name]["chunks"]
                             for i, chunk in enumerate(file_chunks):
@@ -859,6 +852,8 @@ def function_modify(
                                 if output:
                                     # post process rip grep output to be more condensed
                                     rg_output_pretty, _ = post_process_rg_output(cwd, sweep_config, output)
+                                    if not rg_output_pretty:
+                                        error_message += f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces.\n"
                                 else:
                                     error_message += f"FAILURE: No results found for keyword: {keyword} in the entire codebase. Please try a new keyword. If you are searching for a function definition try again with different whitespaces.\n"
                             except Exception as e:
@@ -877,7 +872,16 @@ def function_modify(
 
                             if not error_message:
                                 success_message = f"Here are the search_codebase results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
-                                logger.debug(f"SUCCESS\n\nHere are the search_codebase results:\n{rg_output_pretty}\n\n")
+                            else:
+                                # if all of the above has failed it is possible that it is attmepting to search for a file name
+                                similar_file_paths = cloned_repo.get_similar_file_paths(keyword)
+                                similar_file_paths = [path for path in similar_file_paths if path.strip()]
+                                if not similar_file_paths:
+                                    error_message += f"FAILURE: No file paths were found in the codebase that resemble {keyword}. Please try again!"
+                                else:
+                                    similar_file_paths_string = "\n".join([f"- {path}" for path in similar_file_paths])
+                                    error_message = ""
+                                    success_message = f"Here are some files that exist in the code base that resemble the keyword {keyword}:\n{similar_file_paths_string}\n\nYou can use use the view_file tool to explore a file in more detail."
 
                     if error_message:
                         logger.debug(f"ERROR in search_codebase\n\n{error_message}")

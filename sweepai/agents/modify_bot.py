@@ -251,9 +251,6 @@ class ModifyBot:
 
     def try_update_file(
         self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
         cloned_repo: ClonedRepo,
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
@@ -262,9 +259,7 @@ class ModifyBot:
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
         new_files = function_modify(
-            request=file_change_request.instructions,
-            file_path=file_path,
-            contents_of_file=file_contents,
+            request="",
             cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
@@ -285,8 +280,6 @@ class ModifyBot:
                 ),
                 "function_modify_succeeded",
                 {
-                    "file_path": file_path,
-                    "instructions": file_change_request.instructions,
                     "repo_full_name": cloned_repo.repo_full_name,
                 },
             )
@@ -302,8 +295,6 @@ class ModifyBot:
             ),
             "function_modify_succeeded",
             {
-                "file_path": file_path,
-                "instructions": file_change_request.instructions,
                 "repo_full_name": cloned_repo.repo_full_name,
             },
         )

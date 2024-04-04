@@ -237,7 +237,6 @@ def fetch_relevant_files(
         repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.save()
-
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,
