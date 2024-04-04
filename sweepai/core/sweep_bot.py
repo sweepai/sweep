@@ -1,7 +1,6 @@
 import base64
 import copy
 import re
-import time
 import traceback
 from typing import Dict, Generator
 
@@ -11,15 +10,13 @@ from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
+from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
-    FileCreation,
     MaxTokensExceeded,
     Message,
     NoFilesException,
@@ -30,22 +27,19 @@ from sweepai.core.entities import (
     Snippet,
 )
 from sweepai.core.prompts import (
-    create_file_prompt,
     files_to_change_prompt,
     pull_request_prompt,
     subissues_prompt,
     files_to_change_system_prompt
 )
-from sweepai.utils.autoimport import add_auto_imports
 from sweepai.utils.chat_logger import discord_log_error
-from sweepai.utils.diff import format_contents, is_markdown
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
     TicketProgress,
 )
 from sweepai.utils.str_utils import get_hash
-from sweepai.utils.utils import check_syntax, chunk_code
+from sweepai.utils.utils import check_syntax
 from sweepai.utils.github_utils import commit_multi_file_changes
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
