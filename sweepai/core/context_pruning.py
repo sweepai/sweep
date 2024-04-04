@@ -150,15 +150,14 @@ You will do this by searching for and viewing files in the codebase to gather al
 
 INSTRUCTIONS
 Use the following iterative process:
-1. View all files that seem potentially relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Check all files referenced in the user request. If you can't find a specific module, also check the "Common modules" section. 
+1. View all files that seem potentially relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Check all files referenced in the user request. If you can't find a specific module, also check the "Common modules" section. When you identify a relevant file, use store_file to add it to the final list.
 2. Use code_search to find definitions and usages for ALL unknown variables, classes, attributes, and functions that may be relevant. View the search result files.
-3. When you identify a relevant file, use store_file to add it to the final list.
 
-Repeat steps 1-3, searching exhaustively, until you are fully confident you have gathered all files that provide necessary context or may need modifications.
+Repeat steps 1-2, searching exhaustively, until you are fully confident you have stored all files that provide necessary context or may need modifications.
 
 4. Submit the final list of relevant files with the submit function.
 
-Here are the tools at your disposal. Call them until you have gathered all relevant files:
+Here are the tools at your disposal. Call them until you have stored all relevant files:
 
 """ + anthropic_function_calls
 
@@ -336,7 +335,6 @@ main.py
 └── utils.py
     └── models.py
 """
-
 
 def build_full_hierarchy(
     graph: nx.DiGraph, start_node: str, k: int, prefix="", is_last=True, level=0
@@ -647,29 +645,21 @@ def handle_function_call(
             rg_output = result.stdout
             if rg_output:
                 # post process rip grep output to be more condensed
-                rg_output_pretty, file_output_dict = post_process_rg_output(
+                rg_output_pretty, _ = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
-                fetched_files = [fetched_file for fetched_file in file_output_dict.keys()]
-                fetched_files_that_are_stored = [
-                    fetched_file
-                    for fetched_file in fetched_files
-                    if fetched_file in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
-                ]
-                joined_files_string = "\n".join(fetched_files_that_are_stored)
-                stored_files_string = f'The following files have been stored already:\n{joined_files_string}.\n' if fetched_files_that_are_stored else ""
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                    stored_files_string + 
+                    get_stored_files(repo_context_manager) + 
                     "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. Use `store_file` to add any important non-stored files to the context."
                 )
             else:
-                output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or case variations."
+                output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or a truncated version of this code_entity."
         except Exception as e:
             logger.error(
                 f"FAILURE: An Error occured while trying to find the code_entity {code_entity}: {e}"
             )
-            output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or case variations."
+            output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or a truncated version of this code_entity."
     elif function_name == "view_file":
         try:
             file_contents = repo_context_manager.cloned_repo.get_file_contents(
@@ -724,7 +714,7 @@ def handle_function_call(
                 content=file_contents,
             )
             if snippet.denotation in current_top_snippets_string:
-                output = f"FAILURE: {file_path} is already in the selected snippets."
+                output = f"FAILURE: {get_stored_files(repo_context_manager)}"
             else:
                 repo_context_manager.add_snippets([snippet])
                 current_top_snippets_string = "\n".join(
@@ -796,6 +786,31 @@ def format_reflections(reflections_to_gathered_files: dict[str, tuple[list[str],
     )
     return formatted_reflections_prompt
 
+def render_all_attempts(function_call_histories: list[list[list[AnthropicFunctionCall]]]) -> str:
+    formatted_attempts = ""
+    for idx, function_call_history in enumerate(function_call_histories):
+        formatted_function_calls = render_function_calls_for_attempt(function_call_history)
+        formatted_attempts += f"<attempt_{idx}>\n{formatted_function_calls}\n</attempt_{idx}>"
+    return formatted_attempts
+
+def render_function_calls_for_attempt(function_call_history: list[list[AnthropicFunctionCall]]) -> str:
+    formatted_function_calls = ""
+    idx = 0
+    for function_calls in function_call_history:
+        for function_call in function_calls:
+            function_call.function_parameters.pop("justification", None) # remove justification
+            function_call_cleaned_string = function_call.function_name + "\n".join([str(k) + "|" + str(v) for k, v in function_call.function_parameters.items()])
+            formatted_function_calls += f"<function_call_{idx}>{function_call_cleaned_string}</function_call_{idx}>\n"
+        if function_calls:
+            idx += 1
+    return formatted_function_calls
+
+def get_stored_files(repo_context_manager: RepoContextManager) -> str:
+    fetched_files_that_are_stored = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
+    joined_files_string = "\n".join(fetched_files_that_are_stored)
+    stored_files_string = f'The following files have been stored already:\n{joined_files_string}.\n' if fetched_files_that_are_stored else ""
+    return stored_files_string
+
 def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
@@ -837,7 +852,7 @@ def context_dfs(
                     return chat_gpt.messages, function_call_history
             if len(function_calls) == 0:
                 function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\nRemember to gather ALL relevant files. " + get_stored_files(repo_context_manager)
                 bad_call_count += 1
                 if bad_call_count >= NUM_BAD_FUNCTION_CALLS:
                     return chat_gpt.messages, function_call_history
@@ -870,6 +885,7 @@ def context_dfs(
             run_text=joined_messages,
             stored_files=rollout_stored_files,
         )
+        logger.info(f"Attempt function calls: {render_function_calls_for_attempt(function_call_history)}")
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
@@ -879,24 +895,13 @@ def context_dfs(
             break
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout
-    breakpoint()
-    logger.info(f"{render_function_call_histories(rollout_function_call_histories)}")
+    logger.info(f"{render_all_attempts(rollout_function_call_histories)}")
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
     best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0] * 100 + len(x[1].current_top_snippets)) # sort first on the highest score, break ties with length of current_top_snippets
     for score, rcm in all_scores_and_rcms:
         logger.info(f"Rollout score: {score}, Rollout files: {[snippet.file_path for snippet in rcm.current_top_snippets]}")
     logger.info(f"Best score: {best_score}, Best files: {[snippet.file_path for snippet in best_rcm.current_top_snippets]}")
     return best_rcm
-
-def render_function_call_histories(function_call_histories: list[list[AnthropicFunctionCall]]) -> str:
-    formatted_function_call_histories = ""
-    for idx, function_call_history in enumerate(function_call_histories):
-        formatted_function_call_history = ""
-        for sub_idx, function_call in enumerate(function_call_history):
-            function_call.function_parameters.pop("justification", None)
-            formatted_function_call_history += f"<function_call_{sub_idx}>\n{function_call.to_string()}\n</function_call_{sub_idx}>"
-        formatted_function_call_histories += f"<function_call_history_{idx}>\n{formatted_function_call_history}\n</function_call_history_{idx}>"
-    return formatted_function_call_histories
 
 if __name__ == "__main__":
     try:
