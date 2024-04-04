@@ -97,6 +97,7 @@ def batch_by_token_count_for_voyage(
             token_count += text_token_count
     if batch:
         batches.append(batch)
+    del client
     return batches
 
 # lru_cache(maxsize=20)
@@ -162,6 +163,7 @@ def openai_call_embedding_router(batch: list[str], input_type: str="document"): 
         result = client.embed(batch, model="voyage-code-2", input_type=input_type)
         cut_dim = np.array([data for data in result.embeddings])
         normalized_dim = normalize_l2(cut_dim)
+        del client
         return normalized_dim
     else:
         client = get_embeddings_client()
