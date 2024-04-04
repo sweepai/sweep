@@ -819,7 +819,7 @@ def on_ticket(
                 try:
                     # search/context manager
                     logger.info("Searching for relevant snippets...")
-                    snippets, tree, _ = fetch_relevant_files(
+                    snippets, tree, _, repo_context_manager = fetch_relevant_files(
                         cloned_repo,
                         title,
                         message_summary,
@@ -834,6 +834,7 @@ def on_ticket(
                         chat_logger,
                         ticket_progress,
                     )
+                    cloned_repo = repo_context_manager.cloned_repo
                 except Exception as e:
                     edit_sweep_comment(
                         (

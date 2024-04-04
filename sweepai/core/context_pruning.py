@@ -1,8 +1,7 @@
-from copy import deepcopy
 import os
 import subprocess
 import urllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import networkx as nx
 import openai
@@ -348,6 +347,19 @@ class RepoContextManager:
 
     def update_issue_report_and_plan(self, new_issue_report_and_plan: str):
         self.issue_report_and_plan = new_issue_report_and_plan
+
+    # creates a copy of the RepoContextManager with a seperate ClonedRepo
+    # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
+    # other copies when one copy goes out of context since we do file operations of CloneRepo
+    def copy_repo_context_manager(self):
+        new_cloned_repo = ClonedRepo(
+            self.cloned_repo.repo_full_name,
+            installation_id=self.cloned_repo.installation_id,
+            token=self.cloned_repo.token,
+            repo=self.cloned_repo.repo,
+            branch=self.cloned_repo.branch,
+        )
+        return replace(self, cloned_repo=new_cloned_repo)
 
 
 """
@@ -878,7 +890,7 @@ def context_dfs(
         return chat_gpt.messages
     for rollout_idx in range(NUM_ROLLOUTS):
         # operate on a deep copy of the repo context manager
-        copied_repo_context_manager = deepcopy(repo_context_manager)
+        copied_repo_context_manager = repo_context_manager.copy_repo_context_manager()
         message_results = perform_rollout(copied_repo_context_manager, reflections_to_read_files)
         rollout_stored_files = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
         truncated_message_results = message_results[1:] # skip system prompt
