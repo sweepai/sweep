@@ -273,7 +273,7 @@ def fetch_relevant_files(
             },
         )
         raise e
-    return snippets, tree, dir_obj
+    return snippets, tree, dir_obj, repo_context_manager
 
 
 SLOW_MODE = False
