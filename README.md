@@ -94,6 +94,7 @@ You can get enterprise support by [contacting us](https://form.typeform.com/to/w
 > ### Limitations of Sweep
 > * **Large-scale refactors**: > 10 files or > 400 lines of code changes
     * e.g. Refactor the entire codebase from TensorFlow to PyTorch
+    * If this is a use case you're looking forward to, let us know!
 > * **Reading or editing images** and other non-text assets
     * e.g. Use the logo to create favicons for our landing page
 ---
