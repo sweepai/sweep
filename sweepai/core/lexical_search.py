@@ -276,16 +276,9 @@ def search_index(query, index: CustomIndex):
         logger.exception(e)
         return {}
 
-SNIPPET_FORMAT = """A short snippet from {start_line} to {end_line} in {file_path}:
-
-```
-{contents}
-```"""
-
 SNIPPET_FORMAT = """File path: {file_path}
 
-{contents}
-"""
+{contents}"""
 
 # @file_cache(ignore_params=["snippets"])
 def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
