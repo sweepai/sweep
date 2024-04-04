@@ -19,7 +19,7 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
 
 def create_additional_messages(
     metadata: str,
-    file_change_request: FileChangeRequest,
+    file_change_requests: list[FileChangeRequest],
     comment_pr_diff_str: str,
     cloned_repo: ClonedRepo,
 ) -> tuple[list[Message], list[str]]:
@@ -32,40 +32,15 @@ def create_additional_messages(
     ]
     relevant_filepaths = []
     if comment_pr_diff_str and comment_pr_diff_str.strip():
-        additional_messages = [
+        additional_messages += [
             Message(
                 role="user",
                 content="These changes have already been made:\n" + comment_pr_diff_str,
                 key="pr_diffs",
             )
         ]
-    # use only the latest change for each file
-    # go forward to find the earliest version of each file in the array
-
-    if file_change_request.relevant_files:
-        relevant_files_contents = []
-        for file_path in file_change_request.relevant_files:
-            try:
-                relevant_files_contents.append(cloned_repo.get_file_contents(file_path))
-            except Exception:
-                relevant_files_contents.append("File not found")
-        if relevant_files_contents:
-            relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
-                [
-                    f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
-                    for file_path, file_contents in zip(
-                        file_change_request.relevant_files,
-                        relevant_files_contents,
-                    )
-                ]
-            )
-            additional_messages.append(
-                Message(
-                    content=relevant_files_summary,
-                    role="user",
-                    key="relevant_files_summary",
-                )
-            )
+    for file_change_request in file_change_requests:
+        if file_change_request.relevant_files:
             # keep all relevant_filepaths
             for file_path in file_change_request.relevant_files:
                 relevant_filepaths.append(file_path)
@@ -76,8 +51,7 @@ def create_additional_messages(
 def modify_file(
     cloned_repo: ClonedRepo,
     metadata: str,
-    file_change_request: FileChangeRequest,
-    contents: str = "",
+    file_change_requests: list[FileChangeRequest],
     branch: str = None,
     comment_pr_diff_str: str = "",
     # o11y related
@@ -88,18 +62,16 @@ def modify_file(
     previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
 ):
     try:
-        relevant_file_messages, relevant_filepaths = create_additional_messages(
+        new_additional_messages, relevant_filepaths = create_additional_messages(
             metadata,
-            file_change_request,
+            file_change_requests,
             comment_pr_diff_str,
             cloned_repo,
         )
-        additional_messages += relevant_file_messages
-        additional_messages = ensure_additional_messages_length(additional_messages)
+        additional_messages += new_additional_messages
         new_files = function_modify(
-            file_change_request.instructions,
-            file_change_request.filename,
-            contents or cloned_repo.get_file_contents(file_change_request.filename),
+            file_change_requests,
+            "",
             cloned_repo,
             additional_messages,
             chat_logger,
@@ -111,13 +83,9 @@ def modify_file(
         )
 
     except Exception as e:  # Check for max tokens error
-        if "max tokens" in str(e).lower():
-            logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-            raise MaxTokensExceeded(file_change_request.filename)
-        else:
-            logger.error(f"Error: {e}")
-            logger.error(traceback.format_exc())
-            raise e
+        logger.error(f"Error: {e}")
+        logger.error(traceback.format_exc())
+        raise e
     return new_files
 
 
@@ -131,11 +99,11 @@ if __name__ == "__main__":
         new_file = modify_file(
             cloned_repo=cloned_repo,
             metadata="This repo is Sweep.",
-            file_change_request=FileChangeRequest(
+            file_change_requests=[FileChangeRequest(
                 filename="sweepai/api.py",
                 instructions="import math at the top of the file",
                 change_type="modify",
-            ),
+            )],
         )
         print(new_file)
     except Exception as e:

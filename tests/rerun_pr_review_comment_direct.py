@@ -24,7 +24,6 @@ def fetch_pr_review_request(issue_url: str, __version__: str = "0"):
     installation = get_installation(org_name)
     print("Fetching access token...")
     _token, g = get_github_client(installation_id)
-    g: Github = g
     print("Fetching repo...")
     org = g.get_organization(org_name)
     repo = g.get_repo(f"{org_name}/{repo_name}")
@@ -75,6 +74,6 @@ def update_pr_review_comments(
     better_stack_link = f"{better_stack_prefix}{html.escape(pr_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")
 
-
+# NOTE CURRENTLY THIS SCRIPT DOES NOT IGNORE RESOLVED COMMENTS
 if __name__ == "__main__":
     typer.run(update_pr_review_comments)

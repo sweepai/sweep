@@ -877,7 +877,6 @@ def on_ticket(
                     snippets=snippets,
                     tree=tree,
                 )
-
                 sweep_bot = SweepBot.from_system_message_content(
                     human_message=human_message,
                     repo=repo,
@@ -1185,7 +1184,7 @@ def on_ticket(
                         raise NoFilesException()
                     response = {
                         "error": Exception(
-                            f"Sweep failed to make code changes! This could mean that GPT-4 failed to find the correct lines of code to modify or that GPT-4 did not respond in our specified format. Sometimes, retrying will fix this error. Otherwise, reach out to our Discord server for support (tracking_id={tracking_id})."
+                            f"Sweep failed to generate any file change requests! This could mean that Sweep failed to find the correct lines of code to modify or that GPT-4 did not respond in our specified format. Sometimes, retrying will fix this error. Otherwise, reach out to our Discord server for support (tracking_id={tracking_id})."
                         )
                     }
 
@@ -1195,15 +1194,15 @@ def on_ticket(
                             response = item
                             break
                         (
-                            file_change_request,
-                            changed_file,
-                            sandbox_response,
+                            new_file_contents,
+                            _,
                             commit,
                             file_change_requests,
                         ) = item
-                        changed_files.append(file_change_request.filename)
-                        sandbox_response: SandboxResponse | None = sandbox_response
-                        logger.info(sandbox_response)
+                        # append all files that have been changed
+                        if new_file_contents:
+                            for file_name, _ in new_file_contents.items():
+                                changed_files.append(file_name)
                         commit_hash: str = (
                             commit
                             if isinstance(commit, str)
@@ -1223,13 +1222,9 @@ def on_ticket(
                         )
                         create_error_logs(
                             commit_url_display,
-                            sandbox_response,
+                            None,
                             status=(
                                 "✓"
-                                if (
-                                    sandbox_response is None or sandbox_response.success
-                                )
-                                else "❌"
                             ),
                         )
                         checkboxes_progress = [
@@ -1294,7 +1289,6 @@ def on_ticket(
                         )
 
                         logger.info(files_progress)
-                        logger.info(f"Edited {file_change_request.entity_display}")
                         edit_sweep_comment(checkboxes_contents, 2)
                     if not response.get("success"):
                         raise Exception(f"Failed to create PR: {response.get('error')}")
