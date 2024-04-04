@@ -279,6 +279,7 @@ def on_comment(
                     )
                     snippets = repo_context_manager.current_top_snippets
                     tree = str(repo_context_manager.dir_obj)
+                    cloned_repo = repo_context_manager.cloned_repo
                 except Exception as e:
                     logger.error(traceback.format_exc())
                     raise e
