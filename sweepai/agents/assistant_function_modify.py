@@ -495,9 +495,6 @@ def function_modify(
                         )                  
                 elif tool_name == "no_tool_call":
                     error_message = ""
-                    # tool_name, tool_call = assistant_generator.send(
-                    #     "ERROR\n No tool calls were made. If you are done, please use the submit_result tool to indicate that you have completed the task. If you believe you are stuck, use the search_codebase tool to further explore the codebase or get additional context if necessary."
-                    # )
                     tool_name, tool_call = assistant_generator.send(
                         NO_TOOL_CALL_PROMPT
                     )
