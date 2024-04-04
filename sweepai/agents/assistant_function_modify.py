@@ -263,6 +263,24 @@ Summarize the code changes made and how they fulfill the user's original request
 </tool_description>
 """
 
+# NO_TOOL_CALL_PROMPT = """ERROR
+# No tool calls were made. If you are done, please use the submit_result tool to indicate that you have completed the task. If you believe you are stuck, use the search_codebase tool to further explore the codebase or get additional context if necessary.
+
+NO_TOOL_CALL_PROMPT = """FAILURE
+No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
+
+<function_call>
+<invoke>
+<tool_name>tool_name</tool_name>
+<parameters>
+<param_name>param_value</param_name>
+</parameters>
+</invoke>
+</function_call>
+
+If you are ready done, call the submit function.
+"""
+
 unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
 
 
@@ -478,7 +496,7 @@ def function_modify(
                 elif tool_name == "no_tool_call":
                     error_message = ""
                     tool_name, tool_call = assistant_generator.send(
-                        "ERROR\n No tool calls were made. If you are done, please use the submit_result tool to indicate that you have completed the task. If you believe you are stuck, use the search_codebase tool to further explore the codebase or get additional context if necessary."
+                        NO_TOOL_CALL_PROMPT
                     )
                 elif tool_name == "analyze_problem_and_propose_plan":
                     error_message = ""
