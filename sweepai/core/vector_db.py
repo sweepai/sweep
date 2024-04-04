@@ -15,7 +15,7 @@ import boto3
 from botocore.exceptions import ClientError
 from voyageai import error as voyageai_error
 
-from sweepai.config.server import BATCH_SIZE, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
+from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
@@ -23,9 +23,8 @@ from sweepai.utils.utils import Tiktoken
 # Now uses Voyage AI if available, with asymmetric embedding
 # CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
 suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY else ""
-CACHE_VERSION = "v2.0.05" + suffix 
-redis_client: Redis = None
-# redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
+CACHE_VERSION = "v2.0.07" + suffix 
+redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 
 
@@ -74,6 +73,32 @@ def normalize_l2(x):
         norm = np.linalg.norm(x, 2, axis=1, keepdims=True)
         return np.where(norm == 0, x, x / norm)
 
+def batch_by_token_count_for_voyage(
+    texts: list[str],
+    max_tokens: int = 120_000,
+    max_length: int = 128,
+) -> list[list[str]]:
+    """
+    This function splits the texts into batches based on the token count.
+    Max token count for Voyage is 120k and max batch length count is 128.
+    """
+    client = voyageai.Client()
+    batches = []
+    batch = []
+    token_count = 0
+    for text in texts:
+        text_token_count = client.count_tokens([text])
+        if token_count + text_token_count > max_tokens * 0.95 or len(batch) >= max_length:
+            batches.append(batch)
+            batch = [text]  # Start the new batch with the current text
+            token_count = text_token_count  # Reset token count for the new batch
+        else:
+            batch.append(text)
+            token_count += text_token_count
+    if batch:
+        batches.append(batch)
+    del client
+    return batches
 
 # lru_cache(maxsize=20)
 # @redis_cache()
@@ -81,6 +106,9 @@ def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
     embeddings = []
     texts = [text if text else " " for text in texts]
+    # if VOYAGE_API_KEY:
+    #     batches = batch_by_token_count_for_voyage(texts)
+    # else:
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
     workers = max(1, multiprocessing.cpu_count() // 4)
     if workers > 1 and not VOYAGE_API_KEY:
@@ -135,6 +163,7 @@ def openai_call_embedding_router(batch: list[str], input_type: str="document"): 
         result = client.embed(batch, model="voyage-code-2", input_type=input_type)
         cut_dim = np.array([data for data in result.embeddings])
         normalized_dim = normalize_l2(cut_dim)
+        del client
         return normalized_dim
     else:
         client = get_embeddings_client()
@@ -148,8 +177,6 @@ def openai_call_embedding_router(batch: list[str], input_type: str="document"): 
 
 def openai_call_embedding(batch: list[str], input_type: str="document"):
     # Backoff on batch size by splitting the batch in half.
-    # Better way is to download the tokenizer from https://huggingface.co/voyageai/voyage
-    # and check the token count manually, but it requires an extra dependency. 
     try:
         return openai_call_embedding_router(batch, input_type)
     except (voyageai_error.InvalidRequestError, ClientError) as e: # full error is botocore.errorfactory.ModelError: but I can't find it
