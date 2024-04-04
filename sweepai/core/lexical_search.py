@@ -276,12 +276,19 @@ def search_index(query, index: CustomIndex):
         logger.exception(e)
         return {}
 
+SNIPPET_FORMAT = """File path: {file_path}
 
-@file_cache(ignore_params=["snippets"])
+{contents}
+"""
+
+# @file_cache(ignore_params=["snippets"])
 def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
     # get get dict of snippet to score
     snippet_str_to_contents = {
-        snippet.denotation: snippet.get_snippet(add_ellipsis=False, add_lines=False)
+        snippet.denotation: SNIPPET_FORMAT.format(
+            file_path=snippet.file_path,
+            contents=snippet.get_snippet(add_ellipsis=False, add_lines=False),
+        )
         for snippet in snippets
     }
     snippet_contents_array = list(snippet_str_to_contents.values())

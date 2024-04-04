@@ -211,3 +211,4 @@ eval/**/*.jsonl
 .worktrees
 
 *_import_graphs
+eval/**/*.ans
