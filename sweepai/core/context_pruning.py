@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import subprocess
 import urllib
@@ -14,8 +15,8 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.convert_openai_anthropic import MockFunctionCall, mock_function_calls_to_string
-from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall, mock_function_calls_to_string
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
@@ -30,7 +31,7 @@ MAX_REFLECTIONS = 2
 
 anthropic_function_calls = """<tool_name>view_file</tool_name>
 <description>
-Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find their definitions. Use `store_file` to add the file to the context if it's relevant to solving the issue.
+Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find other potentially relevant files. Use `store_file` to add the file to the final list if it provides important context or may need modifications to solve the issue.
 </description>
 <parameters>
 <parameter>
@@ -49,7 +50,7 @@ Retrieves the contents of the specified file. After viewing a file, use `code_se
 <tool_description>
 <tool_name>store_file</tool_name>
 <description>
-Adds a file to the context that needs to be read for context or modified to resolve the issue. Provide a code excerpt in the justification showcasing the file's relevance, i.e. how it provides important context or should be fixed. After using this tool, use `code_search` to find definitions of unknown functions/classes in the file.
+Adds a file to the final list of relevant files that provide important context or may need modifications to resolve the issue. Err on the side of including a file if you're unsure about its relevance.
 </description>
 <parameters>
 <parameter>
@@ -66,9 +67,9 @@ Adds a file to the context that needs to be read for context or modified to reso
 </tool_description>
 
 <tool_description>
-<tool_name>code_search</tool_name>
+<tool_name>code_search</tool_name>  
 <description>
-Passes the code_entity into ripgrep to search the entire codebase and return a list of files and line numbers where it appears. Useful for finding definitions of unknown types, classes and functions. Review the search results using `view_file` to determine relevance. Focus on definitions.
+Passes the code_entity into ripgrep to search the entire codebase and return a list of files and line numbers where it appears. Useful for finding definitions and usages of types, classes and functions that may be relevant. Review the search results using `view_file` to determine relevance.
 </description>
 <parameters>
 <parameter>
@@ -87,13 +88,13 @@ Passes the code_entity into ripgrep to search the entire codebase and return a l
 <tool_description>
 <tool_name>submit</tool_name>
 <description>
-Provides a detailed report of the issue and a complete plan to resolve it. The report should explain the root cause, expected behavior, files to read for context, and files to modify. The plan should outline the changes needed in each file. Write it for an outside contractor with no prior knowledge of the codebase or issue. Only call this tool once when you are absolutely certain you have all the necessary information.
+Submits the final list consisting of all files that were stored using the `store_file` tool. Only call this tool once when you are absolutely certain you have stored all potentially relevant files. The submitted list should err on the side of including extra files to ensure high recall of relevant ones.
 </description>
 <parameters>
 <parameter>
-<name>plan</name>
+<name>result</name>
 <type>string</type>
-<description>The complete, detailed plan including background information, files to read for context, files to change, and the specific changes to make in each file.</description>
+<description>A simple string stating that you have finished storing relevant files and are submitting the list of stored files as the final result.</description>
 </parameter>
 </parameters>
 </tool_description>
@@ -101,20 +102,20 @@ Provides a detailed report of the issue and a complete plan to resolve it. The r
 You must call the tools using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
 <examples>
-Example 1 (calling multiple tools in parallel):
-<function_calls>
+Example 1:
+<function_call>
 <invoke>
 <tool_name>view_file</tool_name>
 <parameters>
 <file_path>services/user_service.py</file_path>
-<justification>The user request mentions modifying the get_user_by_id method in the UserService class. I need to view the user_service.py file to locate this method and determine what changes are needed.</justification>
+<justification>The user request mentions the get_user_by_id method in the UserService class. I need to view user_service.py to understand how this method currently works and what files it interacts with.</justification>
 </parameters>
 </invoke>
-</function_calls>
+</function_call>
 
 Example 2:
-<function_calls>
-<invoke>  
+<function_call>
+<invoke>
 <tool_name>store_file</tool_name>
 <parameters>
 <file_path>models/user.py</file_path>
@@ -136,66 +137,28 @@ class User(db.Model):
 <justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
 </parameters>
 </invoke>
-</function_calls>
-
-Example 4:
-<function_calls>
-<invoke>
-<tool_name>submit</tool_name>
-<parameters>
-<plan>
-To fix the issue of being able to access deleted users via the API:
-
-Read the following files for context:
-- models/user.py: Understand the User model and its `deleted` attribute. Key excerpt:
-```python 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) 
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    deleted = db.Column(db.Boolean, default=False)
-```
-
-Modify user_service.py:
-- In the `UserService` class, find the `get_user_by_id` method that fetches a user by ID
-- Add a new optional parameter `include_deleted` with a default of `False` 
-- In the method, check the value of `include_deleted`
-- If `False`, update the database query to filter out users where `deleted` is `True`
-- If `True`, no query changes needed
-- Update the method's docstring for the new parameter and behavior
-
-Modify app.py: 
-- Find the `get_user` route handler
-- Locate the call to `UserService.get_user_by_id()` in the route handler
-- Add `include_deleted=True` to the `get_user_by_id()` call to include deleted users
-</plan>
-</parameters>
-</invoke>
-</function_calls>
+</function_call>
 </examples>
 
-I will provide the tool's response after each <function_calls> block, then you may call another set of tools as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
+You must call the tools using the specified XML format, as illustrated in the previous examples. Focus on identifying all files that provide important context or may require modifications to fully resolve the issue at hand. Prioritize recall over precision."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed plan to fully resolve the issue and identify all relevant files. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete list of all files that are relevant to fully resolving the issue. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
 
-It is critical that you identify and include every relevant line of code that should be either modified or read as context. Your goal is to generate an extremely detailed and accurate plan of code changes and relevant files for an intern who is unfamiliar with the codebase. 
+It is critical that you identify every relevant file, even if you are unsure whether it needs to be modified. Your goal is to generate an extremely comprehensive list of files for an intern who is unfamiliar with the codebase. Precision is less important than recall - it's better to include a few extra files than to miss a relevant one.
 
-You will do this by searching for and viewing files in the codebase to gather all the necessary information.
+You will do this by searching for and viewing files in the codebase to gather all the necessary information. 
 
 INSTRUCTIONS
-
 Use the following iterative process:
-1. View all files that seem relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Skip irrelevant files. Check all files referenced in the user request. If you can't find a specific module, also check the "Common modules" section.
+1. View all files that seem potentially relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Check all files referenced in the user request. If you can't find a specific module, also check the "Common modules" section. 
+2. Use code_search to find definitions and usages for ALL unknown variables, classes, attributes, and functions that may be relevant. View the search result files.
+3. When you identify a relevant file, use store_file to add it to the final list.
 
-2. Use code_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find their definitions. If you want to use `user.deleted`, verify that the `deleted` attribute exists on the entity. View the relevant definition files. Make sure to view ALL files when using or changing any function input parameters, methods or attributes.
+Repeat steps 1-3, searching exhaustively, until you are fully confident you have gathered all files that provide necessary context or may need modifications.
 
-3. When you identify a relevant file, use store_file to add it to the context.
+4. Submit the final list of relevant files with the submit function.
 
-Repeat steps 1-3 until you are fully confident you have gathered all the necessary information detailing all entities used, variable names, attribute names, and files to read and modify.
-
-4. Submit the final plan with the submit function. 
-
-Here are the tools at your disposal. Call them until you have gathered all relevant information:
+Here are the tools at your disposal. Call them until you have gathered all relevant files:
 
 """ + anthropic_function_calls
 
@@ -352,14 +315,16 @@ class RepoContextManager:
     # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
     # other copies when one copy goes out of context since we do file operations of CloneRepo
     def copy_repo_context_manager(self):
-        new_cloned_repo = ClonedRepo(
-            self.cloned_repo.repo_full_name,
-            installation_id=self.cloned_repo.installation_id,
-            token=self.cloned_repo.token,
-            repo=self.cloned_repo.repo,
-            branch=self.cloned_repo.branch,
-        )
-        return replace(self, cloned_repo=new_cloned_repo)
+        if not isinstance(self.cloned_repo, MockClonedRepo):
+            new_cloned_repo = ClonedRepo(
+                self.cloned_repo.repo_full_name,
+                installation_id=self.cloned_repo.installation_id,
+                token=self.cloned_repo.token,
+                repo=self.cloned_repo.repo,
+                branch=self.cloned_repo.branch,
+            )
+            return replace(self, cloned_repo=new_cloned_repo)
+        return deepcopy(self)
 
 
 """
@@ -618,42 +583,42 @@ CLAUDE_MODEL = "claude-3-haiku-20240307"
 
 def validate_and_parse_function_calls(
     function_calls_string: str, chat_gpt: ChatGPT
-) -> list[MockFunctionCall]:
-    function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</function_calls>"
+) -> list[AnthropicFunctionCall]:
+    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
+        function_calls_string.strip("\n") + "\n</function_call>"
     )  # add end tag
     if len(function_calls) > 0:
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_calls>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
         )  # add end tag to assistant message
         return function_calls
 
     # try adding </invoke> tag as well
-    function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</invoke>\n</function_calls>"
+    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
+        function_calls_string.strip("\n") + "\n</invoke>\n</function_call>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_calls>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
         )
         return function_calls
     # try adding </parameters> tag as well
-    function_calls = MockFunctionCall.mock_function_calls_from_string(
+    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
         function_calls_string.strip("\n")
-        + "\n</parameters>\n</invoke>\n</function_calls>"
+        + "\n</parameters>\n</invoke>\n</function_call>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
             chat_gpt.messages[-1].content.rstrip("\n")
-            + "\n</parameters>\n</invoke>\n</function_calls>"
+            + "\n</parameters>\n</invoke>\n</function_call>"
         )
     return function_calls
 
 
 def handle_function_call(
-    repo_context_manager: RepoContextManager, function_call: MockFunctionCall, llm_state: dict[str, str]
+    repo_context_manager: RepoContextManager, function_call: AnthropicFunctionCall, llm_state: dict[str, str]
 ):
     function_name = function_call.function_name
     function_input = function_call.function_parameters
@@ -791,7 +756,7 @@ def handle_function_call(
 reflections_prompt_prefix = """
 CRITICAL FEEDBACK - READ CAREFULLY AND ADDRESS ALL POINTS
 <critical_feedback_to_address>
-Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, store and view all of those first. If you do not fully address this feedback you will fail to retrieve all of the relevant files.
+Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If they tell you to store specific files, view store them first. If you do not fully address this feedback you will fail to retrieve all of the relevant files.
 {all_reflections}
 </critical_feedback_to_address>"""
 
@@ -837,22 +802,24 @@ def context_dfs(
     problem_statement: str,
 ) -> bool | None:
     MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
-    NUM_ROLLOUTS = 5
+    NUM_ROLLOUTS = 4 # dev speed
     SCORE_THRESHOLD = 8 # good score
     STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
-    MAX_PARALLEL_FUNCTION_CALLS = 3
+    MAX_PARALLEL_FUNCTION_CALLS = 1
+    NUM_BAD_FUNCTION_CALLS = 4
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
     def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]]) -> list[Message]:
+        function_call_history = []
         formatted_reflections_prompt = format_reflections(reflections_to_gathered_files)
         updated_user_prompt = user_prompt + formatted_reflections_prompt
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt + formatted_reflections_prompt)]
         function_calls_string = chat_gpt.chat_anthropic(
             content=updated_user_prompt,
-            stop_sequences=["</function_calls>"],
+            stop_sequences=["</function_call>"],
             model=CLAUDE_MODEL,
             message_key="user_request",
         )
@@ -862,36 +829,39 @@ def context_dfs(
             function_calls = validate_and_parse_function_calls(
                 function_calls_string, chat_gpt
             )
+            function_call_history.append(function_calls)
             function_outputs = ""
             for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
                 function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
                 if PLAN_SUBMITTED_MESSAGE in function_outputs:
-                    return chat_gpt.messages
+                    return chat_gpt.messages, function_call_history
             if len(function_calls) == 0:
                 function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_calls>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you are ready to submit the plan, call the submit function."
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
                 bad_call_count += 1
-                if bad_call_count >= 3:
-                    return chat_gpt.messages # set to three, which seems alright
+                if bad_call_count >= NUM_BAD_FUNCTION_CALLS:
+                    return chat_gpt.messages, function_call_history
             if len(function_calls) > MAX_PARALLEL_FUNCTION_CALLS:
                 remaining_function_calls = function_calls[MAX_PARALLEL_FUNCTION_CALLS:]
                 remaining_function_calls_string = mock_function_calls_to_string(remaining_function_calls)
-                function_outputs += "WARNING: You requested more than 3 function calls at once. Only the first 3 function calls have been processed. The unprocessed function calls were:\n<unprocessed_function_calls>\n" + remaining_function_calls_string + "\n</unprocessed_function_calls>"
+                function_outputs += "WARNING: You requested more than 1 function call at once. Only the first function call has been processed. The unprocessed function calls were:\n<unprocessed_function_call>\n" + remaining_function_calls_string + "\n</unprocessed_function_call>"
             try:
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_outputs,
                     model=CLAUDE_MODEL,
-                    stop_sequences=["</function_calls>"],
+                    stop_sequences=["</function_call>"],
                 )
             except Exception as e:
                 logger.error(f"Error in chat_anthropic: {e}")
                 # return all but the last message because it likely causes an error
-                return chat_gpt.messages[:-1]
-        return chat_gpt.messages
+                return chat_gpt.messages[:-1], function_call_history
+        return chat_gpt.messages, function_call_history
+    rollout_function_call_histories = []
     for rollout_idx in range(NUM_ROLLOUTS):
         # operate on a deep copy of the repo context manager
         copied_repo_context_manager = repo_context_manager.copy_repo_context_manager()
-        message_results = perform_rollout(copied_repo_context_manager, reflections_to_read_files)
+        message_results, function_call_history = perform_rollout(copied_repo_context_manager, reflections_to_read_files)
+        rollout_function_call_histories.append(function_call_history)
         rollout_stored_files = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
         truncated_message_results = message_results[1:] # skip system prompt
         joined_messages = "\n\n".join([message.content for message in truncated_message_results])
@@ -909,12 +879,24 @@ def context_dfs(
             break
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout
+    breakpoint()
+    logger.info(f"{render_function_call_histories(rollout_function_call_histories)}")
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
     best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0] * 100 + len(x[1].current_top_snippets)) # sort first on the highest score, break ties with length of current_top_snippets
     for score, rcm in all_scores_and_rcms:
         logger.info(f"Rollout score: {score}, Rollout files: {[snippet.file_path for snippet in rcm.current_top_snippets]}")
     logger.info(f"Best score: {best_score}, Best files: {[snippet.file_path for snippet in best_rcm.current_top_snippets]}")
     return best_rcm
+
+def render_function_call_histories(function_call_histories: list[list[AnthropicFunctionCall]]) -> str:
+    formatted_function_call_histories = ""
+    for idx, function_call_history in enumerate(function_call_histories):
+        formatted_function_call_history = ""
+        for sub_idx, function_call in enumerate(function_call_history):
+            function_call.function_parameters.pop("justification", None)
+            formatted_function_call_history += f"<function_call_{sub_idx}>\n{function_call.to_string()}\n</function_call_{sub_idx}>"
+        formatted_function_call_histories += f"<function_call_history_{idx}>\n{formatted_function_call_history}\n</function_call_history_{idx}>"
+    return formatted_function_call_histories
 
 if __name__ == "__main__":
     try:
