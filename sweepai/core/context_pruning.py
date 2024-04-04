@@ -15,7 +15,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.convert_openai_anthropic import MockFunctionCall
+from sweepai.utils.convert_openai_anthropic import MockFunctionCall, mock_function_calls_to_string
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -23,6 +23,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
+MAX_REFLECTIONS = 2
 
 # TODO:
 # - Add self-evaluation / chain-of-verification
@@ -98,11 +99,11 @@ Provides a detailed report of the issue and a complete plan to resolve it. The r
 </parameters>
 </tool_description>
 
-You must call one tool at a time using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
+You must call the tools using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
 
 <examples>
-Example 1:
-<function_call>
+Example 1 (calling multiple tools in parallel):
+<function_calls>
 <invoke>
 <tool_name>view_file</tool_name>
 <parameters>
@@ -110,10 +111,10 @@ Example 1:
 <justification>The user request mentions modifying the get_user_by_id method in the UserService class. I need to view the user_service.py file to locate this method and determine what changes are needed.</justification>
 </parameters>
 </invoke>
-</function_call>
+</function_calls>
 
 Example 2:
-<function_call>
+<function_calls>
 <invoke>  
 <tool_name>store_file</tool_name>
 <parameters>
@@ -129,10 +130,6 @@ class User(db.Model):
 </justification>
 </parameters>
 </invoke>
-</function_call>
-
-Example 3:
-<function_call>
 <invoke>
 <tool_name>code_search</tool_name>
 <parameters>
@@ -140,10 +137,10 @@ Example 3:
 <justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
 </parameters>
 </invoke>
-</function_call>
+</function_calls>
 
 Example 4:
-<function_call>
+<function_calls>
 <invoke>
 <tool_name>submit</tool_name>
 <parameters>
@@ -170,19 +167,19 @@ Modify user_service.py:
 
 Modify app.py: 
 - Find the `get_user` route handler
-- Locate the call to `UserService.get_user_by_id()` in the route handler 
+- Locate the call to `UserService.get_user_by_id()` in the route handler
 - Add `include_deleted=True` to the `get_user_by_id()` call to include deleted users
 </plan>
 </parameters>
 </invoke>
-</function_call>
+</function_calls>
 </examples>
 
-I will provide the tool's response after each call, then you may call another tool as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
+I will provide the tool's response after each <function_calls> block, then you may call another set of tools as you work towards a solution. Focus on the actual issue at hand rather than these illustrative examples."""
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete, detailed plan to fully resolve the issue and identify all relevant files. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
 
-It is critical that you identify and include every relevant line of code that should be either modified or used as a reference. Your goal is to generate an extremely detailed and accurate plan of code changes and relevant files for an intern who is unfamiliar with the codebase. 
+It is critical that you identify and include every relevant line of code that should be either modified or read as context. Your goal is to generate an extremely detailed and accurate plan of code changes and relevant files for an intern who is unfamiliar with the codebase. 
 
 You will do this by searching for and viewing files in the codebase to gather all the necessary information.
 
@@ -193,13 +190,13 @@ Use the following iterative process:
 
 2. Use code_search to find definitions for ALL unknown variables, classes, attributes, and functions. For instance, if the method foo(param1: typeX, param2: typeY) -> typeZ is used, search for the keywords typeX, typeY, and typeZ to find their definitions. If you want to use `user.deleted`, verify that the `deleted` attribute exists on the entity. View the relevant definition files. Make sure to view ALL files when using or changing any function input parameters, methods or attributes.
 
-3. When you identify a relevant file, use store_file to add it to the context. 
+3. When you identify a relevant file, use store_file to add it to the context.
 
 Repeat steps 1-3 until you are fully confident you have gathered all the necessary information detailing all entities used, variable names, attribute names, and files to read and modify.
 
 4. Submit the final plan with the submit function. 
 
-Here are the tools at your disposal. Call them one at a time as needed until you have gathered all relevant information:
+Here are the tools at your disposal. Call them until you have gathered all relevant information:
 
 """ + anthropic_function_calls
 
@@ -611,34 +608,34 @@ def validate_and_parse_function_calls(
     function_calls_string: str, chat_gpt: ChatGPT
 ) -> list[MockFunctionCall]:
     function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</function_call>"
+        function_calls_string.strip("\n") + "\n</function_calls>"
     )  # add end tag
     if len(function_calls) > 0:
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_calls>"
         )  # add end tag to assistant message
         return function_calls
 
     # try adding </invoke> tag as well
     function_calls = MockFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</invoke>\n</function_call>"
+        function_calls_string.strip("\n") + "\n</invoke>\n</function_calls>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
+            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_calls>"
         )
         return function_calls
     # try adding </parameters> tag as well
     function_calls = MockFunctionCall.mock_function_calls_from_string(
         function_calls_string.strip("\n")
-        + "\n</parameters>\n</invoke>\n</function_call>"
+        + "\n</parameters>\n</invoke>\n</function_calls>"
     )
     if len(function_calls) > 0:
         # update state of chat_gpt
         chat_gpt.messages[-1].content = (
             chat_gpt.messages[-1].content.rstrip("\n")
-            + "\n</parameters>\n</invoke>\n</function_call>"
+            + "\n</parameters>\n</invoke>\n</function_calls>"
         )
     return function_calls
 
@@ -791,11 +788,36 @@ reflection_prompt = """<attempt_and_feedback_{idx}>
 Files stored from previous attempt:
 {files_read}
 </previous_files_stored>
+<rating>
+Rating from previous attempt: {score} / 10
+</rating>
 <feedback>
 Reviewer feedback on previous attempt:
 {reflections_string}
 </feedback>
 </attempt_and_feedback_{idx}>"""
+
+def format_reflections(reflections_to_gathered_files: dict[str, tuple[list[str], int]]) -> str:
+    formatted_reflections_prompt = ""
+    if not reflections_to_gathered_files:
+        return formatted_reflections_prompt
+    all_reflections_string = "\n"
+    # take only the MAX_REFLECTIONS sorted by score
+    top_reflections = sorted(
+        reflections_to_gathered_files.items(), key=lambda x: x[1][1] * 100 + len(x[1][0]), reverse=True # break ties by number of files stored
+    )[:MAX_REFLECTIONS]
+    for idx, (reflection, (gathered_files, score)) in enumerate(top_reflections):
+        formatted_reflection = reflection_prompt.format(
+            files_read="\n".join(gathered_files),
+            reflections_string=reflection,
+            score=str(score),
+            idx=str(idx + 1),
+        )
+        all_reflections_string += f"\n{formatted_reflection}"
+    formatted_reflections_prompt = reflections_prompt_prefix.format(
+        all_reflections=all_reflections_string
+    )
+    return formatted_reflections_prompt
 
 def context_dfs(
     user_prompt: str,
@@ -811,30 +833,14 @@ def context_dfs(
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
-    def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, list[str]] = {}):
-        formatted_reflections_prompt = ""
-        if reflections_to_gathered_files:
-            all_reflections_string = ""
-            for idx, (reflection, gathered_files) in enumerate(reflections_to_gathered_files.items()):
-                formatted_reflection = reflection_prompt.format(
-                    files_read="\n".join(gathered_files),
-                    reflections_string=reflection,
-                    idx=str(idx + 1),
-                )
-                all_reflections_string += f"\n{formatted_reflection}"
-            formatted_reflections_prompt = reflections_prompt_prefix.format(
-                all_reflections=all_reflections_string
-            )
-            updated_user_prompt = user_prompt + "\n" + formatted_reflections_prompt
-        else:
-            updated_user_prompt = user_prompt
-
+    def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]]) -> list[Message]:
+        formatted_reflections_prompt = format_reflections(reflections_to_gathered_files)
+        updated_user_prompt = user_prompt + formatted_reflections_prompt
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt + formatted_reflections_prompt)]
-
         function_calls_string = chat_gpt.chat_anthropic(
             content=updated_user_prompt,
-            stop_sequences=["</function_call>"],
+            stop_sequences=["</function_calls>"],
             model=CLAUDE_MODEL,
             message_key="user_request",
         )
@@ -851,17 +857,19 @@ def context_dfs(
                     return chat_gpt.messages
             if len(function_calls) == 0:
                 function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\n\nIf you are ready to submit the plan, call the submit function."
+                    + "<function_calls>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_calls>" + "\n\nIf you are ready to submit the plan, call the submit function."
                 bad_call_count += 1
                 if bad_call_count >= 3:
                     return chat_gpt.messages # set to three, which seems alright
             if len(function_calls) > MAX_PARALLEL_FUNCTION_CALLS:
-                function_outputs += "WARNING: You requested more than 3 function calls at once. Only the first 3 function calls have been processed. Please try again with fewer function calls.\n"
+                remaining_function_calls = function_calls[MAX_PARALLEL_FUNCTION_CALLS:]
+                remaining_function_calls_string = mock_function_calls_to_string(remaining_function_calls)
+                function_outputs += "WARNING: You requested more than 3 function calls at once. Only the first 3 function calls have been processed. The unprocessed function calls were:\n<unprocessed_function_calls>\n" + remaining_function_calls_string + "\n</unprocessed_function_calls>"
             try:
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_outputs,
                     model=CLAUDE_MODEL,
-                    stop_sequences=["</function_call>"],
+                    stop_sequences=["</function_calls>"],
                 )
             except Exception as e:
                 logger.error(f"Error in chat_anthropic: {e}")
@@ -883,15 +891,17 @@ def context_dfs(
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        reflections_to_read_files[message_to_contractor] = rollout_stored_files
+        reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
         if overall_score >= SCORE_THRESHOLD and len(rollout_stored_files) > STOP_AFTER_SCORE_THRESHOLD_IDX:
             break
     # if we reach here, we have not found a good enough solution
     # select rcm from the best rollout
     all_scores_and_rcms = list(rollouts_to_scores_and_rcms.values())
-    best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0])
-    logger.info(f"Best score: {best_score}")
+    best_score, best_rcm = max(all_scores_and_rcms, key=lambda x: x[0] * 100 + len(x[1].current_top_snippets)) # sort first on the highest score, break ties with length of current_top_snippets
+    for score, rcm in all_scores_and_rcms:
+        logger.info(f"Rollout score: {score}, Rollout files: {[snippet.file_path for snippet in rcm.current_top_snippets]}")
+    logger.info(f"Best score: {best_score}, Best files: {[snippet.file_path for snippet in best_rcm.current_top_snippets]}")
     return best_rcm
 
 if __name__ == "__main__":

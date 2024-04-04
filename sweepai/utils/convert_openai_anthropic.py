@@ -42,6 +42,16 @@ class MockFunctionCall:
     function_name: str
     function_parameters: dict[str, str]
 
+    def to_string(self) -> str:
+        function_call_string = "<invoke>\n"
+        function_call_string += f"<tool_name>{self.function_name}</tool_name>\n"
+        function_call_string += "<parameters>\n"
+        for param_name, param_value in self.function_parameters.items():
+            function_call_string += f"<{param_name}>\n{param_value}\n</{param_name}>\n"
+        function_call_string += "</parameters>\n"
+        function_call_string += "</invoke>"
+        return function_call_string
+
     @staticmethod
     def mock_function_calls_from_string(function_calls_string: str) -> list[MockFunctionCall]:
         function_calls = []
@@ -74,6 +84,13 @@ class MockFunctionCall:
                 function_calls.append(MockFunctionCall(function_name, function_parameters))
 
         return function_calls
+
+def mock_function_calls_to_string(function_calls: list[MockFunctionCall]) -> str:
+    function_calls_string = "<function_calls>\n"
+    for function_call in function_calls:
+        function_calls_string += function_call.to_string() + "\n"
+    function_calls_string += "</function_calls>"
+    return function_calls_string
 
 if __name__ == "__main__":    
     test_str = """<function_calls>
@@ -109,3 +126,5 @@ To solve the user request, the following plan should be followed:
     function_calls = MockFunctionCall.mock_function_calls_from_string(test_str)
     for function_call in function_calls:
         print(function_call)
+        print(function_call.to_string())
+    print(mock_function_calls_to_string(function_calls))

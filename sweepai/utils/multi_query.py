@@ -17,10 +17,11 @@ Summarize the key points of the issue concisely, but also list out any unfamilia
 Describe thoroughly in extreme detail what the ideal code fix would look like:
 - Dive deep into the low-level implementation details of how you would change each file. Explain the logic, algorithms, data structures, etc. 
 - Explicitly call out any helper functions, utility modules, libraries or APIs you would leverage.
-- Carefully consider ALL parts of the codebase that could be relevant, including:
+- Carefully consider ALL parts of the codebase that could be relevant, including (in decreasing relevance):
+  - Database schemas, models
   - Type definitions, interfaces, enums, constants
-  - Shared utility code for common operations
-  - Database schemas, models, mutators and query logic 
+  - Shared utility code for common operations like date formatting, string manipulation, etc.
+  - Database mutators and query logic 
   - User-facing messages, error messages, localization, i18n
   - Exception handling, error recovery, retries, fallbacks
   - API routes, request/response handling, serialization

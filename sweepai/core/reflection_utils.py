@@ -20,12 +20,17 @@ Go through the contractor's process step-by-step. For anything they did even sli
 </judgement_on_task>
 
 <overall_score>
-Provide a clear, specific rubric for the 1-10 scale, erring on the low side:
-1-2: Completely failed to identify relevant files, trace dependencies, or understand the issue 
-3-4: Identified some but definitely not all required files. Significant gaps in dependency tracing and usage finding.
-5-6: Found many relevant files but missed some critical dependencies or included multiple unnecessary ones
-7-8: Found most relevant files and usages but still had a few gaps in dependency coverage or codebase understanding
-9-10: Exhaustively and perfectly used code/function/class searches to identify all necessary files and code usages with flawless justification
+Evaluate the contractor from 1-10, erring on the low side:
+1 - Completely failed to identify relevant files, trace dependencies, or understand the issue
+2 - Identified a couple files from the issue description but missed many critical dependencies 
+3 - Found some relevant files but had major gaps in dependency tracing and codebase understanding
+4 - Identified several key files but still missed important usages and lacked justification
+5 - Found many relevant files but missed a few critical dependencies or included unnecessary ones
+6 - Identified most key files and dependencies but still had some gaps in usage tracing
+7 - Found nearly all relevant files but missed a couple edge case usages or minor dependencies
+8 - Exhaustively traced nearly all dependencies with robust justification, only minor omissions
+9 - Perfectly identified every single relevant file and usage with airtight justification 
+10 - Flawless, absolutely exhaustive dependency tracing and codebase understanding
 </overall_score>
 
 <message_to_contractor>
