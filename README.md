@@ -92,12 +92,10 @@ You can get enterprise support by [contacting us](https://form.typeform.com/to/w
 
 > [!WARNING]
 > ### Limitations of Sweep
-> * **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
-    * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
-> * **Large-scale refactors**: >3 files or >150 lines of code changes
+> * **Large-scale refactors**: > 10 files or > 400 lines of code changes
     * e.g. Refactor the entire codebase from TensorFlow to PyTorch
-    * Sweep works best when pointed to a file, and we're continously improving Sweep's automation!
-> * **Editing images** and other non-text assets
+    * If this is a use case you're looking forward to, let us know!
+> * **Reading or editing images** and other non-text assets
     * e.g. Use the logo to create favicons for our landing page
 ---
 
