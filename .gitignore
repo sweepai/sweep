@@ -207,6 +207,7 @@ eval/archive/**
 eval/**/*.txt
 eval/**/*.csv
 eval/**/*.jsonl
+eval/**/*.ans
 
 .worktrees
 

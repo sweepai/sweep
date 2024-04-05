@@ -14,6 +14,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import EvaluatorAgent
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall, mock_function_calls_to_string
 from sweepai.utils.github_utils import ClonedRepo
@@ -461,6 +462,7 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
         logger.error(e)
         return []
 
+@file_cache(ignore_params=["repo_context_manager", "override_import_graph"])
 def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager, override_import_graph: nx.DiGraph = None):
     num_graph_retrievals = 25
     repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)
@@ -589,7 +591,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -618,9 +620,8 @@ def get_relevant_context(
         )
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt)]
-        old_top_snippets = [
-            snippet for snippet in repo_context_manager.current_top_snippets
-        ]
+        old_relevant_snippets = deepcopy(repo_context_manager.current_top_snippets)
+        old_read_only_snippets = deepcopy(repo_context_manager.read_only_snippets)
         try:
             repo_context_manager = context_dfs(
                 user_prompt,
@@ -629,9 +630,23 @@ def get_relevant_context(
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
-        if len(repo_context_manager.current_top_snippets) == 0:
-            raise Exception("No snippets found")
-            repo_context_manager.current_top_snippets = old_top_snippets[:20]
+        # repo_context_manager.current_top_snippets += old_relevant_snippets[:25 - len(repo_context_manager.current_top_snippets)]
+        # Add stuffing until context limit
+        max_chars = 140000 * 3.5 # 120k tokens
+        counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
+            [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
+        )
+        for snippet, read_only_snippet in zip(old_relevant_snippets, old_read_only_snippets):
+            if not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
+                counter += len(snippet.get_snippet(False, False))
+                if counter > max_chars:
+                    break
+                repo_context_manager.current_top_snippets.append(snippet)
+            if not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
+                counter += len(read_only_snippet.get_snippet(False, False))
+                if counter > max_chars:
+                    break
+                repo_context_manager.read_only_snippets.append(read_only_snippet)
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
