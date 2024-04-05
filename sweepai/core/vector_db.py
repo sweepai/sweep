@@ -103,7 +103,6 @@ def batch_by_token_count_for_voyage(
 # lru_cache(maxsize=20)
 # @redis_cache()
 def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
-    VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
     embeddings = []
     texts = [text if text else " " for text in texts]
     # if VOYAGE_API_KEY:
