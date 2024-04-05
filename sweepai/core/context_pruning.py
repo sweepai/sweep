@@ -1,10 +1,9 @@
-from math import inf, log
+from math import log
 import os
 import subprocess
 import urllib
 from dataclasses import dataclass, field, replace
 
-from matplotlib.collections import RegularPolyCollection
 import networkx as nx
 import openai
 from loguru import logger

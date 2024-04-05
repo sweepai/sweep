@@ -6,7 +6,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context, integrate_graph_retrieval, load_graph_from_file, parse_query_for_files
+from sweepai.core.context_pruning import RepoContextManager, get_relevant_context, integrate_graph_retrieval
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
