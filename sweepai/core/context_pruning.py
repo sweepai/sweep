@@ -506,6 +506,7 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
         logger.error(e)
         return []
 
+@file_cache(ignore_params=["repo_context_manager", "override_import_graph"])
 def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager, override_import_graph: nx.DiGraph = None):
     num_graph_retrievals = 25
     repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)

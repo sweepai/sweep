@@ -248,9 +248,21 @@ Please use the following XML format for your response:
 <issue_analysis>
 * Identify the root cause of the issue by referencing specific code entities in the relevant files.
 * Outline a plan that completely resolves the user's request, referencing provided code snippets, entity names, and necessary files/directories.
+
+List ALL files we should modify to resolve the issue:
+- File path 1 - Outline of instructions for modifying the file
+- File path 2 - Outline of instructions for modifying the file
+[additional files as needed]
+
+List ALL relevant utility modules from the provided set and specify where they can be used, including:
+- Type definitions, interfaces, and schemas
+- Helper functions
+- Frontend components
+- Database services
+- API endpoints
+[additional relevant modules as needed]
+
 * For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-* List ALL relevant utility modules (helper functions, frontend components, database services, API endpoints, etc.) from the provided set and specify where they can be used.
-* Include relevant type definitions, interfaces, and schemas to clarify the entities and their relationships.
 * Topologically sort the plan so that changes in low-level modules, such as DB query logic, are made before changes in high-level modules, such as API endpoints.
 [additional analysis as needed]
 </issue_analysis>
