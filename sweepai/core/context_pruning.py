@@ -505,9 +505,11 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
         logger.error(e)
         return []
 
-def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager):
+def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager, override_import_graph: nx.DiGraph = None):
     num_graph_retrievals = 25
     repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)
+    if override_import_graph:
+        import_graph = override_import_graph
     if import_graph:
         # Graph retrieval can fail and return [] if the graph is not found or pagerank does not converge
         # Happens especially when graph has multiple components
