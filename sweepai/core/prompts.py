@@ -247,7 +247,7 @@ You MUST follow the following format with XML tags:
 <contextual_request_analysis>
 * First, identify the root cause of the issue by referencing specific entities in the relevant files.
 * Outline the plan that completely solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
-* Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible.
+* Describe each <create> and <modify> section in the following plan and why it will be needed. Then list out all relevant modules from the relevant_modules and where they can be used, such as utility functions, frontend components, database services and API endpoints.
 ...
 </contextual_request_analysis>
 
@@ -268,6 +268,68 @@ You MUST follow the following format with XML tags:
 </modify>
 ...
 
+</plan>"""
+
+files_to_change_prompt = """# Task: 
+Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+
+Guidelines:
+* Always include the full file path (e.g. src/main.py) and reference the provided snippets.
+* Provide clear, natural language instructions for updating the code logic and specify necessary imports.
+* Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
+* Include relevant type definitions, interfaces, and schemas to provide a clear understanding of the entities and their relationships.
+* Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
+* When modifying code, provide detailed instructions and the actual code changes required. Write all code changes in the diff format. Do not leave comments or placeholders for the user to fill in.
+
+Please use the following XML format for your response:
+
+# Issue Analysis:
+<issue_analysis>
+* Identify the root cause of the issue by referencing specific code entities in the relevant files.
+* Outline a plan that completely resolves the user's request, referencing provided code snippets, entity names, and necessary files/directories.
+* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
+* List ALL relevant utility modules (helper functions, frontend components, database services, API endpoints, etc.) from the provided set and specify where they can be used.
+* Include relevant type definitions, interfaces, and schemas to clarify the entities and their relationships.
+* Topologically sort the plan so that changes in low-level modules, such as DB query logic, are made before changes in high-level modules, such as API endpoints.
+[additional analysis as needed]
+</issue_analysis>
+
+# Plan:
+<plan>
+<create file="file_path_1" relevant_files="space-separated list of files containing ALL modules to use when creating file_path_1">
+* Natural language instructions for creating the new file to solve the issue.
+* Reference necessary imports and entity names.
+* Include relevant type definitions, interfaces, and schemas.
+* Provide the actual code to be added, with detailed explanations.
+</create>
+
+[additional creates as needed]
+
+<modify file="file_path_2" relevant_files="space-separated list of files containing ALL modules to use while modifying file_path_2">
+* Detailed natural language instructions for modifying the file to solve the issue.
+* Reference the locations of the changes using surrounding code or function headers, not line numbers.
+* Include relevant type definitions, interfaces, and schemas.
+* Provide the actual code changes required in the diff format, with detailed explanations.
+* Each file should be modified at most once.
+</modify>
+
+[additional modifies as needed]
+</plan>
+
+Here's an example of an excellent plan:
+
+<plan>
+<modify file="user_service.py">
+* Go to the `getUserById` method from the class `UserService` that fetches a user by user ID in the user services.
+* Add a flag called `include_deleted` that defaults to True.
+* If the flag is set, check if the `user.deleted` property is also set. If so, we should return None here.
+</modify>
+
+<modify file="app.py" relevant_files="user_service.py">
+* Locate the `get_user` method in the Flask app.
+* Locate the call to `getUserById`.
+* Set the newly created flag `include_deleted` property is set to True.
+</modify>
 </plan>"""
 
 extract_files_to_change_prompt = """\
