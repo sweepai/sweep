@@ -132,3 +132,15 @@ def to_branch_name(s, max_length=40):
 
 def get_hash():
     return hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+
+# used for getting all indices of a substring match
+def get_all_indices_of_substring(content: str, substring: str):
+    start = 0
+    indices = []
+    while True:
+        index = content.find(substring, start)
+        if index == -1:  # No more occurrences found
+            break
+        indices.append(index)
+        start = index + 1  # Move past the last found occurrence
+    return indices
