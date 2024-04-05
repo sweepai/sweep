@@ -7,7 +7,7 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     output_lines = output.split("\n")
     # empty lines are present at end of output
     output_lines = [line for line in output_lines if line]
-    file_output_dict = defaultdict()
+    file_output_dict = {}
     for line in output_lines:
         filename, content = line.split(":", 1)
         filename = filename[len(root_directory) + 1:]
@@ -18,8 +18,10 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     
     # determine if we need to truncate the output
     total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
+    file_name_and_contents = [(filename, content) for filename, content in file_output_dict.items()]
+    file_name_and_contents.sort(key=lambda x: x[0])
     if total_output_length > sweep_config.truncation_cutoff:
-        for filename, content in file_output_dict.items():
+        for filename, content in file_name_and_contents:
             processed_output += f"File: {filename} contained the following matching lines of code"
             content = content.split("\n")
             if len(content) < 4:
@@ -39,7 +41,7 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
                 processed_output += f"{line2}\n"
             processed_output += "\n"
     else:
-        for filename, content in file_output_dict.items():
+        for filename, content in file_name_and_contents:
             processed_output += f"File: {filename} contained the following matching lines of code:\n" + content + "\n"
     return processed_output, file_output_dict
 
