@@ -12,7 +12,8 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
         filename, content = line.split(":", 1)
         filename = filename[len(root_directory) + 1:]
         if not sweep_config.is_file_excluded_aggressive(root_directory, filename):
-            if filename not in file_output_dict: file_output_dict[filename] = ""
+            if filename not in file_output_dict:
+                file_output_dict[filename] = ""
             file_output_dict[filename] += (content + "\n")
     
     # determine if we need to truncate the output

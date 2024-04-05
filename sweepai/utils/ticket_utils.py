@@ -6,7 +6,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
+from sweepai.core.context_pruning import RepoContextManager, get_relevant_context, integrate_graph_retrieval
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
@@ -235,6 +235,9 @@ def fetch_relevant_files(
             "\n"
         )
         repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
+
+        repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
+
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.save()
         repo_context_manager = get_relevant_context(
@@ -242,6 +245,7 @@ def fetch_relevant_files(
             repo_context_manager,
             ticket_progress,
             chat_logger=chat_logger,
+            import_graph=import_graph,
         )
         snippets = repo_context_manager.current_top_snippets
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)

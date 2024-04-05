@@ -482,14 +482,365 @@ As a reminder, the user query is:
 
 Provide the explanations and ranking below:"""
 
+graph_example_prompt = """<example>
+<user_query>
+The checkout process is broken. After entering payment info, the order doesn't get created and the user sees an error page.
+</user_query>
+<code_snippets>
+<snippet>
+<snippet_path>checkout_utils.js:5-30</snippet>
+<snippet_contents>
+function processCheckout(cartId, paymentInfo) {
+  return Cart.findById(cartId).populate('items.product')
+    .then(cart => {
+      if (!cart) {
+        throw new Error('Cart not found');
+      }
+      const order = new Order({
+        user: req.user._id,
+        items: cart.items,
+        total: cart.totalPrice,
+        paymentInfo,
+      });
+      return order.save();
+    })
+    .then(order => {
+      return Cart.findByIdAndDelete(cartId)
+        .then(() => order);
+    })
+    .then(order => {
+      return { message: 'Order placed successfully', orderId: order._id };
+    })
+    .catch(err => {
+      console.error(err);
+      throw err;
+    });
+}
+module.exports = {
+  processCheckout
+};
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>payment_service.js:3-20</snippet>
+<snippet_contents>
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+function createPaymentCharge(amount, token) {
+  return stripe.charges.create({
+    amount,
+    currency: 'usd',
+    source: token,
+    description: 'Example charge'
+  })
+  .then(charge => {
+    return { message: 'Payment successful', charge };
+  })
+  .catch(err => {
+    console.error(err);
+    throw new Error('Payment failed');
+  });
+}
+module.exports = {
+  createPaymentCharge
+};
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>order_model.js:1-15</snippet>
+<snippet_contents>
+const mongoose = require('mongoose');
+const orderSchema = new mongoose.Schema({
+  user: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  items: [{
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product'
+    },
+    quantity: Number,
+    price: Number
+  }],
+  total: {
+    type: Number,
+    required: true
+  },
+  paymentInfo: {
+    type: Object,
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'processing', 'shipped', 'delivered'],
+    default: 'pending'
+  }
+}, { timestamps: true });
+module.exports = mongoose.model('Order', orderSchema);
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>cart_model.js:1-20</snippet>
+<snippet_contents>
+const mongoose = require('mongoose');
+const cartSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  items: [{
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product'
+    },
+    quantity: Number,
+    price: Number  
+  }]
+}, { timestamps: true });
+cartSchema.virtual('totalPrice').get(function() {
+  return this.items.reduce((total, item) => total + item.price * item.quantity, 0);
+});
+module.exports = mongoose.model('Cart', cartSchema);
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>db_connect.js:1-15</snippet>
+<snippet_contents>
+const mongoose = require('mongoose');
+function connectToDatabase(uri) {
+  return mongoose.connect(uri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
+}
+module.exports = connectToDatabase;
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>auth_middleware.js:5-20</snippet>
+<snippet_contents>
+function requireLogin(req, res, next) {
+  if (req.session && req.session.user) {
+    next();
+  } else {
+    res.status(401).json({ message: 'Authentication required' });
+  }
+}
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.user && req.session.user.isAdmin) {
+    next();
+  } else {
+    res.status(403).json({ message: 'Admin access required' });
+  }
+}
+module.exports = {
+  requireLogin,
+  requireAdmin
+};
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>cart_utils.js:5-20</snippet>
+<snippet_contents>
+function addItemToCart(userId, productId, quantity) {
+  return Cart.findOne({ user: userId })
+    .then(cart => {
+      if (cart) {
+        const itemIndex = cart.items.findIndex(item => item.product == productId);
+        if (itemIndex > -1) {
+          cart.items[itemIndex].quantity += quantity;
+        } else {
+          cart.items.push({ product: productId, quantity });
+        }
+        return cart.save();
+      } else {
+        return Cart.create({
+          user: userId,
+          items: [{ product: productId, quantity }]
+        });
+      }
+    });
+}
+module.exports = {
+  addItemToCart
+};
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>order_utils.js:5-25</snippet>
+<snippet_contents>
+function getOrdersByUser(userId) {
+  return Order.find({ user: userId }).sort('-createdAt');
+}
+function getOrderById(orderId, userId) {
+  return Order.findOne({ _id: orderId, user: userId });
+}
+function updateOrderStatus(orderId, status) {
+  return Order.findByIdAndUpdate(orderId, { status }, { new: true });
+}
+module.exports = {
+  getOrdersByUser,
+  getOrderById,
+  updateOrderStatus
+};
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>user_model.js:1-10</snippet>
+<snippet_contents>
+const mongoose = require('mongoose');
+const userSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  name: String,
+  address: String,
+  phone: String,
+  isAdmin: {
+    type: Boolean,
+    default: false  
+  }
+}, { timestamps: true });
+module.exports = mongoose.model('User', userSchema);
+</snippet_contents>
+</snippet>
+<snippet>
+<snippet_path>product_model.js:1-12</snippet>
+<snippet_contents>
+const mongoose = require('mongoose');
+const productSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  description: String,
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  category: {
+    type: String,
+    enum: ['electronics', 'clothing', 'home'],
+    required: true  
+  },
+  stock: {
+    type: Number,
+    default: 0,
+    min: 0
+  }
+});
+module.exports = mongoose.model('Product', productSchema);
+</snippet_contents>
+</snippet>
+</code_snippets>
+<explanations>
+checkout_utils.js:5-30
+This module contains the processCheckout function which handles the main checkout logic. It takes a cart ID and payment info, finds the associated cart, creates a new order from the cart data, saves the order, deletes the cart, and returns the order ID. This is the core checkout code and the most likely place for a bug causing the described issue.
+payment_service.js:3-20
+This module handles processing payments via the Stripe API. The createPaymentCharge function takes an amount and token, makes a request to Stripe to create a charge, and returns a success or error message. If payments are failing, this code would need to be checked and possibly debugged.  
+order_model.js:1-15
+This file defines the Mongoose schema and model for orders. It includes the order's user, items, total, payment info, and status. The model definition itself is unlikely to cause bugs, but it's important to understand the order data structure when debugging checkout and payment issues.
+cart_model.js:1-20
+This file defines the Mongoose schema and model for shopping carts. A cart contains the user, product items, quantities, and prices. It also defines a virtual property to calculate the cart's total price. The cart model is a key part of the checkout process, so it's useful to review when investigating checkout bugs.
+db_connect.js:1-15
+This module exports a function to connect to the MongoDB database using Mongoose. It's an essential part of the app's infrastructure, but unlikely to be related to a checkout bug unless there are issues connecting to the database.
+auth_middleware.js:5-20
+This module contains Express middleware functions to require authentication and admin access for certain routes. It checks for the existence of a user object in the session. While authentication and authorization are important for the app overall, this middleware is not directly involved in the checkout process.
+cart_utils.js:5-20
+This module exports a function to add an item to a user's cart. It finds the cart by user ID, updates the quantity if the item already exists or adds a new item. The addItemToCart function is used before starting the checkout, so while it's somewhat related, it's not a likely cause of the described checkout issue.
+order_utils.js:5-25
+This module provides utility functions for fetching a user's orders, getting an order by ID, and updating an order's status. These are used for displaying order history and managing orders, which happen after checkout is already completed. So while they interact with orders, they are not likely to be the source of an error during the checkout process.
+user_model.js:1-10
+This defines the Mongoose schema and model for user accounts. It includes fields for email, password, name, address, phone number, and admin status. The user model is used for authentication and referenced by carts and orders. But the checkout process doesn't directly interact with or modify user documents.
+product_model.js:1-12
+This defines the Mongoose schema and model for products, including name, description, price, category, and stock quantity. The product model is referenced by cart and order items, but the product data is not directly used or modified during the checkout flow. It's unlikely to be related to the checkout error.
+</explanations>
+<ranking>
+checkout_utils.js:5-30
+payment_service.js:3-20
+order_model.js:1-15
+cart_model.js:1-20
+db_connect.js:1-15
+order_utils.js:5-25
+cart_utils.js:5-20
+auth_middleware.js:5-20
+user_model.js:1-10
+product_model.js:1-12
+</ranking>
+</example>"""
+
+graph_reranking_prompt = f"""You are a powerful code search engine. You must order the list of code snippets from the most relevant to the least relevant to the user's query. You must order ALL TEN snippets.
+First, for each code snippet, provide a brief explanation of what the code does and how it relates to the user's query.
+Then, rank the snippets based on probability of it being used in the final solution. The most relevant files are the ones most likely to be needed to resolve the user's issue. The next most relevant snippets are dependencies - code that is crucial to read and understand while using the other files to correctly resolve the user's issue.
+Note: For each code snippet, provide an explanationof what the code does and how it fits into the overall system, even if it's not directly relevant to the user's query. The ranking should be based on probability of being used in the solution, but all snippets should be explained.
+The response format is:
+<explanations>
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+file_path:start_line-end_line
+Explanation of what the code does, regardless of its relevance to the user's query. Provide context on how it fits into the overall system.
+</explanations>
+<ranking>
+most_likely_to_be_used_in_solution
+second_most_likely_to_be_used
+third_most_likely_to_be_used
+fourth_most_likely_to_be_used
+fifth_most_likely_to_be_used
+sixth_most_likely_to_be_used
+seventh_most_likely_to_be_used
+eighth_most_likely_to_be_used
+ninth_most_likely_to_be_used
+least_likely_to_be_used
+</ranking>
+Here is an example:
+{example_prompt}
+This example is for reference. Please provide explanations and rankings for the code snippets based on the user's query."""
+
+prompt_mapping = {
+  "default": reranking_prompt,
+  "graph": graph_reranking_prompt,
+}
 
 class RerankSnippetsBot(ChatGPT):
     def rerank_list_for_query(
         self,
         user_query,
         code_snippets,
+        prompt_type="default",
     ):
-        self.messages = [Message(role="system", content=reranking_prompt)]
+        self.messages = [Message(role="system", content=prompt_mapping[prompt_type])]
         # if the regex match fails return the original list
         # gpt doesn't add all snippets, we move all of the dropped snippets to the end in the original order
         # if we add duplicate snippets, we remove the duplicates
@@ -548,6 +899,7 @@ f'''
 def listwise_rerank_snippets(
     user_query,
     code_snippets,
+    prompt_type="default",
 ):
     # iterate from the bottom of the list to the top, sorting each n items then resorting with next n // 2 items
     number_to_rerank_at_once = 10
@@ -557,12 +909,12 @@ def listwise_rerank_snippets(
     for idx in range(len(code_snippets) - stride, 0, -stride):
         # if there is no prev_chunk, rerank the bottom n items
         if not prev_chunk:
-            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, code_snippets[idx - stride:idx + stride])
+            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, code_snippets[idx - stride:idx + stride], prompt_type=prompt_type)
         # if there's a prev_chunk, rerank this chunk with the prev_chunk
         else:
             # chunk_to_rerank should be 5 new items and the top 5 items of the prev_chunk
             chunk_to_rerank = code_snippets[idx - stride:idx] + prev_chunk[:stride]
-            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, chunk_to_rerank)
+            reranked_chunk = RerankSnippetsBot().rerank_list_for_query(user_query, chunk_to_rerank, prompt_type=prompt_type)
         # last iteration, add all items
         if idx - stride <= 0:
             final_ordering = reranked_chunk + final_ordering
