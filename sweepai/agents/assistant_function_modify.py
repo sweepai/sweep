@@ -1,5 +1,3 @@
-from copy import deepcopy
-import copy
 import os
 import json
 import subprocess
@@ -336,13 +334,10 @@ def build_keyword_search_match_results(
     
     context_lines_index = sorted(list(set(context_lines_index)))
     success_message = ""
-    print(context_lines_index)
     for i in range(len(context_lines_index)):
         line_index = context_lines_index[i]
-        
         # see if we should print ...
         if i == 0: # first context line
-            print("line index is", line_index)
             if line_index != 0:
                 success_message += "\n..."
         if line_index in match_line_indices: # print match
@@ -357,7 +352,6 @@ def build_keyword_search_match_results(
                 success_message += "\n..."
         else:
             next_line_index = context_lines_index[i + 1]
-            print(line_index, next_line_index)
             if next_line_index - 1 != line_index:
                 success_message += "\n..."
 
