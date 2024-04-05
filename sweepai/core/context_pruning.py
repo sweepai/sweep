@@ -1,3 +1,4 @@
+from copy import deepcopy
 from math import log
 import os
 import subprocess
