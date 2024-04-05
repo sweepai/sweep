@@ -169,15 +169,19 @@ def run_search_test(
     end = time()
     cprint(f"Total elapsed time: {end - start} seconds")
 
-    mrr, accuracy, positions = evaluate_search(
-        rcm,
-        resolution_files,
-        problem_statement,
-        k,
-        name,
-    )
-
-    return rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions
+    try:
+        mrr, accuracy, positions = evaluate_search(
+            rcm,
+            resolution_files,
+            problem_statement,
+            k,
+            name,
+        )
+    except Exception as e:
+        print(f"Exception occured while evaluating search: {e}")
+        return rcm, search_mrr, search_accuracy, search_positions, 0, 0, []
+    else:
+        return rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions
 
 @file_cache()
 def chat(

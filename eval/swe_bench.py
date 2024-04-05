@@ -1,6 +1,7 @@
 import json
 import os
 from math import inf
+import shutil
 from typing import Optional
 
 import git
@@ -10,6 +11,7 @@ from git import Repo
 from loguru import logger
 from rich import print
 from rich.console import Console
+from benchmark.utils.swe_bench_utils import RedirectedStdio
 from swe_bench_utils import get_files_to_change, run_modify_bot, run_search_test
 from tqdm import tqdm
 
@@ -53,7 +55,7 @@ def load_swebench_test_data(repo_name: Optional[str] = None) -> pd.DataFrame:
 
 
 # borrowed from ai-maintainer-inc / SWE-Bench-Runner
-def checkout_or_clone_repo(repo_identifier: str, commit_hash: str) -> str:
+def checkout_or_clone_repo(instance_name: str, repo_identifier: str, commit_hash: str) -> str:
     """
     Checks out the state of the repository prior to the specified commit.
     If the repo does not exist locally, it clones it first.
@@ -71,7 +73,7 @@ def checkout_or_clone_repo(repo_identifier: str, commit_hash: str) -> str:
         raise ValueError("GITHUB_TOKEN environment variable must be set.")
     # make the cloned dir if it doesn't exist
     os.makedirs(CLONE_DIR, exist_ok=True)
-    repo_path = os.path.join(CLONE_DIR, repo_name)
+    repo_path = os.path.join(CLONE_DIR, instance_name, repo_name)
 
     if os.path.exists(repo_path):
         repo = Repo(repo_path)
@@ -92,7 +94,7 @@ seed = 42
 proportion = 0.01
 k = int(os.environ.get("k", 15))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-03-31-k-{k}"
+name = f"sweep-04-03"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
@@ -107,146 +109,163 @@ open(search_positions_file, "w").write("instance_id,positions\n")
 open(context_results_file, "w").write("instance_id,mrr,acc\n")
 open(context_positions_file, "w").write("instance_id,positions\n")
 
-already_done_results = [json.loads(line) for line in open(output_file, "r").readlines()] if os.path.exists(output_file) else []
+already_done_results = [json.loads(line) for line in open(output_file, "r").readlines() if line.strip()] if os.path.exists(output_file) else []
 # already_done_results = []
 previously_finished_tasks = set(
     [result["instance_id"] for result in already_done_results]
 )
 
-for i, row in tqdm(test_data.iterrows(), total=len(test_data)):
+
+def run_row(row):
     # if row.instance_id != "django__django-12747":
     #     continue
-    if i == 66 or i == 2 or row.instance_id.startswith("pytest"):
-        continue # this task is blocked by Anthropic's content filtering policy for some reason
+    # if i == 66 or i == 2 or row.instance_id.startswith("pytest"):
+    #     continue # this task is blocked by Anthropic's content filtering policy for some reason
     instance_id = row.instance_id
-    repo_identifier = row["repo"]
-    commit_hash = row["base_commit"]
-    problem_statement = row["problem_statement"]
-    hints_text = row["hints_text"]
-    solution_patch = row["patch"]
-    print(
-        repo_identifier,
-        commit_hash,
-        problem_statement.split("\n")[0],
-        hints_text.split("\n")[0],
-    )
-    if instance_id in previously_finished_tasks:
-        continue
-    try:
-        repo_path = checkout_or_clone_repo(repo_identifier, commit_hash)
-        cloned_repo = MockClonedRepo.from_dir(
-            repo_dir=repo_path,
-            repo_full_name=repo_identifier,
-            branch="main",
-            git_repo=git.Repo(repo_path),
-        )
-        cloned_repo.git_repo.git.checkout("-f", commit_hash, force=True)
-        resolution_files = []
-        for line in solution_patch.splitlines():
-            if line.startswith("---"):
-                resolution_files.append(line.removeprefix("--- a/"))
-        rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions = run_search_test(
-            cloned_repo,
-            problem_statement,
+    with RedirectedStdio(f"eval/logs/{instance_id}.ans"): # ans has a VSCode extension supporting colors
+    # if True:
+        repo_identifier = row["repo"]
+        commit_hash = row["base_commit"]
+        problem_statement = row["problem_statement"]
+        hints_text = row["hints_text"]
+        solution_patch = row["patch"]
+        print(
+            repo_identifier,
             commit_hash,
-            k=k,
-            resolution_files=resolution_files,
-            name=instance_id,
+            problem_statement.split("\n")[0],
+            hints_text.split("\n")[0],
         )
-        with open(search_results_file, "a") as f:
-            f.write(f"{instance_id},{search_mrr},{search_accuracy}\n")
-        with open(search_positions_file, "a") as f:
-            f.write(f"{instance_id},{search_positions}\n")
-        with open(context_results_file, "a") as f:
-            f.write(f"{instance_id},{mrr},{accuracy}\n")
-        with open(context_positions_file, "a") as f:
-            f.write(f"{instance_id},{positions}\n")
-        fcrs, plan = get_files_to_change(
-            rcm.current_top_snippets, problem_statement, repo_identifier
-        )
-        # continue
-        # modify files
-        additional_messages = [
-            Message(
-                role="user",
-                content=f"""# Repo & Issue Metadata
-Repo: {repo_identifier}
-{problem_statement}""",
-            ),
-        ]
-        combined_diff = ""
-        updated_files = {}
-        updated_files_message = []
-        for fcr in fcrs:
-            file_path = fcr.filename
-            instructions = fcr.instructions
-            try:
-                file_contents = cloned_repo.git_repo.git.show(
-                    f"{commit_hash}:{file_path}"
-                )
-                myfilepaths = [file for file in fcr.relevant_files]
-                mymessages = [
-                    f"<relevant_file file_path='{file}'>\n{open(repo_path + '/' + file).read()}\n</relevant_file>"
-                    for file in fcr.relevant_files
-                ]
-                logger.info(f"{myfilepaths}")
-                logger.info(f"{[len(m) for m in mymessages]}")
-                new_files = run_modify_bot(
-                    code=file_contents,
-                    instructions=instructions,
-                    file_path=file_path,
-                    start_line=0,
-                    end_line=inf,
-                    additional_messages=[
-                        *additional_messages,
-                        *[
-                            Message(
-                                role="user",
-                                content=f"<relevant_file file_path='{file_path}'>\n{open(repo_path + '/' + file_path).read()}\n</relevant_file>",
-                                key="instructions",
-                            )
-                            for file_path in fcr.relevant_files
-                        ],
-                        *updated_files_message
-                    ],
-                    relevant_filepaths=[
-                        f"{repo_path}/{file}" for file in fcr.relevant_files
-                    ],  # could be wrong
-                    cloned_repo=cloned_repo,
-                )
-                updated_files.update(new_files)
-            except Exception as e:
-                logger.error(f"Error modifying file {file_path} {e}")
-                continue
-        cloned_repo.git_repo.git.checkout(commit_hash, force=True)
-        if updated_files:
-            old_files = {}
-            for file_path, updated_file in updated_files.items():
-                full_file_path = os.path.join(repo_path, file_path)
-                with open(full_file_path, "r") as f:
-                    old_files[file_path] = f.read()
-                with open(full_file_path, "w") as f:
-                    f.write(updated_file["contents"])
-            combined_diff = cloned_repo.git_repo.git.diff()
-            for file_path, old_file in old_files.items():
-                full_file_path = os.path.join(repo_path, file_path)
-                with open(full_file_path, "w") as f:
-                    f.write(old_file)
-            print(
-                f"Checked out {commit_hash} for repo {repo_identifier} at {repo_path}"
+        if instance_id in previously_finished_tasks:
+            return True
+        try:
+            repo_path = checkout_or_clone_repo(instance_id, repo_identifier, commit_hash)
+            cloned_repo = MockClonedRepo.from_dir(
+                repo_dir=repo_path,
+                repo_full_name=repo_identifier,
+                branch="main",
+                git_repo=git.Repo(repo_path),
             )
-        result = {
-            "instance_id": instance_id,
-            "model_name_or_path": name,
-            "text": problem_statement,
-            "full_output": combined_diff,
-            "model_patch": combined_diff,
-        }
-        with open(output_file, "a") as f:
-            f.write("\n" + json.dumps(result))
-    except Exception as e:
-        logger.exception(f"Exception occured while running the test: {e}")
+            cloned_repo.git_repo.git.checkout("-f", commit_hash, force=True)
+            resolution_files = []
+            for line in solution_patch.splitlines():
+                if line.startswith("---"):
+                    resolution_files.append(line.removeprefix("--- a/"))
+            rcm, search_mrr, search_accuracy, search_positions, mrr, accuracy, positions = run_search_test(
+                cloned_repo,
+                problem_statement,
+                commit_hash,
+                k=k,
+                resolution_files=resolution_files,
+                name=instance_id,
+            )
+            with open(search_results_file, "a") as f:
+                f.write(f"{instance_id},{search_mrr},{search_accuracy}\n")
+            with open(search_positions_file, "a") as f:
+                f.write(f"{instance_id},{search_positions}\n")
+            with open(context_results_file, "a") as f:
+                f.write(f"{instance_id},{mrr},{accuracy}\n")
+            with open(context_positions_file, "a") as f:
+                f.write(f"{instance_id},{positions}\n")
+            fcrs, plan = get_files_to_change(
+                rcm.current_top_snippets, problem_statement, repo_identifier
+            )
+            # continue
+            # modify files
+            additional_messages = [
+                Message(
+                    role="user",
+                    content=f"""# Repo & Issue Metadata
+    Repo: {repo_identifier}
+    {problem_statement}""",
+                ),
+            ]
+            combined_diff = ""
+            updated_files = {}
+            updated_files_message = []
+            for fcr in fcrs:
+                file_path = fcr.filename
+                instructions = fcr.instructions
+                try:
+                    file_contents = cloned_repo.git_repo.git.show(
+                        f"{commit_hash}:{file_path}"
+                    )
+                    myfilepaths = [file for file in fcr.relevant_files]
+                    mymessages = [
+                        f"<relevant_file file_path='{file}'>\n{open(repo_path + '/' + file).read()}\n</relevant_file>"
+                        for file in fcr.relevant_files
+                    ]
+                    logger.info(f"{myfilepaths}")
+                    logger.info(f"{[len(m) for m in mymessages]}")
+                    new_files = run_modify_bot(
+                        code=file_contents,
+                        instructions=instructions,
+                        file_path=file_path,
+                        start_line=0,
+                        end_line=inf,
+                        additional_messages=[
+                            *additional_messages,
+                            *[
+                                Message(
+                                    role="user",
+                                    content=f"<relevant_file file_path='{file_path}'>\n{open(repo_path + '/' + file_path).read()}\n</relevant_file>",
+                                    key="instructions",
+                                )
+                                for file_path in fcr.relevant_files
+                            ],
+                            *updated_files_message
+                        ],
+                        relevant_filepaths=[
+                            f"{repo_path}/{file}" for file in fcr.relevant_files
+                        ],  # could be wrong
+                        cloned_repo=cloned_repo,
+                    )
+                    updated_files.update(new_files)
+                except Exception as e:
+                    logger.error(f"Error modifying file {file_path} {e}")
+                    continue
+            cloned_repo.git_repo.git.checkout(commit_hash, force=True)
+            if updated_files:
+                old_files = {}
+                for file_path, updated_file in updated_files.items():
+                    full_file_path = os.path.join(repo_path, file_path)
+                    with open(full_file_path, "r") as f:
+                        old_files[file_path] = f.read()
+                    with open(full_file_path, "w") as f:
+                        f.write(updated_file["contents"])
+                combined_diff = cloned_repo.git_repo.git.diff()
+                for file_path, old_file in old_files.items():
+                    full_file_path = os.path.join(repo_path, file_path)
+                    with open(full_file_path, "w") as f:
+                        f.write(old_file)
+                print(
+                    f"Checked out {commit_hash} for repo {repo_identifier} at {repo_path}"
+                )
+                result = {
+                    "instance_id": instance_id,
+                    "model_name_or_path": name,
+                    "text": problem_statement,
+                    "full_output": combined_diff,
+                    "model_patch": combined_diff,
+                }
+                with open(output_file, "a") as f:
+                    f.write("\n" + json.dumps(result))
+            shutil.rmtree(cloned_repo, ignore_errors=True)
+        except Exception as e:
+            logger.exception(f"Exception occured while running the test: {e}")
+        return True
 
+from benchmark.utils.concurrency_utils import pretty_map
+
+pretty_map(
+    run_row,
+    [row for _i, row in test_data.iterrows()],
+    task_names=[row.instance_id for i, row in test_data.iterrows()],
+    log_files=[f"eval/logs/{row.instance_id}.ans" for i, row in test_data.iterrows()],
+    timeout=60 * 60 * 30, # 30 minutes
+    # multiprocess=False
+)
+
+print("Everything done!")
 
 # output a jsonl file in the format # call it sweep__SWE-bench_unassisted.jsonl
 # instance_id = instance_id
