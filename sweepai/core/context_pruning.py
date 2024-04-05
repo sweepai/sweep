@@ -27,7 +27,7 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 MAX_REFLECTIONS = 2
 MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
-NUM_ROLLOUTS = 5 # dev speed
+NUM_ROLLOUTS = 3 # dev speed
 SCORE_THRESHOLD = 8 # good score
 STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
 MAX_PARALLEL_FUNCTION_CALLS = 1
@@ -185,6 +185,17 @@ Here are the code files mentioned in the user request, these code files are very
 {query}
 <user_request>"""
 
+unformatted_user_prompt_stored = """\
+## Stored Files
+Here are the files that you have already stored:
+{snippets_in_repo}
+
+{import_tree_prompt}
+## User Request
+<user_request>
+{query}
+<user_request>"""
+
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
@@ -239,12 +250,6 @@ class RepoContextManager:
         unformatted_user_prompt: str,
         query: str,
     ):
-        new_top_snippets: list[Snippet] = []
-        for snippet in self.current_top_snippets:
-            # if can_add_snippet(snippet, new_top_snippets):
-            if True:
-                new_top_snippets.append(snippet)
-        self.current_top_snippets = new_top_snippets
         top_snippets_str = [snippet.file_path for snippet in self.current_top_snippets]
         # dedupe the list inplace
         top_snippets_str = list(dict.fromkeys(top_snippets_str))
@@ -988,6 +993,11 @@ def context_dfs(
     rollout_function_call_histories = []
     for rollout_idx in range(NUM_ROLLOUTS):
         # operate on a deep copy of the repo context manager
+        if rollout_idx > 0:
+            user_prompt = repo_context_manager.format_context(
+                unformatted_user_prompt=unformatted_user_prompt_stored,
+                query=query,
+            )
         overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
             repo_context_manager=repo_context_manager,
             reflections_to_read_files=reflections_to_read_files,
