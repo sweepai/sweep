@@ -321,6 +321,8 @@ class RepoContextManager:
     # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
     # other copies when one copy goes out of context since we do file operations of CloneRepo
     def copy_repo_context_manager(self):
+        if isinstance(self.cloned_repo, MockClonedRepo):
+            return self
         new_cloned_repo = ClonedRepo(
             self.cloned_repo.repo_full_name,
             installation_id=self.cloned_repo.installation_id,
