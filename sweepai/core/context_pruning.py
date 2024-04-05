@@ -320,20 +320,6 @@ class RepoContextManager:
 
     def update_issue_report_and_plan(self, new_issue_report_and_plan: str):
         self.issue_report_and_plan = new_issue_report_and_plan
-    # creates a copy of the RepoContextManager with a seperate ClonedRepo
-    # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
-    # other copies when one copy goes out of context since we do file operations of CloneRepo
-    def copy_repo_context_manager(self):
-        if isinstance(self.cloned_repo, MockClonedRepo):
-            return self
-        new_cloned_repo = ClonedRepo(
-            self.cloned_repo.repo_full_name,
-            installation_id=self.cloned_repo.installation_id,
-            token=self.cloned_repo.token,
-            repo=self.cloned_repo.repo,
-            branch=self.cloned_repo.branch,
-        )
-        return replace(self, cloned_repo=new_cloned_repo)
 
 
 """
@@ -919,10 +905,9 @@ def get_stored_files(repo_context_manager: RepoContextManager) -> str:
     return stored_files_string
 
 def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
-    copied_repo_context_manager = repo_context_manager.copy_repo_context_manager()
-    message_results, function_call_history = perform_rollout(copied_repo_context_manager, reflections_to_read_files, user_prompt)
+    message_results, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
     rollout_function_call_histories.append(function_call_history)
-    rollout_stored_files = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
+    rollout_stored_files = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
     truncated_message_results = message_results[1:] # skip system prompt
     joined_messages = "\n\n".join([message.content for message in truncated_message_results])
     overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
@@ -930,7 +915,7 @@ def search_for_context_with_reflection(repo_context_manager: RepoContextManager,
         run_text=joined_messages,
         stored_files=rollout_stored_files,
     )
-    return overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files
+    return overall_score, message_to_contractor, repo_context_manager, rollout_stored_files
 
 def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]], user_prompt: str) -> list[Message]:
     function_call_history = []
