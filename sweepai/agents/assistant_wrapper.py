@@ -374,6 +374,12 @@ def run_until_complete(
                 "status": "no tool call",
                 "message": "No tool call made",
             }
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"{done_response.rstrip()}",
+                }
+            )  # extend conversation with function response
             normal_messages_remaining -= 1
             if normal_messages_remaining < 0:
                 return

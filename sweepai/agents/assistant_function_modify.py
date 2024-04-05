@@ -261,16 +261,28 @@ Summarize the code changes made and how they fulfill the user's original request
 NO_TOOL_CALL_PROMPT = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
 
-<function_call>
+<function_calls>
 <invoke>
 <tool_name>tool_name</tool_name>
 <parameters>
 <param_name>param_value</param_name>
 </parameters>
 </invoke>
-</function_call>
+</function_calls>
 
-If you are ready done, call the submit function.
+Here is an example:
+
+<function_calls>
+<invoke>
+<tool_name>analyze_problem_and_propose_plan</tool_name>
+<parameters>
+<problem_analysis>The problem analysis goes here</problem_analysis>
+<proposed_plan>The proposed plan goes here</proposed_plan>
+</parameters>
+</invoke>
+</function_calls>
+
+If you are really done, call the submit function.
 """
 
 unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
@@ -327,7 +339,7 @@ def build_keyword_search_match_results(
     
     # gather context lines around each match
     context_lines_index = []
-    extra_lines = 25 # configurable value about how many lines to include around each match
+    extra_lines = 40 # configurable value about how many lines to include around each match
     for index in match_line_indices:
         for i in range(max(0, index - extra_lines), min(index + extra_lines + 1, len(file_lines))):
             context_lines_index.append(i)
@@ -428,7 +440,7 @@ def function_modify(
         combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you."
         files_to_modify = ""
         for fcr in fcrs:
-            files_to_modify += f"You will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+            files_to_modify += f"You will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE USER REQUEST"
         combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify)
         new_additional_messages = [
             # Message(
@@ -509,7 +521,7 @@ def function_modify(
                     )
                 elif tool_name == "analyze_problem_and_propose_plan":
                     error_message = ""
-                    success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Let's get started.")
+                    success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Lets get started!")
                     tool_name, tool_call = assistant_generator.send(
                         success_message
                     )
@@ -607,7 +619,7 @@ def function_modify(
                         correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                         # if the original_code couldn't be found in the chunk we need to let the llm know
                         if original_code not in file_contents and correct_indent == -1:
-                            error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{original_code}\n```\nBut this section of code was not found anywhere inside the current file."
+                            error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{original_code}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
                             # first check the lines in original_code, if it is too long, ask for smaller changes
                             original_code_lines_length = len(original_code.split("\n"))
                             if original_code_lines_length > 7:
@@ -661,7 +673,7 @@ def function_modify(
                         success_message = (
                             f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                             + generate_diff(file_contents, new_file_contents)
-                        ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class."
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
                         # set contents
                         modify_files_dict[file_name]['contents'] = new_file_contents
                         logger.info(success_message)
