@@ -38,7 +38,7 @@ def convert_all_functions(functions: list) -> str:
         print(convert_openai_function_to_anthropic_prompt(function))
 
 @dataclass
-class MockFunctionCall:
+class AnthropicFunctionCall:
     function_name: str
     function_parameters: dict[str, str]
 
@@ -53,7 +53,7 @@ class MockFunctionCall:
         return function_call_string
 
     @staticmethod
-    def mock_function_calls_from_string(function_calls_string: str) -> list[MockFunctionCall]:
+    def mock_function_calls_from_string(function_calls_string: str) -> list[AnthropicFunctionCall]:
         function_calls = []
 
         # Regular expression patterns
@@ -81,19 +81,19 @@ class MockFunctionCall:
                 function_parameters[parameter_name] = parameter_value.strip()
 
             if function_name and function_parameters != {}:
-                function_calls.append(MockFunctionCall(function_name, function_parameters))
+                function_calls.append(AnthropicFunctionCall(function_name, function_parameters))
 
         return function_calls
 
-def mock_function_calls_to_string(function_calls: list[MockFunctionCall]) -> str:
-    function_calls_string = "<function_calls>\n"
+def mock_function_calls_to_string(function_calls: list[AnthropicFunctionCall]) -> str:
+    function_calls_string = "<function_call>\n"
     for function_call in function_calls:
         function_calls_string += function_call.to_string() + "\n"
-    function_calls_string += "</function_calls>"
+    function_calls_string += "</function_call>"
     return function_calls_string
 
 if __name__ == "__main__":    
-    test_str = """<function_calls>
+    test_str = """<function_call>
 <invoke>
 <tool_name>submit_report_and_plan</tool_name>
 <parameters>
@@ -121,9 +121,9 @@ To solve the user request, the following plan should be followed:
 </plan>
 </parameters>
 </invoke>
-</function_calls>"""
+</function_call>"""
 
-    function_calls = MockFunctionCall.mock_function_calls_from_string(test_str)
+    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(test_str)
     for function_call in function_calls:
         print(function_call)
         print(function_call.to_string())
