@@ -13,10 +13,9 @@ Provide extensive, highly detailed criteria for evaluating the contractor's perf
 - Did they identify every single relevant file needed to solve the issue, including all transitive dependencies?
 - Did they use multiple code/function/class searches to exhaustively trace every usage and dependency of relevant classes/functions?
 - Did they justify why each file is relevant and needed to solve the issue?
-- Did they avoid including any unnecessary or unrelated files whatsoever?
 - Did they demonstrate a complete, comprehensive understanding of the entire relevant codebase and architecture?
 
-Go through the contractor's process step-by-step. For anything they did even slightly wrong or non-optimally, call it out and explain the correct approach. Be extremely harsh and scrutinizing. If they failed to use enough code/function/class searches to find 100% of relevant usages, if they included any files that aren't needed, or if they missed any files that are needed, point these out as critical mistakes. Do not give them the benefit of the doubt on anything.
+Go through the contractor's process step-by-step. For anything they did even slightly wrong or non-optimally, call it out and explain the correct approach. Be extremely harsh and scrutinizing. If they failed to use enough code/function/class searches to find 100% of relevant usages or if they missed any files that are needed, point these out as critical mistakes. Do not give them the benefit of the doubt on anything.
 </judgement_on_task>
 
 <overall_score>
@@ -25,7 +24,7 @@ Evaluate the contractor from 1-10, erring on the low side:
 2 - Identified a couple files from the issue description but missed many critical dependencies 
 3 - Found some relevant files but had major gaps in dependency tracing and codebase understanding
 4 - Identified several key files but still missed important usages and lacked justification
-5 - Found many relevant files but missed a few critical dependencies or included unnecessary ones
+5 - Found many relevant files but missed a few critical dependencies
 6 - Identified most key files and dependencies but still had some gaps in usage tracing
 7 - Found nearly all relevant files but missed a couple edge case usages or minor dependencies
 8 - Exhaustively traced nearly all dependencies with robust justification, only minor omissions
@@ -34,10 +33,10 @@ Evaluate the contractor from 1-10, erring on the low side:
 </overall_score>
 
 <message_to_contractor>
-Provide a single sentence of extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor. Regardless of score, tell the contractor which specific files they should store to build on their work:
-9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages! Store [file1, file2, etc.] in future attempts.
-5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. You need to understand [A, B, C] dependencies. Store [file1, file2, etc.] in future attempts.
-1-4: [Specific files] are completely irrelevant. You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely. Store [file1, file2, etc.] in future attempts.
+Provide extremely specific, targeted, and actionable critical feedback, addressed directly to the contractor:
+9-10: Flawless work exhaustively using code/function/class searches to identify 100% of necessary files and usages!
+5-8: You failed to search for [X, Y, Z] to find all usages of [class/function]. You need to understand [A, B, C] dependencies.
+1-4: You need to search for [X, Y, Z] classes/functions to find actually relevant files. You missed [A, B, C] critical dependencies completely.
 </message_to_contractor>
 
 Do not give any positive feedback unless the contractor literally achieved perfection. Be extremely harsh and critical in your evaluation. Assume incompetence until proven otherwise. Make the contractor work hard to get a high score."""
@@ -61,11 +60,11 @@ The contractor demonstrated a deep understanding of the payment processing archi
 
 To round out their analysis, the contractor identified the PaymentValidator.java and PaymentSecurityFilter.java as crucial parts of the payment processing pipeline for validation and security. They justified the relevance of each file with clear explanations tied to the reported payment bug.
 
-No unnecessary files were included, and no relevant files seem to have been missed. The contractor used a comprehensive set of searches for relevant classes, functions, and terms to systematically map out the entire payment processing codebase. Overall, this shows an excellent understanding of the payment architecture and all its nuances.
+No relevant files seem to have been missed. The contractor used a comprehensive set of searches for relevant classes, functions, and terms to systematically map out the entire payment processing codebase. Overall, this shows an excellent understanding of the payment architecture and all its nuances.
 </judgement_on_task>
 <overall_score>9</overall_score>
 <message_to_contractor>
-Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, and all critical dependencies. Store these files again in future attempts.
+Excellent work identifying Payment.java, PaymentController.java, PaymentService.java, and all critical dependencies.
 </message_to_contractor>
 
 Example 2 (Score: 4): 
@@ -80,7 +79,7 @@ In general, the contractor seemed to stumble upon a couple relevant files, but f
 </judgement_on_task>
 <overall_score>4</overall_score>  
 <message_to_contractor>
-Failed to search for "authenticateUser", "UserAccount", "login", "credentials". Missed LoginService.java, UserRepository.java, PasswordEncryptor.java. Store UserAccount.java and LoginController.java in your future attempts.
+Failed to search for "authenticateUser", "UserAccount", "login", "credentials". Missed LoginService.java, UserRepository.java, PasswordEncryptor.java.
 </message_to_contractor>
 
 Example 3 (Score: 2):
@@ -97,7 +96,7 @@ Overall, the contractor seemed to have no clue about the actual pricing bug or t
 </judgement_on_task>
 <overall_score>2</overall_score>
 <message_to_contractor>
-index.html, styles.css, ProductList.vue are irrelevant. Search api/products/ for "Product", "Price", "Discount" classes/functions. Store none of the files you stored in this attempt, start over in the api/products directory for future attempts.
+index.html, styles.css, ProductList.vue are irrelevant. Search api/products/ for "Product", "Price", "Discount" classes/functions.
 </message_to_contractor>
 
 Example 4 (Score: 7):
@@ -112,7 +111,7 @@ While the contractor had a decent high-level understanding of the user profile u
 </judgement_on_task>
 <overall_score>7</overall_score>
 <message_to_contractor>
-Missed UserProfileRepository.java and application-profiles.yml dependencies. Search for "UserProfile" and "profile" to find remaining relevant files. Store UserProfileController.java, UserProfileService.java, and UserProfile.java in your future attempts.
+Missed UserProfileRepository.java and application-profiles.yml dependencies. Search for "UserProfile" and "profile" to find remaining relevant files.
 </message_to_contractor>
 </examples>"""
 
