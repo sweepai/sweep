@@ -24,6 +24,12 @@ from sweepai.utils.tree_utils import DirectoryTree
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 MAX_REFLECTIONS = 2
+MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
+NUM_ROLLOUTS = 5 # dev speed
+SCORE_THRESHOLD = 8 # good score
+STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
+MAX_PARALLEL_FUNCTION_CALLS = 1
+NUM_BAD_FUNCTION_CALLS = 4
 
 # TODO:
 # - Add self-evaluation / chain-of-verification
@@ -665,19 +671,27 @@ def handle_function_call(
             file_contents = repo_context_manager.cloned_repo.get_file_contents(
                 file_path
             )
-            valid_path = True
-            if valid_path:
-                
-                output = f'SUCCESS: Here are the contents of `{file_path}:`\n<source>\n{file_contents}\n</source>'
-                if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
-                    suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
-                else:
-                    suffix = '\nThis file has already been stored.'
-                output += suffix
+            # check if file has been viewed already
+            function_call_history = llm_state.get("function_call_history", [])
+            # unnest 2d list
+            previous_function_calls = [
+                call for sublist in function_call_history for call in sublist
+            ]
+            previously_viewed_files = [
+                call.function_parameters.get("file_path")
+                for call in previous_function_calls
+                if call.function_name == "view_file"
+            ]
+            logger.info(f"Previously viewed files: {previously_viewed_files} {file_path}")
+            if file_path in previously_viewed_files:
+                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call."
             else:
-                output = (
-                    f"FAILURE: The file path '{file_path}' does not exist. Please check the path and try again."
-                )
+                output = f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>'
+            if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
+                suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+            else:
+                suffix = '\nThis file has already been stored.'
+            output += suffix
         except FileNotFoundError:
             file_contents = ""
             similar_file_paths = "\n".join(
@@ -811,81 +825,86 @@ def get_stored_files(repo_context_manager: RepoContextManager) -> str:
     stored_files_string = f'The following files have been stored already:\n{joined_files_string}.\n' if fetched_files_that_are_stored else ""
     return stored_files_string
 
+def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
+    copied_repo_context_manager = repo_context_manager.copy_repo_context_manager()
+    message_results, function_call_history = perform_rollout(copied_repo_context_manager, reflections_to_read_files, user_prompt)
+    rollout_function_call_histories.append(function_call_history)
+    rollout_stored_files = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
+    truncated_message_results = message_results[1:] # skip system prompt
+    joined_messages = "\n\n".join([message.content for message in truncated_message_results])
+    overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
+        problem_statement=problem_statement, 
+        run_text=joined_messages,
+        stored_files=rollout_stored_files,
+    )
+    return overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files
+
+def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]], user_prompt: str) -> list[Message]:
+    function_call_history = []
+    formatted_reflections_prompt = format_reflections(reflections_to_gathered_files)
+    updated_user_prompt = user_prompt + formatted_reflections_prompt
+    chat_gpt = ChatGPT()
+    chat_gpt.messages = [Message(role="system", content=sys_prompt + formatted_reflections_prompt)]
+    function_calls_string = chat_gpt.chat_anthropic(
+        content=updated_user_prompt,
+        stop_sequences=["</function_call>"],
+        model=CLAUDE_MODEL,
+        message_key="user_request",
+    )
+    bad_call_count = 0
+    llm_state = {} # persisted across one rollout
+    for _ in range(MAX_ITERATIONS):
+        function_calls = validate_and_parse_function_calls(
+            function_calls_string, chat_gpt
+        )
+        function_call_history.append(function_calls)
+        function_outputs = ""
+        for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
+            function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
+            llm_state["function_call_history"] = function_call_history
+            if PLAN_SUBMITTED_MESSAGE in function_outputs:
+                return chat_gpt.messages, function_call_history
+        if len(function_calls) == 0:
+            function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
+                + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\nRemember to gather ALL relevant files. " + get_stored_files(repo_context_manager)
+            bad_call_count += 1
+            if bad_call_count >= NUM_BAD_FUNCTION_CALLS:
+                return chat_gpt.messages, function_call_history
+        if len(function_calls) > MAX_PARALLEL_FUNCTION_CALLS:
+            remaining_function_calls = function_calls[MAX_PARALLEL_FUNCTION_CALLS:]
+            remaining_function_calls_string = mock_function_calls_to_string(remaining_function_calls)
+            function_outputs += "WARNING: You requested more than 1 function call at once. Only the first function call has been processed. The unprocessed function calls were:\n<unprocessed_function_call>\n" + remaining_function_calls_string + "\n</unprocessed_function_call>"
+        try:
+            function_calls_string = chat_gpt.chat_anthropic(
+                content=function_outputs,
+                model=CLAUDE_MODEL,
+                stop_sequences=["</function_call>"],
+            )
+        except Exception as e:
+            logger.error(f"Error in chat_anthropic: {e}")
+            # return all but the last message because it likely causes an error
+            return chat_gpt.messages[:-1], function_call_history
+    return chat_gpt.messages, function_call_history
+
 def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
     problem_statement: str,
 ) -> bool | None:
-    MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
-    NUM_ROLLOUTS = 4 # dev speed
-    SCORE_THRESHOLD = 8 # good score
-    STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
-    MAX_PARALLEL_FUNCTION_CALLS = 1
-    NUM_BAD_FUNCTION_CALLS = 4
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
-    def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]]) -> list[Message]:
-        function_call_history = []
-        formatted_reflections_prompt = format_reflections(reflections_to_gathered_files)
-        updated_user_prompt = user_prompt + formatted_reflections_prompt
-        chat_gpt = ChatGPT()
-        chat_gpt.messages = [Message(role="system", content=sys_prompt + formatted_reflections_prompt)]
-        function_calls_string = chat_gpt.chat_anthropic(
-            content=updated_user_prompt,
-            stop_sequences=["</function_call>"],
-            model=CLAUDE_MODEL,
-            message_key="user_request",
-        )
-        bad_call_count = 0
-        llm_state = {} # persisted across one rollout
-        for _ in range(MAX_ITERATIONS):
-            function_calls = validate_and_parse_function_calls(
-                function_calls_string, chat_gpt
-            )
-            function_call_history.append(function_calls)
-            function_outputs = ""
-            for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
-                function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
-                if PLAN_SUBMITTED_MESSAGE in function_outputs:
-                    return chat_gpt.messages, function_call_history
-            if len(function_calls) == 0:
-                function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\nRemember to gather ALL relevant files. " + get_stored_files(repo_context_manager)
-                bad_call_count += 1
-                if bad_call_count >= NUM_BAD_FUNCTION_CALLS:
-                    return chat_gpt.messages, function_call_history
-            if len(function_calls) > MAX_PARALLEL_FUNCTION_CALLS:
-                remaining_function_calls = function_calls[MAX_PARALLEL_FUNCTION_CALLS:]
-                remaining_function_calls_string = mock_function_calls_to_string(remaining_function_calls)
-                function_outputs += "WARNING: You requested more than 1 function call at once. Only the first function call has been processed. The unprocessed function calls were:\n<unprocessed_function_call>\n" + remaining_function_calls_string + "\n</unprocessed_function_call>"
-            try:
-                function_calls_string = chat_gpt.chat_anthropic(
-                    content=function_outputs,
-                    model=CLAUDE_MODEL,
-                    stop_sequences=["</function_call>"],
-                )
-            except Exception as e:
-                logger.error(f"Error in chat_anthropic: {e}")
-                # return all but the last message because it likely causes an error
-                return chat_gpt.messages[:-1], function_call_history
-        return chat_gpt.messages, function_call_history
     rollout_function_call_histories = []
     for rollout_idx in range(NUM_ROLLOUTS):
         # operate on a deep copy of the repo context manager
-        copied_repo_context_manager = repo_context_manager.copy_repo_context_manager()
-        message_results, function_call_history = perform_rollout(copied_repo_context_manager, reflections_to_read_files)
-        rollout_function_call_histories.append(function_call_history)
-        rollout_stored_files = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
-        truncated_message_results = message_results[1:] # skip system prompt
-        joined_messages = "\n\n".join([message.content for message in truncated_message_results])
-        overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
-            problem_statement=problem_statement, 
-            run_text=joined_messages,
-            stored_files=rollout_stored_files,
+        overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
+            repo_context_manager=repo_context_manager,
+            reflections_to_read_files=reflections_to_read_files,
+            user_prompt=user_prompt,
+            rollout_function_call_histories=rollout_function_call_histories,
+            problem_statement=problem_statement
         )
-        logger.info(f"Attempt function calls: {render_function_calls_for_attempt(function_call_history)}")
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
