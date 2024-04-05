@@ -181,48 +181,6 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 
 files_to_change_system_prompt = """You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue using the snippets provided from the codebase. You have the utmost care for the plan that you write, so you ensure that all the relevant modules in the file are identified. Take into account the current repository's language, frameworks, and dependencies, as well as the existing modules such as helper functions, utility operations and backend services."""
 
-# make this not minimal
-files_to_change_prompt = """\
-# Task:
-Reference and analyze the snippets, repo, and issue to break down the requested change and propose the minimal plan that resolve's the user's issue.
-
-Follow these rules:
-* You may only modify existing files and create new files but may not necessarily need both.
-* Include the full path (e.g. src/main.py and not just main.py), using the snippets and repo_tree for reference.
-* Provide natural language instructions on updates to business logic and specify which files to import.
-* Be concrete with instructions. Do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Provide the plan that is minimal and complete.
-
-You MUST follow the following format with XML tags:
-
-# Contextual Request Analysis:
-<contextual_request_analysis>
-* Outline the minimal plan that solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
-* Identify all crucial modules from the relevent_read_only_files and where they can be used. e.g. "we need to use the `ignore_deleted` flag in the `fetch_user_by_id` method from `user_service.py` to resolve this issue".
-* Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible.
-...
-</contextual_request_analysis>
-
-# Plan:
-<plan>
-<create file="file_path_1">
-* Natural language instructions for creating the new file needed to solve the issue.
-* Reference necessary files, imports and entity names.
-...
-</create>
-...
-
-<modify file="file_path_2">
-* Natural language instructions for the modifications needed to solve the issue.
-* Be concise and reference necessary files, imports and entity names.
-* You may only modify each file at most once.
-...
-</modify>
-...
-
-</plan>"""
-
-
 files_to_change_system_prompt = """You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue using the snippets provided from the codebase. You have the utmost care for the plan that you write, so you ensure that all the relevant modules in the file are identified. Take into account the current repository's language, frameworks, and dependencies, as well as the existing modules such as helper functions, utility operations and backend services."""
 
 files_to_change_system_prompt = """\
@@ -233,6 +191,8 @@ You are a brilliant and meticulous engineer assigned to plan code changes to sol
 # TODO: lots of improvements and cleanup needed here
 files_to_change_prompt = """# Task: 
 Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+
+You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
 
 Guidelines:
 * Always include the full file path (e.g. src/main.py) and reference the provided snippets.
@@ -289,19 +249,50 @@ List ALL relevant utility modules from the provided set and specify where they c
 [additional modifies as needed]
 </plan>
 
-Here's an example of an excellent plan:
+Here's an example of an excellent issue analysis and plan:
+
+<issue_analysis>
+The root cause of the issue is that the `getUserById` method in the `UserService` class (user_service.py) does not handle the case where a user has been soft deleted. It should return None if the `user.deleted` property is set to True.
+
+To completely resolve the user's request, we need to:
+- Modify the `getUserById` method in user_service.py to add a flag to conditionally return None for deleted users 
+- Update the call to `getUserById` in the `get_user` endpoint in app.py to pass the new flag
+
+Relevant files to modify:
+- src/services/user_service.py - Add `include_deleted` flag to `getUserById`, return None if user.deleted is True when flag is set 
+- src/app.py - Update call to `getUserById` in `get_user` endpoint to pass `include_deleted=True`
+
+No additional utility modules are needed as the necessary `User` entity and `UserService` are already imported in the relevant files.
+
+The <modify> changes work together to fully handle soft deleted users - the service method is updated to support the new flag, and the API endpoint is updated to use the flag. The service layer change is made first as it is lower-level.
+</issue_analysis>
 
 <plan>
-<modify file="user_service.py">
-* Go to the `getUserById` method from the class `UserService` that fetches a user by user ID in the user services.
-* Add a flag called `include_deleted` that defaults to True.
-* If the flag is set, check if the `user.deleted` property is also set. If so, we should return None here.
+<modify file="src/services/user_service.py">
+In the `getUserById` method of the `UserService` class:
+* Add a new parameter `include_deleted` with a default value of `False` 
+* After fetching the user, add an if statement to check:
+  - If `include_deleted` is False and `user.deleted` is True, return None
+  - Otherwise, return the user as normal
+The code changes should look like:
+```diff
+  def getUserById(self, user_id: int, include_deleted: bool = False) -> Optional[User]:
+    user = self.db.query(User).filter(User.id == user_id).first()
++   if not include_deleted and user and user.deleted:
++     return None  
+    return user
+```
 </modify>
 
-<modify file="app.py" relevant_files="user_service.py">
-* Locate the `get_user` method in the Flask app.
-* Locate the call to `getUserById`.
-* Set the newly created flag `include_deleted` property is set to True.
+<modify file="src/app.py" relevant_files="src/services/user_service.py">
+In the `get_user` endpoint:
+* Locate the call to `user_service.getUserById(user_id)`
+* Add the `include_deleted=True` argument to the method call
+The code change should look like:  
+```diff
+- user = user_service.getUserById(user_id)
++ user = user_service.getUserById(user_id, include_deleted=True)
+```
 </modify>
 </plan>"""
 
