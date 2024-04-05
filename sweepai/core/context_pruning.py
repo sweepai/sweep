@@ -1,3 +1,4 @@
+from copy import deepcopy
 from math import log
 import os
 import subprocess
@@ -14,9 +15,10 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import EvaluatorAgent
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall, mock_function_calls_to_string
-from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -353,14 +355,16 @@ class RepoContextManager:
     # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
     # other copies when one copy goes out of context since we do file operations of CloneRepo
     def copy_repo_context_manager(self):
-        new_cloned_repo = ClonedRepo(
-            self.cloned_repo.repo_full_name,
-            installation_id=self.cloned_repo.installation_id,
-            token=self.cloned_repo.token,
-            repo=self.cloned_repo.repo,
-            branch=self.cloned_repo.branch,
-        )
-        return replace(self, cloned_repo=new_cloned_repo)
+        if not isinstance(self.cloned_repo, MockClonedRepo):
+            new_cloned_repo = ClonedRepo(
+                self.cloned_repo.repo_full_name,
+                installation_id=self.cloned_repo.installation_id,
+                token=self.cloned_repo.token,
+                repo=self.cloned_repo.repo,
+                branch=self.cloned_repo.branch,
+            )
+            return replace(self, cloned_repo=new_cloned_repo)
+        return deepcopy(self)
 
 """
 Dump the import tree to a string
@@ -630,7 +634,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -659,9 +663,8 @@ def get_relevant_context(
         )
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt)]
-        old_top_snippets = [
-            snippet for snippet in repo_context_manager.current_top_snippets
-        ]
+        old_relevant_snippets = deepcopy(repo_context_manager.current_top_snippets)
+        old_read_only_snippets = deepcopy(repo_context_manager.read_only_snippets)
         try:
             repo_context_manager = context_dfs(
                 user_prompt,
@@ -670,9 +673,23 @@ def get_relevant_context(
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
-        if len(repo_context_manager.current_top_snippets) == 0:
-            raise Exception("No snippets found")
-            repo_context_manager.current_top_snippets = old_top_snippets[:20]
+        # repo_context_manager.current_top_snippets += old_relevant_snippets[:25 - len(repo_context_manager.current_top_snippets)]
+        # Add stuffing until context limit
+        max_chars = 140000 * 3.5 # 120k tokens
+        counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
+            [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
+        )
+        for snippet, read_only_snippet in zip(old_relevant_snippets, old_read_only_snippets):
+            if not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
+                counter += len(snippet.get_snippet(False, False))
+                if counter > max_chars:
+                    break
+                repo_context_manager.current_top_snippets.append(snippet)
+            if not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
+                counter += len(read_only_snippet.get_snippet(False, False))
+                if counter > max_chars:
+                    break
+                repo_context_manager.read_only_snippets.append(read_only_snippet)
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -926,7 +943,7 @@ def context_dfs(
     problem_statement: str,
 ) -> bool | None:
     MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
-    NUM_ROLLOUTS = 5
+    NUM_ROLLOUTS = 1
     SCORE_THRESHOLD = 8 # good score
     STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
     MAX_PARALLEL_FUNCTION_CALLS = 3
