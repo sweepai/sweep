@@ -138,7 +138,7 @@ tool_call_parameters = {
     "search_codebase": ["justification", "file_name", "keyword"],
     "analyze_and_identify_changes": ["file_name", "changes"],
     "view_file": ["justification", "file_name"],
-    "make_change": ["justification", "file_name", "section_id", "original_code", "new_code"],
+    "make_change": ["justification", "file_name", "original_code", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
     "submit_result": ["justification"],
 }
@@ -374,6 +374,12 @@ def run_until_complete(
                 "status": "no tool call",
                 "message": "No tool call made",
             }
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"{done_response.rstrip()}",
+                }
+            )  # extend conversation with function response
             normal_messages_remaining -= 1
             if normal_messages_remaining < 0:
                 return
