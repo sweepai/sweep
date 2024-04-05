@@ -607,7 +607,7 @@ def function_modify(
                         correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                         # if the original_code couldn't be found in the chunk we need to let the llm know
                         if original_code not in file_contents and correct_indent == -1:
-                            error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{original_code}\n```\But this section of code was not found anywhere inside the current file."
+                            error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{original_code}\n```\nBut this section of code was not found anywhere inside the current file."
                             # first check the lines in original_code, if it is too long, ask for smaller changes
                             original_code_lines_length = len(original_code.split("\n"))
                             if original_code_lines_length > 7:
@@ -762,8 +762,7 @@ def function_modify(
                                         match_indices,
                                         file_contents,
                                         keyword,
-                                        starter_message,
-                                        readonly=True
+                                        starter_message
                                     )
                                 )
                         else: # search whole codebase
