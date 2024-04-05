@@ -437,16 +437,16 @@ def function_modify(
         # current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
         # fcrs_message = generate_status_message(file_path, fcrs)
         relevant_file_paths_string = ", ". join(relevant_filepaths) 
-        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you."
+        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
         files_to_modify = ""
         for fcr in fcrs:
-            files_to_modify += f"You will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE USER REQUEST"
+            files_to_modify += f"You will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}\n\n"
         combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify)
         new_additional_messages = [
-            # Message(
-            #     role="user",
-            #     content=f"# Request\n{request}",
-            # ),
+            Message(
+                role="user",
+                content=f"# Request\n{request}",
+            ),
             Message(
                 role="user",
                 content=f"\n{combined_request_message}",
@@ -455,7 +455,7 @@ def function_modify(
         if relevant_file_paths_string:
             new_additional_messages.append(Message(
                 role="user",
-                content=f'You should view the following relevant files: {relevant_file_paths_string}'
+                content=f'You should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # Request'
             ))
         additional_messages = additional_messages + new_additional_messages
 
