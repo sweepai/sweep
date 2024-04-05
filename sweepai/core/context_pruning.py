@@ -189,7 +189,6 @@ unformatted_user_prompt_stored = """\
 ## Stored Files
 Here are the files that you have already stored:
 {snippets_in_repo}
-
 {import_tree_prompt}
 ## User Request
 <user_request>
@@ -996,7 +995,7 @@ def context_dfs(
         if rollout_idx > 0:
             user_prompt = repo_context_manager.format_context(
                 unformatted_user_prompt=unformatted_user_prompt_stored,
-                query=query,
+                query=problem_statement,
             )
         overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
             repo_context_manager=repo_context_manager,
