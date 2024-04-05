@@ -49,6 +49,7 @@ def create_additional_messages(
 @file_cache()
 def modify_file(
     cloned_repo: ClonedRepo,
+    request: str,
     metadata: str,
     file_change_requests: list[FileChangeRequest],
     branch: str = None,
@@ -70,7 +71,7 @@ def modify_file(
         additional_messages += new_additional_messages
         new_files = function_modify(
             file_change_requests,
-            "",
+            request,
             cloned_repo,
             additional_messages,
             chat_logger,

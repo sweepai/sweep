@@ -251,6 +251,7 @@ class ModifyBot:
 
     def try_update_file(
         self,
+        instructions: str,
         cloned_repo: ClonedRepo,
         assistant_conversation: AssistantConversation | None = None,
         seed: str | None = None,
@@ -259,7 +260,7 @@ class ModifyBot:
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
         new_files = function_modify(
-            request="",
+            request=instructions,
             cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
             chat_logger=self.chat_logger,
