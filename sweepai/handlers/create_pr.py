@@ -49,7 +49,6 @@ def create_pr_changes(
     username: str,
     installation_id: int,
     issue_number: int | None = None,
-    sandbox=None,
     chat_logger: ChatLogger = None,
     base_branch: str = None,
     additional_messages: list[Message] = []
@@ -101,9 +100,8 @@ def create_pr_changes(
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
         for (
-            file_change_request,
+            new_file_contents,
             changed_file,
-            sandbox_error,
             commit,
             file_change_requests,
         ) in sweep_bot.change_files_in_github_iterator(
@@ -112,9 +110,9 @@ def create_pr_changes(
             blocked_dirs,
             additional_messages=additional_messages
         ):
-            completed_count += changed_file
+            completed_count += len(new_file_contents or [])
             logger.info(f"Completed {completed_count}/{fcr_count} files")
-            yield file_change_request, changed_file, sandbox_error, commit, file_change_requests
+            yield new_file_contents, changed_file, commit, file_change_requests
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(

@@ -324,7 +324,7 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         start = error_location.start_point
         end = error_location.end_point
         if start[0] == end[0]:
-            error_code_lines = list(code.split("\n")[start[0]])
+            error_code_lines = [code.split("\n")[start[0]]]
         else:
             error_code_lines = code.split("\n")[start[0]:end[0] + 1]
         error_code_lines[0] = error_code_lines[0][start[1]:]

@@ -7,11 +7,11 @@ def test_run_file_tests():
 
     for file in list_of_files:
         print(f"Running file: {file}")
-        result = subprocess.run(["python", f"{file}"], capture_output=True, text=True)
+        result = subprocess.run(["python", f"{file}"], capture_output=True, text=True, shell=True)
         error_message = f"{file.split(os.path.sep)[-1]} failed"
         if error_message in result.stderr:
             print(f"Error in file: {file}")
-            sys.exit(1)
+            sys.exit(f"Error in file: {file}")
 
 if __name__ == "__main__":
     test_run_file_tests()
