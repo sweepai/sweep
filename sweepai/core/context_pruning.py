@@ -1,6 +1,4 @@
-from copy import deepcopy
 from math import log
-from copy import deepcopy
 import os
 import subprocess
 import urllib

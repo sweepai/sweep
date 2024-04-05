@@ -1,4 +1,3 @@
-from collections import defaultdict
 from sweepai.config.client import SweepConfig
 
 # post process rip grep output to be more condensed
