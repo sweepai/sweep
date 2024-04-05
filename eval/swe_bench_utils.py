@@ -9,6 +9,7 @@ from rich import print
 
 from sweepai.agents.modify_bot import ModifyBot
 from sweepai.agents.modify_file import modify_file
+from sweepai.core.chat import ChatGPT
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -143,7 +144,7 @@ def run_search_test(
     cloned_repo: MockClonedRepo,
     problem_statement: str,
     commit_hash: str,
-    k: int = 15,
+    k: int = 50,
     resolution_files: list[str] = [],
     name: str = ""
 ):
@@ -171,7 +172,6 @@ def run_search_test(
     cprint(f"Total elapsed time: {end - start} seconds")
 
     try:
-        breakpoint()
         mrr, accuracy, positions = evaluate_search(
             rcm,
             resolution_files,
@@ -292,7 +292,21 @@ def get_files_to_change(
         print("messages")
         for message in messages:
             print(message.content + "\n\n")
-        files_to_change_response = chat(messages, seed=seed)
+        joint_message = "\n\n".join(message.content for message in messages[1:-1])
+        print("messages", joint_message)
+        chatgpt = ChatGPT(
+            messages=[
+                Message(
+                    role="system",
+                    content=files_to_change_system_prompt,
+                ),
+            ],
+        )
+        files_to_change_response = chatgpt.chat_anthropic(
+            content=joint_message + "\n\n" + files_to_change_prompt,
+            model="claude-3-opus-20240229",
+            temperature=0.1
+        )
         print("files_to_change_response", files_to_change_response)
         file_change_requests = []
         for re_match in re.finditer(
@@ -310,7 +324,8 @@ def create_cloned_repo_mock(
     name: str,
     repo_full_name: str
 ):
-    repo_dir = os.path.join("/mnt/sweep_benchmark", name)
+    org_name, repo_name = repo_full_name.split("/")
+    repo_dir = os.path.join("/mnt/sweep_benchmark/tmp/repos", name, repo_name)
     cloned_repo = MockClonedRepo.from_dir(
         repo_dir=repo_dir,
         repo_full_name=repo_full_name,

@@ -94,7 +94,7 @@ cprint("Loaded test data", style="green")
 
 seed = 42
 proportion = 0.01
-k = int(os.environ.get("k", 15))
+k = int(os.environ.get("k", 50))
 test_data = test_data.sample(frac=proportion, random_state=seed)
 name = f"sweep-04-04"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
