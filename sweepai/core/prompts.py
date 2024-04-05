@@ -231,45 +231,6 @@ You are a brilliant and meticulous engineer assigned to plan code changes to sol
 
 # put more emphasis on modify
 # TODO: lots of improvements and cleanup needed here
-files_to_change_prompt = """\
-# Task:
-Reference and analyze the snippets, repo, and issue to break down the requested change and propose the completely resolve's the user's issue. You will be provided with relevant_snippets, which contain relevant snippets of code from files you'll likely need to edit directly, and relevant_modules, which are relevant utility function you'll likely need to resolve the GitHub issue.
-
-Follow these rules:
-* You may only modify existing files and create new files but may not necessarily need both.
-* Include the full path (e.g. src/main.py and not just main.py), using the snippets for reference.
-* Provide natural language instructions on updates to business logic and specify which files to import.
-* Be concrete with instructions. Do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
-
-You MUST follow the following format with XML tags:
-
-# Contextual Request Analysis:
-<contextual_request_analysis>
-* First, identify the root cause of the issue by referencing specific entities in the relevant files.
-* Outline the plan that completely solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
-* Describe each <create> and <modify> section in the following plan and why it will be needed. Then list out all relevant modules from the relevant_modules and where they can be used, such as utility functions, frontend components, database services and API endpoints.
-...
-</contextual_request_analysis>
-
-# Plan:
-<plan>
-<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Natural language instructions for creating the new file needed to solve the issue.
-* Reference necessary files, imports and entity names.
-...
-</create>
-...
-
-<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Natural language instructions for the modifications needed to solve the issue.
-* Be extremely detailed and reference necessary files, imports and entity names.
-* You may only modify each file at most once.
-...
-</modify>
-...
-
-</plan>"""
-
 files_to_change_prompt = """# Task: 
 Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
 
