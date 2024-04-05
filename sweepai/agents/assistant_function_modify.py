@@ -410,8 +410,8 @@ def function_modify(
         combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you."
         files_to_modify = ""
         for fcr in fcrs:
-            files_to_modify += f"You will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
-        combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify)
+            files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
         new_additional_messages = [
             # Message(
             #     role="user",
