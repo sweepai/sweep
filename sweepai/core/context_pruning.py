@@ -349,7 +349,6 @@ class RepoContextManager:
 
     def update_issue_report_and_plan(self, new_issue_report_and_plan: str):
         self.issue_report_and_plan = new_issue_report_and_plan
-
     # creates a copy of the RepoContextManager with a seperate ClonedRepo
     # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
     # other copies when one copy goes out of context since we do file operations of CloneRepo
@@ -362,7 +361,6 @@ class RepoContextManager:
             branch=self.cloned_repo.branch,
         )
         return replace(self, cloned_repo=new_cloned_repo)
-
 
 """
 Dump the import tree to a string

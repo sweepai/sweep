@@ -240,7 +240,6 @@ def fetch_relevant_files(
 
         ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.save()
-
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,
