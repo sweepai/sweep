@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 from math import inf
@@ -19,6 +20,7 @@ from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import MockClonedRepo
+from sweepai.utils.timer import Timer
 
 github_token = os.getenv("GITHUB_TOKEN")  # this is a github token with repo access
 cprint = Console().print
@@ -94,7 +96,7 @@ seed = 42
 proportion = 0.01
 k = int(os.environ.get("k", 15))
 test_data = test_data.sample(frac=proportion, random_state=seed)
-name = f"sweep-04-03"
+name = f"sweep-04-04"
 output_file = f"eval/{name}__SWE-bench_unassisted.jsonl"
 search_results_file = f"eval/{name}-search_results.csv"
 search_positions_file = f"eval/{name}-search_positions.txt"
@@ -122,8 +124,8 @@ def run_row(row):
     # if i == 66 or i == 2 or row.instance_id.startswith("pytest"):
     #     continue # this task is blocked by Anthropic's content filtering policy for some reason
     instance_id = row.instance_id
-    with RedirectedStdio(f"eval/logs/{instance_id}.ans"): # ans has a VSCode extension supporting colors
-    # if True:
+    # with RedirectedStdio(f"eval/logs/{instance_id}.ans"): # ans has a VSCode extension supporting colors
+    if True:
         repo_identifier = row["repo"]
         commit_hash = row["base_commit"]
         problem_statement = row["problem_statement"]
@@ -167,7 +169,7 @@ def run_row(row):
             with open(context_positions_file, "a") as f:
                 f.write(f"{instance_id},{positions}\n")
             fcrs, plan = get_files_to_change(
-                rcm.current_top_snippets, problem_statement, repo_identifier
+                rcm.current_top_snippets, rcm.read_only_snippets, problem_statement, repo_identifier
             )
             # continue
             # modify files
@@ -182,47 +184,22 @@ def run_row(row):
             combined_diff = ""
             updated_files = {}
             updated_files_message = []
-            for fcr in fcrs:
-                file_path = fcr.filename
-                instructions = fcr.instructions
-                try:
-                    file_contents = cloned_repo.git_repo.git.show(
-                        f"{commit_hash}:{file_path}"
-                    )
-                    myfilepaths = [file for file in fcr.relevant_files]
-                    mymessages = [
-                        f"<relevant_file file_path='{file}'>\n{open(repo_path + '/' + file).read()}\n</relevant_file>"
-                        for file in fcr.relevant_files
-                    ]
-                    logger.info(f"{myfilepaths}")
-                    logger.info(f"{[len(m) for m in mymessages]}")
-                    new_files = run_modify_bot(
-                        code=file_contents,
-                        instructions=instructions,
-                        file_path=file_path,
-                        start_line=0,
-                        end_line=inf,
-                        additional_messages=[
-                            *additional_messages,
-                            *[
-                                Message(
-                                    role="user",
-                                    content=f"<relevant_file file_path='{file_path}'>\n{open(repo_path + '/' + file_path).read()}\n</relevant_file>",
-                                    key="instructions",
-                                )
-                                for file_path in fcr.relevant_files
-                            ],
-                            *updated_files_message
-                        ],
-                        relevant_filepaths=[
-                            f"{repo_path}/{file}" for file in fcr.relevant_files
-                        ],  # could be wrong
-                        cloned_repo=cloned_repo,
-                    )
-                    updated_files.update(new_files)
-                except Exception as e:
-                    logger.error(f"Error modifying file {file_path} {e}")
-                    continue
+
+            # breakpoint()
+
+            additional_messages_copy = copy.deepcopy(additional_messages)
+            with Timer() as timer:
+                updated_files = run_modify_bot(
+                    additional_messages=[
+                        *additional_messages_copy,
+                    ],
+                    seed=seed,
+                    relevant_filepaths=list(rcm.relevant_file_paths + [file_path for file_path in rcm.read_only_snippets]),
+                    fcrs=fcrs,
+                    previous_modify_files_dict=None,
+                    name=instance_id,
+                    repo_full_name=repo_identifier,
+                )
             cloned_repo.git_repo.git.checkout(commit_hash, force=True)
             if updated_files:
                 old_files = {}
@@ -262,7 +239,7 @@ pretty_map(
     task_names=[row.instance_id for i, row in test_data.iterrows()],
     log_files=[f"eval/logs/{row.instance_id}.ans" for i, row in test_data.iterrows()],
     timeout=60 * 60 * 30, # 30 minutes
-    # multiprocess=False
+    multiprocess=False
 )
 
 print("Everything done!")

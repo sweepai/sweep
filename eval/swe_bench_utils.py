@@ -3,6 +3,7 @@ from time import time
 
 import os
 
+import git
 from rich.console import Console
 from rich import print
 
@@ -145,7 +146,7 @@ def run_search_test(
     k: int = 15,
     resolution_files: list[str] = [],
     name: str = ""
-) -> tuple[int, int, RepoContextManager, PullRequest]:
+):
     start = time()
     checkout_to_pr_ref(commit_hash, cloned_repo)
     rcm = prep_snippets(cloned_repo, problem_statement, ticket_progress=None, k=k)
@@ -170,6 +171,7 @@ def run_search_test(
     cprint(f"Total elapsed time: {end - start} seconds")
 
     try:
+        breakpoint()
         mrr, accuracy, positions = evaluate_search(
             rcm,
             resolution_files,
@@ -246,7 +248,7 @@ def call_openai(model: str, temperature: int, messages: list[Message], seed: int
     return result
 
 def get_files_to_change(
-    relevant_snippets: list[Snippet], problem_statement, repo_name, seed: int = 0
+    relevant_snippets: list[Snippet], read_only_snippets: list[Snippet], problem_statement, repo_name, seed: int = 0
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -263,7 +265,8 @@ def get_files_to_change(
             key="assistant",
         )
     )
-    relevant_snippet_template = '<relevant_snippets_in_repo>\n<snippet source="{snippet_denotation}">{content}</snippet>\n</relevant_snippets_in_repo>'
+    relevant_snippet_template = '<relevant_snippets>\n<snippet source="{snippet_denotation}">\n{content}\n</snippet>\n</relevant_snippets>'
+    read_only_snippet_template = '<read_only_snippets>\n<read_only_snippet source="{snippet_denotation}">\n{content}\n</read_only_snippet>\n</read_only_snippets>'
     # attach all relevant snippets
     for snippet in relevant_snippets:
         messages.append(
@@ -273,6 +276,16 @@ def get_files_to_change(
                     "{snippet_denotation}", snippet.denotation
                 ).replace("{content}", snippet.get_snippet(add_lines=False)),
                 key="relevant_snippets",
+            )
+        )
+    for snippet in read_only_snippets:
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippet_template.replace(
+                    "{snippet_denotation}", snippet.denotation
+                ).replace("{content}", snippet.get_snippet(add_lines=False)),
+                key="relevant_read_only_snippets",
             )
         )
     try:
@@ -293,31 +306,45 @@ def get_files_to_change(
 
     return [], ""
 
+def create_cloned_repo_mock(
+    name: str,
+    repo_full_name: str
+):
+    repo_dir = os.path.join("/mnt/sweep_benchmark", name)
+    cloned_repo = MockClonedRepo.from_dir(
+        repo_dir=repo_dir,
+        repo_full_name=repo_full_name,
+        installation_id=os.environ.get("INSTALLATION_ID"),
+        branch="main",
+        git_repo=git.Repo(repo_dir),
+    )
+    return cloned_repo
+
 @file_cache()
 def run_modify_bot(
-    code: str,
-    instructions: str,
-    file_path: str,
-    start_line: int,
-    end_line: int,
     additional_messages: list[Message],
+    seed: int = 0,
     relevant_filepaths: list[str] = [],
-    cloned_repo: MockClonedRepo = None,
+    fcrs: list[FileChangeRequest]=[],
     previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+    name = "modify_bot",
+    repo_full_name: str = "sweepai/sweep",
 ):
-    return modify_file(
-        cloned_repo,
-        metadata="",
-        file_change_request=FileChangeRequest(
-            filename=os.path.join(file_path),
-            change_type="modify",
-            instructions=instructions,
-            start_line=start_line,
-            end_line=end_line,
-            raw_relevant_files=" ".join(relevant_filepaths),
-        ),
-        contents=code,
-        branch=None,
+    modify_bot = ModifyBot(
         additional_messages=additional_messages,
+        chat_logger=ChatLogger(
+            {
+                "username": "__swe_bench_benchmark__",
+                "title": f"Benchmarking '{name}'",
+            }
+        ),
+        parent_bot=None,
+    )
+    mock_cloned_repo = create_cloned_repo_mock(name, repo_full_name)
+    return modify_bot.try_update_file(
+        cloned_repo=mock_cloned_repo,
+        seed=seed,
+        relevant_filepaths=relevant_filepaths,
+        fcrs=fcrs,
         previous_modify_files_dict=previous_modify_files_dict,
     )
