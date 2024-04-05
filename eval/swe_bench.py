@@ -88,8 +88,8 @@ cprint("Loading test data...", style="yellow")
 test_data = load_swebench_test_data()
 cprint("Loaded test data", style="green")
 
-seed = 0
-proportion = 0.05
+seed = 42
+proportion = 0.01
 k = int(os.environ.get("k", 15))
 test_data = test_data.sample(frac=proportion, random_state=seed)
 name = f"sweep-03-31-k-{k}"
