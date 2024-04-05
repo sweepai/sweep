@@ -195,7 +195,7 @@ Analyze the provided code snippets, repository, and GitHub issue to understand t
 You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
 
 Guidelines:
-* Always include the full file path (e.g. src/main.py) and reference the provided snippets.
+* Always include the full file path (e.g. src/utils/strings/regex_utils.py instead of just strings/regex_utils.py or regex_utils.py) and reference the provided snippets.
 * Provide clear, natural language instructions for updating the code logic and specify necessary imports.
 * Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
 * Include relevant type definitions, interfaces, and schemas to provide a clear understanding of the entities and their relationships.
