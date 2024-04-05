@@ -11,7 +11,7 @@ from sweepai.config.client import (
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import NoFilesException, SandboxResponse
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.sweep_bot import SweepBot, get_files_to_change
 
 # from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import GITHUB_LABEL_NAME, create_pr_changes
@@ -81,18 +81,12 @@ def make_pr(
         chat_logger=chat_logger,
         cloned_repo=cloned_repo,
     )
-
-    non_python_count = sum(
-        not file_path.endswith(".py") for file_path in human_message.get_file_paths()
+    file_change_requests, plan = get_files_to_change(
+        relevant_snippets=repo_context_manager.current_top_snippets,
+        read_only_snippets=repo_context_manager.read_only_snippets,
+        problem_statement=formatted_query,
+        repo_name=repo_name,
     )
-    python_count = len(human_message.get_file_paths()) - non_python_count
-    is_python_issue = python_count > non_python_count
-    posthog.capture(
-        username,
-        "is_python_issue",
-        properties={"is_python_issue": is_python_issue},
-    )
-    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
     file_change_requests = sweep_bot.validate_file_change_requests(
         file_change_requests, branch_name
     )

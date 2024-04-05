@@ -106,6 +106,79 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
             return {"success": True, "path": blocked_dir}
     return {"success": False}
 
+def get_files_to_change(
+    relevant_snippets: list[Snippet], read_only_snippets: list[Snippet], problem_statement, repo_name, seed: int = 0
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    messages.append(
+        Message(role="system", content=files_to_change_system_prompt, key="system")
+    )
+    messages.append(
+        Message(role="user", content=files_to_change_prompt, key="assistant")
+    )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
+            key="assistant",
+        )
+    )
+    relevant_snippet_template = '<relevant_snippets>\n<snippet source="{snippet_denotation}">\n{content}\n</snippet>\n</relevant_snippets>'
+    read_only_snippet_template = '<read_only_snippets>\n<read_only_snippet source="{snippet_denotation}">\n{content}\n</read_only_snippet>\n</read_only_snippets>'
+    # attach all relevant snippets
+    for snippet in relevant_snippets:
+        messages.append(
+            Message(
+                role="user",
+                content=relevant_snippet_template.replace(
+                    "{snippet_denotation}", snippet.denotation
+                ).replace("{content}", snippet.get_snippet(add_lines=False)),
+                key="relevant_snippets",
+            )
+        )
+    for snippet in read_only_snippets:
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippet_template.replace(
+                    "{snippet_denotation}", snippet.denotation
+                ).replace("{content}", snippet.get_snippet(add_lines=False)),
+                key="relevant_read_only_snippets",
+            )
+        )
+    try:
+        print("messages")
+        for message in messages:
+            print(message.content + "\n\n")
+        joint_message = "\n\n".join(message.content for message in messages[1:-1])
+        print("messages", joint_message)
+        chatgpt = ChatGPT(
+            messages=[
+                Message(
+                    role="system",
+                    content=files_to_change_system_prompt,
+                ),
+            ],
+        )
+        files_to_change_response = chatgpt.chat_anthropic(
+            content=joint_message + "\n\n" + files_to_change_prompt,
+            model="claude-3-opus-20240229",
+            temperature=0.1
+        )
+        print("files_to_change_response", files_to_change_response)
+        file_change_requests = []
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_requests.append(file_change_request)
+        return file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
+
+    return [], ""
+
 
 class CodeGenBot(ChatGPT):
     def generate_subissues(self, retries: int = 3):
@@ -132,6 +205,7 @@ class CodeGenBot(ChatGPT):
     def get_files_to_change(
         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
+        raise DeprecationWarning("This function is deprecated. Use get_files_to_change instead.")
         file_change_requests: list[FileChangeRequest] = []
         try:
             if pr_diffs is not None:
