@@ -57,6 +57,16 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
                         logs_str += logs
     return logs_str
 
+gha_prompt = """\
+The command {command_line} yielded the following errors:
+<errors>
+{error_line}
+</errors>
+Here are the logs:
+<logs>
+{cleaned_logs_str}
+</logs>"""
+
 
 def clean_gh_logs(logs_str: str):
     # Extraction process could be better
@@ -109,24 +119,12 @@ def clean_gh_logs(logs_str: str):
     if len(cleaned_logs) > MAX_LINES:
         return "", ""
     cleaned_logs_str = "\n".join(cleaned_logs)
-    cleaned_response = f"""\
-The command:
-{command_line}
-yielded the following error:
-{error_line}
-
-Here are the logs:
-{cleaned_logs_str}"""
-    response_for_user = f"""\
-The command:
-`{command_line}`
-yielded the following error:
-`{error_line}`
-Here are the logs:
-```
-{cleaned_logs_str}
-```"""
-    return cleaned_response, response_for_user
+    cleaned_response = gha_prompt.format(
+        command_line=command_line,
+        error_line=error_line,
+        cleaned_logs_str=cleaned_logs_str,
+    )
+    return cleaned_response
 
 
 def on_check_suite(request: CheckRunCompleted):

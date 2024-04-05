@@ -92,7 +92,7 @@ def make_pr(
         "is_python_issue",
         properties={"is_python_issue": is_python_issue},
     )
-    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+    file_change_requests, plan = sweep_bot.get_files_to_change()
     file_change_requests = sweep_bot.validate_file_change_requests(
         file_change_requests, branch_name
     )

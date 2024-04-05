@@ -819,6 +819,7 @@ def on_ticket(
                 try:
                     # search/context manager
                     logger.info("Searching for relevant snippets...")
+                    breakpoint()
                     snippets, tree, _, repo_context_manager = fetch_relevant_files(
                         cloned_repo,
                         title,
@@ -1026,26 +1027,7 @@ def on_ticket(
                         return {"success": True}
 
                     logger.info("Fetching files to modify/create...")
-                    non_python_count = sum(
-                        not file_path.endswith(".py")
-                        and not file_path.endswith(".ipynb")
-                        and not file_path.endswith(".md")
-                        for file_path in human_message.get_file_paths()
-                    )
-                    python_count = (
-                        len(human_message.get_file_paths()) - non_python_count
-                    )
-                    is_python_issue = (
-                        python_count >= non_python_count and python_count > 0
-                    )
-                    posthog.capture(
-                        username,
-                        "is_python_issue",
-                        properties={"is_python_issue": is_python_issue},
-                    )
-                    file_change_requests, plan = sweep_bot.get_files_to_change(
-                        is_python_issue
-                    )
+                    file_change_requests, plan = sweep_bot.get_files_to_change()
                     ticket_progress.planning_progress.file_change_requests = (
                         file_change_requests
                     )
