@@ -25,7 +25,6 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
-from benchmark.utils.sweep_eval_utils import get_files_to_change
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -60,7 +59,7 @@ from sweepai.core.entities import (
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.core.pr_reader import PRReader
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import (
     create_config_pr,
     create_pr_changes,
@@ -1044,16 +1043,13 @@ def on_ticket(
                         "is_python_issue",
                         properties={"is_python_issue": is_python_issue},
                     )
-                    # file_change_requests, plan = sweep_bot.get_files_to_change(
-                    #     is_python_issue
-                    # )
-                    breakpoint()
                     file_change_requests, plan = get_files_to_change(
                         relevant_snippets=repo_context_manager.current_top_snippets,
                         read_only_snippets=repo_context_manager.read_only_snippets,
-                        problem_statement=formatted_query,
+                        problem_statement=f"# {title}\n\n{summary}",
                         repo_name=repo_name,
                     )
+                    validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
                     ticket_progress.planning_progress.file_change_requests = (
                         file_change_requests
                     )

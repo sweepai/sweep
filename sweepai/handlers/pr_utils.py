@@ -11,7 +11,7 @@ from sweepai.config.client import (
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import NoFilesException, SandboxResponse
-from sweepai.core.sweep_bot import SweepBot, get_files_to_change
+from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 
 # from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import GITHUB_LABEL_NAME, create_pr_changes
@@ -87,6 +87,7 @@ def make_pr(
         problem_statement=formatted_query,
         repo_name=repo_name,
     )
+    validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
     file_change_requests = sweep_bot.validate_file_change_requests(
         file_change_requests, branch_name
     )

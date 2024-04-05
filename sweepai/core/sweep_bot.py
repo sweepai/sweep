@@ -40,7 +40,7 @@ from sweepai.utils.progress import (
 )
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.utils import check_syntax
-from sweepai.utils.github_utils import commit_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 
@@ -106,8 +106,39 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
             return {"success": True, "path": blocked_dir}
     return {"success": False}
 
+def validate_file_change_requests(
+    file_change_requests: list[FileChangeRequest],
+    cloned_repo: ClonedRepo,
+):
+    # TODO: add better suffixing
+    for fcr in file_change_requests:
+        if fcr.change_type == "modify":
+            try:
+                file_contents = cloned_repo.get_file_contents(fcr.filename)
+            except FileNotFoundError as e:
+                logger.warning(f"Failed to get file contents for {fcr.filename} due to {e}, trying prefixes")
+                for file_path in cloned_repo.get_file_list():
+                    if file_path.endswith(fcr.filename):
+                        logger.info(f"Found similar file {fcr.filename} at {file_path}")
+                        file_contents = cloned_repo.get_file_contents(file_path)
+                        fcr.filename = file_path
+                        break
+                else:
+                    fcr.change_type = "create" # need better handling
+        elif fcr.change_type == "create":
+            try:
+                file_contents = cloned_repo.get_file_contents(fcr.filename)
+                fcr.change_type = "modify" # need better handling
+            except FileNotFoundError:
+                pass
+    
+
 def get_files_to_change(
-    relevant_snippets: list[Snippet], read_only_snippets: list[Snippet], problem_statement, repo_name, seed: int = 0
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement,
+    repo_name,
+    seed: int = 0
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
