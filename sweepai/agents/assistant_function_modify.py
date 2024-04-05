@@ -298,7 +298,7 @@ def build_keyword_search_match_results(
     match_indices: list[int], # list of all indices where keyword appears in file_contents
     file_contents: str,
     keyword: str,
-    readonly: bool = False,
+    starter_message: str,
 ) -> str:
     file_lines = file_contents.split("\n")
     file_lines_length = [len(line) for line in file_lines]
@@ -355,7 +355,7 @@ def build_keyword_search_match_results(
             if next_line_index - 1 != line_index:
                 success_message += "\n..."
 
-    return success_message
+    return starter_message + f"\n{success_message}"
 
 
 def english_join(items: list[str]) -> str:
@@ -728,6 +728,10 @@ def function_modify(
                             if not os.path.exists(full_file_path) and file_name not in modify_files_dict:
                                 logger.debug(f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!")
                                 error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
+                            # make sure it is a file and not a directory
+                            elif os.path.isdir(full_file_path):
+                                logger.debug(f"The file {file_name} is a directory. Make sure you are providing a file name!")
+                                error_message += f"The file {file_name} is a directory. Make sure you are providing a file name!"
                             
                     # if no issues continue with search
                     if not error_message:
@@ -736,7 +740,6 @@ def function_modify(
                         if file_name:
                             logger.info(f"Searching for keyword {keyword} in file {file_name}")
                             match_indices = []
-                            match_context_indices = []
                             # if the current code file is not in the modify_files_dict, add it
                             if file_name not in modify_files_dict:
                                 file_contents = read_file_with_fallback_encodings(full_file_path)
@@ -759,6 +762,7 @@ def function_modify(
                                         match_indices,
                                         file_contents,
                                         keyword,
+                                        starter_message,
                                         readonly=True
                                     )
                                 )
