@@ -4,6 +4,7 @@ import subprocess
 import urllib
 from dataclasses import dataclass, field, replace
 
+from matplotlib.collections import RegularPolyCollection
 import networkx as nx
 import openai
 from loguru import logger
@@ -18,6 +19,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import MockFunctionCall, mock_function_calls_to_string
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
+from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
 
@@ -442,9 +444,10 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
-def graph_retrieval(top_k_paths, rcm, G):
+def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoContextManager, G: nx.DiGraph):
     # TODO: tune these params
-    top_paths_cutoff = 10
+    top_paths_cutoff = 25
+    num_rerank = 30
     selected_paths = rcm.top_snippet_paths[:10]
     top_k_paths = top_k_paths[:top_paths_cutoff]
 
@@ -474,24 +477,57 @@ def graph_retrieval(top_k_paths, rcm, G):
         for file_path, score in top_pagerank_scores:
             if file_path.endswith(".js") and file_path.replace(".js", ".ts") in top_pagerank_paths:
                 continue
-            if file_path in selected_paths:
+            if file_path in top_k_paths:
                 continue
             if "generated" in file_path or "mock" in file_path or "test" in file_path:
                 continue
-            min_path_length = inf
-            # check if within distance two of selected paths
-            for parent_file_path in selected_paths:
-                try:
-                    min_path_length = min(min_path_length, nx.shortest_path_length(G, parent_file_path, file_path))
-                except (nx.NetworkXNoPath, nx.NodeNotFound):
-                    pass
-            if min_path_length > 2:
+            try:
+                rcm.cloned_repo.get_file_contents(file_path)
+            except FileNotFoundError:
                 continue
             distilled_file_path_list.append(file_path)
+        
+        # Rerank once
+        reranked_snippets = []
+        for file_path in distilled_file_path_list[:num_rerank]:
+            contents = rcm.cloned_repo.get_file_contents(file_path)
+            reranked_snippets.append(Snippet(
+                content=contents,
+                start=0,
+                end=contents.count("\n") + 1,
+                file_path=file_path,
+            ))
+        reranked_snippets = listwise_rerank_snippets(formatted_query, reranked_snippets, prompt_type="graph")
+        distilled_file_path_list[:num_rerank] = [snippet.file_path for snippet in reranked_snippets]
+
         return distilled_file_path_list
     except Exception as e:
         logger.error(e)
         return []
+
+def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager):
+    num_graph_retrievals = 25
+    repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)
+    if import_graph:
+        # Graph retrieval can fail and return [] if the graph is not found or pagerank does not converge
+        # Happens especially when graph has multiple components
+        graph_retrieved_files = graph_retrieval(formatted_query, repo_context_manager.top_snippet_paths, repo_context_manager, import_graph)
+        if graph_retrieved_files:
+            sorted_snippets = sorted(
+                repo_context_manager.snippets,
+                key=lambda snippet: repo_context_manager.snippet_scores[snippet.denotation],
+                reverse=True,
+            )
+            snippets = []
+            for file_path in graph_retrieved_files:
+                for snippet in sorted_snippets[50 - num_graph_retrievals:]:
+                    if snippet.file_path == file_path:
+                        snippets.append(snippet)
+                        break
+            graph_retrieved_files = graph_retrieved_files[:num_graph_retrievals]
+            repo_context_manager.read_only_snippets = snippets[:len(graph_retrieved_files)]
+            repo_context_manager.current_top_snippets = repo_context_manager.current_top_snippets[:50 - num_graph_retrievals]
+    return repo_context_manager, import_graph
 
 # add import trees for any relevant_file_paths (code files that appear in query)
 def build_import_trees(
@@ -505,7 +541,8 @@ def build_import_trees(
         import_graph = override_import_graph
     # if we have found relevant_file_paths in the query, we build their import trees
     code_files_in_query = rcm.relevant_file_paths
-    graph_retrieved_files = graph_retrieval(rcm.top_snippet_paths, rcm, import_graph)[:15]
+    # graph_retrieved_files = graph_retrieval(rcm.top_snippet_paths, rcm, import_graph)[:15]
+    graph_retrieved_files = [snippet.file_path for snippet in rcm.read_only_snippets]
     if code_files_in_query:
         for file in code_files_in_query:
             # fetch direct parent and children
@@ -599,15 +636,12 @@ def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
     seed: int = None,
+    import_graph: nx.DiGraph = None,
     ticket_progress: TicketProgress = None,
     chat_logger: ChatLogger = None,
 ):
     logger.info("Seed: " + str(seed))
     try:
-        # attempt to get import tree for relevant snippets that show up in the query
-        repo_context_manager, import_graph = parse_query_for_files(
-            query, repo_context_manager
-        )
         # for any code file mentioned in the query, build its import tree - This is currently not used
         repo_context_manager = build_import_trees(
             repo_context_manager,
