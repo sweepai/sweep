@@ -10,7 +10,6 @@ import re
 import traceback
 from typing import Any
 import zipfile
-from copy import deepcopy
 from time import time
 
 import markdown
@@ -38,9 +37,11 @@ from sweepai.config.client import (
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_documentation_dict,
+    get_gha_enabled,
     get_rules,
 )
 from sweepai.config.server import (
+    DEPLOYMENT_GHA_ENABLED,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GITHUB_LABEL_NAME,
@@ -53,9 +54,7 @@ from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
     MaxTokensExceeded,
-    Message,
     NoFilesException,
-    ProposedIssue,
     PullRequest,
     SandboxResponse,
 )
@@ -110,6 +109,7 @@ from sweepai.utils.ticket_utils import (
     fetch_relevant_files,
     fire_and_forget_wrapper,
     log_error,
+    prep_snippets,
 )
 from sweepai.utils.user_settings import UserSettings
 
@@ -304,7 +304,7 @@ def construct_sweep_bot(
         snippets: Any = None,
         tree: Any = None,
         comments: Any = None,
-    ):
+    ) -> SweepBot:
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -1367,15 +1367,14 @@ def on_ticket(
                     except Exception:
                         pass
 
-                # create draft pr, then convert to regular pr if it all is well
-                is_draft_pr = True
+                # create draft pr, then convert to regular pr later
                 pr: GithubPullRequest = repo.create_pull(
                     title=pr_changes.title,
                     body=pr_actions_message + pr_changes.body,
                     head=pr_changes.pr_head,
                     base=overrided_branch_name or SweepConfig.get_branch(repo),
                     # TODO: reenable it later
-                    draft=is_draft_pr and False,
+                    draft=True,
                 )
 
                 try:
@@ -1457,18 +1456,19 @@ def on_ticket(
                     ),
                 )
 
-                # TODO: re-enable this later
-                # poll for github to check when gha are done or not
+                # poll for github to check when gha are done
                 pr_created_successfully = False
                 total_poll_attempts = 0
-                SLEEP_DURATION = 15
-                breakpoint()
-                while True:
+                total_edit_attempts = 0
+                SLEEP_DURATION_SECONDS = 15
+                GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
+                MAX_EDIT_ATTEMPTS = 3 # max number of times to edit PR
+                while True and GITHUB_ACTIONS_ENABLED:
                     logger.info(
                         f"Polling to see if Github Actions have finished... {total_poll_attempts}"
                     )
                     # we wait at most 60 minutes
-                    if total_poll_attempts >= 60:
+                    if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 60:
                         pr_created_successfully = False
                         break
                     else:
@@ -1476,8 +1476,8 @@ def on_ticket(
                         total_poll_attempts += 1
                         from time import sleep
 
-                        sleep(SLEEP_DURATION)
-                    runs = list(repo.get_workflow_runs(branch=pr.head.ref))
+                        sleep(SLEEP_DURATION_SECONDS)
+                    runs = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=pr.head.sha))
                     # if all runs have succeeded, break
                     if all([run.conclusion == "success" for run in runs]):
                         pr_created_successfully = True
@@ -1493,25 +1493,35 @@ def on_ticket(
                             failed_runs
                         )
                         if failed_gha_logs:
-                            pass # make edits to the PR, we have access to RCM
-                            
-                            diffs = get_branch_diff_text(pr.base.ref, pr.head.ref)
+                            # make edits to the PR
+                            # TODO: look into rollbacks so we don't continue adding onto errors
+                            cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
+                                repo_full_name,
+                                installation_id=installation_id,
+                                token=user_token,
+                                repo=repo,
+                                branch=pr.head.ref,
+                            )
+                            diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
                             problem_statement = f"{title}\n{summary}\n{replies_text}"
-                            all_information_prompt = f"{failed_gha_logs}\n{diffs}{problem_statement}"
+                            all_information_prompt = f"While trying to address the user request:\n<user_request>\n{problem_statement}\n</user_request>\n{failed_gha_logs}\nThese are the changes that were previously made:\n<diffs>\n{diffs}\n</diffs>\n\nFix the failing logs."
+                            
+                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
                             repo_context_manager = get_relevant_context(
                                 all_information_prompt,
                                 repo_context_manager,
                                 ticket_progress,
                                 chat_logger=chat_logger,
                                 import_graph=None,
+                                num_rollouts=1,
                             )
-                            sweep_bot = construct_sweep_bot(
+                            sweep_bot: SweepBot = construct_sweep_bot(
                                 repo=repo,
                                 repo_name=repo_name,
                                 issue_url=issue_url,
                                 repo_description=repo_description,
-                                title=title,
-                                message_summary=message_summary,
+                                title="Fix the following errors to complete the user request.",
+                                message_summary=all_information_prompt,
                                 cloned_repo=cloned_repo,
                                 ticket_progress=ticket_progress,
                                 chat_logger=chat_logger,
@@ -1519,24 +1529,25 @@ def on_ticket(
                                 tree=tree,
                                 comments=comments,
                             )
-                            file_change_requests, plan = sweep_bot.get_files_to_change()
-                            [_ for _ in create_pr_changes(
-                                file_change_requests,
-                                pull_request,
-                                sweep_bot,
-                                username,
-                                installation_id,
-                                issue_number,
-                                chat_logger=chat_logger,
-                                base_branch=overrided_branch_name,
+                            file_change_requests, _ = sweep_bot.get_files_to_change()
+                            previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
+                            sweep_bot.handle_modify_file_main(
+                                branch=pr.head.ref,
+                                assistant_conversation=None,
                                 additional_messages=[],
-                            )]
-                            breakpoint()
+                                previous_modify_files_dict=previous_modify_files_dict,
+                                file_change_requests=file_change_requests
+                            )
+                            pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
+                            total_edit_attempts += 1
+                            if total_edit_attempts >= MAX_EDIT_ATTEMPTS:
+                                logger.info("Tried to edit PR 3 times, giving up.")
+                                break
                         # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
                         # unless this is sweep's last attempt
                     # if none of the runs have completed we wait and poll github
                     logger.info(
-                        "No Github Actions have failed yet and not all have succeeded yet, waiting for 60 seconds before polling again..."
+                        f"No Github Actions have failed yet and not all have succeeded yet, waiting for {SLEEP_DURATION_SECONDS} seconds before polling again..."
                     )
                 # break from main for loop
                 if pr_created_successfully:

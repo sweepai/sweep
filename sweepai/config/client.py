@@ -280,7 +280,7 @@ def get_gha_enabled(repo: Repository) -> bool:
     try:
         contents = repo.get_contents("sweep.yaml")
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
+            "gha_enabled", False
         )
         return gha_enabled
     except SystemExit:
@@ -289,7 +289,7 @@ def get_gha_enabled(repo: Repository) -> bool:
         logger.exception(
             f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
         )
-        return True
+        return False
 
 
 @lru_cache(maxsize=None)
@@ -377,8 +377,7 @@ def get_rules(repo: Repository):
     except SystemExit:
         raise SystemExit
     except Exception:
-        return []
-
+        return []    
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")

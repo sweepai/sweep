@@ -89,8 +89,6 @@ def clean_gh_logs(logs_str: str):
     command_line = match.group(1).strip()
     log_content = match.group(2).strip()
     error_line = match.group(3).strip()
-    breakpoint()
-
     patterns = [
         # for docker
         "Already exists",

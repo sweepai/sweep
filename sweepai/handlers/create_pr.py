@@ -196,7 +196,7 @@ def create_pr_changes(
             head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
         ),
     }
-    yield result  # Doing this because sometiems using StopIteration doesn't work, kinda jank tho tbh
+    yield result # TODO: refactor this as it doesn't need to be an iterator
     return
 
 

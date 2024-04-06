@@ -576,7 +576,7 @@ class SweepBot(CodeGenBot, GithubBot):
         assistant_conversation: AssistantConversation | None = None,
         additional_messages: list[Message] = [],
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
-    ):
+    ): # this is enough to make changes to a branch
         commit_message: str = None
         try:
             try:
