@@ -782,6 +782,7 @@ def handle_function_call(
                 for call in previous_function_calls
                 if call.function_name == "view_file"
             ]
+            previously_viewed_files = list(dict.fromkeys(previously_viewed_files))
             if file_path in previously_viewed_files:
                 previously_viewed_files_str = "\n".join(previously_viewed_files)
                 output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
