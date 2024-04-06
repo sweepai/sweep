@@ -138,6 +138,7 @@ def get_files_to_change(
     read_only_snippets: list[Snippet],
     problem_statement,
     repo_name,
+    pr_diffs: str = "",
     seed: int = 0
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
@@ -177,6 +178,10 @@ def get_files_to_change(
                 ).replace("{content}", snippet.get_snippet(add_lines=False)),
                 key="relevant_read_only_snippets",
             )
+        )
+    if pr_diffs:
+        messages.append(
+            Message(role="user", content=pr_diffs, key="pr_diffs")
         )
     try:
         print("messages")
@@ -234,7 +239,7 @@ class CodeGenBot(ChatGPT):
         raise NoFilesException()
 
     def get_files_to_change(
-        self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
+        self, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         raise DeprecationWarning("This function is deprecated. Use get_files_to_change instead.")
         file_change_requests: list[FileChangeRequest] = []
@@ -292,13 +297,6 @@ class CodeGenBot(ChatGPT):
             ):
                 file_change_request = FileChangeRequest.from_string(re_match.group(0))
                 file_change_requests.append(file_change_request)
-                if file_change_request.change_type in ("modify", "create"):
-                    new_file_change_request = copy.deepcopy(file_change_request)
-                    new_file_change_request.change_type = "check"
-                    new_file_change_request.instructions = ""
-                    new_file_change_request.parent = file_change_request
-                    file_change_requests.append(new_file_change_request)
-
             if file_change_requests:
                 plan_str = "\n".join(
                     [fcr.instructions_display for fcr in file_change_requests]
@@ -689,7 +687,7 @@ class SweepBot(CodeGenBot, GithubBot):
         assistant_conversation: AssistantConversation | None = None,
         additional_messages: list[Message] = [],
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
-    ):
+    ): # this is enough to make changes to a branch
         commit_message: str = None
         try:
             try:

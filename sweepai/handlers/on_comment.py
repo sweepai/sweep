@@ -292,7 +292,6 @@ def on_comment(
                 repo_description=repo_description if repo_description else "",
                 diffs=diffs,
                 issue_url=pr.html_url,
-                username=username,
                 title=pr_title,
                 tree=tree,
                 summary=pr_body,
@@ -349,6 +348,7 @@ def on_comment(
                     read_only_snippets=repo_context_manager.read_only_snippets,
                     problem_statement=formatted_query,
                     repo_name=repo_name,
+                    pr_diffs=pr_diff_string
                 )
                 validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
                 file_change_requests = sweep_bot.validate_file_change_requests(
