@@ -746,12 +746,18 @@ def handle_function_call(
             rg_output = result.stdout
             if rg_output:
                 # post process rip grep output to be more condensed
-                rg_output_pretty, _ = post_process_rg_output(
+                rg_output_pretty, file_output_dict = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
+                non_stored_files = [
+                    file_path
+                    for file_path in file_output_dict
+                    if file_path not in repo_context_manager.top_snippet_paths
+                ]
+                non_stored_files_string = "The following files have not been stored:\n" + "\n".join(non_stored_files) + "\n"
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                    get_stored_files(repo_context_manager) + 
+                    get_stored_files(repo_context_manager) + non_stored_files_string +
                     "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. Use `store_file` to add any important non-stored files to the context."
                 )
             else:
@@ -777,6 +783,7 @@ def handle_function_call(
                 for call in previous_function_calls
                 if call.function_name == "view_file"
             ]
+            previously_viewed_files = list(dict.fromkeys(previously_viewed_files))
             if file_path in previously_viewed_files:
                 previously_viewed_files_str = "\n".join(previously_viewed_files)
                 output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
