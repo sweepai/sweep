@@ -597,6 +597,7 @@ def get_relevant_context(
     repo_context_manager: RepoContextManager,
     seed: int = None,
     import_graph: nx.DiGraph = None,
+    num_rollouts: int = NUM_ROLLOUTS,
     ticket_progress: TicketProgress = None,
     chat_logger: ChatLogger = None,
 ):
@@ -627,6 +628,7 @@ def get_relevant_context(
                 user_prompt,
                 repo_context_manager,
                 problem_statement=query,
+                num_rollouts=num_rollouts,
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
@@ -990,13 +992,14 @@ def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
     problem_statement: str,
+    num_rollouts: int,
 ) -> bool | None:
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
     rollout_function_call_histories = []
-    for rollout_idx in range(NUM_ROLLOUTS):
+    for rollout_idx in range(num_rollouts):
         # operate on a deep copy of the repo context manager
         if rollout_idx > 0:
             user_prompt = repo_context_manager.format_context(

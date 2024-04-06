@@ -242,8 +242,6 @@ class FileChangeRequest(RegexMatchableBaseModel):
         prefix = {"failed": "✗", "succeeded": "✓", "queued": "▶", "running": "⋯"}[
             self.status
         ] + " "
-        if self.change_type == "check":
-            return prefix + f"Run GitHub Actions for `{self.filename}`"
         return prefix + f"{self.change_type.capitalize()}\n{self.filename}"
 
     @property
