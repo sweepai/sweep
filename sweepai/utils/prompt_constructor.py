@@ -5,7 +5,6 @@ from sweepai.core.prompts import (
     final_review_prompt,
     human_message_prompt,
     human_message_prompt_comment,
-    human_message_review_prompt,
 )
 
 

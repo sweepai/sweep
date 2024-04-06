@@ -343,12 +343,6 @@ def on_comment(
                     )
                 ]
             else:
-                non_python_count = sum(
-                    not file_path.endswith(".py")
-                    for file_path in human_message.get_file_paths()
-                )
-                python_count = len(human_message.get_file_paths()) - non_python_count
-                is_python_issue = python_count > non_python_count
                 file_change_requests, _ = sweep_bot.get_files_to_change(
                     retries=1, pr_diffs=pr_diff_string
                 )
