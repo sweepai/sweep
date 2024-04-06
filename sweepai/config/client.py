@@ -256,12 +256,12 @@ class SweepConfig(BaseModel):
         if len(data)/line_count > 200:
             return True
     
-         # check token density, if it is greater than 2, then it is likely not human readable
-        token_count = tiktoken_client.count(data)
-        if token_count == 0:
-            return True
-        if len(data)/token_count < 2:
-            return True
+        # check token density, if it is greater than 2, then it is likely not human readable
+        # token_count = tiktoken_client.count(data)
+        # if token_count == 0:
+        #     return True
+        # if len(data)/token_count < 2:
+        #     return True
         
         # now check the file name
         parts = file_path.split(os.path.sep)
