@@ -13,7 +13,7 @@ def test_clean_gh_logs(run_id: int, installation_id: int, repo_full_name: str):
     logs = clean_gh_logs(logs)
     return logs
 
-RUN_ID = 8575863381
+RUN_ID = 8576903108
 REPO_FULL_NAME = "sweepai/sweep"
 
 logs = test_clean_gh_logs(RUN_ID, INSTALLATION_ID, REPO_FULL_NAME)

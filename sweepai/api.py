@@ -214,9 +214,6 @@ def call_on_ticket(*args, **kwargs):
     thread.start()
     global_threads.append(thread)
 
-    # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
-    # delayed_kill_thread.start()
-
 
 def call_on_check_suite(*args, **kwargs):
     kwargs["request"].repository.full_name
