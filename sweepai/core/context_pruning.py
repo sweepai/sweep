@@ -402,6 +402,7 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
+@file_cache(ignore_params=["rcm", "G"])
 def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoContextManager, G: nx.DiGraph):
     # TODO: tune these params
     top_paths_cutoff = 25

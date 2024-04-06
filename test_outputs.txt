@@ -1,0 +1,36 @@
+MRR at 50: 0.6666666666666666
+test sympy__sympy-18030
+MRR at 50: 0.4800000000000001
+test sympy__sympy-14564
+MRR at 50: 0.5
+test sympy__sympy-18191
+MRR at 50: 1.0
+test astropy__astropy-14295
+MRR at 50: 1.0
+test astropy__astropy-14295
+MRR at 50: 1.0
+test sympy__sympy-18030
+MRR at 50: 0.4817518248175183
+test sphinx-doc__sphinx-9155
+MRR at 50: 1.0
+test sympy__sympy-13264
+MRR at 50: 0.5
+test sympy__sympy-18191
+MRR at 50: 0.4800000000000001
+test sympy__sympy-14564
+MRR at 50: 0.4800000000000001
+test sympy__sympy-14564
+MRR at 50: 0.1
+test sympy__sympy-16450
+MRR at 50: 0.125
+test sympy__sympy-16450
+MRR at 50: 0.1
+test sympy__sympy-16450
+MRR at 50: 0.125
+test sympy__sympy-16450
+MRR at 50: 0.1
+test sympy__sympy-16450
+MRR at 50: 0.1
+test sympy__sympy-16450
+MRR at 50: 0.1
+test sympy__sympy-16450

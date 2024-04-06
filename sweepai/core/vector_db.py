@@ -105,11 +105,8 @@ def batch_by_token_count_for_voyage(
 def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
-    # if VOYAGE_API_KEY:
-    #     batches = batch_by_token_count_for_voyage(texts)
-    # else:
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
-    workers = min(max(1, multiprocessing.cpu_count() // 4), 4)
+    workers = min(max(1, multiprocessing.cpu_count() // 4), 1)
     if workers > 1:
         with multiprocessing.Pool(
             processes=workers
