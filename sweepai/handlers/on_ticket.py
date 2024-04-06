@@ -1539,10 +1539,10 @@ def on_ticket(
                                 file_change_requests=file_change_requests
                             )
                             pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
-                            total_edit_attempts += 1
                             if total_edit_attempts >= MAX_EDIT_ATTEMPTS:
                                 logger.info("Tried to edit PR 3 times, giving up.")
                                 break
+                            total_edit_attempts += 1
                         # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
                         # unless this is sweep's last attempt
                     # if none of the runs have completed we wait and poll github
