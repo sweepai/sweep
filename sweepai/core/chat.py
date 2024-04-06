@@ -368,7 +368,7 @@ class ChatGPT(MessageList):
         e = None
         for i in range(4):
             try:
-                @file_cache() # must be in the inner scope because this entire function manages state
+                @file_cache(redis=True) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str=system_message, 
