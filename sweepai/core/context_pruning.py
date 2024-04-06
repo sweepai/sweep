@@ -591,7 +591,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -776,9 +776,9 @@ def handle_function_call(
                 for call in previous_function_calls
                 if call.function_name == "view_file"
             ]
-            logger.info(f"Previously viewed files: {previously_viewed_files} {file_path}")
             if file_path in previously_viewed_files:
-                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call."
+                previously_viewed_files_str = "\n".join(previously_viewed_files)
+                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
             else:
                 output = f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>'
             if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
