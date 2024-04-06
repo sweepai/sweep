@@ -17,7 +17,6 @@ from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_
 from sweepai.handlers.create_pr import GITHUB_LABEL_NAME, create_pr_changes
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.ticket_utils import prep_snippets

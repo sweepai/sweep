@@ -975,7 +975,13 @@ def on_ticket(
                 )
 
                 logger.info("Fetching files to modify/create...")
-                file_change_requests, plan = sweep_bot.get_files_to_change()
+                file_change_requests, plan = get_files_to_change(
+                    relevant_snippets=repo_context_manager.relevant_snippets,
+                    read_only_snippets=repo_context_manager.read_only_snippets,
+                    problem_statement=f"{title}\n\n{summary}",
+                    repo_name=repo_full_name,
+                )
+                validate_file_change_requests(file_change_requests, cloned_repo)
                 ticket_progress.planning_progress.file_change_requests = (
                     file_change_requests
                 )
@@ -1120,265 +1126,103 @@ def on_ticket(
                     if isinstance(item, dict):
                         response = item
                         break
-
-                # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-                if not sweep_yml_exists:
-                    try:
-                        logger.info("Creating sweep.yaml file...")
-                        config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
-                        config_pr_url = config_pr.html_url
-                        edit_sweep_comment(message="", index=-2)
-                    except SystemExit:
-                        raise SystemExit
-                    except Exception as e:
-                        logger.error(
-                            "Failed to create new branch for sweep.yaml file.\n",
-                            e,
-                            traceback.format_exc(),
+                    (
+                        new_file_contents,
+                        _,
+                        commit,
+                        file_change_requests,
+                    ) = item
+                    # append all files that have been changed
+                    if new_file_contents:
+                        for file_name, _ in new_file_contents.items():
+                            changed_files.append(file_name)
+                    commit_hash: str = (
+                        commit
+                        if isinstance(commit, str)
+                        else (
+                            commit.sha
+                            if commit is not None
+                            else repo.get_branch(
+                                pull_request.branch_name
+                            ).commit.sha
                         )
-                else:
-                    logger.info("sweep.yaml file already exists.")
-
-                # ANALYZE SNIPPETS
-                newline = "\n"
-                edit_sweep_comment(
-                    "I found the following snippets in your repository. I will now analyze"
-                    " these snippets and come up with a plan."
-                    + "\n\n"
-                    + create_collapsible(
-                        "Some code snippets I think are relevant in decreasing order of relevance (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
-                        "\n".join(
-                            [
-                                f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
-                                for snippet in snippets
-                            ]
+                    )
+                    commit_url = (
+                        f"https://github.com/{repo_full_name}/commit/{commit_hash}"
+                    )
+                    commit_url_display = (
+                        f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
+                    )
+                    create_error_logs(
+                        commit_url_display,
+                        None,
+                        status=(
+                            "✓"
                         ),
                     )
-                    + (
-                        create_collapsible(
-                            "I also found that you mentioned the following Pull Requests that may be helpful:",
-                            blockquote(prs_extracted),
+                    checkboxes_progress = [
+                        (
+                            file_change_request.display_summary
+                            + " "
+                            + file_change_request.status_display
+                            + " "
+                            + (file_change_request.commit_hash_url or "")
+                            + f" [Edit]({file_change_request.get_edit_url(repo.full_name, pull_request.branch_name)})",
+                            file_change_request.instructions_ticket_display
+                            + f"\n\n{file_change_request.diff_display}",
+                            (
+                                "X"
+                                if file_change_request.status
+                                in ("succeeded", "failed")
+                                else " "
+                            ),
                         )
-                        if prs_extracted
-                        else ""
-                    )
-                    # removed external results as it provides no real value and only adds noise
-                    # + (
-                    #     create_collapsible(
-                    #         "I also found the following external resources that might be helpful:",
-                    #         f"\n\n{external_results}\n\n",
-                    #     )
-                    #     if external_results
-                    #     else ""
-                    # )
-                    + (f"\n\n{docs_results}\n\n" if docs_results else ""),
-                    1,
-                )
-
-                if do_map:
-                    subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
-                    edit_sweep_comment(
-                        "I'm creating the following subissues:\n\n"
-                        + "\n\n".join(
-                            [
-                                f"#{subissue.title}:\n" + blockquote(subissue.body)
-                                for subissue in subissues
-                            ]
-                        ),
-                        2,
-                    )
-                    for subissue in tqdm(subissues):
-                        subissue.issue_id = repo.create_issue(
-                            title="Sweep: " + subissue.title,
-                            body=subissue.body
-                            + f"\n\nParent issue: #{issue_number}",
-                            assignee=username,
-                        ).number
-                    subissues_checklist = "\n\n".join(
+                        for file_change_request in file_change_requests
+                    ]
+                    checkboxes_contents = "\n".join(
                         [
-                            f"- [ ] #{subissue.issue_id}\n\n"
-                            + blockquote(f"**{subissue.title}**\n{subissue.body}")
-                            for subissue in subissues
+                            checkbox_template.format(
+                                check=check,
+                                filename=filename,
+                                instructions=blockquote(instructions),
+                            )
+                            for filename, instructions, check in checkboxes_progress
                         ]
                     )
+                    collapsible_template.format(
+                        summary="Checklist",
+                        body=checkboxes_contents,
+                        opened="open",
+                    )
+                    condensed_checkboxes_contents = "\n".join(
+                        [
+                            checkbox_template.format(
+                                check=check,
+                                filename=filename,
+                                instructions="",
+                            ).strip()
+                            for filename, instructions, check in checkboxes_progress
+                            if not instructions.lower().startswith("run")
+                        ]
+                    )
+                    condensed_checkboxes_collapsible = collapsible_template.format(
+                        summary="Checklist",
+                        body=condensed_checkboxes_contents,
+                        opened="open",
+                    )
+
+                    try:
+                        current_issue = repo.get_issue(number=issue_number)
+                    except BadCredentialsException:
+                        user_token, g, repo = refresh_token()
+                        cloned_repo.token = user_token
+
                     current_issue.edit(
-                        body=summary
-                        + "\n\n---\n\nChecklist:\n\n"
-                        + subissues_checklist
+                        body=summary + "\n\n" + condensed_checkboxes_collapsible
                     )
-                    edit_sweep_comment(
-                        "I finished creating the subissues! Track them at:\n\n"
-                        + "\n".join(
-                            f"* #{subissue.issue_id}" for subissue in subissues
-                        ),
-                        3,
-                        done=True,
-                    )
-                    edit_sweep_comment("N/A", 4)
-                    edit_sweep_comment("I finished creating all the subissues.", 5)
-                    posthog.capture(
-                        username,
-                        "subissues_created",
-                        properties={
-                            **metadata,
-                            "count": len(subissues),
-                            "duration": round(time() - on_ticket_start_time),
-                        },
-                    )
-                    return {"success": True}
 
-                logger.info("Fetching files to modify/create...")
-                non_python_count = sum(
-                    not file_path.endswith(".py")
-                    and not file_path.endswith(".ipynb")
-                    and not file_path.endswith(".md")
-                    for file_path in human_message.get_file_paths()
-                )
-                python_count = (
-                    len(human_message.get_file_paths()) - non_python_count
-                )
-                is_python_issue = (
-                    python_count >= non_python_count and python_count > 0
-                )
-                posthog.capture(
-                    username,
-                    "is_python_issue",
-                    properties={"is_python_issue": is_python_issue},
-                )
-                file_change_requests, plan = get_files_to_change(
-                    relevant_snippets=repo_context_manager.current_top_snippets,
-                    read_only_snippets=repo_context_manager.read_only_snippets,
-                    problem_statement=f"# {title}\n\n{summary}",
-                    repo_name=repo_name,
-                )
-                validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
-                ticket_progress.planning_progress.file_change_requests = (
-                    file_change_requests
-                )
-                ticket_progress.coding_progress.file_change_requests = (
-                    file_change_requests
-                )
-                ticket_progress.coding_progress.assistant_conversations = [
-                    AssistantConversation() for fcr in file_change_requests
-                ]
-                ticket_progress.status = TicketProgressStatus.CODING
-                ticket_progress.save()
-
-                if not file_change_requests:
-                    if len(title + summary) < 60:
-                        edit_sweep_comment(
-                            (
-                                "Sorry, I could not find any files to modify, can you please"
-                                " provide more details? Please make sure that the title and"
-                                " summary of the issue are at least 60 characters."
-                            ),
-                            -1,
-                        )
-                    else:
-                        edit_sweep_comment(
-                            (
-                                "Sorry, I could not find any files to modify, can you please"
-                                " provide more details?"
-                            ),
-                            -1,
-                        )
-                    raise Exception("No files to modify.")
-
-                file_change_requests = validate_file_change_requests(
-                    file_change_requests,
-                    cloned_repo,
-                )
-                # append all files that have been changed
-                if new_file_contents:
-                    for file_name, _ in new_file_contents.items():
-                        changed_files.append(file_name)
-                commit_hash: str = (
-                    commit
-                    if isinstance(commit, str)
-                    else (
-                        commit.sha
-                        if commit is not None
-                        else repo.get_branch(
-                            pull_request.branch_name
-                        ).commit.sha
-                    )
-                )
-                commit_url = (
-                    f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-                )
-                commit_url_display = (
-                    f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
-                )
-                create_error_logs(
-                    commit_url_display,
-                    None,
-                    status=(
-                        "✓"
-                    ),
-                )
-                checkboxes_progress = [
-                    (
-                        file_change_request.display_summary
-                        + " "
-                        + file_change_request.status_display
-                        + " "
-                        + (file_change_request.commit_hash_url or "")
-                        + f" [Edit]({file_change_request.get_edit_url(repo.full_name, pull_request.branch_name)})",
-                        file_change_request.instructions_ticket_display
-                        + f"\n\n{file_change_request.diff_display}",
-                        (
-                            "X"
-                            if file_change_request.status
-                            in ("succeeded", "failed")
-                            else " "
-                        ),
-                    )
-                    for file_change_request in file_change_requests
-                ]
-                checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions=blockquote(instructions),
-                        )
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
-                collapsible_template.format(
-                    summary="Checklist",
-                    body=checkboxes_contents,
-                    opened="open",
-                )
-                condensed_checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions="",
-                        ).strip()
-                        for filename, instructions, check in checkboxes_progress
-                        if not instructions.lower().startswith("run")
-                    ]
-                )
-                condensed_checkboxes_collapsible = collapsible_template.format(
-                    summary="Checklist",
-                    body=condensed_checkboxes_contents,
-                    opened="open",
-                )
-
-                try:
-                    current_issue = repo.get_issue(number=issue_number)
-                except BadCredentialsException:
-                    user_token, g, repo = refresh_token()
-                    cloned_repo.token = user_token
-
-                current_issue.edit(
-                    body=summary + "\n\n" + condensed_checkboxes_collapsible
-                )
-
-                logger.info(files_progress)
-                edit_sweep_comment(checkboxes_contents, 2)
+                    logger.info(files_progress)
+                    edit_sweep_comment(checkboxes_contents, 2)
                 if not response.get("success"):
                     raise Exception(f"Failed to create PR: {response.get('error')}")
 
@@ -1691,7 +1535,13 @@ def on_ticket(
                                 tree=tree,
                                 comments=comments,
                             )
-                            file_change_requests, _ = sweep_bot.get_files_to_change()
+                            file_change_requests, plan = get_files_to_change(
+                                relevant_snippets=repo_context_manager.relevant_snippets,
+                                read_only_snippets=repo_context_manager.read_only_snippets,
+                                problem_statement=all_information_prompt,
+                                repo_name=repo_full_name,
+                            )
+                            validate_file_change_requests(file_change_requests, cloned_repo)
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
                             sweep_bot.handle_modify_file_main(
                                 branch=pr.head.ref,

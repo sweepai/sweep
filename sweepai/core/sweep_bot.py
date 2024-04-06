@@ -156,29 +156,45 @@ def get_files_to_change(
             key="assistant",
         )
     )
-    relevant_snippet_template = '<relevant_snippets>\n<snippet source="{snippet_denotation}">\n{content}\n</snippet>\n</relevant_snippets>'
-    read_only_snippet_template = '<read_only_snippets>\n<read_only_snippet source="{snippet_denotation}">\n{content}\n</read_only_snippet>\n</read_only_snippets>'
+    relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
     # attach all relevant snippets
-    for snippet in relevant_snippets:
-        messages.append(
-            Message(
-                role="user",
-                content=relevant_snippet_template.replace(
-                    "{snippet_denotation}", snippet.denotation
-                ).replace("{content}", snippet.get_snippet(add_lines=False)),
-                key="relevant_snippets",
-            )
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            snippet_denotation=snippet.denotation,
+            content=snippet.expand(300).get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
+    relevant_snippets_message = f"<relevant_snippets>\n{joined_relevant_snippets}\n</relevant_snippets>"
+    messages.append(
+        Message(
+            role="user",
+            content=relevant_snippets_message,
+            key="relevant_snippets",
         )
-    for snippet in read_only_snippets:
-        messages.append(
-            Message(
-                role="user",
-                content=read_only_snippet_template.replace(
-                    "{snippet_denotation}", snippet.denotation
-                ).replace("{content}", snippet.get_snippet(add_lines=False)),
-                key="relevant_read_only_snippets",
-            )
+    )
+    joined_relevant_read_only_snippets = "\n".join(
+        read_only_snippet_template.format(
+            i=i,
+            snippet_denotation=snippet.denotation,
+            content=snippet.get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(read_only_snippets)
+    )
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    messages.append(
+        Message(
+            role="user",
+            content=read_only_snippets_message,
+            key="relevant_snippets",
         )
+    )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
+        )
+    )
     if pr_diffs:
         messages.append(
             Message(role="user", content=pr_diffs, key="pr_diffs")
