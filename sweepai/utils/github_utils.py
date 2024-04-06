@@ -479,6 +479,18 @@ def update_file(root_dir: str, file_path: str, new_contents: str):
         logger.error(f"Failed to update file: {e}")
         return False
 
+def rebase_feature_branch(repo, feature_branch, base_branch, token):
+    clone_url = repo.clone_url.replace("https://", f"https://{token}@")
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        cloned_repo = git.Repo.clone_from(clone_url, temp_dir)
+        
+        cloned_repo.git.checkout(feature_branch)
+        cloned_repo.git.rebase(base_branch)
+        
+        cloned_repo.git.push("origin", feature_branch, force=True)
+
+        
 @dataclass
 class MockClonedRepo(ClonedRepo):
     _repo_dir: str = ""

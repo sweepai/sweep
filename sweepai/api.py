@@ -21,7 +21,6 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.templating import Jinja2Templates
-from github import GithubException
 from github.Commit import Commit
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -76,7 +75,7 @@ from sweepai.utils.buttons import (
 )
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
-from sweepai.utils.github_utils import CURRENT_USERNAME, get_github_client
+from sweepai.utils.github_utils import CURRENT_USERNAME, get_github_client, rebase_feature_branch
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
@@ -404,13 +403,11 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                     continue
 
                 try:
-                    repo.rebase(pr.base.ref, feature_branch)
-                except GithubException as e:
-                    if e.status == 409:  # Merge conflict
-                        pr.edit(state="closed") 
-                        continue
-                    else:
-                        raise
+                    rebase_feature_branch(repo, feature_branch, pr.base.ref, token)
+                except Exception as e:
+                    logger.warning(f"Failed to rebase feature branch for PR #{pr.number}: {e}")
+                    pr.edit(state="closed")
+                    continue
 
                 # Check if the merged PR is the config PR
                 if pr.title == "Configure Sweep" and pr.merged:
