@@ -1462,7 +1462,7 @@ def on_ticket(
                 total_edit_attempts = 0
                 SLEEP_DURATION_SECONDS = 15
                 GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
-                MAX_EDIT_ATTEMPTS = 3 # max number of times to edit PR
+                MAX_EDIT_ATTEMPTS = 4 # max number of times to edit PR
                 while True and GITHUB_ACTIONS_ENABLED:
                     logger.info(
                         f"Polling to see if Github Actions have finished... {total_poll_attempts}"
@@ -1539,10 +1539,10 @@ def on_ticket(
                                 file_change_requests=file_change_requests
                             )
                             pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
-                            if total_edit_attempts >= MAX_EDIT_ATTEMPTS:
-                                logger.info("Tried to edit PR 3 times, giving up.")
-                                break
                             total_edit_attempts += 1
+                            if total_edit_attempts >= MAX_EDIT_ATTEMPTS:
+                                logger.info(f"Tried to edit PR {MAX_EDIT_ATTEMPTS} times, giving up.")
+                                break
                         # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
                         # unless this is sweep's last attempt
                     # if none of the runs have completed we wait and poll github
