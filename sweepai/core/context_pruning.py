@@ -921,17 +921,17 @@ def get_stored_files(repo_context_manager: RepoContextManager) -> str:
     return stored_files_string
 
 def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
-    message_results, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
+    _, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
     rollout_function_call_histories.append(function_call_history)
     rollout_stored_files = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
-    truncated_message_results = message_results[1:] # skip system prompt
-    joined_messages = "\n\n".join([message.content for message in truncated_message_results])
-    overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
-        problem_statement=problem_statement, 
-        run_text=joined_messages,
-        stored_files=rollout_stored_files,
-    )
-    return overall_score, message_to_contractor, repo_context_manager, rollout_stored_files
+    # truncated_message_results = message_results[1:] # skip system prompt
+    # joined_messages = "\n\n".join([message.content for message in truncated_message_results])
+    # overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
+    #     problem_statement=problem_statement, 
+    #     run_text=joined_messages,
+    #     stored_files=rollout_stored_files,
+    # )
+    return 0, "", repo_context_manager, rollout_stored_files
 
 def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]], user_prompt: str) -> list[Message]:
     function_call_history = []
@@ -1007,7 +1007,7 @@ def context_dfs(
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
+        # reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
         if overall_score >= SCORE_THRESHOLD and len(rollout_stored_files) > STOP_AFTER_SCORE_THRESHOLD_IDX:
             break
