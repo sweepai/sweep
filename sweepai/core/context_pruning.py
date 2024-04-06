@@ -28,7 +28,7 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 MAX_REFLECTIONS = 2
 MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
-NUM_ROLLOUTS = 5 # dev speed
+NUM_ROLLOUTS = 3 # dev speed
 SCORE_THRESHOLD = 8 # good score
 STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
 MAX_PARALLEL_FUNCTION_CALLS = 1
@@ -961,13 +961,13 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
         function_calls = validate_and_parse_function_calls(
             function_calls_string, chat_gpt
         )
-        function_call_history.append(function_calls)
         function_outputs = ""
         for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
             function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
             llm_state["function_call_history"] = function_call_history
             if PLAN_SUBMITTED_MESSAGE in function_outputs:
                 return chat_gpt.messages, function_call_history
+        function_call_history.append(function_calls)
         if len(function_calls) == 0:
             function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\nRemember to gather ALL relevant files. " + get_stored_files(repo_context_manager)
