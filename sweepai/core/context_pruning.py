@@ -14,7 +14,6 @@ from openai.types.beta.threads.run import Run
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
-from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall, mock_function_calls_to_string
@@ -592,7 +591,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -748,12 +747,18 @@ def handle_function_call(
             rg_output = result.stdout
             if rg_output:
                 # post process rip grep output to be more condensed
-                rg_output_pretty, _ = post_process_rg_output(
+                rg_output_pretty, file_output_dict = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
+                non_stored_files = [
+                    file_path
+                    for file_path in file_output_dict
+                    if file_path not in repo_context_manager.top_snippet_paths
+                ]
+                non_stored_files_string = "The following files have not been stored:\n" + "\n".join(non_stored_files) + "\n"
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                    get_stored_files(repo_context_manager) + 
+                    get_stored_files(repo_context_manager) + non_stored_files_string +
                     "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. Use `store_file` to add any important non-stored files to the context."
                 )
             else:
@@ -779,9 +784,10 @@ def handle_function_call(
                 for call in previous_function_calls
                 if call.function_name == "view_file"
             ]
-            logger.info(f"Previously viewed files: {previously_viewed_files} {file_path}")
+            previously_viewed_files = list(dict.fromkeys(previously_viewed_files))
             if file_path in previously_viewed_files:
-                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call."
+                previously_viewed_files_str = "\n".join(previously_viewed_files)
+                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
             else:
                 output = f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>'
             if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
@@ -923,17 +929,17 @@ def get_stored_files(repo_context_manager: RepoContextManager) -> str:
     return stored_files_string
 
 def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
-    message_results, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
+    _, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
     rollout_function_call_histories.append(function_call_history)
     rollout_stored_files = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
-    truncated_message_results = message_results[1:] # skip system prompt
-    joined_messages = "\n\n".join([message.content for message in truncated_message_results])
-    overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
-        problem_statement=problem_statement, 
-        run_text=joined_messages,
-        stored_files=rollout_stored_files,
-    )
-    return overall_score, message_to_contractor, repo_context_manager, rollout_stored_files
+    # truncated_message_results = message_results[1:] # skip system prompt
+    # joined_messages = "\n\n".join([message.content for message in truncated_message_results])
+    # overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
+    #     problem_statement=problem_statement, 
+    #     run_text=joined_messages,
+    #     stored_files=rollout_stored_files,
+    # )
+    return 0, "", repo_context_manager, rollout_stored_files
 
 def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]], user_prompt: str) -> list[Message]:
     function_call_history = []
@@ -1010,7 +1016,7 @@ def context_dfs(
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
+        # reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
         rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
         if overall_score >= SCORE_THRESHOLD and len(rollout_stored_files) > STOP_AFTER_SCORE_THRESHOLD_IDX:
             break
