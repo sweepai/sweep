@@ -12,7 +12,6 @@ from pydantic import BaseModel
 
 from sweepai.core.entities import EmptyRepository
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.utils import Tiktoken
 
 
 class SweepConfig(BaseModel):
@@ -228,7 +227,7 @@ class SweepConfig(BaseModel):
     
     # returns if file is excluded or not, this version may drop actual relevant files
     def is_file_excluded_aggressive(self, dir: str, file_path: str) -> bool:
-        tiktoken_client = Tiktoken()
+        # tiktoken_client = Tiktoken()
         # must exist
         if not os.path.exists(os.path.join(dir, file_path)) and not os.path.exists(file_path):
             return True
@@ -256,12 +255,12 @@ class SweepConfig(BaseModel):
         if len(data)/line_count > 200:
             return True
     
-         # check token density, if it is greater than 2, then it is likely not human readable
-        token_count = tiktoken_client.count(data)
-        if token_count == 0:
-            return True
-        if len(data)/token_count < 2:
-            return True
+        # check token density, if it is greater than 2, then it is likely not human readable
+        # token_count = tiktoken_client.count(data)
+        # if token_count == 0:
+        #     return True
+        # if len(data)/token_count < 2:
+        #     return True
         
         # now check the file name
         parts = file_path.split(os.path.sep)
