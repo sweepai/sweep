@@ -14,7 +14,6 @@ from openai.types.beta.threads.run import Run
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
-from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall, mock_function_calls_to_string
