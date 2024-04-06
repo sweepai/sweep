@@ -21,6 +21,7 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.templating import Jinja2Templates
+from github import GithubException
 from github.Commit import Commit
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -402,11 +403,14 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                     pr.edit(state="closed")
                     continue
 
-                repo.merge(
-                    feature_branch,
-                    pr.base.ref,
-                    f"Merge main into {feature_branch}",
-                )
+                try:
+                    repo.rebase(pr.base.ref, feature_branch)
+                except GithubException as e:
+                    if e.status == 409:  # Merge conflict
+                        pr.edit(state="closed") 
+                        continue
+                    else:
+                        raise
 
                 # Check if the merged PR is the config PR
                 if pr.title == "Configure Sweep" and pr.merged:
@@ -414,7 +418,7 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
                     create_gha_pr(g, repo)
             except Exception as e:
                 logger.warning(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+                    f"Failed to rebase feature branch for PR #{pr.number}: {e}"
                 )
     except Exception:
         logger.warning("Failed to update sweep PRs")
