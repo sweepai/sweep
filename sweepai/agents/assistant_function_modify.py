@@ -1,5 +1,3 @@
-from copy import deepcopy
-import copy
 import os
 import json
 import subprocess
@@ -18,7 +16,8 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo, update_file
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.utils import CheckResults, chunk_code, get_check_results
+from sweepai.utils.str_utils import get_all_indices_of_substring
+from sweepai.utils.utils import CheckResults, get_check_results
 from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
@@ -185,13 +184,6 @@ Name of the file to make the change in. Ensure correct spelling as this is case-
 </description>
 </parameter>
 <parameter>
-<name>section_id</name>
-<type>str</type>
-<description>
-The section ID where the original code to be modified belongs to, helping to locate the specific area within the file.
-</description>
-</parameter>
-<parameter>
 <name>original_code</name>
 <type>str</type>
 <description>
@@ -269,16 +261,28 @@ Summarize the code changes made and how they fulfill the user's original request
 NO_TOOL_CALL_PROMPT = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
 
-<function_call>
+<function_calls>
 <invoke>
 <tool_name>tool_name</tool_name>
 <parameters>
 <param_name>param_value</param_name>
 </parameters>
 </invoke>
-</function_call>
+</function_calls>
 
-If you are ready done, call the submit function.
+Here is an example:
+
+<function_calls>
+<invoke>
+<tool_name>analyze_problem_and_propose_plan</tool_name>
+<parameters>
+<problem_analysis>The problem analysis goes here</problem_analysis>
+<proposed_plan>The proposed plan goes here</proposed_plan>
+</parameters>
+</invoke>
+</function_calls>
+
+If you are really done, call the submit function.
 """
 
 unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
@@ -303,41 +307,67 @@ def excel_col_to_int(s):
 TOOLS_MAX_CHARS = 20000
 
 def build_keyword_search_match_results(
-    match_indices: list[int],
-    chunks: list[str],
+    match_indices: list[int], # list of all indices where keyword appears in file_contents
+    file_contents: str,
     keyword: str,
-    success_message,
-    readonly: bool = False,
+    starter_message: str,
 ) -> str:
+    file_lines = file_contents.split("\n")
+    file_lines_length = [len(line) for line in file_lines]
+    # actual code lines
+    all_matches = []
+    # index of match
+    match_line_indices = []
+    # for each match
     for match_index in match_indices:
-        # TODO: handle multiple matches in one line
-        match = chunks[match_index]
-        match_lines = match.split("\n")
-        lines_containing_keyword = [
-            i for i, line in enumerate(match_lines) if keyword in line
-        ]
-        cols_of_keyword = [
-            match_lines[line_containing_keyword].index(keyword)
-            for line_containing_keyword in lines_containing_keyword
-        ]
-        match_display = ""
-        for i, line in enumerate(match_lines):
-            if i in lines_containing_keyword:
-                match_display += (
-                    f"{line}\n"
-                    + " " * (cols_of_keyword[lines_containing_keyword.index(i)])
+        # find correct row
+        running_sum = 0
+        for i in range(len(file_lines)):
+            if match_index >= running_sum and match_index <= running_sum + file_lines_length[i]:
+                match_display = (
+                    f"{file_lines[i]}\n"
+                    + " " * (match_index - running_sum)
                     + "^" * len(keyword)
                     + "\n"
                 )
-            else:
-                match_display += f"{line}\n"
+                match_line_indices.append(i)
+                break
+            running_sum += file_lines_length[i] + 1
         match_display = match_display.strip("\n")
-        num_matches_message = f" ({len(lines_containing_keyword)} matches)" if lines_containing_keyword else " (No keyword matches, just shown for context)"
-        if not readonly:
-            success_message += f"<section id='{int_to_excel_col(match_index + 1)}'>{num_matches_message}\n{match_display}\n</section>\n"
+
+        all_matches.append(f"\n{match_display}")
+    
+    # gather context lines around each match
+    context_lines_index = []
+    extra_lines = 40 # configurable value about how many lines to include around each match
+    for index in match_line_indices:
+        for i in range(max(0, index - extra_lines), min(index + extra_lines + 1, len(file_lines))):
+            context_lines_index.append(i)
+    
+    context_lines_index = sorted(list(set(context_lines_index)))
+    success_message = ""
+    for i in range(len(context_lines_index)):
+        line_index = context_lines_index[i]
+        # see if we should print ...
+        if i == 0: # first context line
+            if line_index != 0:
+                success_message += "\n..."
+        if line_index in match_line_indices: # print match
+            all_matches_index = match_line_indices.index(line_index)
+            success_message += f"{all_matches[all_matches_index]}"
+        else: # print context line
+            success_message += f"\n{file_lines[line_index]}"
+        
+        # last context line
+        if i == len(context_lines_index) - 1:
+            if line_index != len(file_lines) - 1:
+                success_message += "\n..."
         else:
-            success_message += f"<readonly_section id='{int_to_excel_col(match_index + 1)}>{num_matches_message}\n{match_display}\n</readonly_section>\n"
-    return success_message
+            next_line_index = context_lines_index[i + 1]
+            if next_line_index - 1 != line_index:
+                success_message += "\n..."
+
+    return starter_message + f"\n{success_message}"
 
 
 def english_join(items: list[str]) -> str:
@@ -373,7 +403,7 @@ def create_tool_call_response(tool_name: str, tool_call_response_contents: str) 
     return unformatted_tool_call_response.replace("{tool_name}", tool_name).replace("{tool_call_response_contents}", tool_call_response_contents)
 
 def default_dict_value():
-    return {"chunks": [], "contents": "", "original_contents": ""}
+    return {"contents": "", "original_contents": ""}
 
 # returns dictionary of all changes made
 @file_cache(ignore_params=["file_path", "chat_logger", "cloned_repo", "assistant_id", "ticket_progress", "assistant_conversation", "cwd"])
@@ -407,16 +437,16 @@ def function_modify(
         # current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
         # fcrs_message = generate_status_message(file_path, fcrs)
         relevant_file_paths_string = ", ". join(relevant_filepaths) 
-        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you."
+        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
         files_to_modify = ""
         for fcr in fcrs:
-            files_to_modify += f"You will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
-        combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify)
+            files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
         new_additional_messages = [
-            # Message(
-            #     role="user",
-            #     content=f"# Request\n{request}",
-            # ),
+            Message(
+                role="user",
+                content=f"# Request\n{request}",
+            ),
             Message(
                 role="user",
                 content=f"\n{combined_request_message}",
@@ -425,7 +455,7 @@ def function_modify(
         if relevant_file_paths_string:
             new_additional_messages.append(Message(
                 role="user",
-                content=f'You should view the following relevant files: {relevant_file_paths_string}'
+                content=f'You should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # Request'
             ))
         additional_messages = additional_messages + new_additional_messages
 
@@ -491,7 +521,7 @@ def function_modify(
                     )
                 elif tool_name == "analyze_problem_and_propose_plan":
                     error_message = ""
-                    success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Let's get started.")
+                    success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Lets get started!")
                     tool_name, tool_call = assistant_generator.send(
                         success_message
                     )
@@ -535,44 +565,29 @@ def function_modify(
                             try:
                                 file_contents = read_file_with_fallback_encodings(full_file_name)
                             except Exception as e:
+                                logger.error(f"Error occured while attempting to read the file {file_name}: {e}")
                                 error_message = f"Error occured while attempting to read the file {file_name}: {e}"
                             if not error_message:
-                                # chunk the file
-                                file_original_snippets = chunk_code(file_contents, file_name, 1400, 500)
-                                view_file_contents_lines = file_contents.split("\n")
-                                file_chunks = [
-                                    "\n".join(view_file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
-                                    for snippet in file_original_snippets
-                                ]
-                                # update chunks for this file inside modify_files_dict unless it already exists
-                                modify_files_dict[file_name] = {"chunks": copy.deepcopy(file_chunks), "contents": file_contents, "original_contents": file_contents}
+                                # update data for this file inside modify_files_dict unless it already exists
+                                modify_files_dict[file_name] = {"contents": file_contents, "original_contents": file_contents}
                                 initial_check_results[file_name] = get_check_results(file_name, file_contents)
-                                chunked_file_contents = ""
-                                for i, chunk in enumerate(file_chunks):
-                                    idx = int_to_excel_col(i + 1)
-                                    chunked_file_contents += f'\n<section id="{idx}">\n{chunk}\n</section id="{idx}">'
                         else:
                             # filename already exists in modify_files_dict, implies edits were made to it
-                            chunked_file_contents = "\n".join(
-                                [
-                                    f'<section id="{int_to_excel_col(i + 1)}">\n{chunk}\n</section id="{int_to_excel_col(i + 1)}>'
-                                    for i, chunk in enumerate(modify_files_dict[file_name]["chunks"])
-                                ]
-                            )
-                        logger.debug(f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{chunked_file_contents}\n</file filename="{file_name}">')
-                        success_message = create_tool_call_response(tool_name, f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{chunked_file_contents}\n</file filename="{file_name}">')
+                            file_contents = modify_files_dict[file_name]["contents"]
+                        logger.debug(f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{file_contents}\n</file filename="{file_name}">')
+                        success_message = create_tool_call_response(tool_name, f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{file_contents}\n</file filename="{file_name}">')
                         tool_name, tool_call = assistant_generator.send(
                             success_message
                         )
                     if error_message:
-                        logger.debug(f"ERROR in ViewFile\n\n{error_message}")
+                        logger.debug(f"ERROR in view_file\n\n{error_message}")
                         error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
                         tool_name, tool_call = assistant_generator.send(
                             error_message
                         )
                 elif tool_name == "make_change":
                     error_message = ""
-                    for key in ["file_name", "section_id", "original_code", "new_code"]:
+                    for key in ["file_name", "original_code", "new_code"]:
                         if key not in tool_call:
                             error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
                     for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
@@ -587,67 +602,32 @@ def function_modify(
                         if error_message:
                             break
                         success_message = ""
-                        section_letter = tool_call["section_id"].strip()
-                        section_id = excel_col_to_int(section_letter)
                         original_code = tool_call["original_code"].strip("\n")
                         new_code = tool_call["new_code"].strip("\n")
                         if new_code == original_code:
                             error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                             break
-                        # get the chunks and contents for the file
-                        file_chunks = deepcopy(modify_files_dict[file_name]['chunks'])  
+                        # get the contents for the file
                         file_contents = modify_files_dict[file_name]['contents']
                         warning_message = ""
-                        if section_id >= len(file_chunks):
-                            error_message = f"Could not find section {section_letter} in file {file_name}, which has {len(file_chunks)} sections."
-                            break
-                        elif section_id < 0:
-                            error_message = f"The section id {section_letter} can not be parsed. MAKE SURE the section id you have provided is valid."
-                            break
-
-                        # fetch the chunk of code we will be modifying
-                        try:
-                            current_chunk = file_chunks[section_id]
-                        except Exception:
-                            error_message = f"Could not fetch the chunk of code for section {section_letter} in file {file_name}. Make sure you are modifying the correct file: {file_name}"
-                            break
                         
                         # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
-                        carriage_return = False
-                        if "\r\n" in current_chunk:
+                        if "\r\n" in file_contents:
                             # replace in current chunk
-                            previous_chunk = current_chunk
-                            current_chunk = current_chunk.replace("\r\n", "\n")
-                            carriage_return = True
+                            file_contents = file_contents.replace("\r\n", "\n")
                         # check to see that the original_code is in the new_code by trying all possible indentations
-                        correct_indent, rstrip_original_code = manual_code_check(current_chunk, original_code)
+                        correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                         # if the original_code couldn't be found in the chunk we need to let the llm know
-                        if original_code not in current_chunk and correct_indent == -1:
-                            chunks_with_original_code = [
-                                index
-                                for index, chunk in enumerate(file_chunks)
-                                if original_code in chunk.replace("\r\n", "\n") or manual_code_check(chunk.replace("\r\n", "\n"), original_code)[0] != -1
-                            ]
-                            chunks_with_original_code = chunks_with_original_code[:5]
-
-                            error_message = f"The original_code provided does not appear to be present in section {section_letter}. The original_code contains:\n```\n{original_code}\n```\nBut section {section_letter} in {file_name} has code:\n```\n{current_chunk}\n```"
-                            if chunks_with_original_code:
-                                error_message += "\n\nDid you mean one of the following sections?"
-                                error_message += "\n".join(
-                                    [
-                                        f'\n<section id="{int_to_excel_col(index + 1)}">\n{file_chunks[index]}\n</section>\n```'
-                                        for index in chunks_with_original_code
-                                    ]
-                                )
+                        if original_code not in file_contents and correct_indent == -1:
+                            error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{original_code}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                            # first check the lines in original_code, if it is too long, ask for smaller changes
+                            original_code_lines_length = len(original_code.split("\n"))
+                            if original_code_lines_length > 7:
+                                error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                             else:
-                                # first check the lines in original_code, if it is too long, ask for smaller changes
-                                original_code_lines_length = len(original_code.split("\n"))
-                                if original_code_lines_length > 7:
-                                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                                else:
-                                    # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                                    # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                                    error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                                # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                                # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                                error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                             break
                         # ensure original_code and new_code has the correct indents
                         new_code_lines = new_code.split("\n")
@@ -658,37 +638,26 @@ def function_modify(
                             original_code_lines = original_code.split("\n")
                         original_code = "\n".join(f'{correct_indent*" "}{line}' for line in original_code_lines)
                         # before we apply changes make sure original_code is unique inside current_chunk
-                        current_chunk_occurences = current_chunk.count(original_code)
+                        current_chunk_occurences = file_contents.count(original_code)
                         if current_chunk_occurences > 1:
-                            error_message = f"The original_code is not unique in the section {section_letter}. It appears {current_chunk_occurences} times! Make sure the original_code is unique in section {section_letter}!"
+                            error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
                             break
 
                         # apply changes
-                        new_chunk = current_chunk.replace(original_code, new_code, 1)
-                        if new_chunk == current_chunk:
-                            logger.warning("No changes were made to the code.")
-                        
-                        file_chunks[section_id] = new_chunk
-                        # if we had carriage returns, we need to update file_contents to remove them also from current_chunk
-                        if carriage_return:
-                            file_contents = file_contents.replace(previous_chunk, current_chunk, 1)
-                        new_contents = file_contents.replace(
-                            current_chunk, new_chunk, 1
-                        )
-
+                        new_file_contents = file_contents.replace(original_code, new_code, 1)
                         # Check if changes were made
-                        if new_contents == file_contents:
+                        if new_file_contents == file_contents:
                             logger.warning("No changes were made to the code.")
-                            error_message = "No changes were made, make sure original_code and new_code are not the same."
+                            error_message = "No changes were made, it seems the changes you requested were not applied or made no difference to the code file."
                             break
                         
                         # Check if the changes are valid
                         if not error_message:
-                            check_results = get_check_results(file_name, new_contents) # the filename may be wrong here
+                            check_results = get_check_results(file_name, new_file_contents)
                             # check_results_message = check_results.is_worse_than_message(initial_check_results) - currently unused
                             failing_parse = check_results.parse_error_message if not initial_check_results[file_name].parse_error_message else ""
                             current_diff = generate_diff(
-                                file_contents, new_contents
+                                file_contents, new_file_contents
                             )
                             if failing_parse:
                                 error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n{failing_parse}\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
@@ -703,11 +672,10 @@ def function_modify(
                     if not error_message:
                         success_message = (
                             f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
-                            + generate_diff(file_contents, new_contents)
-                        ) + f"{warning_message}\n\nYou can continue to make changes to the code sections and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class."
+                            + generate_diff(file_contents, new_file_contents)
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
                         # set contents
-                        modify_files_dict[file_name]['contents'] = new_contents
-                        modify_files_dict[file_name]['chunks'] = file_chunks
+                        modify_files_dict[file_name]['contents'] = new_file_contents
                         logger.info(success_message)
 
                         success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}")
@@ -740,13 +708,7 @@ def function_modify(
                             error_message = f"The directory {os.path.dirname(new_full_file_path)} does not exist. Make sure you the new file you want to create exists within an existing directory!"
                         # if no issues, create the file by placing it in modify_files_dict
                         if not error_message:
-                            new_file_snippets = chunk_code(new_file_contents, new_full_file_path, 1400, 500)
-                            new_file_contents_lines = new_file_contents.split("\n")
-                            new_file_chunks = [
-                                "\n".join(new_file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
-                                for snippet in new_file_snippets
-                            ]
-                            modify_files_dict[new_full_file_path] = {"chunks": new_file_chunks, "contents": new_file_contents, "original_contents": ""}
+                            modify_files_dict[new_full_file_path] = {"contents": new_file_contents, "original_contents": ""}
                             success_message = f"The new file {new_full_file_path} has been created successfully with the following contents:\n\n{new_file_contents}"
                     if error_message:
                         logger.debug(f"ERROR occured in create_file tool: {error_message}")
@@ -778,6 +740,10 @@ def function_modify(
                             if not os.path.exists(full_file_path) and file_name not in modify_files_dict:
                                 logger.debug(f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!")
                                 error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
+                            # make sure it is a file and not a directory
+                            elif os.path.isdir(full_file_path):
+                                logger.debug(f"The file {file_name} is a directory. Make sure you are providing a file name!")
+                                error_message += f"The file {file_name} is a directory. Make sure you are providing a file name!"
                             
                     # if no issues continue with search
                     if not error_message:
@@ -786,48 +752,29 @@ def function_modify(
                         if file_name:
                             logger.info(f"Searching for keyword {keyword} in file {file_name}")
                             match_indices = []
-                            match_context_indices = []
                             # if the current code file is not in the modify_files_dict, add it
                             if file_name not in modify_files_dict:
                                 file_contents = read_file_with_fallback_encodings(full_file_path)
-                                file_contents_lines = file_contents.split("\n")
-                                original_file_snippets = chunk_code(file_contents, file_name, 1400, 500)
-                                file_chunks = [
-                                    "\n".join(file_contents_lines[max(snippet.start - 1, 0) : snippet.end])
-                                    for snippet in original_file_snippets
-                                ]
-                                modify_files_dict[file_name] = {"chunks": copy.deepcopy(file_chunks), "contents": file_contents, "original_contents": file_contents}
+                                modify_files_dict[file_name] = {"contents": file_contents, "original_contents": file_contents}
                                 initial_check_results[file_name] = get_check_results(file_name, file_contents)
-                            # search current code file
-                            file_chunks = modify_files_dict[file_name]["chunks"]
-                            for i, chunk in enumerate(file_chunks):
-                                if keyword in chunk:
-                                    match_indices.append(i)
-                                    match_context_indices.append(max(0, i - 1))
-                                    match_context_indices.append(i)
-                                    match_context_indices.append(min(len(file_chunks) - 1, i + 1))
+                            # get contents
+                            file_contents = modify_files_dict[file_name]["contents"]
+                            match_count = file_contents.count(keyword)
 
-                            match_indices = sorted(list(set(match_indices)))
-                            match_context_indices = sorted(list(set(match_context_indices)))
-                            if not match_indices:
+                            # if there are no matches
+                            if match_count == 0:
                                 logger.debug(f"The search term {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword.")
                                 error_message = f"The search term {keyword} does not appear to be present in the file: {file_name}. Consider missing or misplaced whitespace, comments or delimiters in the keyword."
                             else:
+                                match_indices = get_all_indices_of_substring(file_contents, keyword)
                                 # for matches inside current code file
-                                sections_message = english_join(
-                                    [
-                                        int_to_excel_col(match_index + 1)
-                                        for match_index in match_indices
-                                    ]
-                                )
-                                starter_message = f"The keyword {keyword} was found in section(s) {sections_message} of {file_name}. They appear in the following places:\n\n"
+                                starter_message = f"The keyword {keyword} was found {match_count} {'time' if match_count == 1 else 'times'} in the file {file_name}. They appear in the following places:\n\n"
                                 success_message += (
                                     build_keyword_search_match_results(
                                         match_indices,
-                                        file_chunks,
+                                        file_contents,
                                         keyword,
-                                        starter_message,
-                                        readonly=True
+                                        starter_message
                                     )
                                 )
                         else: # search whole codebase

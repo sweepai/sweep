@@ -202,7 +202,7 @@ DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-0125-pr
 DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
-LOKI_URL = os.environ.get("LOKI_URL", None)
+LOKI_URL = None
 
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
@@ -238,7 +238,6 @@ PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
 
 # TODO: we need to make this dynamic + backoff
 BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 64 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
+    os.environ.get("BATCH_SIZE", 32 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
 )
-
 DEPLOYMENT_GHA_ENABLED = os.environ.get("DEPLOYMENT_GHA_ENABLED", "true").lower() == "true"

@@ -131,6 +131,16 @@ class HumanMessagePrompt(BaseModel):
 Repo: {self.repo_name}: {self.repo_description}
 Issue Title: {self.title}
 {issue_description}"""
+    
+    def get_issue_request(self):
+        self.summary = (
+            self.summary if not self.summary.strip().endswith("_No response_") else ""
+        )
+        issue_description = (
+            f"\nIssue Description: {self.summary}" if self.summary else ""
+        )
+        return f"""Issue Title: {self.title}
+{issue_description}"""
 
 
 def render_snippets(snippets):

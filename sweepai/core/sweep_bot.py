@@ -511,6 +511,7 @@ class SweepBot(CodeGenBot, GithubBot):
     ):
         new_files = modify_file(
             self.cloned_repo,
+            self.human_message.get_issue_request(),
             self.human_message.get_issue_metadata(),
             file_change_requests,
             branch,

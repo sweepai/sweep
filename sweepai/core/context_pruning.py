@@ -1,8 +1,9 @@
+from copy import deepcopy
 from math import log
 import os
 import subprocess
 import urllib
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 
 import networkx as nx
 import openai
@@ -14,9 +15,10 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.reflection_utils import EvaluatorAgent
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall, mock_function_calls_to_string
-from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import post_process_rg_output
 from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import AssistantConversation, TicketProgress
@@ -320,20 +322,6 @@ class RepoContextManager:
 
     def update_issue_report_and_plan(self, new_issue_report_and_plan: str):
         self.issue_report_and_plan = new_issue_report_and_plan
-    # creates a copy of the RepoContextManager with a seperate ClonedRepo
-    # this is done so that if you need deep copies of a RepoContextManager it will not affect the ClonedRepos of the 
-    # other copies when one copy goes out of context since we do file operations of CloneRepo
-    def copy_repo_context_manager(self):
-        if isinstance(self.cloned_repo, MockClonedRepo):
-            return self
-        new_cloned_repo = ClonedRepo(
-            self.cloned_repo.repo_full_name,
-            installation_id=self.cloned_repo.installation_id,
-            token=self.cloned_repo.token,
-            repo=self.cloned_repo.repo,
-            branch=self.cloned_repo.branch,
-        )
-        return replace(self, cloned_repo=new_cloned_repo)
 
 
 """
@@ -475,6 +463,7 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
         logger.error(e)
         return []
 
+@file_cache(ignore_params=["repo_context_manager", "override_import_graph"])
 def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager, override_import_graph: nx.DiGraph = None):
     num_graph_retrievals = 25
     repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)
@@ -603,7 +592,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -633,9 +622,8 @@ def get_relevant_context(
         )
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt)]
-        old_top_snippets = [
-            snippet for snippet in repo_context_manager.current_top_snippets
-        ]
+        old_relevant_snippets = deepcopy(repo_context_manager.current_top_snippets)
+        old_read_only_snippets = deepcopy(repo_context_manager.read_only_snippets)
         try:
             repo_context_manager = context_dfs(
                 user_prompt,
@@ -645,9 +633,23 @@ def get_relevant_context(
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
-        if len(repo_context_manager.current_top_snippets) == 0:
-            raise Exception("No snippets found")
-            repo_context_manager.current_top_snippets = old_top_snippets[:20]
+        # repo_context_manager.current_top_snippets += old_relevant_snippets[:25 - len(repo_context_manager.current_top_snippets)]
+        # Add stuffing until context limit
+        max_chars = 140000 * 3.5 # 120k tokens
+        counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
+            [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
+        )
+        for snippet, read_only_snippet in zip(old_relevant_snippets, old_read_only_snippets):
+            if not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
+                counter += len(snippet.get_snippet(False, False))
+                if counter > max_chars:
+                    break
+                repo_context_manager.current_top_snippets.append(snippet)
+            if not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
+                counter += len(read_only_snippet.get_snippet(False, False))
+                if counter > max_chars:
+                    break
+                repo_context_manager.read_only_snippets.append(read_only_snippet)
         return repo_context_manager
     except Exception as e:
         logger.exception(e)
@@ -921,10 +923,9 @@ def get_stored_files(repo_context_manager: RepoContextManager) -> str:
     return stored_files_string
 
 def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
-    copied_repo_context_manager = repo_context_manager.copy_repo_context_manager()
-    message_results, function_call_history = perform_rollout(copied_repo_context_manager, reflections_to_read_files, user_prompt)
+    message_results, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
     rollout_function_call_histories.append(function_call_history)
-    rollout_stored_files = [snippet.file_path for snippet in copied_repo_context_manager.current_top_snippets]
+    rollout_stored_files = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
     truncated_message_results = message_results[1:] # skip system prompt
     joined_messages = "\n\n".join([message.content for message in truncated_message_results])
     overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
@@ -932,7 +933,7 @@ def search_for_context_with_reflection(repo_context_manager: RepoContextManager,
         run_text=joined_messages,
         stored_files=rollout_stored_files,
     )
-    return overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files
+    return overall_score, message_to_contractor, repo_context_manager, rollout_stored_files
 
 def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]], user_prompt: str) -> list[Message]:
     function_call_history = []
