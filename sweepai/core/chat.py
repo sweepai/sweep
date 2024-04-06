@@ -21,7 +21,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
-from sweepai.logn.cache import file_cache
+from sweepai.logn.cache import file_cache, redis_cache
 from sweepai.utils.anthropic_client import sanitize_anthropic_messages
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -368,7 +368,7 @@ class ChatGPT(MessageList):
         e = None
         for i in range(4):
             try:
-                @file_cache() # must be in the inner scope because this entire function manages state
+                @file_cache(redis=True) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str=system_message, 
