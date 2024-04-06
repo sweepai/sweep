@@ -13,7 +13,7 @@ TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
 # if DEBUG:
 #     logger.debug("File cache is disabled.")
-
+redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
 
 def recursive_hash(value, depth=0, ignore_params=[]):
     """Hash primitives recursively with maximum depth."""
@@ -49,7 +49,7 @@ def hash_code(code):
     return hashlib.md5(code.encode()).hexdigest()
 
 
-def file_cache(ignore_params=[], verbose=False):
+def file_cache(ignore_params=[], verbose=False, redis=False):
     """Decorator to cache function output based on its inputs, ignoring specified parameters.
     Ignore parameters are used to avoid caching on non-deterministic inputs, such as timestamps.
     We can also ignore parameters that are slow to serialize/constant across runs, such as large objects.
@@ -83,7 +83,12 @@ def file_cache(ignore_params=[], verbose=False):
             cache_file = os.path.join(
                 cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
             )
-
+            if redis and redis_client: # only use this for LLM calls
+                cached_result = redis_client.get(cache_file)
+                if cached_result:
+                    if verbose:
+                        print("Used redis cache for function: " + func.__name__)
+                    return pickle.loads(cached_result)
             try:
                 # If cache exists, load and return it
                 if os.path.exists(cache_file):
@@ -104,13 +109,18 @@ def file_cache(ignore_params=[], verbose=False):
                     logger.info(f"Pickling failed: {e}")
             else:
                 logger.info(f"Function {func.__name__} returned an exception")
+            if redis and redis_client: # cache this to redis as well
+                try:
+                    # Cache the result using the unique cache key
+                    redis_client.set(cache_file, pickle.dumps(result))
+                except Exception as e:
+                    if verbose:
+                        print(f"Redis caching failed for function: {func.__name__}, Error: {e}")
             return result
 
         return wrapper
 
     return decorator
-
-redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
 
 
 def redis_cache(ignore_params=[], verbose=False):
