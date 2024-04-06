@@ -1,4 +1,5 @@
 from copy import deepcopy
+from itertools import zip_longest
 from math import log
 import os
 import subprocess
@@ -401,6 +402,7 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
+@file_cache(ignore_params=["rcm", "G"])
 def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoContextManager, G: nx.DiGraph):
     # TODO: tune these params
     top_paths_cutoff = 25
@@ -638,13 +640,13 @@ def get_relevant_context(
         counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
             [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
         )
-        for snippet, read_only_snippet in zip(old_relevant_snippets, old_read_only_snippets):
-            if not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
+        for snippet, read_only_snippet in zip_longest(old_relevant_snippets, old_read_only_snippets, fillvalue=None):
+            if snippet and not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
                 counter += len(snippet.get_snippet(False, False))
                 if counter > max_chars:
                     break
                 repo_context_manager.current_top_snippets.append(snippet)
-            if not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
+            if read_only_snippet and not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
                 counter += len(read_only_snippet.get_snippet(False, False))
                 if counter > max_chars:
                     break
