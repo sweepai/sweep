@@ -11,7 +11,6 @@ from sweepai.core.prompts import (
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
-    issue_url: str | None
     username: str
     title: str
     summary: str

@@ -397,7 +397,7 @@ def on_ticket(
     title: str,
     summary: str,
     issue_number: int,
-    issue_url: str,
+    issue_url: str, # purely for logging purposes
     username: str,
     repo_full_name: str,
     repo_description: str,
@@ -869,7 +869,6 @@ def on_ticket(
                 docs_results = ""
                 human_message = HumanMessagePrompt(
                     repo_name=repo_name,
-                    issue_url=issue_url,
                     username=username,
                     repo_description=repo_description.strip(),
                     title=title,
