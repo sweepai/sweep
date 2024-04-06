@@ -368,7 +368,7 @@ class ChatGPT(MessageList):
         e = None
         for i in range(4):
             try:
-                @file_cache(redis=True) # must be in the inner scope because this entire function manages state
+                @file_cache(redis=False) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str=system_message, 
@@ -397,7 +397,7 @@ class ChatGPT(MessageList):
             except Exception as e_:
                 logger.exception(e_)
                 e = e_
-                time.sleep(5 * 2 ** i)
+                time.sleep(4 * 2 ** i) # faster debugging
         else:
             raise Exception("Anthropic call failed") from e
         self.messages.append(
