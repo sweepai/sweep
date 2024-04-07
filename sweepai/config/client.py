@@ -208,7 +208,10 @@ class SweepConfig(BaseModel):
     @staticmethod
     def get_draft(repo: Repository):
         try:
-            contents = repo.get_contents("sweep.yaml")
+            try:
+                contents = repo.get_contents(".github/sweep.yaml")
+            except Exception:
+                contents = repo.get_contents("sweep.yaml")
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return config.get("draft", False)
         except SystemExit:
@@ -277,7 +280,10 @@ class SweepConfig(BaseModel):
 @lru_cache(maxsize=None)
 def get_gha_enabled(repo: Repository) -> bool:
     try:
-        contents = repo.get_contents("sweep.yaml")
+        try:
+            contents = repo.get_contents(".github/sweep.yaml")
+        except Exception:
+            contents = repo.get_contents("sweep.yaml")
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "gha_enabled", False
         )
@@ -285,7 +291,7 @@ def get_gha_enabled(repo: Repository) -> bool:
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.exception(
+        logger.warning(
             f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
         )
         return False
@@ -323,7 +329,10 @@ def get_sandbox_config(repo: Repository):
 @lru_cache(maxsize=None)
 def get_branch_name_config(repo: Repository):
     try:
-        contents = repo.get_contents("sweep.yaml")
+        try:
+            contents = repo.get_contents(".github/sweep.yaml")
+        except Exception:
+            contents = repo.get_contents("sweep.yaml")
         description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "branch_use_underscores", False
         )
