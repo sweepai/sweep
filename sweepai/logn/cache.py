@@ -61,7 +61,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
         func_source_code_hash = hash_code(inspect.getsource(func))
 
         def wrapper(*args, **kwargs):
-            cache_dir = "/tmp/file_cache"
+            cache_dir = os.environ.get("MOUNT_DIR", "") + "/tmp/file_cache"
             os.makedirs(cache_dir, exist_ok=True)
 
             # Convert args to a dictionary based on the function's signature
