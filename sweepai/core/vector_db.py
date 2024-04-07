@@ -156,7 +156,7 @@ def openai_call_embedding_router(batch: list[str], input_type: str="document"): 
         return np.array([vector["embedding"] for vector in data])
     elif VOYAGE_API_KEY:
         client = voyageai.Client(api_key=VOYAGE_API_KEY)
-        result = client.embed(batch, model="voyage-code-2", input_type=input_type)
+        result = client.embed(batch, model="voyage-code-2", input_type=input_type, truncation=True)
         cut_dim = np.array([data for data in result.embeddings])
         normalized_dim = normalize_l2(cut_dim)
         del client
