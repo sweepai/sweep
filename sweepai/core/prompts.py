@@ -297,7 +297,7 @@ The code change should look like:
 </plan>"""
 
 files_to_change_prompt = """# Task: 
-Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a minimal plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
 
 You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
 
@@ -314,7 +314,7 @@ Please use the following XML format for your response:
 # Issue Analysis:
 <issue_analysis>
 * Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Outline a plan that completely resolves the user's request, referencing provided code snippets, entity names, and necessary files/directories.
+* Outline the minimal plan that completely resolves the user's request, referencing provided code snippets, entity names, and necessary files/directories. Provide minimal changes since the intern is unfamiliar with the codebase and may mess up or break production.
 
 List ALL files we should modify to resolve the issue:
 - File path 1 - Outline of instructions for modifying the file
@@ -358,7 +358,7 @@ Here's an example of an excellent issue analysis and plan:
 <issue_analysis>
 The root cause of the issue is that the `getUserById` method in the `UserService` class (user_service.py) does not handle the case where a user has been soft deleted. It should return None if the `user.deleted` property is set to True.
 
-To completely resolve the user's request, we need to:
+To completely resolve the user's request, at minimum, we need to:
 - Modify the `getUserById` method in user_service.py to add a flag to conditionally return None for deleted users 
 - Update the call to `getUserById` in the `get_user` endpoint in app.py to pass the new flag
 
@@ -403,7 +403,7 @@ You MUST follow the following format with XML tags:
 # Contextual Request Analysis:
 <contextual_request_analysis>
 * Outline the minimal plan that solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
-* Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible.
+* Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible
 ...
 </contextual_request_analysis>
 
@@ -423,6 +423,24 @@ You MUST follow the following format with XML tags:
 ...
 </modify>
 ...
+</plan>
+
+Here's an example of an excellent issue analysis and plan:
+
+<plan>
+<modify file="src/services/user_service.py">
+In the `getUserById` method of the `UserService` class:
+* Add a new parameter `include_deleted` with a default value of `False` 
+* After fetching the user, add an if statement to check:
+  - If `include_deleted` is False and `user.deleted` is True, return None
+  - Otherwise, return the user as normal
+</modify>
+
+<modify file="src/app.py" relevant_files="src/services/user_service.py">
+In the `get_user` endpoint:
+* Locate the call to `user_service.getUserById(user_id)`
+* Add the `include_deleted=True` argument to the method call
+</modify>
 </plan>"""
 
 
