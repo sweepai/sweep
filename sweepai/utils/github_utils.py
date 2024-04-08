@@ -644,7 +644,7 @@ def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False, installation
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
         "X-GitHub-Api-Version": "2022-11-28",
-    },
+    }
 
     # Prepare the JSON payload
     json_data = {
