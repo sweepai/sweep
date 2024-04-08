@@ -144,7 +144,7 @@ def multi_prep_snippets(
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
     skip_reranking: bool = False,
-):
+) -> RepoContextManager:
     """
     Assume 0th index is the main query.
     """
@@ -203,7 +203,7 @@ def prep_snippets(
     k: int = 15,
     skip_reranking: bool = False,
     use_multi_query: bool = True,
-):
+) -> RepoContextManager:
     if use_multi_query:
         queries = [query, *generate_multi_queries(query)]
     else:

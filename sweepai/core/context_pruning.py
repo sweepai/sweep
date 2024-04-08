@@ -464,7 +464,7 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
         logger.error(e)
         return []
 
-@file_cache(ignore_params=["repo_context_manager", "override_import_graph"])
+# @file_cache(ignore_params=["repo_context_manager", "override_import_graph"]) # can't cache this because rcm is stateful
 def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager, override_import_graph: nx.DiGraph = None):
     num_graph_retrievals = 25
     repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)
@@ -602,7 +602,7 @@ def get_relevant_context(
     num_rollouts: int = NUM_ROLLOUTS,
     ticket_progress: TicketProgress = None,
     chat_logger: ChatLogger = None,
-):
+) -> RepoContextManager:
     logger.info("Seed: " + str(seed))
     try:
         # for any code file mentioned in the query, build its import tree - This is currently not used
@@ -1008,7 +1008,7 @@ def context_dfs(
                 unformatted_user_prompt=unformatted_user_prompt_stored,
                 query=problem_statement,
             )
-        overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
+        overall_score, message_to_contractor, repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
             repo_context_manager=repo_context_manager,
             reflections_to_read_files=reflections_to_read_files,
             user_prompt=user_prompt,
@@ -1019,7 +1019,7 @@ def context_dfs(
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
         # reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
-        rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
+        rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, repo_context_manager)
         if overall_score >= SCORE_THRESHOLD and len(rollout_stored_files) > STOP_AFTER_SCORE_THRESHOLD_IDX:
             break
     # if we reach here, we have not found a good enough solution

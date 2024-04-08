@@ -50,7 +50,7 @@ class AnthropicClient:
             logger.info(f"Using Anthropic model: {self.model}")
 
     # returns the clients response object
-    @file_cache("self")
+    @file_cache()
     def get_response_message(self, messages: list[dict[str, str]], model: str = "", stop_sequences: list[str] = [], **kwargs):
         model = model or self.model
         # for anthropic the messages must be alternating user and assistant and we cannot have system as a role

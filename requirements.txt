@@ -93,7 +93,9 @@ debugpy==1.8.1
 decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
-    # via nbconvert
+    # via
+    #   jira
+    #   nbconvert
 deprecated==1.2.14
     # via pygithub
 dill==0.3.8
@@ -205,6 +207,7 @@ jinja2==3.1.3
     #   jupyterlab
     #   jupyterlab-server
     #   nbconvert
+jira==3.8.0
 jmespath==1.0.1
     # via
     #   boto3
@@ -321,6 +324,8 @@ numpy==1.26.4
     # via
     #   scipy
     #   voyageai
+oauthlib==3.2.2
+    # via requests-oauthlib
 openai==1.13.3
     # via parea-ai
 overrides==7.7.0
@@ -330,6 +335,7 @@ packaging==24.0
     #   build
     #   huggingface-hub
     #   ipykernel
+    #   jira
     #   jupyter-server
     #   jupyterlab
     #   jupyterlab-server
@@ -349,6 +355,8 @@ pexpect==4.9.0
     # via
     #   ipython
     #   poetry
+pillow==10.3.0
+    # via jira
 pkginfo==1.10.0
     # via poetry
 platformdirs==4.2.0
@@ -474,15 +482,21 @@ requests==2.31.0
     # via
     #   cachecontrol
     #   huggingface-hub
+    #   jira
     #   jupyterlab-server
     #   poetry
     #   pygithub
+    #   requests-oauthlib
     #   requests-toolbelt
     #   resend
     #   tiktoken
     #   voyageai
+requests-oauthlib==2.0.0
+    # via jira
 requests-toolbelt==1.0.0
-    # via poetry
+    # via
+    #   jira
+    #   poetry
 resend==0.8.0
 rfc3339-validator==0.1.4
     # via
@@ -605,6 +619,7 @@ typing-extensions==4.10.0
     #   cattrs
     #   fastapi
     #   huggingface-hub
+    #   jira
     #   openai
     #   pydantic
     #   pydantic-core

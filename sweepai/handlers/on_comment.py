@@ -291,7 +291,6 @@ def on_comment(
                 repo_name=repo_name,
                 repo_description=repo_description if repo_description else "",
                 diffs=diffs,
-                issue_url=pr.html_url,
                 title=pr_title,
                 tree=tree,
                 summary=pr_body,

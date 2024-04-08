@@ -10,7 +10,6 @@ from sweepai.core.prompts import (
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
-    issue_url: str | None
     title: str
     summary: str
     snippets: list
