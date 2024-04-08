@@ -572,8 +572,9 @@ def function_modify(
                                 modify_files_dict[file_name] = {"contents": file_contents, "original_contents": file_contents}
                                 initial_check_results[file_name] = get_check_results(file_name, file_contents)
                         else:
-                            # filename already exists in modify_files_dict, implies edits were made to it
+                            # filename already exists in modify_files_dict, implies it was already viewed
                             file_contents = modify_files_dict[file_name]["contents"]
+                            warning_message = f"\nWarning: The file {file_name} was already viewed previously. Be careful not to make conflicting changes."
                         logger.debug(f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{file_contents}\n</file filename="{file_name}">')
                         success_message = create_tool_call_response(tool_name, f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{file_contents}\n</file filename="{file_name}">')
                         tool_name, tool_call = assistant_generator.send(
