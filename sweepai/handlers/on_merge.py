@@ -1,8 +1,10 @@
 """
 This file contains the on_merge handler which is called when a pull request is merged to master.
+It rebases the Sweep-created branch onto the updated target branch.
 on_merge is called by sweepai/api.py
 """
 import time
+import git
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_rules
 from sweepai.core.post_merge import PostMerge
@@ -20,37 +22,6 @@ merge_rule_debounce = {}
 
 # debounce time in seconds
 DEBOUNCE_TIME = 120
-
-diff_section_prompt = """
-<file_diff file="{diff_file_path}">
-{diffs}
-</file_diff>"""
-
-
-def comparison_to_diff(comparison, blocked_dirs):
-    pr_diffs = []
-    for file in comparison.files:
-        diff = file.patch
-        if (
-            file.status == "added"
-            or file.status == "modified"
-            or file.status == "removed"
-        ):
-            if any(file.filename.startswith(dir) for dir in blocked_dirs):
-                continue
-            pr_diffs.append((file.filename, diff))
-        else:
-            logger.info(
-                f"File status {file.status} not recognized"
-            )  # TODO(sweep): We don't handle renamed files
-    formatted_diffs = []
-    for file_name, file_patch in pr_diffs:
-        format_diff = diff_section_prompt.format(
-            diff_file_path=file_name, diffs=file_patch
-        )
-        formatted_diffs.append(format_diff)
-    return "\n".join(formatted_diffs)
-
 
 def on_merge(request_dict: dict, chat_logger: ChatLogger):
     before_sha = request_dict["before"]
@@ -71,8 +42,13 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         if check_suite.conclusion == "failure":
             return  # if any check suite failed, return
     blocked_dirs = get_blocked_dirs(repo)
-    comparison = repo.compare(before_sha, after_sha)
-    commits_diff = comparison_to_diff(comparison, blocked_dirs)
+    try:
+        repo.git.rebase(before_sha)
+        commits_diff = repo.git.diff(f"{before_sha}..HEAD", name_only=True)
+        repo.git.push(force=True)
+    except git.GitCommandError as e:
+        logger.error(f"Rebase failed: {str(e)}")
+        return
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
