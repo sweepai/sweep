@@ -348,8 +348,11 @@ def webhook(
 @app.post("/jira")
 def jira_webhook(
     request_dict: dict = Body(...),
-):
-    handle_jira_ticket(request_dict)
+) -> None:
+    def call_jira_ticket(*args, **kwargs):
+        thread = threading.Thread(target=handle_jira_ticket, args=args, kwargs=kwargs)
+        thread.start()
+    call_jira_ticket(event=request_dict)
 
 # Set up cronjob for this
 @app.get("/update_sweep_prs_v2")

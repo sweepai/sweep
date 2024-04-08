@@ -64,12 +64,23 @@ def handle_jira_ticket(event):
     _, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     github_issue = repo.get_issue(github_issue.number)
-    # get the PR
-    pr = github_issue.pull_request
-    pr_html_url = pr.html_url
-    # comment back on the JIRA ticket
-    comment_text = f"I have created a corresponding GitHub Issue:\n {github_issue.html_url} and GitHub PR:\n{pr_html_url}"
-    # comment on jira issue
+    # get the PR by iterating through the latest issues
+    prs = repo.get_pulls(
+        state="open",
+        sort="created",
+        direction="desc",
+    )
+    resolution_pr = None
+    for pr in prs.get_page(0):
+        # # Check if this issue is mentioned in the PR, and pr is owned by bot
+        # # This is done in create_pr, (pr_description = ...)
+        if f"Fixes #{github_issue.number}.\n" in pr.body:
+            resolution_pr = pr
+            break
+    if not resolution_pr:
+        comment_text = "I have created a corresponding GitHub Issue:\n {github_issue.html_url}"
+    else:
+        comment_text = f"I have created a corresponding GitHub Issue and GitHub PR:\n{github_issue.html_url}\n{resolution_pr.html_url}"
     comment_on_jira_webhook(webhook_data=event, comment_text=comment_text)
 
 
