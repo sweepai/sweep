@@ -63,6 +63,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
         def wrapper(*args, **kwargs):
             cache_dir = os.environ.get("MOUNT_DIR", "") + "/tmp/file_cache"
             os.makedirs(cache_dir, exist_ok=True)
+            result = None
 
             # Convert args to a dictionary based on the function's signature
             args_names = func.__code__.co_varnames[: func.__code__.co_argcount]
@@ -80,27 +81,36 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                 + recursive_hash(kwargs_clone, ignore_params=ignore_params)
                 + func_source_code_hash
             )
+            cache_key = f"{func.__module__}_{func.__name__}_{arg_hash}"
             cache_file = os.path.join(
-                cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
+                cache_dir, f"{cache_key}.pickle"
             )
             if redis and redis_client: # only use this for LLM calls
-                cached_result = redis_client.get(cache_file)
+                cached_result = redis_client.get(cache_key)
                 if cached_result:
                     if verbose:
                         print("Used redis cache for function: " + func.__name__)
-                    return pickle.loads(cached_result)
+                    result = pickle.loads(cached_result)
             try:
                 # If cache exists, load and return it
                 if os.path.exists(cache_file):
                     if verbose:
                         print("Used cache for function: " + func.__name__)
                     with open(cache_file, "rb") as f:
-                        return pickle.load(f)
+                        result = pickle.load(f)
             except Exception:
                 logger.info("Unpickling failed")
-
             # Otherwise, call the function and save its result to the cache
-            result = func(*args, **kwargs)
+            if not result:
+                result = func(*args, **kwargs)
+            # hydrate both caches in all cases
+            if redis and redis_client: # cache this to redis as well
+                try:
+                    # Cache the result using the unique cache key
+                    redis_client.set(cache_key, pickle.dumps(result))
+                except Exception as e:
+                    if verbose:
+                        print(f"Redis caching failed for function: {func.__name__}, Error: {e}")
             if not isinstance(result, Exception):
                 try:
                     with open(cache_file, "wb") as f:
@@ -109,13 +119,6 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                     logger.info(f"Pickling failed: {e}")
             else:
                 logger.info(f"Function {func.__name__} returned an exception")
-            if redis and redis_client: # cache this to redis as well
-                try:
-                    # Cache the result using the unique cache key
-                    redis_client.set(cache_file, pickle.dumps(result))
-                except Exception as e:
-                    if verbose:
-                        print(f"Redis caching failed for function: {func.__name__}, Error: {e}")
             return result
 
         return wrapper
@@ -173,7 +176,7 @@ def redis_cache(ignore_params=[], verbose=False):
     return decorator
 
 if __name__ == "__main__":
-    @redis_cache()
+    @file_cache(redis=True)
     def test_func(a, b):
         time.sleep(3)
         return a + b
