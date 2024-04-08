@@ -240,3 +240,7 @@ PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
 BATCH_SIZE = int(
     os.environ.get("BATCH_SIZE", 32 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
 )
+
+JIRA_USER_NAME = os.environ.get("JIRA_USER_NAME", None)
+JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", None)
+JIRA_URL = os.environ.get("JIRA_URL", None)

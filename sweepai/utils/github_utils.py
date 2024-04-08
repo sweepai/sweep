@@ -78,7 +78,7 @@ def get_app():
     return response.json()
 
 
-def get_github_client(installation_id: int):
+def get_github_client(installation_id: int) -> tuple[str, Github]:
     if not installation_id:
         return os.environ["GITHUB_PAT"], Github(os.environ["GITHUB_PAT"])
     token: str = get_token(installation_id)

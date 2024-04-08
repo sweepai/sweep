@@ -1,11 +1,6 @@
-import html
-import multiprocessing
 
-import typer
-from fastapi.testclient import TestClient
 from github import Github
 
-from sweepai.api import app
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 from sweepai.web.events import Account, Installation, IssueRequest
 

@@ -9,7 +9,6 @@ from typing import Any, Optional
 import requests
 from fastapi import (
     Body,
-    Depends,
     FastAPI,
     Header,
     HTTPException,
@@ -22,7 +21,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
-from prometheus_fastapi_instrumentator import Instrumentator
 
 from sweepai.config.client import (
     DEFAULT_RULES,

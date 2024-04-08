@@ -1,30 +1,75 @@
-
+import re
+from jira import JIRA
 
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.web.event_utils import fetch_issue_request
+from sweepai.utils.github_utils import get_github_client, get_installation_id
+from sweepai.config.server import JIRA_API_TOKEN, JIRA_URL, JIRA_USER_NAME
 
+def extract_repo_name_from_description(description):
+    repo_full_name = None
+    pattern = r'repo:\s*(\S+/\S+)'
+    match = re.search(pattern, description)
+    if match:
+        repo_full_name = match.group(1)
+    return repo_full_name
+
+
+def comment_on_jira_webhook(webhook_data: dict, comment_text: str):
+    # Extract relevant information from the webhook payload
+    issue_key = webhook_data['issue']['key']
+
+    # Create a JIRA client instance
+    jira = JIRA(server=JIRA_URL, basic_auth=(JIRA_USER_NAME, JIRA_API_TOKEN))
+
+    # Add the comment to the Jira issue
+    jira.add_comment(issue_key, comment_text)
 
 def handle_jira_ticket(event):
     # Do something with the JIRA ticket
-    breakpoint()
-    issue = event["issue"]
+    jira_issue = event["issue"]
     # get title, description, comments
-    title = issue["fields"]["summary"]
-    description = issue["fields"]["description"]
-    comments = issue["fields"]["comment"]["comments"]
+    title = jira_issue["fields"]["summary"]
+    description = jira_issue["fields"]["description"]
+    # comments = issue["fields"]["comment"]["comments"]
     # parse github repo from description
     # ex: "repo: sweepai/sweep"
-    repo_full_name = None
-    for line in description.split("\n"):
-        if line.startswith("repo: "):
-            repo_full_name = line.split("repo: ")[1]
-            break
+    repo_full_name = extract_repo_name_from_description(description)
     if not repo_full_name:
         return
     repo_full_name = repo_full_name.strip()
-    org_name, repo_name = repo_full_name.split("/")
+    org_name, _ = repo_full_name.split("/")
+    # create a github issue to sync the data
 
-    return on_ticket(
+    installation_id = get_installation_id(org_name)
+    _, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    github_issue = repo.create_issue(title=title, body=description)
+    
+    # wait for this
+    on_ticket(
         title=title,
         summary=description,
+        issue_number=github_issue.number,
+        issue_url=github_issue.html_url,
+        username=github_issue.user.login,
+        repo_full_name=repo_full_name,
+        repo_description=repo.description,
+        installation_id=installation_id,
+        comment_id=None,
+        edited=False,
+        tracking_id=None,
     )
+    # refresh credentials to get attached pr and then comment this back on the JIRA ticket
+    # refresh github credentials
+    _, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    github_issue = repo.get_issue(github_issue.number)
+    # get the PR
+    pr = github_issue.pull_request
+    pr_html_url = pr.html_url
+    # comment back on the JIRA ticket
+    comment_text = f"I have created a corresponding GitHub Issue:\n {github_issue.html_url} and GitHub PR:\n{pr_html_url}"
+    # comment on jira issue
+    comment_on_jira_webhook(webhook_data=event, comment_text=comment_text)
+
+
