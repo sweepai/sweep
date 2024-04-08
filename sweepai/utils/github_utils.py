@@ -622,7 +622,8 @@ def parse_collection_name(name: str) -> str:
     return name
 
 # set whether or not a pr is a draft, there is no way to do this using pygithub
-def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False):
+def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False, installation_id: int = 0) -> bool:
+    token = get_token(installation_id)
     pr_id = pr.raw_data['node_id']
     # GraphQL mutation for marking a PR as ready for review
     mutation = """
@@ -641,9 +642,9 @@ def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False):
     # Headers
     headers={
         "Accept": "application/vnd.github+json",
-        "X-Github-Api-Version": "2022-11-28",
-        "Authorization": "Bearer " + os.environ["GITHUB_PAT"],
-    }
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    },
 
     # Prepare the JSON payload
     json_data = {
