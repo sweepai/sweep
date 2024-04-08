@@ -44,7 +44,7 @@ dependencies = [
   "python-dotenv==1.0.1",
   "openai==1.13.3",
   "backoff==2.2.1",
-  "pymongo==4.6.2",
+  "pymongo==4.6.3",
   "gitpython==3.1.42",
   "tree-sitter==0.21.0",
   "tree-sitter-languages==1.10.2",
