@@ -10,6 +10,7 @@ from sweepai.agents.assistant_wrapper import openai_assistant_call, tool_call_pa
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
+from sweepai.core.reflection_utils import ModifyEvaluatorAgent
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
@@ -187,7 +188,8 @@ Name of the file to make the change in. Ensure correct spelling as this is case-
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context, but keep this
+block AS SMALL AS POSSIBLE. This block should not be longer than 10 lines of code!
 </description>
 </parameter>
 <parameter>
@@ -254,9 +256,26 @@ Summarize the code changes made and how they fulfill the user's original request
 </parameters>
 </tool_description>
 """
+reflection_prompt_prefix = """
+CRITICAL FEEDBACK - READ CAREFULLY AND ADDRESS ALL POINTS
+<critical_feedback_to_address>
+Here is the feedback from your previous attempt. You MUST read this extremely carefully and follow ALL of the reviewer's advice. If you do not fully address this feedback you will fail to correctly solve the user's request.
+{all_reflections}
+</critical_feedback_to_address>"""
 
-# NO_TOOL_CALL_PROMPT = """ERROR
-# No tool calls were made. If you are done, please use the submit_result tool to indicate that you have completed the task. If you believe you are stuck, use the search_codebase tool to further explore the codebase or get additional context if necessary.
+reflection_prompt = """<attempt_and_feedback_{idx}>
+<previous_files_editted>
+Edits to files from previous attempts:
+{files_editted}
+</previous_files_editted>
+<rating>
+Rating from previous attempt: {score} / 10
+</rating>
+<feedback>
+Reviewer feedback on previous attempt:
+{reflections_string}
+</feedback>
+</attempt_and_feedback_{idx}>"""
 
 NO_TOOL_CALL_PROMPT = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
@@ -419,8 +438,9 @@ def function_modify(
     seed: int = None,
     relevant_filepaths: list[str] = [],
     cwd: str | None = None,
-    previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
-) -> dict[str, dict[str, str | list[str]]] | None:
+    previous_modify_files_dict: dict[str, dict[str, str]] = None,
+    reflections: str = "",
+) -> dict[str, dict[str, str]] | None:
     try:
         logger.info("Starting function_modify_unstable")
         def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
@@ -429,6 +449,8 @@ def function_modify(
                     assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
                 )
             ticket_progress.save()
+        # a complete history of messages between the assistant and the user
+        complete_message_history: list[dict[str, str]] = []
         # dictionary mapping a file path to various data used in modify, this needs to be stateful, so it is possible that previous_modify_files_dict
         modify_files_dict = previous_modify_files_dict or defaultdict(default_dict_value)
         cwd = cwd or cloned_repo.repo_dir
@@ -458,6 +480,10 @@ def function_modify(
                 content=f'You should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # Request'
             ))
         additional_messages = additional_messages + new_additional_messages
+        # if we have reflections
+        if reflections:
+            additional_messages = [*additional_messages,
+                                   Message(role="user", content=reflections)]
 
         initial_check_results: dict[str, CheckResults] = {}
         # add any already made changes to the additional_messages
@@ -486,11 +512,14 @@ def function_modify(
             assistant_name="Code Modification Function Assistant",
             tools=[],
         )
-
+        # we add to complete_message_history this way to prevent unforseen mutations to additional_messages
+        complete_message_history.extend([*additional_messages])
         try:
             done_counter = 0
-            tool_name, tool_call = assistant_generator.send(None)
+            tool_name, tool_call, llm_response = assistant_generator.send(None)
             for i in range(100):  # TODO: tune this parameter
+                # append all responses from the llm
+                complete_message_history.append(llm_response)
                 print(tool_name, json.dumps(tool_call, indent=2))
                 if tool_name == "done":
                     changes_made = False
@@ -511,20 +540,23 @@ def function_modify(
                         if done_counter >= 3:
                             break
                         error_message = create_tool_call_response("submit_result", "ERROR\n\nNo changes were made. Please continue working on your task.")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             error_message
-                        )                  
+                        )
+                        complete_message_history.append({"role": "user", "content": error_message})              
                 elif tool_name == "no_tool_call":
                     error_message = ""
-                    tool_name, tool_call = assistant_generator.send(
+                    tool_name, tool_call, llm_response = assistant_generator.send(
                         NO_TOOL_CALL_PROMPT
                     )
+                    complete_message_history.append({"role": "user", "content": NO_TOOL_CALL_PROMPT})  
                 elif tool_name == "analyze_problem_and_propose_plan":
                     error_message = ""
                     success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Lets get started!")
-                    tool_name, tool_call = assistant_generator.send(
+                    tool_name, tool_call, llm_response = assistant_generator.send(
                         success_message
                     )
+                    complete_message_history.append({"role": "user", "content": success_message})
                 elif tool_name == "analyze_and_identify_changes":
                     error_message = ""
                     # make sure the change is for an existing or newly created file
@@ -536,14 +568,16 @@ def function_modify(
                             error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
                     if not error_message:
                         success_message = create_tool_call_response(tool_name, "SUCCESS\n\nNice work! Now use the make_change tool to make the listed changes one at a time. If there are multiple changes required, call the make_change tool multiple times.")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             success_message
                         )
+                        complete_message_history.append({"role": "user", "content": success_message})
                     else:
                         error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             error_message
                         )
+                        complete_message_history.append({"role": "user", "content": error_message})
                 elif tool_name == "view_file":
                     error_message = ""
                     file_name = tool_call["file_name"].strip()
@@ -576,20 +610,25 @@ def function_modify(
                             file_contents = modify_files_dict[file_name]["contents"]
                         logger.debug(f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{file_contents}\n</file filename="{file_name}">')
                         success_message = create_tool_call_response(tool_name, f'SUCCESS\n\nHere is the file:\n\n<file filename="{file_name}">\n{file_contents}\n</file filename="{file_name}">')
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             success_message
                         )
+                        complete_message_history.append({"role": "user", "content": success_message})
                     if error_message:
                         logger.debug(f"ERROR in view_file\n\n{error_message}")
                         error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             error_message
                         )
+                        complete_message_history.append({"role": "user", "content": error_message})
                 elif tool_name == "make_change":
                     error_message = ""
                     for key in ["file_name", "original_code", "new_code"]:
                         if key not in tool_call:
                             error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
+                            # special case where original_code is so long it forgets new_code
+                            if key == "new_code" or key == "original_code":
+                                error_message += f"\n\nIt is likely the reason why you have missed these keys is because the original_code you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
                     for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                         # ensure the file we are editting exists and is in modify_files_dict
                         if "file_name" in tool_call:
@@ -665,10 +704,10 @@ def function_modify(
                     if error_message:
                         logger.error(f"ERROR occured in make_change tool: {error_message}")
                         error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             error_message
                         )
-
+                        complete_message_history.append({"role": "user", "content": error_message})
                     if not error_message:
                         success_message = (
                             f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
@@ -680,9 +719,10 @@ def function_modify(
 
                         success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}")
                         
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             success_message
                         )
+                        complete_message_history.append({"role": "user", "content": success_message})
                 elif tool_name == "create_file":
                     error_message = ""
                     success_message = ""
@@ -713,15 +753,17 @@ def function_modify(
                     if error_message:
                         logger.debug(f"ERROR occured in create_file tool: {error_message}")
                         error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             error_message
                         )
+                        complete_message_history.append({"role": "user", "content": error_message})
                     else:
                         logger.debug(f"SUCCESS\n\n{success_message}")
                         success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             success_message
                         )
+                        complete_message_history.append({"role": "user", "content": success_message})
                 elif tool_name == "search_codebase":
                     error_message = ""
                     success_message = ""
@@ -833,21 +875,24 @@ def function_modify(
                     if error_message:
                         logger.debug(f"ERROR in search_codebase\n\n{error_message}")
                         error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             error_message
                         )
+                        complete_message_history.append({"role": "user", "content": error_message})
                     else:
                         logger.debug(success_message)
                         suffix = "\n\nMake additional search_codebase calls to find other keywords or start making changes by calling the make_change tool."
                         success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}{suffix}")
-                        tool_name, tool_call = assistant_generator.send(
+                        tool_name, tool_call, llm_response = assistant_generator.send(
                             success_message
                         )
+                        complete_message_history.append({"role": "user", "content": success_message})
                 else:
                     error_message = create_tool_call_response("UNKNOWN TOOL NAME", f"ERROR\nUnexpected tool name: {tool_name}")
-                    tool_name, tool_call = assistant_generator.send(
+                    tool_name, tool_call, llm_response = assistant_generator.send(
                         error_message
                     )
+                    complete_message_history.append({"role": "user", "content": error_message})
             else:
                 logger.error("Too many iterations.")
         except StopIteration:
@@ -876,7 +921,7 @@ def function_modify(
             logger.warning("No changes were made.")
         if changes_made:
             logger.info("Finished modifying files!")
-            return modify_files_dict
+            return modify_files_dict, complete_message_history
     except AssistantRaisedException as e:
         logger.exception(e)
         discord_log_error(
@@ -900,8 +945,65 @@ def function_modify(
             + "\n\n"
             + str(ticket_progress.tracking_id if ticket_progress else "")
         )
-        return None
-    return None
+        return None, complete_message_history
+    return None, complete_message_history
+
+def create_reflections_for_modify(rollout_evaluations: list[tuple[int, dict[str, dict[str, str]]], str]) -> str:
+    reflections = ""
+    for i, (score, changed_files_dict, message_to_contractor) in enumerate(rollout_evaluations):
+        files_editted = ""
+        for file_path, file_data in changed_files_dict.items():
+            diff = generate_diff(file_data["original_contents"], file_data["contents"])
+            files_editted += f"Changes made to file {file_path}:\n{diff}\n\n"
+        reflections += reflection_prompt.format(idx=i + 1, files_editted=files_editted, score=score, reflections_string=message_to_contractor)
+    return reflection_prompt_prefix.format(all_reflections=reflections)
+
+# perform some number of rollouts of function_modify, evaluates each roll out and picks the best performing one
+# stops rolling out when max rollouts is reached or a score is above accept threshold
+def self_eval_modify(
+    fcrs: list[FileChangeRequest],
+    request: str,
+    cloned_repo: ClonedRepo,
+    additional_messages: list[Message] = [],
+    chat_logger: ChatLogger | None = None,
+    assistant_id: str = None,
+    ticket_progress: TicketProgress | None = None,
+    assistant_conversation: AssistantConversation | None = None,
+    seed: int = None,
+    relevant_filepaths: list[str] = [],
+    cwd: str | None = None,
+    previous_modify_files_dict: dict[str, dict[str, str]] = None
+    ):
+    MAX_NUM_ROLLOUTS = 2
+    SCORE_THRESHOLD = 8
+    rollout_evaluations: list[tuple[int, dict[str, dict[str, str]], str]] = []
+    previous_reflections = ""
+    previous_modify_files_dict = {}
+    for rollout in range(MAX_NUM_ROLLOUTS):
+        changed_files_dict, complete_message_history = function_modify( fcrs, request, cloned_repo, additional_messages, chat_logger, assistant_id, ticket_progress, assistant_conversation, seed, relevant_filepaths, cwd, previous_modify_files_dict, previous_reflections)
+        truncated_message_results = complete_message_history[1:] # skip system prompt
+        joined_messages = ""
+        for message in truncated_message_results:
+            if isinstance(message, dict):
+                joined_messages += f"{message['role']}:\n{message['content']}\n\n"
+            else:
+                joined_messages += f"{message.role}:\n{message.content}\n\n"
+        # evaluate the rollout
+        if not changed_files_dict:
+            score = None
+        else:
+            score, message_to_contractor = ModifyEvaluatorAgent().evaluate_run(problem_statement=request, run_text=joined_messages, changed_files=changed_files_dict)
+        if score is None or message_to_contractor is None:
+            continue # can't get any reflections here
+        # update reflections
+        previous_modify_files_dict = changed_files_dict
+        rollout_evaluations.append((score, changed_files_dict, message_to_contractor))
+        previous_reflections = create_reflections_for_modify(rollout_evaluations)
+        if score >= SCORE_THRESHOLD:
+            break
+    # return best set of changes
+    _, best_changes, _ = max(rollout_evaluations, key=lambda x: x[0] * 100)
+    return best_changes 
 
 if __name__ == "__main__":
     from sweepai.config.server import INSTALLATION_ID

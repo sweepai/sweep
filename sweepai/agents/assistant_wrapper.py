@@ -311,7 +311,7 @@ def run_until_complete(
             done_response = yield "done", {
                 "status": "completed",
                 "message": "Run completed",
-            }
+            }, {"role": "assistant", "content": "Run completed"}
         # if a function call was made
         if "<invoke>" in response_contents:
             response_contents += "</invoke>\n</function_calls>"
@@ -341,12 +341,12 @@ def run_until_complete(
                             done_response = yield "done", {
                                 "status": "completed",
                                 "message": tool_args["justification"],
-                            }
+                            }, {"role": response_role, "content": response_contents}
                         else:
                             done_response = yield "done", {
                                 "status": "completed",
                                 "message": "No justification provided",
-                            }
+                            }, {"role": response_role, "content": response_contents}
                         logger.info(
                             f"run_until_complete done_response: {done_response} completed after {i} iterations"
                         )
@@ -356,7 +356,7 @@ def run_until_complete(
                         logger.debug(
                             f"tool_call: {tool_name} with args: {tool_args}"
                         )
-                        tool_output: str = yield tool_name, tool_args
+                        tool_output: str = yield tool_name, tool_args, {"role": response_role, "content": response_contents}
                         if not tool_output:
                             break
                         messages.append(
@@ -373,7 +373,7 @@ def run_until_complete(
             done_response = yield "no_tool_call", {
                 "status": "no tool call",
                 "message": "No tool call made",
-            }
+            }, {"role": response_role, "content": response_contents}
             messages.append(
                 {
                     "role": "user",

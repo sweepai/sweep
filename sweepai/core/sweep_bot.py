@@ -514,7 +514,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str = None,
         assistant_conversation: AssistantConversation | None = None,
         additional_messages: list[Message] = [],
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+        previous_modify_files_dict: dict[str, dict[str, str]] = None,
     ):
         new_files = modify_file(
             self.cloned_repo,
@@ -540,7 +540,7 @@ class SweepBot(CodeGenBot, GithubBot):
         blocked_dirs: list[str],
         additional_messages: list[Message] = []
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
+        previous_modify_files_dict: dict[str, dict[str, str]] | None = None
         additional_messages_copy = copy.deepcopy(additional_messages)
         (
             changed_file,
@@ -583,7 +583,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         assistant_conversation: AssistantConversation | None = None,
         additional_messages: list[Message] = [],
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+        previous_modify_files_dict: dict[str, dict[str, str]] = None,
     ):
         commit_message: str = None
         try:
