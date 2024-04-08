@@ -76,6 +76,7 @@ from sweepai.utils.github_utils import (
     ClonedRepo,
     convert_pr_draft_field,
     get_github_client,
+    get_jwt,
 )
 from sweepai.utils.progress import (
     AssistantConversation,
@@ -215,6 +216,7 @@ def create_error_logs(
 
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs) -> str:
+    jwt = get_jwt()
     all_logs = ""
     for run in runs:
         # jobs_url
@@ -223,8 +225,8 @@ def get_failing_gha_logs(runs) -> str:
             jobs_url,
             headers={
                 "Accept": "application/vnd.github+json",
-                "X-Github-Api-Version": "2022-11-28",
-                "Authorization": "Bearer " + os.environ["GITHUB_PAT"],
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
             },
         )
         if jobs_response.status_code == 200:
@@ -253,8 +255,8 @@ def get_failing_gha_logs(runs) -> str:
             logs_url,
             headers={
                 "Accept": "application/vnd.github+json",
-                "X-Github-Api-Version": "2022-11-28",
-                "Authorization": "Bearer " + os.environ["GITHUB_PAT"],
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
             },
             allow_redirects=True,
         )
@@ -1468,7 +1470,7 @@ def on_ticket(
                 total_edit_attempts = 0
                 SLEEP_DURATION_SECONDS = 15
                 GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
-                MAX_EDIT_ATTEMPTS = 4 # max number of times to edit PR
+                GHA_MAX_EDIT_ATTEMPTS = 1 # max number of times to edit PR
                 while True and GITHUB_ACTIONS_ENABLED:
                     logger.info(
                         f"Polling to see if Github Actions have finished... {total_poll_attempts}"
@@ -1552,8 +1554,8 @@ def on_ticket(
                             )
                             pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                             total_edit_attempts += 1
-                            if total_edit_attempts >= MAX_EDIT_ATTEMPTS:
-                                logger.info(f"Tried to edit PR {MAX_EDIT_ATTEMPTS} times, giving up.")
+                            if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
+                                logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
                                 break
                         # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
                         # unless this is sweep's last attempt
