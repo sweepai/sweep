@@ -5,7 +5,7 @@ from git import GitCommandError
 from github.PullRequest import PullRequest
 from loguru import logger
 
-from sweepai.config.server import PROGRESS_BASE_URL
+from sweepai.config.server import MERGE_CONFLICT_RESOLUTION_STRATEGY, PROGRESS_BASE_URL
 from sweepai.core import entities
 from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
@@ -186,7 +186,10 @@ def on_merge_conflict(
             git_repo.config_writer().set_value(
                 "user", "email", "team@sweep.dev"
             ).release()
-            git_repo.git.merge("origin/" + pr.base.ref)
+            if MERGE_CONFLICT_RESOLUTION_STRATEGY == "rebase":
+                git_repo.git.rebase("origin/" + pr.base.ref)
+            else:
+                git_repo.git.merge("origin/" + pr.base.ref)
         except GitCommandError:
             # Assume there are merge conflicts
             pass
