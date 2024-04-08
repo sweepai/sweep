@@ -64,10 +64,7 @@ The below command yielded the following errors:
 <command>
 {command_line}
 </command>
-<errors>
-{error_line}
-</errors>
-
+{error_content}
 Here are the logs:
 <logs>
 {cleaned_logs_str}
@@ -88,7 +85,7 @@ def clean_gh_logs(logs_str: str):
         return "\n".join(logs_str.split("\n")[:MAX_LINES])
     command_line = match.group(1).strip()
     log_content = match.group(2).strip()
-    error_line = match.group(3).strip()
+    error_line = match.group(3).strip() # can be super long
     patterns = [
         # for docker
         "Already exists",
@@ -123,9 +120,14 @@ def clean_gh_logs(logs_str: str):
         # return the first LINES_TO_KEEP and the last LINES_TO_KEEP
         cleaned_logs = cleaned_logs[:LINES_TO_KEEP] + ["..."] + cleaned_logs[-LINES_TO_KEEP:]
     cleaned_logs_str = "\n".join(cleaned_logs)
+    error_content = ""
+    if len(error_line) < 2000:
+        error_content = f"""<errors>
+{error_line}
+</errors>"""
     cleaned_response = gha_prompt.format(
         command_line=command_line,
-        error_line=error_line,
+        error_content=error_content,
         cleaned_logs_str=cleaned_logs_str,
     )
     return cleaned_response
