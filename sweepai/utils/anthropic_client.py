@@ -11,6 +11,8 @@ from sweepai.config.server import (
 )
 from parea import Parea
 
+from sweepai.logn.cache import file_cache
+
 parea_client = None
 try:
     if PAREA_API_KEY:
@@ -48,6 +50,7 @@ class AnthropicClient:
             logger.info(f"Using Anthropic model: {self.model}")
 
     # returns the clients response object
+    @file_cache("self")
     def get_response_message(self, messages: list[dict[str, str]], model: str = "", stop_sequences: list[str] = [], **kwargs):
         model = model or self.model
         # for anthropic the messages must be alternating user and assistant and we cannot have system as a role
