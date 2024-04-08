@@ -1536,7 +1536,7 @@ def on_ticket(
                                 comments=comments,
                             )
                             file_change_requests, plan = get_files_to_change(
-                                relevant_snippets=repo_context_manager.relevant_snippets,
+                                relevant_snippets=repo_context_manager.current_top_snippets,
                                 read_only_snippets=repo_context_manager.read_only_snippets,
                                 problem_statement=all_information_prompt,
                                 repo_name=repo_full_name,
