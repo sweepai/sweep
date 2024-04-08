@@ -1492,7 +1492,6 @@ def on_ticket(
                         break
                     # if any of them have failed we retry
                     if any([run.conclusion == "failure" for run in runs]):
-                        pr_created_successfully = False
                         failed_runs = [
                             run for run in runs if run.conclusion == "failure"
                         ]
@@ -1563,7 +1562,7 @@ def on_ticket(
                         f"No Github Actions have failed yet and not all have succeeded yet, waiting for {SLEEP_DURATION_SECONDS} seconds before polling again..."
                     )
                 # break from main for loop
-                convert_pr_draft_field(pr, is_draft=False)
+                convert_pr_draft_field(pr, is_draft=False, installation_id=installation_id)
             except MaxTokensExceeded as e:
                 logger.info("Max tokens exceeded")
                 ticket_progress.status = TicketProgressStatus.ERROR
