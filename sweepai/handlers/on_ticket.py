@@ -76,7 +76,7 @@ from sweepai.utils.github_utils import (
     ClonedRepo,
     convert_pr_draft_field,
     get_github_client,
-    get_jwt,
+    get_token,
 )
 from sweepai.utils.progress import (
     AssistantConversation,
@@ -215,8 +215,8 @@ def create_error_logs(
 
 
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
-def get_failing_gha_logs(runs) -> str:
-    jwt = get_jwt()
+def get_failing_gha_logs(runs, installation_id) -> str:
+    token = get_token(installation_id)
     all_logs = ""
     for run in runs:
         # jobs_url
@@ -225,7 +225,7 @@ def get_failing_gha_logs(runs) -> str:
             jobs_url,
             headers={
                 "Accept": "application/vnd.github+json",
-                "Authorization": "Bearer " + jwt,
+                "Authorization": f"Bearer {token}",
                 "X-GitHub-Api-Version": "2022-11-28",
             },
         )
@@ -255,7 +255,7 @@ def get_failing_gha_logs(runs) -> str:
             logs_url,
             headers={
                 "Accept": "application/vnd.github+json",
-                "Authorization": "Bearer " + jwt,
+                "Authorization": f"Bearer {token}",
                 "X-GitHub-Api-Version": "2022-11-28",
             },
             allow_redirects=True,
@@ -1498,7 +1498,8 @@ def on_ticket(
                         ]
 
                         failed_gha_logs: list[str] = get_failing_gha_logs(
-                            failed_runs
+                            failed_runs,
+                            installation_id,
                         )
                         if failed_gha_logs:
                             # make edits to the PR
@@ -1557,19 +1558,12 @@ def on_ticket(
                             if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
                                 logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
                                 break
-                        # clean up by closing pr and deleting branch associated with pr before restarting on_ticket logic
-                        # unless this is sweep's last attempt
                     # if none of the runs have completed we wait and poll github
                     logger.info(
                         f"No Github Actions have failed yet and not all have succeeded yet, waiting for {SLEEP_DURATION_SECONDS} seconds before polling again..."
                     )
                 # break from main for loop
-                if pr_created_successfully:
-                    logger.info(
-                        f"All Github Actions have finished successfully! It took {total_poll_attempts + 1} minutes for all Github Actions to finish."
-                    )
-                    # convert draft pr to normal one
-                    convert_pr_draft_field(pr, is_draft=False)
+                convert_pr_draft_field(pr, is_draft=False)
             except MaxTokensExceeded as e:
                 logger.info("Max tokens exceeded")
                 ticket_progress.status = TicketProgressStatus.ERROR
