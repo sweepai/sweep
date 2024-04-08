@@ -752,11 +752,11 @@ def handle_function_call(
                 rg_output_pretty, file_output_dict = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
-                non_stored_files = [
+                non_stored_files = sorted([
                     file_path
                     for file_path in file_output_dict
                     if file_path not in repo_context_manager.top_snippet_paths
-                ]
+                ])
                 non_stored_files_string = "The following files have not been stored:\n" + "\n".join(non_stored_files) + "\n"
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
@@ -781,11 +781,11 @@ def handle_function_call(
             previous_function_calls = [
                 call for sublist in function_call_history for call in sublist
             ]
-            previously_viewed_files = [
+            previously_viewed_files = sorted([
                 call.function_parameters.get("file_path")
                 for call in previous_function_calls
                 if call.function_name == "view_file"
-            ]
+            ])
             previously_viewed_files = list(dict.fromkeys(previously_viewed_files))
             if file_path in previously_viewed_files:
                 previously_viewed_files_str = "\n".join(previously_viewed_files)
@@ -925,7 +925,7 @@ def render_function_calls_for_attempt(function_call_history: list[list[Anthropic
     return formatted_function_calls
 
 def get_stored_files(repo_context_manager: RepoContextManager) -> str:
-    fetched_files_that_are_stored = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
+    fetched_files_that_are_stored = sorted([snippet.file_path for snippet in repo_context_manager.current_top_snippets])
     joined_files_string = "\n".join(fetched_files_that_are_stored)
     stored_files_string = f'The following files have been stored already:\n{joined_files_string}.\n' if fetched_files_that_are_stored else ""
     return stored_files_string

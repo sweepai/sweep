@@ -466,7 +466,7 @@ class ClonedRepo:
         # this allows 'config.py' to return 'sweepai/config/server.py', 'sweepai/config/client.py', 'sweepai/config/__init__.py' and no more
         filtered_files_without_matching_name = list(filter(lambda file_path: file_path_to_ratio[file_path] > 50, files_without_matching_name))
         all_files = files_with_matching_name + filtered_files_without_matching_name
-        return all_files[:limit]
+        return sorted(all_files[:limit])
 
 # updates a file with new_contents, returns True if successful
 def update_file(root_dir: str, file_path: str, new_contents: str):

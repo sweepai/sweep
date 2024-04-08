@@ -1387,9 +1387,9 @@ def on_ticket(
 
                 try:
                     pr.add_to_assignees(username)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to add assignee {username}: {e}, probably a bot."
+                except Exception:
+                    logger.info(
+                        f"Failed to add assignee {username}, probably a bot."
                     )
 
                 ticket_progress.status = TicketProgressStatus.COMPLETE
