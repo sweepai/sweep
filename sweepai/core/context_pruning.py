@@ -1,4 +1,5 @@
 from copy import deepcopy
+from itertools import zip_longest
 from math import log
 import os
 import subprocess
@@ -27,7 +28,7 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 MAX_REFLECTIONS = 2
 MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
-NUM_ROLLOUTS = 5 # dev speed
+NUM_ROLLOUTS = 2 # dev speed
 SCORE_THRESHOLD = 8 # good score
 STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
 MAX_PARALLEL_FUNCTION_CALLS = 1
@@ -401,6 +402,7 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
+@file_cache(ignore_params=["rcm", "G"])
 def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoContextManager, G: nx.DiGraph):
     # TODO: tune these params
     top_paths_cutoff = 25
@@ -597,6 +599,7 @@ def get_relevant_context(
     repo_context_manager: RepoContextManager,
     seed: int = None,
     import_graph: nx.DiGraph = None,
+    num_rollouts: int = NUM_ROLLOUTS,
     ticket_progress: TicketProgress = None,
     chat_logger: ChatLogger = None,
 ):
@@ -627,6 +630,7 @@ def get_relevant_context(
                 user_prompt,
                 repo_context_manager,
                 problem_statement=query,
+                num_rollouts=num_rollouts,
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
@@ -636,13 +640,13 @@ def get_relevant_context(
         counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
             [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
         )
-        for snippet, read_only_snippet in zip(old_relevant_snippets, old_read_only_snippets):
-            if not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
+        for snippet, read_only_snippet in zip_longest(old_relevant_snippets, old_read_only_snippets, fillvalue=None):
+            if snippet and not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
                 counter += len(snippet.get_snippet(False, False))
                 if counter > max_chars:
                     break
                 repo_context_manager.current_top_snippets.append(snippet)
-            if not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
+            if read_only_snippet and not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
                 counter += len(read_only_snippet.get_snippet(False, False))
                 if counter > max_chars:
                     break
@@ -957,13 +961,13 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
         function_calls = validate_and_parse_function_calls(
             function_calls_string, chat_gpt
         )
-        function_call_history.append(function_calls)
         function_outputs = ""
         for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
             function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
             llm_state["function_call_history"] = function_call_history
             if PLAN_SUBMITTED_MESSAGE in function_outputs:
                 return chat_gpt.messages, function_call_history
+        function_call_history.append(function_calls)
         if len(function_calls) == 0:
             function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\nRemember to gather ALL relevant files. " + get_stored_files(repo_context_manager)
@@ -990,13 +994,14 @@ def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
     problem_statement: str,
+    num_rollouts: int,
 ) -> bool | None:
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
     rollout_function_call_histories = []
-    for rollout_idx in range(NUM_ROLLOUTS):
+    for rollout_idx in range(num_rollouts):
         # operate on a deep copy of the repo context manager
         if rollout_idx > 0:
             user_prompt = repo_context_manager.format_context(

@@ -352,28 +352,29 @@ class ChatGPT(MessageList):
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
-        if ANTHROPIC_AVAILABLE and "opus" not in model:
-            model = f"anthropic.{model}-v1:0"
-            self.model = f"anthropic.{self.model}-v1:0"
-            anthropic_client = AnthropicBedrock(
-                aws_access_key=AWS_ACCESS_KEY,
-                aws_secret_key=AWS_SECRET_KEY,
-                aws_region=AWS_REGION,
-            )
-        else:
-            anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
-        if parea_client:
-            parea_client.wrap_anthropic_client(anthropic_client)
         content = ""
         e = None
         for i in range(4):
             try:
-                @file_cache() # must be in the inner scope because this entire function manages state
+                @file_cache(redis=False) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str=system_message, 
                     model: str=model
                 ): # add system message and model to cache
+                    if ANTHROPIC_AVAILABLE and "opus" not in model:
+                        if "anthropic" not in model:
+                            model = f"anthropic.{model}-v1:0"
+                            self.model = f"anthropic.{self.model}-v1:0"
+                        anthropic_client = AnthropicBedrock(
+                            aws_access_key=AWS_ACCESS_KEY,
+                            aws_secret_key=AWS_SECRET_KEY,
+                            aws_region=AWS_REGION,
+                        )
+                    else:
+                        anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                    if parea_client:
+                        parea_client.wrap_anthropic_client(anthropic_client)
                     return anthropic_client.messages.create(
                         model=model,
                         temperature=temperature,
@@ -397,7 +398,7 @@ class ChatGPT(MessageList):
             except Exception as e_:
                 logger.exception(e_)
                 e = e_
-                time.sleep(5 * 2 ** i)
+                time.sleep(4 * 2 ** i) # faster debugging
         else:
             raise Exception("Anthropic call failed") from e
         self.messages.append(

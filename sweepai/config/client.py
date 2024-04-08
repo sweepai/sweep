@@ -12,7 +12,6 @@ from pydantic import BaseModel
 
 from sweepai.core.entities import EmptyRepository
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.utils import Tiktoken
 
 
 class SweepConfig(BaseModel):
@@ -228,7 +227,7 @@ class SweepConfig(BaseModel):
     
     # returns if file is excluded or not, this version may drop actual relevant files
     def is_file_excluded_aggressive(self, dir: str, file_path: str) -> bool:
-        tiktoken_client = Tiktoken()
+        # tiktoken_client = Tiktoken()
         # must exist
         if not os.path.exists(os.path.join(dir, file_path)) and not os.path.exists(file_path):
             return True
@@ -256,12 +255,12 @@ class SweepConfig(BaseModel):
         if len(data)/line_count > 200:
             return True
     
-         # check token density, if it is greater than 2, then it is likely not human readable
-        token_count = tiktoken_client.count(data)
-        if token_count == 0:
-            return True
-        if len(data)/token_count < 2:
-            return True
+        # check token density, if it is greater than 2, then it is likely not human readable
+        # token_count = tiktoken_client.count(data)
+        # if token_count == 0:
+        #     return True
+        # if len(data)/token_count < 2:
+        #     return True
         
         # now check the file name
         parts = file_path.split(os.path.sep)
@@ -280,7 +279,7 @@ def get_gha_enabled(repo: Repository) -> bool:
     try:
         contents = repo.get_contents("sweep.yaml")
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
+            "gha_enabled", False
         )
         return gha_enabled
     except SystemExit:
@@ -289,7 +288,7 @@ def get_gha_enabled(repo: Repository) -> bool:
         logger.exception(
             f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
         )
-        return True
+        return False
 
 
 @lru_cache(maxsize=None)
@@ -377,8 +376,7 @@ def get_rules(repo: Repository):
     except SystemExit:
         raise SystemExit
     except Exception:
-        return []
-
+        return []    
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
