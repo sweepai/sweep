@@ -423,6 +423,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
         npx_commands = ["npx", "eslint", "--version"]
         result = subprocess.run(
             " ".join(npx_commands),
+            timeout=5,
             capture_output=True,
             text=True,
             shell=True,
