@@ -1465,7 +1465,6 @@ def on_ticket(
                 )
 
                 # poll for github to check when gha are done
-                pr_created_successfully = False
                 total_poll_attempts = 0
                 total_edit_attempts = 0
                 SLEEP_DURATION_SECONDS = 15
@@ -1477,7 +1476,6 @@ def on_ticket(
                     )
                     # we wait at most 60 minutes
                     if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 60:
-                        pr_created_successfully = False
                         break
                     else:
                         # wait one minute between check attempts
@@ -1488,7 +1486,6 @@ def on_ticket(
                     runs = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=pr.head.sha))
                     # if all runs have succeeded, break
                     if all([run.conclusion == "success" for run in runs]):
-                        pr_created_successfully = True
                         break
                     # if any of them have failed we retry
                     if any([run.conclusion == "failure" for run in runs]):
