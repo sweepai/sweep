@@ -293,7 +293,7 @@ def run_until_complete(
         # get the response from openai
         try:
             logger.debug(messages[-1]["content"])
-            logger.debug(f"Calling anthropic claude-3-opus-20240229...")
+            logger.debug("Calling anthropic claude-3-opus-20240229...")
             client = AnthropicClient()                
             response = client.get_response_message(messages, max_tokens=3072, temperature=0.2, stop_sequences=["</invoke>"])
         # sometimes deployment for opennai is not found, retry after a minute
