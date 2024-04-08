@@ -425,7 +425,7 @@ def on_ticket(
     title: str,
     summary: str,
     issue_number: int,
-    issue_url: str,
+    issue_url: str, # purely for logging purposes
     username: str,
     repo_full_name: str,
     repo_description: str,
@@ -976,7 +976,7 @@ def on_ticket(
 
                 logger.info("Fetching files to modify/create...")
                 file_change_requests, plan = get_files_to_change(
-                    relevant_snippets=repo_context_manager.relevant_snippets,
+                    relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
                     problem_statement=f"{title}\n\n{summary}",
                     repo_name=repo_full_name,
