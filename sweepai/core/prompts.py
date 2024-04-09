@@ -423,25 +423,25 @@ You MUST follow the following format with XML tags:
 ...
 </modify>
 ...
-</plan>
-
-Here's an example of an excellent issue analysis and plan:
-
-<plan>
-<modify file="src/services/user_service.py">
-In the `getUserById` method of the `UserService` class:
-* Add a new parameter `include_deleted` with a default value of `False` 
-* After fetching the user, add an if statement to check:
-  - If `include_deleted` is False and `user.deleted` is True, return None
-  - Otherwise, return the user as normal
-</modify>
-
-<modify file="src/app.py" relevant_files="src/services/user_service.py">
-In the `get_user` endpoint:
-* Locate the call to `user_service.getUserById(user_id)`
-* Add the `include_deleted=True` argument to the method call
-</modify>
 </plan>"""
+
+# Here's an example of an excellent issue analysis and plan:
+
+# <plan>
+# <modify file="src/services/user_service.py">
+# In the `getUserById` method of the `UserService` class:
+# * Add a new parameter `include_deleted` with a default value of `False` 
+# * After fetching the user, add an if statement to check:
+#   - If `include_deleted` is False and `user.deleted` is True, return None
+#   - Otherwise, return the user as normal
+# </modify>
+
+# <modify file="src/app.py" relevant_files="src/services/user_service.py">
+# In the `get_user` endpoint:
+# * Locate the call to `user_service.getUserById(user_id)`
+# * Add the `include_deleted=True` argument to the method call
+# </modify>
+# </plan>"""
 
 
 extract_files_to_change_prompt = """\
