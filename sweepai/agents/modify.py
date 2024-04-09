@@ -240,10 +240,12 @@ def modify(
     modify_files_dict = {}
     llm_state = {"initial_check_results": {},
                     "done_counter": 0}
-    for _ in range(10):
+    for _ in range(20):
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
+            if function_output == "DONE":
+                break
         else:
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
