@@ -1,6 +1,9 @@
 
 from loguru import logger
 
+<<<<<<< HEAD
+from sweepai.core.entities import FileChangeRequest
+=======
 from sweepai.agents.assistant_wrapper import openai_assistant_call, tool_call_parameters
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
@@ -13,6 +16,7 @@ from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.str_utils import get_all_indices_of_substring
 from sweepai.utils.utils import CheckResults, get_check_results
 from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
+>>>>>>> 7b136e0b894042be967c18e76e0ac841179d21b0
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
@@ -176,35 +180,6 @@ Here is an example:
 If you are really done, call the submit_result function.
 """
 
-unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
-
-NO_TOOL_CALL_PROMPT = """FAILURE
-No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
-
-<function_call>
-<invoke>
-<tool_name>tool_name</tool_name>
-<parameters>
-<param_name>param_value</param_name>
-</parameters>
-</invoke>
-</function_calls>
-
-Here is an example:
-
-<function_call>
-<invoke>
-<tool_name>analyze_problem_and_propose_plan</tool_name>
-<parameters>
-<problem_analysis>The problem analysis goes here</problem_analysis>
-<proposed_plan>The proposed plan goes here</proposed_plan>
-</parameters>
-</invoke>
-</function_calls>
-
-If you are really done, call the submit_result function.
-"""
-
 def number_lines(code):
   lines = code.splitlines()
   width = len(str(len(lines)))
@@ -329,6 +304,7 @@ def default_dict_value():
 
 # returns dictionary of all changes made
 # @file_cache(ignore_params=["file_path", "chat_logger", "cloned_repo", "assistant_id", "ticket_progress", "assistant_conversation", "cwd"])
+<<<<<<< HEAD
 # def function_modify(
 #     fcrs: list[FileChangeRequest],
 #     request: str,
@@ -380,6 +356,65 @@ def default_dict_value():
 #                 content=f'You should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # Request'
 #             ))
 #         additional_messages = additional_messages + new_additional_messages
+=======
+def function_modify(
+    fcrs: list[FileChangeRequest],
+    request: str,
+    cloned_repo: ClonedRepo,
+    additional_messages: list[Message] = [],
+    chat_logger: ChatLogger | None = None,
+    assistant_id: str = None,
+    ticket_progress: TicketProgress | None = None,
+    assistant_conversation: AssistantConversation | None = None,
+    seed: int = None,
+    relevant_filepaths: list[str] = [],
+    cwd: str | None = None,
+    previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+) -> dict[str, dict[str, str | list[str]]] | None:
+    try:
+        logger.info("Starting function_modify_unstable")
+        def save_ticket_progress(assistant_id: str, thread_id: str, run_id: str):
+            if assistant_conversation:
+                assistant_conversation.update_from_ids(
+                    assistant_id=assistant_id, run_id=run_id, thread_id=thread_id
+                )
+            ticket_progress.save()
+        # dictionary mapping a file path to various data used in modify, this needs to be stateful, so it is possible that previous_modify_files_dict
+        modify_files_dict = previous_modify_files_dict or defaultdict(default_dict_value)
+        cwd = cwd or cloned_repo.repo_dir
+        # current_contents = contents_of_file
+        sweep_config: SweepConfig = SweepConfig()
+        # current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
+        # fcrs_message = generate_status_message(file_path, fcrs)
+        relevant_file_paths_string = ", ". join(relevant_filepaths) 
+        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
+        files_to_modify = ""
+        for fcr in fcrs:
+            files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
+        new_additional_messages = [
+            # *[
+            #     Message(
+            #         role="assistant",
+            #         content=f"<file_to_modify filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_modify>"
+            #     ) for fcr in fcrs
+            # ],
+            Message(
+                role="user",
+                content=f"# Request\n{request}",
+            ),
+            Message(
+                role="user",
+                content=f"\n{combined_request_message}",
+            )
+        ]
+        if relevant_file_paths_string:
+            new_additional_messages.append(Message(
+                role="user",
+                content=f'You should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # Request'
+            ))
+        additional_messages = additional_messages + new_additional_messages
+>>>>>>> 7b136e0b894042be967c18e76e0ac841179d21b0
 
 #         initial_check_results: dict[str, CheckResults] = {}
 #         # add any already made changes to the additional_messages
