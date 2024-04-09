@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 from sweepai.agents.assistant_function_modify import (
     excel_col_to_int,
-    function_modify,
     int_to_excel_col,
 )
 from sweepai.agents.complete_code import ExtractLeftoverComments
+from sweepai.agents.modify import modify
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet, UnneededEditError
@@ -259,18 +259,11 @@ class ModifyBot:
         fcrs: list[FileChangeRequest]=[],
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
-        new_files = function_modify(
+        new_files = modify(
             request=instructions,
             cloned_repo=cloned_repo,
-            additional_messages=self.additional_messages,
-            chat_logger=self.chat_logger,
-            ticket_progress=self.ticket_progress,
-            assistant_conversation=assistant_conversation,
-            seed=seed,
             relevant_filepaths=relevant_filepaths,
             fcrs=fcrs,
-            cwd=cloned_repo.repo_dir,
-            previous_modify_files_dict=previous_modify_files_dict,
         )
         if new_files:
             posthog.capture(

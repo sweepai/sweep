@@ -392,7 +392,7 @@ def run_until_complete(
                 break
 
         # on each iteration of the for loop, we will log to chat_logger
-        if chat_logger is not None and len(messages):
+        if chat_logger is not None and len(messages): # TODO: add this to new modify
             descriptive_messages = [message for message in messages]
             # for tool calls, the content is empty, replace that with the function contents
             for message in descriptive_messages:
@@ -433,7 +433,6 @@ def openai_assistant_call_helper(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    logger.debug(instructions)
     messages = [{"role": "system", "content": instructions}]
     for message in additional_messages:
         messages.append({"role": message.role, "content": message.content})
