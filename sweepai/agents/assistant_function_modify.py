@@ -92,29 +92,6 @@ The search query, such as a function name, class name, or variable. Provide only
 </tool_description>
 
 <tool_description>
-<tool_name>view_file</tool_name>
-<description>
-View the contents of a file from the codebase. Useful for viewing code in context before making changes.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain why viewing this file is necessary to complete the task or better understand the existing code.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-The name of the file to retrieve, including the extension. File names are case-sensitive.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
 <tool_name>make_change</tool_name>
 <description>
 Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
@@ -382,12 +359,12 @@ def function_modify(
             files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
         combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
         new_additional_messages = [
-            # *[
-            #     Message(
-            #         role="assistant",
-            #         content=f"<file_to_modify filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_modify>"
-            #     ) for fcr in fcrs
-            # ],
+            *[
+                Message(
+                    role="assistant",
+                    content=f"<file_to_modify filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_modify>"
+                ) for fcr in fcrs
+            ],
             Message(
                 role="user",
                 content=f"# Request\n{request}",
