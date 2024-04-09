@@ -139,6 +139,8 @@ tool_call_parameters = {
     "analyze_and_identify_changes": ["file_name", "changes"],
     "view_file": ["justification", "file_name"],
     "make_change": ["justification", "file_name", "original_code", "new_code"],
+    "get_code_snippet_to_change": ["justification", "file_name", "start_line", "end_line"],
+    "make_code_changes": ["justification", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
     "submit_result": ["justification"],
 }

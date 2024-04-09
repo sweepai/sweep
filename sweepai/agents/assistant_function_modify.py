@@ -25,46 +25,7 @@ from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 
 # Add COT to each tool
 
-instructions = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
-
-To complete the task, follow these steps:
-
-1. Carefully analyze the user's request to identify the key requirements and changes needed. Break down the problem into smaller sub-tasks.
-
-2. Search the codebase for relevant files, functions, classes, and variables related to the task at hand. Use the search results to determine where changes need to be made. 
-
-3. For each relevant file, identify the minimal code changes required to implement the desired functionality. Consider edge cases, error handling, and necessary imports.
-
-4. If new functionality is required that doesn't fit into existing files, create a new file with an appropriate name and location.
-
-5. Make the code changes in a targeted way:
-   - Preserve existing whitespace, comments and code style
-   - Make surgical edits to only the required lines of code
-   - If a change is complex, break it into smaller incremental changes
-   - Ensure each change is complete and functional before moving on
-
-6. When providing code snippets, be extremely precise with indentation:
-   - Count the exact number of spaces used for indentation
-   - If tabs are used, specify that explicitly 
-   - Ensure the indentation of the code snippet matches the original file exactly
-7. After making all the changes, review the modified code to verify it fully satisfies the original request.
-8. Once you are confident the task is complete, submit the final solution.
-
-In this environment, you have access to the following tools to assist in fulfilling the user request:
-
-You MUST call them like this:
-<function_calls>
-<invoke>
-<tool_name>$TOOL_NAME</tool_name>
-<parameters>
-<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
-...
-</parameters>
-</invoke>
-</function_calls>
-
-Here are the tools available:
-<tools>
+modify_tools = """<tools>
 <tool_description>
 <tool_name>analyze_problem_and_propose_plan</tool_name>
 <description>
@@ -164,6 +125,146 @@ The name of the file to retrieve, including the extension. File names are case-s
 </tool_description>
 
 <tool_description>
+<tool_name>get_code_snippet_to_change</tool_name>
+<description>
+You will give the start_line and end_line of a code snippet that needs to be modified. You will recieve the code contained within those lines (inclusive) and then you will call the tool make_code_changes in order to apply the necessary modifications. Assume the code file is 0 indexed.
+Make sure that the code snippet you are trying to fetch is as small as possible and contains only the necessary code that needs to be modified.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain how what modifications you will be performing on the code that spans start_line to end_line and how this will contribute to fulfilling the user requests.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+Name of the file that the code is in. Ensure correct spelling as this is case-sensitive.
+</description>
+</parameter>
+<parameter>
+<name>start_line</name>
+<type>int</type>
+<description>
+The starting line of the code snippet that you want to modify. Assume the code file is 0 indexed.
+</description>
+</parameter>
+<parameter>
+<name>end_line</name>
+<type>int</type>
+<description>
+The ending line of the code snippet that you want to modify. Assume the code file is 0 indexed.
+</description>
+</parameter>
+</parameters>
+</tool_description>
+
+<tool_description>
+<tool_name>make_code_changes</tool_name>
+<description>
+You are to call this tool immediately after you have recieved the output of the get_code_snippet_to_change tool. You will now provide the new code snippet that will replace the code snippet returned to you from the get_code_snippet_to_change to change tool call.
+Upon successfully calling this tool you will recieve the unified diff of the changes you have made.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain what changes you are applying and why
+</description>
+</parameter>
+<parameter>
+<name>new_code</name>
+<type>str</type>
+<description>
+The new code snippet to replace the code snippet you recieved from the get_code_lines_to_change tool call. Ensure you have valid spacing and indentation.
+</description>
+</parameter>
+</parameters>
+</tool_description>
+
+<tool_description>
+<tool_name>create_file</tool_name>
+<description>
+Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
+</description>
+<parameters>
+<parameter>
+<name>file_path</name>
+<type>str</type>
+<description>
+The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+The name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
+</description>
+</parameter>
+<parameter>
+<parameter>
+<name>contents</name>
+<type>str</type>
+<description>
+The contents of this new file.
+</description>
+</parameter>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain why creating this new file is necessary to complete the task and how it fits into the existing codebase structure.
+</description>
+</parameter>
+</parameters>
+</tool_description>
+
+<tool_description>
+<tool_name>submit_result</tool_name>
+<description>
+Indicate that the task is complete and all requirements have been satisfied. Provide the final code changes or solution.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Summarize the code changes made and how they fulfill the user's original request. Provide the complete, modified code if applicable.
+</description>
+</parameter>
+</parameters>
+</tool_description>"""
+
+modify_new_tools = """
+<tool_description>
+<tool_name>view_file</tool_name>
+<description>
+View the contents of a file from the codebase. Useful for viewing code in context before making changes.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain why viewing this file is necessary to complete the task or better understand the existing code.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+The name of the file to retrieve, including the extension. File names are case-sensitive.
+</description>
+</parameter>
+</parameters>
+</tool_description>
+
+<tool_description>
 <tool_name>make_change</tool_name>
 <description>
 Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
@@ -187,7 +288,8 @@ Name of the file to make the change in. Ensure correct spelling as this is case-
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context, but keep this
+block AS SMALL AS POSSIBLE. This block should not be longer than 10 lines of code!
 </description>
 </parameter>
 <parameter>
@@ -252,8 +354,49 @@ Summarize the code changes made and how they fulfill the user's original request
 </description>
 </parameter>
 </parameters>
-</tool_description>
-"""
+</tool_description>"""
+
+instructions = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
+
+To complete the task, follow these steps:
+
+1. Carefully analyze the user's request to identify the key requirements and changes needed. Break down the problem into smaller sub-tasks.
+
+2. Search the codebase for relevant files, functions, classes, and variables related to the task at hand. Use the search results to determine where changes need to be made. 
+
+3. For each relevant file, identify the minimal code changes required to implement the desired functionality. Consider edge cases, error handling, and necessary imports.
+
+4. If new functionality is required that doesn't fit into existing files, create a new file with an appropriate name and location.
+
+5. Make the code changes in a targeted way:
+   - Preserve existing whitespace, comments and code style
+   - Make surgical edits to only the required lines of code
+   - If a change is complex, break it into smaller incremental changes
+   - Ensure each change is complete and functional before moving on
+
+6. When providing code snippets, be extremely precise with indentation:
+   - Count the exact number of spaces used for indentation
+   - If tabs are used, specify that explicitly 
+   - Ensure the indentation of the code snippet matches the original file exactly
+7. After making all the changes, review the modified code to verify it fully satisfies the original request.
+8. Once you are confident the task is complete, submit the final solution.
+
+In this environment, you have access to the following tools to assist in fulfilling the user request:
+
+You MUST call them like this:
+<function_calls>
+<invoke>
+<tool_name>$TOOL_NAME</tool_name>
+<parameters>
+<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+...
+</parameters>
+</invoke>
+</function_calls>
+
+Here are the tools available:
+
+""" + modify_tools
 
 # NO_TOOL_CALL_PROMPT = """ERROR
 # No tool calls were made. If you are done, please use the submit_result tool to indicate that you have completed the task. If you believe you are stuck, use the search_codebase tool to further explore the codebase or get additional context if necessary.
@@ -285,8 +428,47 @@ Here is an example:
 If you are really done, call the submit function.
 """
 
+instructions_new = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
+
+To complete the task, follow these steps:
+
+1. Go through the list of file change requests that have been provided to you and apply each and every one.
+
+2. Make the code changes in a targeted way:
+   - Preserve existing whitespace, comments and code style
+   - Make surgical edits to only the required lines of code
+   - If a change is complex, break it into smaller incremental changes
+   - Ensure each change is complete and functional before moving on
+
+3. When providing code snippets, be extremely precise with indentation:
+   - Count the exact number of spaces used for indentation
+   - If tabs are used, specify that explicitly 
+   - Ensure the indentation of the code snippet matches the original file exactly
+
+4. Once you are confident the task is complete, submit the final solution.
+
+In this environment, you have access to the following tools to assist in fulfilling the user request:
+
+You MUST call them like this:
+<function_calls>
+<invoke>
+<tool_name>$TOOL_NAME</tool_name>
+<parameters>
+<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+...
+</parameters>
+</invoke>
+</function_calls>
+
+Here are the tools available:
+"""
+
 unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
 
+def number_lines(code):
+  lines = code.splitlines()
+  width = len(str(len(lines)))
+  return "\n".join(f"{str(i + 1).rjust(width)}  {line}" for i, line in enumerate(lines))
 
 def int_to_excel_col(n):
     result = ""
@@ -590,6 +772,8 @@ def function_modify(
                     for key in ["file_name", "original_code", "new_code"]:
                         if key not in tool_call:
                             error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
+                            if key == "new_code" or key == "original_code":
+                                error_message += f"\n\nIt is likely the reason why you have missed these keys is because the original_code you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
                     for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                         # ensure the file we are editting exists and is in modify_files_dict
                         if "file_name" in tool_call:
