@@ -10,7 +10,6 @@ from sweepai.agents.assistant_wrapper import openai_assistant_call, tool_call_pa
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
@@ -383,6 +382,12 @@ def function_modify(
             files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
         combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
         new_additional_messages = [
+            # *[
+            #     Message(
+            #         role="assistant",
+            #         content=f"<file_to_modify filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_modify>"
+            #     ) for fcr in fcrs
+            # ],
             Message(
                 role="user",
                 content=f"# Request\n{request}",
