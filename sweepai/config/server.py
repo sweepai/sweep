@@ -238,7 +238,7 @@ PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
 
 # TODO: we need to make this dynamic + backoff
 BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 32 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
+    os.environ.get("BATCH_SIZE", 64 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
 )
 
 DEPLOYMENT_GHA_ENABLED = os.environ.get("DEPLOYMENT_GHA_ENABLED", "true").lower() == "true"
