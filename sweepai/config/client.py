@@ -19,12 +19,14 @@ class SweepConfig(BaseModel):
     exclude_dirs: list[str] = [
         ".git",
         "node_modules",
+        "build",
+        ".venv",
         "venv",
         "patch",
         "packages/blobs",
         "dist",
     ]
-    exclude_path_dirs: list[str] = ["node_modules", "venv", ".git", "dist"]
+    exclude_path_dirs: list[str] = ["node_modules", "build", ".venv", "venv", ".git", "dist"]
     exclude_substrings_aggressive: list[str] = [ # aggressively filter out file paths, may drop some relevant files
         "integration",
         ".spec",

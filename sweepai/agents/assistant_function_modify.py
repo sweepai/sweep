@@ -1,178 +1,25 @@
 
 from loguru import logger
 
-from sweepai.core.entities import FileChangeRequest
+from sweepai.agents.assistant_wrapper import openai_assistant_call, tool_call_parameters
+from sweepai.agents.agent_utils import ensure_additional_messages_length
+from sweepai.config.client import SweepConfig
+from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.diff import generate_diff
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
+from sweepai.utils.github_utils import ClonedRepo, update_file
+from sweepai.utils.progress import AssistantConversation, TicketProgress
+from sweepai.utils.str_utils import get_all_indices_of_substring
+from sweepai.utils.utils import CheckResults, get_check_results
+from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
 
 # Add COT to each tool
 
-modify_tools = """
-<tool_description>
-<tool_name>view_file</tool_name>
-<description>
-View the contents of a file from the codebase. Useful for viewing code in context before making changes.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain why viewing this file is necessary to complete the task or better understand the existing code.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-The name of the file to retrieve, including the extension. File names are case-sensitive.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>get_code_snippet_to_change</tool_name>
-<description>
-You will give the start_line and end_line of a code snippet that needs to be modified. You will recieve the code contained within those lines (inclusive) and then you will call the tool make_code_changes in order to apply the necessary modifications. Assume the code file is 0 indexed.
-Make sure that the code snippet you are trying to fetch is as small as possible and contains only the necessary code that needs to be modified.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain how what modifications you will be performing on the code that spans start_line to end_line and how this will contribute to fulfilling the user requests.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-Name of the file that the code is in. Ensure correct spelling as this is case-sensitive.
-</description>
-</parameter>
-<parameter>
-<name>start_line</name>
-<type>int</type>
-<description>
-The starting line of the code snippet that you want to modify. Assume the code file is 0 indexed.
-</description>
-</parameter>
-<parameter>
-<name>end_line</name>
-<type>int</type>
-<description>
-The ending line of the code snippet that you want to modify. Assume the code file is 0 indexed.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>make_code_changes</tool_name>
-<description>
-You are to call this tool immediately after you have recieved the output of the get_code_snippet_to_change tool. You will now provide the new code snippet that will replace the code snippet returned to you from the get_code_snippet_to_change to change tool call.
-Upon successfully calling this tool you will recieve the unified diff of the changes you have made.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain what changes you are applying and why
-</description>
-</parameter>
-<parameter>
-<name>new_code</name>
-<type>str</type>
-<description>
-The new code snippet to replace the code snippet you recieved from the get_code_lines_to_change tool call. Ensure you have valid spacing and indentation.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>create_file</tool_name>
-<description>
-Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
-</description>
-<parameters>
-<parameter>
-<name>file_path</name>
-<type>str</type>
-<description>
-The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-The name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
-</description>
-</parameter>
-<parameter>
-<parameter>
-<name>contents</name>
-<type>str</type>
-<description>
-The contents of this new file.
-</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain why creating this new file is necessary to complete the task and how it fits into the existing codebase structure.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>submit_result</tool_name>
-<description>
-Indicate that the task is complete and all requirements have been satisfied. Provide the final code changes or solution.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Summarize the code changes made and how they fulfill the user's original request. Provide the complete, modified code if applicable.
-</description>
-</parameter>
-</parameters>
-</tool_description>"""
-
-modify_new_tools = """
-<tool_description>
-<tool_name>view_file</tool_name>
-<description>
-View the contents of a file from the codebase. Useful for viewing code in context before making changes.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain why viewing this file is necessary to complete the task or better understand the existing code.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-The name of the file to retrieve, including the extension. File names are case-sensitive.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
+modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
 <description>
 Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
@@ -196,8 +43,7 @@ Name of the file to make the change in. Ensure correct spelling as this is case-
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context, but keep this
-block AS SMALL AS POSSIBLE. This block should not be longer than 10 lines of code!
+The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
 </description>
 </parameter>
 <parameter>
@@ -285,7 +131,7 @@ To complete the task, follow these steps:
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
 You MUST call them like this:
-<function_calls>
+<function_call>
 <invoke>
 <tool_name>$TOOL_NAME</tool_name>
 <parameters>
@@ -293,7 +139,7 @@ You MUST call them like this:
 ...
 </parameters>
 </invoke>
-</function_calls>
+</function_call>
 
 Here are the tools available:
 
@@ -301,41 +147,33 @@ Here are the tools available:
 
 # NO_TOOL_CALL_PROMPT = """ERROR
 # No tool calls were made. If you are done, please use the submit_result tool to indicate that you have completed the task. If you believe you are stuck, use the search_codebase tool to further explore the codebase or get additional context if necessary.
+unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
 
+NO_TOOL_CALL_PROMPT = """FAILURE
+No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
 
-instructions_new = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
-
-To complete the task, follow these steps:
-
-1. Go through the list of file change requests that have been provided to you and apply each and every one.
-
-2. Make the code changes in a targeted way:
-   - Preserve existing whitespace, comments and code style
-   - Make surgical edits to only the required lines of code
-   - If a change is complex, break it into smaller incremental changes
-   - Ensure each change is complete and functional before moving on
-
-3. When providing code snippets, be extremely precise with indentation:
-   - Count the exact number of spaces used for indentation
-   - If tabs are used, specify that explicitly 
-   - Ensure the indentation of the code snippet matches the original file exactly
-
-4. Once you are confident the task is complete, submit the final solution.
-
-In this environment, you have access to the following tools to assist in fulfilling the user request:
-
-You MUST call them like this:
-<function_calls>
+<function_call>
 <invoke>
-<tool_name>$TOOL_NAME</tool_name>
+<tool_name>tool_name</tool_name>
 <parameters>
-<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
-...
+<param_name>param_value</param_name>
 </parameters>
 </invoke>
 </function_calls>
 
-Here are the tools available:
+Here is an example:
+
+<function_call>
+<invoke>
+<tool_name>analyze_problem_and_propose_plan</tool_name>
+<parameters>
+<problem_analysis>The problem analysis goes here</problem_analysis>
+<proposed_plan>The proposed plan goes here</proposed_plan>
+</parameters>
+</invoke>
+</function_calls>
+
+If you are really done, call the submit_result function.
 """
 
 unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
