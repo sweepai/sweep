@@ -59,7 +59,7 @@ def modify_file(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger | None = None,
     additional_messages: list[Message] = [],
-    previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+    previous_modify_files_dict: dict[str, dict[str, str]] = None,
 ):
     try:
         new_additional_messages, relevant_filepaths = create_additional_messages(
@@ -69,7 +69,7 @@ def modify_file(
             cloned_repo,
         )
         additional_messages += new_additional_messages
-        new_files = function_modify(
+        new_files, _ = function_modify(
             file_change_requests,
             request,
             cloned_repo,

@@ -5,6 +5,7 @@ from sweepai.agents.assistant_function_modify import (
     excel_col_to_int,
     function_modify,
     int_to_excel_col,
+    self_eval_modify,
 )
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
@@ -257,9 +258,9 @@ class ModifyBot:
         seed: str | None = None,
         relevant_filepaths: list[str] = [],
         fcrs: list[FileChangeRequest]=[],
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+        previous_modify_files_dict: dict[str, dict[str, str]] = None,
     ):
-        new_files = function_modify(
+        new_files = self_eval_modify(
             request=instructions,
             cloned_repo=cloned_repo,
             additional_messages=self.additional_messages,
