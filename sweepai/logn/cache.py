@@ -13,7 +13,7 @@ TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
 # if DEBUG:
 #     logger.debug("File cache is disabled.")
-
+redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
 
 def recursive_hash(value, depth=0, ignore_params=[]):
     """Hash primitives recursively with maximum depth."""
@@ -49,7 +49,7 @@ def hash_code(code):
     return hashlib.md5(code.encode()).hexdigest()
 
 
-def file_cache(ignore_params=[], verbose=False):
+def file_cache(ignore_params=[], verbose=False, redis=False):
     """Decorator to cache function output based on its inputs, ignoring specified parameters.
     Ignore parameters are used to avoid caching on non-deterministic inputs, such as timestamps.
     We can also ignore parameters that are slow to serialize/constant across runs, such as large objects.
@@ -61,8 +61,9 @@ def file_cache(ignore_params=[], verbose=False):
         func_source_code_hash = hash_code(inspect.getsource(func))
 
         def wrapper(*args, **kwargs):
-            cache_dir = "/tmp/file_cache"
+            cache_dir = os.environ.get("MOUNT_DIR", "") + "/tmp/file_cache"
             os.makedirs(cache_dir, exist_ok=True)
+            result = None
 
             # Convert args to a dictionary based on the function's signature
             args_names = func.__code__.co_varnames[: func.__code__.co_argcount]
@@ -80,22 +81,36 @@ def file_cache(ignore_params=[], verbose=False):
                 + recursive_hash(kwargs_clone, ignore_params=ignore_params)
                 + func_source_code_hash
             )
+            cache_key = f"{func.__module__}_{func.__name__}_{arg_hash}"
             cache_file = os.path.join(
-                cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
+                cache_dir, f"{cache_key}.pickle"
             )
-
+            if redis and redis_client: # only use this for LLM calls
+                cached_result = redis_client.get(cache_key)
+                if cached_result:
+                    if verbose:
+                        print("Used redis cache for function: " + func.__name__)
+                    result = pickle.loads(cached_result)
             try:
                 # If cache exists, load and return it
                 if os.path.exists(cache_file):
                     if verbose:
                         print("Used cache for function: " + func.__name__)
                     with open(cache_file, "rb") as f:
-                        return pickle.load(f)
+                        result = pickle.load(f)
             except Exception:
                 logger.info("Unpickling failed")
-
             # Otherwise, call the function and save its result to the cache
-            result = func(*args, **kwargs)
+            if not result:
+                result = func(*args, **kwargs)
+            # hydrate both caches in all cases
+            if redis and redis_client: # cache this to redis as well
+                try:
+                    # Cache the result using the unique cache key
+                    redis_client.set(cache_key, pickle.dumps(result))
+                except Exception as e:
+                    if verbose:
+                        print(f"Redis caching failed for function: {func.__name__}, Error: {e}")
             if not isinstance(result, Exception):
                 try:
                     with open(cache_file, "wb") as f:
@@ -109,8 +124,6 @@ def file_cache(ignore_params=[], verbose=False):
         return wrapper
 
     return decorator
-
-redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
 
 
 def redis_cache(ignore_params=[], verbose=False):
@@ -163,7 +176,7 @@ def redis_cache(ignore_params=[], verbose=False):
     return decorator
 
 if __name__ == "__main__":
-    @redis_cache()
+    @file_cache(redis=True)
     def test_func(a, b):
         time.sleep(3)
         return a + b

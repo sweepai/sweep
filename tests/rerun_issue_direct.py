@@ -7,65 +7,8 @@ from github import Github
 
 from sweepai.api import app
 from sweepai.utils.github_utils import get_github_client, get_installation_id
+from sweepai.web.event_utils import fetch_issue_request
 from sweepai.web.events import Account, Installation, IssueRequest
-
-
-def fetch_issue_request(issue_url: str, __version__: str = "0"):
-    (
-        protocol_name,
-        _,
-        _base_url,
-        org_name,
-        repo_name,
-        _issues,
-        issue_number,
-    ) = issue_url.split("/")
-    print("Fetching installation ID...")
-    installation_id = get_installation_id(org_name)
-    print("Fetching access token...")
-    _token, g = get_github_client(installation_id)
-    g: Github = g
-    print("Fetching repo...")
-    issue = g.get_repo(f"{org_name}/{repo_name}").get_issue(int(issue_number))
-
-    issue_request = IssueRequest(
-        action="labeled",
-        issue=IssueRequest.Issue(
-            title=issue.title,
-            number=int(issue_number),
-            html_url=issue_url,
-            user=IssueRequest.Issue.User(
-                login=issue.user.login,
-                type="User",
-            ),
-            body=issue.body,
-            labels=[
-                IssueRequest.Issue.Label(
-                    name="sweep",
-                ),
-            ],
-            assignees=None,
-            pull_request=None,
-        ),
-        repository=IssueRequest.Issue.Repository(
-            full_name=issue.repository.full_name,
-            description=issue.repository.description,
-        ),
-        assignee=IssueRequest.Issue.Assignee(login=issue.user.login),
-        installation=Installation(
-            id=installation_id,
-            account=Account(
-                id=issue.user.id,
-                login=issue.user.login,
-                type="User",
-            ),
-        ),
-        sender=IssueRequest.Issue.User(
-            login=issue.user.login,
-            type="User",
-        ),
-    )
-    return issue_request
 
 
 def send_request(issue_request):
@@ -83,7 +26,21 @@ def test_issue_url(
 ):
     issue_url: str = issue_url or typer.prompt("Issue URL")
     print(f"Fetching issue metadata...")
-    issue_request = fetch_issue_request(issue_url)
+    (
+        _,
+        _,
+        _,
+        org_name,
+        repo_name,
+        _,
+        issue_number,
+    ) = issue_url.split("/")
+    issue_request = fetch_issue_request(
+        org_name=org_name,
+        repo_name=repo_name,
+        issue_number=issue_number,
+        issue_url=issue_url
+    )
     print(f"Sending request...")
 
     if debug:

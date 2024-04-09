@@ -40,7 +40,7 @@ from sweepai.utils.progress import (
 )
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.utils import check_syntax
-from sweepai.utils.github_utils import commit_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 
@@ -106,6 +106,131 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
             return {"success": True, "path": blocked_dir}
     return {"success": False}
 
+def validate_file_change_requests(
+    file_change_requests: list[FileChangeRequest],
+    cloned_repo: ClonedRepo,
+):
+    # TODO: add better suffixing
+    for fcr in file_change_requests:
+        if fcr.change_type == "modify":
+            try:
+                cloned_repo.get_file_contents(fcr.filename)
+            except FileNotFoundError as e:
+                logger.warning(f"Failed to get file contents for {fcr.filename} due to {e}, trying prefixes")
+                for file_path in cloned_repo.get_file_list():
+                    if file_path.endswith(fcr.filename):
+                        logger.info(f"Found similar file {fcr.filename} at {file_path}")
+                        cloned_repo.get_file_contents(file_path)
+                        fcr.filename = file_path
+                        break
+                else:
+                    fcr.change_type = "create" # need better handling
+        elif fcr.change_type == "create":
+            try:
+                cloned_repo.get_file_contents(fcr.filename)
+                fcr.change_type = "modify" # need better handling
+            except FileNotFoundError:
+                pass
+    
+
+def get_files_to_change(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement,
+    repo_name,
+    pr_diffs: str = "",
+    seed: int = 0
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    messages.append(
+        Message(role="system", content=files_to_change_system_prompt, key="system")
+    )
+    messages.append(
+        Message(role="user", content=files_to_change_prompt, key="assistant")
+    )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
+            key="assistant",
+        )
+    )
+    relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
+    # attach all relevant snippets
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            snippet_denotation=snippet.denotation,
+            content=snippet.expand(300).get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
+    relevant_snippets_message = f"<relevant_snippets>\n{joined_relevant_snippets}\n</relevant_snippets>"
+    messages.append(
+        Message(
+            role="user",
+            content=relevant_snippets_message,
+            key="relevant_snippets",
+        )
+    )
+    joined_relevant_read_only_snippets = "\n".join(
+        read_only_snippet_template.format(
+            i=i,
+            snippet_denotation=snippet.denotation,
+            content=snippet.get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(read_only_snippets)
+    )
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    messages.append(
+        Message(
+            role="user",
+            content=read_only_snippets_message,
+            key="relevant_snippets",
+        )
+    )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
+        )
+    )
+    if pr_diffs:
+        messages.append(
+            Message(role="user", content=pr_diffs, key="pr_diffs")
+        )
+    try:
+        print("messages")
+        for message in messages:
+            print(message.content + "\n\n")
+        joint_message = "\n\n".join(message.content for message in messages[1:-1])
+        print("messages", joint_message)
+        chatgpt = ChatGPT(
+            messages=[
+                Message(
+                    role="system",
+                    content=files_to_change_system_prompt,
+                ),
+            ],
+        )
+        files_to_change_response = chatgpt.chat_anthropic(
+            content=joint_message + "\n\n" + files_to_change_prompt,
+            model="claude-3-opus-20240229",
+            temperature=0.1
+        )
+        print("files_to_change_response", files_to_change_response)
+        file_change_requests = []
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_requests.append(file_change_request)
+        return file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
+
+    return [], ""
+
 
 class CodeGenBot(ChatGPT):
     def generate_subissues(self, retries: int = 3):
@@ -130,8 +255,9 @@ class CodeGenBot(ChatGPT):
         raise NoFilesException()
 
     def get_files_to_change(
-        self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
+        self, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
+        raise DeprecationWarning("This function is deprecated. Use get_files_to_change instead.")
         file_change_requests: list[FileChangeRequest] = []
         try:
             if pr_diffs is not None:
@@ -187,13 +313,6 @@ class CodeGenBot(ChatGPT):
             ):
                 file_change_request = FileChangeRequest.from_string(re_match.group(0))
                 file_change_requests.append(file_change_request)
-                if file_change_request.change_type in ("modify", "create"):
-                    new_file_change_request = copy.deepcopy(file_change_request)
-                    new_file_change_request.change_type = "check"
-                    new_file_change_request.instructions = ""
-                    new_file_change_request.parent = file_change_request
-                    file_change_requests.append(new_file_change_request)
-
             if file_change_requests:
                 plan_str = "\n".join(
                     [fcr.instructions_display for fcr in file_change_requests]

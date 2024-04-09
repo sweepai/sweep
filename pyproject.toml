@@ -72,7 +72,8 @@ dependencies = [
   "parea-ai==0.2.114",
   "voyageai==0.2.1",
   "boto3==1.34.70",
-  "scipy==1.12.0"
+  "scipy==1.12.0",
+  "jira==3.8.0",
 ]
 
 [tool.isort]

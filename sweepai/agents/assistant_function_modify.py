@@ -651,8 +651,10 @@ def function_modify(
                         warning_message = ""
                         
                         # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
+                        carriage_return = False
                         if "\r\n" in file_contents:
-                            # replace in current chunk
+                            # replace in code file
+                            carriage_return = True
                             file_contents = file_contents.replace("\r\n", "\n")
                         # check to see that the original_code is in the new_code by trying all possible indentations
                         correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
@@ -714,6 +716,9 @@ def function_modify(
                             + generate_diff(file_contents, new_file_contents)
                         ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
                         # set contents
+                        # if we had carriage returns we replace them again
+                        if carriage_return:
+                            new_file_contents = new_file_contents.replace("\n", "\r\n")
                         modify_files_dict[file_name]['contents'] = new_file_contents
                         logger.info(success_message)
 

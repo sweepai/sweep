@@ -9,7 +9,6 @@ from typing import Any, Optional
 import requests
 from fastapi import (
     Body,
-    Depends,
     FastAPI,
     Header,
     HTTPException,
@@ -22,7 +21,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
-from prometheus_fastapi_instrumentator import Instrumentator
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -62,6 +60,7 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
     on_check_suite,
 )
 from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_jira_ticket import handle_jira_ticket
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_merge_conflict import on_merge_conflict
 from sweepai.handlers.on_ticket import on_ticket
@@ -122,17 +121,6 @@ def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security))
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
         )
     return True
-
-
-if not IS_SELF_HOSTED:
-    Instrumentator().instrument(app).expose(
-        app,
-        should_gzip=False,
-        endpoint="/metrics",
-        include_in_schema=True,
-        tags=["metrics"],
-        dependencies=[Depends(auth_metrics)],
-    )
 
 
 def run_on_ticket(*args, **kwargs):
@@ -213,9 +201,6 @@ def call_on_ticket(*args, **kwargs):
     on_ticket_events[key] = thread
     thread.start()
     global_threads.append(thread)
-
-    # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
-    # delayed_kill_thread.start()
 
 
 def call_on_check_suite(*args, **kwargs):
@@ -360,6 +345,14 @@ def webhook(
         logger.info(f"Received event: {x_github_event}, {action}")
         return handle_request(request_dict, event=x_github_event)
 
+@app.post("/jira")
+def jira_webhook(
+    request_dict: dict = Body(...),
+) -> None:
+    def call_jira_ticket(*args, **kwargs):
+        thread = threading.Thread(target=handle_jira_ticket, args=args, kwargs=kwargs)
+        thread.start()
+    call_jira_ticket(event=request_dict)
 
 # Set up cronjob for this
 @app.get("/update_sweep_prs_v2")

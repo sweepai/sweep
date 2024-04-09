@@ -19,7 +19,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -291,8 +291,6 @@ def on_comment(
                 repo_name=repo_name,
                 repo_description=repo_description if repo_description else "",
                 diffs=diffs,
-                issue_url=pr.html_url,
-                username=username,
                 title=pr_title,
                 tree=tree,
                 summary=pr_body,
@@ -344,15 +342,14 @@ def on_comment(
                     )
                 ]
             else:
-                non_python_count = sum(
-                    not file_path.endswith(".py")
-                    for file_path in human_message.get_file_paths()
+                file_change_requests, plan = get_files_to_change(
+                    relevant_snippets=repo_context_manager.current_top_snippets,
+                    read_only_snippets=repo_context_manager.read_only_snippets,
+                    problem_statement=formatted_query,
+                    repo_name=repo_name,
+                    pr_diffs=pr_diff_string
                 )
-                python_count = len(human_message.get_file_paths()) - non_python_count
-                is_python_issue = python_count > non_python_count
-                file_change_requests, _ = sweep_bot.get_files_to_change(
-                    is_python_issue, retries=1, pr_diffs=pr_diff_string
-                )
+                validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )

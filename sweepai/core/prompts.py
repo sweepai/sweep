@@ -296,23 +296,117 @@ The code change should look like:
 </modify>
 </plan>"""
 
-# put more emphasis on modify
+files_to_change_prompt = """# Task: 
+Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a minimal plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+
+You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
+
+Guidelines:
+* Always include the full file path (e.g. src/utils/strings/regex_utils.py instead of just strings/regex_utils.py or regex_utils.py) and reference the provided snippets.
+* Provide clear, natural language instructions for updating the code logic and specify necessary imports.
+* Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
+* Include relevant type definitions, interfaces, and schemas to provide a clear understanding of the entities and their relationships.
+* Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
+* When suggesting code modifications, provide detailed instructions. Write all code changes in the diff format. Do not leave comments or placeholders for the user to fill in.
+
+Please use the following XML format for your response:
+
+# Issue Analysis:
+<issue_analysis>
+* Identify the root cause of the issue by referencing specific code entities in the relevant files.
+* Outline the minimal plan that completely resolves the user's request, referencing provided code snippets, entity names, and necessary files/directories. Provide minimal changes since the intern is unfamiliar with the codebase and may mess up or break production.
+
+List ALL files we should modify to resolve the issue:
+- File path 1 - Outline of instructions for modifying the file
+- File path 2 - Outline of instructions for modifying the file
+[additional files as needed]
+
+List ALL relevant utility modules from the provided set and specify where they can be used, including:
+- Type definitions, interfaces, and schemas
+- Helper functions
+- Frontend components
+- Database services
+- API endpoints
+[additional relevant modules as needed]
+
+* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
+[additional analysis as needed]
+</issue_analysis>
+
+# Plan:
+<plan>
+<create file="file_path_1" relevant_files="space-separated list of files containing ALL modules to use when creating file_path_1">
+* Natural language instructions for creating the new file to solve the issue.
+* Reference necessary imports and entity names.
+* Include relevant type definitions, interfaces, and schemas.
+</create>
+
+[additional creates as needed]
+
+<modify file="file_path_2" relevant_files="space-separated list of files containing ALL modules to use while modifying file_path_2">
+* Detailed natural language instructions for modifying the file to solve the issue.
+* Reference the locations of the changes using surrounding code or function headers, not line numbers.
+* Include relevant type definitions, interfaces, and schemas.
+* Each file should be modified at most once.
+</modify>
+
+[additional modifies as needed]
+</plan>
+
+Here's an example of an excellent issue analysis and plan:
+
+<issue_analysis>
+The root cause of the issue is that the `getUserById` method in the `UserService` class (user_service.py) does not handle the case where a user has been soft deleted. It should return None if the `user.deleted` property is set to True.
+
+To completely resolve the user's request, at minimum, we need to:
+- Modify the `getUserById` method in user_service.py to add a flag to conditionally return None for deleted users 
+- Update the call to `getUserById` in the `get_user` endpoint in app.py to pass the new flag
+
+Relevant files to modify:
+- src/services/user_service.py - Add `include_deleted` flag to `getUserById`, return None if user.deleted is True when flag is set 
+- src/app.py - Update call to `getUserById` in `get_user` endpoint to pass `include_deleted=True`
+
+No additional utility modules are needed as the necessary `User` entity and `UserService` are already imported in the relevant files.
+
+The <modify> changes work together to fully handle soft deleted users - the service method is updated to support the new flag, and the API endpoint is updated to use the flag. The service layer change is made first as it is lower-level.
+</issue_analysis>
+
+<plan>
+<modify file="src/services/user_service.py">
+In the `getUserById` method of the `UserService` class:
+* Add a new parameter `include_deleted` with a default value of `False` 
+* After fetching the user, add an if statement to check:
+  - If `include_deleted` is False and `user.deleted` is True, return None
+  - Otherwise, return the user as normal
+</modify>
+
+<modify file="src/app.py" relevant_files="src/services/user_service.py">
+In the `get_user` endpoint:
+* Locate the call to `user_service.getUserById(user_id)`
+* Add the `include_deleted=True` argument to the method call
+</modify>
+</plan>"""
+
 files_to_change_prompt = """\
 # Task:
 Reference and analyze the snippets, repo, and issue to break down the requested change and propose the minimal plan that resolve's the user's issue.
+
 Follow these rules:
 * You may only modify existing files and create new files but may not necessarily need both.
 * Include the full path (e.g. src/main.py and not just main.py), using the snippets and repo_tree for reference.
 * Provide natural language instructions on updates to business logic and specify which files to import.
 * Be concrete with instructions. Do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Provide the plan that is minimal and complete.
+
 You MUST follow the following format with XML tags:
+
 # Contextual Request Analysis:
 <contextual_request_analysis>
 * Outline the minimal plan that solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
-* Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible.
+* Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible
 ...
 </contextual_request_analysis>
+
 # Plan:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
@@ -321,6 +415,7 @@ You MUST follow the following format with XML tags:
 ...
 </create>
 ...
+
 <modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Natural language instructions for the modifications needed to solve the issue.
 * Be concise and reference necessary files, imports and entity names.
@@ -328,7 +423,26 @@ You MUST follow the following format with XML tags:
 ...
 </modify>
 ...
+</plan>
+
+Here's an example of an excellent issue analysis and plan:
+
+<plan>
+<modify file="src/services/user_service.py">
+In the `getUserById` method of the `UserService` class:
+* Add a new parameter `include_deleted` with a default value of `False` 
+* After fetching the user, add an if statement to check:
+  - If `include_deleted` is False and `user.deleted` is True, return None
+  - Otherwise, return the user as normal
+</modify>
+
+<modify file="src/app.py" relevant_files="src/services/user_service.py">
+In the `get_user` endpoint:
+* Locate the call to `user_service.getUserById(user_id)`
+* Add the `include_deleted=True` argument to the method call
+</modify>
 </plan>"""
+
 
 extract_files_to_change_prompt = """\
 # Task:

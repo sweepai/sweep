@@ -1,4 +1,5 @@
 from copy import deepcopy
+from itertools import zip_longest
 from math import log
 import os
 import subprocess
@@ -14,7 +15,6 @@ from openai.types.beta.threads.run import Run
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
-from sweepai.core.reflection_utils import EvaluatorAgent
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall, mock_function_calls_to_string
@@ -28,7 +28,7 @@ ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 MAX_REFLECTIONS = 2
 MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
-NUM_ROLLOUTS = 5 # dev speed
+NUM_ROLLOUTS = 2 # dev speed
 SCORE_THRESHOLD = 8 # good score
 STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
 MAX_PARALLEL_FUNCTION_CALLS = 1
@@ -402,6 +402,7 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
+@file_cache(ignore_params=["rcm", "G"])
 def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoContextManager, G: nx.DiGraph):
     # TODO: tune these params
     top_paths_cutoff = 25
@@ -418,33 +419,35 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
 
     for snippet in selected_paths:
         personalization[snippet] = 1
-
     try:
-        personalized_pagerank_scores = nx.pagerank(G, personalization=personalization, alpha=0.85)
-        unpersonalized_pagerank_scores = nx.pagerank(G, alpha=0.85)
+        @file_cache()
+        def get_distilled_file_paths(formatted_query, top_k_paths):
+            personalized_pagerank_scores = nx.pagerank(G, personalization=personalization, alpha=0.85)
+            unpersonalized_pagerank_scores = nx.pagerank(G, alpha=0.85)
 
-        # tfidf style
-        normalized_pagerank_scores = {path: score * log(1 / (1e-6 + unpersonalized_pagerank_scores[path])) for path, score in personalized_pagerank_scores.items()}
+            # tfidf style
+            normalized_pagerank_scores = {path: score * log(1 / (1e-6 + unpersonalized_pagerank_scores[path])) for path, score in personalized_pagerank_scores.items()}
 
-        top_pagerank_scores = sorted(normalized_pagerank_scores.items(), key=lambda x: x[1], reverse=True)
-        
-        top_pagerank_paths = [path for path, _score in top_pagerank_scores]
+            top_pagerank_scores = sorted(normalized_pagerank_scores.items(), key=lambda x: x[1], reverse=True)
+            
+            top_pagerank_paths = [path for path, _score in top_pagerank_scores]
 
-        distilled_file_path_list = []
+            distilled_file_path_list = []
 
-        for file_path, score in top_pagerank_scores:
-            if file_path.endswith(".js") and file_path.replace(".js", ".ts") in top_pagerank_paths:
-                continue
-            if file_path in top_k_paths:
-                continue
-            if "generated" in file_path or "mock" in file_path or "test" in file_path:
-                continue
-            try:
-                rcm.cloned_repo.get_file_contents(file_path)
-            except FileNotFoundError:
-                continue
-            distilled_file_path_list.append(file_path)
-        
+            for file_path, score in top_pagerank_scores:
+                if file_path.endswith(".js") and file_path.replace(".js", ".ts") in top_pagerank_paths:
+                    continue
+                if file_path in top_k_paths:
+                    continue
+                if "generated" in file_path or "mock" in file_path or "test" in file_path:
+                    continue
+                try:
+                    rcm.cloned_repo.get_file_contents(file_path)
+                except FileNotFoundError:
+                    continue
+                distilled_file_path_list.append(file_path)
+            return distilled_file_path_list
+        distilled_file_path_list = get_distilled_file_paths(formatted_query, top_k_paths)
         # Rerank once
         reranked_snippets = []
         for file_path in distilled_file_path_list[:num_rerank]:
@@ -463,7 +466,7 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
         logger.error(e)
         return []
 
-@file_cache(ignore_params=["repo_context_manager", "override_import_graph"])
+# @file_cache(ignore_params=["repo_context_manager", "override_import_graph"]) # can't cache this because rcm is stateful
 def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager, override_import_graph: nx.DiGraph = None):
     num_graph_retrievals = 25
     repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)
@@ -472,7 +475,7 @@ def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoCo
     if import_graph:
         # Graph retrieval can fail and return [] if the graph is not found or pagerank does not converge
         # Happens especially when graph has multiple components
-        graph_retrieved_files = graph_retrieval(formatted_query, repo_context_manager.top_snippet_paths, repo_context_manager, import_graph)
+        graph_retrieved_files = graph_retrieval(formatted_query, sorted(repo_context_manager.top_snippet_paths), repo_context_manager, import_graph) # sort input for caching
         if graph_retrieved_files:
             sorted_snippets = sorted(
                 repo_context_manager.snippets,
@@ -592,15 +595,16 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
     seed: int = None,
     import_graph: nx.DiGraph = None,
+    num_rollouts: int = NUM_ROLLOUTS,
     ticket_progress: TicketProgress = None,
     chat_logger: ChatLogger = None,
-):
+) -> RepoContextManager:
     logger.info("Seed: " + str(seed))
     try:
         # for any code file mentioned in the query, build its import tree - This is currently not used
@@ -628,22 +632,23 @@ def get_relevant_context(
                 user_prompt,
                 repo_context_manager,
                 problem_statement=query,
+                num_rollouts=num_rollouts,
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
         # repo_context_manager.current_top_snippets += old_relevant_snippets[:25 - len(repo_context_manager.current_top_snippets)]
         # Add stuffing until context limit
-        max_chars = 140000 * 3.5 # 120k tokens
+        max_chars = 120000 * 3.5 # 120k tokens
         counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
             [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
         )
-        for snippet, read_only_snippet in zip(old_relevant_snippets, old_read_only_snippets):
-            if not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
+        for snippet, read_only_snippet in zip_longest(old_relevant_snippets, old_read_only_snippets, fillvalue=None):
+            if snippet and not any(context_snippet.file_path == snippet.file_path for context_snippet in repo_context_manager.current_top_snippets):
                 counter += len(snippet.get_snippet(False, False))
                 if counter > max_chars:
                     break
                 repo_context_manager.current_top_snippets.append(snippet)
-            if not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
+            if read_only_snippet and not any(context_snippet.file_path == read_only_snippet.file_path for context_snippet in repo_context_manager.read_only_snippets):
                 counter += len(read_only_snippet.get_snippet(False, False))
                 if counter > max_chars:
                     break
@@ -746,12 +751,18 @@ def handle_function_call(
             rg_output = result.stdout
             if rg_output:
                 # post process rip grep output to be more condensed
-                rg_output_pretty, _ = post_process_rg_output(
+                rg_output_pretty, file_output_dict = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
+                non_stored_files = sorted([
+                    file_path
+                    for file_path in file_output_dict
+                    if file_path not in repo_context_manager.top_snippet_paths
+                ])
+                non_stored_files_string = "The following files have not been stored:\n" + "\n".join(non_stored_files) + "\n"
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                    get_stored_files(repo_context_manager) + 
+                    get_stored_files(repo_context_manager) + non_stored_files_string +
                     "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. Use `store_file` to add any important non-stored files to the context."
                 )
             else:
@@ -777,9 +788,10 @@ def handle_function_call(
                 for call in previous_function_calls
                 if call.function_name == "view_file"
             ]
-            logger.info(f"Previously viewed files: {previously_viewed_files} {file_path}")
+            previously_viewed_files = list(dict.fromkeys(previously_viewed_files))
             if file_path in previously_viewed_files:
-                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call."
+                previously_viewed_files_str = "\n".join(previously_viewed_files)
+                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
             else:
                 output = f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>'
             if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
@@ -921,17 +933,17 @@ def get_stored_files(repo_context_manager: RepoContextManager) -> str:
     return stored_files_string
 
 def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
-    message_results, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
+    _, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
     rollout_function_call_histories.append(function_call_history)
     rollout_stored_files = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
-    truncated_message_results = message_results[1:] # skip system prompt
-    joined_messages = "\n\n".join([message.content for message in truncated_message_results])
-    overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
-        problem_statement=problem_statement, 
-        run_text=joined_messages,
-        stored_files=rollout_stored_files,
-    )
-    return overall_score, message_to_contractor, repo_context_manager, rollout_stored_files
+    # truncated_message_results = message_results[1:] # skip system prompt
+    # joined_messages = "\n\n".join([message.content for message in truncated_message_results])
+    # overall_score, message_to_contractor = EvaluatorAgent().evaluate_run(
+    #     problem_statement=problem_statement, 
+    #     run_text=joined_messages,
+    #     stored_files=rollout_stored_files,
+    # )
+    return 0, "", repo_context_manager, rollout_stored_files
 
 def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gathered_files: dict[str, tuple[list[str], int]], user_prompt: str) -> list[Message]:
     function_call_history = []
@@ -951,13 +963,13 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
         function_calls = validate_and_parse_function_calls(
             function_calls_string, chat_gpt
         )
-        function_call_history.append(function_calls)
         function_outputs = ""
         for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
             function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
             llm_state["function_call_history"] = function_call_history
             if PLAN_SUBMITTED_MESSAGE in function_outputs:
                 return chat_gpt.messages, function_call_history
+        function_call_history.append(function_calls)
         if len(function_calls) == 0:
             function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\nRemember to gather ALL relevant files. " + get_stored_files(repo_context_manager)
@@ -984,20 +996,21 @@ def context_dfs(
     user_prompt: str,
     repo_context_manager: RepoContextManager,
     problem_statement: str,
+    num_rollouts: int,
 ) -> bool | None:
     repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
     rollout_function_call_histories = []
-    for rollout_idx in range(NUM_ROLLOUTS):
+    for rollout_idx in range(num_rollouts):
         # operate on a deep copy of the repo context manager
         if rollout_idx > 0:
             user_prompt = repo_context_manager.format_context(
                 unformatted_user_prompt=unformatted_user_prompt_stored,
                 query=problem_statement,
             )
-        overall_score, message_to_contractor, copied_repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
+        overall_score, message_to_contractor, repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
             repo_context_manager=repo_context_manager,
             reflections_to_read_files=reflections_to_read_files,
             user_prompt=user_prompt,
@@ -1007,8 +1020,8 @@ def context_dfs(
         logger.info(f"Completed run {rollout_idx} with score: {overall_score} and reflection: {message_to_contractor}")
         if overall_score is None or message_to_contractor is None:
             continue # can't get any reflections here
-        reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
-        rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, copied_repo_context_manager)
+        # reflections_to_read_files[message_to_contractor] = rollout_stored_files, overall_score
+        rollouts_to_scores_and_rcms[rollout_idx] = (overall_score, repo_context_manager)
         if overall_score >= SCORE_THRESHOLD and len(rollout_stored_files) > STOP_AFTER_SCORE_THRESHOLD_IDX:
             break
     # if we reach here, we have not found a good enough solution

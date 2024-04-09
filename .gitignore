@@ -213,3 +213,6 @@ eval/**/*.ans
 
 *_import_graphs
 eval/**/*.ans
+eval/**/*.txt
+eval/**/*.ipynb
+eval/**/*.json
