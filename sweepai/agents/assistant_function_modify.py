@@ -32,24 +32,22 @@ To complete the task, follow these steps:
 
 1. Carefully analyze the user's request to identify the key requirements and changes needed. Break down the problem into smaller sub-tasks.
 
-2. Search the codebase for relevant files, functions, classes, and variables related to the task at hand. Use the search results to determine where changes need to be made. 
+2. For each relevant file, identify the minimal code changes required to implement the desired functionality. Consider edge cases, error handling, and necessary imports.
 
-3. For each relevant file, identify the minimal code changes required to implement the desired functionality. Consider edge cases, error handling, and necessary imports.
+3. If new functionality is required that doesn't fit into existing files, create a new file with an appropriate name and location.
 
-4. If new functionality is required that doesn't fit into existing files, create a new file with an appropriate name and location.
-
-5. Make the code changes in a targeted way:
+4. Make the code changes in a targeted way:
    - Preserve existing whitespace, comments and code style
    - Make surgical edits to only the required lines of code
    - If a change is complex, break it into smaller incremental changes
    - Ensure each change is complete and functional before moving on
 
-6. When providing code snippets, be extremely precise with indentation:
+5. When providing code snippets, be extremely precise with indentation:
    - Count the exact number of spaces used for indentation
    - If tabs are used, specify that explicitly 
    - Ensure the indentation of the code snippet matches the original file exactly
-7. After making all the changes, review the modified code to verify it fully satisfies the original request.
-8. Once you are confident the task is complete, submit the final solution.
+6. After making all the changes, review the modified code to verify it fully satisfies the original request.
+7. Once you are confident the task is complete, submit the final solution.
 
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
@@ -292,18 +290,6 @@ No function calls were made or your last function call was incorrectly formatted
 </invoke>
 </function_calls>
 
-Here is an example:
-
-<function_calls>
-<invoke>
-<tool_name>analyze_problem_and_propose_plan</tool_name>
-<parameters>
-<problem_analysis>The problem analysis goes here</problem_analysis>
-<proposed_plan>The proposed plan goes here</proposed_plan>
-</parameters>
-</invoke>
-</function_calls>
-
 If you are really done, call the submit function.
 """
 
@@ -428,7 +414,7 @@ def default_dict_value():
     return {"contents": "", "original_contents": ""}
 
 # returns dictionary of all changes made
-@file_cache(ignore_params=["file_path", "chat_logger", "cloned_repo", "assistant_id", "ticket_progress", "assistant_conversation", "cwd"])
+# @file_cache(ignore_params=["file_path", "chat_logger", "cloned_repo", "assistant_id", "ticket_progress", "assistant_conversation", "cwd"])
 def function_modify(
     fcrs: list[FileChangeRequest],
     request: str,
@@ -469,6 +455,12 @@ def function_modify(
             files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
         combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
         new_additional_messages = [
+            # *[
+            #     Message(
+            #         role="assistant",
+            #         content=f"<file_to_modify filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_modify>"
+            #     ) for fcr in fcrs
+            # ],
             Message(
                 role="user",
                 content=f"# Request\n{request}",
