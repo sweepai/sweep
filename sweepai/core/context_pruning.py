@@ -595,15 +595,15 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-# @file_cache(ignore_params=["ticket_progress", "chat_logger"])
+@file_cache(ignore_params=["seed", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
     seed: int = None,
     import_graph: nx.DiGraph = None,
     num_rollouts: int = NUM_ROLLOUTS,
-    ticket_progress: TicketProgress = None,
-    chat_logger: ChatLogger = None,
+    ticket_progress = None,
+    chat_logger = None,
 ) -> RepoContextManager:
     logger.info("Seed: " + str(seed))
     try:

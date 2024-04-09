@@ -31,24 +31,22 @@ To complete the task, follow these steps:
 
 1. Carefully analyze the user's request to identify the key requirements and changes needed. Break down the problem into smaller sub-tasks.
 
-2. Search the codebase for relevant files, functions, classes, and variables related to the task at hand. Use the search results to determine where changes need to be made. 
+2. For each relevant file, identify the minimal code changes required to implement the desired functionality. Consider edge cases, error handling, and necessary imports.
 
-3. For each relevant file, identify the minimal code changes required to implement the desired functionality. Consider edge cases, error handling, and necessary imports.
+3. If new functionality is required that doesn't fit into existing files, create a new file with an appropriate name and location.
 
-4. If new functionality is required that doesn't fit into existing files, create a new file with an appropriate name and location.
-
-5. Make the code changes in a targeted way:
+4. Make the code changes in a targeted way:
    - Preserve existing whitespace, comments and code style
    - Make surgical edits to only the required lines of code
    - If a change is complex, break it into smaller incremental changes
    - Ensure each change is complete and functional before moving on
 
-6. When providing code snippets, be extremely precise with indentation:
+5. When providing code snippets, be extremely precise with indentation:
    - Count the exact number of spaces used for indentation
    - If tabs are used, specify that explicitly 
    - Ensure the indentation of the code snippet matches the original file exactly
-7. After making all the changes, review the modified code to verify it fully satisfies the original request.
-8. Once you are confident the task is complete, submit the final solution.
+6. After making all the changes, review the modified code to verify it fully satisfies the original request.
+7. Once you are confident the task is complete, submit the final solution.
 
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
@@ -64,30 +62,6 @@ You MUST call them like this:
 </function_calls>
 
 Here are the tools available:
-<tools>
-<tool_description>
-<tool_name>analyze_problem_and_propose_plan</tool_name>
-<description>
-Carefully analyze the user's request to identify the key requirements, changes needed, and any constraints or considerations. Break down the problem into sub-tasks.
-</description>
-<parameters>
-<parameter>
-<name>problem_analysis</name>
-<type>str</type>
-<description>
-Provide a thorough analysis of the user's request, identifying key details, requirements, intended behavior changes, and any other relevant information. Organize and prioritize the sub-tasks needed to fully address the request.
-</description>
-</parameter>
-<parameter>
-<name>proposed_plan</name>
-<type>str</type>
-<description>
-Describe the plan to solve the problem, including the keywords to search, modifications to make, and all required imports to complete the task.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
 <tool_description>
 <tool_name>search_codebase</tool_name>
 <description>
@@ -113,28 +87,6 @@ Explain why searching for this query is relevant to the task and how the results
 <type>str</type>
 <description>
 The search query, such as a function name, class name, or variable. Provide only one query term per search.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>analyze_and_identify_changes</tool_name>
-<description>
-Determine the minimal code changes required in a file to implement a piece of the functionality. Consider edge cases, error handling, and necessary imports.
-</description>
-<parameters>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-The name of the file where changes need to be made.
-</description>
-</parameter>
-<name>changes</name>
-<type>str</type>
-<description>
-Describe the changes to make in the file. Specify the location of each change and provide the code modifications. Include any required imports or updates to existing code.
 </description>
 </parameter>
 </parameters>
@@ -266,18 +218,6 @@ No function calls were made or your last function call was incorrectly formatted
 <tool_name>tool_name</tool_name>
 <parameters>
 <param_name>param_value</param_name>
-</parameters>
-</invoke>
-</function_calls>
-
-Here is an example:
-
-<function_calls>
-<invoke>
-<tool_name>analyze_problem_and_propose_plan</tool_name>
-<parameters>
-<problem_analysis>The problem analysis goes here</problem_analysis>
-<proposed_plan>The proposed plan goes here</proposed_plan>
 </parameters>
 </invoke>
 </function_calls>
@@ -589,7 +529,7 @@ def function_modify(
                     error_message = ""
                     for key in ["file_name", "original_code", "new_code"]:
                         if key not in tool_call:
-                            error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
+                            error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
                     for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                         # ensure the file we are editting exists and is in modify_files_dict
                         if "file_name" in tool_call:
