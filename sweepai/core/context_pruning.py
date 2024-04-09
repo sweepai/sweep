@@ -636,7 +636,7 @@ def get_relevant_context(
             logger.exception(e)
         # repo_context_manager.current_top_snippets += old_relevant_snippets[:25 - len(repo_context_manager.current_top_snippets)]
         # Add stuffing until context limit
-        max_chars = 140000 * 3.5 # 120k tokens
+        max_chars = 120000 * 3.5 # 120k tokens
         counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
             [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
         )
