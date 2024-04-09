@@ -346,7 +346,7 @@ def default_dict_value():
     return {"contents": "", "original_contents": ""}
 
 # returns dictionary of all changes made
-@file_cache(ignore_params=["file_path", "chat_logger", "cloned_repo", "assistant_id", "ticket_progress", "assistant_conversation", "cwd"])
+# @file_cache(ignore_params=["file_path", "chat_logger", "cloned_repo", "assistant_id", "ticket_progress", "assistant_conversation", "cwd"])
 def function_modify(
     fcrs: list[FileChangeRequest],
     request: str,
