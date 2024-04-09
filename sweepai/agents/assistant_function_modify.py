@@ -125,37 +125,62 @@ The name of the file to retrieve, including the extension. File names are case-s
 </tool_description>
 
 <tool_description>
-<tool_name>make_change</tool_name>
+<tool_name>get_code_snippet_to_change</tool_name>
 <description>
-Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
+You will give the start_line and end_line of a code snippet that needs to be modified. You will recieve the code contained within those lines (inclusive) and then you will call the tool make_code_changes in order to apply the necessary modifications. Assume the code file is 0 indexed.
+Make sure that the code snippet you are trying to fetch is as small as possible and contains only the necessary code that needs to be modified.
 </description>
 <parameters>
 <parameter>
 <name>justification</name>
 <type>str</type>
 <description>
-Explain how this SINGLE change contributes to fulfilling the user's request.
+Explain how what modifications you will be performing on the code that spans start_line to end_line and how this will contribute to fulfilling the user requests.
 </description>
 </parameter>
 <parameter>
 <name>file_name</name>
 <type>str</type>
 <description>
-Name of the file to make the change in. Ensure correct spelling as this is case-sensitive.
+Name of the file that the code is in. Ensure correct spelling as this is case-sensitive.
 </description>
 </parameter>
 <parameter>
-<name>original_code</name>
+<name>start_line</name>
+<type>int</type>
+<description>
+The starting line of the code snippet that you want to modify. Assume the code file is 0 indexed.
+</description>
+</parameter>
+<parameter>
+<name>end_line</name>
+<type>int</type>
+<description>
+The ending line of the code snippet that you want to modify. Assume the code file is 0 indexed.
+</description>
+</parameter>
+</parameters>
+</tool_description>
+
+<tool_description>
+<tool_name>make_code_changes</tool_name>
+<description>
+You are to call this tool immediately after you have recieved the output of the get_code_snippet_to_change tool. You will now provide the new code snippet that will replace the code snippet returned to you from the get_code_snippet_to_change to change tool call.
+Upon successfully calling this tool you will recieve the unified diff of the changes you have made.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+Explain what changes you are applying and why
 </description>
 </parameter>
 <parameter>
 <name>new_code</name>
 <type>str</type>
 <description>
-The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
+The new code snippet to replace the code snippet you recieved from the get_code_lines_to_change tool call. Ensure you have valid spacing and indentation.
 </description>
 </parameter>
 </parameters>
@@ -263,7 +288,8 @@ Name of the file to make the change in. Ensure correct spelling as this is case-
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context, but keep this
+block AS SMALL AS POSSIBLE. This block should not be longer than 10 lines of code!
 </description>
 </parameter>
 <parameter>
@@ -439,6 +465,10 @@ Here are the tools available:
 
 unformatted_tool_call_response = "<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
 
+def number_lines(code):
+  lines = code.splitlines()
+  width = len(str(len(lines)))
+  return "\n".join(f"{str(i + 1).rjust(width)}  {line}" for i, line in enumerate(lines))
 
 def int_to_excel_col(n):
     result = ""
@@ -742,6 +772,8 @@ def function_modify(
                     for key in ["file_name", "original_code", "new_code"]:
                         if key not in tool_call:
                             error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
+                            if key == "new_code" or key == "original_code":
+                                error_message += f"\n\nIt is likely the reason why you have missed these keys is because the original_code you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
                     for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                         # ensure the file we are editting exists and is in modify_files_dict
                         if "file_name" in tool_call:
