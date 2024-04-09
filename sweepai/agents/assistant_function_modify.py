@@ -83,7 +83,8 @@ Provide a thorough analysis of the user's request, identifying key details, requ
 <name>proposed_plan</name>
 <type>str</type>
 <description>
-Describe the plan to solve the problem, including the keywords to search, modifications to make, and all required imports to complete the task.
+Describe the plan to solve the problem, including the keywords to search, modifications to make, and all required imports to complete the task. Create a step by step plan in natural language that
+you will follow in order to complete this task. You may need to update this plan as you progress through the task and recieve feedback from an evaluator.
 </description>
 </parameter>
 </parameters>
@@ -135,7 +136,8 @@ The name of the file where changes need to be made.
 <name>changes</name>
 <type>str</type>
 <description>
-Describe the changes to make in the file. Specify the location of each change and provide the code modifications. Include any required imports or updates to existing code.
+Describe and list out the changes to make in the file. Specify the location of each change and provide the code modifications. Include any required imports or updates to existing code.
+An evaluator will be reviewing these proposed changes and providing feedback on their accuracy and completeness.
 </description>
 </parameter>
 </parameters>
@@ -174,7 +176,8 @@ Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and
 <name>justification</name>
 <type>str</type>
 <description>
-Explain how this SINGLE change contributes to fulfilling the user's request.
+Explain how this SINGLE change contributes to fulfilling the user's request. 
+Briefly describe what the next step is after this change is made.
 </description>
 </parameter>
 <parameter>
@@ -456,6 +459,7 @@ def function_modify(
         cwd = cwd or cloned_repo.repo_dir
         # current_contents = contents_of_file
         sweep_config: SweepConfig = SweepConfig()
+        eval_agent: ModifyEvaluatorAgent = ModifyEvaluatorAgent()
         # current_file_to_modify_contents = f"<current_file_to_modify filename=\"{file_path}\">\n{chunked_file_contents}\n</current_file_to_modify>"
         # fcrs_message = generate_status_message(file_path, fcrs)
         relevant_file_paths_string = ", ". join(relevant_filepaths) 
@@ -484,6 +488,11 @@ def function_modify(
         if reflections:
             additional_messages = [*additional_messages,
                                    Message(role="user", content=reflections)]
+            
+        # the current plan, we pass this in after every change to remind the assistant of the current plan as well as to get the evaluation agent to evaluate the plan
+        current_proposed_plan = ""
+        # file specific plans with all changes to make, passed to eval agent
+        file_specific_plans: dict[str, str] = {}
 
         initial_check_results: dict[str, CheckResults] = {}
         # add any already made changes to the additional_messages
@@ -552,11 +561,22 @@ def function_modify(
                     complete_message_history.append({"role": "user", "content": NO_TOOL_CALL_PROMPT})  
                 elif tool_name == "analyze_problem_and_propose_plan":
                     error_message = ""
-                    success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Lets get started!")
-                    tool_name, tool_call, llm_response = assistant_generator.send(
-                        success_message
-                    )
-                    complete_message_history.append({"role": "user", "content": success_message})
+                    for key in ["problem_analysis", "proposed_plan"]:
+                        if key not in tool_call:
+                            error_message += f"Missing {key} in tool call. Call the analyze_problem_and_propose_plan tool again but this time provide the {key}.\n"
+                    if not error_message:
+                        current_proposed_plan = tool_call["proposed_plan"].strip()
+                        success_message = create_tool_call_response(tool_name, "SUCCESS\n\nSounds like a great plan! Lets get started!")
+                        tool_name, tool_call, llm_response = assistant_generator.send(
+                            success_message
+                        )
+                        complete_message_history.append({"role": "user", "content": success_message})
+                    if error_message:
+                        error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
+                        tool_name, tool_call, llm_response = assistant_generator.send(
+                            error_message
+                        )
+                        complete_message_history.append({"role": "user", "content": error_message})
                 elif tool_name == "analyze_and_identify_changes":
                     error_message = ""
                     # make sure the change is for an existing or newly created file
@@ -567,7 +587,8 @@ def function_modify(
                         if not os.path.exists(os.path.join(cwd, file_name)) and file_name not in modify_files_dict:
                             error_message = f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!"
                     if not error_message:
-                        success_message = create_tool_call_response(tool_name, "SUCCESS\n\nNice work! Now use the make_change tool to make the listed changes one at a time. If there are multiple changes required, call the make_change tool multiple times.")
+                        file_specific_plans[file_name] = tool_call["changes"].strip()
+                        success_message = create_tool_call_response(tool_name, f"SUCCESS\n\nNice work! Now use the make_change tool to make the listed changes for file {file_name} one at a time. If there are multiple changes required, call the make_change tool multiple times.")
                         tool_name, tool_call, llm_response = assistant_generator.send(
                             success_message
                         )
@@ -711,23 +732,38 @@ def function_modify(
                         )
                         complete_message_history.append({"role": "user", "content": error_message})
                     if not error_message:
-                        success_message = (
-                            f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
-                            + generate_diff(file_contents, new_file_contents)
-                        ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
-                        # set contents
-                        # if we had carriage returns we replace them again
-                        if carriage_return:
-                            new_file_contents = new_file_contents.replace("\n", "\r\n")
-                        modify_files_dict[file_name]['contents'] = new_file_contents
-                        logger.info(success_message)
-
-                        success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}")
-                        
-                        tool_name, tool_call, llm_response = assistant_generator.send(
-                            success_message
+                        # before we apply changes we must evaluate the change, only apply if it passes the evaluation
+                        eval_change_score, eval_change_message = eval_agent.evaluate_patch(
+                            request, generate_diff(file_contents, new_file_contents), modify_files_dict, f"Overall plan:\n{current_proposed_plan}\n\nPlan for file {file_name}:\n{file_specific_plans[file_name]}"
                         )
-                        complete_message_history.append({"role": "user", "content": success_message})
+                        # add changes
+                        if eval_change_score >= 8:
+                            success_message = (
+                                f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
+                                + generate_diff(file_contents, new_file_contents)
+                            ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
+                            # set contents
+                            # if we had carriage returns we replace them again
+                            if carriage_return:
+                                new_file_contents = new_file_contents.replace("\n", "\r\n")
+                            modify_files_dict[file_name]['contents'] = new_file_contents
+                            logger.info(success_message)
+
+                            success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}")
+                            
+                            tool_name, tool_call, llm_response = assistant_generator.send(
+                                success_message
+                            )
+                            complete_message_history.append({"role": "user", "content": success_message})
+                        else: # reject changes and send the evaluator message back to llm
+                            modify_patch_reflections = reflection_prompt_prefix.format(all_reflections=eval_change_message)
+                            review_message = f"An outside contractor tasked with evaluating your code changes and plan has determined that the changes you have made to the file {file_name} are not sufficient to solve the user's request and as such the patch you just submitted has not been applied. They have provided critical feedback:\n\n{modify_patch_reflections}. You may need to update your overall plan which you can do by calling analyze_problem_and_propose_plan or you may need to update the plan specific to file {file_name} which you can do by calling analyze_and_identify_changes."
+                            review_message = create_tool_call_response(tool_name, f"IMPORTANT FEEDBACK\n\n{success_message}")
+                            tool_name, tool_call, llm_response = assistant_generator.send(
+                                review_message
+                            )
+                            complete_message_history.append({"role": "user", "content": review_message})
+
                 elif tool_name == "create_file":
                     error_message = ""
                     success_message = ""
