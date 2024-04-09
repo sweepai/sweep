@@ -86,11 +86,14 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                 cache_dir, f"{cache_key}.pickle"
             )
             if redis and redis_client: # only use this for LLM calls
-                cached_result = redis_client.get(cache_key)
-                if cached_result:
-                    if verbose:
-                        print("Used redis cache for function: " + func.__name__)
-                    result = pickle.loads(cached_result)
+                try:
+                    cached_result = redis_client.get(cache_key)
+                    if cached_result:
+                        if verbose:
+                            print("Used redis cache for function: " + func.__name__)
+                        result = pickle.loads(cached_result)
+                except Exception:
+                    pass
             try:
                 # If cache exists, load and return it
                 if os.path.exists(cache_file):

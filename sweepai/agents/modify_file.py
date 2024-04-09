@@ -1,6 +1,6 @@
 import traceback
 
-from sweepai.agents.assistant_function_modify import function_modify
+from sweepai.agents.modify import modify
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
@@ -69,7 +69,7 @@ def modify_file(
             cloned_repo,
         )
         additional_messages += new_additional_messages
-        new_files = function_modify(
+        new_files = modify(
             file_change_requests,
             request,
             cloned_repo,

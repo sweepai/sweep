@@ -11,87 +11,38 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import manual_code_check
 from sweepai.utils.utils import get_check_results
 
-modify_tools = """
-<tool_description>
-<tool_name>view_file</tool_name>
+modify_tools = """<tool_description>
+<tool_name>make_change</tool_name>
 <description>
-View the contents of a file from the codebase. Useful for viewing code in context before making changes.
+Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
 </description>
 <parameters>
 <parameter>
 <name>justification</name>
 <type>str</type>
 <description>
-Explain why viewing this file is necessary to complete the task or better understand the existing code.
+Explain how this SINGLE change contributes to fulfilling the user's request.
 </description>
 </parameter>
 <parameter>
 <name>file_name</name>
 <type>str</type>
 <description>
-The name of the file to retrieve, including the extension. File names are case-sensitive.
+Name of the file to make the change in. Ensure correct spelling as this is case-sensitive.
 </description>
 </parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>get_code_snippet_to_change</tool_name>
-<description>
-You will give the start_line and end_line of a code snippet that needs to be modified. You will recieve the code contained within those lines (inclusive) and then you will call the tool make_code_changes in order to apply the necessary modifications. Assume the code file is 0 indexed.
-Make sure that the code snippet you are trying to fetch is as small as possible and contains only the necessary code that needs to be modified.
-</description>
-<parameters>
 <parameter>
-<name>justification</name>
+<name>original_code</name>
 <type>str</type>
 <description>
-Explain how what modifications you will be performing on the code that spans start_line to end_line and how this will contribute to fulfilling the user requests.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-Name of the file that the code is in. Ensure correct spelling as this is case-sensitive.
-</description>
-</parameter>
-<parameter>
-<name>start_line</name>
-<type>int</type>
-<description>
-The starting line of the code snippet that you want to modify. Assume the code file is 0 indexed.
-</description>
-</parameter>
-<parameter>
-<name>end_line</name>
-<type>int</type>
-<description>
-The ending line of the code snippet that you want to modify. Assume the code file is 0 indexed.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>make_code_changes</tool_name>
-<description>
-You are to call this tool immediately after you have recieved the output of the get_code_snippet_to_change tool. You will now provide the new code snippet that will replace the code snippet returned to you from the get_code_snippet_to_change to change tool call.
-Upon successfully calling this tool you will recieve the unified diff of the changes you have made.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain what changes you are applying and why
+The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
 </description>
 </parameter>
 <parameter>
 <name>new_code</name>
 <type>str</type>
 <description>
-The new code snippet to replace the code snippet you recieved from the get_code_lines_to_change tool call. Ensure you have valid spacing and indentation.
+The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
 </description>
 </parameter>
 </parameters>
@@ -172,7 +123,7 @@ To complete the task, follow these steps:
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
 You MUST call them like this:
-<function_calls>
+<function_call>
 <invoke>
 <tool_name>$TOOL_NAME</tool_name>
 <parameters>
@@ -180,7 +131,7 @@ You MUST call them like this:
 ...
 </parameters>
 </invoke>
-</function_calls>
+</function_call>
 
 Here are the tools available:
 
@@ -189,18 +140,18 @@ Here are the tools available:
 NO_TOOL_CALL_PROMPT = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
 
-<function_calls>
+<function_call>
 <invoke>
 <tool_name>tool_name</tool_name>
 <parameters>
 <param_name>param_value</param_name>
 </parameters>
 </invoke>
-</function_calls>
+</function_call>
 
 Here is an example:
 
-<function_calls>
+<function_call>
 <invoke>
 <tool_name>analyze_problem_and_propose_plan</tool_name>
 <parameters>
@@ -208,7 +159,7 @@ Here is an example:
 <proposed_plan>The proposed plan goes here</proposed_plan>
 </parameters>
 </invoke>
-</function_calls>
+</function_call>
 
 If you are really done, call the submit_result function.
 """
@@ -220,7 +171,6 @@ tool_call_parameters = {
     "view_file": ["justification", "file_name"],
     "make_change": ["justification", "file_name", "original_code", "new_code"],
     "get_code_snippet_to_change": ["justification", "file_name", "start_line", "end_line"],
-    "make_code_changes": ["justification", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
     "submit_result": ["justification"],
 }
@@ -237,7 +187,7 @@ def validate_and_parse_function_call(
         chat_gpt.messages[-1].content = (
             chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
         )  # add end tag to assistant message
-        return function_calls
+        return function_calls[0] if len(function_calls) > 0 else None
 
     # try adding </invoke> tag as well
     function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
@@ -248,7 +198,7 @@ def validate_and_parse_function_call(
         chat_gpt.messages[-1].content = (
             chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
         )
-        return function_calls
+        return function_calls[0] if len(function_calls) > 0 else None
     # try adding </parameters> tag as well
     function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
         function_calls_string.strip("\n")
@@ -267,19 +217,18 @@ def modify(
         request: str,
         cloned_repo: ClonedRepo,
         relevant_filepaths: list[str],
-    ):
-    relevant_file_paths_string = ", ". join(relevant_filepaths) 
+    ) -> dict[str, dict[str, str]]:
     combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
     files_to_modify = ""
     for fcr in fcrs:
-        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}" + f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
     combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
-    if relevant_file_paths_string:
-        combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # Request'
-    user_message = Message(
-                role="user",
-                content=f"# User Request\n{request}\n{combined_request_message}",
-            )
+    if relevant_filepaths:
+        relevant_file_paths_string = ""
+        for relevant_file_path in relevant_filepaths:
+            relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
+        combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # User Request'
+    user_message = f"# User Request\n{request}\n{combined_request_message}"
     chat_gpt = ChatGPT()
     chat_gpt.messages = [Message(role="system", content=instructions)]
     function_calls_string = chat_gpt.chat_anthropic(
@@ -292,7 +241,6 @@ def modify(
     llm_state = {"initial_check_results": {},
                     "done_counter": 0}
     for _ in range(10):
-        breakpoint()
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
@@ -331,19 +279,19 @@ def handle_function_call(
     ) :
     # iterate through modify_files_dict and generate diffs
     llm_response = ""
-    tool_name = function_call.tool_name
-    tool_call = function_call.parameters
-    breakpoint()
+    tool_name = function_call.function_name
+    tool_call = function_call.function_parameters
     if tool_name == "submit_result":
         changes_made = False
         changes_made = generate_diffs(modify_files_dict)
         if changes_made:
-            return "DONE"
+            llm_response = "DONE"
         else:
             llm_state["done_counter"] += 1
             if llm_state["done_counter"] > 3:
-                return "DONE"
-            llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
+                llm_response = "DONE"
+            else:
+                llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
     elif tool_name == "no_tool_call":
         llm_response = NO_TOOL_CALL_PROMPT
     elif tool_name == "make_change":
@@ -360,18 +308,18 @@ def handle_function_call(
                 # if not in codebase or has not been created
                 if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
                     error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
-                if file_name not in modify_files_dict:
-                    error_message += f"You have not viewed {file_name} yet! Are you CERTAIN this is the file you want to modify? If so, view the file first with the view_file tool and then call the make_change tool again.\n"
-            if error_message:
-                break
+                    break
+            def get_latest_contents(file_name) -> str:
+                return modify_files_dict[file_name]["contents"] if file_name in modify_files_dict else cloned_repo.get_file_contents(file_name)
+            llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name))
             success_message = ""
             original_code = tool_call["original_code"].strip("\n")
             new_code = tool_call["new_code"].strip("\n")
             if new_code == original_code:
                 error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                 break
-            # get the contents for the file
-            file_contents = modify_files_dict[file_name]['contents']
+            # get the latest contents of the file
+            file_contents = get_latest_contents(file_name)
             warning_message = ""
             
             # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
@@ -433,6 +381,9 @@ def handle_function_call(
                 + generate_diff(file_contents, new_file_contents)
             ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
             # set contents
+            if file_name not in modify_files_dict:
+                modify_files_dict[file_name] = {}
+            modify_files_dict[file_name]["original_contents"] = file_contents
             modify_files_dict[file_name]['contents'] = new_file_contents
             llm_response = f"SUCCESS\n\n{success_message}"
     elif tool_name == "create_file":
