@@ -419,33 +419,35 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
 
     for snippet in selected_paths:
         personalization[snippet] = 1
-
     try:
-        personalized_pagerank_scores = nx.pagerank(G, personalization=personalization, alpha=0.85)
-        unpersonalized_pagerank_scores = nx.pagerank(G, alpha=0.85)
+        @file_cache()
+        def get_distilled_file_paths(formatted_query, top_k_paths):
+            personalized_pagerank_scores = nx.pagerank(G, personalization=personalization, alpha=0.85)
+            unpersonalized_pagerank_scores = nx.pagerank(G, alpha=0.85)
 
-        # tfidf style
-        normalized_pagerank_scores = {path: score * log(1 / (1e-6 + unpersonalized_pagerank_scores[path])) for path, score in personalized_pagerank_scores.items()}
+            # tfidf style
+            normalized_pagerank_scores = {path: score * log(1 / (1e-6 + unpersonalized_pagerank_scores[path])) for path, score in personalized_pagerank_scores.items()}
 
-        top_pagerank_scores = sorted(normalized_pagerank_scores.items(), key=lambda x: x[1], reverse=True)
-        
-        top_pagerank_paths = [path for path, _score in top_pagerank_scores]
+            top_pagerank_scores = sorted(normalized_pagerank_scores.items(), key=lambda x: x[1], reverse=True)
+            
+            top_pagerank_paths = [path for path, _score in top_pagerank_scores]
 
-        distilled_file_path_list = []
+            distilled_file_path_list = []
 
-        for file_path, score in top_pagerank_scores:
-            if file_path.endswith(".js") and file_path.replace(".js", ".ts") in top_pagerank_paths:
-                continue
-            if file_path in top_k_paths:
-                continue
-            if "generated" in file_path or "mock" in file_path or "test" in file_path:
-                continue
-            try:
-                rcm.cloned_repo.get_file_contents(file_path)
-            except FileNotFoundError:
-                continue
-            distilled_file_path_list.append(file_path)
-        
+            for file_path, score in top_pagerank_scores:
+                if file_path.endswith(".js") and file_path.replace(".js", ".ts") in top_pagerank_paths:
+                    continue
+                if file_path in top_k_paths:
+                    continue
+                if "generated" in file_path or "mock" in file_path or "test" in file_path:
+                    continue
+                try:
+                    rcm.cloned_repo.get_file_contents(file_path)
+                except FileNotFoundError:
+                    continue
+                distilled_file_path_list.append(file_path)
+            return distilled_file_path_list
+        distilled_file_path_list = get_distilled_file_paths(formatted_query, top_k_paths)
         # Rerank once
         reranked_snippets = []
         for file_path in distilled_file_path_list[:num_rerank]:
@@ -473,7 +475,7 @@ def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoCo
     if import_graph:
         # Graph retrieval can fail and return [] if the graph is not found or pagerank does not converge
         # Happens especially when graph has multiple components
-        graph_retrieved_files = graph_retrieval(formatted_query, repo_context_manager.top_snippet_paths, repo_context_manager, import_graph)
+        graph_retrieved_files = graph_retrieval(formatted_query, sorted(repo_context_manager.top_snippet_paths), repo_context_manager, import_graph) # sort input for caching
         if graph_retrieved_files:
             sorted_snippets = sorted(
                 repo_context_manager.snippets,
@@ -636,7 +638,7 @@ def get_relevant_context(
             logger.exception(e)
         # repo_context_manager.current_top_snippets += old_relevant_snippets[:25 - len(repo_context_manager.current_top_snippets)]
         # Add stuffing until context limit
-        max_chars = 140000 * 3.5 # 120k tokens
+        max_chars = 120000 * 3.5 # 120k tokens
         counter = sum([len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.current_top_snippets]) + sum(
             [len(snippet.get_snippet(False, False)) for snippet in repo_context_manager.read_only_snippets]
         )
@@ -752,11 +754,11 @@ def handle_function_call(
                 rg_output_pretty, file_output_dict = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
-                non_stored_files = [
+                non_stored_files = sorted([
                     file_path
                     for file_path in file_output_dict
                     if file_path not in repo_context_manager.top_snippet_paths
-                ]
+                ])
                 non_stored_files_string = "The following files have not been stored:\n" + "\n".join(non_stored_files) + "\n"
                 output = (
                     f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
