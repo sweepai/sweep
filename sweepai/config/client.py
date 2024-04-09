@@ -286,9 +286,9 @@ def get_gha_enabled(repo: Repository) -> bool:
         return gha_enabled
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.exception(
-            f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
+    except Exception:
+        logger.info(
+            "Error when getting gha enabled, falling back to False"
         )
         return False
 
