@@ -59,7 +59,7 @@ def modify_file(
     ticket_progress: TicketProgress | None = None,
     chat_logger: ChatLogger | None = None,
     additional_messages: list[Message] = [],
-    previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+    previous_modify_files_dict: dict[str, dict[str, str]] = None,
 ):
     try:
         new_additional_messages, relevant_filepaths = create_additional_messages(
@@ -70,16 +70,10 @@ def modify_file(
         )
         additional_messages += new_additional_messages
         new_files = modify(
-            file_change_requests,
-            request,
-            cloned_repo,
-            additional_messages,
-            chat_logger,
-            ticket_progress=ticket_progress,
-            assistant_conversation=assistant_conversation,
+            request=request,
+            cloned_repo=cloned_repo,
             relevant_filepaths=relevant_filepaths,
-            cwd=cloned_repo.repo_dir,
-            previous_modify_files_dict=previous_modify_files_dict,
+            fcrs=file_change_requests,
         )
 
     except Exception as e:  # Check for max tokens error

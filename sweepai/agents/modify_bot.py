@@ -206,7 +206,7 @@ class ModifyBot:
         seed: str | None = None,
         relevant_filepaths: list[str] = [],
         fcrs: list[FileChangeRequest]=[],
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+        previous_modify_files_dict: dict[str, dict[str, str]] = None,
     ):
         new_files = modify(
             request=instructions,
