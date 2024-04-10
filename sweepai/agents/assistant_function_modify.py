@@ -11,7 +11,6 @@ from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import AssistantRaisedException, FileChangeRequest, Message
 from sweepai.core.reflection_utils import ModifyEvaluatorAgent
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
@@ -641,7 +640,7 @@ def function_modify(
                             error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
                             # special case where original_code is so long it forgets new_code
                             if key == "new_code" or key == "original_code":
-                                error_message += f"\n\nIt is likely the reason why you have missed these keys is because the original_code you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
+                                error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
                     for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                         # ensure the file we are editting exists and is in modify_files_dict
                         if "file_name" in tool_call:
