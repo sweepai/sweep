@@ -539,7 +539,7 @@ def handle_function_call(
                 modify_files_dict[file_name]['contents'] = new_file_contents
             elif overall_score >= 3:
                 # guard modify files
-                llm_response = f"Changes Applied with FEEDBACK:\n\n{generate_diff(file_contents, new_file_contents)}\n{message_to_contractor}"
+                llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{message_to_contractor}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
             else:
