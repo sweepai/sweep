@@ -259,21 +259,46 @@ def modify(
             "request": request,
             "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
         }
-        for _ in range(len(fcrs) * 10):
+        for i in range(len(fcrs) * 10):
             function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
             if function_call:
                 function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
+                if function_output == "DONE":
+                    # update chat_logger with final updates
+                    if chat_logger:
+                        messages_as_dicts = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
+                        final_message = f"DONE! Final changes made:\n\n"
+                        for file_name, file_data in modify_files_dict.items():
+                            file_diffs = generate_diff(file_data["original_contents"], file_data["contents"])
+                            if file_diffs:
+                                final_message += f"Changes made to file {file_name}:\n{file_diffs}\n\n"
+                        
+                        chat_logger.add_chat(
+                        {
+                            "model": chat_gpt.model,
+                            "messages": messages_as_dicts,
+                            "output": final_message,
+                        })
+                    break
             else:
                 function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                     + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
             if chat_logger:
                 messages_as_dicts = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
-                chat_logger.add_chat(
-                    {
-                        "model": chat_gpt.model,
-                        "messages": messages_as_dicts,
-                        "output": messages_as_dicts[-1]["content"],
-                    })
+                if i == (len(fcrs) * 10) - 1:
+                    chat_logger.add_chat(
+                        {
+                            "model": chat_gpt.model,
+                            "messages": messages_as_dicts,
+                            "output": f"WARNING We have reached the max amount of iterations {i + 1} without coming to a solution!",
+                        })
+                else:
+                    chat_logger.add_chat(
+                        {
+                            "model": chat_gpt.model,
+                            "messages": messages_as_dicts,
+                            "output": messages_as_dicts[-1]["content"],
+                        })
             try:
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_output,
@@ -283,6 +308,7 @@ def modify(
             except Exception as e:
                 logger.error(f"Error in chat_anthropic: {e}")
                 break
+        
     except Exception as e:
         logger.error(f"Error in modify: {e}")
         if chat_logger:
@@ -294,6 +320,15 @@ def modify(
                     "output": f"ERROR OCCURED IN MODIFY:\n{e}\nEND OF ERROR",
                 })
         return modify_files_dict
+    # before we return we clean up modify_files_dict
+    files_to_remove = []
+    for file_name, file_data in modify_files_dict.items():
+        file_diffs = generate_diff(file_data["original_contents"], file_data["contents"])
+        if not file_diffs:
+            files_to_remove.append(file_name)
+    for file_name in files_to_remove:
+        modify_files_dict.pop(file_name)
+        logger.info(f"Removing file {file_name} from modify dict as no changes were made")
     return modify_files_dict
 
 
