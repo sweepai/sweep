@@ -5,11 +5,14 @@ import os
 from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message
+from sweepai.core.reflection_utils import ModifyEvaluatorAgent
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import manual_code_check
 from sweepai.utils.utils import get_check_results
+
+TOTAL_ITERATIONS = 10
 
 modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
@@ -221,7 +224,12 @@ def modify(
     combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
     files_to_modify = ""
     for fcr in fcrs:
-        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}" + f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        if fcr.change_type == "modify":
+            files_to_modify += f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+        elif fcr.change_type == "create":
+            files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
+    
     combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
     if relevant_filepaths:
         relevant_file_paths_string = ""
@@ -238,9 +246,13 @@ def modify(
         message_key="user_request",
     )
     modify_files_dict = {}
-    llm_state = {"initial_check_results": {},
-                    "done_counter": 0}
-    for _ in range(10):
+    llm_state = {
+        "initial_check_results": {},
+        "done_counter": 0,
+        "request": request,
+        "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
+    }
+    for _ in range(TOTAL_ITERATIONS):
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
@@ -383,9 +395,24 @@ def handle_function_call(
             # set contents
             if file_name not in modify_files_dict:
                 modify_files_dict[file_name] = {}
-            modify_files_dict[file_name]["original_contents"] = file_contents
-            modify_files_dict[file_name]['contents'] = new_file_contents
-            llm_response = f"SUCCESS\n\n{success_message}"
+            overall_score, message_to_contractor = ModifyEvaluatorAgent().evaluate_patch(
+                problem_statement=llm_state["request"],
+                patch = generate_diff(file_contents, new_file_contents),
+                changed_files=modify_files_dict,
+                current_plan=llm_state["plan"],
+                file_name=file_name,
+            )
+            if overall_score >= 8:
+                llm_response = f"SUCCESS\n\n{success_message}"
+                modify_files_dict[file_name]["original_contents"] = file_contents
+                modify_files_dict[file_name]['contents'] = new_file_contents
+            elif overall_score >= 3:
+                # guard modify files
+                llm_response = f"Changes Applied with FEEDBACK:\n\n{message_to_contractor}"
+                modify_files_dict[file_name]["original_contents"] = file_contents
+                modify_files_dict[file_name]['contents'] = new_file_contents
+            else:
+                llm_response = f"Changes Rejected with ERROR:\n\n{message_to_contractor}"
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""
@@ -421,10 +448,4 @@ def handle_function_call(
     return llm_response, modify_files_dict, llm_state
 
 if __name__ == "__main__":
-    fcr = FileChangeRequest(
-        file_name="sweepai/api.py",
-    )
-    cloned_repo = ClonedRepo(
-        repo_full_name="sweepai/sweep",
-        installation_id=os.getenv("GITHUB_INSTALLATION_ID"),
-    )
+    pass
