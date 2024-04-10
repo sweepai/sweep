@@ -224,13 +224,13 @@ Inputs:
 - Original task description 
 - Current code patch (unified diff format)
 - Completed code changes
-- Contractor's plan
-Provide harsh feedback checking for common LLM failure modes:
+- Current plan
+Check for common LLM failure modes:
 - Undefined variables/functions
 - Missing imports
 - Incomplete changes 
 - Repetitive or non-functional code
-Only evaluate changes against the current modified file and patch, not files outside of the current modified files.
+Take into account the current modified file, patch and current plan. Take into account the changes that were already made by the contractor. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT PLAN'S SUGGESTIONS.
 Format:
 <judgement>
 Focus on identifying specific errors first. Justify harsh assessment.
@@ -242,7 +242,7 @@ Focus on identifying specific errors first. Justify harsh assessment.
 8-10 - Comprehensively follows plan
 </overall_score>
 <feedback>
-Provide specific, actionable, harsh feedback. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT MODIFIED FILE. DO NOT SUGGEST ADDITIONAL CHANGES OUTSIDE OF THE PLAN.
+Provide specific, actionable, harsh feedback. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT PLAN'S SUGGESTIONS. DO NOT SUGGEST ADDITIONAL CHANGES UNLESS THE PLAN EXPLICITLY CALLS FOR IT.
 - Call out error locations and details
 - Specify plan deviations and require justification 
 - Point out failures to address
@@ -304,7 +304,7 @@ class ModifyEvaluatorAgent(ChatGPT):
         self.messages = [Message(role="system", content=modify_eval_patch_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>\n\n"
         formatted_patch = f"This is the CURRENT PATCH that the contractor has submitted for evaluation:\n<current_patch file_name={file_name}>\n{patch}\n</current_patch>\n\n"
-        formatted_plan = f"This is the contractor's current plan:\n<current_plan>\n{current_plan}\n</current_plan>\n\n"
+        formatted_plan = f"This is the current plan that we must follow:\n<current_plan>\n{current_plan}\n</current_plan>\n\n"
         contractor_changes_made: dict[str, str] = {}
         for file_name, file_data in changed_files.items():
             if "original_contents" not in file_data or "contents" not in file_data:
@@ -312,8 +312,8 @@ class ModifyEvaluatorAgent(ChatGPT):
             diff = generate_diff(file_data["original_contents"], file_data["contents"])
             if diff:
                 contractor_changes_made[file_name] = diff
-        contractor_changed_files = "\n".join([f"<applied_patch file_name={file_name}>\n{diff}\n</applied_patch>" for file_name, diff in contractor_changes_made.items()])
-        changed_files_section = f"""The contractor has already completed these changes:\n<changed_files>\n{contractor_changed_files}\n</changed_files>\n\n"""
+        contractor_changed_files = "\n".join([f"<completed_patch file_name={file_name}>\n{diff}\n</completed_patch>" for file_name, diff in contractor_changes_made.items()])
+        changed_files_section = f"""The contractor has already completed these changes:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n"""
         content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch
         evaluate_response = self.chat_anthropic(
             content=content,
