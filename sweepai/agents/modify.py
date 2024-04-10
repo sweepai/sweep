@@ -298,6 +298,7 @@ def modify(
 
 
 def generate_diffs(modify_files_dict: dict[str, dict[str, str]]) -> dict[str, str]:
+    changes_made = False
     for file_name, file_data in modify_files_dict.items():
         new_contents = file_data["contents"]
         original_contents = file_data["original_contents"]
