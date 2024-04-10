@@ -122,8 +122,6 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                     logger.info(f"Pickling failed: {e}")
             else:
                 logger.info(f"Function {func.__name__} returned an exception")
-            if result is None:
-                breakpoint()
             return result
 
         return wrapper

@@ -166,12 +166,7 @@ If you are really done, call the submit_result function.
 """
 
 tool_call_parameters = {
-    "analyze_problem_and_propose_plan": ["problem_analysis", "proposed_plan"],
-    "search_codebase": ["justification", "file_name", "keyword"],
-    "analyze_and_identify_changes": ["file_name", "changes"],
-    "view_file": ["justification", "file_name"],
     "make_change": ["justification", "file_name", "original_code", "new_code"],
-    "get_code_snippet_to_change": ["justification", "file_name", "start_line", "end_line"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
     "submit_result": ["justification"],
 }
@@ -213,19 +208,25 @@ def validate_and_parse_function_call(
         )
     return function_calls[0] if len(function_calls) > 0 else None
 
-def modify(
+def create_user_message(
         fcrs: list[FileChangeRequest],
         request: str,
         cloned_repo: ClonedRepo,
-        relevant_filepaths: list[str],
-        chat_logger: ChatLogger | None = None,
-    ) -> dict[str, dict[str, str]]:
-    combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
+        relevant_filepaths: list[str] = None,
+        modify_files_dict: dict[str, dict[str, str]] = None
+    ) -> str:
+    combined_request_unformatted = "{relevant_files}In order to solve the user's request you will need to modify/create the following files:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
+    if modify_files_dict:
+        combined_request_unformatted += "The above files reflect the latest updates you have already made"
     files_to_modify = ""
     for fcr in fcrs:
         files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
         if fcr.change_type == "modify":
-            files_to_modify += f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+            if not modify_files_dict:
+                files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+            else: # show the latest contents of the file
+                latest_file_contents = get_latest_contents(fcr.filename, cloned_repo, modify_files_dict)
+                files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{latest_file_contents}\n</file_to_modify>"
         elif fcr.change_type == "create":
             files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
     
@@ -236,9 +237,39 @@ def modify(
             if relevant_file_path not in cloned_repo.get_file_list():
                 logger.warning(f"Relevant file path {relevant_file_path} not found in cloned repo.")
                 continue
+            if relevant_file_path in [fcr.filename for fcr in fcrs]:
+                logger.warning(f"Relevant file path {relevant_file_path} is already in the list of files to modify.")
+                continue
             relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
-        combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # User Request'
-    user_message = f"# User Request\n{request}\n{combined_request_message}"
+        combined_request_message.replace("{relevant_files}", f'You should view the following relevant files: {relevant_file_paths_string}\n')
+    user_message = f"<user_request>\n{request}\n</user_request>\n{combined_request_message}"
+    return user_message
+
+def modify(
+        fcrs: list[FileChangeRequest],
+        request: str,
+        cloned_repo: ClonedRepo,
+        relevant_filepaths: list[str],
+        chat_logger: ChatLogger | None = None,
+    ) -> dict[str, dict[str, str]]:
+    # join fcr in case of duplicates
+    joined_fcrs = []
+    # join fcr start
+    for fcr in fcrs:
+        if not any(fcr.filename == joined_fcr.filename for joined_fcr in joined_fcrs):
+            joined_fcrs.append(fcr) # only add if it doesn't exist
+        else:
+            for joined_fcr in joined_fcrs:
+                if joined_fcr.filename == fcr.filename:
+                    joined_fcr.instructions += f"\n\n{fcr.instructions}" # add the instructions to the existing fcr
+    fcrs = joined_fcrs
+    # join fcr end
+    user_message = create_user_message(
+        fcrs=fcrs,
+        request=request,
+        cloned_repo=cloned_repo,
+        relevant_filepaths=relevant_filepaths,
+    )
     chat_gpt = ChatGPT()
     chat_gpt.messages = [Message(role="system", content=instructions)]
     try:
@@ -262,6 +293,17 @@ def modify(
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
+            if function_output == "DONE":
+                break
+            if modify_files_dict: # update the state of the LLM
+                user_message = create_user_message(
+                    fcrs=fcrs,
+                    request=request,
+                    cloned_repo=cloned_repo,
+                    relevant_filepaths=relevant_filepaths,
+                    modify_files_dict=modify_files_dict
+                )
+                chat_gpt.messages[1].content = user_message # overwrite the old user message
         else:
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
@@ -286,6 +328,7 @@ def modify(
 
 
 def generate_diffs(modify_files_dict: dict[str, dict[str, str]]) -> dict[str, str]:
+    changes_made = False
     for file_name, file_data in modify_files_dict.items():
         new_contents = file_data["contents"]
         original_contents = file_data["original_contents"]
@@ -296,6 +339,14 @@ def generate_diffs(modify_files_dict: dict[str, dict[str, str]]) -> dict[str, st
 
 def create_tool_call_response(tool_name: str, tool_call_response_contents: str) -> str:
     return f"<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
+
+def get_latest_contents(file_name: str, cloned_repo: ClonedRepo, modify_files_dict: dict) -> str:
+    if file_name in modify_files_dict and "contents" in modify_files_dict[file_name]:
+        return modify_files_dict[file_name]["contents"]
+    elif file_name in cloned_repo.get_file_list():
+        return cloned_repo.get_file_contents(file_name)
+    else:
+        return ""
 
 def handle_function_call(
         cloned_repo: ClonedRepo,
@@ -335,14 +386,7 @@ def handle_function_call(
                 if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
                     error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                     break
-            def get_latest_contents(file_name) -> str:
-                if file_name in modify_files_dict and "contents" in modify_files_dict[file_name]:
-                    return modify_files_dict[file_name]["contents"]
-                elif file_name in cloned_repo.get_file_list():
-                    return cloned_repo.get_file_contents(file_name)
-                else:
-                    return ""
-            llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name))
+            llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
             success_message = ""
             original_code = tool_call["original_code"].strip("\n")
             new_code = tool_call["new_code"].strip("\n")
@@ -350,7 +394,7 @@ def handle_function_call(
                 error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                 break
             # get the latest contents of the file
-            file_contents = get_latest_contents(file_name)
+            file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
             warning_message = ""
             
             # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
@@ -361,7 +405,7 @@ def handle_function_call(
             correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
             # if the original_code couldn't be found in the chunk we need to let the llm know
             if original_code not in file_contents and correct_indent == -1:
-                error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{original_code}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
                 # first check the lines in original_code, if it is too long, ask for smaller changes
                 original_code_lines_length = len(original_code.split("\n"))
                 if original_code_lines_length > 7:
@@ -410,7 +454,7 @@ def handle_function_call(
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                 + generate_diff(file_contents, new_file_contents)
-            ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
+            ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
             # set contents
             if file_name not in modify_files_dict:
                 modify_files_dict[file_name] = {}
@@ -422,13 +466,13 @@ def handle_function_call(
                 file_name=file_name,
             )
             if overall_score >= 8:
-                llm_response = f"SUCCESS\n\n{success_message}"
-                modify_files_dict[file_name]["original_contents"] = file_contents
+                llm_response = f"{success_message}"
+                modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
             elif overall_score >= 3:
                 # guard modify files
-                llm_response = f"Changes Applied with FEEDBACK:\n\n{message_to_contractor}"
-                modify_files_dict[file_name]["original_contents"] = file_contents
+                llm_response = f"Changes Applied with FEEDBACK:\n\n{generate_diff(file_contents, new_file_contents)}\n{message_to_contractor}"
+                modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
             else:
                 llm_response = f"Changes Rejected with ERROR:\n\n{message_to_contractor}"
