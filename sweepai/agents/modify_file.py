@@ -73,12 +73,7 @@ def modify_file(
             file_change_requests,
             request,
             cloned_repo,
-            additional_messages,
-            chat_logger,
-            assistant_conversation=assistant_conversation,
             relevant_filepaths=relevant_filepaths,
-            cwd=cloned_repo.repo_dir,
-            previous_modify_files_dict=previous_modify_files_dict,
         )
 
     except Exception as e:  # Check for max tokens error
