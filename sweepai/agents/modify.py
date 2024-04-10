@@ -301,12 +301,29 @@ def modify(
         "request": request,
         "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
     }
-    for _ in range(len(fcrs) * 10):
+    # this message list is for the chat logger to have a detailed insight into why failures occur
+    detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
+    for i in range(len(fcrs) * 10):
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
-            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
+            # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
+            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages)
             if function_output == "DONE":
+                # add the diff of all changes to chat_logger
+                if chat_logger:
+                    final_message = "DONE\nHere is a summary of all the files changed:\n\n"
+                    for file_name, file_data in modify_files_dict.items():
+                        file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
+                        if file_diff:
+                            final_message += f"\nChanges made to {file_name}:\n{file_diff}"
+                    chat_logger.add_chat({
+                        "model": chat_gpt.model,
+                        "messages": detailed_chat_logger_messages,
+                        "output": f"{final_message}",
+                    })
                 break
+            detailed_chat_logger_messages.append({"role": "user", "content": function_output})
+
             if modify_files_dict: # update the state of the LLM
                 user_message = create_user_message(
                     fcrs=fcrs,
@@ -316,26 +333,49 @@ def modify(
                     modify_files_dict=modify_files_dict
                 )
                 chat_gpt.messages[1].content = user_message # overwrite the old user message
+                detailed_chat_logger_messages[1]['content'] = user_message
         else:
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
         if chat_logger:
-            messages_as_dicts = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
-            chat_logger.add_chat(
-                {
-                    "model": chat_gpt.model,
-                    "messages": messages_as_dicts,
-                    "output": messages_as_dicts[-1]["content"],
-                })
+            if i == len(fcrs) * 10 - 1:
+                chat_logger.add_chat(
+                    {
+                        "model": chat_gpt.model,
+                        "messages": detailed_chat_logger_messages,
+                        "output": f"WARNING We have reached the end the max amount of iterations: {i + 1}, but we have not finished with our changes yet!",
+                    })
+            else:
+                chat_logger.add_chat(
+                    {
+                        "model": chat_gpt.model,
+                        "messages": detailed_chat_logger_messages,
+                        "output": detailed_chat_logger_messages[-1]["content"],
+                    })
         try:
             function_calls_string = chat_gpt.chat_anthropic(
                 content=function_output,
                 model=MODEL,
                 stop_sequences=["</function_call>"],
             )
+            detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
+            chat_logger.add_chat(
+                {
+                    "model": chat_gpt.model,
+                    "messages": detailed_chat_logger_messages,
+                    "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
+                })
             break
+    # before we return clean up modify files dict by removing any files with no changes
+    files_to_remove = []
+    for file_name, file_data in modify_files_dict.items():
+        if file_data['original_contents'] == file_data['contents']:
+            files_to_remove.append(file_name)
+    for file_name in files_to_remove:
+        modify_files_dict.pop(file_name)
+        logger.info(f"Removed file {file_name} from modify_files_dict as it had no changes.")
     return modify_files_dict
 
 
@@ -365,6 +405,7 @@ def handle_function_call(
         function_call: AnthropicFunctionCall,
         modify_files_dict: dict[str, dict[str, str]],
         llm_state: dict,
+        chat_logger_messages: list[dict[str, str]] | None = None
     ) :
     # iterate through modify_files_dict and generate diffs
     llm_response = ""
@@ -476,6 +517,7 @@ def handle_function_call(
                 changed_files=modify_files_dict,
                 current_plan=llm_state["plan"],
                 file_name=file_name,
+                chat_logger_messages=chat_logger_messages
             )
             if overall_score >= 8:
                 llm_response = f"{success_message}"
