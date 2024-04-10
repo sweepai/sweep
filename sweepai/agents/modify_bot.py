@@ -258,6 +258,7 @@ class ModifyBot:
             cloned_repo=cloned_repo,
             relevant_filepaths=relevant_filepaths,
             fcrs=fcrs,
+            chat_logger=self.chat_logger,
         )
         if new_files:
             posthog.capture(
