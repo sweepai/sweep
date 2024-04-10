@@ -239,7 +239,7 @@ def modify(
     
     combined_request_message = combined_request_unformatted.replace(
         "{files_to_modify}", files_to_modify.lstrip('\n')
-    ).replace("{files_to_modify_list}", english_join([fcr.filename for fcr in fcrs])
+    ).replace("{files_to_modify_list}", english_join([fcr.filename for fcr in fcrs]))
     if relevant_filepaths:
         relevant_file_paths_string = ""
         for relevant_file_path in relevant_filepaths:
