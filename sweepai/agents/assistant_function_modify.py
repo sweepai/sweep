@@ -329,7 +329,15 @@ def function_modify(
             files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
         combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
         # Need to handle creates better
+        read_only_files = []
+        for fcr in fcrs:
+            read_only_files.extend(fcr.relevant_files)
+        read_only_files = list(set(read_only_files))
         new_additional_messages = [
+            Message(
+                role="assistant",
+                content="The only are relevant modules for resolving this issue. You likely will not need to edit these modules but may need to import them or pay attention to the usage interaface:\n\n" + "\n\n".join([f"<file_to_modify filename=\"{file_path}\">\n{cloned_repo.get_file_contents(file_path)}\n</file_to_modify>" for file_path in read_only_files])
+            ),
             *[
                 Message(
                     role="assistant",
