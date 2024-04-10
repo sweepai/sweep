@@ -213,19 +213,25 @@ def validate_and_parse_function_call(
         )
     return function_calls[0] if len(function_calls) > 0 else None
 
-def modify(
+def create_user_message(
         fcrs: list[FileChangeRequest],
         request: str,
         cloned_repo: ClonedRepo,
-        relevant_filepaths: list[str],
-        chat_logger: ChatLogger | None = None,
-    ) -> dict[str, dict[str, str]]:
-    combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
+        relevant_filepaths: list[str] = None,
+        modify_files_dict: dict[str, dict[str, str]] = None
+    ) -> str:
+    combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>\n\nThe order you choose to modify/create these files is up to you.\n"
+    if modify_files_dict:
+        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>\n\nThe order you choose to modify/create these files is up to you. The above files reflect the latest updates you have already made\n"
     files_to_modify = ""
     for fcr in fcrs:
         files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
         if fcr.change_type == "modify":
-            files_to_modify += f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+            if not modify_files_dict:
+                files_to_modify += f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+            else: # show the latest contents of the file
+                latest_file_contents = get_latest_contents(fcr.filename, cloned_repo, modify_files_dict)
+                files_to_modify += f"\n<file_to_modify filename=\"{fcr.filename}\">\n{latest_file_contents}\n</file_to_modify>"
         elif fcr.change_type == "create":
             files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
     
@@ -239,6 +245,21 @@ def modify(
             relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
         combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # User Request'
     user_message = f"# User Request\n{request}\n{combined_request_message}"
+    return user_message
+
+def modify(
+        fcrs: list[FileChangeRequest],
+        request: str,
+        cloned_repo: ClonedRepo,
+        relevant_filepaths: list[str],
+        chat_logger: ChatLogger | None = None,
+    ) -> dict[str, dict[str, str]]:
+    user_message = create_user_message(
+        fcrs=fcrs,
+        request=request,
+        cloned_repo=cloned_repo,
+        relevant_filepaths=relevant_filepaths,
+    )
     chat_gpt = ChatGPT()
     chat_gpt.messages = [Message(role="system", content=instructions)]
     try:
@@ -262,6 +283,17 @@ def modify(
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
+            if function_output == "DONE":
+                break
+            if modify_files_dict: # update the state of the LLM
+                breakpoint()
+                user_message = create_user_message(
+                    fcrs=fcrs,
+                    request=request,
+                    cloned_repo=cloned_repo,
+                    relevant_filepaths=relevant_filepaths,
+                    modify_files_dict=modify_files_dict
+                )
         else:
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
@@ -286,6 +318,7 @@ def modify(
 
 
 def generate_diffs(modify_files_dict: dict[str, dict[str, str]]) -> dict[str, str]:
+    changes_made = False
     for file_name, file_data in modify_files_dict.items():
         new_contents = file_data["contents"]
         original_contents = file_data["original_contents"]
@@ -297,6 +330,14 @@ def generate_diffs(modify_files_dict: dict[str, dict[str, str]]) -> dict[str, st
 def create_tool_call_response(tool_name: str, tool_call_response_contents: str) -> str:
     return f"<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
 
+def get_latest_contents(file_name: str, cloned_repo: ClonedRepo, modify_files_dict: dict) -> str:
+    if file_name in modify_files_dict and "contents" in modify_files_dict[file_name]:
+        return modify_files_dict[file_name]["contents"]
+    elif file_name in cloned_repo.get_file_list():
+        return cloned_repo.get_file_contents(file_name)
+    else:
+        return ""
+
 def handle_function_call(
         cloned_repo: ClonedRepo,
         function_call: AnthropicFunctionCall,
@@ -304,6 +345,7 @@ def handle_function_call(
         llm_state: dict,
     ) :
     # iterate through modify_files_dict and generate diffs
+    breakpoint()
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
@@ -335,14 +377,7 @@ def handle_function_call(
                 if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
                     error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                     break
-            def get_latest_contents(file_name) -> str:
-                if file_name in modify_files_dict and "contents" in modify_files_dict[file_name]:
-                    return modify_files_dict[file_name]["contents"]
-                elif file_name in cloned_repo.get_file_list():
-                    return cloned_repo.get_file_contents(file_name)
-                else:
-                    return ""
-            llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name))
+            llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
             success_message = ""
             original_code = tool_call["original_code"].strip("\n")
             new_code = tool_call["new_code"].strip("\n")
@@ -350,7 +385,7 @@ def handle_function_call(
                 error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                 break
             # get the latest contents of the file
-            file_contents = get_latest_contents(file_name)
+            file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
             warning_message = ""
             
             # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
