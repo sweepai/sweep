@@ -336,10 +336,10 @@ class ModifyEvaluatorAgent(ChatGPT):
 
             overall_score = overall_score_match.group(1).strip()
             # check if 1 through 10 are a match
-            if not re.match(r"^[1-9]|10$", overall_score):
+            if not re.match(r"^10|[1-9]$", overall_score):
                 return None, None
             else:
-                overall_score_match = re.match(r"^[1-9]|10$", overall_score)
+                overall_score_match = re.match(r"^10|[1-9]$", overall_score)
                 overall_score = overall_score_match.group(0).strip()
             overall_score = int(overall_score)
             message_to_contractor = message_to_contractor_match.group(1).strip()
