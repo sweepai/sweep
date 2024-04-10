@@ -177,7 +177,7 @@ tool_call_parameters = {
     "submit_result": ["justification"],
 }
 
-CLAUDE_MODEL = "claude-3-opus-20240229"
+MODEL = "gpt-4-turbo-2024-04-09"
 
 def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -233,15 +233,18 @@ def modify(
     if relevant_filepaths:
         relevant_file_paths_string = ""
         for relevant_file_path in relevant_filepaths:
+            if relevant_file_path not in cloned_repo.get_file_list():
+                logger.warning(f"Relevant file path {relevant_file_path} not found in cloned repo.")
+                continue
             relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
         combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # User Request'
     user_message = f"# User Request\n{request}\n{combined_request_message}"
     chat_gpt = ChatGPT()
     chat_gpt.messages = [Message(role="system", content=instructions)]
-    function_calls_string = chat_gpt.chat_anthropic(
+    function_calls_string = chat_gpt.chat(
         content=user_message,
         stop_sequences=["</function_call>"],
-        model=CLAUDE_MODEL,
+        model=MODEL,
         message_key="user_request",
     )
     modify_files_dict = {}
@@ -259,9 +262,9 @@ def modify(
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
         try:
-            function_calls_string = chat_gpt.chat_anthropic(
+            function_calls_string = chat_gpt.chat(
                 content=function_output,
-                model=CLAUDE_MODEL,
+                model=MODEL,
                 stop_sequences=["</function_call>"],
             )
         except Exception as e:
@@ -321,7 +324,12 @@ def handle_function_call(
                     error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                     break
             def get_latest_contents(file_name) -> str:
-                return modify_files_dict[file_name]["contents"] if file_name in modify_files_dict else cloned_repo.get_file_contents(file_name)
+                if file_name in modify_files_dict:
+                    return modify_files_dict[file_name]["contents"]
+                elif file_name in cloned_repo.get_file_list():
+                    return cloned_repo.get_file_contents(file_name)
+                else:
+                    return ""
             llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name))
             success_message = ""
             original_code = tool_call["original_code"].strip("\n")
