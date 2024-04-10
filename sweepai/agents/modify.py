@@ -177,7 +177,7 @@ tool_call_parameters = {
     "submit_result": ["justification"],
 }
 
-MODEL = "gpt-4-turbo-2024-04-09"
+MODEL = "claude-3-opus-20240229"
 
 def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -241,7 +241,7 @@ def modify(
     user_message = f"# User Request\n{request}\n{combined_request_message}"
     chat_gpt = ChatGPT()
     chat_gpt.messages = [Message(role="system", content=instructions)]
-    function_calls_string = chat_gpt.chat(
+    function_calls_string = chat_gpt.chat_anthropic(
         content=user_message,
         stop_sequences=["</function_call>"],
         model=MODEL,
@@ -262,7 +262,7 @@ def modify(
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
         try:
-            function_calls_string = chat_gpt.chat(
+            function_calls_string = chat_gpt.chat_anthropic(
                 content=function_output,
                 model=MODEL,
                 stop_sequences=["</function_call>"],
