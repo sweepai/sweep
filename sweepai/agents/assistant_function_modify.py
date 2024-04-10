@@ -22,41 +22,9 @@ from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
 
-
-# <tool_description>
-# <tool_name>search_keyword</tool_name>
-# <description>
-# Search the files to modify for files, functions, classes, or variables relevant to a task.
-# </description>
-# <parameters>
-# <parameter>
-# <name>justification</name>
-# <type>str</type>
-# <description>
-# Explain why searching for this query is relevant to the task and how the results will inform the code changes.
-# </description>
-# </parameter>
-# <parameter>
-# <name>file_name</name>
-# <type>str</type>
-# <description>
-# The name of a specific file to search within.
-# </description>
-# </parameter>
-# <parameter>
-# <name>keyword</name>
-# <type>str</type>
-# <description>
-# The search query, such as a function name, class name, or variable. Provide only one query term per search.
-# </description>
-# </parameter>
-# </parameters>
-# </tool_description>
-
-
 # Add COT to each tool
 
-instructions = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
+instructions = """You are a helpful, expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the requested changes to the codebase while following best practices and respecting existing conventions. This will be fun!
 
 To complete the task, follow these steps:
 
@@ -68,7 +36,7 @@ To complete the task, follow these steps:
 
 4. Make the code changes in a targeted way:
    - Preserve existing whitespace, comments and code style
-   - Make surgical edits to only the required lines of code
+   - Make small edits to only the required lines of code
    - If a change is complex, break it into smaller incremental changes
    - Ensure each change is complete and functional before moving on
 
@@ -380,7 +348,7 @@ def function_modify(
         if relevant_file_paths_string:
             new_additional_messages.append(Message(
                 role="user",
-                content=f'You should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # Request'
+                content=f'You should view the following relevant files: {relevant_file_paths_string}.\n\nRecall that your end goal is to resolve the "# Request" section.'
             ))
         additional_messages = additional_messages + new_additional_messages
 
