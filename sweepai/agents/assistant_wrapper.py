@@ -306,6 +306,9 @@ def run_until_complete(
             sleep(60)
             continue
         except Exception as e:
+            if "Output blocked by content filtering policy" in str(e):
+                # Anthropic sometimes marks the output as blocked by content filtering policy
+                raise Exception("Output blocked by content filtering policy") from e
             logger.error(f"chat completions failed on interation {i} with error: {e}")
             sleep(sleep_time)
             continue

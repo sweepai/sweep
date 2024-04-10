@@ -1,5 +1,3 @@
-
-
 import os
 
 from loguru import logger
@@ -410,7 +408,7 @@ def handle_function_call(
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                 + generate_diff(file_contents, new_file_contents)
-            ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
+            ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
             # set contents
             if file_name not in modify_files_dict:
                 modify_files_dict[file_name] = {}
