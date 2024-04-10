@@ -299,7 +299,13 @@ class EvaluatorAgent(ChatGPT):
 
 # Eval agent specific to modify step
 class ModifyEvaluatorAgent(ChatGPT):
-    def evaluate_patch(self, problem_statement: str, patch: str, changed_files: dict[str, dict[str, str]], current_plan: str, file_name: str):
+    def evaluate_patch(self, 
+            problem_statement: str, 
+            patch: str, 
+            changed_files: dict[str, dict[str, str]], 
+            current_plan: str, 
+            file_name: str,
+            chat_logger_messages: list[dict[str, str]] | None = None):
         self.model = CLAUDE_MODEL
         self.messages = [Message(role="system", content=modify_eval_patch_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>\n\n"
@@ -322,6 +328,10 @@ class ModifyEvaluatorAgent(ChatGPT):
             message_key="user_request",
         )
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
+        # update chat_logger_messages in place if they are passed in
+        if chat_logger_messages:
+            chat_logger_messages.append({"role": "assistant", "content": content})
+            chat_logger_messages.append({"role": "user", "content": evaluate_response})
         overall_score = None
         message_to_contractor = None
         try:
