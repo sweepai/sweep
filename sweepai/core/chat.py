@@ -62,6 +62,7 @@ model_to_max_tokens = {
     "gpt-3.5-turbo-16k": 16385,
     "gpt-4-1106-preview": 128000,
     "gpt-4-0125-preview": 128000,
+    "gpt-4-turbo-2024-04-09": 128000,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
@@ -214,6 +215,7 @@ class ChatGPT(MessageList):
         message_key: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        stop_sequences: list[str] = [],
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
@@ -225,6 +227,7 @@ class ChatGPT(MessageList):
                     model=model,
                     temperature=temperature,
                     requested_max_tokens=max_tokens,
+                    stop_sequences=stop_sequences,
                 ),
                 key=message_key,
             )
@@ -238,6 +241,7 @@ class ChatGPT(MessageList):
         model: ChatModel | None = None,
         temperature=temperature,
         requested_max_tokens: int | None = None,
+        stop_sequences: list[str] = [],
     ):
         model = determine_model_from_chat_logger(chat_logger=self.chat_logger, model=model)
         if model not in model_to_max_tokens:
@@ -290,6 +294,7 @@ class ChatGPT(MessageList):
                     messages=self.messages_dicts,
                     max_tokens=max_tokens - token_sub,
                     temperature=temperature,
+                    stop_sequences=stop_sequences,
                 ).choices[0].message.content
                 if self.chat_logger is not None:
                     self.chat_logger.add_chat(

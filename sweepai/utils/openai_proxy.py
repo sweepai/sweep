@@ -57,6 +57,7 @@ class OpenAIProxy:
         tools: list[str] = [],
         max_tokens: int = 4096,
         temperature: float = 0.0,
+        stop_sequences: list[str] = [],
         seed: int = 0,
     ):
         try:
@@ -233,7 +234,7 @@ class OpenAIProxy:
         max_value=40,
     )
     def set_openai_default_api_parameters(
-        self, model, messages, max_tokens, temperature, tools=[]
+        self, model, messages, max_tokens, temperature, tools=[], stop_sequences=[]
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         if len(tools) == 0:
@@ -244,6 +245,7 @@ class OpenAIProxy:
                 temperature=temperature,
                 timeout=OPENAI_TIMEOUT,
                 seed=SEED,
+                stop=stop_sequences,
             )
         else:
             response = client.chat.completions.create(
@@ -254,6 +256,7 @@ class OpenAIProxy:
                 temperature=temperature,
                 timeout=OPENAI_TIMEOUT,
                 seed=SEED,
+                stop=stop_sequences,
             )
         return response
 

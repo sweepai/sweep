@@ -1,16 +1,11 @@
 import re
 from dataclasses import dataclass
 
-from sweepai.agents.assistant_function_modify import (
-    excel_col_to_int,
-    function_modify,
-    int_to_excel_col,
-)
 from sweepai.agents.complete_code import ExtractLeftoverComments
+from sweepai.agents.modify import modify
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet, UnneededEditError
-from sweepai.core.prompts import dont_use_chunking_message, use_chunking_message
 from sweepai.core.update_prompts import (
     update_snippets_prompt,
     update_snippets_prompt_test,
@@ -22,7 +17,6 @@ from sweepai.utils.diff import generate_diff, sliding_window_replacement
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.progress import AssistantConversation, TicketProgress
-from sweepai.utils.utils import chunk_code
 
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original sections from the code that should be modified.
 
@@ -259,18 +253,11 @@ class ModifyBot:
         fcrs: list[FileChangeRequest]=[],
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
     ):
-        new_files = function_modify(
+        new_files = modify(
             request=instructions,
             cloned_repo=cloned_repo,
-            additional_messages=self.additional_messages,
-            chat_logger=self.chat_logger,
-            ticket_progress=self.ticket_progress,
-            assistant_conversation=assistant_conversation,
-            seed=seed,
             relevant_filepaths=relevant_filepaths,
             fcrs=fcrs,
-            cwd=cloned_repo.repo_dir,
-            previous_modify_files_dict=previous_modify_files_dict,
         )
         if new_files:
             posthog.capture(
@@ -300,84 +287,6 @@ class ModifyBot:
             },
         )
         raise UnneededEditError("No snippets edited")
-
-    def get_snippets_to_modify(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        diffs_message = self.get_diffs_message(file_contents)
-        fetch_prompt = (
-            fetch_snippets_prompt_with_diff if diffs_message else fetch_snippets_prompt
-        )
-        original_snippets = chunk_code(file_contents, file_path, 700, 200)
-        file_contents_lines = file_contents.split("\n")
-        chunks = [
-            "\n".join(file_contents_lines[snippet.start : snippet.end])
-            for snippet in original_snippets
-        ]
-        code_sections = []
-        for i, chunk in enumerate(chunks):
-            idx = int_to_excel_col(i + 1)
-            code_sections.append(f'<section id="{idx}">\n{chunk}\n</section>')
-
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_prompt.format(
-                code="\n".join(code_sections),
-                changes_made=self.get_diffs_message(file_contents),
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_message=(
-                    use_chunking_message if chunking else dont_use_chunking_message
-                ),
-            )
-        )
-        analysis_and_identification_pattern = r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
-        analysis_and_identification_match = re.search(
-            analysis_and_identification_pattern, fetch_snippets_response, re.DOTALL
-        )
-        analysis_and_identifications_str = (
-            analysis_and_identification_match.group("code").strip()
-            if analysis_and_identification_match
-            else ""
-        )
-
-        extraction_terms = []
-        extraction_term_pattern = (
-            r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
-        )
-        for extraction_term in re.findall(
-            extraction_term_pattern, fetch_snippets_response, re.DOTALL
-        ):
-            for term in extraction_term.split("\n"):
-                term = term.strip()
-                if term:
-                    extraction_terms.append(term)
-        snippet_queries = []
-        snippets_query_pattern = r"<section_to_modify.*?(reason=\"(?P<reason>.*?)\")?>\n(?P<section>.*?)\n</section_to_modify>"
-        for match_ in re.finditer(
-            snippets_query_pattern, fetch_snippets_response, re.DOTALL
-        ):
-            section = match_.group("section").strip()
-            # processing logic to sanitize input, sometimes adds "SECTION_ID: A"
-            if " " in section:
-                section_pieces = section.split(" ")
-                # get the smallest piece if there is a space
-                section = min(section_pieces, key=len)
-            snippet_index = excel_col_to_int(section)
-            if snippet_index < 0 or snippet_index >= len(original_snippets):
-                continue
-            snippet = original_snippets[snippet_index]
-            reason = match_.group("reason").strip()
-            snippet_queries.append(
-                SnippetToModify(reason=reason or "", snippet=snippet)
-            )
-
-        if len(snippet_queries) == 0:
-            raise UnneededEditError("No snippets found in file")
-        return snippet_queries, extraction_terms, analysis_and_identifications_str
 
     def update_file(
         self,
