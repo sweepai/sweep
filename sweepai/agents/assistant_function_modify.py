@@ -22,6 +22,38 @@ from sweepai.utils.modify_utils import post_process_rg_output, manual_code_check
 # Pre-amble using ideas from https://github.com/paul-gauthier/aider/blob/main/aider/coders/udiff_prompts.py
 # Doesn't regress on the benchmark but improves average code generated and avoids empty comments.
 
+
+# <tool_description>
+# <tool_name>search_keyword</tool_name>
+# <description>
+# Search the files to modify for files, functions, classes, or variables relevant to a task.
+# </description>
+# <parameters>
+# <parameter>
+# <name>justification</name>
+# <type>str</type>
+# <description>
+# Explain why searching for this query is relevant to the task and how the results will inform the code changes.
+# </description>
+# </parameter>
+# <parameter>
+# <name>file_name</name>
+# <type>str</type>
+# <description>
+# The name of a specific file to search within.
+# </description>
+# </parameter>
+# <parameter>
+# <name>keyword</name>
+# <type>str</type>
+# <description>
+# The search query, such as a function name, class name, or variable. Provide only one query term per search.
+# </description>
+# </parameter>
+# </parameters>
+# </tool_description>
+
+
 # Add COT to each tool
 
 instructions = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
@@ -61,36 +93,6 @@ You MUST call them like this:
 </function_calls>
 
 Here are the tools available:
-<tool_description>
-<tool_name>search_codebase</tool_name>
-<description>
-Search the codebase for files, functions, classes, or variables relevant to a task. Searches can be scoped to a single file or across the entire codebase.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain why searching for this query is relevant to the task and how the results will inform the code changes.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-(Optional) The name of a specific file to search within. If not provided, the entire codebase will be searched.
-</description>
-</parameter>
-<parameter>
-<name>keyword</name>
-<type>str</type>
-<description>
-The search query, such as a function name, class name, or variable. Provide only one query term per search.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
 <tool_description>
 <tool_name>make_change</tool_name>
 <description>
@@ -362,7 +364,7 @@ def function_modify(
             *[
                 Message(
                     role="assistant",
-                    content=f"<file_to_modify filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_modify>"
+                    content=f"<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(fcr.filename)}\n</file_to_modify>"
                 ) for fcr in fcrs
             ],
             Message(
@@ -519,8 +521,6 @@ def function_modify(
                             # if not in codebase or has not been created
                             if not os.path.exists(os.path.join(cwd, file_name)) and file_name not in modify_files_dict:
                                 error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
-                            if file_name not in modify_files_dict:
-                                error_message += f"You have not viewed {file_name} yet! Are you CERTAIN this is the file you want to modify? If so, view the file first with the view_file tool and then call the make_change tool again.\n"
                         if error_message:
                             break
                         success_message = ""
@@ -530,6 +530,15 @@ def function_modify(
                             error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                             break
                         # get the contents for the file
+                        if file_name not in modify_files_dict:
+                            file_contents = read_file_with_fallback_encodings(
+                                os.path.join(cwd, file_name)
+                            )
+                            modify_files_dict[file_name] = {
+                                "contents": file_contents,
+                                "original_contents": file_contents,
+                            }
+                            initial_check_results[file_name] = get_check_results(file_name, file_contents)
                         file_contents = modify_files_dict[file_name]['contents']
                         warning_message = ""
                         
@@ -543,7 +552,7 @@ def function_modify(
                         correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                         # if the original_code couldn't be found in the chunk we need to let the llm know
                         if original_code not in file_contents and correct_indent == -1:
-                            error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{original_code}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                            error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code block you provided contains:\n```\n{original_code}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
                             # first check the lines in original_code, if it is too long, ask for smaller changes
                             original_code_lines_length = len(original_code.split("\n"))
                             if original_code_lines_length > 7:
@@ -584,7 +593,7 @@ def function_modify(
                                 file_contents, new_file_contents
                             )
                             if failing_parse:
-                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n{failing_parse}\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                                error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nIn your justification, first identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
                                 break
                     if error_message:
                         logger.error(f"ERROR occured in make_change tool: {error_message}")
@@ -597,7 +606,7 @@ def function_modify(
                         success_message = (
                             f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                             + generate_diff(file_contents, new_file_contents)
-                        ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_codebase tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
+                        ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or go back to searching for keywords using the search_keyword tool, which is great for finding all definitions or usages of a function or class. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
                         # set contents
                         # if we had carriage returns we replace them again
                         if carriage_return:
@@ -649,13 +658,13 @@ def function_modify(
                         tool_name, tool_call = assistant_generator.send(
                             success_message
                         )
-                elif tool_name == "search_codebase":
+                elif tool_name == "search_keyword":
                     error_message = ""
                     success_message = ""
                     for key in ["keyword"]:
                         if key not in tool_call:
-                            logger.debug(f"No {key} was provided in the search_codebase tool call. Call the tool again but this time provide the {key}.")
-                            error_message += f"No {key} was provided in the search_codebase tool call. Call the tool again but this time provide the {key}.\n"
+                            logger.debug(f"No {key} was provided in the search_keyword tool call. Call the tool again but this time provide the {key}.")
+                            error_message += f"No {key} was provided in the search_keyword tool call. Call the tool again but this time provide the {key}.\n"
 
                     file_name = ""
                     if "file_name" in tool_call:
@@ -745,7 +754,7 @@ def function_modify(
                                 error_message = f"FAILURE: An Error occured while trying to update the cloned repo on file {file_name}: {e}"
 
                             if not error_message:
-                                success_message = f"Here are the search_codebase results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
+                                success_message = f"Here are the search_keyword results:\n{rg_output_pretty}\n\n You can use these results to revise your plan by calling the analyze_problem_and_propose_plan tool again. You can also call the analyze_and_identify_changes tool again."
                             else:
                                 # if all of the above has failed it is possible that it is attmepting to search for a file name
                                 similar_file_paths = cloned_repo.get_similar_file_paths(keyword)
@@ -758,14 +767,14 @@ def function_modify(
                                     success_message = f"Here are some files that exist in the code base that resemble the keyword {keyword}:\n{similar_file_paths_string}\n\nYou can use use the view_file tool to explore a file in more detail."
 
                     if error_message:
-                        logger.debug(f"ERROR in search_codebase\n\n{error_message}")
+                        logger.debug(f"ERROR in search_keyword\n\n{error_message}")
                         error_message = create_tool_call_response(tool_name, f"ERROR\n\n{error_message}")
                         tool_name, tool_call = assistant_generator.send(
                             error_message
                         )
                     else:
                         logger.debug(success_message)
-                        suffix = "\n\nMake additional search_codebase calls to find other keywords or start making changes by calling the make_change tool."
+                        suffix = "\n\nMake additional search_keyword calls to find other keywords or start making changes by calling the make_change tool."
                         success_message = create_tool_call_response(tool_name, f"SUCCESS\n\n{success_message}{suffix}")
                         tool_name, tool_call = assistant_generator.send(
                             success_message
