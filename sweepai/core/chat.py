@@ -366,7 +366,7 @@ class ChatGPT(MessageList):
                     message_dicts: list[dict[str, str]], 
                     system_message: str=system_message, 
                     model: str=model
-                ): # add system message and model to cache
+                ) -> str: # add system message and model to cache
                     if ANTHROPIC_AVAILABLE and "opus" not in model:
                         if "anthropic" not in model:
                             model = f"anthropic.{model}-v1:0"

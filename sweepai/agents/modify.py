@@ -328,7 +328,7 @@ def handle_function_call(
                     error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                     break
             def get_latest_contents(file_name) -> str:
-                if file_name in modify_files_dict:
+                if file_name in modify_files_dict and "contents" in modify_files_dict[file_name]:
                     return modify_files_dict[file_name]["contents"]
                 elif file_name in cloned_repo.get_file_list():
                     return cloned_repo.get_file_contents(file_name)
