@@ -235,7 +235,7 @@ def modify(
                 logger.warning(f"Relevant file path {relevant_file_path} not found in cloned repo.")
                 continue
             relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
-        combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # User Request'
+        combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}.\n\nRecall that your end goal is to resolve the "# Request" section.'
     user_message = f"# User Request\n{request}\n{combined_request_message}"
     chat_gpt = ChatGPT()
     chat_gpt.messages = [Message(role="system", content=instructions)]
