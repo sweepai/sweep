@@ -220,68 +220,80 @@ def modify(
         relevant_filepaths: list[str],
         chat_logger: ChatLogger | None = None,
     ) -> dict[str, dict[str, str]]:
-    combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
-    files_to_modify = ""
-    for fcr in fcrs:
-        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
-        if fcr.change_type == "modify":
-            files_to_modify += f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
-        elif fcr.change_type == "create":
-            files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
-    
-    combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
-    if relevant_filepaths:
-        relevant_file_paths_string = ""
-        for relevant_file_path in relevant_filepaths:
-            if relevant_file_path not in cloned_repo.get_file_list():
-                logger.warning(f"Relevant file path {relevant_file_path} not found in cloned repo.")
-                continue
-            relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
-        combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # User Request'
-    user_message = f"# User Request\n{request}\n{combined_request_message}"
-    chat_gpt = ChatGPT()
-    chat_gpt.messages = [Message(role="system", content=instructions)]
     try:
-        function_calls_string = chat_gpt.chat_anthropic(
-            content=user_message,
-            stop_sequences=["</function_call>"],
-            model=MODEL,
-            message_key="user_request",
-        )
+        combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
+        files_to_modify = ""
+        for fcr in fcrs:
+            files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+            if fcr.change_type == "modify":
+                files_to_modify += f"\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+            elif fcr.change_type == "create":
+                files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
+        
+        combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
+        if relevant_filepaths:
+            relevant_file_paths_string = ""
+            for relevant_file_path in relevant_filepaths:
+                if relevant_file_path not in cloned_repo.get_file_list():
+                    logger.warning(f"Relevant file path {relevant_file_path} not found in cloned repo.")
+                    continue
+                relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
+            combined_request_message += f'\nYou should view the following relevant files: {relevant_file_paths_string}\n\nREMEMBER YOUR END GOAL IS TO SATISFY THE # User Request'
+        user_message = f"# User Request\n{request}\n{combined_request_message}"
+        chat_gpt = ChatGPT()
+        chat_gpt.messages = [Message(role="system", content=instructions)]
+        try:
+            function_calls_string = chat_gpt.chat_anthropic(
+                content=user_message,
+                stop_sequences=["</function_call>"],
+                model=MODEL,
+                message_key="user_request",
+            )
+        except Exception as e:
+            logger.error(f"Error in chat_anthropic: {e}")
+            return {}
+        modify_files_dict = {}
+        llm_state = {
+            "initial_check_results": {},
+            "done_counter": 0,
+            "request": request,
+            "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
+        }
+        for _ in range(len(fcrs) * 10):
+            function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
+            if function_call:
+                function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
+            else:
+                function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
+                    + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
+            if chat_logger:
+                messages_as_dicts = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
+                chat_logger.add_chat(
+                    {
+                        "model": chat_gpt.model,
+                        "messages": messages_as_dicts,
+                        "output": messages_as_dicts[-1]["content"],
+                    })
+            try:
+                function_calls_string = chat_gpt.chat_anthropic(
+                    content=function_output,
+                    model=MODEL,
+                    stop_sequences=["</function_call>"],
+                )
+            except Exception as e:
+                logger.error(f"Error in chat_anthropic: {e}")
+                break
     except Exception as e:
-        logger.error(f"Error in chat_anthropic: {e}")
-        return {}
-    modify_files_dict = {}
-    llm_state = {
-        "initial_check_results": {},
-        "done_counter": 0,
-        "request": request,
-        "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
-    }
-    for _ in range(len(fcrs) * 10):
-        function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
-        if function_call:
-            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
-        else:
-            function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
+        logger.error(f"Error in modify: {e}")
         if chat_logger:
             messages_as_dicts = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
             chat_logger.add_chat(
                 {
                     "model": chat_gpt.model,
                     "messages": messages_as_dicts,
-                    "output": messages_as_dicts[-1]["content"],
+                    "output": f"ERROR OCCURED IN MODIFY:\n{e}\nEND OF ERROR",
                 })
-        try:
-            function_calls_string = chat_gpt.chat_anthropic(
-                content=function_output,
-                model=MODEL,
-                stop_sequences=["</function_call>"],
-            )
-        except Exception as e:
-            logger.error(f"Error in chat_anthropic: {e}")
-            break
+        return modify_files_dict
     return modify_files_dict
 
 
