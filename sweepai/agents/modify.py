@@ -241,12 +241,16 @@ def modify(
     user_message = f"# User Request\n{request}\n{combined_request_message}"
     chat_gpt = ChatGPT()
     chat_gpt.messages = [Message(role="system", content=instructions)]
-    function_calls_string = chat_gpt.chat_anthropic(
-        content=user_message,
-        stop_sequences=["</function_call>"],
-        model=MODEL,
-        message_key="user_request",
-    )
+    try:
+        function_calls_string = chat_gpt.chat_anthropic(
+            content=user_message,
+            stop_sequences=["</function_call>"],
+            model=MODEL,
+            message_key="user_request",
+        )
+    except Exception as e:
+        logger.error(f"Error in chat_anthropic: {e}")
+        return {}
     modify_files_dict = {}
     llm_state = {
         "initial_check_results": {},
