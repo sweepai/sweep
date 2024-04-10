@@ -6,13 +6,12 @@ from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.core.reflection_utils import ModifyEvaluatorAgent
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import manual_code_check
 from sweepai.utils.utils import get_check_results
-
-TOTAL_MODIFY_ITERATIONS = 10
 
 modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
@@ -219,6 +218,7 @@ def modify(
         request: str,
         cloned_repo: ClonedRepo,
         relevant_filepaths: list[str],
+        chat_logger: ChatLogger | None = None,
     ) -> dict[str, dict[str, str]]:
     combined_request_unformatted = "In order to solve the user's request you will need to modify/create the following files:\n\n{files_to_modify}\n\nThe order you choose to modify/create these files is up to you.\n"
     files_to_modify = ""
@@ -258,13 +258,21 @@ def modify(
         "request": request,
         "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
     }
-    for _ in range(TOTAL_MODIFY_ITERATIONS):
+    for _ in range(len(fcrs) * 10):
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)
         else:
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
+        if chat_logger:
+            messages_as_dicts = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
+            chat_logger.add_chat(
+                {
+                    "model": chat_gpt.model,
+                    "messages": messages_as_dicts,
+                    "output": messages_as_dicts[-1]["content"],
+                })
         try:
             function_calls_string = chat_gpt.chat_anthropic(
                 content=function_output,
