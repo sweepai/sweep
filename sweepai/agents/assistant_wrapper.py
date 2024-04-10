@@ -139,6 +139,8 @@ tool_call_parameters = {
     "analyze_and_identify_changes": ["file_name", "changes"],
     "view_file": ["justification", "file_name"],
     "make_change": ["justification", "file_name", "original_code", "new_code"],
+    "get_code_snippet_to_change": ["justification", "file_name", "start_line", "end_line"],
+    "make_code_changes": ["justification", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
     "submit_result": ["justification"],
 }
@@ -313,7 +315,7 @@ def run_until_complete(
             done_response = yield "done", {
                 "status": "completed",
                 "message": "Run completed",
-            }
+            }, {"role": "assistant", "content": "Run completed"}
         # if a function call was made
         if "<invoke>" in response_contents:
             response_contents += "</invoke>\n</function_calls>"
@@ -343,12 +345,12 @@ def run_until_complete(
                             done_response = yield "done", {
                                 "status": "completed",
                                 "message": tool_args["justification"],
-                            }
+                            }, {"role": response_role, "content": response_contents}
                         else:
                             done_response = yield "done", {
                                 "status": "completed",
                                 "message": "No justification provided",
-                            }
+                            }, {"role": response_role, "content": response_contents}
                         logger.info(
                             f"run_until_complete done_response: {done_response} completed after {i} iterations"
                         )
@@ -358,7 +360,7 @@ def run_until_complete(
                         logger.debug(
                             f"tool_call: {tool_name} with args: {tool_args}"
                         )
-                        tool_output: str = yield tool_name, tool_args
+                        tool_output: str = yield tool_name, tool_args, {"role": response_role, "content": response_contents}
                         if not tool_output:
                             break
                         messages.append(
@@ -375,7 +377,7 @@ def run_until_complete(
             done_response = yield "no_tool_call", {
                 "status": "no tool call",
                 "message": "No tool call made",
-            }
+            }, {"role": response_role, "content": response_contents}
             messages.append(
                 {
                     "role": "user",
@@ -390,7 +392,7 @@ def run_until_complete(
                 break
 
         # on each iteration of the for loop, we will log to chat_logger
-        if chat_logger is not None and len(messages):
+        if chat_logger is not None and len(messages): # TODO: add this to new modify
             descriptive_messages = [message for message in messages]
             # for tool calls, the content is empty, replace that with the function contents
             for message in descriptive_messages:
@@ -431,7 +433,6 @@ def openai_assistant_call_helper(
     assistant_name: str | None = None,
     save_ticket_progress: save_ticket_progress_type | None = None,
 ):
-    logger.debug(instructions)
     messages = [{"role": "system", "content": instructions}]
     for message in additional_messages:
         messages.append({"role": message.role, "content": message.content})

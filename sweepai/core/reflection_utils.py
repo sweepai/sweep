@@ -5,6 +5,7 @@ from loguru import logger
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
+from sweepai.utils.diff import generate_diff
 
 response_format = """Respond using the following structured format:
 
@@ -115,6 +116,150 @@ Missed UserProfileRepository.java and application-profiles.yml dependencies. Sea
 </message_to_contractor>
 </examples>"""
 
+modify_eval_response_format = """Please provide your critical evaluation of this submission using the following structured format:
+
+<judgement_on_task>
+Your judgement here explaining in detail how you are evaluating the contractor's work against the original requirements. Call out specific issues, gaps, or places where the contractor went wrong. Provide clear justification and examples to support your assessment.
+</judgement_on_task>
+
+<overall_score>
+Evaluate the contractor from 1-10, erring on the low side:
+1 - No attempt made to complete the task
+2 - Minimal attempt with little to no functional code changes
+3 - Significant gaps in completion of the task, code largely non-functional
+4 - Partial completion of the task with major issues and errors
+5 - Task partially satisfied but with significant issues remaining
+6 - Most requirements addressed but some notable gaps or issues
+7 - Task mostly satisfied with a few minor issues or improvements needed
+8 - Task fully satisfied with working code, minor improvements possible
+9 - Task fully satisfied with high-quality, efficient, and maintainable code
+10 - Superhuman completion of the task, exceptional code quality and design
+</overall_score>
+
+<message_to_contractor>
+Provide 3-5 specific, actionable pieces of feedback here for the contractor to focus on in their next attempt. For example:
+
+1. Import the missing XYZ library at the top of file A to avoid compilation errors.
+2. The FooBar() method called on line 127 of file B is not defined anywhere. Implement this method or remove the call.
+3. The current changes do not handle the edge case of X. Add logic to check for this case and respond appropriately.
+4. Consider refactoring the code in function ABC to be more readable and maintainable. It is currently very complex and difficult to follow.
+
+Focus on the most critical issues that are blocking functional completion of the task first, then cover code quality and best practices.
+</message_to_contractor>"""
+
+modify_eval_examples = """Example 1:
+
+<judgement_on_task>
+The contractor has done an exceptional job completing the task of optimizing the database queries and improving the overall performance of the application. They accurately identified the bottlenecks in the existing code and made targeted, efficient changes to address them. The updated queries now utilize appropriate indexes, avoid unnecessary joins, and minimize data transfer. The contractor also added helpful comments explaining their optimization strategies, making the code more maintainable. All the original requirements have been fully satisfied, and the code changes demonstrate a deep understanding of database performance best practices.
+</judgement_on_task>
+
+<overall_score>9</overall_score>
+
+<message_to_contractor>
+Great work on this optimization task! Your code changes have significantly improved the efficiency of the database queries. A few minor suggestions for further enhancement:
+
+1. Consider using a parameterized query on line 95 of `queries.py` to avoid potential SQL injection vulnerabilities.
+2. The `get_user_data` function in `utils.py` could benefit from some additional error handling to gracefully deal with potential edge cases, such as a user ID not being found.
+
+Overall, this is a high-quality submission. Keep up the excellent work!
+</message_to_contractor>
+
+Example 2:
+
+<judgement_on_task>
+The contractor has made an attempt to implement the new feature for generating PDF reports, but there are several gaps and issues in their code changes. While they have correctly added a new endpoint for triggering the report generation, the actual PDF creation logic is incomplete. The code is currently missing the necessary imports for the PDF library, and there are several undefined variables and functions being used. Additionally, the error handling is insufficient, which could lead to uncaught exceptions. The contractor has also not included any unit tests to verify the functionality of the new feature. More work is needed to fully satisfy the requirements and ensure a reliable, maintainable solution.
+</judgement_on_task>
+
+<overall_score>5</overall_score>
+
+<message_to_contractor>
+Thank you for your efforts on implementing the PDF report feature. However, there are several areas that need improvement:
+
+1. Add the necessary imports for the PDF library at the top of `report_generator.py`. Currently, the `import pdf_lib` statement is missing.
+2. Implement the missing `generate_pdf` function that is currently being called on line 42 of `report_generator.py`. This function should contain the core logic for creating the PDF report.
+3. Fix the undefined variables `report_data` and `user_id` in the `generate_report` endpoint. Ensure that these variables are properly initialized before being used.
+4. Add proper error handling to the `generate_report` endpoint to catch and handle any exceptions that may occur during the PDF generation process.
+5. Write unit tests for the new feature to verify its functionality and catch any potential bugs.
+
+Please address these issues and resubmit your code changes for further review.
+</message_to_contractor>
+
+Example 3:
+
+<judgement_on_task>
+The contractor's submission for the task of implementing a new user authentication system is severely lacking and does not meet the requirements. The code changes are minimal and do not include any of the core functionality needed for user registration, login, or password hashing. The contractor has merely added a few empty functions and commented out some existing code, without any actual implementation. There are no changes made to the database schema to support storing user credentials securely. The submission also introduces several syntax errors and undefined variables, indicating a lack of basic coding proficiency. Overall, this submission falls far short of the expected solution and does not demonstrate any meaningful progress towards completing the task.
+</judgement_on_task>
+
+<overall_score>2</overall_score>
+
+<message_to_contractor>
+I regret to inform you that your submission for the user authentication task is unacceptable and requires significant improvement. The following critical issues must be addressed:
+
+1. Implement the core functionality for user registration, including validating input data, securely storing user credentials in the database, and handling duplicate username/email scenarios.
+2. Add the necessary code for user login, including verifying the provided credentials against the stored data and generating a secure authentication token upon successful login.
+3. Integrate a secure password hashing algorithm, such as bcrypt or scrypt, to store and compare passwords instead of storing them in plain text.
+4. Update the database schema to include the required tables and fields for storing user information and authentication data.
+5. Fix all syntax errors and undefined variables in your code. Ensure that your code is free of basic compilation errors before submitting.
+
+I recommend reviewing the task requirements carefully, studying best practices for user authentication, and taking the time to implement a complete and secure solution. If you need further guidance or clarification, please don't hesitate to ask.
+</message_to_contractor>"""
+
+modify_eval_prompt = """You are an evaluator agent tasked with grading and providing critical feedback on code changes submitted by an outside contractor in response to a given coding task. You will be provided with the original task description as well as a series of file changes in unified diff format.
+
+Your job is to carefully review the code changes and provide feedback focused on the following:
+
+1. Identify any missing import statements that would prevent the code from compiling. Call out the specific imports that are needed.
+
+2. Look for any variables or methods that are referenced but not defined in the provided code changes. These may indicate the contractor hallucinated or made invalid assumptions. 
+
+3. Analyze whether the code changes, as submitted, fully satisfy the requirements of the original coding task. Identify any gaps or ways in which the solution falls short.
+
+Remember, your goal is to be a harsh critic and really scrutinize the work to ensure only high-quality, complete code changes are accepted. Do not praise mediocre work.
+
+""" + modify_eval_response_format + modify_eval_examples
+
+modify_eval_patch_response_format = """Please provide your critical evaluation of this submission using the following structured format:
+
+<judgement_on_patch>
+Your judgement here explaining in detail how you are evaluating the contractor's work against the original requirements. The focus should be on identifying any syntax/logical errors first and foremost. Call out the specific lines of code with issues and explain the problem. Only if the code is error-free should you then assess it against the contractor's proposed plan. Provide clear justification and examples to support your harsh assessment.
+</judgement_on_patch>
+<overall_score>
+Evaluate the contractor from 1-10, heavily weighted to logical correctness:
+1 - Contains syntax or logical errors (if any errors present, this is the max score)
+2 - No syntax errors, but major logical flaws that prevent code from functioning
+3 - Major deviation from plan, code does not align with proposed approach 
+4 - Significant gaps between code and plan, key elements missing
+5 - Some deviation from plan, not all planned changes fully implemented
+6 - Code mostly follows plan with minor discrepancies 
+7 - Follows plan but plan is incomplete, missing some necessary steps
+8 - Closely follows a mostly complete plan, minor enhancements possible
+9 - Comprehensively follows plan, only trivial improvements possible
+10 - Follows a comprehensive, complete plan with no errors
+</overall_score>
+<message_to_contractor>
+Provide specific, actionable pieces of harsh feedback here for the contractor to focus on in their next attempt. 
+For example:
+- "Your submission contains a major logical error on lines X-Y where you are doing Z. This is completely unacceptable. Fix this immediately before resubmitting."
+- "You have deviated from your plan in these ways: X, Y, Z. Stick to your plan or update it with justification. Deviating without reason is not permitted."
+- "Your plan is missing critical steps X, Y, Z. Add these to your plan and make sure your code submission follows the updated plan fully."
+</message_to_contractor>"""
+
+modify_eval_patch_prompt = """
+You are an evaluator agent tasked with grading and providing critical feedback on code changes submitted by an outside contractor in response to a given coding task.
+You will be provided with the following:
+ - The original task description 
+ - The current patch in unified diff format that the contractor has submitted
+ - A series of all previous code patches that the contractor has submitted
+ - The plan that the outside contractor has laid out for themselves.
+
+Your job is to carefully review the inputs and provide harsh, critical feedback focused on the following, in order of priority:
+1. Ensure that the code patch provided is logically correct and does not contain any syntax or logic errors. If ANY errors are found, the submission automatically fails and gets the lowest possible score of 1/10, regardless of anything else. You MUST call out the specific errors.
+2. Only if there are no logical/syntax errors, then ensure that the current code patch is in line with the plan that the contractor has laid out for themselves. If there are any discrepancies, call them out harshly and demand the contractor to either update their plan or stick to their original plan. Do not let them deviate.
+3. Double check the plan that the contractor has submitted and point out ANY critical flaws or missing steps that you can identify. If the plan is incomplete or has issues, let the contractor know and require them to fix and resubmit their plan. 
+Remember, your goal is to be an extremely harsh critic and really scrutinize the work with the aim of only accepting high-quality, fully complete and correct code changes. Do not praise mediocre or incomplete work under any circumstances.
+""" + modify_eval_patch_response_format
+
+
 # general framework for a dfs search
 # 1. sample trajectory
 # 2. for each trajectory, run the assistant until it hits an error or end state
@@ -131,6 +276,102 @@ class EvaluatorAgent(ChatGPT):
         stored_files_section = f"""The contractor stored these files:\n<stored_files>\n{contractor_stored_files}\n</stored_files>"""
         content = formatted_problem_statement + "\n\n" + f"<contractor_attempt>\n{run_text}\n</contractor_attempt>"\
              + f"\n\n{stored_files_section}\n\n" + response_format
+        evaluate_response = self.chat_anthropic(
+            content=content,
+            stop_sequences=["</message_to_contractor>"],
+            model=CLAUDE_MODEL,
+            message_key="user_request",
+        )
+        evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
+        overall_score = None
+        message_to_contractor = None
+        try:
+            overall_score_pattern = r"<overall_score>(.*?)</overall_score>"
+            message_to_contractor_pattern = r"<message_to_contractor>(.*?)</message_to_contractor>"
+
+            overall_score_match = re.search(overall_score_pattern, evaluate_response, re.DOTALL)
+            message_to_contractor_match = re.search(message_to_contractor_pattern, evaluate_response, re.DOTALL)
+
+            if overall_score_match is None or message_to_contractor_match is None:
+                return overall_score, message_to_contractor
+
+            overall_score = overall_score_match.group(1).strip()
+            # check if 1 through 10 are a match
+            if not re.match(r"^[1-9]|10$", overall_score):
+                return None, None
+            else:
+                overall_score_match = re.match(r"^[1-9]|10$", overall_score)
+                overall_score = overall_score_match.group(0).strip()
+            overall_score = int(overall_score)
+            message_to_contractor = message_to_contractor_match.group(1).strip()
+            return overall_score, message_to_contractor
+        except Exception as e:
+            logger.info(f"Error evaluating response: {e}")
+            return overall_score, message_to_contractor
+
+# Eval agent specific to modify step
+class ModifyEvaluatorAgent(ChatGPT):
+    def evaluate_patch(self, problem_statement: str, patch: str, changed_files: dict[str, dict[str, str]], current_plan: str):
+        self.model = CLAUDE_MODEL
+        self.messages = [Message(role="system", content=modify_eval_patch_prompt)]
+        formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>\n\n"
+        formatted_patch = f"This is the CURRENT PATCH that the contractor has submitted for evaluation:\n<current_patch>\n{patch}\n</current_patch>\n\n"
+        formatted_plan = f"This is the contractor's current plan:\n<current_plan>\n{current_plan}\n</current_plan>\n\n"
+        contractor_changes_made: dict[str, str] = {}
+        for file_name, file_data in changed_files.items():
+            diff = generate_diff(file_data["original_contents"], file_data["contents"])
+            if diff:
+                contractor_changes_made[file_name] = diff
+        contractor_changed_files = "\n".join([f"Changes made to file {file_name}:\n\n{diff}\n\n" for file_name, diff in contractor_changes_made.items()])
+        changed_files_section = f"""The contractor has made these previous changes to the following files:\n<changed_files>\n{contractor_changed_files}\n</changed_files>\n\n"""
+        content = formatted_problem_statement + changed_files_section + formatted_plan + formatted_patch
+        evaluate_response = self.chat_anthropic(
+            content=content,
+            stop_sequences=["</message_to_contractor>"],
+            model=CLAUDE_MODEL,
+            message_key="user_request",
+        )
+        evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
+        overall_score = None
+        message_to_contractor = None
+        try:
+            overall_score_pattern = r"<overall_score>(.*?)</overall_score>"
+            message_to_contractor_pattern = r"<message_to_contractor>(.*?)</message_to_contractor>"
+
+            overall_score_match = re.search(overall_score_pattern, evaluate_response, re.DOTALL)
+            message_to_contractor_match = re.search(message_to_contractor_pattern, evaluate_response, re.DOTALL)
+
+            if overall_score_match is None or message_to_contractor_match is None:
+                return overall_score, message_to_contractor
+
+            overall_score = overall_score_match.group(1).strip()
+            # check if 1 through 10 are a match
+            if not re.match(r"^[1-9]|10$", overall_score):
+                return None, None
+            else:
+                overall_score_match = re.match(r"^[1-9]|10$", overall_score)
+                overall_score = overall_score_match.group(0).strip()
+            overall_score = int(overall_score)
+            message_to_contractor = message_to_contractor_match.group(1).strip()
+            return overall_score, message_to_contractor
+        except Exception as e:
+            logger.info(f"Error evaluating response: {e}")
+            return overall_score, message_to_contractor
+
+
+    def evaluate_run(self, problem_statement: str, run_text: str, changed_files: dict[str, dict[str, str]]):
+        self.model = CLAUDE_MODEL
+        self.messages = [Message(role="system", content=modify_eval_prompt)]
+        formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>"
+        contractor_changes_made: dict[str, str] = {}
+        for file_name, file_data in changed_files.items():
+            diff = generate_diff(file_data["original_contents"], file_data["contents"])
+            if diff:
+                contractor_changes_made[file_name] = diff
+        contractor_changed_files = "\n".join([f"Changes made to file {file_name}:\n\n{diff}\n\n" for file_name, diff in contractor_changes_made.items()])
+        changed_files_section = f"""The contractor made these changes to the following files:\n<changed_files>\n{contractor_changed_files}\n</changed_files>"""
+        content = formatted_problem_statement + "\n\n" + f"<contractor_attempt>\n{run_text}\n</contractor_attempt>"\
+             + f"\n\n{changed_files_section}\n\n" + modify_eval_response_format
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],

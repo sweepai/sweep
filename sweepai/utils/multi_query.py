@@ -3,6 +3,7 @@ import re
 from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
+from sweepai.logn.cache import file_cache
 
 # TODO: add docs and tests later
 
@@ -75,6 +76,7 @@ Examples of good queries:
 - Where are the Elasticsearch queries that power the autocomplete suggestions for the site's search bar, and what specific fields are being searched and returned?
 - Where is the logic for automatically provisioning and scaling EC2 instances based on CPU and memory usage metrics from CloudWatch in the DevOps scripts?"""
 
+@file_cache()
 def generate_multi_queries(input_query: str):
     chatgpt = ChatGPT(
         messages=[
