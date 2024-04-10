@@ -171,6 +171,15 @@ tool_call_parameters = {
     "submit_result": ["justification"],
 }
 
+def english_join(items: list[str]) -> str:
+    if len(items) == 0:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
+
 MODEL = "claude-3-opus-20240229"
 
 def validate_and_parse_function_call(
@@ -215,12 +224,12 @@ def create_user_message(
         relevant_filepaths: list[str] = None,
         modify_files_dict: dict[str, dict[str, str]] = None
     ) -> str:
-    combined_request_unformatted = "{relevant_files}In order to solve the user's request you will need to modify/create the following files:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
+    combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}. Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
     if modify_files_dict:
-        combined_request_unformatted += "The above files reflect the latest updates you have already made"
+        combined_request_unformatted += "\nThe above files reflect the latest updates you have already made"
     files_to_modify = ""
     for fcr in fcrs:
-        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
         if fcr.change_type == "modify":
             if not modify_files_dict:
                 files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
@@ -230,7 +239,9 @@ def create_user_message(
         elif fcr.change_type == "create":
             files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
     
-    combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
+    combined_request_message = combined_request_unformatted \
+        .replace("{files_to_modify}", files_to_modify.lstrip('\n')) \
+        .replace("{files_to_modify_list}", english_join([fcr.filename for fcr in fcrs]))
     if relevant_filepaths:
         relevant_file_paths_string = ""
         for relevant_file_path in relevant_filepaths:
@@ -240,8 +251,9 @@ def create_user_message(
             if relevant_file_path in [fcr.filename for fcr in fcrs]:
                 logger.warning(f"Relevant file path {relevant_file_path} is already in the list of files to modify.")
                 continue
-            relevant_file_paths_string += f"\n\n<relevant_file filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_file>"
-        combined_request_message.replace("{relevant_files}", f'You should view the following relevant files: {relevant_file_paths_string}\n')
+            relevant_file_paths_string += f"\n\n<relevant_module filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_module>"
+        relevant_file_paths_string = f"<relevant_files>\n{relevant_file_paths_string}\n</relevant_files>"
+        combined_request_message.replace("{relevant_files}", f'\nHere are some relevant modules, such as useful helper functions for resolving this issue. You likely will not need to edit these modules but may need to import them or understand their usage interface: {relevant_file_paths_string}\n')
     user_message = f"<user_request>\n{request}\n</user_request>\n{combined_request_message}"
     return user_message
 
@@ -377,7 +389,7 @@ def handle_function_call(
             if key not in tool_call:
                 error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
                 if key == "new_code" or key == "original_code":
-                    error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
+                    error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
         for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
             # ensure the file we are editting exists and is in modify_files_dict
             if "file_name" in tool_call:
@@ -446,7 +458,7 @@ def handle_function_call(
                     file_contents, new_file_contents
                 )
                 if failing_parse:
-                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n{failing_parse}\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
                     break
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
