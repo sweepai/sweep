@@ -360,12 +360,13 @@ def function_modify(
         for fcr in fcrs:
             files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}, the specific instructions to do so are listed below:\n\n{fcr.instructions}"
         combined_request_message = combined_request_unformatted.replace("{files_to_modify}", files_to_modify.lstrip('\n'))
+        # Need to handle creates better
         new_additional_messages = [
             *[
                 Message(
                     role="assistant",
                     content=f"<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(fcr.filename)}\n</file_to_modify>"
-                ) for fcr in fcrs
+                ) for fcr in fcrs if fcr.change_type == "modify"
             ],
             Message(
                 role="user",
