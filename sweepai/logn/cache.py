@@ -104,7 +104,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
             except Exception:
                 logger.info("Unpickling failed")
             # Otherwise, call the function and save its result to the cache
-            if not result:
+            if result is None:
                 result = func(*args, **kwargs)
             # hydrate both caches in all cases
             if redis and redis_client: # cache this to redis as well

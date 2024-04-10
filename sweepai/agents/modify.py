@@ -12,12 +12,12 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import manual_code_check
 from sweepai.utils.utils import get_check_results
 
-TOTAL_ITERATIONS = 10
+TOTAL_MODIFY_ITERATIONS = 10
 
 modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
 <description>
-Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments and style. Changes should be minimal, self-contained and only address one specific modification. If a change requires modifying multiple separate code sections, use multiple calls to this tool, one for each independent change.
+Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.
 </description>
 <parameters>
 <parameter>
@@ -31,14 +31,14 @@ Explain how this SINGLE change contributes to fulfilling the user's request.
 <name>file_name</name>
 <type>str</type>
 <description>
-Name of the file to make the change in. Ensure correct spelling as this is case-sensitive.
+Name of the file where the change will be made. Ensure correct spelling as this is case-sensitive.
 </description>
 </parameter>
 <parameter>
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need to be modified or replaced. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need modification or replacement. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
 </description>
 </parameter>
 <parameter>
@@ -72,18 +72,17 @@ The name to give the new file, including the extension. Ensure the name is clear
 </description>
 </parameter>
 <parameter>
-<parameter>
 <name>contents</name>
 <type>str</type>
 <description>
-The contents of this new file.
+The initial contents of the new file.
 </description>
 </parameter>
 <parameter>
 <name>justification</name>
 <type>str</type>
 <description>
-Explain why creating this new file is necessary to complete the task and how it fits into the existing codebase structure.
+Explain why creating this new file is necessary to complete the task and how it integrates with the existing codebase structure.
 </description>
 </parameter>
 </parameters>
@@ -92,14 +91,14 @@ Explain why creating this new file is necessary to complete the task and how it 
 <tool_description>
 <tool_name>submit_result</tool_name>
 <description>
-Indicate that the task is complete and all requirements have been satisfied. Provide the final code changes or solution.
+Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
 </description>
 <parameters>
 <parameter>
 <name>justification</name>
 <type>str</type>
 <description>
-Summarize the code changes made and how they fulfill the user's original request. Provide the complete, modified code if applicable.
+Summarize the code changes made and explain how they fulfill the user's original request. Provide the complete, modified code if applicable.
 </description>
 </parameter>
 </parameters>
@@ -252,7 +251,7 @@ def modify(
         "request": request,
         "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
     }
-    for _ in range(TOTAL_ITERATIONS):
+    for _ in range(TOTAL_MODIFY_ITERATIONS):
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state)

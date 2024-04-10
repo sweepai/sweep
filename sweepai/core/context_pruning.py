@@ -27,7 +27,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 MAX_REFLECTIONS = 2
-MAX_ITERATIONS = 30 # Tuned to 30 because haiku is cheap
+MAX_ITERATIONS = 20 # Tuned to 30 because haiku is cheap
 NUM_ROLLOUTS = 2 # dev speed
 SCORE_THRESHOLD = 8 # good score
 STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
