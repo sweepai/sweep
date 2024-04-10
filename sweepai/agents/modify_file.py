@@ -75,7 +75,6 @@ def modify_file(
             cloned_repo,
             additional_messages,
             chat_logger,
-            ticket_progress=ticket_progress,
             assistant_conversation=assistant_conversation,
             relevant_filepaths=relevant_filepaths,
             cwd=cloned_repo.repo_dir,
