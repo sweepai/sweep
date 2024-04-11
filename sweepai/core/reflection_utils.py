@@ -323,6 +323,7 @@ class ModifyEvaluatorAgent(ChatGPT):
         problem_statement: str, 
         patch: str, 
         changed_files: dict[str, dict[str, str]], 
+        new_file_contents: str,
         current_plan: str, 
         file_name: str,
         chat_logger_messages: list[dict[str, str]] | None = None
