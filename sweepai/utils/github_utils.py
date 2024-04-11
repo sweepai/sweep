@@ -155,7 +155,7 @@ def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], co
     # convert to blob
     for path, content in file_changes.items():
         blob = repo.create_git_blob(content, "utf-8")
-        blobs_to_commit.append(InputGitTreeElement(path=path, mode="100644", type="blob", sha=blob.sha))
+        blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(path), mode="100644", type="blob", sha=blob.sha))
     latest_commit = repo.get_branch(branch).commit
     base_tree = latest_commit.commit.tree
     # create new git tree
