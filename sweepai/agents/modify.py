@@ -1,3 +1,4 @@
+import copy
 import os
 
 from rapidfuzz import fuzz, process
@@ -253,9 +254,9 @@ def create_user_message(
         relevant_filepaths: list[str] = None,
         modify_files_dict: dict[str, dict[str, str]] = None
     ) -> str:
-    combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}. Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
+    combined_request_unformatted = "# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}. Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
     if modify_files_dict:
-        combined_request_unformatted += "\nThe above files reflect the latest updates you have already made"
+        combined_request_unformatted += "\nThe above files reflect the latest updates you have already made. READ THROUGH THEM CAREFULLY TO FIGURE OUT WHAT YOUR NEXT STEPS ARE. Call the make_change, create_file or submit_result tools."
     files_to_modify = ""
     for fcr in fcrs:
         files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
@@ -288,6 +289,19 @@ def create_user_message(
     user_message = f"<user_request>\n{request}\n</user_request>\n{combined_request_message}"
     return user_message
 
+# find out if any changes were made by matching the contents of the files
+def changes_made(modify_files_dict: dict[str, dict[str, str]], previous_modify_files_dict) -> bool:
+    # check if there are any changes made
+    for file_name, file_data in modify_files_dict.items():
+        if file_name not in previous_modify_files_dict:
+            if file_data['contents'] != file_data["original_contents"]:
+                return True
+            else:
+                continue
+        if file_data['contents'] != previous_modify_files_dict[file_name]['contents']:
+            return True
+    return False
+
 def modify(
         fcrs: list[FileChangeRequest],
         request: str,
@@ -317,23 +331,33 @@ def modify(
     chat_gpt.messages = [Message(role="system", content=instructions)]
     try:
         function_calls_string = chat_gpt.chat_anthropic(
-            content=user_message,
+            content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
             stop_sequences=["</function_call>"],
             model=MODEL,
             message_key="user_request",
         )
     except Exception as e:
         logger.error(f"Error in chat_anthropic: {e}")
+        chat_logger.add_chat(
+            {
+                "model": chat_gpt.model,
+                "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                "output": f"ERROR:\n{e}\nEND OF ERROR",
+            })
         return {}
     modify_files_dict = {}
     llm_state = {
         "initial_check_results": {},
         "done_counter": 0,
         "request": request,
-        "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs)
+        "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs),
+        "user_message_index": 1,
+        "user_message_index_chat_logger": 1
     }
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
+    # used to determine if changes were made
+    previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 10):
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
@@ -363,8 +387,21 @@ def modify(
                     relevant_filepaths=relevant_filepaths,
                     modify_files_dict=modify_files_dict
                 )
-                chat_gpt.messages[1].content = user_message # overwrite the old user message
-                detailed_chat_logger_messages[1]['content'] = user_message
+                user_message = f"Here is the UPDATED user request, plan, and state of the code changes. REVIEW THIS CAREFULLY!\n{user_message}"
+                
+                # update context if a change was made
+                if changes_made(modify_files_dict, previous_modify_files_dict):
+                    # remove the previous user message and add it to the end, do not remove if it is the inital user message
+                    if llm_state["user_message_index"] != 1:
+                        chat_gpt.messages.pop(llm_state["user_message_index"])
+                    if llm_state["user_message_index_chat_logger"] != 1:
+                        detailed_chat_logger_messages.pop(llm_state["user_message_index_chat_logger"])
+                    chat_gpt.messages.append(Message(role="user", content=user_message))
+                    detailed_chat_logger_messages.append({"role": "user", "content": user_message})
+                    # update the index
+                    llm_state["user_message_index"] = len(chat_gpt.messages) - 1
+                    llm_state["user_message_index_chat_logger"] = len(detailed_chat_logger_messages) - 1
+                previous_modify_files_dict = copy.deepcopy(modify_files_dict)
         else:
             function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
