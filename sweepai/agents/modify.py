@@ -1,6 +1,6 @@
-
-
 import os
+
+from rapidfuzz import fuzz, process
 
 from loguru import logger
 from sweepai.core.chat import ChatGPT
@@ -458,11 +458,25 @@ def handle_function_call(
             correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
             # if the original_code couldn't be found in the chunk we need to let the llm know
             if original_code not in file_contents and correct_indent == -1:
-                error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+
+                # Might have perf issues with long files
+                # TODO: add weighted ratio to the choices, penalize whitespace less
+                potential_choices = []
+                num_lines = len(file_contents.split("\n"))
+                for start_line in range(num_lines):
+                    for end_line in range(start_line + 1, num_lines):
+                        potential_choices.append("\n".join(file_contents.split("\n")[start_line:end_line]))
+                best_match, score, _index = process.extractOne(tool_call["original_code"], choices=potential_choices, scorer=fuzz.WRatio)
+
+                if score > 80:
+                    error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match)}\n```"
+                else:
+                    error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                
                 # first check the lines in original_code, if it is too long, ask for smaller changes
                 original_code_lines_length = len(original_code.split("\n"))
-                if original_code_lines_length > 7:
-                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 7 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                if original_code_lines_length > 10:
+                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                 else:
                     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
                     # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
@@ -526,7 +540,7 @@ def handle_function_call(
                 modify_files_dict[file_name]['contents'] = new_file_contents
             elif next_step == "CONTINUE":
                 # guard modify files
-                llm_response = f"Changes Applied with FEEDBACK:\n\n{generate_diff(file_contents, new_file_contents)}\n{feedback}"
+                llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
             else:
