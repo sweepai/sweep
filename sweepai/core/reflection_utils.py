@@ -218,7 +218,7 @@ Remember, your goal is to be a harsh critic and really scrutinize the work to en
 """ + modify_eval_response_format + modify_eval_examples
 
 modify_eval_patch_prompt = """
-You are an evaluator providing critical feedback on code changes submitted by a contractor for a coding task. 
+You are an evaluator providing critical feedback on code changes submitted by a contractor for a coding task.
 Inputs:
 - Original task description 
 - Current code patch (unified diff format)
@@ -229,7 +229,7 @@ Check for common LLM failure modes:
 - Missing imports
 - Incomplete changes 
 - Repetitive or non-functional code
-Take into account the current modified file, patch and current plan. Take into account the changes that were already made by the contractor. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT PLAN'S SUGGESTIONS.
+Take into account the current modified file, patch, current plan and current task the contractor is working on. Take into account the changes that were already made by the contractor. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT TASK'S SUGGESTIONS.
 Format:
 <judgement>
 Focus on identifying specific errors first. Justify harsh assessment.
@@ -241,7 +241,7 @@ Focus on identifying specific errors first. Justify harsh assessment.
 8-10 - Comprehensively follows plan
 </overall_score>
 <feedback>
-Provide specific, actionable, harsh feedback. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT PLAN'S SUGGESTIONS. DO NOT SUGGEST ADDITIONAL CHANGES UNLESS THE PLAN EXPLICITLY CALLS FOR IT.
+Provide specific, actionable, harsh feedback. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT TASK'S SUGGESTIONS. DO NOT SUGGEST ADDITIONAL CHANGES UNLESS THE PLAN EXPLICITLY CALLS FOR IT.
 - Call out error locations and details
 - Specify plan deviations and require justification 
 - Point out failures to address
@@ -311,7 +311,7 @@ class ModifyEvaluatorAgent(ChatGPT):
         self.messages = [Message(role="system", content=modify_eval_patch_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>\n\n"
         formatted_patch = f"This is the CURRENT PATCH that the contractor has submitted for evaluation:\n<current_patch file_name={file_name}>\n{patch}\n</current_patch>\n\n"
-        formatted_plan = f"This is the current plan that we must follow:\n<current_plan>\n{current_plan}\n</current_plan>\n\n"
+        formatted_plan = f"This is the current plan that we must follow:\n<entire_plan>\n{current_plan}\n</entire_plan>\n\n"
         contractor_changes_made: dict[str, str] = {}
         for file_name, file_data in changed_files.items():
             if "original_contents" not in file_data or "contents" not in file_data:
@@ -329,6 +329,7 @@ class ModifyEvaluatorAgent(ChatGPT):
             message_key="user_request",
         )
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
+        breakpoint()
         # update chat_logger_messages in place if they are passed in
         if chat_logger_messages:
             chat_logger_messages.append({"role": "assistant", "content": content})

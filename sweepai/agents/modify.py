@@ -320,19 +320,22 @@ past_tense_mapping = {
     "create": "created",
 }
 
+# Magic
+ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4])
+
 def render_plan(fcrs: list[FileChangeRequest]) -> str:
     current_fcr_index = 0
     for current_fcr_index, fcr in enumerate(fcrs):
         if not fcr.is_completed:
             break
-    plan = ""
+    plan = f"You have {len(fcrs)} changes to make and you are currently working on the {ordinal(current_fcr_index + 1)} task."
     for i, fcr in enumerate(fcrs):
         if i < current_fcr_index:
-            plan += f"\n\nYou have previously {past_tense_mapping[fcr.change_type]} {fcr.filename}, where you were asked to:\n\n{fcr.instructions}"
+            plan += f"\n\nTask {i}: You have previously {past_tense_mapping[fcr.change_type]} {fcr.filename}, where you were asked to:\n\n{fcr.instructions}"
         elif i == current_fcr_index:
-            plan += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+            plan += f"\n\nTask {i}: Your CURRENT TASK is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
         else:
-            plan += f"\n\nYou will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+            plan += f"\n\nTask {i}: You will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
     return plan.strip('\n')
 
 def modify(
@@ -549,6 +552,9 @@ def handle_function_call(
             correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
             # if the original_code couldn't be found in the chunk we need to let the llm know
             if original_code not in file_contents and correct_indent == -1:
+                if not original_code.strip():
+                    error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
+
                 # TODO: add weighted ratio to the choices, penalize whitespace less
                 best_match, best_score = find_best_match(original_code, file_contents)
 
