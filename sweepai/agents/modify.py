@@ -258,8 +258,6 @@ def create_user_message(
     for current_fcr_index, fcr in enumerate(fcrs):
         if not fcr.is_completed:
             break
-    else:
-        raise ValueError("No incompleted FileChangeRequest found. Everything is done.")
     combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}.{completed_prompt} Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
     completed_prompt = "" if current_fcr_index == 0 else f" You have already completed {current_fcr_index} of the {len(fcrs)} required changes."
     if modify_files_dict:
@@ -302,7 +300,6 @@ def create_user_message(
     else:
         combined_request_message.replace("{relevant_files}", "")
     user_message = f"<user_request>\n{request}\n</user_request>\n{combined_request_message}"
-    # breakpoint()
     return user_message
 
 # find out if any changes were made by matching the contents of the files
@@ -318,17 +315,20 @@ def changes_made(modify_files_dict: dict[str, dict[str, str]], previous_modify_f
             return True
     return False
 
+past_tense_mapping = {
+    "modify": "modified",
+    "create": "created",
+}
+
 def render_plan(fcrs: list[FileChangeRequest]) -> str:
     current_fcr_index = 0
     for current_fcr_index, fcr in enumerate(fcrs):
         if not fcr.is_completed:
             break
-    else:
-        raise ValueError("No incompleted FileChangeRequest found. Everything is done.")
     plan = ""
     for i, fcr in enumerate(fcrs):
         if i < current_fcr_index:
-            plan += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where specific instructions were to:\n\n{fcr.instructions}"
+            plan += f"\n\nYou have previously {past_tense_mapping[fcr.change_type]} {fcr.filename}, where you were asked to:\n\n{fcr.instructions}"
         elif i == current_fcr_index:
             plan += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
         else:
@@ -374,7 +374,8 @@ def modify(
         "request": request,
         "plan": render_plan(fcrs), 
         "user_message_index": 1,
-        "user_message_index_chat_logger": 1
+        "user_message_index_chat_logger": 1,
+        "fcrs": fcrs,
     }
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
@@ -616,6 +617,14 @@ def handle_function_call(
                 file_name=file_name,
                 chat_logger_messages=chat_logger_messages
             )
+            if overall_score >= 3:
+                # Sets first fcr that is not completed to completed
+                for fcr in llm_state["fcrs"]:
+                    if not fcr.is_completed:
+                        fcr.is_completed = True
+                        break
+                llm_state["plan"] = render_plan(llm_state["fcrs"])
+
             if overall_score >= 8:
                 llm_response = f"{success_message}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]

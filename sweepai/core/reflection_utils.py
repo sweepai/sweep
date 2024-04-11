@@ -322,7 +322,6 @@ class ModifyEvaluatorAgent(ChatGPT):
         contractor_changed_files = "\n".join([f"<completed_patch file_name={file_name}>\n{diff}\n</completed_patch>" for file_name, diff in contractor_changes_made.items()])
         changed_files_section = f"""The contractor has already made these changes to finish the completed tasks:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n""" if contractor_changed_files.strip() else ""
         content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch
-        breakpoint()
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],
