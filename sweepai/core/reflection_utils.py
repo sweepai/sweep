@@ -330,8 +330,8 @@ class ModifyEvaluatorAgent(ChatGPT):
         self.model = CLAUDE_MODEL
         self.messages = [Message(role="system", content=modify_eval_patch_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>\n\n"
-        formatted_patch_and_contents = f"This is the CURRENT PATCH that the contractor has submitted for evaluation:\n<current_patch file_name={file_name}>\n{patch}\n</current_patch>\n\n"
-        formatted_plan = f"This is the current plan that we must follow:\n<current_plan>\n{current_plan}\n</current_plan>\n\n" + f"This is the current file after modifications:\n<current_file>\n{new_file_contents}\n</current_file>\n\n"
+        formatted_patch_and_contents = f"This is the CURRENT PATCH that the contractor has submitted for evaluation:\n<current_patch file_name={file_name}>\n{patch}\n</current_patch>\n\n" + f"This is the current file after modifications:\n<current_file>\n{new_file_contents}\n</current_file>\n\n"
+        formatted_plan = f"This is the current plan that we must follow:\n<current_plan>\n{current_plan}\n</current_plan>\n\n"
         contractor_changes_made: dict[str, str] = {}
         for file_name, file_data in changed_files.items():
             if "original_contents" not in file_data or "contents" not in file_data:
