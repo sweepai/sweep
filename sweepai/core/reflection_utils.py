@@ -1,4 +1,3 @@
-
 import re
 
 from loguru import logger
@@ -299,13 +298,15 @@ class EvaluatorAgent(ChatGPT):
 
 # Eval agent specific to modify step
 class ModifyEvaluatorAgent(ChatGPT):
-    def evaluate_patch(self, 
-            problem_statement: str, 
-            patch: str, 
-            changed_files: dict[str, dict[str, str]], 
-            current_plan: str, 
-            file_name: str,
-            chat_logger_messages: list[dict[str, str]] | None = None):
+    def evaluate_patch(
+        self, 
+        problem_statement: str, 
+        patch: str, 
+        changed_files: dict[str, dict[str, str]], 
+        current_plan: str, 
+        file_name: str,
+        chat_logger_messages: list[dict[str, str]] | None = None
+    ):
         self.model = CLAUDE_MODEL
         self.messages = [Message(role="system", content=modify_eval_patch_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>\n\n"
@@ -319,8 +320,9 @@ class ModifyEvaluatorAgent(ChatGPT):
             if diff:
                 contractor_changes_made[file_name] = diff
         contractor_changed_files = "\n".join([f"<completed_patch file_name={file_name}>\n{diff}\n</completed_patch>" for file_name, diff in contractor_changes_made.items()])
-        changed_files_section = f"""The contractor has already completed these changes:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n"""
+        changed_files_section = f"""The contractor has already made these changes to finish the completed tasks:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n""" if contractor_changed_files.strip() else ""
         content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch
+        breakpoint()
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],

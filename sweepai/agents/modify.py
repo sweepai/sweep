@@ -254,12 +254,25 @@ def create_user_message(
         relevant_filepaths: list[str] = None,
         modify_files_dict: dict[str, dict[str, str]] = None
     ) -> str:
-    combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}. Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
+    current_fcr_index = 0
+    for current_fcr_index, fcr in enumerate(fcrs):
+        if not fcr.is_completed:
+            break
+    else:
+        raise ValueError("No incompleted FileChangeRequest found. Everything is done.")
+    combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}.{completed_prompt} Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
+    completed_prompt = "" if current_fcr_index == 0 else f" You have already completed {current_fcr_index} of the {len(fcrs)} required changes."
     if modify_files_dict:
         combined_request_unformatted += "\nThe above files reflect the latest updates you have already made. READ THROUGH THEM CAREFULLY TO FIGURE OUT WHAT YOUR NEXT STEPS ARE. Call the make_change, create_file or submit_result tools."
     files_to_modify = ""
-    for fcr in fcrs:
-        files_to_modify += f"\n\nYou will need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+    # TODO: fix the repeated relevant_files
+    for i, fcr in enumerate(fcrs):
+        if i < current_fcr_index:
+            files_to_modify += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where specific instructions were to:\n\n{fcr.instructions}"
+        elif i == current_fcr_index:
+            files_to_modify += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        else:
+            files_to_modify += f"\n\nYou will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
         if fcr.change_type == "modify":
             if not modify_files_dict:
                 files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
@@ -269,9 +282,11 @@ def create_user_message(
         elif fcr.change_type == "create":
             files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
     
+    deduped_file_names = list(set([fcr.filename for fcr in fcrs]))
     combined_request_message = combined_request_unformatted \
         .replace("{files_to_modify}", files_to_modify.lstrip('\n')) \
-        .replace("{files_to_modify_list}", english_join([fcr.filename for fcr in fcrs]))
+        .replace("{files_to_modify_list}", english_join(deduped_file_names)) \
+        .replace("{completed_prompt}", completed_prompt)
     if relevant_filepaths:
         relevant_file_paths_string = ""
         for relevant_file_path in relevant_filepaths:
@@ -287,6 +302,7 @@ def create_user_message(
     else:
         combined_request_message.replace("{relevant_files}", "")
     user_message = f"<user_request>\n{request}\n</user_request>\n{combined_request_message}"
+    # breakpoint()
     return user_message
 
 # find out if any changes were made by matching the contents of the files
@@ -302,6 +318,23 @@ def changes_made(modify_files_dict: dict[str, dict[str, str]], previous_modify_f
             return True
     return False
 
+def render_plan(fcrs: list[FileChangeRequest]) -> str:
+    current_fcr_index = 0
+    for current_fcr_index, fcr in enumerate(fcrs):
+        if not fcr.is_completed:
+            break
+    else:
+        raise ValueError("No incompleted FileChangeRequest found. Everything is done.")
+    plan = ""
+    for i, fcr in enumerate(fcrs):
+        if i < current_fcr_index:
+            plan += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where specific instructions were to:\n\n{fcr.instructions}"
+        elif i == current_fcr_index:
+            plan += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        else:
+            plan += f"\n\nYou will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+    return plan.strip('\n')
+
 def modify(
     fcrs: list[FileChangeRequest],
     request: str,
@@ -310,17 +343,6 @@ def modify(
     chat_logger: ChatLogger | None = None,
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
-    joined_fcrs = []
-    # join fcr start
-    for fcr in fcrs:
-        if not any(fcr.filename == joined_fcr.filename for joined_fcr in joined_fcrs):
-            joined_fcrs.append(fcr) # only add if it doesn't exist
-        else:
-            for joined_fcr in joined_fcrs:
-                if joined_fcr.filename == fcr.filename:
-                    joined_fcr.instructions += f"\n\n{fcr.instructions}" # add the instructions to the existing fcr
-    fcrs = joined_fcrs
-    # join fcr end
     user_message = create_user_message(
         fcrs=fcrs,
         request=request,
@@ -350,7 +372,7 @@ def modify(
         "initial_check_results": {},
         "done_counter": 0,
         "request": request,
-        "plan": "\n".join(f"<instructions file_name={fcr.filename}>\n{fcr.instructions}\n</instructions>" for fcr in fcrs),
+        "plan": render_plan(fcrs), 
         "user_message_index": 1,
         "user_message_index_chat_logger": 1
     }
