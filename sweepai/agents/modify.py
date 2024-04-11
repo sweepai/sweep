@@ -439,7 +439,7 @@ def modify(
     # before we return clean up modify files dict by removing any files with no changes
     files_to_remove = []
     for file_name, file_data in modify_files_dict.items():
-        if file_data['original_contents'] == file_data['contents']:
+        if not file_data or file_data['original_contents'] == file_data['contents']:
             files_to_remove.append(file_name)
     for file_name in files_to_remove:
         modify_files_dict.pop(file_name)
@@ -586,25 +586,26 @@ def handle_function_call(
             # set contents
             if file_name not in modify_files_dict:
                 modify_files_dict[file_name] = {}
-            overall_score, message_to_contractor = ModifyEvaluatorAgent().evaluate_patch(
+            next_step, feedback = ModifyEvaluatorAgent().evaluate_patch(
                 problem_statement=llm_state["request"],
                 patch = generate_diff(file_contents, new_file_contents),
                 changed_files=modify_files_dict,
+                new_file_contents=new_file_contents,
                 current_plan=llm_state["plan"],
                 file_name=file_name,
                 chat_logger_messages=chat_logger_messages
             )
-            if overall_score >= 8:
+            if next_step == "COMPLETE":
                 llm_response = f"{success_message}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
-            elif overall_score >= 3:
+            elif next_step == "CONTINUE":
                 # guard modify files
-                llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{message_to_contractor}"
+                llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
             else:
-                llm_response = f"Changes Rejected with ERROR:\n\n{message_to_contractor}"
+                llm_response = f"Changes Rejected with ERROR:\n\n{feedback}"
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""
