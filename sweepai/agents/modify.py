@@ -3,6 +3,7 @@ import os
 from rapidfuzz import fuzz, process
 
 from loguru import logger
+from tqdm import tqdm
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.core.reflection_utils import ModifyEvaluatorAgent
@@ -179,6 +180,34 @@ def english_join(items: list[str]) -> str:
     if len(items) == 2:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
+
+def find_best_match(needle: str, haystack: str, threshold: int = 80):
+    best_match = 0
+    best_score = 0
+    threshold = 80
+    file_contents_lines = haystack.split("\n")
+    num_lines = len(file_contents_lines)
+    num_match_lines = len(needle.split("\n"))
+    for start_line in tqdm(range(num_lines), total=num_lines):
+        potential_choices = []
+        for end_line in range(start_line + max(1, num_match_lines - 5), start_line + num_match_lines + 5):
+            if end_line > num_lines:
+                break
+            potential_choice = "\n".join(file_contents_lines[start_line:end_line])
+            potential_choices.append(potential_choice)
+
+        results = process.extractOne(needle, potential_choices, scorer=fuzz.QRatio, score_cutoff=threshold)
+            
+        if results is not None:
+            choice, score, _index = results
+
+            if score > best_score:
+                best_score = score
+                best_match = choice
+    
+    if best_score > threshold:
+        return best_match, best_score
+    return "", 0
 
 MODEL = "claude-3-opus-20240229"
 
@@ -458,17 +487,10 @@ def handle_function_call(
             correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
             # if the original_code couldn't be found in the chunk we need to let the llm know
             if original_code not in file_contents and correct_indent == -1:
-
-                # Might have perf issues with long files
                 # TODO: add weighted ratio to the choices, penalize whitespace less
-                potential_choices = []
-                num_lines = len(file_contents.split("\n"))
-                for start_line in range(num_lines):
-                    for end_line in range(start_line + 1, num_lines):
-                        potential_choices.append("\n".join(file_contents.split("\n")[start_line:end_line]))
-                best_match, score, _index = process.extractOne(tool_call["original_code"], choices=potential_choices, scorer=fuzz.WRatio)
+                best_match, best_score = find_best_match(original_code, file_contents)
 
-                if score > 80:
+                if best_score > 80:
                     error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match)}\n```"
                 else:
                     error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
