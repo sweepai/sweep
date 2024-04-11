@@ -94,15 +94,16 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                         result = pickle.loads(cached_result)
                 except Exception:
                     pass
-            try:
-                # If cache exists, load and return it
-                if os.path.exists(cache_file):
-                    if verbose:
-                        print("Used cache for function: " + func.__name__)
-                    with open(cache_file, "rb") as f:
-                        result = pickle.load(f)
-            except Exception:
-                logger.info("Unpickling failed")
+            if result is None:
+                try:
+                    # If cache exists, load and return it
+                    if os.path.exists(cache_file):
+                        if verbose:
+                            print("Used cache for function: " + func.__name__)
+                        with open(cache_file, "rb") as f:
+                            result = pickle.load(f)
+                except Exception:
+                    logger.info("Unpickling failed")
             # Otherwise, call the function and save its result to the cache
             if result is None:
                 result = func(*args, **kwargs)
