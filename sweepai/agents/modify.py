@@ -254,7 +254,7 @@ def create_user_message(
         relevant_filepaths: list[str] = None,
         modify_files_dict: dict[str, dict[str, str]] = None
     ) -> str:
-    combined_request_unformatted = "# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}. Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
+    combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}. Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
     if modify_files_dict:
         combined_request_unformatted += "\nThe above files reflect the latest updates you have already made. READ THROUGH THEM CAREFULLY TO FIGURE OUT WHAT YOUR NEXT STEPS ARE. Call the make_change, create_file or submit_result tools."
     files_to_modify = ""
@@ -303,12 +303,12 @@ def changes_made(modify_files_dict: dict[str, dict[str, str]], previous_modify_f
     return False
 
 def modify(
-        fcrs: list[FileChangeRequest],
-        request: str,
-        cloned_repo: ClonedRepo,
-        relevant_filepaths: list[str],
-        chat_logger: ChatLogger | None = None,
-    ) -> dict[str, dict[str, str]]:
+    fcrs: list[FileChangeRequest],
+    request: str,
+    cloned_repo: ClonedRepo,
+    relevant_filepaths: list[str],
+    chat_logger: ChatLogger | None = None,
+) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
     joined_fcrs = []
     # join fcr start
@@ -469,12 +469,12 @@ def get_latest_contents(file_name: str, cloned_repo: ClonedRepo, modify_files_di
         return ""
 
 def handle_function_call(
-        cloned_repo: ClonedRepo,
-        function_call: AnthropicFunctionCall,
-        modify_files_dict: dict[str, dict[str, str]],
-        llm_state: dict,
-        chat_logger_messages: list[dict[str, str]] | None = None
-    ) :
+    cloned_repo: ClonedRepo,
+    function_call: AnthropicFunctionCall,
+    modify_files_dict: dict[str, dict[str, str]],
+    llm_state: dict,
+    chat_logger_messages: list[dict[str, str]] | None = None
+) :
     # iterate through modify_files_dict and generate diffs
     llm_response = ""
     tool_name = function_call.function_name
