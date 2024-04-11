@@ -338,6 +338,14 @@ def render_plan(fcrs: list[FileChangeRequest]) -> str:
             plan += f"\n\nTask {i}: You will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
     return plan.strip('\n')
 
+def render_current_task(fcrs: list[FileChangeRequest]) -> str:
+    current_fcr_index = 0
+    for current_fcr_index, fcr in enumerate(fcrs):
+        if not fcr.is_completed:
+            break
+    fcr = fcrs[current_fcr_index]
+    return f"The CURRENT TASK is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n<current_task>\n{fcr.instructions}\n</current_task>"
+
 def modify(
     fcrs: list[FileChangeRequest],
     request: str,
@@ -376,6 +384,7 @@ def modify(
         "done_counter": 0,
         "request": request,
         "plan": render_plan(fcrs), 
+        "current_task": render_current_task(fcrs),
         "user_message_index": 1,
         "user_message_index_chat_logger": 1,
         "fcrs": fcrs,
@@ -621,16 +630,18 @@ def handle_function_call(
                 changed_files=modify_files_dict,
                 new_file_contents=new_file_contents,
                 current_plan=llm_state["plan"],
+                current_task=llm_state["current_task"],
                 file_name=file_name,
                 chat_logger_messages=chat_logger_messages
             )
-            if next_step in ("COMPLETE", "CONTINUE"):
+            if next_step in "COMPLETE":
                 # Sets first fcr that is not completed to completed
                 for fcr in llm_state["fcrs"]:
                     if not fcr.is_completed:
                         fcr.is_completed = True
                         break
                 llm_state["plan"] = render_plan(llm_state["fcrs"])
+                llm_state["current_task"] = render_current_task(llm_state["fcrs"])
 
             if next_step == "COMPLETE":
                 llm_response = f"{success_message}"

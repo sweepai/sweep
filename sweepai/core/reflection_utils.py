@@ -262,8 +262,8 @@ Require justification for plan deviations. Criticize behavior changes not handle
 Give harsh, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO CURRENT TASK'S SCOPE. NO EXTRA SUGGESTIONS.
 </feedback>
 <next_step>
-COMPLETE - merge the code
-CONTINUE - apply the current changes, but make additional fixes
+COMPLETE - mark the CURRENT TASK as complete
+CONTINUE - apply the current changes, but make additional fixes before marking the CURRENT TASK as complete
 REJECT - generate the code again
 </next_step>"""
 
@@ -325,6 +325,7 @@ class ModifyEvaluatorAgent(ChatGPT):
         changed_files: dict[str, dict[str, str]], 
         new_file_contents: str,
         current_plan: str, 
+        current_task: str,
         file_name: str,
         chat_logger_messages: list[dict[str, str]] | None = None
     ):
@@ -342,7 +343,7 @@ class ModifyEvaluatorAgent(ChatGPT):
                 contractor_changes_made[file_name] = diff
         contractor_changed_files = "\n".join([f"<completed_patch file_name={file_name}>\n{diff}\n</completed_patch>" for file_name, diff in contractor_changes_made.items()])
         changed_files_section = f"""The contractor has already completed these changes as part of the completed tasks:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n"""
-        content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch_and_contents + "Return your harsh code review of the patch:"
+        content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch_and_contents + current_task
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],
@@ -350,7 +351,7 @@ class ModifyEvaluatorAgent(ChatGPT):
             message_key="user_request",
         )
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
-        breakpoint()
+        # breakpoint()
         # update chat_logger_messages in place if they are passed in
         if chat_logger_messages:
             chat_logger_messages.append({"role": "assistant", "content": content})
