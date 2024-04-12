@@ -1,4 +1,3 @@
-
 import re
 
 from loguru import logger
@@ -218,35 +217,122 @@ Remember, your goal is to be a harsh critic and really scrutinize the work to en
 
 """ + modify_eval_response_format + modify_eval_examples
 
-modify_eval_patch_prompt = """
-You are an evaluator providing critical feedback on code changes submitted by a contractor for a coding task. 
+modify_eval_patch_prompt = """\
+You are a meticulous code reviewer providing critical feedback on a contractor's code changes to help resolve a GitHub issue.
 Inputs:
-- Original task description 
-- Current code patch (unified diff format)
-- Completed code changes
+- Task description
+- Code patch (diff) 
+- Completed changes
 - Current plan
-Check for common LLM failure modes:
-- Undefined variables/functions
-- Missing imports
-- Incomplete changes 
-- Repetitive or non-functional code
-Take into account the current modified file, patch and current plan. Take into account the changes that were already made by the contractor. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT PLAN'S SUGGESTIONS.
+- Current file
+Steps:
+1. Review CURRENT TASK for requirements.
+2. Analyze code patch:
+   - Purpose and impact of each change
+   - Check for LLM failures: 
+     - Logic errors
+     - Unhandled edge cases
+     - Missing imports
+     - Incomplete changes
+     - Undefined variables/functions
+     - Usage of nullable attributes
+     - Non-functional code
+   - Alignment with plan and requirements
+3. Perform critical contextual analysis:
+   - Break down changes 
+   - Explain reasoning
+   - Identify logic issues, edge cases, plan deviations
+   - Consider all scenarios and pitfalls
+   - Consider backwards compatibility and future-proofing
+   - Suggest fixes for problems
+4. Be extremely critical. Do not overlook ANY issues.
 Format:
-<judgement>
-Focus on identifying specific errors first. Justify harsh assessment.
-</judgement>
-<overall_score>
-1-10 scale weighted to correctness:
-1-4 - Syntax/logic errors
-5-7 - Some plan deviation
-8-10 - Comprehensively follows plan
-</overall_score>
+<task_summary>
+Provide a brief summary of the task requirements, the contractor's plan, and the current file changes.
+</task_summary>
+<patch_integration>
+Critically analyze patch fit, behavior changes, conflicts, issues, consequences. 
+</patch_integration>
+<code_examination>
+Break down changes. Explain purpose. Call out logic errors and integration issues in detail:
+- Unhandled edge cases: [list]
+- Logic errors: [list]
+- Missing imports: [list]
+- Incomplete changes: [list] 
+- Undefined variables/functions: [list]
+- Non-functional code: [list]
+Require justification for plan deviations. Criticize behavior changes not handled. Overlook NOTHING.
+</code_examination>
 <feedback>
-Provide specific, actionable, harsh feedback. LIMIT YOUR FEEDBACK TO THE SCOPE OF THE CURRENT PLAN'S SUGGESTIONS. DO NOT SUGGEST ADDITIONAL CHANGES UNLESS THE PLAN EXPLICITLY CALLS FOR IT.
-- Call out error locations and details
-- Specify plan deviations and require justification 
-- Point out failures to address
-</feedback>"""
+Give critical, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO CURRENT TASK'S SCOPE. NO EXTRA SUGGESTIONS.
+</feedback>
+<next_step>
+COMPLETE - mark the CURRENT TASK as complete
+CONTINUE - apply the current changes, but make additional fixes before marking the CURRENT TASK as complete
+REJECT - generate the code again
+</next_step>"""
+
+modify_eval_suffix_prompt = """Again, you will critically review the code changes and consider the following concerns and respond in the following format.
+
+Inputs:
+- Task description
+- Code patch (diff) 
+- Completed changes
+- Current plan
+- Current file
+Steps:
+1. Review CURRENT TASK for requirements.
+2. Analyze code patch:
+   - Purpose and impact of each change
+   - Check for LLM failures: 
+     - Logic errors
+     - Unhandled edge cases
+     - Missing imports
+     - Incomplete changes
+     - Undefined variables/functions
+     - Usage of nullable attributes
+     - Non-functional code
+   - Alignment with plan and requirements
+3. Perform critical contextual analysis:
+   - Break down changes 
+   - Explain reasoning
+   - Identify logic issues, edge cases, plan deviations
+   - Consider all scenarios and pitfalls
+   - Consider backwards compatibility and future-proofing
+   - Suggest fixes for problems
+   - Evaluate error handling and fallback mechanisms
+4. Be extremely critical. Do not overlook ANY issues.
+
+Format:
+
+<patch_integration>
+Critically analyze patch fit, behavior changes, conflicts, issues, consequences. 
+</patch_integration>
+
+<code_examination>
+Break down changes. Explain purpose. Call out logic errors and integration issues in detail:
+- Unhandled edge cases: [list]
+- Logic errors: [list]
+- Missing imports: [list]
+- Incomplete changes: [list] 
+- Undefined variables/functions: [list]
+- Non-functional code: [list]
+Require justification for plan deviations. Criticize behavior changes not handled. Overlook NOTHING.
+</code_examination>
+
+<feedback>
+Give critical, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO THE SCOPE OF THE CURRENT TASK. NO EXTRA SUGGESTIONS.
+</feedback>
+
+<next_step>
+REJECT - the code is a step backwards, so we should revert the patch and generate the code again
+CONTINUE - apply the current changes, but make additional tweaks before moving on to the next task of the plan
+COMPLETE - mark the CURRENT TASK as complete as there are no concerns or missed edge cases
+</next_step>
+
+Note: Only mark the task as complete if you are confident that all requirements have been met, edge cases have been handled, error handling and fallback mechanisms are in place, and no further improvements are necessary. If there are any doubts or actionable suggestions for enhancements, provide feedback and mark the task as "CONTINUE" or "REJECT" accordingly. Again, limit the feedback to the scope of the current task.
+
+Respond with your extremely critical analysis and feedback."""
 
 # general framework for a dfs search
 # 1. sample trajectory
@@ -299,18 +385,23 @@ class EvaluatorAgent(ChatGPT):
 
 # Eval agent specific to modify step
 class ModifyEvaluatorAgent(ChatGPT):
-    def evaluate_patch(self, 
-            problem_statement: str, 
-            patch: str, 
-            changed_files: dict[str, dict[str, str]], 
-            current_plan: str, 
-            file_name: str,
-            chat_logger_messages: list[dict[str, str]] | None = None):
+    def evaluate_patch(
+        self, 
+        problem_statement: str, 
+        patch: str, 
+        changed_files: dict[str, dict[str, str]], 
+        new_file_contents: str,
+        current_plan: str, 
+        current_task: str,
+        file_name: str,
+        previous_attempt: str = "",
+        chat_logger_messages: list[dict[str, str]] | None = None
+    ):
         self.model = CLAUDE_MODEL
         self.messages = [Message(role="system", content=modify_eval_patch_prompt)]
         formatted_problem_statement = f"This is the task for the contractor to complete:\n<task_to_complete>\n{problem_statement}\n</task_to_complete>\n\n"
-        formatted_patch = f"This is the CURRENT PATCH that the contractor has submitted for evaluation:\n<current_patch file_name={file_name}>\n{patch}\n</current_patch>\n\n"
-        formatted_plan = f"This is the current plan that we must follow:\n<current_plan>\n{current_plan}\n</current_plan>\n\n"
+        formatted_patch_and_contents = f"This is the CURRENT PATCH that the contractor has submitted for evaluation:\n<current_patch file_name={file_name}>\n{patch}\n</current_patch>\n\n" + f"This is the current file after modifications:\n<current_file>\n{new_file_contents}\n</current_file>\n\n"
+        formatted_plan = f"This is the current plan that we must follow:\n<entire_plan>\n{current_plan}\n</entire_plan>\n\n"
         contractor_changes_made: dict[str, str] = {}
         for file_name, file_data in changed_files.items():
             if "original_contents" not in file_data or "contents" not in file_data:
@@ -319,8 +410,11 @@ class ModifyEvaluatorAgent(ChatGPT):
             if diff:
                 contractor_changes_made[file_name] = diff
         contractor_changed_files = "\n".join([f"<completed_patch file_name={file_name}>\n{diff}\n</completed_patch>" for file_name, diff in contractor_changes_made.items()])
-        changed_files_section = f"""The contractor has already completed these changes:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n"""
-        content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch
+        changed_files_section = f"""The contractor has already completed these changes as part of the completed tasks:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n"""
+        content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch_and_contents + current_task
+        if previous_attempt:
+            content += "\n\n" + previous_attempt
+        content += "\n\n" + modify_eval_suffix_prompt
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],
@@ -328,35 +422,39 @@ class ModifyEvaluatorAgent(ChatGPT):
             message_key="user_request",
         )
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
+        # breakpoint()
         # update chat_logger_messages in place if they are passed in
         if chat_logger_messages:
             chat_logger_messages.append({"role": "assistant", "content": content})
             chat_logger_messages.append({"role": "user", "content": evaluate_response})
-        overall_score = None
-        message_to_contractor = None
+        next_step = None
+        feedback = ""
         try:
-            overall_score_pattern = r"<overall_score>(.*?)</overall_score>"
+            next_step_pattern = r"<next_step>(.*?)</next_step>"
             message_to_contractor_pattern = r"<feedback>(.*?)</feedback>"
 
-            overall_score_match = re.search(overall_score_pattern, evaluate_response, re.DOTALL)
+            next_step_match = re.search(next_step_pattern, evaluate_response, re.DOTALL)
             message_to_contractor_match = re.search(message_to_contractor_pattern, evaluate_response, re.DOTALL)
 
-            if overall_score_match is None or message_to_contractor_match is None:
-                return overall_score, message_to_contractor
+            if next_step_match is None or message_to_contractor_match is None:
+                return next_step, feedback
 
-            overall_score = overall_score_match.group(1).strip()
+            next_step = next_step_match.group(1).strip()
             # check if 1 through 10 are a match
-            if not re.match(r"^10|[1-9]$", overall_score):
-                return None, None
+            if not any(["COMPLETE" in next_step, "CONTINUE" in next_step, "REJECT" in next_step]):
+                return None, ""
             else:
-                overall_score_match = re.match(r"^10|[1-9]$", overall_score)
-                overall_score = overall_score_match.group(0).strip()
-            overall_score = int(overall_score)
-            message_to_contractor = message_to_contractor_match.group(1).strip()
-            return overall_score, message_to_contractor
+                if "COMPLETE" in next_step:
+                    next_step = "COMPLETE"
+                elif "CONTINUE" in next_step:
+                    next_step = "CONTINUE"
+                else:
+                    next_step = "REJECT"
+            feedback = message_to_contractor_match.group(1).strip()
+            return next_step, feedback
         except Exception as e:
             logger.info(f"Error evaluating response: {e}")
-            return overall_score, message_to_contractor
+            return next_step, feedback
 
 
     def evaluate_run(self, problem_statement: str, run_text: str, changed_files: dict[str, dict[str, str]]):
