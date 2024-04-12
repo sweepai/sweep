@@ -388,6 +388,7 @@ def modify(
         "user_message_index": 1,
         "user_message_index_chat_logger": 1,
         "fcrs": fcrs,
+        "previous_attempt": "",
     }
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
@@ -631,10 +632,15 @@ def handle_function_call(
                 new_file_contents=new_file_contents,
                 current_plan=llm_state["plan"],
                 current_task=llm_state["current_task"],
+                previous_attempt=llm_state["previous_attempt"],
                 file_name=file_name,
                 chat_logger_messages=chat_logger_messages
             )
-            if next_step in "COMPLETE":
+            if next_step in ("REJECT", "CONTINUE"):
+                previous_attempt = f"<previous_attempt>\nThe contractor previously tried making this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you gave the following feedback:\n{feedback}\n</previous_attempt>"
+                llm_state["previous_attempt"] = previous_attempt
+
+            if next_step == "COMPLETE":
                 # Sets first fcr that is not completed to completed
                 for fcr in llm_state["fcrs"]:
                     if not fcr.is_completed:
@@ -642,11 +648,10 @@ def handle_function_call(
                         break
                 llm_state["plan"] = render_plan(llm_state["fcrs"])
                 llm_state["current_task"] = render_current_task(llm_state["fcrs"])
-
-            if next_step == "COMPLETE":
                 llm_response = f"{success_message}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
+                llm_state["previous_attempt"] = ""
             elif next_step == "CONTINUE":
                 # guard modify files
                 llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"

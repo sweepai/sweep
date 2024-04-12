@@ -226,7 +226,7 @@ Inputs:
 - Current plan
 - Current file
 Steps:
-1. Review task description for requirements.
+1. Review CURRENT TASK for requirements.
 2. Analyze code patch:
    - Purpose and impact of each change
    - Check for LLM failures: 
@@ -242,9 +242,13 @@ Steps:
    - Explain reasoning
    - Identify logic issues, edge cases, plan deviations
    - Consider all scenarios and pitfalls
+   - Consider backwards compatibility and future-proofing
    - Suggest fixes for problems
 4. Be extremely critical. Do not overlook ANY issues.
 Format:
+<task_summary>
+Provide a brief summary of the task requirements, the contractor's plan, and the current file changes.
+</task_summary>
 <patch_integration>
 Harshly analyze patch fit, behavior changes, conflicts, issues, consequences. 
 </patch_integration>
@@ -266,6 +270,67 @@ COMPLETE - mark the CURRENT TASK as complete
 CONTINUE - apply the current changes, but make additional fixes before marking the CURRENT TASK as complete
 REJECT - generate the code again
 </next_step>"""
+
+modify_eval_suffix_prompt = """Again, you will critically review the code changes and consider the following concerns and respond in the following format.
+
+Inputs:
+- Task description
+- Code patch (diff) 
+- Completed changes
+- Current plan
+- Current file
+Steps:
+1. Review CURRENT TASK for requirements.
+2. Analyze code patch:
+   - Purpose and impact of each change
+   - Check for LLM failures: 
+     - Logic errors
+     - Unhandled edge cases
+     - Missing imports
+     - Incomplete changes
+     - Undefined variables/functions
+     - Non-functional code
+   - Alignment with plan and requirements
+3. Perform brutal contextual analysis:
+   - Break down changes 
+   - Explain reasoning
+   - Identify logic issues, edge cases, plan deviations
+   - Consider all scenarios and pitfalls
+   - Consider backwards compatibility and future-proofing
+   - Suggest fixes for problems
+   - Evaluate error handling and fallback mechanisms
+4. Be extremely critical. Do not overlook ANY issues.
+
+Format:
+
+<patch_integration>
+Harshly analyze patch fit, behavior changes, conflicts, issues, consequences. 
+</patch_integration>
+
+<code_examination>
+Brutally break down changes. Explain purpose. Call out logic errors and integration issues in detail:
+- Unhandled edge cases: [list]
+- Logic errors: [list]
+- Missing imports: [list]
+- Incomplete changes: [list] 
+- Undefined variables/functions: [list]
+- Non-functional code: [list]
+Require justification for plan deviations. Criticize behavior changes not handled. Overlook NOTHING.
+</code_examination>
+
+<feedback>
+Give harsh, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO THE SCOPE OF THE CURRENT TASK. NO EXTRA SUGGESTIONS.
+</feedback>
+
+<next_step>
+REJECT - generate the code again
+CONTINUE - apply the current changes, but make additional fixes before moving on to the next task
+COMPLETE - mark the CURRENT TASK as complete as there are no concerns or missed edge cases
+</next_step>
+
+Note: Only mark the task as complete if you are confident that all requirements have been met, edge cases have been handled, error handling and fallback mechanisms are in place, and no further improvements are necessary. If there are any doubts or actionable suggestions for enhancements, provide feedback and mark the task as "CONTINUE" or "REJECT" accordingly. Again, limit the feedback to the scope of the current task.
+
+Respond with your critical analysis and feedback."""
 
 # general framework for a dfs search
 # 1. sample trajectory
@@ -327,6 +392,7 @@ class ModifyEvaluatorAgent(ChatGPT):
         current_plan: str, 
         current_task: str,
         file_name: str,
+        previous_attempt: str = "",
         chat_logger_messages: list[dict[str, str]] | None = None
     ):
         self.model = CLAUDE_MODEL
@@ -344,6 +410,9 @@ class ModifyEvaluatorAgent(ChatGPT):
         contractor_changed_files = "\n".join([f"<completed_patch file_name={file_name}>\n{diff}\n</completed_patch>" for file_name, diff in contractor_changes_made.items()])
         changed_files_section = f"""The contractor has already completed these changes as part of the completed tasks:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n"""
         content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch_and_contents + current_task
+        if previous_attempt:
+            content += "\n\n" + previous_attempt
+        content += "\n\n" + modify_eval_suffix_prompt
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],
@@ -351,7 +420,7 @@ class ModifyEvaluatorAgent(ChatGPT):
             message_key="user_request",
         )
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
-        # breakpoint()
+        breakpoint()
         # update chat_logger_messages in place if they are passed in
         if chat_logger_messages:
             chat_logger_messages.append({"role": "assistant", "content": content})
