@@ -156,6 +156,19 @@ def get_files_to_change(
             key="assistant",
         )
     )
+    # pare down message lists before we create messages
+    max_chars = 150000 * 3.75 # 120k tokens
+    counter = sum([len(snippet.expand(300).get_snippet(False, False)) for snippet in relevant_snippets]) + sum(
+        [len(snippet.expand(300).get_snippet(False, False)) for snippet in read_only_snippets]
+    )
+    removed = 0
+    while counter > max_chars:
+        if removed % 2 == 0:
+            removed_snippet = relevant_snippets.pop()
+            counter -= len(removed_snippet.expand(300).get_snippet(False, False))
+        else:
+            removed_snippet = read_only_snippets.pop()
+            counter -= len(removed_snippet.expand(300).get_snippet(False, False))
     relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
     # attach all relevant snippets
