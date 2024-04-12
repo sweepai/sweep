@@ -732,17 +732,12 @@ def handle_function_call(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
                 # return results first by occurrences then by alphabetical order
-                # breakpoint()
                 non_stored_files = sorted([
                     file_path
                     for file_path in file_output_dict
                     if file_path not in repo_context_manager.top_snippet_paths
                 ], key=lambda x: (-file_to_num_occurrences[x], x))
                 non_stored_files = [file_path + f" ({file_to_num_occurrences[file_path]} occurrences)" for file_path in non_stored_files]
-                # breakpoint()
-                fetched_files_that_are_stored = list(dict.fromkeys([snippet.file_path for snippet in repo_context_manager.current_top_snippets]))
-                joined_files_string = "\n".join([file_path for file_path in fetched_files_that_are_stored if file_path in file_output_dict])
-                stored_files_string = f'These search results have been stored already:\n<stored_search_results>\n{joined_files_string}\n</stored_search_results>\n' if joined_files_string else ""
                 non_stored_files_string = "These search results have not been stored:\n<non_stored_search_results>\n" + "\n".join(non_stored_files) + "\n</non_stored_search_results>\n" if non_stored_files else "All of the files above have already been stored. Search for a new term.\n"
                 if len(file_output_dict) <= 10:
                     output = (
