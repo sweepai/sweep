@@ -532,89 +532,90 @@ def handle_function_call(
         error_message = ""
         for key in ["file_name", "original_code", "new_code"]:
             if key not in tool_call:
-                error_message += f"Missing {key} in tool call.Call the tool again but this time provide the {key}.\n"
+                error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
-        for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
-            # ensure the file we are editting exists and is in modify_files_dict
-            if "file_name" in tool_call:
-                file_name = tool_call["file_name"].strip()
-                # if not in codebase or has not been created
-                if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
-                    error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
+        if not error_message:
+            for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
+                # ensure the file we are editting exists and is in modify_files_dict
+                if "file_name" in tool_call:
+                    file_name = tool_call["file_name"].strip()
+                    # if not in codebase or has not been created
+                    if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
+                        error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
+                        break
+                llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
+                success_message = ""
+                original_code = tool_call["original_code"].strip("\n")
+                new_code = tool_call["new_code"].strip("\n")
+                if new_code == original_code:
+                    error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                     break
-            llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
-            success_message = ""
-            original_code = tool_call["original_code"].strip("\n")
-            new_code = tool_call["new_code"].strip("\n")
-            if new_code == original_code:
-                error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
-                break
-            # get the latest contents of the file
-            file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
-            warning_message = ""
-            
-            # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
-            if "\r\n" in file_contents:
-                # replace in current chunk
-                file_contents = file_contents.replace("\r\n", "\n")
-            # check to see that the original_code is in the new_code by trying all possible indentations
-            correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
-            # if the original_code couldn't be found in the chunk we need to let the llm know
-            if original_code not in file_contents and correct_indent == -1:
-                if not original_code.strip():
-                    error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
-
-                # TODO: add weighted ratio to the choices, penalize whitespace less
-                best_match, best_score = find_best_match(original_code, file_contents)
-
-                if best_score > 80:
-                    error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match)}\n```"
-                else:
-                    error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                # get the latest contents of the file
+                file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
+                warning_message = ""
                 
-                # first check the lines in original_code, if it is too long, ask for smaller changes
-                original_code_lines_length = len(original_code.split("\n"))
-                if original_code_lines_length > 10:
-                    error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                else:
-                    # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                    # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                    error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                break
-            # ensure original_code and new_code has the correct indents
-            new_code_lines = new_code.split("\n")
-            new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
-            if rstrip_original_code:
-                original_code_lines = [line.rstrip() for line in original_code.split("\n")]
-            else:
-                original_code_lines = original_code.split("\n")
-            original_code = "\n".join(f'{correct_indent*" "}{line}' for line in original_code_lines)
-            # before we apply changes make sure original_code is unique inside current_chunk
-            current_chunk_occurences = file_contents.count(original_code)
-            if current_chunk_occurences > 1:
-                error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
-                break
+                # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
+                if "\r\n" in file_contents:
+                    # replace in current chunk
+                    file_contents = file_contents.replace("\r\n", "\n")
+                # check to see that the original_code is in the new_code by trying all possible indentations
+                correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
+                # if the original_code couldn't be found in the chunk we need to let the llm know
+                if original_code not in file_contents and correct_indent == -1:
+                    if not original_code.strip():
+                        error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
 
-            # apply changes
-            new_file_contents = file_contents.replace(original_code, new_code, 1)
-            # Check if changes were made
-            if new_file_contents == file_contents:
-                logger.warning("No changes were made to the code.")
-                error_message = "No changes were made, it seems the changes you requested were not applied or made no difference to the code file."
-                break
-            
-            # Check if the changes are valid
-            if not error_message:
-                check_results = get_check_results(file_name, new_file_contents)
-                # check_results_message = check_results.is_worse_than_message(initial_check_results) - currently unused
-                failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
-                current_diff = generate_diff(
-                    file_contents, new_file_contents
-                )
-                if failing_parse:
-                    error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                    # TODO: add weighted ratio to the choices, penalize whitespace less
+                    best_match, best_score = find_best_match(original_code, file_contents)
+
+                    if best_score > 80:
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match)}\n```"
+                    else:
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                    
+                    # first check the lines in original_code, if it is too long, ask for smaller changes
+                    original_code_lines_length = len(original_code.split("\n"))
+                    if original_code_lines_length > 10:
+                        error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                    else:
+                        # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                        # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                        error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                     break
+                # ensure original_code and new_code has the correct indents
+                new_code_lines = new_code.split("\n")
+                new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
+                if rstrip_original_code:
+                    original_code_lines = [line.rstrip() for line in original_code.split("\n")]
+                else:
+                    original_code_lines = original_code.split("\n")
+                original_code = "\n".join(f'{correct_indent*" "}{line}' for line in original_code_lines)
+                # before we apply changes make sure original_code is unique inside current_chunk
+                current_chunk_occurences = file_contents.count(original_code)
+                if current_chunk_occurences > 1:
+                    error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
+                    break
+
+                # apply changes
+                new_file_contents = file_contents.replace(original_code, new_code, 1)
+                # Check if changes were made
+                if new_file_contents == file_contents:
+                    logger.warning("No changes were made to the code.")
+                    error_message = "No changes were made, it seems the changes you requested were not applied or made no difference to the code file."
+                    break
+                
+                # Check if the changes are valid
+                if not error_message:
+                    check_results = get_check_results(file_name, new_file_contents)
+                    # check_results_message = check_results.is_worse_than_message(initial_check_results) - currently unused
+                    failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
+                    current_diff = generate_diff(
+                        file_contents, new_file_contents
+                    )
+                    if failing_parse:
+                        error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                        break
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
         if not error_message:
@@ -627,7 +628,7 @@ def handle_function_call(
                 modify_files_dict[file_name] = {}
             next_step, feedback = ModifyEvaluatorAgent().evaluate_patch(
                 problem_statement=llm_state["request"],
-                patch = generate_diff(file_contents, new_file_contents),
+                patch = generate_diff(file_contents, new_file_contents, n=10),
                 changed_files=modify_files_dict,
                 new_file_contents=new_file_contents,
                 current_plan=llm_state["plan"],
