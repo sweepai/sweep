@@ -233,11 +233,18 @@ def get_files_to_change(
             temperature=0.1
         )
         print("files_to_change_response", files_to_change_response)
+        relevant_modules = []
+        pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+        relevant_modules_match = pattern.search(files_to_change_response)
+        if relevant_modules_match:
+            relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+        print("relevant_modules", relevant_modules)
         file_change_requests = []
         for re_match in re.finditer(
             FileChangeRequest._regex, files_to_change_response, re.DOTALL
         ):
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
