@@ -210,8 +210,12 @@ Please use the following XML format for your response:
 * Outline a plan that completely resolves the user's request, referencing provided code snippets, entity names, and necessary files/directories.
 
 List ALL files we should modify to resolve the issue:
-- File path 1 - Outline of instructions for modifying the file
-- File path 2 - Outline of instructions for modifying the file
+- File path 1: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
+- File path 2: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
 [additional files as needed]
 
 List ALL relevant utility modules from the provided set and specify where they can be used, including:
@@ -242,59 +246,34 @@ List ALL relevant utility modules from the provided set and specify where they c
 * Detailed natural language instructions for modifying the file to solve the issue.
 * Reference the locations of the changes using surrounding code or function headers, not line numbers.
 * Include relevant type definitions, interfaces, and schemas.
-* Provide the actual code changes required in the diff format, with detailed explanations.
-* Each file should be modified at most once.
+* Each file should be modified at most once. If multiple changes are needed, separate them into different <modify> blocks.
 </modify>
 
 [additional modifies as needed]
 </plan>
 
 Here's an example of an excellent issue analysis and plan:
-
 <issue_analysis>
-The root cause of the issue is that the `getUserById` method in the `UserService` class (user_service.py) does not handle the case where a user has been soft deleted. It should return None if the `user.deleted` property is set to True.
+The root cause of the issue is that the searchProducts method in the ProductService class (product_service.py) does not properly handle searching for products by category, price range, and keyword simultaneously. It should return products that match all the provided criteria.
 
 To completely resolve the user's request, we need to:
-- Modify the `getUserById` method in user_service.py to add a flag to conditionally return None for deleted users 
-- Update the call to `getUserById` in the `get_user` endpoint in app.py to pass the new flag
 
+Modify the searchProducts method in product_service.py to:
+Add optional parameters for category_id, min_price, max_price, and keyword
+Update the database query to filter products based on the provided criteria
+Update the search_products endpoint in app.py to:
+Extract the new search parameters from the request
+Pass the parameters to the searchProducts method
+Update the ProductSchema in schemas/product_schema.py to include the category_id field
 Relevant files to modify:
-- src/services/user_service.py - Add `include_deleted` flag to `getUserById`, return None if user.deleted is True when flag is set 
-- src/app.py - Update call to `getUserById` in `get_user` endpoint to pass `include_deleted=True`
 
-No additional utility modules are needed as the necessary `User` entity and `UserService` are already imported in the relevant files.
+src/services/product_service.py - Update searchProducts to handle category, price range, and keyword filtering
+src/app.py - Update search_products endpoint to extract new parameters and pass them to searchProducts
+src/schemas/product_schema.py - Add category_id field to ProductSchema
+Relevant utility modules:
+"""
 
-The <modify> changes work together to fully handle soft deleted users - the service method is updated to support the new flag, and the API endpoint is updated to use the flag. The service layer change is made first as it is lower-level.
-</issue_analysis>
-
-<plan>
-<modify file="src/services/user_service.py">
-In the `getUserById` method of the `UserService` class:
-* Add a new parameter `include_deleted` with a default value of `False` 
-* After fetching the user, add an if statement to check:
-  - If `include_deleted` is False and `user.deleted` is True, return None
-  - Otherwise, return the user as normal
-The code changes should look like:
-```diff
-  def getUserById(self, user_id: int, include_deleted: bool = False) -> Optional[User]:
-    user = self.db.query(User).filter(User.id == user_id).first()
-+   if not include_deleted and user and user.deleted:
-+     return None  
-    return user
-```
-</modify>
-
-<modify file="src/app.py" relevant_files="src/services/user_service.py">
-In the `get_user` endpoint:
-* Locate the call to `user_service.getUserById(user_id)`
-* Add the `include_deleted=True` argument to the method call
-The code change should look like:  
-```diff
-- user = user_service.getUserById(user_id)
-+ user = user_service.getUserById(user_id, include_deleted=True)
-```
-</modify>
-</plan>"""
+# TODO: Fix relevant files block
 
 files_to_change_prompt = """# Task: 
 Critically analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
@@ -307,8 +286,9 @@ Guidelines:
 * Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
 * Include relevant type definitions, interfaces, and schemas in the relevant_files to provide a clear understanding of the entities and their relationships.
 * Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
-* When suggesting code modifications, provide detailed instructions. Write all code changes in the diff format. Do not leave comments or placeholders for the user to fill in.
 * Be certain that your plan is complete and covers all the necessary changes to fully resolve the issue.
+* Suggest high-quality changes that are completely safe, maintainable, efficient and backwards compatible.
+* Divide the task into smaller steps, where each <create> or <modify> section corresponds to one small code block of change. You may have multiple <modify> blocks for the same file.
 
 Please use the following XML format for your response:
 
@@ -318,11 +298,15 @@ Please use the following XML format for your response:
 * Outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
 
 List ALL files we should modify to resolve the issue:
-- File path 1 - Outline of instructions for modifying the file
-- File path 2 - Outline of instructions for modifying the file
+- File path 1: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
+- File path 2: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
 [additional files as needed]
 
-List ALL relevant utility modules from the provided set and specify where they can be used, including:
+List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
 - Type definitions, interfaces, and schemas
 - Helper functions
 - Frontend components
@@ -336,113 +320,104 @@ List ALL relevant utility modules from the provided set and specify where they c
 
 # Plan:
 <plan>
-<create file="file_path_1" relevant_files="space-separated list of files containing ALL modules to use when creating file_path_1">
+<create file="file_path_1">
 * Natural language instructions for creating the new file to solve the issue.
 * Reference necessary imports and entity names.
-* Include relevant type definitions, interfaces, and schemas.
+* Include references to relevant type definitions, interfaces, and schemas.
 </create>
 
 [additional creates as needed]
 
-<modify file="file_path_2" relevant_files="space-separated list of files containing ALL modules to use while modifying file_path_2">
+<modify file="file_path_2">
 * Detailed natural language instructions for modifying the file to solve the issue.
 * Reference the locations of the changes using surrounding code or function headers, not line numbers.
-* Include relevant type definitions, interfaces, and schemas.
+* Include references to relevant type definitions, interfaces, and schemas.
+* Describe code changes, but do not write the actual code.
+* You may modify the same file multiple times. Each <modify> block should contain a single block of code changes from one small section of the file.
 </modify>
 
 [additional modifies as needed]
 </plan>
 
+<relevant_modules>
+[List of all relevant files to use or read while making changes, such as type definitions, interfaces, and schemas, one per line]
+</relevant_modules>
+
 Here's an example of an excellent issue analysis and plan:
 
 <issue_analysis>
-The root cause of the issue is that the `getUserById` method in the `UserService` class (user_service.py) does not handle the case where a user has been soft deleted. It should return None if the `user.deleted` property is set to True.
+The root cause of the issue is that the `createPost` method in the `PostService` class (post_service.py) does not validate that the user submitting the post has a non-deleted account. It should check the `user.deleted` property and raise an exception if the user's account is deleted.
 
 To completely resolve the user's request, we need to:
-- Modify the `getUserById` method in user_service.py to add a flag to conditionally return None for deleted users 
-- Update the call to `getUserById` in the `get_user` endpoint in app.py to pass the new flag
+- Modify the `createPost` method in post_service.py to check if the user's account is deleted before creating the post
+- Add a new exception class `DeletedAccountError` in exceptions.py to raise when a deleted user tries to create a post
+- Update the `create_post` endpoint in app.py to catch the new `DeletedAccountError` and return a 403 error response
 
 Relevant files to modify:
-- src/services/user_service.py - Add `include_deleted` flag to `getUserById`, return None if user.deleted is True when flag is set 
-- src/app.py - Update call to `getUserById` in `get_user` endpoint to pass `include_deleted=True`
+- src/services/post_service.py
+  - Import the `User` entity and `DeletedAccountError` 
+  - Add validation to check if the user's account is deleted in `createPost`
+  - Raise `DeletedAccountError` if the user's account is deleted
+- src/exceptions.py
+  - Define a new exception class `DeletedAccountError`
+- src/app.py
+  - Import the new `DeletedAccountError`
+  - Catch `DeletedAccountError` in the `create_post` endpoint
+  - Return a 403 error response if `DeletedAccountError` is caught
 
-No additional utility modules are needed as the necessary `User` entity and `UserService` are already imported in the relevant files.
+The relevant utility modules are:
+- `User` entity (src/entities/user.py) - to check if user's account is deleted 
+- `Post` entity (src/entities/post.py) - the entity being created in `createPost`
 
-The <modify> changes work together to fully handle soft deleted users - the service method is updated to support the new flag, and the API endpoint is updated to use the flag. The service layer change is made first as it is lower-level.
+The <create> and <modify> changes work together to fully handle preventing deleted users from creating posts:
+- The new exception class is created first to be used in the other changes
+- The service method is updated to validate the user and raise the new exception 
+- The API endpoint is updated to catch the new exception and return an appropriate error
 </issue_analysis>
 
 <plan>
-<modify file="src/services/user_service.py">
-In the `getUserById` method of the `UserService` class:
-* Add a new parameter `include_deleted` with a default value of `False` 
-* After fetching the user, add an if statement to check:
-  - If `include_deleted` is False and `user.deleted` is True, return None
-  - Otherwise, return the user as normal
+<create file="src/exceptions.py">
+* Define a new exception class called `DeletedAccountError`
+* Have it inherit from the base `Exception` class
+* Give it a clear error message indicating that a deleted account tried to perform an action
+</create>
+
+<modify file="src/services/post_service.py">
+At the top of the file:
+* Import the `User` entity from `src/entities/user.py`
+* Import the `DeletedAccountError` from `src/exceptions.py`
+
+In the `createPost` method of the `PostService` class:
+* After getting the `user` by ID, add an if statement to check:
+  - If `user.deleted` is True, raise a `DeletedAccountError`
+  - Otherwise, continue with creating the post as normal
 </modify>
 
-<modify file="src/app.py" relevant_files="src/services/user_service.py">
-In the `get_user` endpoint:
-* Locate the call to `user_service.getUserById(user_id)`
-* Add the `include_deleted=True` argument to the method call
+<modify file="src/services/post_service.py">
+In the `createPost` method of the `PostService` class:
+* After the line that creates the new `post` instance, add:
+  - A call to `self.post_repo.save(post)` to save the new post to the database
+  - A call to `self.logger.info(f"User {{user.id}} created a new post with id {{post.id}}")` to log the post creation
+* Return the newly created `post` instance
 </modify>
-</plan>"""
 
-# files_to_change_prompt = """\
-# # Task:
-# Reference and analyze the snippets, repo, and issue to break down the requested change and propose the minimal plan that resolve's the user's issue.
+<modify file="src/app.py">
+At the top of the file: 
+* Import the `DeletedAccountError` from `src/exceptions.py`
 
-# Follow these rules:
-# * You may only modify existing files and create new files but may not necessarily need both.
-# * Include the full path (e.g. src/main.py and not just main.py), using the snippets and repo_tree for reference.
-# * Provide natural language instructions on updates to business logic and specify which files to import.
-# * Be concrete with instructions. Do not write "identify x" or "ensure y is done". Simply write "add x" or "change y to z".
-# * Provide the plan that is minimal and complete.
+In the `create_post` endpoint:
+* Wrap the existing code in a try/except block
+* Catch the `DeletedAccountError` in the except block
+* If caught, return a JSON response with:
+  - A 403 status code
+  - An error message like "Cannot create post with a deleted account"
+</modify>
+</plan>
 
-# You MUST follow the following format with XML tags:
-
-# # Contextual Request Analysis:
-# <contextual_request_analysis>
-# * Outline the minimal plan that solves the user request by referencing the snippets, names of entities and any other necessary files/directories.
-# * Describe each <create> and <modify> section in the following plan and why it will be needed. Select the minimal amount of changes possible
-# ...
-# </contextual_request_analysis>
-
-# # Plan:
-# <plan>
-# <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-# * Natural language instructions for creating the new file needed to solve the issue.
-# * Reference necessary files, imports and entity names.
-# ...
-# </create>
-# ...
-
-# <modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-# * Natural language instructions for the modifications needed to solve the issue.
-# * Be concise and reference necessary files, imports and entity names.
-# * You may only modify each file at most once.
-# ...
-# </modify>
-# ...
-# </plan>
-
-# Here's an example of an excellent issue analysis and plan:
-
-# <plan>
-# <modify file="src/services/user_service.py">
-# In the `getUserById` method of the `UserService` class:
-# * Add a new parameter `include_deleted` with a default value of `False` 
-# * After fetching the user, add an if statement to check:
-#   - If `include_deleted` is False and `user.deleted` is True, return None
-#   - Otherwise, return the user as normal
-# </modify>
-
-# <modify file="src/app.py" relevant_files="src/services/user_service.py">
-# In the `get_user` endpoint:
-# * Locate the call to `user_service.getUserById(user_id)`
-# * Add the `include_deleted=True` argument to the method call
-# </modify>
-# </plan>"""
-
+<relevant_modules>
+src/entities/user.py
+src/entities/post.py
+</relevant_modules>"""
 
 extract_files_to_change_prompt = """\
 # Task:
