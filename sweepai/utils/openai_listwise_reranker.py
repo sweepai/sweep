@@ -885,7 +885,7 @@ class RerankSnippetsBot(ChatGPT):
             snippet_str = \
 f'''
 <snippet index="{idx + 1}">
-<snippet_path>{snippet.denotation}</snippet>
+<snippet_path>{snippet.denotation}</snippet_path>
 <source>
 {snippet.get_snippet(False, False)}
 </source>
