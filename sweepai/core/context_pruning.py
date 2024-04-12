@@ -27,175 +27,142 @@ from sweepai.utils.tree_utils import DirectoryTree
 ASSISTANT_MAX_CHARS = 4096 * 4 * 0.95  # ~95% of 4k tokens
 NUM_SNIPPETS_TO_SHOW_AT_START = 15
 MAX_REFLECTIONS = 1
-MAX_ITERATIONS = 0 # Temporarily disable
+MAX_ITERATIONS = 25
 NUM_ROLLOUTS = 1 # dev speed
 SCORE_THRESHOLD = 8 # good score
 STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
 MAX_PARALLEL_FUNCTION_CALLS = 1
-NUM_BAD_FUNCTION_CALLS = 4
+NUM_BAD_FUNCTION_CALLS = 5
 
 # TODO:
 # - Add self-evaluation / chain-of-verification
-# - Add list of tricks for finding definitions
 
-anthropic_function_calls = """<tool_name>view_file</tool_name>
+anthropic_function_calls = """<tool_description>
+<tool_name>code_search</tool_name>
 <description>
-Retrieves the contents of the specified file. After viewing a file, use `code_search` on relevant entities to find other potentially relevant files. Use `store_file` to add the file to the final list if it provides important context or may need modifications to solve the issue.
+Passes the code_entity into ripgrep to search the entire codebase and return a list of files and line numbers where it appears. Useful for finding definitions, usages, and references to types, classes, functions, and other entities that may be relevant. Review the search results using `view_files` to determine relevance and discover new files to explore.
 </description>
 <parameters>
 <parameter>
-<name>file_path</name>
+<name>analysis</name>
 <type>string</type>
-<description>The path of the file to view.</description>
+<description>Explain what new information you expect to discover from this search and why it's needed to get to the root of the issue. Focus on unknowns rather than already stored information.</description>
 </parameter>
-<parameter>
-<name>justification</name>
-<type>string</type>
-<description>Explain why viewing this file is necessary to solve the issue.</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>store_file</tool_name>
-<description>
-Adds a file to the final list of relevant files that provide important context or may need modifications to resolve the issue. Err on the side of including a file if you're unsure about its relevance.
-</description>
-<parameters>
-<parameter>
-<name>file_path</name>
-<type>string</type>
-<description>The path of the file to store.</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>string</type>
-<description>Explain why this file should be read for context or modified and what needs to be modified. Include a supporting code excerpt.</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>code_search</tool_name>  
-<description>
-Passes the code_entity into ripgrep to search the entire codebase and return a list of files and line numbers where it appears. Useful for finding definitions and usages of types, classes and functions that may be relevant. Review the search results using `view_file` to determine relevance.
-</description>
-<parameters>
 <parameter>
 <name>code_entity</name>
 <type>string</type>
-<description>The code entity to search for. Should be a distinctive name, not a generic term. For functions, search for the definition syntax, e.g. 'def foo' in Python or 'function bar' or 'const bar' in JavaScript.</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>string</type>
-<description>Explain what information you expect to get from this search and why it's needed, e.g. "I need to find the definition of the Foo class to see what methods are available on Foo objects."</description>
+<description>
+The code entity to search for. This must be a distinctive name, not a generic term. For functions, search for the definition syntax, e.g. 'def foo' in Python or 'function bar' or 'const bar' in JavaScript. Trace dependencies of critical functions/classes, follow imports to find definitions, and explore how key entities are used across the codebase.
+</description>
 </parameter>
 </parameters>
 </tool_description>
 
 <tool_description>
-<tool_name>submit</tool_name>
+<tool_name>view_files</tool_name>
 <description>
-Submits the final list consisting of all files that were stored using the `store_file` tool. Only call this tool once when you are absolutely certain you have stored all potentially relevant files. The submitted list should err on the side of including extra files to ensure high recall of relevant ones.
+Retrieves the contents of the specified file(s). After viewing new files, use `code_search` on relevant entities to continue discovering potentially relevant files. You may view three files per tool call. Prioritize viewing new files over ones that are already stored.
 </description>
 <parameters>
 <parameter>
-<name>result</name>
+<name>analysis</name>
 <type>string</type>
-<description>A simple string stating that you have finished storing relevant files and are submitting the list of stored files as the final result.</description>
+<description>Explain what new information viewing these files will provide and why it's necessary to resolve the issue. Avoid restating already known information.</description>
+</parameter>
+<parameter>
+<name>first_file_path</name>
+<type>string</type>
+<description>The path of a new file to view.</description>
+</parameter>
+<parameter>
+<name>second_file_path</name>
+<type>string</type>
+<description>The path of another new file to view (optional).</description>
+</parameter>
+<parameter>
+<name>third_file_path</name>
+<type>string</type>
+<description>The path of a third new file to view (optional).</description>
 </parameter>
 </parameters>
 </tool_description>
 
-You must call the tools using the specified XML format. Here are some generic examples to illustrate the format without referring to a specific task:
+<tool_description>
+<tool_name>store_file</tool_name>
+<description>
+Adds a newly discovered file that provides important context or may need modifications to the list of stored files. You may only store one new file per tool call. Avoid storing files that have already been added.
+</description>
+<parameters>
+<parameter>
+<name>analysis</name>
+<type>string</type>
+<description>Explain what new information this file provides, why it's important for understanding and resolving the issue, and what potentially needs to be modified. Include a brief supporting code excerpt.</description>
+</parameter>
+<parameter>
+<name>file_path</name>
+<type>string</type>
+<description>The path of the newly discovered relevant file to store.</description>
+</parameter>
+</parameters>
+</tool_description>
 
-<examples>
-Example 1:
+You MUST call the tools using this exact XML format:
+
 <function_call>
 <invoke>
-<tool_name>view_file</tool_name>
+<tool_name>$TOOL_NAME</tool_name>
 <parameters>
-<file_path>services/user_service.py</file_path>
-<justification>The user request mentions the get_user_by_id method in the UserService class. I need to view user_service.py to understand how this method currently works and what files it interacts with.</justification>
+<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+...
 </parameters>
 </invoke>
 </function_call>
 
-Example 2:
+Here is an example illustrating a complex code search to discover new relevant information:
+
+<example>
 <function_call>
-<invoke>
-<tool_name>store_file</tool_name>
-<parameters>
-<file_path>models/user.py</file_path>
-<justification>The User model is relevant for understanding the attributes of a User, especially the `deleted` flag that indicates if a user is soft-deleted. This excerpt shows the key parts of the model:
-```python
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))  
-    email = db.Column(db.String(100), unique=True)
-    deleted = db.Column(db.Boolean, default=False)
-```
-</justification>
-</parameters>
-</invoke>
 <invoke>
 <tool_name>code_search</tool_name>
 <parameters>
-<code_entity>def get_user_by_id</code_entity>
-<justification>I need to find the definition of the get_user_by_id method to see its current implementation and determine what changes are needed to support excluding deleted users.</justification>
+<analysis>The get_user_by_id method likely queries from a User model or database table. I need to search for references to "User" to find where and how user records are defined, queried and filtered in order to determine what changes are needed to support excluding deleted users from the get_user_by_id results.</analysis>
+<code_entity>User</code_entity>
 </parameters>
 </invoke>
 </function_call>
-</examples>
+</example>
 
-You must call the tools using the specified XML format, as illustrated in the previous examples. Focus on identifying all files that provide important context or may require modifications to fully resolve the issue at hand. Prioritize recall over precision."""
+Remember, your goal is to discover and store ALL files that are relevant to solving the issue. Perform targeted searches to uncover new information, view new files to understand the codebase, and avoid re-analyzing already stored files."""
 
-sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to generate a complete list of all files that are relevant to fully resolving the issue. A file is considered RELEVANT if it must be either modified or read to understand the necessary changes as part of the issue resolution process. 
+sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to search through the codebase and locate ALL files that are RELEVANT to resolving the issue. A file is considered RELEVANT if it provides important context or may need to be modified as part of the solution.
 
-It is critical that you identify every relevant file, even if you are unsure whether it needs to be modified. Your goal is to generate an extremely comprehensive list of files for an intern who is unfamiliar with the codebase. Precision is less important than recall - it's better to include a few extra files than to miss a relevant one.
+You will begin with a small set of stored relevant files. However, it is critical that you identify every additional relevant file by exhaustively searching the codebase. Your goal is to generate an extremely comprehensive list of files for an intern engineer who is completely unfamiliar with the codebase. Prioritize finding all relevant files over perfect precision - it's better to include a few extra files than to miss a key one.
 
-You will do this by searching for and viewing files in the codebase to gather all the necessary information. 
+To accomplish this, you will iteratively search for and view new files to gather all the necessary information. Follow these steps:
 
-INSTRUCTIONS
-Use the following iterative process:
-1. View all files that seem potentially relevant based on file paths and entities mentioned in the "User Request" and "Relevant Snippets". For example, if the class foo.bar.Bar is referenced, be sure to view foo/bar.py. Check all files referenced in the user request. If you can't find a specific module, also check the "Common modules" section. When you identify a relevant file, use store_file to add it to the final list.
-2. Use code_search to find definitions and usages for ALL unknown variables, classes, attributes, and functions that may be relevant. View the search result files.
+1. Perform targeted code searches to find definitions, usages, and references for ALL unknown variables, classes, attributes, functions and other entities that may be relevant based on the currently stored files and issue description. Be creative and think critically about what to search for to get to the root of the issue. 
 
-Repeat steps 1-2, searching exhaustively, until you are fully confident you have stored all files that provide necessary context or may need modifications.
+2. View new files from the search results that seem relevant. Avoid viewing files that are already stored, and instead focus on discovering new information.
 
-4. Submit the final list of relevant files with the submit function.
+3. Store additional files that provide important context or may need changes based on the search results, viewed files, and issue description. 
 
-Here are the tools at your disposal. Call them until you have stored all relevant files:
+Repeat steps 1-3, searching and exploring the codebase exhaustively until you are confident you have found all relevant files. Prioritize discovering new information over re-analyzing what is already known.
 
+Here are the tools at your disposal:
 """ + anthropic_function_calls
 
 unformatted_user_prompt = """\
-## Relevant Snippets
-Here are potentially relevant snippets in the repo in decreasing relevance that you should use the `view_file` tool to review:
-{snippets_in_repo}
-
-## Code files mentioned in the user request
-Here are the code files mentioned in the user request, these code files are very important to the solution and should be considered very relevant:
-<code_files_in_query>
-{file_paths_in_query}
-</code_files_in_query>
-{import_tree_prompt}
-## User Request
-<user_request>
-{query}
-<user_request>"""
-
-unformatted_user_prompt_stored = """\
 ## Stored Files
-Here are the files that you have already stored:
+DO NOT CALL THE STORE OR VIEW TOOLS ON THEM AGAIN AS THEY HAVE ALREADY BEEN STORED.
+<stored_files>
 {snippets_in_repo}
+</stored_files>
+
 {import_tree_prompt}
 ## User Request
 <user_request>
 {query}
 <user_request>"""
-
 
 PLAN_SUBMITTED_MESSAGE = "SUCCESS: Report and plan submitted."
 
@@ -250,12 +217,22 @@ class RepoContextManager:
         unformatted_user_prompt: str,
         query: str,
     ):
-        top_snippets_str = [snippet.file_path for snippet in self.current_top_snippets]
-        # dedupe the list inplace
-        top_snippets_str = list(dict.fromkeys(top_snippets_str))
-        top_snippets_str = top_snippets_str[:NUM_SNIPPETS_TO_SHOW_AT_START]
-        snippets_in_repo_str = "\n".join(top_snippets_str)
-        logger.info(f"Snippets in repo:\n{snippets_in_repo_str}")
+        files_in_repo_str = ""
+        stored_files = set()
+        for idx, snippet in enumerate(list(dict.fromkeys(self.current_top_snippets))[:NUM_SNIPPETS_TO_SHOW_AT_START]):
+            if snippet.file_path in stored_files:
+                continue
+            stored_files.add(snippet.file_path)
+            snippet_str = \
+f'''
+<stored_file index="{idx + 1}">
+<file_path>{snippet.file_path}</file_path>
+<source>
+{snippet.content}
+</source>
+</stored_file>
+'''
+            files_in_repo_str += snippet_str
         repo_tree = str(self.dir_obj)
         import_tree_prompt = """
 ## Import trees for code files in the user request
@@ -270,7 +247,7 @@ class RepoContextManager:
         )
         user_prompt = unformatted_user_prompt.format(
             query=query,
-            snippets_in_repo=snippets_in_repo_str,
+            snippets_in_repo=files_in_repo_str,
             repo_tree=repo_tree,
             import_tree_prompt=import_tree_prompt,
             file_paths_in_query=", ".join(self.relevant_file_paths),
@@ -595,7 +572,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["seed", "ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["seed", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -727,12 +704,12 @@ def handle_function_call(
     function_name = function_call.function_name
     function_input = function_call.function_parameters
     logger.info(f"Tool Call: {function_name} {function_input}")
-    file_path = function_input.get("file_path")
+    file_path = function_input.get("file_path", None)
     valid_path = False
     output_prefix = f"Output for {function_name}:\n"
     output = ""
     current_top_snippets_string = "\n".join(
-        [snippet.denotation for snippet in repo_context_manager.current_top_snippets]
+        list(dict.fromkeys([snippet.file_path for snippet in repo_context_manager.current_top_snippets]))
     )
     if function_name == "code_search":
         code_entity = f'"{function_input["code_entity"]}"'  # handles cases with two words
@@ -751,20 +728,29 @@ def handle_function_call(
             rg_output = result.stdout
             if rg_output:
                 # post process rip grep output to be more condensed
-                rg_output_pretty, file_output_dict = post_process_rg_output(
+                rg_output_pretty, file_output_dict, file_to_num_occurrences = post_process_rg_output(
                     repo_context_manager.cloned_repo.repo_dir, SweepConfig(), rg_output
                 )
+                # return results first by occurrences then by alphabetical order
                 non_stored_files = sorted([
                     file_path
                     for file_path in file_output_dict
                     if file_path not in repo_context_manager.top_snippet_paths
-                ])
-                non_stored_files_string = "The following files have not been stored:\n" + "\n".join(non_stored_files) + "\n"
-                output = (
-                    f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                    get_stored_files(repo_context_manager) + non_stored_files_string +
-                    "Use the `view_file` tool to determine which non-stored files are most relevant to solving the issue. Use `store_file` to add any important non-stored files to the context."
-                )
+                ], key=lambda x: (-file_to_num_occurrences[x], x))
+                non_stored_files = [file_path + f" ({file_to_num_occurrences[file_path]} occurrences)" for file_path in non_stored_files]
+                non_stored_files_string = "These search results have not been stored:\n<non_stored_search_results>\n" + "\n".join(non_stored_files) + "\n</non_stored_search_results>\n" if non_stored_files else "All of the files above have already been stored. Search for a new term.\n"
+                if len(file_output_dict) <= 10:
+                    output = (
+                        f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
+                        non_stored_files_string + 
+                        "Use the `view_files` tool to read the most relevant non-stored files. Use `store_file` to add any important non-stored files to the context. DO NOT VIEW FILES THAT HAVE BEEN STORED."
+                    )
+                else:
+                    output = (
+                        f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
+                        non_stored_files_string + "Prioritize viewing the non-stored files with the most occurrences. Use the `view_files` tool to read the most relevant non-stored files. Use `store_file` to add any important non-stored files to the context. DO NOT VIEW FILES THAT HAVE BEEN STORED."
+                    )
+                # too many prompt it to search more specific
             else:
                 output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or a truncated version of this code_entity."
         except Exception as e:
@@ -772,44 +758,40 @@ def handle_function_call(
                 f"FAILURE: An Error occured while trying to find the code_entity {code_entity}: {e}"
             )
             output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or a truncated version of this code_entity."
-    elif function_name == "view_file":
-        try:
-            file_contents = repo_context_manager.cloned_repo.get_file_contents(
-                file_path
-            )
-            # check if file has been viewed already
-            function_call_history = llm_state.get("function_call_history", [])
-            # unnest 2d list
-            previous_function_calls = [
-                call for sublist in function_call_history for call in sublist
-            ]
-            previously_viewed_files = [
-                call.function_parameters.get("file_path")
-                for call in previous_function_calls
-                if call.function_name == "view_file"
-            ]
-            previously_viewed_files = list(dict.fromkeys(previously_viewed_files))
-            if file_path in previously_viewed_files:
-                previously_viewed_files_str = "\n".join(previously_viewed_files)
-                output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
-            else:
-                output = f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>'
-            if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
-                suffix = f'\nIf you are CERTAIN this file is RELEVANT, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
-            else:
-                suffix = '\nThis file has already been stored.'
-            output += suffix
-        except FileNotFoundError:
-            file_contents = ""
-            similar_file_paths = "\n".join(
-                [
-                    f"- {path}"
-                    for path in repo_context_manager.cloned_repo.get_similar_file_paths(
-                        file_path
-                    )
-                ]
-            )
-            output = f"FAILURE: This file path does not exist. Did you mean:\n{similar_file_paths}"
+    elif function_name == "view_files":
+        output = ""
+        all_viewed_files = [function_input.get("first_file_path", ""), function_input.get("second_file_path", ""), function_input.get("file_path", "")]
+        all_viewed_files = [file_path for file_path in all_viewed_files if file_path]
+        for file_path in all_viewed_files:
+            try:
+                file_contents = repo_context_manager.cloned_repo.get_file_contents(
+                    file_path
+                )
+                # check if file has been viewed already
+                # function_call_history = llm_state.get("function_call_history", [])
+                # # unnest 2d list
+                # previous_function_calls = [
+                #     call for sublist in function_call_history for call in sublist
+                # ]
+                # previously_viewed_files = list(dict.fromkeys(previously_viewed_files))
+                # if file_path in previously_viewed_files:
+                #     previously_viewed_files_str = "\n".join(previously_viewed_files)
+                #     output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
+                if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
+                    output += f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>\nYou can use the `store_file` tool to add this file to the context.'
+                else:
+                    output += f"FAILURE: {file_path} has already been stored. Please view a new file."
+            except FileNotFoundError:
+                file_contents = ""
+                similar_file_paths = "\n".join(
+                    [
+                        f"- {path}"
+                        for path in repo_context_manager.cloned_repo.get_similar_file_paths(
+                            file_path
+                        )
+                    ]
+                )
+                output += f"FAILURE: {file_path} does not exist. Did you mean:\n{similar_file_paths}\n"
     elif function_name == "store_file":
         try:
             file_contents = repo_context_manager.cloned_repo.get_file_contents(
@@ -834,18 +816,15 @@ def handle_function_call(
                 end=len(file_contents.splitlines()),
                 content=file_contents,
             )
-            if snippet.denotation in current_top_snippets_string:
+            if snippet.file_path in current_top_snippets_string:
                 output = f"FAILURE: {get_stored_files(repo_context_manager)}"
             else:
                 repo_context_manager.add_snippets([snippet])
                 current_top_snippets_string = "\n".join(
-                    [
-                        snippet.denotation
-                        for snippet in repo_context_manager.current_top_snippets
-                    ]
+                    list(dict.fromkeys([snippet.file_path for snippet in repo_context_manager.current_top_snippets]))
                 )
                 output = (
-                    f"SUCCESS: {file_path} was added to the context. It will be used as a reference or modified to resolve the issue. Here are the current selected snippets:\n{current_top_snippets_string}"
+                    f"SUCCESS: {file_path} was added to the stored_files. It will be used as a reference or modified to resolve the issue."
                     if valid_path
                     else f"FAILURE: The file path '{file_path}' does not exist. Please check the path and try again."
                 )
@@ -855,11 +834,11 @@ def handle_function_call(
         output = PLAN_SUBMITTED_MESSAGE
     else:
         output = f"FAILURE: Invalid tool name {function_name}"
-    justification = (
-        function_input["justification"] if "justification" in function_input else ""
+    analysis = (
+        function_input["analysis"] if "analysis" in function_input else ""
     )
     logger.info(
-        f"Tool Call: {function_name}\n{justification}\n{output}"
+        f"Tool Call: {function_name}\n{analysis}\n{output}"
     )
     return (output_prefix + output)
 
@@ -919,22 +898,25 @@ def render_function_calls_for_attempt(function_call_history: list[list[Anthropic
     idx = 0
     for function_calls in function_call_history:
         for function_call in function_calls:
-            function_call.function_parameters.pop("justification", None) # remove justification
-            function_call_cleaned_string = function_call.function_name + "\n".join([str(k) + "|" + str(v) for k, v in function_call.function_parameters.items()])
-            formatted_function_calls += f"<function_call_{idx}>{function_call_cleaned_string}</function_call_{idx}>\n"
+            function_call.function_parameters.pop("analysis", None) # remove analysis
+            function_call_cleaned_string = function_call.function_name + " | " + "\n".join([str(k) + " | " + str(v) for k, v in function_call.function_parameters.items()])
+            formatted_function_calls += f"- {function_call_cleaned_string}\n"
         if function_calls:
             idx += 1
     return formatted_function_calls
 
 def get_stored_files(repo_context_manager: RepoContextManager) -> str:
-    fetched_files_that_are_stored = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
+    fetched_files_that_are_stored = list(dict.fromkeys([snippet.file_path for snippet in repo_context_manager.current_top_snippets]))
     joined_files_string = "\n".join(fetched_files_that_are_stored)
-    stored_files_string = f'The following files have been stored already:\n{joined_files_string}.\n' if fetched_files_that_are_stored else ""
+    stored_files_string = f'The following files have been stored already. DO NOT CALL THE STORE OR VIEW TOOLS ON THEM AGAIN. \n<stored_files>\n{joined_files_string}\n</stored_files>\n' if fetched_files_that_are_stored else ""
     return stored_files_string
 
 def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
-    _, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
-    rollout_function_call_histories.append(function_call_history)
+    try:
+        _, function_call_history = perform_rollout(repo_context_manager, reflections_to_read_files, user_prompt)
+        rollout_function_call_histories.append(function_call_history)
+    except Exception as e:
+        logger.error(f"Error in perform_rollout: {e}")
     rollout_stored_files = [snippet.file_path for snippet in repo_context_manager.current_top_snippets]
     # truncated_message_results = message_results[1:] # skip system prompt
     # joined_messages = "\n\n".join([message.content for message in truncated_message_results])
@@ -956,9 +938,11 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
         stop_sequences=["</function_call>"],
         model=CLAUDE_MODEL,
         message_key="user_request",
+        assistant_message_content="<function_call>",
     )
     bad_call_count = 0
     llm_state = {} # persisted across one rollout
+    llm_state["function_call_history"] = {}
     for _ in range(MAX_ITERATIONS):
         function_calls = validate_and_parse_function_calls(
             function_calls_string, chat_gpt
@@ -966,16 +950,20 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
         function_outputs = ""
         for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
             function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
+            logger.info(f"Function outputs: {function_outputs}")
+            logger.info("Function call: " + str(function_call))
             llm_state["function_call_history"] = function_call_history
             if PLAN_SUBMITTED_MESSAGE in function_outputs:
                 return chat_gpt.messages, function_call_history
         function_call_history.append(function_calls)
         if len(function_calls) == 0:
-            function_outputs = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
+            function_outputs = "REMINDER: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
                 + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>" + "\nRemember to gather ALL relevant files. " + get_stored_files(repo_context_manager)
             bad_call_count += 1
-            if bad_call_count >= NUM_BAD_FUNCTION_CALLS:
-                return chat_gpt.messages, function_call_history
+        if function_outputs.startswith("FAILURE"):
+            bad_call_count += 1
+        if bad_call_count >= NUM_BAD_FUNCTION_CALLS:
+            return chat_gpt.messages, function_call_history
         if len(function_calls) > MAX_PARALLEL_FUNCTION_CALLS:
             remaining_function_calls = function_calls[MAX_PARALLEL_FUNCTION_CALLS:]
             remaining_function_calls_string = mock_function_calls_to_string(remaining_function_calls)
@@ -985,6 +973,7 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
                 content=function_outputs,
                 model=CLAUDE_MODEL,
                 stop_sequences=["</function_call>"],
+                assistant_message_content="<function_call>",
             )
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
@@ -998,18 +987,11 @@ def context_dfs(
     problem_statement: str,
     num_rollouts: int,
 ) -> bool | None:
-    repo_context_manager.current_top_snippets = []
     # initial function call
     reflections_to_read_files = {}
     rollouts_to_scores_and_rcms = {}
     rollout_function_call_histories = []
     for rollout_idx in range(num_rollouts):
-        # operate on a deep copy of the repo context manager
-        if rollout_idx > 0:
-            user_prompt = repo_context_manager.format_context(
-                unformatted_user_prompt=unformatted_user_prompt_stored,
-                query=problem_statement,
-            )
         overall_score, message_to_contractor, repo_context_manager, rollout_stored_files = search_for_context_with_reflection(
             repo_context_manager=repo_context_manager,
             reflections_to_read_files=reflections_to_read_files,

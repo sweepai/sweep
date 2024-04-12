@@ -7,6 +7,7 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     # empty lines are present at end of output
     output_lines = [line for line in output_lines if line]
     file_output_dict = {}
+    file_to_num_occurrences = {}
     for line in output_lines:
         filename, content = line.split(":", 1)
         filename = filename[len(root_directory) + 1:]
@@ -14,6 +15,9 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
             if filename not in file_output_dict:
                 file_output_dict[filename] = ""
             file_output_dict[filename] += (content + "\n")
+            if filename not in file_to_num_occurrences:
+                file_to_num_occurrences[filename] = 0
+            file_to_num_occurrences[filename] += 1
     
     # determine if we need to truncate the output
     total_output_length = sum([len(line) for content in file_output_dict.values() for line in content])
@@ -42,7 +46,7 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
     else:
         for filename, content in file_name_and_contents:
             processed_output += f"File: {filename} contained the following matching lines of code:\n" + content + "\n"
-    return processed_output, file_output_dict
+    return processed_output, file_output_dict, file_to_num_occurrences
 
 # try and find code_snippet inside file_contents given various levels of indentation, and right strip the lines of code
 # if successful returns the num of spaces required to find the code match and if we need to rstrip the old code or not

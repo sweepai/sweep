@@ -343,6 +343,7 @@ class ChatGPT(MessageList):
     def chat_anthropic(
         self,
         content: str,
+        assistant_message_content: str = "",
         model: ChatModel = "claude-3-haiku-20240307",
         message_key: str | None = None,
         temperature: float | None = None,
@@ -353,6 +354,8 @@ class ChatGPT(MessageList):
         assert ANTHROPIC_API_KEY
         self.model = model
         self.messages.append(Message(role="user", content=content, key=message_key))
+        if assistant_message_content:
+            self.messages.append(Message(role="assistant", content=assistant_message_content))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
         logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
