@@ -8,7 +8,6 @@ from openai.types.chat.chat_completion_message_tool_call import (
     Function,
 )
 from pydantic import BaseModel
-from sweepai.utils.openai_proxy import get_client
 
 def openai_retry_with_timeout(call, *args, num_retries=3, timeout=5, **kwargs):
     """
