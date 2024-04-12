@@ -321,7 +321,8 @@ past_tense_mapping = {
 }
 
 # Magic
-ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4]) # noqa
+def ordinal(n: int):
+    return "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4]) # noqa
 
 def render_plan(fcrs: list[FileChangeRequest]) -> str:
     current_fcr_index = 0
