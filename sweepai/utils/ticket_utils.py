@@ -57,7 +57,7 @@ substring_adjustment = {
     "migrations/": -1.5,
 }
 
-NUM_SNIPPETS_TO_RERANK = 50
+NUM_SNIPPETS_TO_RERANK = 100
 
 @file_cache()
 def multi_get_top_k_snippets(

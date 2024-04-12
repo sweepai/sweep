@@ -32,7 +32,7 @@ NUM_ROLLOUTS = 1 # dev speed
 SCORE_THRESHOLD = 8 # good score
 STOP_AFTER_SCORE_THRESHOLD_IDX = 0 # stop after the first good score and past this index
 MAX_PARALLEL_FUNCTION_CALLS = 1
-NUM_BAD_FUNCTION_CALLS = 6
+NUM_BAD_FUNCTION_CALLS = 5
 
 # TODO:
 # - Add self-evaluation / chain-of-verification
@@ -132,9 +132,7 @@ Here is an example illustrating a complex code search to discover new relevant i
 </function_call>
 </example>
 
-Remember, your goal is to discover and store ALL files that are relevant to solving the issue. Perform targeted searches to uncover new information, view new files to understand the codebase, and avoid re-analyzing already stored files. 
-
-YOU MUST ONLY MAKE TOOL CALLS AND CANNOT STOP."""
+Remember, your goal is to discover and store ALL files that are relevant to solving the issue. Perform targeted searches to uncover new information, view new files to understand the codebase, and avoid re-analyzing already stored files."""
 
 sys_prompt = """You are a brilliant engineer assigned to solve the following GitHub issue. Your task is to search through the codebase and locate ALL files that are RELEVANT to resolving the issue. A file is considered RELEVANT if it provides important context or may need to be modified as part of the solution.
 
@@ -154,7 +152,8 @@ Here are the tools at your disposal:
 """ + anthropic_function_calls
 
 unformatted_user_prompt = """\
-These are important files that have already been stored:
+## Stored Files
+DO NOT CALL THE STORE OR VIEW TOOLS ON THEM AGAIN AS THEY HAVE ALREADY BEEN STORED.
 <stored_files>
 {snippets_in_repo}
 </stored_files>
@@ -573,7 +572,7 @@ def parse_query_for_files(
 
 
 # do not ignore repo_context_manager
-@file_cache(ignore_params=["seed", "ticket_progress", "chat_logger"])
+# @file_cache(ignore_params=["seed", "ticket_progress", "chat_logger"])
 def get_relevant_context(
     query: str,
     repo_context_manager: RepoContextManager,
@@ -744,17 +743,17 @@ def handle_function_call(
                 fetched_files_that_are_stored = list(dict.fromkeys([snippet.file_path for snippet in repo_context_manager.current_top_snippets]))
                 joined_files_string = "\n".join([file_path for file_path in fetched_files_that_are_stored if file_path in file_output_dict])
                 stored_files_string = f'These search results have been stored already:\n<stored_search_results>\n{joined_files_string}\n</stored_search_results>\n' if joined_files_string else ""
-                non_stored_files_string = "These search results have not been stored:\n<non_stored_search_results>\n" + "\n".join(non_stored_files) + "\n</non_stored_search_results>\n" if non_stored_files else ""
+                non_stored_files_string = "These search results have not been stored:\n<non_stored_search_results>\n" + "\n".join(non_stored_files) + "\n</non_stored_search_results>\n" if non_stored_files else "All of the files above have already been stored. Search for a new term.\n"
                 if len(file_output_dict) <= 10:
                     output = (
                         f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                        stored_files_string + non_stored_files_string + 
-                        "Use the `view_files` tool to read the most relevant non-stored files. Use `store_file` to add any important non-stored files to the context."
+                        non_stored_files_string + 
+                        "Use the `view_files` tool to read the most relevant non-stored files. Use `store_file` to add any important non-stored files to the context. DO NOT VIEW FILES THAT HAVE BEEN STORED."
                     )
                 else:
                     output = (
                         f"SUCCESS: Here are the code_search results:\n<code_search_results>\n{rg_output_pretty}<code_search_results>\n" +
-                        stored_files_string + non_stored_files_string + "Prioritize the files with the most occurrences. Use the `view_files` tool to read the most relevant non-stored files. Use `store_file` to add any important non-stored files to the context."
+                        non_stored_files_string + "Prioritize viewing the non-stored files with the most occurrences. Use the `view_files` tool to read the most relevant non-stored files. Use `store_file` to add any important non-stored files to the context. DO NOT VIEW FILES THAT HAVE BEEN STORED."
                     )
                 # too many prompt it to search more specific
             else:
@@ -783,12 +782,10 @@ def handle_function_call(
                 # if file_path in previously_viewed_files:
                 #     previously_viewed_files_str = "\n".join(previously_viewed_files)
                 #     output = f"WARNING: `{file_path}` has already been viewed. Please refer to the file in your previous function call. These files have already been viewed:\n{previously_viewed_files_str}"
-                output += f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>'
                 if file_path not in [snippet.file_path for snippet in repo_context_manager.current_top_snippets]:
-                    suffix = f'\nIf you are CERTAIN this file is relevant, call store_file with the same parameters ({{"file_path": "{file_path}"}}).'
+                    output += f'SUCCESS: Here are the contents of `{file_path}`:\n<source>\n{file_contents}\n</source>\nYou can use the `store_file` tool to add this file to the context.'
                 else:
-                    suffix = '\nThis file has already been stored. Use `code_search` to further understand the codebase.'
-                output += suffix + "\n"
+                    output += f"FAILURE: {file_path} has already been stored. Please view a new file."
             except FileNotFoundError:
                 file_contents = ""
                 similar_file_paths = "\n".join(
@@ -916,7 +913,7 @@ def render_function_calls_for_attempt(function_call_history: list[list[Anthropic
 def get_stored_files(repo_context_manager: RepoContextManager) -> str:
     fetched_files_that_are_stored = list(dict.fromkeys([snippet.file_path for snippet in repo_context_manager.current_top_snippets]))
     joined_files_string = "\n".join(fetched_files_that_are_stored)
-    stored_files_string = f'The following files have been stored already:\n<stored_files>\n{joined_files_string}\n</stored_files>\n' if fetched_files_that_are_stored else ""
+    stored_files_string = f'The following files have been stored already. DO NOT CALL THE STORE OR VIEW TOOLS ON THEM AGAIN. \n<stored_files>\n{joined_files_string}\n</stored_files>\n' if fetched_files_that_are_stored else ""
     return stored_files_string
 
 def search_for_context_with_reflection(repo_context_manager: RepoContextManager, reflections_to_read_files: dict[str, tuple[list[str], int]], user_prompt: str, rollout_function_call_histories: list[list[list[AnthropicFunctionCall]]], problem_statement: str) -> tuple[list[Message], list[list[AnthropicFunctionCall]]]:
@@ -946,6 +943,7 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
         stop_sequences=["</function_call>"],
         model=CLAUDE_MODEL,
         message_key="user_request",
+        assistant_message_content="<function_call>",
     )
     bad_call_count = 0
     llm_state = {} # persisted across one rollout
@@ -958,7 +956,7 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
         for function_call in function_calls[:MAX_PARALLEL_FUNCTION_CALLS]:
             function_outputs += handle_function_call(repo_context_manager, function_call, llm_state) + "\n"
             logger.info(f"Function outputs: {function_outputs}")
-            breakpoint()
+            logger.info("Function call: " + str(function_call))
             llm_state["function_call_history"] = function_call_history
             if PLAN_SUBMITTED_MESSAGE in function_outputs:
                 return chat_gpt.messages, function_call_history
@@ -980,6 +978,7 @@ def perform_rollout(repo_context_manager: RepoContextManager, reflections_to_gat
                 content=function_outputs,
                 model=CLAUDE_MODEL,
                 stop_sequences=["</function_call>"],
+                assistant_message_content="<function_call>",
             )
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
