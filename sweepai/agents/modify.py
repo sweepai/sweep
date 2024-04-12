@@ -18,7 +18,7 @@ from sweepai.utils.utils import get_check_results
 modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
 <description>
-Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.
+Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use this tool for one change at a time, one for each section.
 </description>
 <parameters>
 <parameter>
@@ -39,7 +39,7 @@ Name of the file where the change will be made. Ensure correct spelling as this 
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need modification or replacement. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need modification or replacement. This should be a short SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
 </description>
 </parameter>
 <parameter>
@@ -615,6 +615,7 @@ def handle_function_call(
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                        breakpoint()
                         break
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
