@@ -218,7 +218,7 @@ Remember, your goal is to be a harsh critic and really scrutinize the work to en
 """ + modify_eval_response_format + modify_eval_examples
 
 modify_eval_patch_prompt = """\
-You are a ruthless code reviewer providing harsh feedback on a beginner's code changes. 
+You are a meticulous code reviewer providing critical feedback on a contractor's code changes to help resolve a GitHub issue.
 Inputs:
 - Task description
 - Code patch (diff) 
@@ -235,9 +235,10 @@ Steps:
      - Missing imports
      - Incomplete changes
      - Undefined variables/functions
+     - Usage of nullable attributes
      - Non-functional code
    - Alignment with plan and requirements
-3. Perform brutal contextual analysis:
+3. Perform critical contextual analysis:
    - Break down changes 
    - Explain reasoning
    - Identify logic issues, edge cases, plan deviations
@@ -250,10 +251,10 @@ Format:
 Provide a brief summary of the task requirements, the contractor's plan, and the current file changes.
 </task_summary>
 <patch_integration>
-Harshly analyze patch fit, behavior changes, conflicts, issues, consequences. 
+Critically analyze patch fit, behavior changes, conflicts, issues, consequences. 
 </patch_integration>
 <code_examination>
-Brutally break down changes. Explain purpose. Call out logic errors and integration issues in detail:
+Break down changes. Explain purpose. Call out logic errors and integration issues in detail:
 - Unhandled edge cases: [list]
 - Logic errors: [list]
 - Missing imports: [list]
@@ -263,7 +264,7 @@ Brutally break down changes. Explain purpose. Call out logic errors and integrat
 Require justification for plan deviations. Criticize behavior changes not handled. Overlook NOTHING.
 </code_examination>
 <feedback>
-Give harsh, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO CURRENT TASK'S SCOPE. NO EXTRA SUGGESTIONS.
+Give critical, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO CURRENT TASK'S SCOPE. NO EXTRA SUGGESTIONS.
 </feedback>
 <next_step>
 COMPLETE - mark the CURRENT TASK as complete
@@ -289,9 +290,10 @@ Steps:
      - Missing imports
      - Incomplete changes
      - Undefined variables/functions
+     - Usage of nullable attributes
      - Non-functional code
    - Alignment with plan and requirements
-3. Perform brutal contextual analysis:
+3. Perform critical contextual analysis:
    - Break down changes 
    - Explain reasoning
    - Identify logic issues, edge cases, plan deviations
@@ -304,11 +306,11 @@ Steps:
 Format:
 
 <patch_integration>
-Harshly analyze patch fit, behavior changes, conflicts, issues, consequences. 
+Critically analyze patch fit, behavior changes, conflicts, issues, consequences. 
 </patch_integration>
 
 <code_examination>
-Brutally break down changes. Explain purpose. Call out logic errors and integration issues in detail:
+Break down changes. Explain purpose. Call out logic errors and integration issues in detail:
 - Unhandled edge cases: [list]
 - Logic errors: [list]
 - Missing imports: [list]
@@ -319,18 +321,18 @@ Require justification for plan deviations. Criticize behavior changes not handle
 </code_examination>
 
 <feedback>
-Give harsh, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO THE SCOPE OF THE CURRENT TASK. NO EXTRA SUGGESTIONS.
+Give critical, specific feedback on logic and integration ONLY. LIMIT FEEDBACK TO THE SCOPE OF THE CURRENT TASK. NO EXTRA SUGGESTIONS.
 </feedback>
 
 <next_step>
-REJECT - generate the code again
-CONTINUE - apply the current changes, but make additional fixes before moving on to the next task
+REJECT - the code is a step backwards, so we should revert the patch and generate the code again
+CONTINUE - apply the current changes, but make additional tweaks before moving on to the next task of the plan
 COMPLETE - mark the CURRENT TASK as complete as there are no concerns or missed edge cases
 </next_step>
 
 Note: Only mark the task as complete if you are confident that all requirements have been met, edge cases have been handled, error handling and fallback mechanisms are in place, and no further improvements are necessary. If there are any doubts or actionable suggestions for enhancements, provide feedback and mark the task as "CONTINUE" or "REJECT" accordingly. Again, limit the feedback to the scope of the current task.
 
-Respond with your critical analysis and feedback."""
+Respond with your extremely critical analysis and feedback."""
 
 # general framework for a dfs search
 # 1. sample trajectory
@@ -420,7 +422,7 @@ class ModifyEvaluatorAgent(ChatGPT):
             message_key="user_request",
         )
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
-        breakpoint()
+        # breakpoint()
         # update chat_logger_messages in place if they are passed in
         if chat_logger_messages:
             chat_logger_messages.append({"role": "assistant", "content": content})

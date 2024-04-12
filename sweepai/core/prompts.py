@@ -246,7 +246,6 @@ List ALL relevant utility modules from the provided set and specify where they c
 * Detailed natural language instructions for modifying the file to solve the issue.
 * Reference the locations of the changes using surrounding code or function headers, not line numbers.
 * Include relevant type definitions, interfaces, and schemas.
-* Provide the actual code changes required in the diff format, with detailed explanations.
 * Each file should be modified at most once. If multiple changes are needed, separate them into different <modify> blocks.
 </modify>
 
@@ -287,8 +286,8 @@ Guidelines:
 * Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
 * Include relevant type definitions, interfaces, and schemas in the relevant_files to provide a clear understanding of the entities and their relationships.
 * Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
-* When suggesting code modifications, provide detailed instructions. Write all code changes in the diff format. Do not leave comments or placeholders for the user to fill in.
 * Be certain that your plan is complete and covers all the necessary changes to fully resolve the issue.
+* Suggest high-quality changes that are completely safe, maintainable, efficient and backwards compatible.
 * Divide the task into smaller steps, where each <create> or <modify> section corresponds to one small code block of change. You may have multiple <modify> blocks for the same file.
 
 Please use the following XML format for your response:
@@ -333,7 +332,8 @@ List ALL relevant read-only utility modules from the provided set and specify wh
 * Detailed natural language instructions for modifying the file to solve the issue.
 * Reference the locations of the changes using surrounding code or function headers, not line numbers.
 * Include references to relevant type definitions, interfaces, and schemas.
-* You may modify the same file multiple times. Each <modify> block should contain a single set of changes from one small section of the file.
+* Describe code changes, but do not write the actual code.
+* You may modify the same file multiple times. Each <modify> block should contain a single block of code changes from one small section of the file.
 </modify>
 
 [additional modifies as needed]

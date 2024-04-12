@@ -636,9 +636,6 @@ def handle_function_call(
                 file_name=file_name,
                 chat_logger_messages=chat_logger_messages
             )
-            if next_step in ("REJECT", "CONTINUE"):
-                previous_attempt = f"<previous_attempt>\nThe contractor previously tried making this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you gave the following feedback:\n{feedback}\n</previous_attempt>"
-                llm_state["previous_attempt"] = previous_attempt
 
             if next_step == "COMPLETE":
                 # Sets first fcr that is not completed to completed
@@ -657,7 +654,11 @@ def handle_function_call(
                 llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
+                previous_attempt = f"<previous_attempt>\nThe contractor previously made this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you accepted with the following feedback:\n{feedback}\n</previous_attempt>"
+                llm_state["previous_attempt"] = previous_attempt
             else:
+                previous_attempt = f"<previous_attempt>\nThe contractor previously attempted at making this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you rejected it with the following feedback:\n{feedback}\n</previous_attempt>"
+                llm_state["previous_attempt"] = previous_attempt
                 llm_response = f"Changes Rejected with ERROR:\n\n{feedback}"
     elif tool_name == "create_file":
         error_message = ""
