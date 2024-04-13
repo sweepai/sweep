@@ -154,6 +154,22 @@ def get_top_k_snippets(
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
+@file_cache()
+def cohere_rerank_call(
+    query: str,
+    documents: list[str],
+    model='rerank-english-v3.0',
+    **kwargs,
+):
+    # Cohere API call with caching
+    co = cohere.Client(COHERE_API_KEY)
+    return co.rerank(
+        model=model,
+        query=query,
+        documents=documents,
+        **kwargs
+    )
+
 def get_pointwise_reranked_snippet_scores(
     query: str,
     snippets: list[Snippet],
@@ -167,7 +183,6 @@ def get_pointwise_reranked_snippet_scores(
     if COHERE_API_KEY is None:
         return snippet_scores
 
-    co = cohere.Client(COHERE_API_KEY)
     sorted_snippets = sorted(
         snippets,
         key=lambda snippet: snippet_scores[snippet.denotation],
@@ -177,7 +192,7 @@ def get_pointwise_reranked_snippet_scores(
     NUM_SNIPPETS_TO_KEEP = 5
     NUM_SNIPPETS_TO_RERANK = 100
 
-    response = co.rerank(
+    response = cohere_rerank_call(
         model='rerank-english-v3.0',
         query=query,
         documents=[snippet.xml for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
@@ -219,9 +234,10 @@ def multi_prep_snippets(
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
+        breakpoint()
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], ranked_snippets, content_to_lexical_score
+                queries[0], snippets, content_to_lexical_score
             )
         ranked_snippets = sorted(
             snippets,
@@ -234,7 +250,7 @@ def multi_prep_snippets(
         )
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], ranked_snippets, content_to_lexical_score
+                queries[0], snippets, content_to_lexical_score
             )
         ranked_snippets = sorted(
             snippets,
