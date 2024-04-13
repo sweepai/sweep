@@ -180,7 +180,6 @@ def get_max_snippets(
     for i in range(len(snippets), 0, -1):
         proposed_snippets = organize_snippets(snippets[:i])
         cost = sum([len(snippet.expand(expand).get_snippet(False, False)) for snippet in proposed_snippets])
-        breakpoint()
         if cost <= budget:
             return proposed_snippets
     raise Exception("Budget number of chars too low!")
