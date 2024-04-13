@@ -234,7 +234,6 @@ def multi_prep_snippets(
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
-        breakpoint()
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
                 queries[0], snippets, content_to_lexical_score
