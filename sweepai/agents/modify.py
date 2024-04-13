@@ -536,6 +536,7 @@ def handle_function_call(
                 error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
+        warning_message = ""
         if not error_message:
             for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                 # ensure the file we are editting exists and is in modify_files_dict
@@ -609,15 +610,16 @@ def handle_function_call(
                 # Check if the changes are valid
                 if not error_message:
                     check_results = get_check_results(file_name, new_file_contents)
-                    # check_results_message = check_results.is_worse_than_message(initial_check_results) - currently unused
+                    check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
                     failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
                         file_contents, new_file_contents
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
-                        # breakpoint()
                         break
+                    elif check_results_message:
+                        warning_message = check_results_message
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
         if not error_message:
@@ -637,7 +639,8 @@ def handle_function_call(
                 current_task=llm_state["current_task"],
                 previous_attempt=llm_state["previous_attempt"],
                 file_name=file_name,
-                chat_logger_messages=chat_logger_messages
+                warning_message=warning_message,
+                chat_logger_messages=chat_logger_messages,
             )
 
             if next_step == "COMPLETE":
@@ -654,7 +657,7 @@ def handle_function_call(
                 llm_state["previous_attempt"] = ""
             elif next_step == "CONTINUE":
                 # guard modify files
-                llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
+                llm_response = f"SUCCESS\n\nThe changes have been applied. However, we need to fix a few more things before moving to the next task of the plan. Here is the feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 previous_attempt = f"<previous_attempt>\nThe contractor previously made this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you accepted with the following feedback:\n{feedback}\n</previous_attempt>"
