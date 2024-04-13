@@ -244,11 +244,19 @@ def get_files_to_change(
         final_plan = f'<final_plan>{parse_xml_tag_from_string("final_plan", final_plan_response)}</final_plan>'
         final_plan_response = f"Here is the issue analysis and final plan:\n{issue_analysis}\n\n{final_plan}"
         logger.info(f"Final plan: {final_plan_response}")
+        print("files_to_change_response", files_to_change_response)
+        relevant_modules = []
+        pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+        relevant_modules_match = pattern.search(files_to_change_response)
+        if relevant_modules_match:
+            relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+        print("relevant_modules", relevant_modules)
         file_change_requests = []
         for re_match in re.finditer(
             FileChangeRequest._regex, final_plan, re.DOTALL
         ):
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
         return file_change_requests, final_plan_response
     except RegexMatchError as e:
@@ -706,4 +714,4 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, None, new_file_contents
+            return False, None, {}

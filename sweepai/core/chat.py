@@ -1,10 +1,12 @@
 from math import inf
 import os
+import re
 import time
 import traceback
 from typing import Any, Literal
 
 from anthropic import Anthropic, BadRequestError, AnthropicBedrock
+from openai import OpenAI
 import backoff
 from loguru import logger
 from pydantic import BaseModel
@@ -136,6 +138,41 @@ def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
                     f"Tickets allocated: {tickets_allocated}, tickets found: {tickets_count}. You have no more tickets!"
                 )
     return model
+
+tool_call_parameters = {
+    "make_change": ["justification", "file_name", "original_code", "new_code"],
+    "create_file": ["justification", "file_name", "file_path", "contents"],
+    "submit_result": ["justification"],
+}
+
+# returns a dictionary of the tool call parameters, assumes correct
+def parse_function_call_parameters(tool_call_contents: str, parameters: list[str]) -> dict[str, Any]:
+    tool_args = {}
+    for param in parameters:
+        param_regex = rf'<{param}>\s*(?P<{param}>.*?)\s*<\/{param}>'
+        match = re.search(param_regex, tool_call_contents, re.DOTALL)
+        if match:
+            param_contents = match.group(param)
+            tool_args[param] = param_contents
+    return tool_args
+
+# parse llm response for tool calls in xml format
+def parse_function_calls_for_openai(response_contents: str) -> list[dict[str, str]]:
+    tool_calls = []
+    # first get all tool calls
+    for tool_name in tool_call_parameters.keys():
+        tool_call_regex = rf'<{tool_name}>\s*(?P<function_call>.*?)\s*<\/{tool_name}>'
+        tool_call_matches = re.finditer(tool_call_regex, response_contents, re.DOTALL)
+        # now we extract its parameters
+        for tool_call_match in tool_call_matches:
+            tool_call_contents = tool_call_match.group("function_call")
+            # get parameters based off of tool name
+            parameters = tool_call_parameters[tool_name]
+            tool_call = { "tool": tool_name, 
+                        "arguments": parse_function_call_parameters(tool_call_contents, parameters) 
+                        }
+            tool_calls.append(tool_call)
+    return tool_calls
 
 class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
@@ -349,10 +386,17 @@ class ChatGPT(MessageList):
         temperature: float | None = None,
         stop_sequences: list[str] = [],
         max_tokens: int = 4096,
+        use_openai: bool = False,
     ):
-        ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-        assert ANTHROPIC_API_KEY
-        self.model = model
+        # use openai
+        if use_openai:
+            OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+            assert OPENAI_API_KEY
+            self.model = 'gpt-4-turbo'
+        else:
+            ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+            assert ANTHROPIC_API_KEY
+            self.model = model
         self.messages.append(Message(role="user", content=content, key=message_key))
         if assistant_message_content:
             self.messages.append(Message(role="assistant", content=assistant_message_content))
@@ -368,38 +412,64 @@ class ChatGPT(MessageList):
                 @file_cache(redis=True) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
-                    system_message: str=system_message, 
-                    model: str=model
+                    system_message: str = system_message, 
+                    model: str = model,
+                    use_openai: bool = use_openai,
                 ) -> str: # add system message and model to cache
-                    if ANTHROPIC_AVAILABLE and "opus" not in model:
-                        if "anthropic" not in model:
-                            model = f"anthropic.{model}-v1:0"
-                            self.model = f"anthropic.{self.model}-v1:0"
-                        anthropic_client = AnthropicBedrock(
-                            aws_access_key=AWS_ACCESS_KEY,
-                            aws_secret_key=AWS_SECRET_KEY,
-                            aws_region=AWS_REGION,
-                        )
+                    if use_openai:
+                        client = OpenAI()
                     else:
-                        anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                        if ANTHROPIC_AVAILABLE and "opus" not in model:
+                            if "anthropic" not in model:
+                                model = f"anthropic.{model}-v1:0"
+                                self.model = f"anthropic.{self.model}-v1:0"
+                            client = AnthropicBedrock(
+                                aws_access_key=AWS_ACCESS_KEY,
+                                aws_secret_key=AWS_SECRET_KEY,
+                                aws_region=AWS_REGION,
+                            )
+                        else:
+                            client = Anthropic(api_key=ANTHROPIC_API_KEY)
                     if parea_client:
-                        parea_client.wrap_anthropic_client(anthropic_client)
-                    return anthropic_client.messages.create(
-                        model=model,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        messages=message_dicts,
-                        system=system_message,
-                        stop_sequences=stop_sequences,
-                    ).content[0].text
-                message_dicts = [
-                    {
-                        "role": message.role,
-                        "content": message.content,
-                    } for message in self.messages if message.role != "system"
-                ]
-                message_dicts = sanitize_anthropic_messages(message_dicts)
-                content = call_anthropic(message_dicts, self.messages[0].content, self.model)
+                        if use_openai:
+                            parea_client.wrap_openai_client(client)
+                        else:
+                            parea_client.wrap_anthropic_client(client)
+                    if use_openai:
+                        response = client.chat.completions.create(
+                            model=model,
+                            messages=self.messages_dicts,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            stop=stop_sequences,
+                        ).choices[0].message.content
+                    else:
+                        response = client.messages.create(
+                            model=model,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            messages=message_dicts,
+                            system=system_message,
+                            stop_sequences=stop_sequences,
+                        ).content[0].text
+                    return response
+                if use_openai:
+                    message_dicts = [
+                        {
+                            "role": message.role,
+                            "content": message.content,
+                        } for message in self.messages
+                    ]
+                    message_dicts = sanitize_anthropic_messages(message_dicts)
+                else: 
+                    message_dicts = [
+                        {
+                            "role": message.role,
+                            "content": message.content,
+                        } for message in self.messages if message.role != "system"
+                    ]
+                    message_dicts = sanitize_anthropic_messages(message_dicts)
+                content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai)
                 break
             except BadRequestError as e_:
                 e = e_ # sometimes prompt is too long
@@ -417,7 +487,7 @@ class ChatGPT(MessageList):
                 key=message_key,
             )
         )
-        logger.debug(f"Anthropic response: {self.messages[-1].content}")
+        logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
