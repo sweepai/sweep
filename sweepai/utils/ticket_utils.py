@@ -2,11 +2,14 @@ from collections import defaultdict
 import traceback
 from time import time
 
+import cohere
 from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
+from sweepai.config.server import COHERE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context, integrate_graph_retrieval
+from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
@@ -151,13 +154,56 @@ def get_top_k_snippets(
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
+def get_pointwise_reranked_snippet_scores(
+    query: str,
+    snippets: list[Snippet],
+    snippet_scores: dict[str, float],
+):
+    """
+    Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
+    Ranks 6-100 are reranked using Cohere. Then we divide the scores by 1_000 to make them comparable to the original scores.
+    """
+
+    if COHERE_API_KEY is None:
+        return snippet_scores
+
+    co = cohere.Client(COHERE_API_KEY)
+    sorted_snippets = sorted(
+        snippets,
+        key=lambda snippet: snippet_scores[snippet.denotation],
+        reverse=True,
+    )
+
+    NUM_SNIPPETS_TO_KEEP = 5
+    NUM_SNIPPETS_TO_RERANK = 100
+
+    response = co.rerank(
+        model='rerank-english-v3.0',
+        query=query,
+        documents=[snippet.xml for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
+        max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
+    )
+
+    new_snippet_scores = {k: v / 1000 for k, v in snippet_scores.items()}
+
+    for document in response.results:
+        new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
+            sorted_snippets[document.index].denotation,
+            document.relevance_score,
+        )
+
+    for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
+        new_snippet_scores[snippet.denotation] = snippet_scores[snippet.denotation] * 1_000
+    
+    return new_snippet_scores
 
 def multi_prep_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    skip_reranking: bool = False,
+    skip_reranking: bool = False, # This is only for pointwise reranking
+    skip_pointwise_reranking: bool = False,
 ) -> RepoContextManager:
     """
     Assume 0th index is the main query.
@@ -173,6 +219,10 @@ def multi_prep_snippets(
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
+        if not skip_pointwise_reranking:
+            content_to_lexical_score = get_pointwise_reranked_snippet_scores(
+                queries[0], ranked_snippets, content_to_lexical_score
+            )
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
@@ -182,6 +232,15 @@ def multi_prep_snippets(
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
             cloned_repo, queries[0], ticket_progress, k
         )
+        if not skip_pointwise_reranking:
+            content_to_lexical_score = get_pointwise_reranked_snippet_scores(
+                queries[0], ranked_snippets, content_to_lexical_score
+            )
+        ranked_snippets = sorted(
+            snippets,
+            key=lambda snippet: content_to_lexical_score[snippet.denotation],
+            reverse=True,
+        )[:k]
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()

@@ -225,6 +225,8 @@ ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
 USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
 
+COHERE_API_KEY = os.environ.get("COHERE_API_KEY", None)
+
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
 
 VOYAGE_API_AWS_ACCESS_KEY=os.environ.get("VOYAGE_API_AWS_ACCESS_KEY_ID")
