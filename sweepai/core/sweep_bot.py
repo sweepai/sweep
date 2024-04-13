@@ -131,7 +131,59 @@ def validate_file_change_requests(
                 fcr.change_type = "modify" # need better handling
             except FileNotFoundError:
                 pass
+        
+def sort_and_fuse_snippets(
+    snippets: list[Snippet],
+    fuse_threshold: int = 5
+) -> list[Snippet]:
+    if len(snippets) <= 1:
+        return snippets
+    new_snippets = []
+    snippets.sort(key=lambda x: x.start)
+    current_snippet = snippets[0]
+    for snippet in snippets[1:]:
+        if current_snippet.end + fuse_threshold >= snippet.start:
+            current_snippet.end = max(current_snippet.end, snippet.end)
+        else:
+            new_snippets.append(current_snippet)
+            current_snippet = snippet
+    new_snippets.append(current_snippet)
+    return new_snippets
     
+def organize_snippets(snippets: list[Snippet]) -> list[Snippet]:
+    """
+    Fuse and dedup snippets that are contiguous. Combine ones of same file.
+    """
+    fused_snippets = []
+    added_file_paths = set()
+    for i, snippet in enumerate(snippets):
+        if snippet.file_path in added_file_paths:
+            continue
+        added_file_paths.add(snippet.file_path)
+        current_snippets = [snippet]
+        for current_snippet in snippets[i + 1:]:
+            if snippet.file_path == current_snippet.file_path:
+                current_snippets.append(current_snippet)
+        current_snippets = sort_and_fuse_snippets(current_snippets)
+        fused_snippets.extend(current_snippets)
+    return fused_snippets
+
+def get_max_snippets(
+    snippets: list[Snippet],
+    budget: int = 150_000 * 3.5, # 150k tokens
+    expand: int = 300,
+):
+    """
+    Start with max number of snippets and then remove then until the budget is met.
+    Return the resulting organized snippets.
+    """
+    for i in range(len(snippets), 0, -1):
+        proposed_snippets = organize_snippets(snippets[:i])
+        cost = sum([len(snippet.expand(expand).get_snippet(False, False)) for snippet in proposed_snippets])
+        breakpoint()
+        if cost <= budget:
+            return proposed_snippets
+    raise Exception("Budget number of chars too low!")
 
 def get_files_to_change(
     relevant_snippets: list[Snippet],
@@ -157,21 +209,17 @@ def get_files_to_change(
         )
     )
     # pare down message lists before we create messages
-    max_chars = 150000 * 3.75 # 120k tokens
-    counter = sum([len(snippet.expand(300).get_snippet(False, False)) for snippet in relevant_snippets]) + sum(
-        [len(snippet.expand(300).get_snippet(False, False)) for snippet in read_only_snippets]
-    )
-    removed = 0
-    while counter > max_chars:
-        if removed % 2 == 1:
-            if relevant_snippets:
-                removed_snippet = relevant_snippets.pop()
-                counter -= len(removed_snippet.expand(300).get_snippet(False, False))
-        else:
-            if read_only_snippets:
-                removed_snippet = read_only_snippets.pop()
-                counter -= len(removed_snippet.expand(300).get_snippet(False, False))
-        removed += 1
+    # max_chars = 150000 * 3.5 # 120k tokens
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    max_snippets = get_max_snippets(interleaved_snippets)
+
     relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
     # attach all relevant snippets
