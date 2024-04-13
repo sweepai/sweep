@@ -167,12 +167,14 @@ def get_files_to_change(
     removed = 0
     while counter > max_chars:
         if removed % 2 == 1:
-            removed_snippet = relevant_snippets.pop()
-            counter -= len(removed_snippet.expand(300).get_snippet(False, False))
+            if relevant_snippets:
+                removed_snippet = relevant_snippets.pop()
+                counter -= len(removed_snippet.expand(300).get_snippet(False, False))
         else:
-            removed_snippet = read_only_snippets.pop()
-            counter -= len(removed_snippet.expand(300).get_snippet(False, False))
-    
+            if read_only_snippets:
+                removed_snippet = read_only_snippets.pop()
+                counter -= len(removed_snippet.expand(300).get_snippet(False, False))
+        removed += 1
     relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
     # attach all relevant snippets
