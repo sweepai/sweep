@@ -28,34 +28,57 @@ we add adjustment scores to compensate for this bias.
 """
 
 prefix_adjustment = {
-    "doc": -0.5,
-    "example": -0.75,
+    "doc": 0.3,
+    "example": 0.7,
 }
 
 suffix_adjustment = {
-    ".txt": -0.5,
-    ".rst": -0.5,
-    ".md": -0.5,
-    ".html": -0.5,
-    ".po": -1,
-    ".json": -0.5,
-    ".toml": -0.5,
-    ".yaml": -0.5,
-    ".yml": -0.5,
-    ".spec.ts": -1,
-    ".spec.js": -1,
-    ".generated.ts": -1.5,
-    ".generated.graphql": -1.5,
-    ".generated.js": -1.5,
-    "ChangeLog": -1.5,
+    ".ini": 0.8,
+    ".txt": 0.8,
+    ".rst": 0.8,
+    ".md": 0.8,
+    ".html": 0.8,
+    ".po": 0.5,
+    ".json": 0.8,
+    ".toml": 0.8,
+    ".yaml": 0.8,
+    ".yml": 0.8,
+    ".spec.ts": 0.6,
+    ".spec.js": 0.6,
+    ".generated.ts": 0.5,
+    ".generated.graphql": 0.5,
+    ".generated.js": 0.5,
+    "ChangeLog": 0.5,
 }
 
 substring_adjustment = {
-    "tests/": -1,
-    "test_": -1,
-    "_test": -1,
-    "migrations/": -1.5,
+    "tests/": 0.5,
+    "test_": 0.5,
+    "_test": 0.5,
+    "egg-info": 0.5,
+    "LICENSE": 0.5,
 }
+
+def apply_adjustment_score(
+    snippet: str,
+    old_score: float,
+):
+    snippet_score = old_score
+    file_path, *_ = snippet.split(":")
+    file_path = file_path.lower()
+    for prefix, adjustment in prefix_adjustment.items():
+        if file_path.startswith(prefix):
+            snippet_score *= adjustment
+            break
+    for suffix, adjustment in suffix_adjustment.items():
+        if file_path.endswith(suffix):
+            snippet_score *= adjustment
+            break
+    for substring, adjustment in substring_adjustment.items():
+        if substring in file_path:
+            snippet_score *= adjustment
+            break
+    return snippet_score
 
 NUM_SNIPPETS_TO_RERANK = 100
 
@@ -103,18 +126,9 @@ def multi_get_top_k_snippets(
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score
             else:
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score * vector_score
-            for prefix, adjustment in prefix_adjustment.items():
-                if snippet.file_path.startswith(prefix):
-                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
-                    break
-            for suffix, adjustment in suffix_adjustment.items():
-                if snippet.file_path.endswith(suffix):
-                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
-                    break
-            for substring, adjustment in substring_adjustment.items():
-                if substring in snippet.file_path:
-                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
-                    break
+            content_to_lexical_score_list[i][snippet.denotation] = apply_adjustment_score(
+                snippet.denotation, content_to_lexical_score_list[i][snippet.denotation]
+            )
     
     ranked_snippets_list = [
         sorted(
