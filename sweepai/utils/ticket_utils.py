@@ -81,6 +81,14 @@ def apply_adjustment_score(
         if substring in file_path:
             snippet_score *= adjustment
             break
+    # Penalize numbers as they are usually examples of:
+    # 1. Test files (e.g. test_utils_3*.py)
+    # 2. Generated files (from builds or snapshot tests)
+    # 3. Versioned files (e.g. v1.2.3)
+    # 4. Migration files (e.g. 2022_01_01_*.sql)
+    base_file_name = file_path.split("/")[-1]
+    num_numbers = sum(c.isdigit() for c in base_file_name)
+    snippet_score *= (1 - 1 / len(base_file_name)) ** num_numbers
     return snippet_score
 
 NUM_SNIPPETS_TO_RERANK = 100
