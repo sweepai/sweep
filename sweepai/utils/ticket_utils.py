@@ -2,11 +2,14 @@ from collections import defaultdict
 import traceback
 from time import time
 
+import cohere
 from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
+from sweepai.config.server import COHERE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, get_relevant_context, integrate_graph_retrieval
+from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
@@ -28,34 +31,65 @@ we add adjustment scores to compensate for this bias.
 """
 
 prefix_adjustment = {
-    "doc": -0.5,
-    "example": -0.75,
+    "doc": 0.3,
+    "example": 0.7,
 }
 
 suffix_adjustment = {
-    ".txt": -0.5,
-    ".rst": -0.5,
-    ".md": -0.5,
-    ".html": -0.5,
-    ".po": -1,
-    ".json": -0.5,
-    ".toml": -0.5,
-    ".yaml": -0.5,
-    ".yml": -0.5,
-    ".spec.ts": -1,
-    ".spec.js": -1,
-    ".generated.ts": -1.5,
-    ".generated.graphql": -1.5,
-    ".generated.js": -1.5,
-    "ChangeLog": -1.5,
+    ".ini": 0.8,
+    ".txt": 0.8,
+    ".rst": 0.8,
+    ".md": 0.8,
+    ".html": 0.8,
+    ".po": 0.5,
+    ".json": 0.8,
+    ".toml": 0.8,
+    ".yaml": 0.8,
+    ".yml": 0.8,
+    ".spec.ts": 0.6,
+    ".spec.js": 0.6,
+    ".generated.ts": 0.5,
+    ".generated.graphql": 0.5,
+    ".generated.js": 0.5,
+    "ChangeLog": 0.5,
 }
 
 substring_adjustment = {
-    "tests/": -1,
-    "test_": -1,
-    "_test": -1,
-    "migrations/": -1.5,
+    "tests/": 0.5,
+    "test_": 0.5,
+    "_test": 0.5,
+    "egg-info": 0.5,
+    "LICENSE": 0.5,
 }
+
+def apply_adjustment_score(
+    snippet: str,
+    old_score: float,
+):
+    snippet_score = old_score
+    file_path, *_ = snippet.split(":")
+    file_path = file_path.lower()
+    for prefix, adjustment in prefix_adjustment.items():
+        if file_path.startswith(prefix):
+            snippet_score *= adjustment
+            break
+    for suffix, adjustment in suffix_adjustment.items():
+        if file_path.endswith(suffix):
+            snippet_score *= adjustment
+            break
+    for substring, adjustment in substring_adjustment.items():
+        if substring in file_path:
+            snippet_score *= adjustment
+            break
+    # Penalize numbers as they are usually examples of:
+    # 1. Test files (e.g. test_utils_3*.py)
+    # 2. Generated files (from builds or snapshot tests)
+    # 3. Versioned files (e.g. v1.2.3)
+    # 4. Migration files (e.g. 2022_01_01_*.sql)
+    base_file_name = file_path.split("/")[-1]
+    num_numbers = sum(c.isdigit() for c in base_file_name)
+    snippet_score *= (1 - 1 / len(base_file_name)) ** num_numbers
+    return snippet_score
 
 NUM_SNIPPETS_TO_RERANK = 100
 
@@ -103,18 +137,9 @@ def multi_get_top_k_snippets(
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score
             else:
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score * vector_score
-            for prefix, adjustment in prefix_adjustment.items():
-                if snippet.file_path.startswith(prefix):
-                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
-                    break
-            for suffix, adjustment in suffix_adjustment.items():
-                if snippet.file_path.endswith(suffix):
-                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
-                    break
-            for substring, adjustment in substring_adjustment.items():
-                if substring in snippet.file_path:
-                    content_to_lexical_score_list[i][snippet.denotation] += adjustment
-                    break
+            content_to_lexical_score_list[i][snippet.denotation] = apply_adjustment_score(
+                snippet.denotation, content_to_lexical_score_list[i][snippet.denotation]
+            )
     
     ranked_snippets_list = [
         sorted(
@@ -137,13 +162,71 @@ def get_top_k_snippets(
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
+@file_cache()
+def cohere_rerank_call(
+    query: str,
+    documents: list[str],
+    model='rerank-english-v3.0',
+    **kwargs,
+):
+    # Cohere API call with caching
+    co = cohere.Client(COHERE_API_KEY)
+    return co.rerank(
+        model=model,
+        query=query,
+        documents=documents,
+        **kwargs
+    )
+
+def get_pointwise_reranked_snippet_scores(
+    query: str,
+    snippets: list[Snippet],
+    snippet_scores: dict[str, float],
+):
+    """
+    Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
+    Ranks 6-100 are reranked using Cohere. Then we divide the scores by 1_000 to make them comparable to the original scores.
+    """
+
+    if COHERE_API_KEY is None:
+        return snippet_scores
+
+    sorted_snippets = sorted(
+        snippets,
+        key=lambda snippet: snippet_scores[snippet.denotation],
+        reverse=True,
+    )
+
+    NUM_SNIPPETS_TO_KEEP = 5
+    NUM_SNIPPETS_TO_RERANK = 100
+
+    response = cohere_rerank_call(
+        model='rerank-english-v3.0',
+        query=query,
+        documents=[snippet.xml for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
+        max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
+    )
+
+    new_snippet_scores = {k: v / 1000 for k, v in snippet_scores.items()}
+
+    for document in response.results:
+        new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
+            sorted_snippets[document.index].denotation,
+            document.relevance_score,
+        )
+
+    for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
+        new_snippet_scores[snippet.denotation] = snippet_scores[snippet.denotation] * 1_000
+    
+    return new_snippet_scores
 
 def multi_prep_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    skip_reranking: bool = False,
+    skip_reranking: bool = False, # This is only for pointwise reranking
+    skip_pointwise_reranking: bool = False,
 ) -> RepoContextManager:
     """
     Assume 0th index is the main query.
@@ -159,6 +242,10 @@ def multi_prep_snippets(
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
+        if not skip_pointwise_reranking:
+            content_to_lexical_score = get_pointwise_reranked_snippet_scores(
+                queries[0], snippets, content_to_lexical_score
+            )
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
@@ -168,6 +255,15 @@ def multi_prep_snippets(
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
             cloned_repo, queries[0], ticket_progress, k
         )
+        if not skip_pointwise_reranking:
+            content_to_lexical_score = get_pointwise_reranked_snippet_scores(
+                queries[0], snippets, content_to_lexical_score
+            )
+        ranked_snippets = sorted(
+            snippets,
+            key=lambda snippet: content_to_lexical_score[snippet.denotation],
+            reverse=True,
+        )[:k]
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
