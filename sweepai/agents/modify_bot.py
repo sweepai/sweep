@@ -252,6 +252,7 @@ class ModifyBot:
         relevant_filepaths: list[str] = [],
         fcrs: list[FileChangeRequest]=[],
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+        use_openai: bool = False,
     ):
         new_files = modify(
             request=instructions,
@@ -259,6 +260,7 @@ class ModifyBot:
             relevant_filepaths=relevant_filepaths,
             fcrs=fcrs,
             chat_logger=self.chat_logger,
+            use_openai=use_openai,
         )
         if new_files:
             posthog.capture(

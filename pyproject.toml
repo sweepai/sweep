@@ -34,6 +34,7 @@ classifiers = [
 dependencies = [
   "anthropic==0.21.3",
   "beautifulsoup4==4.12.3",
+  "cohere==5.2.5",
   "typer==0.10.0",
   "pygithub==2.2.0",
   "loguru==0.7.2",

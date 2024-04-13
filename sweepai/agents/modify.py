@@ -5,7 +5,7 @@ from rapidfuzz import fuzz, process
 
 from loguru import logger
 from tqdm import tqdm
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import ChatGPT, parse_function_calls_for_openai
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.core.reflection_utils import ModifyEvaluatorAgent
 from sweepai.utils.chat_logger import ChatLogger
@@ -14,6 +14,51 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import manual_code_check
 from sweepai.utils.utils import get_check_results
+
+
+modify_tools_openai = """
+# make_change - Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.
+To call this tool you must respond in the following xml format:
+
+<make_change>
+<justification>
+Explain how this SINGLE change contributes to fulfilling the user's request.
+</justification>
+<file_name>
+Name of the file where the change will be made. Ensure correct spelling as this is case-sensitive.
+</file_name>
+<original_code>
+The existing lines of code that need modification or replacement. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+</original_code>
+<new_code>
+The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
+</new_code>
+</make_change>
+
+# create_file - Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
+To call this tool you must respond in the following xml format:
+<create_file>
+<file_path>
+The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
+</file_path>
+<file_name>
+he name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
+</file_name>
+<contents>
+The initial contents of the new file.
+</contents>
+<justification>
+Explain why creating this new file is necessary to complete the task and how it integrates with the existing codebase structure.
+</justification>
+</create_file>
+
+# submit_result - Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
+To call this tool you must respond in the following xml format:
+<submit_result>
+<justification>
+Summarize the code changes made and explain how they fulfill the user's original request. Provide the complete, modified code if applicable.
+</justification>
+</submit_result>"""
 
 modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
@@ -138,7 +183,7 @@ You MUST call them like this:
 
 Here are the tools available:
 
-""" + modify_tools
+"""
 
 NO_TOOL_CALL_PROMPT = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
@@ -211,6 +256,24 @@ def find_best_match(needle: str, haystack: str, threshold: int = 80):
     return "", 0
 
 MODEL = "claude-3-opus-20240229"
+
+def validate_and_parse_function_call_openai(
+    function_calls_string: str, chat_gpt: ChatGPT
+) -> list[AnthropicFunctionCall]:
+    function_calls = parse_function_calls_for_openai(
+        function_calls_string.strip("\n") + "\n</function_call>"
+    )
+    if len(function_calls) > 0:
+        function_calls[0] = AnthropicFunctionCall(
+            function_name=function_calls[0]['tool'],
+            function_parameters=function_calls[0]['arguments'],
+        )
+        if "<function_call>" in function_calls_string:
+            chat_gpt.messages[-1].content = (
+                chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
+            )
+    return function_calls[0] if len(function_calls) > 0 else None
+
 
 def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -353,6 +416,7 @@ def modify(
     cloned_repo: ClonedRepo,
     relevant_filepaths: list[str],
     chat_logger: ChatLogger | None = None,
+    use_openai: bool = False,
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
     user_message = create_user_message(
@@ -362,13 +426,15 @@ def modify(
         relevant_filepaths=relevant_filepaths,
     )
     chat_gpt = ChatGPT()
-    chat_gpt.messages = [Message(role="system", content=instructions)]
+    full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
+    chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
         function_calls_string = chat_gpt.chat_anthropic(
             content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
             stop_sequences=["</function_call>"],
             model=MODEL,
             message_key="user_request",
+            use_openai=use_openai,
         )
     except Exception as e:
         logger.error(f"Error in chat_anthropic: {e}")
@@ -395,8 +461,11 @@ def modify(
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
-    for i in range(len(fcrs) * 10):
-        function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
+    for i in range(len(fcrs) * 15):
+        if use_openai:
+            function_call = validate_and_parse_function_call_openai(function_calls_string, chat_gpt)
+        else:
+            function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages)
@@ -462,6 +531,7 @@ def modify(
                 content=function_output,
                 model=MODEL,
                 stop_sequences=["</function_call>"],
+                use_openai=use_openai,
             )
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
