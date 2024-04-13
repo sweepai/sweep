@@ -105,3 +105,28 @@ You can double check it's working with:
 npx eslint --version
 ```
 
+### Search Improvements using Other Search Providers
+
+#### Cohere Rerank v3
+
+Cohere's Rerank v3 endpoint can improve search's recall by > 5%. You can get an API key from https://dashboard.cohere.com/api-keys and run:
+
+```zsh filename="terminal"
+export COHERE_API_KEY=abcdefg
+```
+
+Then Sweep will use Cohere to rerank the top 100 snippets after the initial retrieval.
+
+#### Voyage AI
+
+Voyage AI's `voyage-code-2` can improve search's recall by > 3% as compared to OpenAI's Ada v3. You can get an API key from https://dash.voyageai.com/api-keys and run:
+
+```zsh filename="terminal"
+export VOYAGE_API_KEY=pa-abcdefg
+```
+
+Then Sweep will use Voyage AI for retrieval instead of OpenAI.
+
+#### Self-hosted Search Providers
+
+For connecting with self-hosted Cohere's or Voyage AI's model(s) on AWS SageMaker, contact us at team@sweep.dev.
