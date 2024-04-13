@@ -774,4 +774,4 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, None, new_file_contents
+            return False, None, {}
