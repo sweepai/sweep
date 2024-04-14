@@ -116,6 +116,16 @@ def patience_fuzzy_diff(
     diff_lines = patience_fuzzy_diff_lines(old_lines, new_lines)
     return "\n".join(diff_lines)
 
+def patience_fuzzy_additions(
+    old_string: str,
+    new_string: str
+):
+    if old_string == new_string:
+        return ""
+    old_lines = old_string.splitlines()
+    new_lines = new_string.splitlines()
+    diff_lines = patience_fuzzy_diff_lines(old_lines, new_lines)
+    return "\n".join(line[2:] for line in diff_lines if line.startswith("+"))
 
 old_lint_results = """> pylint sweepai/handlers/on_ticket.py
 
