@@ -32,7 +32,7 @@ from sweepai.core.prompts import (
     subissues_prompt,
     files_to_change_system_prompt
 )
-from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
@@ -190,6 +190,7 @@ def get_files_to_change(
     problem_statement,
     repo_name,
     pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
     seed: int = 0
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
@@ -268,7 +269,7 @@ def get_files_to_change(
             print(message.content + "\n\n")
         joint_message = "\n\n".join(message.content for message in messages[1:-1])
         print("messages", joint_message)
-        chatgpt = ChatGPT(
+        chat_gpt = ChatGPT(
             messages=[
                 Message(
                     role="system",
@@ -276,11 +277,18 @@ def get_files_to_change(
                 ),
             ],
         )
-        files_to_change_response = chatgpt.chat_anthropic(
+        files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + files_to_change_prompt,
             model="claude-3-opus-20240229",
             temperature=0.1
         )
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": chat_gpt.model,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": f"ERROR:\n{e}\nEND OF ERROR",
+                })
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []
         pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
