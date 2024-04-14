@@ -219,8 +219,8 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
-    read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
+    relevant_snippet_template = '<snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</snippet>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     joined_relevant_snippets = "\n".join(
         relevant_snippet_template.format(
@@ -268,7 +268,7 @@ def get_files_to_change(
             print(message.content + "\n\n")
         joint_message = "\n\n".join(message.content for message in messages[1:-1])
         print("messages", joint_message)
-        chatgpt = ChatGPT(
+        chat_gpt = ChatGPT(
             messages=[
                 Message(
                     role="system",
@@ -276,10 +276,11 @@ def get_files_to_change(
                 ),
             ],
         )
-        files_to_change_response = chatgpt.chat_anthropic(
+        MODEL = "gpt-4-turbo-2024-04-09"
+        files_to_change_response = chat_gpt.chat(
             content=joint_message + "\n\n" + files_to_change_prompt,
-            model="claude-3-opus-20240229",
-            temperature=0.1
+            model=MODEL,
+            temperature=0.2
         )
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []

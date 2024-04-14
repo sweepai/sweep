@@ -184,7 +184,20 @@ files_to_change_system_prompt = """You are a brilliant and meticulous engineer a
 files_to_change_system_prompt = """You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue using the snippets provided from the codebase. You have the utmost care for the plan that you write, so you ensure that all the relevant modules in the file are identified. Take into account the current repository's language, frameworks, and dependencies, as well as the existing modules such as helper functions, utility operations and backend services."""
 
 files_to_change_system_prompt = """\
-You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue. You have the utmost care for the plan that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies."""
+# Task: 
+Critically analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+
+You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
+
+Guidelines:
+* Always include the full file path and reference the provided snippets.
+* Provide clear, natural language instructions for updating the code logic and specify necessary imports.
+* Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
+* Include relevant type definitions, interfaces, and schemas in the relevant_files to provide a clear understanding of the entities and their relationships.
+* Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
+* Be certain that your plan is complete and covers all the necessary changes to fully resolve the issue.
+* Suggest high-quality changes that are completely safe, maintainable, efficient and backwards compatible.
+* Divide the task into smaller steps, where each <create> or <modify> section corresponds to one small code block of change. You may have multiple <modify> blocks for the same file."""
 
 
 # put more emphasis on modify
@@ -192,7 +205,7 @@ You are a brilliant and meticulous engineer assigned to plan code changes to sol
 files_to_change_prompt = """# Task: 
 Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
 
-You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
+You are provided with relevant_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
 
 Guidelines:
 * Always include the full file path (e.g. src/utils/strings/regex_utils.py instead of just strings/regex_utils.py or regex_utils.py) and reference the provided snippets.
@@ -278,7 +291,7 @@ Relevant utility modules:
 files_to_change_prompt = """# Task: 
 Critically analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
 
-You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
+You are provided with relevant_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
 
 Guidelines:
 * Always include the full file path and reference the provided snippets.

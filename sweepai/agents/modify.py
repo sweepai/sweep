@@ -430,7 +430,7 @@ def modify(
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
         function_calls_string = chat_gpt.chat_anthropic(
-            content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
+            content=f"Here is the initial user request, plan, and state of the code files:\n{user_message}",
             stop_sequences=["</function_call>"],
             model=MODEL,
             message_key="user_request",
