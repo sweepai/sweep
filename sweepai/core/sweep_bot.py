@@ -287,7 +287,6 @@ def get_files_to_change(
                 {
                     "model": chat_gpt.model,
                     "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
-                    "output": f"ERROR:\n{e}\nEND OF ERROR",
                 })
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []
