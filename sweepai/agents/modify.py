@@ -212,6 +212,42 @@ Here is an example:
 If you are really done, call the submit_result function.
 """
 
+NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
+No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
+
+<function_call>
+<tool_name>
+<parameter1>
+parameter1 value here
+</parameter1>
+<parameter2>
+parameter2 value here
+</parameter2>
+</tool_name>
+</function_call>
+
+Here is an example:
+
+<function_call>
+<make_change>
+<justification>
+The justification for making this change goes here
+</justification>
+<file_name>
+example-file.file
+</file_name>
+<original_code>
+old code line here
+</original_code>
+<new_code>
+new code line here
+</new_code>
+</make_change>
+</function_call>
+
+If you are really done, call the submit_result function.
+"""
+
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
@@ -468,7 +504,7 @@ def modify(
             function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
-            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages)
+            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
             if function_output == "DONE":
                 # add the diff of all changes to chat_logger
                 if chat_logger:
@@ -580,7 +616,8 @@ def handle_function_call(
     function_call: AnthropicFunctionCall,
     modify_files_dict: dict[str, dict[str, str]],
     llm_state: dict,
-    chat_logger_messages: list[dict[str, str]] | None = None
+    chat_logger_messages: list[dict[str, str]] | None = None,
+    use_openai: bool = False,
 ) :
     # iterate through modify_files_dict and generate diffs
     llm_response = ""
@@ -598,7 +635,10 @@ def handle_function_call(
             else:
                 llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
     elif tool_name == "no_tool_call":
-        llm_response = NO_TOOL_CALL_PROMPT
+        if use_openai:
+            llm_response = NO_TOOL_CALL_PROMPT_OPENAI
+        else:
+            llm_response = NO_TOOL_CALL_PROMPT
     elif tool_name == "make_change":
         error_message = ""
         for key in ["file_name", "original_code", "new_code"]:
