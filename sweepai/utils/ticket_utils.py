@@ -191,7 +191,7 @@ def get_pointwise_reranked_snippet_scores(
     Ranks 6-100 are reranked using Cohere. Then we divide the scores by 1_000 to make them comparable to the original scores.
     """
 
-    if COHERE_API_KEY is None:
+    if not COHERE_API_KEY:
         return snippet_scores
 
     sorted_snippets = sorted(

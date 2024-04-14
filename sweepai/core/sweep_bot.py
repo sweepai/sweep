@@ -32,7 +32,7 @@ from sweepai.core.prompts import (
     subissues_prompt,
     files_to_change_system_prompt
 )
-from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
@@ -190,6 +190,7 @@ def get_files_to_change(
     problem_statement,
     repo_name,
     pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
     seed: int = 0
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
@@ -282,6 +283,12 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.2
         )
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                })
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []
         pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)

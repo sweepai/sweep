@@ -599,6 +599,7 @@ def get_relevant_context(
             unformatted_user_prompt=unformatted_user_prompt,
             query=query,
         )
+        return repo_context_manager # Temporarily disabled context
         chat_gpt = ChatGPT()
         chat_gpt.messages = [Message(role="system", content=sys_prompt)]
         old_relevant_snippets = deepcopy(repo_context_manager.current_top_snippets)
