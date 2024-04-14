@@ -606,6 +606,7 @@ def handle_function_call(
                 error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
+        warning_message = ""
         if not error_message:
             for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
                 # ensure the file we are editting exists and is in modify_files_dict
@@ -622,6 +623,8 @@ def handle_function_call(
                 if new_code == original_code:
                     error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                     break
+                if not original_code:
+                    error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
                 # get the latest contents of the file
                 file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
                 warning_message = ""
@@ -634,9 +637,6 @@ def handle_function_call(
                 correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                 # if the original_code couldn't be found in the chunk we need to let the llm know
                 if original_code not in file_contents and correct_indent == -1:
-                    if not original_code.strip():
-                        error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
-
                     # TODO: add weighted ratio to the choices, penalize whitespace less
                     best_match, best_score = find_best_match(original_code, file_contents)
 
@@ -679,15 +679,16 @@ def handle_function_call(
                 # Check if the changes are valid
                 if not error_message:
                     check_results = get_check_results(file_name, new_file_contents)
-                    # check_results_message = check_results.is_worse_than_message(initial_check_results) - currently unused
+                    check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
                     failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
                         file_contents, new_file_contents
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
-                        # breakpoint()
                         break
+                    elif check_results_message:
+                        warning_message = check_results_message
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
         if not error_message:
@@ -707,7 +708,8 @@ def handle_function_call(
                 current_task=llm_state["current_task"],
                 previous_attempt=llm_state["previous_attempt"],
                 file_name=file_name,
-                chat_logger_messages=chat_logger_messages
+                warning_message=warning_message,
+                chat_logger_messages=chat_logger_messages,
             )
 
             if next_step == "COMPLETE":
@@ -724,7 +726,7 @@ def handle_function_call(
                 llm_state["previous_attempt"] = ""
             elif next_step == "CONTINUE":
                 # guard modify files
-                llm_response = f"SUCCESS\n\nThe changes have been applied. However, here is some feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
+                llm_response = f"SUCCESS\n\nThe changes have been applied. However, we need to fix a few more things before moving to the next task of the plan. Here is the feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
                 modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 previous_attempt = f"<previous_attempt>\nThe contractor previously made this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you accepted with the following feedback:\n{feedback}\n</previous_attempt>"
@@ -754,7 +756,7 @@ def handle_function_call(
                 error_message = f"The directory {new_file_path} is not valid. Make sure you have the correct directory path!"
             # ensure that the directory of the new full path exists, in case the file name is weird
             if not os.path.exists(os.path.dirname(new_full_file_path_with_cwd)):
-                error_message = f"The directory {os.path.dirname(new_full_file_path)} does not exist. Make sure you the new file you want to create exists within an existing directory!"
+                error_message = f"The directory {os.path.dirname(new_full_file_path)} does not exist. Make sure the new file you want to create exists within an existing directory!"
             # if no issues, create the file by placing it in modify_files_dict
             if not error_message:
                 modify_files_dict[new_full_file_path] = {"contents": new_file_contents, "original_contents": ""}

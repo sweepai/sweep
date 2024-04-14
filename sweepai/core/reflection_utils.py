@@ -218,7 +218,7 @@ Remember, your goal is to be a harsh critic and really scrutinize the work to en
 """ + modify_eval_response_format + modify_eval_examples
 
 modify_eval_patch_prompt = """\
-You are a meticulous code reviewer providing critical feedback on a contractor's code changes to help resolve a GitHub issue.
+You are a meticulous code reviewer providing critical and specific feedback on a contractor's code changes to help resolve a GitHub issue.
 Inputs:
 - Task description
 - Code patch (diff) 
@@ -270,9 +270,11 @@ Give critical, specific feedback on logic and integration ONLY. LIMIT FEEDBACK T
 COMPLETE - mark the CURRENT TASK as complete
 CONTINUE - apply the current changes, but make additional fixes before marking the CURRENT TASK as complete
 REJECT - generate the code again
-</next_step>"""
+</next_step>
 
-modify_eval_suffix_prompt = """Again, you will critically review the code changes and consider the following concerns and respond in the following format.
+Focus on functional changes, logic errors and other issues. Do not provide feedback on code style,comments or docstrings unless they're necessary."""
+
+modify_eval_suffix_prompt = """Again, you will critically review the code changes and consider the following concerns and respond in the following format. Your feedback will be very specific.
 
 Inputs:
 - Task description
@@ -330,7 +332,9 @@ CONTINUE - apply the current changes, but make additional tweaks before moving o
 COMPLETE - mark the CURRENT TASK as complete as there are no concerns or missed edge cases
 </next_step>
 
-Note: Only mark the task as complete if you are confident that all requirements have been met, edge cases have been handled, error handling and fallback mechanisms are in place, and no further improvements are necessary. If there are any doubts or actionable suggestions for enhancements, provide feedback and mark the task as "CONTINUE" or "REJECT" accordingly. Again, limit the feedback to the scope of the current task.
+Note: Only mark the task as complete if you are confident that all requirements have been met, edge cases have been handled, error handling and fallback mechanisms are in place, and no further specific improvements are necessary. If there are any specific doubts or actionable suggestions for enhancements, provide feedback and mark the task as "CONTINUE". Again, limit the feedback to the scope of the current task.
+
+Focus on functional changes, logic errors and other issues. Do not provide feedback on code style,comments or docstrings unless they're necessary.
 
 Respond with your extremely critical analysis and feedback."""
 
@@ -394,6 +398,7 @@ class ModifyEvaluatorAgent(ChatGPT):
         current_plan: str, 
         current_task: str,
         file_name: str,
+        warning_message: str = "",
         previous_attempt: str = "",
         chat_logger_messages: list[dict[str, str]] | None = None
     ):
@@ -411,10 +416,15 @@ class ModifyEvaluatorAgent(ChatGPT):
                 contractor_changes_made[file_name] = diff
         contractor_changed_files = "\n".join([f"<completed_patch file_name={file_name}>\n{diff}\n</completed_patch>" for file_name, diff in contractor_changes_made.items()])
         changed_files_section = f"""The contractor has already completed these changes as part of the completed tasks:\n<completed_changes>\n{contractor_changed_files}\n</completed_changes>\n\n"""
-        content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch_and_contents + current_task
+        content = formatted_problem_statement + formatted_plan + changed_files_section + formatted_patch_and_contents
+        if warning_message:
+            content += f"The changes also trigger the following warnings:\n<warnings>\n{warning_message}\n</warnings>\n\n"
+        content += current_task
         if previous_attempt:
             content += "\n\n" + previous_attempt
         content += "\n\n" + modify_eval_suffix_prompt
+        # if warning_message:
+        #     breakpoint()
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],

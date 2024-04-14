@@ -44,11 +44,14 @@ def load_config():
         cprint(f"\nLoading configuration from {config_path}", style="yellow")
         with open(config_path, "r") as f:
             config = json.load(f)
-        os.environ["GITHUB_PAT"] = config.get("GITHUB_PAT", "")
-        os.environ["OPENAI_API_KEY"] = config.get("OPENAI_API_KEY", "")
-        os.environ["ANTHROPIC_API_KEY"] = config.get("ANTHROPIC_API_KEY", "")
-        os.environ["VOYAGE_API_KEY"] = config.get("VOYAGE_API_KEY", "")
-        os.environ["POSTHOG_DISTINCT_ID"] = str(config.get("POSTHOG_DISTINCT_ID", ""))
+        os.environ.update(config)
+        os.environ["POSTHOG_DISTINCT_ID"] = str(os.environ.get("POSTHOG_DISTINCT_ID", ""))
+        # Should contain:
+        # GITHUB_PAT
+        # OPENAI_API_KEY
+        # ANTHROPIC_API_KEY
+        # VOYAGE_API_KEY
+        # POSTHOG_DISTINCT_ID
 
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
@@ -272,7 +275,7 @@ def init(override: bool = False):
     assert len(github_pat) > 30, "GitHub PAT must be of length at least 30."
     assert github_pat.startswith("ghp_"), "GitHub PAT must start with 'ghp_'."
     cprint(
-        "\nAwesome! Lastly, let's get your Voyage AI API key from https://dash.voyageai.com/api-keys. This is optional, but improves code search by about [cyan]5%[/cyan]. You can always return to this later by re-running 'sweep init'.",
+        "\nAwesome! Lastly, let's get your Voyage AI API key from https://dash.voyageai.com/api-keys. This is optional, but improves code search by about [cyan]3%[/cyan]. You can always return to this later by re-running 'sweep init'.",
         style="yellow",
     )
     voyage_api_key = Prompt.ask("Voyage AI API key", password=True)

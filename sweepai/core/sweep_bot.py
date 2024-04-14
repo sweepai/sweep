@@ -33,7 +33,7 @@ from sweepai.core.prompts import (
     files_to_change_system_prompt,
     plan_selection_prompt
 )
-from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
@@ -132,9 +132,60 @@ def validate_file_change_requests(
                 fcr.change_type = "modify" # need better handling
             except FileNotFoundError:
                 pass
+        
+def sort_and_fuse_snippets(
+    snippets: list[Snippet],
+    fuse_distance: int = 600,
+) -> list[Snippet]:
+    if len(snippets) <= 1:
+        return snippets
+    new_snippets = []
+    snippets.sort(key=lambda x: x.start)
+    current_snippet = snippets[0]
+    for snippet in snippets[1:]:
+        if current_snippet.end + fuse_distance >= snippet.start:
+            current_snippet.end = max(current_snippet.end, snippet.end)
+        else:
+            new_snippets.append(current_snippet)
+            current_snippet = snippet
+    new_snippets.append(current_snippet)
+    return new_snippets
     
 def parse_xml_tag_from_string(tag: str, string: str) -> str:
     return re.search(f"<{tag}>(.*?)</{tag}>", string, re.DOTALL).group(1)
+def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[Snippet]:
+    """
+    Fuse and dedup snippets that are contiguous. Combine ones of same file.
+    """
+    fused_snippets = []
+    added_file_paths = set()
+    for i, snippet in enumerate(snippets):
+        if snippet.file_path in added_file_paths:
+            continue
+        added_file_paths.add(snippet.file_path)
+        current_snippets = [snippet]
+        for current_snippet in snippets[i + 1:]:
+            if snippet.file_path == current_snippet.file_path:
+                current_snippets.append(current_snippet)
+        current_snippets = sort_and_fuse_snippets(current_snippets, fuse_distance=fuse_distance)
+        fused_snippets.extend(current_snippets)
+    return fused_snippets
+
+def get_max_snippets(
+    snippets: list[Snippet],
+    budget: int = 150_000 * 3.5, # 140k tokens
+    expand: int = 300,
+):
+    """
+    Start with max number of snippets and then remove then until the budget is met.
+    Return the resulting organized snippets.
+    """
+    for i in range(len(snippets), 0, -1):
+        proposed_snippets = organize_snippets(snippets[:i])
+        cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
+        if cost <= budget:
+            return proposed_snippets
+    raise Exception("Budget number of chars too low!")
 
 def get_files_to_change(
     relevant_snippets: list[Snippet],
@@ -142,6 +193,7 @@ def get_files_to_change(
     problem_statement,
     repo_name,
     pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
     seed: int = 0
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
@@ -159,22 +211,18 @@ def get_files_to_change(
             key="assistant",
         )
     )
-    # pare down message lists before we create messages
-    max_chars = 150000 * 3.75 # 120k tokens
-    counter = sum([len(snippet.expand(300).get_snippet(False, False)) for snippet in relevant_snippets]) + sum(
-        [len(snippet.expand(300).get_snippet(False, False)) for snippet in read_only_snippets]
-    )
-    removed = 0
-    while counter > max_chars:
-        if removed % 2 == 1:
-            if relevant_snippets:
-                removed_snippet = relevant_snippets.pop()
-                counter -= len(removed_snippet.expand(300).get_snippet(False, False))
-        else:
-            if read_only_snippets:
-                removed_snippet = read_only_snippets.pop()
-                counter -= len(removed_snippet.expand(300).get_snippet(False, False))
-        removed += 1
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
     relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
     # attach all relevant snippets
@@ -224,7 +272,7 @@ def get_files_to_change(
             print(message.content + "\n\n")
         joint_message = "\n\n".join(message.content for message in messages[1:-1])
         print("messages", joint_message)
-        chatgpt = ChatGPT(
+        chat_gpt = ChatGPT(
             messages=[
                 Message(
                     role="system",
@@ -232,13 +280,14 @@ def get_files_to_change(
                 ),
             ],
         )
-        files_to_change_response = chatgpt.chat_anthropic(
+        MODEL = "claude-3-opus-20240229"
+        files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + files_to_change_prompt,
-            model="claude-3-opus-20240229",
+            model=MODEL,
             temperature=0.1
         )
         issue_analysis = f'<issue_analysis>{parse_xml_tag_from_string("issue_analysis", files_to_change_response)}</issue_analysis>'
-        final_plan_response = chatgpt.chat_anthropic(
+        final_plan_response = chat_gpt.chat_anthropic(
             content=plan_selection_prompt,
             model="claude-3-opus-20240229",
             temperature=0.1
@@ -246,6 +295,12 @@ def get_files_to_change(
         final_plan = f'<final_plan>{parse_xml_tag_from_string("final_plan", final_plan_response)}</final_plan>'
         final_plan_response = f"Here is the issue analysis and final plan:\n{issue_analysis}\n\n{final_plan}"
         logger.info(f"Final plan: {final_plan_response}")
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                })
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []
         pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
