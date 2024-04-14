@@ -134,7 +134,7 @@ def validate_file_change_requests(
         
 def sort_and_fuse_snippets(
     snippets: list[Snippet],
-    fuse_threshold: int = 5
+    fuse_distance: int = 600,
 ) -> list[Snippet]:
     if len(snippets) <= 1:
         return snippets
@@ -142,7 +142,7 @@ def sort_and_fuse_snippets(
     snippets.sort(key=lambda x: x.start)
     current_snippet = snippets[0]
     for snippet in snippets[1:]:
-        if current_snippet.end + fuse_threshold >= snippet.start:
+        if current_snippet.end + fuse_distance >= snippet.start:
             current_snippet.end = max(current_snippet.end, snippet.end)
         else:
             new_snippets.append(current_snippet)
@@ -150,7 +150,7 @@ def sort_and_fuse_snippets(
     new_snippets.append(current_snippet)
     return new_snippets
     
-def organize_snippets(snippets: list[Snippet]) -> list[Snippet]:
+def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[Snippet]:
     """
     Fuse and dedup snippets that are contiguous. Combine ones of same file.
     """
@@ -164,13 +164,13 @@ def organize_snippets(snippets: list[Snippet]) -> list[Snippet]:
         for current_snippet in snippets[i + 1:]:
             if snippet.file_path == current_snippet.file_path:
                 current_snippets.append(current_snippet)
-        current_snippets = sort_and_fuse_snippets(current_snippets)
+        current_snippets = sort_and_fuse_snippets(current_snippets, fuse_distance=fuse_distance)
         fused_snippets.extend(current_snippets)
     return fused_snippets
 
 def get_max_snippets(
     snippets: list[Snippet],
-    budget: int = 150_000 * 3.5, # 150k tokens
+    budget: int = 150_000 * 3.5, # 140k tokens
     expand: int = 300,
 ):
     """
@@ -179,7 +179,7 @@ def get_max_snippets(
     """
     for i in range(len(snippets), 0, -1):
         proposed_snippets = organize_snippets(snippets[:i])
-        cost = sum([len(snippet.expand(expand).get_snippet(False, False)) for snippet in proposed_snippets])
+        cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
         if cost <= budget:
             return proposed_snippets
     raise Exception("Budget number of chars too low!")
@@ -207,8 +207,6 @@ def get_files_to_change(
             key="assistant",
         )
     )
-    # pare down message lists before we create messages
-    # max_chars = 150000 * 3.5 # 120k tokens
 
     interleaved_snippets = []
     for i in range(max(len(relevant_snippets), len(read_only_snippets))):
@@ -218,6 +216,8 @@ def get_files_to_change(
             interleaved_snippets.append(read_only_snippets[i])
 
     max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
     relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
