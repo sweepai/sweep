@@ -9,7 +9,7 @@ from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sweepai.utils.str_utils import (
     blockquote,
@@ -356,7 +356,7 @@ class Snippet(BaseModel):
     Start and end refer to line numbers
     """
 
-    content: str
+    content: str = Field(repr=False)
     start: int
     end: int
     file_path: str

@@ -48,6 +48,7 @@ suffix_adjustment = {
     ".toml": 0.8,
     ".yaml": 0.8,
     ".yml": 0.8,
+    ".1": 0.5, # man pages
     ".spec.ts": 0.6,
     ".spec.js": 0.6,
     ".generated.ts": 0.5,
