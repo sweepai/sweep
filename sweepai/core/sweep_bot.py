@@ -277,15 +277,16 @@ def get_files_to_change(
                 ),
             ],
         )
+        MODEL = "claude-3-opus-20240229"
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + files_to_change_prompt,
-            model="claude-3-opus-20240229",
+            model=MODEL,
             temperature=0.1
         )
         if chat_logger:
             chat_logger.add_chat(
                 {
-                    "model": chat_gpt.model,
+                    "model": MODEL,
                     "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
                 })
         print("files_to_change_response", files_to_change_response)
