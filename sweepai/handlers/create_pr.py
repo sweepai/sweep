@@ -1,6 +1,6 @@
 """
 create_pr is a function that creates a pull request from a list of file change requests.
-It is also responsible for handling Sweep config PR creation.
+It is also responsible for handling Sweep config PR creation. test
 """
 
 import datetime
@@ -22,6 +22,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import (
     FileChangeRequest,
     MaxTokensExceeded,
+    Message,
     MockPR,
     PullRequest,
 )
@@ -48,9 +49,9 @@ def create_pr_changes(
     username: str,
     installation_id: int,
     issue_number: int | None = None,
-    sandbox=None,
     chat_logger: ChatLogger = None,
     base_branch: str = None,
+    additional_messages: list[Message] = []
 ) -> Generator[tuple[FileChangeRequest, int, Any], None, dict]:
     # Flow:
     # 1. Get relevant files
@@ -99,19 +100,19 @@ def create_pr_changes(
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
         for (
-            file_change_request,
+            new_file_contents,
             changed_file,
-            sandbox_error,
             commit,
             file_change_requests,
         ) in sweep_bot.change_files_in_github_iterator(
             file_change_requests,
             pull_request.branch_name,
             blocked_dirs,
+            additional_messages=additional_messages
         ):
-            completed_count += changed_file
+            completed_count += len(new_file_contents or [])
             logger.info(f"Completed {completed_count}/{fcr_count} files")
-            yield file_change_request, changed_file, sandbox_error, commit, file_change_requests
+            yield new_file_contents, changed_file, commit, file_change_requests
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
@@ -195,7 +196,7 @@ def create_pr_changes(
             head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
         ),
     }
-    yield result  # Doing this because sometiems using StopIteration doesn't work, kinda jank tho tbh
+    yield result # TODO: refactor this as it doesn't need to be an iterator
     return
 
 
@@ -445,4 +446,11 @@ body:
         Unit Tests: Write unit tests for <FILE>. Test each function in the file. Make sure to test edge cases.
         Bugs: The bug might be in <FILE>. Here are the logs: ...
         Features: the new endpoint should use the ... class from <FILE> because it contains ... logic.
-        Refactors: We are migrating this function to ... version because ..."""
+        Refactors: We are migrating this function to ... version because ...
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: The branch to work off of (optional)
+      placeholder: |
+        main"""

@@ -20,8 +20,8 @@
     <a href="https://github.com/sweepai/sweep">
         <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
     </a>
-    <a href="https://uptime.betterstack.com/?utm_source=status_badge">
-        <img src="https://uptime.betterstack.com/status-badges/v1/monitor/v3bu.svg" alt="Better Stack Badge">
+    <a href="https://pypi.org/project/sweepai">
+        <img src="https://badge.fury.io/py/sweepai.svg" alt="PyPI version" height="18">
     </a>
     <a href="https://hub.docker.com/r/sweepai/sweep">
         <img alt="Self Host Sweep Docker Image" src="https://img.shields.io/badge/Host Sweep-Docker Image-2496ED?link=https://hub.docker.com/r/sweepai/sweep">
@@ -70,19 +70,6 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 * We focus on Python but support all languages GPT-4 can write. This includes JS/TS, Rust, Go, Java, C# and C++.
 
-### Self-Hosting
-
-You can self-host Sweep with our Docker image (`https://hub.docker.com/r/sweepai/sweep`). Please check out our deployment instructions here! https://docs.sweep.dev/deployment
-
-## Development
-
-### Starting the Webhook
-1. Clone the repo with `git clone https://github.com/sweepai/sweep`.
-2. Create `.env` according to https://docs.sweep.dev/deployment.
-3. Run `docker compose up --build`. This will take a few moments to start.
-
-To build our Docker images, run `docker compose build`.
-
 ---
 
 ## Story
@@ -99,18 +86,16 @@ Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. For
 
 For more GPT-4 tickets visit <a href='https://buy.stripe.com/00g3fh7qF85q0AE14d'>our payment portal</a>!
 
-You can [self-host](https://docs.sweep.dev/deployment) Sweep's docker image on any machine (AWS, Azure, your laptop) for free. You can get enterprise support by [contacting us](https://form.typeform.com/to/wliuvyWE).
+You can get enterprise support by [contacting us](https://form.typeform.com/to/wliuvyWE).
 
 ---
 
 > [!WARNING]
 > ### Limitations of Sweep
-> * **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
-    * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
-> * **Large-scale refactors**: >3 files or >150 lines of code changes
+> * **Large-scale refactors**: > 10 files or > 400 lines of code changes
     * e.g. Refactor the entire codebase from TensorFlow to PyTorch
-    * Sweep works best when pointed to a file, and we're continously improving Sweep's automation!
-> * **Editing images** and other non-text assets
+    * If this is a use case you're looking forward to, let us know!
+> * **Reading or editing images** and other non-text assets
     * e.g. Use the logo to create favicons for our landing page
 ---
 

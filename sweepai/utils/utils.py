@@ -1,24 +1,26 @@
 from __future__ import annotations
 
 import ast
+from io import StringIO
 import os
 import re
+import subprocess
+from tempfile import TemporaryDirectory
+import tempfile
 import traceback
-import uuid
 from dataclasses import dataclass
-from io import StringIO
 from typing import Optional
+import uuid
 
-import tiktoken
-from loguru import logger
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
+import tiktoken
+from loguru import logger
 from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
-from sweepai.logn.cache import file_cache
-from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -33,7 +35,6 @@ def get_line_number(index: int, source_code: str) -> int:
         if total_chars > index:
             return line_number - 1
     return line_number
-
 
 @dataclass
 class Span:
@@ -114,7 +115,14 @@ def chunk_tree(
     current_chunk = Span(0, 0)
     for chunk in chunks:
         current_chunk += chunk
-        if non_whitespace_len(
+        # if the current chunk starts with a closing parenthesis, bracket, or brace, we coalesce it with the previous chunk
+        stripped_contents = current_chunk.extract(source_code.decode("utf-8")).strip()
+        first_char = stripped_contents[0] if stripped_contents else ''
+        if first_char in [")", "}", "]"] and new_chunks:
+            new_chunks[-1] += chunk
+            current_chunk = Span(chunk.end, chunk.end)
+        # if the current chunk is too large, create a new chunk, otherwise, combine the chunks
+        elif non_whitespace_len(
             current_chunk.extract(source_code.decode("utf-8"))
         ) > coalesce and "\n" in current_chunk.extract(source_code.decode("utf-8")):
             new_chunks.append(current_chunk)
@@ -190,25 +198,94 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
     return chunks
 
+@dataclass
+class CheckResults:
+    # Experimental feature, we'll see how this does.
+    # TODO: smart parsing
+    parse_error_message: str = ""
+    pylint: str = ""
+    eslint: str = ""
 
-def check_valid_typescript(code: str) -> tuple[bool, str]:
-    # with tempfile.TemporaryDirectory() as temp_dir:
-    #     file_hash = uuid.uuid4().hex[:10]
-    #     tmp_file = os.path.join(temp_dir, file_hash + "_" + "temp.ts")
+    def is_worse_than(self, other: CheckResults) -> bool:
+        if self.parse_error_message:
+            return True
+        if other.parse_error_message:
+            return False
+        return len(self.pylint.splitlines()) > len(other.pylint.splitlines()) or len(self.eslint.splitlines()) > len(other.eslint.splitlines())
+    
+    def is_worse_than_message(self, other: CheckResults) -> str:
+        if self.parse_error_message:
+            return self.parse_error_message
+        if other.parse_error_message:
+            return other.parse_error_message
+        if len(self.pylint.splitlines()) > len(other.pylint.splitlines()):
+            # return f"The code has the following pylint errors:\n\n{self.pylint}"
+            if not other.pylint:
+                return f"The code has the following pylint errors:\n\n{self.pylint}"
+            return f"The following new pylint errors have appeared:\n\n{patience_fuzzy_additions(other.pylint, self.pylint)}"
+        if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
+            if not other.eslint:
+                return f"The code has the following eslint errors:\n\n{self.eslint}"
+            return f"The following new eslint errors have appeared:\n\n{patience_fuzzy_additions(other.eslint, self.eslint)}"
+        return ""
 
-    #     with open(tmp_file, "w") as file:
-    #         file.write(code)
+def strip_ansi_codes(text: str) -> str:
+    # ANSI escape sequences (color codes) are often starting with ESC ([) followed by some numbers and ends with "m".
+    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
+    return ansi_escape.sub('', text)
 
-    #     result = subprocess.run(
-    #         ["npx", "prettier", "--parser", "babel-ts", tmp_file],
-    #         capture_output=True,
-    #         timeout=5,
-    #     )
+def check_valid_typescript(file_path: str, code: str) -> tuple[bool, str]:
+    is_valid = True
+    message = ""
+    version_check = ["tsc", "--version"]
+    result = subprocess.run(
+        " ".join(version_check),
+        capture_output=True,
+        text=True,
+        shell=True,
+    )
+    # only run if tsc is available
+    if result.returncode == 0:
+        # Create a temporary file to hold the TypeScript code
+        with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as temp_file:
+            temp_file_path = temp_file.name
+            temp_file.write(code.encode('utf-8'))
+        
+        # Run `tsc` on the temporary file
+        try:
+            commands = ["tsc", "--pretty", "--noEmit", temp_file_path]
+            result = subprocess.run(" ".join(commands), shell=True, text=True, capture_output=True)
 
-    #     os.remove(tmp_file)
-    #     return result.returncode == 0, (result.stdout + result.stderr).decode("utf-8")
-    return True, ""
+            if result.returncode != 0:
+                message = strip_ansi_codes(result.stdout)
+                index = message.index(temp_file_path)
+                full_temp_file_path = message[:index + len(temp_file_path)]
+                message = message.replace(full_temp_file_path, file_path)
 
+                # import error is TS2307 and should come up after the syntax check
+                import_error = "error TS2307"
+                if import_error in message:
+                    num_of_errors = message.count(import_error)
+                    # see if this matches the total amount of errors:
+                    total_error_message = f"Found {num_of_errors} error"
+                    if total_error_message in message:
+                        # if we only have import errors, we consider it a successful check
+                        return True, ""
+                    else:
+                        # there are more errors than just import errors
+                        # now attempt to parse the message so that we remove import errors
+                        message_lines = message.split("\n")
+                        while num_of_errors > 0:
+                            for line in message_lines:
+                                if import_error in line:
+                                    message_lines = message_lines[5:]
+                                    num_of_errors -= 1
+                        message = "\n".join(message_lines)
+                return False, message
+        finally:
+            # Clean up: remove the temporary file
+            os.remove(temp_file_path)
+    return is_valid, message
 
 def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
     ext = file_path.split(".")[-1]
@@ -226,11 +303,11 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
         except SyntaxError as e:
             error_message = f"Python syntax error: {e.msg} at line {e.lineno}"
             return False, error_message
+    
+    # we can't do this right now unfortunately as we don't have a way to mimic the production env for the code
+    # if ext in ["ts"]:
+    #     return check_valid_typescript(file_path, code)
 
-    if ext in ("tsx", "ts"):
-        is_valid, error_message = check_valid_typescript(code)
-        if not is_valid:
-            return is_valid, error_message
 
     def find_deepest_error(node: Node) -> Optional[Node]:
         deepest_error = None
@@ -244,22 +321,145 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
 
     error_location = find_deepest_error(tree.root_node)
     if error_location:
-        line_number, _ = error_location.start_point
-        error_start = max(0, line_number - 10)
-        error_span = "\n".join(code.split("\n")[error_start:line_number])
-        error_message = f"Invalid syntax found within or before the lines {error_start}-{line_number}, displayed below:\n{error_span}"
+        start = error_location.start_point
+        end = error_location.end_point
+        if start[0] == end[0]:
+            error_code_lines = [code.split("\n")[start[0]]]
+        else:
+            error_code_lines = code.split("\n")[start[0]:end[0] + 1]
+        error_code_lines[0] = error_code_lines[0][start[1]:]
+        error_code_lines[-1] = error_code_lines[-1][:end[1]]
+        error_span = "\n".join(error_code_lines)
+        if start[0] == end[0]:
+            error_message = f"Invalid syntax found at line {start[0]}, displayed below:\n{error_span}"
+        else:
+            error_message = f"Invalid syntax found from {start}-{end}, displayed below:\n{error_span}"
         return (False, error_message)
     return True, ""
 
+# Need to add "no-unused-vars": "error"
+# Need to add "import/first": "error"
+
+DEFAULT_ESLINTRC = """{
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "import"
+  ],
+  "rules": {
+    "no-undef": "error",
+    "no-const-assign": "error",
+    "no-redeclare": "error",
+    "no-unused-vars": "error",
+    "no-use-before-define": ["error", { "functions": true, "classes": true, "variables": true }],
+    "import/first": "error"
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {}
+    }
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:import/typescript"
+  ],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "no-undef": "off"
+      }
+    }
+  ]
+}"""
+
+def get_check_results(file_path: str, code: str) -> CheckResults:
+    is_valid, error_message = check_syntax(file_path, code)
+    if not is_valid:
+        return CheckResults(parse_error_message=error_message)
+    ext = file_path.split(".")[-1] # noqa
+    if ext == "py":
+        file_hash = uuid.uuid4().hex
+        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        stem = os.path.splitext(os.path.basename(file_path))[0]
+        try:
+            with open(new_file, "w") as f:
+                f.write(code)
+            pylint_output = StringIO()
+            reporter = TextReporter(pylint_output)
+            Run(
+                [
+                    new_file,
+                    "--disable=C",
+                    "--enable=C0413",  # Enable only the check for imports not at the top
+                    "--disable=R",
+                    "--disable=import-error",
+                    "--disable=no-member",
+                    "--disable=unused-import" # we have a workaround for this tbh
+                ],
+                reporter=reporter,
+                exit=False,
+            )
+            error_message = pylint_output.getvalue().strip()
+            try:
+                os.remove(new_file)
+            except FileNotFoundError:
+                pass
+            succeeded = error_message.startswith("------------------------------------")
+            if error_message:
+                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+                error_message = error_message.split("-----------------------------------", 1)[0].strip()
+                error_message = f"> pylint {file_path}\n\n" + error_message
+            return CheckResults(pylint=error_message if not succeeded else "")
+        except Exception as e:
+            logger.exception(e)
+    if ext == "ts":
+        # see if eslint is installed
+        npx_commands = ["npx", "eslint", "--version"]
+        result = subprocess.run(
+            " ".join(npx_commands),
+            timeout=5,
+            capture_output=True,
+            text=True,
+            shell=True,
+        )
+        if result.returncode == 0:
+            with TemporaryDirectory() as temp_dir:
+                new_file = os.path.join(temp_dir, "temp.ts")
+                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
+                    f.write(DEFAULT_ESLINTRC)
+                with open(new_file, "w") as f:
+                    f.write(code)
+                try:
+                    eslint_commands = ["npx", "eslint", new_file]
+                    result = subprocess.run(
+                        " ".join(eslint_commands),
+                        capture_output=True,
+                        text=True,
+                        shell=True,
+                        timeout=30,
+                    )
+                    error_message = (result.stdout + "\n\n" + result.stderr).strip().replace(new_file, file_path)
+                    return CheckResults(eslint=error_message)
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"ESLint timed out after 30s for {file_path}")
+                    pass
+    return CheckResults()
 
 def check_code(file_path: str, code: str) -> tuple[bool, str]:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return is_valid, error_message
-    ext = file_path.split(".")[-1]
+    ext = file_path.split(".")[-1] # noqa
     if ext == "py":
         file_hash = uuid.uuid4().hex
         new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+        stem = os.path.splitext(os.path.basename(file_path))[0]
         try:
             with open(new_file, "w") as f:
                 f.write(code)
@@ -274,21 +474,47 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                     "--disable=relative-beyond-top-level",
                 ],
                 reporter=reporter,
-                do_exit=False,
+                exit=False,
             )
-            error_message = pylint_output.getvalue()
+            error_message = pylint_output.getvalue().strip()
             try:
                 os.remove(new_file)
             except FileNotFoundError:
                 pass
-            if error_message:
+            if not error_message.startswith("------------------------------------"):
+                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+                error_message = error_message.split("-----------------------------------", 1)[0].strip()
+                error_message = f"> pylint {file_path}\n\n" + error_message
                 return False, error_message
         except Exception as e:
-            discord_log_error("Pylint BS:\n" + e + traceback.format_exc())
+            logger.exception(e)
+    if ext == "ts":
+        # see if eslint is installed
+        result = subprocess.run(
+            ["npx", "eslint", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            with TemporaryDirectory() as temp_dir:
+                new_file = os.path.join(temp_dir, "temp.ts")
+                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
+                    f.write(DEFAULT_ESLINTRC)
+                with open(new_file, "w") as f:
+                    f.write(code)
+                result = subprocess.run(
+                    ["npx", "eslint", new_file, "--config", ".eslintrc"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode != 0:
+                    return False, result.stdout + "\n\n" + result.stderr
     return True, ""
 
 
-@file_cache()
+# @file_cache()
 def chunk_code(
     code: str,
     path: str,
@@ -330,8 +556,6 @@ def chunk_code(
             )
             snippets.append(new_snippet)
         return snippets
-    except SystemExit:
-        raise SystemExit
     except Exception:
         logger.error(traceback.format_exc())
         return []
@@ -386,6 +610,48 @@ describe('CallToAction component', () => {
 });
 """
 
+test_code = """
+x = "test"
+
+import numpy
+"""
 
 if __name__ == "__main__":
-    print(check_syntax("CallToAction.test.tsx", test_code))
+    # print(check_code("main.tsx", test_code))
+    # print(get_check_results("main.py", test_code))
+    code = """import { isPossiblyValidEmail } from '../validation-utils'
+import { PulseValidationException } from '../pulse-exceptions'
+
+export function getEmailDomain (email: string): string {
+  if (!isPossiblyValidEmail(email)) {
+    throw new PulseValidationException(`Email is invalid: ${email}`)
+  }
+  // Emails are tough. An email can contain multiple '@' symbols.
+  // Thankfully, domains cannot contain @, so the domain will be
+  // part after the last @ in the email.
+  // e.g., "steve@macbook"@trilogy.com is a valid email.
+  //
+  const tokens = email.split('@')
+  return tokens[tokens.length - 1].toLowerCase().trim()
+}
+
+export function removeEmailAlias(email: string): string {
+  if (!isPossiblyValidEmail(email)) {
+    throw new PulseValidationException(`Email is invalid: ${email}`)
+  
+  }
+  const atIndex = email.lastIndexOf('@')
+  const aliasIndex = email.lastIndexOf('+', atIndex)
+
+  if (aliasIndex > 0) {
+    return email.substring(0, aliasIndex) + email.substring(atIndex)
+  }
+
+  return email
+  }
+"""
+    new_code = """console.log("hello world")"""
+    check_results = check_valid_typescript("test.ts",new_code)
+    import pdb
+    # pylint: disable=no-member
+    pdb.set_trace()

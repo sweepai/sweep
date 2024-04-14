@@ -4,12 +4,14 @@ import os
 import traceback
 from functools import lru_cache
 
+import github
 import yaml
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.entities import EmptyRepository
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
 
 
 class SweepConfig(BaseModel):
@@ -17,16 +19,20 @@ class SweepConfig(BaseModel):
     exclude_dirs: list[str] = [
         ".git",
         "node_modules",
+        "build",
+        ".venv",
         "venv",
         "patch",
         "packages/blobs",
         "dist",
     ]
-    exclude_path_dirs: list[str] = [
-        "node_modules",
-        "venv",
-        ".git",
-        "dist"
+    exclude_path_dirs: list[str] = ["node_modules", "build", ".venv", "venv", ".git", "dist"]
+    exclude_substrings_aggressive: list[str] = [ # aggressively filter out file paths, may drop some relevant files
+        "integration",
+        ".spec",
+        ".test",
+        ".json",
+        "test"
     ]
     include_exts: list[str] = [
         ".cs",
@@ -98,14 +104,18 @@ class SweepConfig(BaseModel):
         ".ttf",
         ".dfn",
         ".dfm",
+        ".feature",
         "sweep.yaml",
-        ".ftl",
         "pnpm-lock.yaml",
         "LICENSE",
-        "poetry.lock"
+        "poetry.lock",
     ]
+    # cutoff for when we output truncated versions of strings, this is an arbitrary number and can be changed
+    truncation_cutoff: int = 20000
     # Image formats
     max_file_limit: int = 60_000
+    # github comments
+    max_github_comment_body_length: int = 65535
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(self.dict())
@@ -125,9 +135,30 @@ class SweepConfig(BaseModel):
                 return branch_name
             except SystemExit:
                 raise SystemExit
+            except github.GithubException:
+                # try a more robust branch test
+                branch_name_parts = branch_name.split(" ")[0].split("/")
+                branch_name_combos = []
+                for i in range(len(branch_name_parts)):
+                    branch_name_combos.append("/".join(branch_name_parts[i:]))
+                try:
+                    for i in range(len(branch_name_combos)):
+                        branch_name = branch_name_combos[i]
+                        try:
+                            repo.get_branch(branch_name)
+                            return branch_name
+                        except Exception as e:
+                            if i < len(branch_name_combos) - 1:
+                                continue
+                            else:
+                                raise Exception(f"Branch not found: {e}")
+                except Exception as e:
+                    logger.exception(
+                        f"Error when getting branch {branch_name}: {e}, traceback: {traceback.format_exc()}"
+                    )
             except Exception as e:
                 logger.exception(
-                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}"
+                    f"Error when getting branch {branch_name}: {e}, traceback: {traceback.format_exc()}"
                 )
 
         default_branch = repo.default_branch
@@ -187,6 +218,62 @@ class SweepConfig(BaseModel):
         except Exception as e:
             logger.warning(f"Error when getting draft: {e}, returning False")
             return False
+    
+    # returns if file is excluded or not
+    def is_file_excluded(self, file_path: str) -> bool:
+        parts = file_path.split(os.path.sep)
+        for part in parts:
+            if part in self.exclude_dirs or part in self.exclude_exts:
+                return True
+        return False
+    
+    # returns if file is excluded or not, this version may drop actual relevant files
+    def is_file_excluded_aggressive(self, dir: str, file_path: str) -> bool:
+        # tiktoken_client = Tiktoken()
+        # must exist
+        if not os.path.exists(os.path.join(dir, file_path)) and not os.path.exists(file_path):
+            return True
+        full_path = os.path.join(dir, file_path)
+        if os.stat(full_path).st_size > 240000 or os.stat(full_path).st_size < 5:
+            return True
+        # exclude binary 
+        with open(full_path, "rb") as f:
+            is_binary = False
+            for block in iter(lambda: f.read(1024), b""):
+                if b"\0" in block:
+                    is_binary = True
+                    break
+            if is_binary:
+                return True
+        try:
+            # fetch file
+            data = read_file_with_fallback_encodings(full_path)
+            lines = data.split("\n")
+        except UnicodeDecodeError:
+            logger.warning(f"UnicodeDecodeError in is_file_excluded_aggressive: {full_path}, skipping")
+            return True
+        line_count = len(lines)
+        # if average line length is greater than 200, then it is likely not human readable
+        if len(data)/line_count > 200:
+            return True
+    
+        # check token density, if it is greater than 2, then it is likely not human readable
+        # token_count = tiktoken_client.count(data)
+        # if token_count == 0:
+        #     return True
+        # if len(data)/token_count < 2:
+        #     return True
+        
+        # now check the file name
+        parts = file_path.split(os.path.sep)
+        for part in parts:
+            if part in self.exclude_dirs or part in self.exclude_exts:
+                return True
+        for part in self.exclude_substrings_aggressive:
+            if part in file_path:
+                return True
+        return False
+        
 
 
 @lru_cache(maxsize=None)
@@ -194,16 +281,16 @@ def get_gha_enabled(repo: Repository) -> bool:
     try:
         contents = repo.get_contents("sweep.yaml")
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
+            "gha_enabled", False
         )
         return gha_enabled
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.exception(
-            f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
+    except Exception:
+        logger.info(
+            "Error when getting gha enabled, falling back to False"
         )
-        return True
+        return False
 
 
 @lru_cache(maxsize=None)
@@ -291,8 +378,7 @@ def get_rules(repo: Repository):
     except SystemExit:
         raise SystemExit
     except Exception:
-        return []
-
+        return []    
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")

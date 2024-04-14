@@ -7,29 +7,26 @@ import time
 import traceback
 from typing import Any
 
-from logtail import LogtailHandler
 from loguru import logger
 from tabulate import tabulate
 
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
 from sweepai.config.server import (
     DEFAULT_GPT4_32K_MODEL,
-    DEFAULT_GPT35_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
-    LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
 )
 from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
@@ -60,8 +57,6 @@ def on_comment(
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
-        handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
-        logger.add(handler)
         logger.info(
             f"Calling on_comment() with the following arguments: {comment},"
             f" {repo_full_name}, {repo_description}, {pr_path}"
@@ -132,6 +127,9 @@ def on_comment(
             # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
             is_paying_user = True
             use_faster_model = False
+        
+        if use_faster_model:
+            raise Exception(FASTER_MODEL_MESSAGE)
 
         assignee = pr.assignee.login if pr.assignee else None
 
@@ -143,7 +141,7 @@ def on_comment(
             "installation_id": installation_id,
             "username": username if not username.startswith("sweep") else assignee,
             "function": "on_comment",
-            "model": "gpt-3.5" if use_faster_model else "gpt-4",
+            "model": "gpt-4",
             "tier": "pro" if is_paying_user else "free",
             "mode": ENV,
             "pr_path": pr_path,
@@ -281,6 +279,7 @@ def on_comment(
                     )
                     snippets = repo_context_manager.current_top_snippets
                     tree = str(repo_context_manager.dir_obj)
+                    cloned_repo = repo_context_manager.cloned_repo
                 except Exception as e:
                     logger.error(traceback.format_exc())
                     raise e
@@ -292,8 +291,6 @@ def on_comment(
                 repo_name=repo_name,
                 repo_description=repo_description if repo_description else "",
                 diffs=diffs,
-                issue_url=pr.html_url,
-                username=username,
                 title=pr_title,
                 tree=tree,
                 summary=pr_body,
@@ -306,14 +303,14 @@ def on_comment(
             )
             logger.info(f"Human prompt{human_message.construct_prompt()}")
 
+            if use_faster_model:
+                raise Exception("GPT-3.5 is not supported for comments")
             sweep_bot = SweepBot.from_system_message_content(
                 # human_message=human_message, model="claude-v1.3-100k", repo=repo
                 human_message=human_message,
                 repo=repo,
                 chat_logger=chat_logger,
-                model=DEFAULT_GPT35_MODEL
-                if use_faster_model
-                else DEFAULT_GPT4_32K_MODEL,
+                model=DEFAULT_GPT4_32K_MODEL,
                 cloned_repo=cloned_repo,
             )
         except Exception as e:
@@ -345,15 +342,14 @@ def on_comment(
                     )
                 ]
             else:
-                non_python_count = sum(
-                    not file_path.endswith(".py")
-                    for file_path in human_message.get_file_paths()
+                file_change_requests, plan = get_files_to_change(
+                    relevant_snippets=repo_context_manager.current_top_snippets,
+                    read_only_snippets=repo_context_manager.read_only_snippets,
+                    problem_statement=formatted_query,
+                    repo_name=repo_name,
+                    pr_diffs=pr_diff_string
                 )
-                python_count = len(human_message.get_file_paths()) - non_python_count
-                is_python_issue = python_count > non_python_count
-                file_change_requests, _ = sweep_bot.get_files_to_change(
-                    is_python_issue, retries=1, pr_diffs=pr_diff_string
-                )
+                validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
@@ -390,7 +386,7 @@ def on_comment(
             changes_made = sum(
                 [
                     change_made
-                    for _, change_made, _, _, _ in sweep_bot.change_files_in_github_iterator(
+                    for _, change_made, _, _ in sweep_bot.change_files_in_github_iterator(
                         file_change_requests, branch_name, blocked_dirs
                     )
                 ]

@@ -1,11 +1,8 @@
 services:
-  webhook:
+  hosted:
     env_file:
       - .env
     build:
-      platforms:
-      - 'linux/amd64'
-      - 'linux/arm64'
       context: .
       dockerfile: Dockerfile
       target: base
@@ -18,27 +15,26 @@ services:
       sh -c ". bin/startup.sh"
     stdin_open: true
     tty: true
+    ports:
+      - "${PORT:-8080}:8080"
     restart: unless-stopped
-  hosted:
+  hosted-legacy:
     env_file:
       - .env
     build:
-      platforms:
-      - 'linux/amd64'
-      - 'linux/arm64'
       context: .
-      dockerfile: Dockerfile.hosted
+      dockerfile: Dockerfile
       target: base
     image: sweepai/sweep.hosted
     container_name: github_app
     # network_mode: "host"
     volumes:
       - .:/app
-    # command: >
-    #   sh -c ". bin/startup.sh"
+    command: >
+      sh -c ". bin/startup.hosted.sh"
     stdin_open: true
     tty: true
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"
-    scale: 0
+    # scale: 0

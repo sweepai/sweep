@@ -6,7 +6,7 @@ from loguru import logger
 
 logger.print = logger.info
 
-load_dotenv(dotenv_path=".env", override=True)
+load_dotenv(dotenv_path=".env", override=True, verbose=True)
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get("GITHUB_APP_PEM") or base64.b64decode(
     os.environ.get("GITHUB_APP_PEM_BASE64", "")
@@ -30,9 +30,6 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "SENTENCE_TRANSFORMERS_MODEL",
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
-BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 256)
-)  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
 ENV = os.environ.get("ENV", "dev")
@@ -123,13 +120,8 @@ blocked_dirs: []
 )
 
 
-OPENAI_USE_3_5_MODEL_ONLY = (
-    os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
-)
-
-
 MONGODB_URI = os.environ.get("MONGODB_URI", None)
-IS_SELF_HOSTED = bool(os.environ.get("IS_SELF_HOSTED", MONGODB_URI is None))
+IS_SELF_HOSTED = os.environ.get("IS_SELF_HOSTED", "true").lower() == "true"
 
 REDIS_URL = os.environ.get("REDIS_URL")
 if not REDIS_URL:
@@ -140,13 +132,12 @@ POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
 )
 
-LOGTAIL_SOURCE_KEY = os.environ.get("LOGTAIL_SOURCE_KEY")
-
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
+BLACKLISTED_USERS = os.environ.get("BLACKLISTED_USERS", "").split(",")
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -171,8 +162,8 @@ REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
 # Default OpenAI
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
 
-# Azure settings, only checked if OPENAI_API_TYPE == "azure"
-OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "openai")
+OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "anthropic")
+assert OPENAI_API_TYPE in ["anthropic", "azure", "openai"], "Invalid OPENAI_API_TYPE"
 OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
 
 AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
@@ -180,11 +171,19 @@ OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
 AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT", None)
 
-OPENAI_EMBEDDINGS_API_TYPE=os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
-OPENAI_EMBEDDINGS_AZURE_ENDPOINT=os.environ.get("OPENAI_EMBEDDINGS_AZURE_ENDPOINT", None)
-OPENAI_EMBEDDINGS_AZURE_API_KEY=os.environ.get("OPENAI_EMBEDDINGS_AZURE_API_KEY", None)
-OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT=os.environ.get("OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT", None)
-OPENAI_EMBEDDINGS_AZURE_API_VERSION=os.environ.get("OPENAI_EMBEDDINGS_AZURE_API_VERSION", None)
+OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
+OPENAI_EMBEDDINGS_AZURE_ENDPOINT = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_ENDPOINT", None
+)
+OPENAI_EMBEDDINGS_AZURE_API_KEY = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_API_KEY", None
+)
+OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT", None
+)
+OPENAI_EMBEDDINGS_AZURE_API_VERSION = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_API_VERSION", None
+)
 
 OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
@@ -199,11 +198,11 @@ if WHITELISTED_USERS:
     WHITELISTED_USERS = WHITELISTED_USERS.split(",")
     WHITELISTED_USERS.append(GITHUB_BOT_USERNAME)
 
-DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-1106-preview")
+DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-0125-preview")
 DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
-LOKI_URL = os.environ.get("LOKI_URL", None)
+LOKI_URL = None
 
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
@@ -212,6 +211,40 @@ PROGRESS_BASE_URL = os.environ.get(
     "PROGRESS_BASE_URL", "https://progress.sweep.dev"
 ).rstrip("/")
 
+DISABLED_REPOS = os.environ.get("DISABLED_REPOS", "").split(",")
+
 GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
 MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)
 INSTALLATION_ID = os.environ.get("INSTALLATION_ID", None)
+
+AWS_ACCESS_KEY=os.environ.get("AWS_ACCESS_KEY")
+AWS_SECRET_KEY=os.environ.get("AWS_SECRET_KEY")
+AWS_REGION=os.environ.get("AWS_REGION")
+ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
+
+USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
+
+COHERE_API_KEY = os.environ.get("COHERE_API_KEY", None)
+
+VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
+
+VOYAGE_API_AWS_ACCESS_KEY=os.environ.get("VOYAGE_API_AWS_ACCESS_KEY_ID")
+VOYAGE_API_AWS_SECRET_KEY=os.environ.get("VOYAGE_API_AWS_SECRET_KEY")
+VOYAGE_API_AWS_REGION=os.environ.get("VOYAGE_API_AWS_REGION")
+VOYAGE_API_AWS_ENDPOINT_NAME=os.environ.get("VOYAGE_API_AWS_ENDPOINT_NAME", "voyage-code-2")
+
+VOYAGE_API_USE_AWS = VOYAGE_API_AWS_ACCESS_KEY and VOYAGE_API_AWS_SECRET_KEY and VOYAGE_API_AWS_REGION
+
+PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
+
+# TODO: we need to make this dynamic + backoff
+BATCH_SIZE = int(
+    os.environ.get("BATCH_SIZE", 64 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
+)
+
+DEPLOYMENT_GHA_ENABLED = os.environ.get("DEPLOYMENT_GHA_ENABLED", "true").lower() == "true"
+
+JIRA_USER_NAME = os.environ.get("JIRA_USER_NAME", None)
+JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", None)
+JIRA_URL = os.environ.get("JIRA_URL", None)

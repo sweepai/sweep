@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-# Do not save logs for main process
 import ctypes
 import json
-import subprocess
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from fastapi import (
     Body,
-    Depends,
     FastAPI,
     Header,
     HTTPException,
@@ -24,8 +21,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
-from hatchet_sdk import Context, Hatchet
-from prometheus_fastapi_instrumentator import Instrumentator
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -40,6 +35,8 @@ from sweepai.config.client import (
     get_rules,
 )
 from sweepai.config.server import (
+    BLACKLISTED_USERS,
+    DISABLED_REPOS,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GHA_AUTOFIX_ENABLED,
@@ -58,11 +55,12 @@ from sweepai.handlers.create_pr import (  # type: ignore
 )
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import (  # type: ignore
-    clean_logs,
+    clean_gh_logs,
     download_logs,
     on_check_suite,
 )
 from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_jira_ticket import handle_jira_ticket
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_merge_conflict import on_merge_conflict
 from sweepai.handlers.on_ticket import on_ticket
@@ -100,13 +98,14 @@ on_ticket_events = {}
 security = HTTPBearer()
 
 templates = Jinja2Templates(directory="sweepai/web")
-version_command = r"""git config --global --add safe.directory /app
-timestamp=$(git log -1 --format="%at")
-date -d "@$timestamp" +%y.%m.%d.%H 2>/dev/null || date -r "$timestamp" +%y.%m.%d.%H"""
-try:
-    version = subprocess.check_output(version_command, shell=True, text=True).strip()
-except Exception:
-    version = time.strftime("%y.%m.%d.%H")
+# version_command = r"""git config --global --add safe.directory /app
+# timestamp=$(git log -1 --format="%at")
+# date -d "@$timestamp" +%y.%m.%d.%H 2>/dev/null || date -r "$timestamp" +%y.%m.%d.%H"""
+# try:
+#    version = subprocess.check_output(version_command, shell=True, text=True).strip()
+# except Exception:
+
+version = time.strftime("%y.%m.%d.%H")
 
 logger.bind(application="webhook")
 
@@ -122,17 +121,6 @@ def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security))
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
         )
     return True
-
-
-if not IS_SELF_HOSTED:
-    Instrumentator().instrument(app).expose(
-        app,
-        should_gzip=False,
-        endpoint="/metrics",
-        include_in_schema=True,
-        tags=["metrics"],
-        dependencies=[Depends(auth_metrics)],
-    )
 
 
 def run_on_ticket(*args, **kwargs):
@@ -214,9 +202,6 @@ def call_on_ticket(*args, **kwargs):
     thread.start()
     global_threads.append(thread)
 
-    # delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
-    # delayed_kill_thread.start()
-
 
 def call_on_check_suite(*args, **kwargs):
     kwargs["request"].repository.full_name
@@ -280,8 +265,10 @@ def progress(tracking_id: str = Path(...)):
     return ticket_progress.dict()
 
 
-def init_hatchet() -> Hatchet | None:
+def init_hatchet() -> Any | None:
     try:
+        from hatchet_sdk import Context, Hatchet
+
         hatchet = Hatchet(debug=True)
 
         worker = hatchet.worker("github-worker")
@@ -297,7 +284,7 @@ def init_hatchet() -> Hatchet | None:
                 request_dict = event_payload.get("request")
                 event = event_payload.get("event")
 
-                run(request_dict, event)
+                handle_event(request_dict, event)
 
         workflow = OnGithubEvent()
         worker.register_workflow(workflow)
@@ -320,7 +307,7 @@ def handle_github_webhook(event_payload):
     # if hatchet:
     #     hatchet.client.event.push("github:webhook", event_payload)
     # else:
-    run(event_payload.get("request"), event_payload.get("event"))
+    handle_event(event_payload.get("request"), event_payload.get("event"))
 
 
 def handle_request(request_dict, event=None):
@@ -358,6 +345,14 @@ def webhook(
         logger.info(f"Received event: {x_github_event}, {action}")
         return handle_request(request_dict, event=x_github_event)
 
+@app.post("/jira")
+def jira_webhook(
+    request_dict: dict = Body(...),
+) -> None:
+    def call_jira_ticket(*args, **kwargs):
+        thread = threading.Thread(target=handle_jira_ticket, args=args, kwargs=kwargs)
+        thread.start()
+    call_jira_ticket(event=request_dict)
 
 # Set up cronjob for this
 @app.get("/update_sweep_prs_v2")
@@ -418,8 +413,13 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
         logger.warning("Failed to update sweep PRs")
 
 
-def run(request_dict, event):
+def handle_event(request_dict, event):
     action = request_dict.get("action")
+
+    if repo_full_name := request_dict.get("repository", {}).get("full_name"):
+        if repo_full_name in DISABLED_REPOS:
+            logger.warning(f"Repo {repo_full_name} is disabled")
+            return {"success": False, "error_message": "Repo is disabled"}
 
     with logger.contextualize(tracking_id="main", env=ENV):
         match event, action:
@@ -471,7 +471,7 @@ def run(request_dict, event):
                                 request.check_run.run_id,
                                 request.installation.id,
                             )
-                            logs, user_message = clean_logs(logs)
+                            logs, user_message = clean_gh_logs(logs)
                             attributor = request.sender.login
                             if attributor.endswith("[bot]"):
                                 attributor = commit.author.login
@@ -523,7 +523,7 @@ def run(request_dict, event):
                             request.check_run.run_id,
                             request.installation.id,
                         )
-                        logs, user_message = clean_logs(logs)
+                        logs, user_message = clean_gh_logs(logs)
                         chat_logger = ChatLogger(
                             data={
                                 "username": attributor,
@@ -644,6 +644,7 @@ def run(request_dict, event):
                     and request.changes.body_from is not None
                     and button_title_match
                     and request.sender.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                 ):
                     run_on_button_click(request_dict)
 
@@ -659,6 +660,7 @@ def run(request_dict, event):
                     )
                     and sweep_labeled_issue
                     and request.sender.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                 ):
                     # Restart Sweep on this issue
                     restart_sweep = True
@@ -667,6 +669,7 @@ def run(request_dict, event):
                     request.issue is not None
                     and sweep_labeled_issue
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not request.comment.user.login.startswith("sweep")
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
@@ -704,7 +707,9 @@ def run(request_dict, event):
                         edited=True,
                     )
                 elif (
-                    request.issue.pull_request and request.comment.user.type == "User"
+                    request.issue.pull_request
+                    and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                 ):  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
@@ -737,6 +742,7 @@ def run(request_dict, event):
                     GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.sender.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
@@ -784,6 +790,7 @@ def run(request_dict, event):
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
                     )
@@ -819,6 +826,7 @@ def run(request_dict, event):
                 elif (
                     request.issue.pull_request
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and BOT_SUFFIX not in request.comment.body
                 ):  # TODO(sweep): set a limit
                     _, g = get_github_client(request.installation.id)
@@ -859,6 +867,7 @@ def run(request_dict, event):
                         or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and BOT_SUFFIX not in comment
                 ):
                     pr_change_request = PRChangeRequest(
@@ -889,6 +898,7 @@ def run(request_dict, event):
                         or any(label.name.lower() == "sweep" for label in labels)
                     )
                     and request.comment.user.type == "User"
+                    and request.comment.user.login not in BLACKLISTED_USERS
                     and BOT_SUFFIX not in comment
                 ):
                     pr_change_request = PRChangeRequest(
@@ -1068,10 +1078,17 @@ def run(request_dict, event):
                     pr = g.get_repo(pr_request.repository.full_name).get_pull(
                         pr_request.number
                     )
+                    
+                    total_lines_in_commit = 0
+                    total_lines_edited_by_developer = 0
+                    edited_by_developers = False
                     for commit in pr.get_commits():
+                        lines_modified = commit.stats.additions + commit.stats.deletions
+                        total_lines_in_commit += lines_modified
                         if commit.author.login != CURRENT_USERNAME:
-                            edited_by_developers = True
-                            break
+                            total_lines_edited_by_developer += lines_modified
+                    # this was edited by a developer if at least 25% of the lines were edited by a developer
+                    edited_by_developers = total_lines_in_commit > 0 and (total_lines_edited_by_developer / total_lines_in_commit) >= 0.25
                     posthog.capture(
                         merged_by,
                         event_name,
@@ -1085,6 +1102,8 @@ def run(request_dict, event):
                             "total_changes": pr_request.pull_request.additions
                             + pr_request.pull_request.deletions,
                             "edited_by_developers": edited_by_developers,
+                            "total_lines_in_commit": total_lines_in_commit,
+                            "total_lines_edited_by_developer": total_lines_edited_by_developer,
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})

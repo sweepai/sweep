@@ -9,7 +9,7 @@ from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sweepai.utils.str_utils import (
     blockquote,
@@ -146,14 +146,16 @@ class FileChangeRequest(RegexMatchableBaseModel):
         | Literal["refactor"]
         | Literal["test"]
     )
-    _regex = r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @]*?)\"( start_line=\"(?P<start_line>.*?)\")?( end_line=\"(?P<end_line>.*?)\")?( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?(.*?)>(?P<instructions>.*?)\s*<\/\1>"""
+    _regex = r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"( start_line=\"(?P<start_line>.*?)\")?( end_line=\"(?P<end_line>.*?)\")?( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?(.*?)>(?P<instructions>.*?)\s*<\/\1>"""
+    is_completed: bool = False
     entity: str | None = None
     source_file: str | None = None
     old_content: str | None = None
     new_content: str | None = None
     raw_relevant_files: str | None = None
-    start_line: int | str | None = None
-    end_line: int | str | None = None
+    # allow inf
+    start_line: Any | int | str | None = None
+    end_line: Any | int | str | None = None
     start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
     sandbox_response: None = None
@@ -241,8 +243,6 @@ class FileChangeRequest(RegexMatchableBaseModel):
         prefix = {"failed": "✗", "succeeded": "✓", "queued": "▶", "running": "⋯"}[
             self.status
         ] + " "
-        if self.change_type == "check":
-            return prefix + f"Run GitHub Actions for `{self.filename}`"
         return prefix + f"{self.change_type.capitalize()}\n{self.filename}"
 
     @property
@@ -352,11 +352,12 @@ class ProposedIssue(RegexMatchableBaseModel):
 
 
 class Snippet(BaseModel):
+    # pylint: disable=E1101
     """
     Start and end refer to line numbers
     """
 
-    content: str
+    content: str = Field(repr=False)
     start: int
     end: int
     file_path: str

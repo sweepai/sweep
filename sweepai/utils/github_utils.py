@@ -1,6 +1,7 @@
 import datetime
 import difflib
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -14,13 +15,12 @@ from typing import Any
 
 import git
 import requests
-from github import Github
+from github import Github, PullRequest, Repository, InputGitTreeElement
 from jwt import encode
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
-from sweepai.utils.ctags import CTags
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
 MAX_FILE_COUNT = 50
@@ -66,6 +66,7 @@ def get_token(installation_id: int):
         "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
     )
 
+
 def get_app():
     jwt = get_jwt()
     headers = {
@@ -76,12 +77,45 @@ def get_app():
     response = requests.get("https://api.github.com/app", headers=headers)
     return response.json()
 
-def get_github_client(installation_id: int):
+
+def get_github_client(installation_id: int) -> tuple[str, Github]:
     if not installation_id:
         return os.environ["GITHUB_PAT"], Github(os.environ["GITHUB_PAT"])
     token: str = get_token(installation_id)
     return token, Github(token)
 
+# fetch installation object
+def get_installation(username: str): 
+    jwt = get_jwt()
+    try:
+        # Try user
+        response = requests.get(
+            f"https://api.github.com/users/{username}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        obj = response.json()
+        return obj
+    except Exception:
+        # Try org
+        response = requests.get(
+            f"https://api.github.com/orgs/{username}/installation",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        try:
+            obj = response.json()
+            return obj["id"]
+        except Exception as e:
+            logger.error(e)
+            logger.error(response.text)
+        raise Exception("Could not get installation, probably not installed")
 
 def get_installation_id(username: str) -> str:
     jwt = get_jwt()
@@ -114,6 +148,29 @@ def get_installation_id(username: str) -> str:
             logger.error(e)
             logger.error(response.text)
         raise Exception("Could not get installation id, probably not installed")
+
+# commits multiple files in a single commit, returns the commit object
+def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
+    blobs_to_commit = []
+    # convert to blob
+    for path, content in file_changes.items():
+        blob = repo.create_git_blob(content, "utf-8")
+        blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(path), mode="100644", type="blob", sha=blob.sha))
+    latest_commit = repo.get_branch(branch).commit
+    base_tree = latest_commit.commit.tree
+    # create new git tree
+    new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
+    # commit the changes
+    parent = repo.get_git_commit(latest_commit.sha)
+    commit = repo.create_git_commit(
+        commit_message,
+        new_tree,
+        [parent],
+    )
+    # update ref of branch
+    ref = f"heads/{branch}"
+    repo.get_git_ref(ref).edit(sha=commit.sha)
+    return commit
 
 
 REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
@@ -234,7 +291,6 @@ class ClonedRepo:
         included_directories=None,
         excluded_directories: list[str] = None,
         included_files=None,
-        ctags: CTags = None,
     ):
         """Display the directory tree.
 
@@ -257,7 +313,6 @@ class ClonedRepo:
             current_directory: str,
             excluded_directories: list[str],
             indentation="",
-            ctags: CTags = None,
         ):
             """Recursively list the contents of directories."""
 
@@ -266,7 +321,6 @@ class ClonedRepo:
 
             directory_tree_string = ""
             for name in file_and_folder_names[:MAX_FILE_COUNT]:
-                
                 relative_path = os.path.join(current_directory, name)[
                     len(root_directory) + 1 :
                 ]
@@ -277,7 +331,9 @@ class ClonedRepo:
                 if os.path.isdir(complete_path):
                     directory_tree_string += f"{indentation}{relative_path}/\n"
                     directory_tree_string += list_directory_contents(
-                        complete_path, excluded_directories, indentation + "  ", ctags=ctags
+                        complete_path,
+                        excluded_directories,
+                        indentation + "  ",
                     )
                 else:
                     directory_tree_string += f"{indentation}{name}\n"
@@ -290,7 +346,7 @@ class ClonedRepo:
             return directory_tree_string
 
         dir_obj = DirectoryTree()
-        directory_tree = list_directory_contents(root_directory, excluded_directories, ctags=ctags)
+        directory_tree = list_directory_contents(root_directory, excluded_directories)
         dir_obj.parse(directory_tree)
         if included_directories:
             dir_obj = remove_all_not_included(dir_obj, included_directories)
@@ -299,15 +355,19 @@ class ClonedRepo:
     def get_file_list(self) -> str:
         root_directory = self.repo_dir
         files = []
-
+        sweep_config: SweepConfig = SweepConfig()
         def dfs_helper(directory):
             nonlocal files
             for item in os.listdir(directory):
                 if item == ".git":
                     continue
+                if item in sweep_config.exclude_dirs: # this saves a lot of time
+                    continue
                 item_path = os.path.join(directory, item)
                 if os.path.isfile(item_path):
-                    files.append(item_path)  # Add the file to the list
+                    # make sure the item_path is not in one of the banned directories
+                    if not sweep_config.is_file_excluded(item_path):
+                        files.append(item_path)  # Add the file to the list
                 elif os.path.isdir(item_path):
                     dfs_helper(item_path)  # Recursive call to explore subdirectory
 
@@ -378,6 +438,13 @@ class ClonedRepo:
         # Fuzzy search over file names
         file_name = os.path.basename(file_path)
         all_file_paths = self.get_file_list()
+        # filter for matching extensions if both have extensions
+        if "." in file_name:
+            all_file_paths = [
+                file
+                for file in all_file_paths
+                if "." in file and file.split(".")[-1] == file_name.split(".")[-1]
+            ]
         files_with_matching_name = []
         files_without_matching_name = []
         for file_path in all_file_paths:
@@ -385,19 +452,32 @@ class ClonedRepo:
                 files_with_matching_name.append(file_path)
             else:
                 files_without_matching_name.append(file_path)
+        file_path_to_ratio = {file: ratio(file_name, file) for file in all_file_paths}
         files_with_matching_name = sorted(
             files_with_matching_name,
-            key=lambda file_path: ratio(file_name, file_path),
+            key=lambda file_path: file_path_to_ratio[file_path],
             reverse=True,
         )
         files_without_matching_name = sorted(
             files_without_matching_name,
-            key=lambda file_path: ratio(file_name, file_path),
+            key=lambda file_path: file_path_to_ratio[file_path],
             reverse=True,
         )
-        all_files = files_with_matching_name + files_without_matching_name
+        # this allows 'config.py' to return 'sweepai/config/server.py', 'sweepai/config/client.py', 'sweepai/config/__init__.py' and no more
+        filtered_files_without_matching_name = list(filter(lambda file_path: file_path_to_ratio[file_path] > 50, files_without_matching_name))
+        all_files = files_with_matching_name + filtered_files_without_matching_name
         return all_files[:limit]
 
+# updates a file with new_contents, returns True if successful
+def update_file(root_dir: str, file_path: str, new_contents: str):
+    local_path = os.path.join(root_dir, file_path)
+    try:
+        with open(local_path, "w") as f:
+            f.write(new_contents)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update file: {e}")
+        return False
 
 @dataclass
 class MockClonedRepo(ClonedRepo):
@@ -446,6 +526,7 @@ class MockClonedRepo(ClonedRepo):
     def __del__(self):
         return True
 
+
 @dataclass
 class TemporarilyCopiedClonedRepo(MockClonedRepo):
     tmp_dir: tempfile.TemporaryDirectory | None = None
@@ -484,9 +565,9 @@ class TemporarilyCopiedClonedRepo(MockClonedRepo):
             branch=cloned_repo.branch,
             token=cloned_repo.token,
             repo=cloned_repo.repo,
-            **kwargs
+            **kwargs,
         )
-    
+
     def __del__(self):
         print(f"Dropping {self.tmp_dir.name}...")
         shutil.rmtree(self._repo_dir, ignore_errors=True)
@@ -540,6 +621,44 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
+# set whether or not a pr is a draft, there is no way to do this using pygithub
+def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False, installation_id: int = 0) -> bool:
+    token = get_token(installation_id)
+    pr_id = pr.raw_data['node_id']
+    # GraphQL mutation for marking a PR as ready for review
+    mutation = """
+    mutation MarkPRReady {
+    markPullRequestReadyForReview(input: {pullRequestId: {pull_request_id}}) {
+    pullRequest {
+    id
+    }
+    }
+    }
+    """.replace("{pull_request_id}", "\""+pr_id+"\"")
+
+    # GraphQL API URL
+    url = 'https://api.github.com/graphql'
+
+    # Headers
+    headers={
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    # Prepare the JSON payload
+    json_data = {
+        'query': mutation,
+    }
+
+    # Make the POST request
+    response = requests.post(url, headers=headers, data=json.dumps(json_data))
+    if response.status_code != 200:
+        logger.error(f"Failed to convert PR to {'draft' if is_draft else 'open'}")
+        return False
+    return True
+
+
 try:
     g = Github(os.environ.get("GITHUB_PAT"))
     CURRENT_USERNAME = g.get_user().login
@@ -551,12 +670,26 @@ except Exception:
         CURRENT_USERNAME = GITHUB_BOT_USERNAME
 
 if __name__ == "__main__":
-    # str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
-    # str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
-    # print(get_hunks(str1, str2, 1))
-    mocked_repo = MockClonedRepo.from_dir(
-        "benchmark/data/repos/pulse-alp",
-        repo_full_name="sweepai/sweep",
-    )
-    temp_repo = TemporarilyCopiedClonedRepo.copy_from_cloned_repo(mocked_repo)
-    print(mocked_repo)
+    try:
+        organization_name = "sweepai"
+        sweep_config = SweepConfig()
+        installation_id = get_installation_id(organization_name)
+        user_token, g = get_github_client(installation_id)
+        cloned_repo = ClonedRepo("sweepai/sweep", installation_id, "main")
+        dir_ojb = cloned_repo.list_directory_tree()
+        commit_history = cloned_repo.get_commit_history()
+        similar_file_paths = cloned_repo.get_similar_file_paths("config.py")
+        # ensure no similar file_paths are sweep excluded
+        assert(not any([file for file in similar_file_paths if sweep_config.is_file_excluded(file)]))
+        print(f"similar_file_paths: {similar_file_paths}")
+        str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
+        str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
+        print(get_hunks(str1, str2, 1))
+        mocked_repo = MockClonedRepo.from_dir(
+            cloned_repo.repo_dir,
+            repo_full_name="sweepai/sweep",
+        )
+        temp_repo = TemporarilyCopiedClonedRepo.copy_from_cloned_repo(mocked_repo)
+        print(f"mocked repo: {mocked_repo}")
+    except Exception as e:
+        logger.error(f"github_utils.py failed to run successfully with error: {e}")

@@ -10,6 +10,7 @@ import requests
 
 from sweepai.config.client import get_gha_enabled
 from sweepai.core.entities import PRChangeRequest
+from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import get_github_client, get_token
 from sweepai.web.events import CheckRunCompleted
 
@@ -32,6 +33,7 @@ def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
     ]
 
 
+@file_cache()
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     token = get_token(installation_id)
     headers = {
@@ -57,25 +59,33 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
                         logs_str += logs
     return logs_str
 
+gha_prompt = """\
+The below command yielded the following errors:
+<command>
+{command_line}
+</command>
+{error_content}
+Here are the logs:
+<logs>
+{cleaned_logs_str}
+</logs>"""
 
-def clean_logs(logs_str: str):
+
+def clean_gh_logs(logs_str: str):
     # Extraction process could be better
-    MAX_LINES = 50
+    MAX_LINES = 500
+    LINES_TO_KEEP = 100
     log_list = logs_str.split("\n")
     truncated_logs = [log[log.find(" ") + 1 :] for log in log_list]
     logs_str = "\n".join(truncated_logs)
     # extract the group and delete everything between group and endgroup
     gha_pattern = r"##\[group\](.*?)##\[endgroup\](.*?)(##\[error\].*)"
     match = re.search(gha_pattern, logs_str, re.DOTALL)
-
-    # Extract the matched groups
     if not match:
-        return "", ""
-    group_start = match.group(1).strip()
-    command_line = group_start.split("\n")[0]
+        return "\n".join(logs_str.split("\n")[:MAX_LINES])
+    command_line = match.group(1).strip()
     log_content = match.group(2).strip()
-    error_line = match.group(3).strip()
-
+    error_line = match.group(3).strip() # can be super long
     patterns = [
         # for docker
         "Already exists",
@@ -107,26 +117,20 @@ def clean_logs(logs_str: str):
         if not any(log.strip().startswith(pattern) for pattern in patterns)
     ]
     if len(cleaned_logs) > MAX_LINES:
-        return "", ""
+        # return the first LINES_TO_KEEP and the last LINES_TO_KEEP
+        cleaned_logs = cleaned_logs[:LINES_TO_KEEP] + ["..."] + cleaned_logs[-LINES_TO_KEEP:]
     cleaned_logs_str = "\n".join(cleaned_logs)
-    cleaned_response = f"""\
-The command:
-{command_line}
-yielded the following error:
+    error_content = ""
+    if len(error_line) < 2000:
+        error_content = f"""<errors>
 {error_line}
-
-Here are the logs:
-{cleaned_logs_str}"""
-    response_for_user = f"""\
-The command:
-`{command_line}`
-yielded the following error:
-`{error_line}`
-Here are the logs:
-```
-{cleaned_logs_str}
-```"""
-    return cleaned_response, response_for_user
+</errors>"""
+    cleaned_response = gha_prompt.format(
+        command_line=command_line,
+        error_content=error_content,
+        cleaned_logs_str=cleaned_logs_str,
+    )
+    return cleaned_response
 
 
 def on_check_suite(request: CheckRunCompleted):
@@ -149,7 +153,7 @@ def on_check_suite(request: CheckRunCompleted):
     )
     if not logs:
         return None
-    logs, user_message = clean_logs(logs)
+    logs, user_message = clean_gh_logs(logs)
     comment = pr.as_issue().create_comment(user_message)
     pr_change_request = PRChangeRequest(
         params={

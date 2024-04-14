@@ -5,14 +5,11 @@ from sweepai.core.prompts import (
     final_review_prompt,
     human_message_prompt,
     human_message_prompt_comment,
-    human_message_review_prompt,
 )
 
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
-    issue_url: str | None
-    username: str
     title: str
     summary: str
     snippets: list
@@ -133,6 +130,16 @@ class HumanMessagePrompt(BaseModel):
 Repo: {self.repo_name}: {self.repo_description}
 Issue Title: {self.title}
 {issue_description}"""
+    
+    def get_issue_request(self):
+        self.summary = (
+            self.summary if not self.summary.strip().endswith("_No response_") else ""
+        )
+        issue_description = (
+            f"\nIssue Description: {self.summary}" if self.summary else ""
+        )
+        return f"""Issue Title: {self.title}
+{issue_description}"""
 
 
 def render_snippets(snippets):
@@ -143,49 +150,6 @@ def render_snippets(snippets):
         )
         res += snippet_text
     return res
-
-
-class HumanMessagePromptReview(HumanMessagePrompt):
-    pr_title: str
-    pr_message: str = ""
-    diffs: list
-    plan: str
-
-    def format_diffs(self):
-        formatted_diffs = []
-        for file_name, file_patch in self.diffs:
-            if not file_name and not file_patch:
-                continue
-            format_diff = diff_section_prompt.format(
-                diff_file_path=file_name, diffs=file_patch
-            )
-            formatted_diffs.append(format_diff)
-        return "\n".join(formatted_diffs)
-
-    def construct_prompt(self):
-        human_messages = [
-            {
-                "role": msg["role"],
-                "content": msg["content"].format(
-                    repo_name=self.repo_name,
-                    repo_description=self.repo_description,
-                    tree=self.tree,
-                    title=self.title,
-                    description=self.summary,
-                    relevant_snippets=self.render_snippets(),
-                    relevant_directories=self.get_relevant_directories(),
-                    relevant_commit_history=self.get_commit_history(),
-                    diffs=self.format_diffs(),
-                    pr_title=self.pr_title,
-                    pr_message=self.pr_message,
-                    plan=self.plan,
-                ),
-            }
-            for msg in human_message_review_prompt
-        ]
-
-        return human_messages
-
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str

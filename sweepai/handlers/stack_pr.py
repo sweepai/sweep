@@ -87,7 +87,7 @@ def stack_pr(
                 branch_name="sweep/" + to_branch_name(request),
                 issue_number=pr_number,
                 is_public=repo.private is False,
-                start_time=time.time(),
+                start_time=int(time.time()),
             ),
         )
 
@@ -133,13 +133,13 @@ def stack_pr(
                 chat_logger,
                 ticket_progress,
             )
-        except Exception:
+        except Exception as e:
             edit_comment(
                 "It looks like an issue has occurred around fetching the files."
                 " Perhaps the repo failed to initialized. If this error persists"
                 f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
             )
-            raise Exception("Failed to fetch files")
+            raise Exception("Failed to fetch files") from e
 
         ticket_progress.status = TicketProgressStatus.PLANNING
         ticket_progress.save()

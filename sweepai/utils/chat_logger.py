@@ -168,6 +168,8 @@ class ChatLogger(BaseModel):
         return user_field_value
 
     def is_consumer_tier(self):
+        if IS_SELF_HOSTED:
+            return True
         return self._get_user_field("is_trial_user")
 
     def is_paying_user(self):
