@@ -216,7 +216,10 @@ def get_files_to_change(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
 
-    max_snippets = get_max_snippets(interleaved_snippets)
+    max_snippets = get_max_snippets(
+        snippets=interleaved_snippets, 
+        budget=100_000 * 4 # GPT-4 100k tokens
+    )
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
