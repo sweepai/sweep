@@ -10,7 +10,7 @@ from sweepai.web.events import Account, Installation, IssueRequest
 
 
 def wait_for_server(host: str):
-    for i in range(120):
+    for i in range(10 * 60):
         try:
             response = requests.get(host)
             if response.status_code == 200:
