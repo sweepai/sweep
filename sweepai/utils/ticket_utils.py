@@ -31,11 +31,13 @@ we add adjustment scores to compensate for this bias.
 """
 
 prefix_adjustment = {
+    ".": 0.5,
     "doc": 0.3,
     "example": 0.7,
 }
 
 suffix_adjustment = {
+    ".cfg": 0.8,
     ".ini": 0.8,
     ".txt": 0.8,
     ".rst": 0.8,
