@@ -149,7 +149,7 @@ tool_call_parameters = {
 def parse_function_call_parameters(tool_call_contents: str, parameters: list[str]) -> dict[str, Any]:
     tool_args = {}
     for param in parameters:
-        param_regex = rf'<{param}>\s*(?P<{param}>.*?)\s*<\/{param}>'
+        param_regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
         match = re.search(param_regex, tool_call_contents, re.DOTALL)
         if match:
             param_contents = match.group(param)
@@ -161,7 +161,7 @@ def parse_function_calls_for_openai(response_contents: str) -> list[dict[str, st
     tool_calls = []
     # first get all tool calls
     for tool_name in tool_call_parameters.keys():
-        tool_call_regex = rf'<{tool_name}>\s*(?P<function_call>.*?)\s*<\/{tool_name}>'
+        tool_call_regex = rf'<{tool_name}>(?P<function_call>.*?)<\/{tool_name}>'
         tool_call_matches = re.finditer(tool_call_regex, response_contents, re.DOTALL)
         # now we extract its parameters
         for tool_call_match in tool_call_matches:

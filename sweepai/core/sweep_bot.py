@@ -185,7 +185,7 @@ def get_max_snippets(
         cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
         if cost <= budget:
             return proposed_snippets
-    raise Exception("Budget number of chars too low!")
+    raise Exception(f"Budget number of chars too low! Our cost is {cost} while the budget is {budget}")
 
 def get_files_to_change(
     relevant_snippets: list[Snippet],

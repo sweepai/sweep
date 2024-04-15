@@ -289,6 +289,8 @@ Guidelines:
 * Be certain that your plan is complete and covers all the necessary changes to fully resolve the issue.
 * Suggest high-quality changes that are completely safe, maintainable, efficient and backwards compatible.
 * Divide the task into smaller steps, where each <create> or <modify> section corresponds to one small code block of change. You may have multiple <modify> blocks for the same file.
+* Prioritize changes that use the existing codebase and use existing utility methods to minimize the need for new code.
+* Future proof the changes that you propose, ensuring that they are scalable and maintainable.
 
 Please use the following XML format for your response:
 
@@ -417,13 +419,41 @@ In the `create_post` endpoint:
 <relevant_modules>
 src/entities/user.py
 src/entities/post.py
-</relevant_modules>"""
+</relevant_modules>
+
+Generate three plans to address the user issue based off of your issue analysis. The best plan will be chosen later.
+"""
 
 plan_selection_prompt = """
-Now that three plans have been generated, it is time to review each of the plans and double check for logical errors. For each plan, MAKE SURE that there are no logical errors and that the plan actually satisfies the user request. If you spot any errors point them out. Then return the best plan of the 3. If all the plans have errors, you may choose to come up with a new plan that fixes these errors and still satisfies the user request. Remember that the best plans usually require the fewest changes to the code base.
-The final accepted plan must be in the following xml format:
+Critique the pros and cons of each plan based on the following guidelines:
+
+- Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems.
+- Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on.
+- Clarity: The code change should be readable, well-structured, and easy for other developers to understand and maintain. Follow existing conventions and style guides, and include documentation and comments for complex or non-obvious logic.
+- Simplicity: Strive for a solution that is as simple as possible while still being complete and correct. Avoid over-engineering or premature optimization. Consider the long-term maintenance burden of any new abstractions or dependencies.
+- Usability: The change should provide a clear and intuitive interface for end users. Hide implementation details and complexities behind well-designed abstractions and sensible defaults. Provide configuration options for important behaviors.
+- Performance and Scalability: Evaluate the impact of the change on performance and resource usage. Avoid unnecessary overhead or inefficiencies, especially in critical paths. Consider how the solution will scale as data and usage grows.
+- Integration: Assess how well the change fits with the overall architecture and design of the system. Avoid tightly coupling components or introducing new dependencies that could complicate future development or deployment.
+
+After evaluating the plans against these criteria, select the one that provides the best balance of benefits and drawbacks within the specific context and constraints of the project. Prioritize long-term maintainability and architectural integrity over short-term expediency.
+
+Respond using the following XML format:
+
 <final_plan>
-final plan goes here
+[Insert the final plan here, including any modifications or improvements based on the feedback and dialogue. Explain how the plan aligns with the guidelines and why it was chosen over the alternatives.]
+</final_plan>
+
+Here is an example response format:
+<final_plan>
+<modify file="example.py">
+[Example instructions here]
+</modify>
+...
+<modify file="anotherexamplefile.py">
+[More example instructions here]
+</modify>
+
+[Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
 extract_files_to_change_prompt = """\
