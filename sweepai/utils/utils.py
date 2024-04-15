@@ -20,6 +20,7 @@ from tree_sitter import Node
 from tree_sitter_languages import get_parser
 
 from sweepai.core.entities import Snippet
+from sweepai.core.lsp_client import LSPConnection
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
 
 
@@ -378,7 +379,7 @@ DEFAULT_ESLINTRC = """{
   ]
 }"""
 
-def get_check_results(file_path: str, code: str) -> CheckResults:
+def get_check_results(file_path: str, code: str, cwd: str = "") -> CheckResults:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return CheckResults(parse_error_message=error_message)
@@ -388,34 +389,43 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
         new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
         stem = os.path.splitext(os.path.basename(file_path))[0]
         try:
-            with open(new_file, "w") as f:
-                f.write(code)
-            pylint_output = StringIO()
-            reporter = TextReporter(pylint_output)
-            Run(
-                [
-                    new_file,
-                    "--disable=C",
-                    "--enable=C0413",  # Enable only the check for imports not at the top
-                    "--disable=R",
-                    "--disable=import-error",
-                    "--disable=no-member",
-                    "--disable=unused-import" # we have a workaround for this tbh
-                ],
-                reporter=reporter,
-                exit=False,
-            )
-            error_message = pylint_output.getvalue().strip()
-            try:
-                os.remove(new_file)
-            except FileNotFoundError:
-                pass
-            succeeded = error_message.startswith("------------------------------------")
-            if error_message:
-                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
-                error_message = error_message.split("-----------------------------------", 1)[0].strip()
-                error_message = f"> pylint {file_path}\n\n" + error_message
-            return CheckResults(pylint=error_message if not succeeded else "")
+            if cwd:
+                with LSPConnection(
+                    cwd,
+                    file_path,
+                    content=code
+                ) as lsp:
+                    diagnostics = lsp.get_diagnostics()
+                    return CheckResults(pylint="\n".join(diagnostics))
+            else:
+                with open(new_file, "w") as f:
+                    f.write(code)
+                pylint_output = StringIO()
+                reporter = TextReporter(pylint_output)
+                Run(
+                    [
+                        new_file,
+                        "--disable=C",
+                        "--enable=C0413",  # Enable only the check for imports not at the top
+                        "--disable=R",
+                        "--disable=import-error",
+                        "--disable=no-member",
+                        "--disable=unused-import" # we have a workaround for this tbh
+                    ],
+                    reporter=reporter,
+                    exit=False,
+                )
+                error_message = pylint_output.getvalue().strip()
+                try:
+                    os.remove(new_file)
+                except FileNotFoundError:
+                    pass
+                succeeded = error_message.startswith("------------------------------------")
+                if error_message:
+                    error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+                    error_message = error_message.split("-----------------------------------", 1)[0].strip()
+                    error_message = f"> pylint {file_path}\n\n" + error_message
+                return CheckResults(pylint=error_message if not succeeded else "")
         except Exception as e:
             logger.exception(e)
     if ext == "ts":
@@ -488,7 +498,7 @@ def check_code(file_path: str, code: str) -> tuple[bool, str]:
                 return False, error_message
         except Exception as e:
             logger.exception(e)
-    if ext == "ts":
+    elif ext == "ts":
         # see if eslint is installed
         result = subprocess.run(
             ["npx", "eslint", "--version"],
