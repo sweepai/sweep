@@ -673,7 +673,7 @@ def handle_function_call(
                     if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
                         error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                         break
-                llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
+                llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict), cwd=cloned_repo.repo_dir)
                 success_message = ""
                 original_code = tool_call["original_code"].strip("\n")
                 new_code = tool_call["new_code"].strip("\n")
@@ -735,7 +735,7 @@ def handle_function_call(
                 
                 # Check if the changes are valid
                 if not error_message:
-                    check_results = get_check_results(file_name, new_file_contents)
+                    check_results = get_check_results(file_name, new_file_contents, cwd=cloned_repo.repo_dir)
                     check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
                     failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
