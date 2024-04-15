@@ -52,6 +52,31 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
 # if successful returns the num of spaces required to find the code match and if we need to rstrip the old code or not
 def manual_code_check(file_contents: str, code_snippet: str) -> tuple[int, bool]:
     code_lines = [line for line in code_snippet.split("\n")]
+    # special case for single line
+    if len(code_lines) == 1:
+        file_lines = file_contents.split("\n")
+        # check directly
+        new_code = code_lines[0]
+        # only continue if it is unique, this will then later fail the uniqueness check
+        if file_contents.count(new_code) > 1:
+            return 0, False
+        if new_code in file_contents:
+            # now check how many leading whitespaces there are
+            for line in file_lines:
+                if new_code in line:
+                    return len(line)-len(line.lstrip()), False
+        else:
+            # now try rstrip if initially the code is not there
+            new_code = new_code.rstrip()
+            if file_contents.count(new_code) > 1: # uniqueness check
+                return 0, False
+            if new_code in file_contents:
+               # now check how many leading whitespaces there are
+                for line in file_lines:
+                    if new_code in line:
+                        return len(line)-len(line.lstrip()), False
+        return -1, False
+                
     # assume one indent is two spaces and check max 10 indents
     for indent in range(0, 40, 2):
         new_code_lines = [f"{' ' * indent}{line}" for line in code_lines]
