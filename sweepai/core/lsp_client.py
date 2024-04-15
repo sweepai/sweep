@@ -19,13 +19,16 @@ class LSPConnection:
         self,
         directory: str,
         file_path: str | None = None,
-        content: str | None = None
+        content: str | None = None,
+        language: str | None = None
     ):
         self.directory = directory
         self.file_path = os.path.join(directory, file_path)
         self.content = content
-        self.websocket = None
         self.lsp_process = None
+        self.language = language
+        if not self.language:
+            self.language = "python" if file_path.endswith(".py") else "typescript"
 
     def __enter__(self):
         print("Starting LSP server...")
@@ -76,12 +79,7 @@ class LSPConnection:
 
     def start_server(self):
         self.lsp_process = subprocess.Popen(
-            [
-                "pylsp",
-                # "npx",
-                # "typescript-language-server",
-                # "--stdio"
-            ],
+            LSP_START_COMMANDS.get(self.language, LSP_START_COMMANDS["python"]),
             cwd=self.directory,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
