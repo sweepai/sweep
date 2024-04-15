@@ -212,6 +212,42 @@ Here is an example:
 If you are really done, call the submit_result function.
 """
 
+NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
+No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
+
+<function_call>
+<tool_name>
+<parameter1>
+parameter1 value here
+</parameter1>
+<parameter2>
+parameter2 value here
+</parameter2>
+</tool_name>
+</function_call>
+
+Here is an example:
+
+<function_call>
+<make_change>
+<justification>
+The justification for making this change goes here
+</justification>
+<file_name>
+example-file.file
+</file_name>
+<original_code>
+old code line here
+</original_code>
+<new_code>
+new code line here
+</new_code>
+</make_change>
+</function_call>
+
+If you are really done, call the submit_result function.
+"""
+
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
@@ -325,27 +361,44 @@ def create_user_message(
     completed_prompt = "" if current_fcr_index == 0 else f" You have already completed {current_fcr_index} of the {len(fcrs)} required changes."
     if modify_files_dict:
         combined_request_unformatted += "\nThe above files reflect the latest updates you have already made. READ THROUGH THEM CAREFULLY TO FIGURE OUT WHAT YOUR NEXT STEPS ARE. Call the make_change, create_file or submit_result tools."
-    files_to_modify = ""
-    # TODO: fix the repeated relevant_files
+    files_to_modify_string = ""
+
+    files_to_modify_messages = {fcr.filename: "" for fcr in fcrs}
     for i, fcr in enumerate(fcrs):
-        if i < current_fcr_index:
-            files_to_modify += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where specific instructions were to:\n\n{fcr.instructions}"
+        # first add the instructions to the user message
+        if i < current_fcr_index: # already done
+            files_to_modify_messages[fcr.filename] += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where the specific instructions were to:\n\n{fcr.instructions}"
         elif i == current_fcr_index:
-            files_to_modify += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+            files_to_modify_messages[fcr.filename] += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
         else:
-            files_to_modify += f"\n\nYou will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
-        if fcr.change_type == "modify":
-            if not modify_files_dict:
-                files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
-            else: # show the latest contents of the file
-                latest_file_contents = get_latest_contents(fcr.filename, cloned_repo, modify_files_dict)
-                files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{latest_file_contents}\n</file_to_modify>"
-        elif fcr.change_type == "create":
-            files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
-    
+            files_to_modify_messages[fcr.filename] += f"\n\nYou will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        # now add the contents of the file to the user message
+        # only add the contents if this is the last fcr for the filename
+        last_occurence = i
+        # loop from current index to end of fcrs to see if this fcr is the last time the filename shows up
+        for j in range(i + 1, len(fcrs)):
+            if fcrs[j].filename == fcr.filename:
+                last_occurence = j
+        if last_occurence == i:
+            if fcr.change_type == "modify":
+                if not modify_files_dict:
+                    files_to_modify_messages[fcr.filename] += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+                else: # show the latest contents of the file
+                    latest_file_contents = get_latest_contents(fcr.filename, cloned_repo, modify_files_dict)
+                    files_to_modify_messages[fcr.filename] += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{latest_file_contents}\n</file_to_modify>"
+            elif fcr.change_type == "create":
+                files_to_modify_messages[fcr.filename] += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
+    # now we combine the messages into a single string
+    already_added_files = set([])
+    for fcr in fcrs:
+        if fcr.filename in already_added_files:
+            continue
+        files_to_modify_string += files_to_modify_messages[fcr.filename]
+        already_added_files.add(fcr.filename)
+
     deduped_file_names = list(set([fcr.filename for fcr in fcrs]))
     combined_request_message = combined_request_unformatted \
-        .replace("{files_to_modify}", files_to_modify.lstrip('\n')) \
+        .replace("{files_to_modify}", files_to_modify_string.lstrip('\n')) \
         .replace("{files_to_modify_list}", english_join(deduped_file_names)) \
         .replace("{completed_prompt}", completed_prompt)
     if relevant_filepaths:
@@ -468,7 +521,7 @@ def modify(
             function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
-            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages)
+            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
             if function_output == "DONE":
                 # add the diff of all changes to chat_logger
                 if chat_logger:
@@ -580,7 +633,8 @@ def handle_function_call(
     function_call: AnthropicFunctionCall,
     modify_files_dict: dict[str, dict[str, str]],
     llm_state: dict,
-    chat_logger_messages: list[dict[str, str]] | None = None
+    chat_logger_messages: list[dict[str, str]] | None = None,
+    use_openai: bool = False,
 ) :
     # iterate through modify_files_dict and generate diffs
     llm_response = ""
@@ -598,7 +652,10 @@ def handle_function_call(
             else:
                 llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
     elif tool_name == "no_tool_call":
-        llm_response = NO_TOOL_CALL_PROMPT
+        if use_openai:
+            llm_response = NO_TOOL_CALL_PROMPT_OPENAI
+        else:
+            llm_response = NO_TOOL_CALL_PROMPT
     elif tool_name == "make_change":
         error_message = ""
         for key in ["file_name", "original_code", "new_code"]:
