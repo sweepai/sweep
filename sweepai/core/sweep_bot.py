@@ -152,7 +152,7 @@ def sort_and_fuse_snippets(
     if len(snippets) <= 1:
         return snippets
     new_snippets = []
-    snippets.sort(key=lambda x: x.start)
+    snippets.sort(key=lambda x: x.start - (x.end / 1e7))
     current_snippet = snippets[0]
     for snippet in snippets[1:]:
         if current_snippet.end + fuse_distance >= snippet.start:
@@ -232,7 +232,7 @@ def get_files_to_change(
 
     max_snippets = get_max_snippets(
         snippets=interleaved_snippets, 
-        budget=100_000 * 4 # GPT-4 100k tokens
+        budget=80_000 * 4 # GPT-4 100k tokens
     )
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -305,18 +305,17 @@ def get_files_to_change(
         graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
         # END ADD GRAPH
         # ADDING READING FILES
-        chat_gpt.messages[0].content = reading_files_task_prompt # overwrite the system message
-        reading_files_suffix = "Analyze every single file provided above:\n" + "\n".join(f"{snippet.file_path}" for snippet in relevant_snippets + read_only_snippets)
-        _ = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n\n" + reading_files_task_prompt + "\n\n" + graph_text + "\n\n" + reading_files_suffix,
-            model="claude-3-opus-20240229", # claude seems better at reading files while gpt-4 is better at reasoning
-            temperature=0.2,
-        )
-        chat_gpt.messages[0].content = files_to_change_prompt # revert back to the original system message
-        breakpoint()
+        # chat_gpt.messages[0].content = reading_files_task_prompt # overwrite the system message
+        # reading_files_suffix = "Analyze every single file provided above:\n" + "\n".join(f"{snippet.file_path}" for snippet in relevant_snippets + read_only_snippets)
+        # _ = chat_gpt.chat_anthropic(
+        #     content=joint_message + "\n\n\n" + reading_files_task_prompt + "\n\n" + graph_text + "\n\n" + reading_files_suffix,
+        #     model="claude-3-opus-20240229", # claude seems better at reading files while gpt-4 is better at reasoning
+        #     temperature=0.2,
+        # )
+        # chat_gpt.messages[0].content = files_to_change_prompt # revert back to the original system message
         # END ADDING READING FILES
         files_to_change_response = chat_gpt.chat(
-            content=joint_message + "\n\n" + files_to_change_prompt,
+            content=joint_message + "\n\n" + graph_text + "\n\n" + files_to_change_prompt,
             model=MODEL,
             temperature=0.2
         )
@@ -326,6 +325,7 @@ def get_files_to_change(
                     "model": MODEL,
                     "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
                 })
+        breakpoint()
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []
         pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)

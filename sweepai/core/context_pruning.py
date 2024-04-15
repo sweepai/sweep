@@ -487,7 +487,7 @@ def generate_import_graph_text(graph):
   # Generate the text-based representation
   final_text = ""
   visited_files = set()
-  for file, imported_files in import_dict.items():
+  for file, imported_files in sorted(import_dict.items(), key=lambda x: x[0]):
     if file not in visited_files:
       final_text += generate_file_imports(graph, file, visited_files, "")
       final_text += "\n"
