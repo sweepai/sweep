@@ -325,27 +325,44 @@ def create_user_message(
     completed_prompt = "" if current_fcr_index == 0 else f" You have already completed {current_fcr_index} of the {len(fcrs)} required changes."
     if modify_files_dict:
         combined_request_unformatted += "\nThe above files reflect the latest updates you have already made. READ THROUGH THEM CAREFULLY TO FIGURE OUT WHAT YOUR NEXT STEPS ARE. Call the make_change, create_file or submit_result tools."
-    files_to_modify = ""
-    # TODO: fix the repeated relevant_files
+    files_to_modify_string = ""
+
+    files_to_modify_messages = {fcr.filename: "" for fcr in fcrs}
     for i, fcr in enumerate(fcrs):
-        if i < current_fcr_index:
-            files_to_modify += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where specific instructions were to:\n\n{fcr.instructions}"
+        # first add the instructions to the user message
+        if i < current_fcr_index: # already done
+            files_to_modify_messages[fcr.filename] += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where the specific instructions were to:\n\n{fcr.instructions}"
         elif i == current_fcr_index:
-            files_to_modify += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+            files_to_modify_messages[fcr.filename] += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
         else:
-            files_to_modify += f"\n\nYou will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
-        if fcr.change_type == "modify":
-            if not modify_files_dict:
-                files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
-            else: # show the latest contents of the file
-                latest_file_contents = get_latest_contents(fcr.filename, cloned_repo, modify_files_dict)
-                files_to_modify += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{latest_file_contents}\n</file_to_modify>"
-        elif fcr.change_type == "create":
-            files_to_modify += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
-    
+            files_to_modify_messages[fcr.filename] += f"\n\nYou will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
+        # now add the contents of the file to the user message
+        # only add the contents if this is the last fcr for the filename
+        last_occurence = i
+        # loop from current index to end of fcrs to see if this fcr is the last time the filename shows up
+        for j in range(i + 1, len(fcrs)):
+            if fcrs[j].filename == fcr.filename:
+                last_occurence = j
+        if last_occurence == i:
+            if fcr.change_type == "modify":
+                if not modify_files_dict:
+                    files_to_modify_messages[fcr.filename] += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{cloned_repo.get_file_contents(file_path=fcr.filename)}\n</file_to_modify>"
+                else: # show the latest contents of the file
+                    latest_file_contents = get_latest_contents(fcr.filename, cloned_repo, modify_files_dict)
+                    files_to_modify_messages[fcr.filename] += f"\n\n<file_to_modify filename=\"{fcr.filename}\">\n{latest_file_contents}\n</file_to_modify>"
+            elif fcr.change_type == "create":
+                files_to_modify_messages[fcr.filename] += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
+    # now we combine the messages into a single string
+    already_added_files = set([])
+    for fcr in fcrs:
+        if fcr.filename in already_added_files:
+            continue
+        files_to_modify_string += files_to_modify_messages[fcr.filename]
+        already_added_files.add(fcr.filename)
+
     deduped_file_names = list(set([fcr.filename for fcr in fcrs]))
     combined_request_message = combined_request_unformatted \
-        .replace("{files_to_modify}", files_to_modify.lstrip('\n')) \
+        .replace("{files_to_modify}", files_to_modify_string.lstrip('\n')) \
         .replace("{files_to_modify_list}", english_join(deduped_file_names)) \
         .replace("{completed_prompt}", completed_prompt)
     if relevant_filepaths:
