@@ -104,6 +104,11 @@ class LSPConnection:
                 return response.get("params", {}).get("diagnostics", [])
         return None
 
+def render_diagnostics(diagnostics: list[dict]):
+    return "\n".join(
+        f"{d['range']['start']['line']}:{d['range']['start']['character']} - {d['message']}"
+        for d in diagnostics
+    )
 
 if __name__ == "__main__":
     # Usage
