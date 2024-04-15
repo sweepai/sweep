@@ -4,6 +4,8 @@ import subprocess
 import time
 from websockets.sync.client import connect
 
+global_id = 1
+
 class LSPConnection:
     DEFAULT_HOST = "0.0.0.0:2087"
 
@@ -26,8 +28,25 @@ class LSPConnection:
             self.send_request("initialize", {
                 "processId": 1,
                 "rootUri": f"file://{self.directory}",
-                "capabilities": {}
+                "capabilities": {
+                    "textDocument": {
+                        "synchronization": {
+                            "didOpen": True,
+                            "didChange": True,
+                        },
+                        "publishDiagnostics": {
+                            "relatedInformation": True
+                        },
+                        "diagnostic": {
+                            "dynamicRegistration": True,
+                        },
+                    },
+                }
             })
+            response = self.receive_response()
+            # print(response)
+            response = self.receive_response()
+            # print(response)
         if self.file_path:
             content = self.content
             if not content:
@@ -36,11 +55,13 @@ class LSPConnection:
             self.send_request("textDocument/didOpen", {
                 "textDocument": {
                     "uri": f"file://{self.file_path}",
-                    "languageId": "python",
+                    "languageId": "typescript",
                     "text": content,
                     "version": 1,
                 }
-            })
+            }, include_id=False)
+            response = self.receive_response()
+            # print(response)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -50,9 +71,10 @@ class LSPConnection:
     def start_server(self):
         self.lsp_process = subprocess.Popen(
             [
-                "pylsp",
-                # "--ws",
-                # "--host", self.DEFAULT_HOST,
+                # "pylsp",
+                "npx",
+                "typescript-language-server",
+                "--stdio"
             ],
             cwd=self.directory,
             stdin=subprocess.PIPE,
@@ -66,13 +88,17 @@ class LSPConnection:
             self.lsp_process.wait()
             self.lsp_process = None
 
-    def send_request(self, method, params):
-        message = json.dumps({
+    def send_request(self, method: str, params: dict, include_id: bool = True):
+        global global_id
+        contents = {
             "jsonrpc": "2.0",
-            "id": 1,
             "method": method,
             "params": params
-        })
+        }
+        if include_id:
+            contents["id"] = global_id
+            global_id += 1
+        message = json.dumps(contents)
         self.lsp_process.stdin.write(
             f"Content-Length: {len(message)}\r\n\r\n{message}".encode("utf-8")
         )
@@ -99,18 +125,18 @@ class LSPConnection:
         if not content:
             with open(self.file_path, "r") as file:
                 content = file.read()
-        self.send_request("textDocument/didOpen", {
+        self.send_request("textDocument/didChange", {
             "textDocument": {
                 "uri": f"file://{self.file_path}",
-                "languageId": "python",
+                "languageId": "typescript",
                 "text": content,
-                "version": 1,
+                "version": 2,
             }
-        })
+        }, include_id=False)
         for _ in range(max_iters):
             response = self.receive_response()
             if response.get("method") == "textDocument/publishDiagnostics":
-                return response.get("params", {}).get("diagnostics", [])
+                return render_diagnostics(response.get("params", {}).get("diagnostics", []))
         return None
 
 def render_diagnostics(diagnostics: list[dict]):
@@ -123,59 +149,11 @@ def render_diagnostics(diagnostics: list[dict]):
 if __name__ == "__main__":
     # Usage
     directory = "/mnt/sweep_benchmark/django__django-11095"
-    file_path = f"{directory}/tests/admin_inlines/test_inlines.py"
-
-    # process = subprocess.Popen(
-    #     ['npx', 'typescript-language-server', '--stdio'],
-    #     stdin=subprocess.PIPE,
-    #     stdout=subprocess.PIPE,
-    #     stderr=subprocess.PIPE,
-    #     text=True
-    # )
-
-    # def send_request(method, params):
-    #     # JSON-RPC header for content-length
-    #     message = json.dumps({
-    #         "jsonrpc": "2.0",
-    #         "id": 1,
-    #         "method": method,
-    #         "params": params
-    #     })
-    #     content_length = len(message)
-    #     process.stdin.write(f"Content-Length: {content_length}\r\n\r\n{message}")
-    #     process.stdin.flush()
-
-    # def receive_response():
-    #     headers = {}
-    #     # Read headers
-    #     # while True:
-    #     for line in process.stdout:
-    #         if not line.strip():
-    #             break
-    #         key, value = line.split(":")
-    #         headers[key.strip()] = value.strip()
-        
-    #     # Read the body
-    #     content_length = int(headers["Content-Length"])
-    #     body = process.stdout.read(content_length)
-    #     return json.loads(body)
-
-    # # Initialize the language server
-    # send_request("initialize", {
-    #     "processId": None,
-    #     "capabilities": {},  # Specify capabilities based on what you need
-    #     "trace": "off"
-    # })
-
-    # # Wait and print the response
-    # response = receive_response()
-    # print(response)
-
+    file_path = f"tests/admin_inlines/test_inlines.py"
 
     with LSPConnection(
         directory,
         file_path,
-        content="pass"
     ) as lsp:
         diagnostics = lsp.get_diagnostics()
         print(diagnostics)
