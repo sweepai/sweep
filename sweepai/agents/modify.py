@@ -755,7 +755,10 @@ def handle_function_call(
             ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
             # set contents
             if file_name not in modify_files_dict:
-                modify_files_dict[file_name] = {}
+                modify_files_dict[file_name] = {
+                    "contents": file_contents,
+                    "original_contents": file_contents,
+                }
             next_step, feedback = ModifyEvaluatorAgent().evaluate_patch(
                 problem_statement=llm_state["request"],
                 patch = generate_diff(file_contents, new_file_contents, n=10),
