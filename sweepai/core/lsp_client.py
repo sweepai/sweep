@@ -2,9 +2,15 @@ import os
 import json
 import subprocess
 import time
-from websockets.sync.client import connect
 
 global_id = 1
+
+LSP_START_COMMANDS = {
+    "python": ["pylsp"],
+    "typescript": ["npx", "typescript-language-server", "--stdio"],
+}
+
+DISABLED_SOURCES = ["pycodestyle", "mccabe"] # Generally not useful for our purposes
 
 class LSPConnection:
     DEFAULT_HOST = "0.0.0.0:2087"
@@ -43,9 +49,9 @@ class LSPConnection:
                     },
                 }
             })
-            response = self.receive_response()
+            # response = self.receive_response()
             # print(response)
-            response = self.receive_response()
+            # response = self.receive_response()
             # print(response)
         if self.file_path:
             content = self.content
@@ -60,7 +66,7 @@ class LSPConnection:
                     "version": 1,
                 }
             }, include_id=False)
-            response = self.receive_response()
+            # response = self.receive_response()
             # print(response)
         return self
 
@@ -71,10 +77,10 @@ class LSPConnection:
     def start_server(self):
         self.lsp_process = subprocess.Popen(
             [
-                # "pylsp",
-                "npx",
-                "typescript-language-server",
-                "--stdio"
+                "pylsp",
+                # "npx",
+                # "typescript-language-server",
+                # "--stdio"
             ],
             cwd=self.directory,
             stdin=subprocess.PIPE,
@@ -141,15 +147,15 @@ class LSPConnection:
 
 def render_diagnostics(diagnostics: list[dict]):
     return "\n".join(
-        f"{d['range']['start']['line']}:{d['range']['start']['character']} - {d['message']}"
-        for d in diagnostics
+        f"{d['range']['start']['line']}:{d['range']['start']['character']} - {d['source']} - {d['message']}"
+        for d in diagnostics if d.get("source") not in DISABLED_SOURCES
     )
 
 
 if __name__ == "__main__":
     # Usage
-    directory = "/mnt/sweep_benchmark/django__django-11095"
-    file_path = f"tests/admin_inlines/test_inlines.py"
+    directory = "/mnt/sweep_benchmark/django__django-16635"
+    file_path = f"django/db/migrations/autodetector.py"
 
     with LSPConnection(
         directory,
@@ -157,3 +163,5 @@ if __name__ == "__main__":
     ) as lsp:
         diagnostics = lsp.get_diagnostics()
         print(diagnostics)
+    
+    # Should expect AttributeError: 'CheckConstraint' object has no attribute 'fields'
