@@ -321,7 +321,7 @@ List ALL relevant read-only utility modules from the provided set and specify wh
 </issue_analysis>
 
 # Plan:
-<plan>
+<plan number="#">
 <create file="file_path_1">
 * Natural language instructions for creating the new file to solve the issue.
 * Reference necessary imports and entity names.
@@ -339,7 +339,7 @@ List ALL relevant read-only utility modules from the provided set and specify wh
 </modify>
 
 [additional modifies as needed]
-</plan>
+</plan number="#">
 
 <relevant_modules>
 [List of all relevant files to use or read while making changes, such as type definitions, interfaces, and schemas, one per line]
@@ -377,7 +377,7 @@ The <create> and <modify> changes work together to fully handle preventing delet
 - The API endpoint is updated to catch the new exception and return an appropriate error
 </issue_analysis>
 
-<plan>
+<plan number="1">
 <create file="src/exceptions.py">
 * Define a new exception class called `DeletedAccountError`
 * Have it inherit from the base `Exception` class
@@ -414,7 +414,7 @@ In the `create_post` endpoint:
   - A 403 status code
   - An error message like "Cannot create post with a deleted account"
 </modify>
-</plan>
+</plan number="1">
 
 <relevant_modules>
 src/entities/user.py
