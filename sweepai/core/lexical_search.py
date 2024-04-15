@@ -302,7 +302,7 @@ def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
     return snippet_denotation_to_scores
 
 
-@file_cache(ignore_params=["sweep_config", "ticket_progress"])
+@file_cache(ignore_params=["ticket_progress"])
 def prepare_lexical_search_index(
     repo_directory,
     sweep_config: SweepConfig,

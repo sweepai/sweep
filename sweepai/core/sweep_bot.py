@@ -8,12 +8,14 @@ from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
+from networkx import Graph
 from pydantic import BaseModel
 
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
+from sweepai.core.context_pruning import generate_import_graph_text
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -49,24 +51,35 @@ def to_raw_string(s):
     return repr(s).lstrip("u")[1:-1]
 
 
-sandbox_error_prompt = """The following error logs were returned from `{command}`. Make changes to the current file so that it passes this CI/CD command.
+reading_files_task_prompt = """# Task: 
+Carefully read through and analyze the provided code snippets, repository, and GitHub issue. Identify the minimal spans of code needed to understanding and resolving the issue, including classes, methods, interfaces, schemas, utility modules, comments, conditionals, and other important logic.
 
-```
-{error_logs}
-```
+You are provided with relevant_snippets, which contain code snippets you may need to modify or import, and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
 
-Edit old_code to pass the CI/CD."""
+YOU MUST USE the following XML format for your response:
 
-sandbox_error_prompt_test = """The following error logs were returned from `{command}`. Make changes to the current file so that it passes this CI/CD command.
+<code_analysis>
+<file path="file_path_1">
+Read the file and explain what might be important to solving the issue.
+<code_excerpts>
+One line excerpts from the code separated by ...
+</code_excerpts>
+</file>
+<file path="file_path_2">
+Read the file and explain what might be important to solving the issue.
+<code_excerpts>
+One line excerpts from the code separated by ...
+</code_excerpts>
+<file path="file_path_3">
+Read the file and explain what might be important to solving the issue.
+<code_excerpts>
+One line excerpts from the code separated by ...
+</code_excerpts>
+</file>
+[REPEAT FOR ALL FILES. IF THE FILE SHOULD NOT BE MODIFIED YOU MUST EXPLAIN WHY]
+</code_analysis>"""
 
-```
-{error_logs}
-```
 
-Edit old_code to pass the CI/CD.
-1. Analyze the business logic and tests. Identify whether the failure is in the unit tests or business logic.
-2a. If the business logic is correct fix the test to return the expected output.
-2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
 
 def safe_decode(
     repo: Repository,
@@ -189,18 +202,19 @@ def get_files_to_change(
     read_only_snippets: list[Snippet],
     problem_statement,
     repo_name,
+    import_graph: Graph,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
     seed: int = 0
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
-    messages.append(
-        Message(role="system", content=files_to_change_system_prompt, key="system")
-    )
-    messages.append(
-        Message(role="user", content=files_to_change_prompt, key="assistant")
-    )
+    # messages.append(
+    #     Message(role="system", content=files_to_change_system_prompt, key="system")
+    # )
+    # messages.append(
+    #     Message(role="user", content=files_to_change_prompt, key="assistant")
+    # )
     messages.append(
         Message(
             role="user",
@@ -259,7 +273,7 @@ def get_files_to_change(
     messages.append(
         Message(
             role="user",
-            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
+            content=f"# Repo & GitHub Issue\nRepo: {repo_name}\n<github_issue>\nIssue: {problem_statement}\n</github_issue>",
         )
     )
     if pr_diffs:
@@ -270,7 +284,7 @@ def get_files_to_change(
         print("messages")
         for message in messages:
             print(message.content + "\n\n")
-        joint_message = "\n\n".join(message.content for message in messages[1:-1])
+        joint_message = "\n\n".join(message.content for message in messages[1:])
         print("messages", joint_message)
         chat_gpt = ChatGPT(
             messages=[
@@ -281,6 +295,26 @@ def get_files_to_change(
             ],
         )
         MODEL = "gpt-4-turbo-2024-04-09"
+        # ADD GRAPH
+        # extract the subgraph of all nodes in the relevant and read_only snippets
+        sub_graph = import_graph.subgraph(
+            [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
+        )
+        import_graph = generate_import_graph_text(sub_graph).strip("\n")
+        # serialize the graph so LLM can read it
+        graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
+        # END ADD GRAPH
+        # ADDING READING FILES
+        chat_gpt.messages[0].content = reading_files_task_prompt # overwrite the system message
+        reading_files_suffix = "Analyze every single file provided above:\n" + "\n".join(f"{snippet.file_path}" for snippet in relevant_snippets + read_only_snippets)
+        _ = chat_gpt.chat_anthropic(
+            content=joint_message + "\n\n\n" + reading_files_task_prompt + "\n\n" + graph_text + "\n\n" + reading_files_suffix,
+            model="claude-3-opus-20240229", # claude seems better at reading files while gpt-4 is better at reasoning
+            temperature=0.2,
+        )
+        chat_gpt.messages[0].content = files_to_change_prompt # revert back to the original system message
+        breakpoint()
+        # END ADDING READING FILES
         files_to_change_response = chat_gpt.chat(
             content=joint_message + "\n\n" + files_to_change_prompt,
             model=MODEL,

@@ -90,7 +90,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                     cached_result = redis_client.get(cache_key)
                     if cached_result:
                         if verbose:
-                            print("Used redis cache for function: " + func.__name__)
+                            logger.info("Used redis cache for function: " + func.__name__)
                         result = pickle.loads(cached_result)
                 except Exception:
                     pass
@@ -99,7 +99,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                     # If cache exists, load and return it
                     if os.path.exists(cache_file):
                         if verbose:
-                            print("Used cache for function: " + func.__name__)
+                            logger.info("Used cache for function: " + func.__name__)
                         with open(cache_file, "rb") as f:
                             result = pickle.load(f)
                 except Exception:
@@ -114,7 +114,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                     redis_client.set(cache_key, pickle.dumps(result))
                 except Exception as e:
                     if verbose:
-                        print(f"Redis caching failed for function: {func.__name__}, Error: {e}")
+                        logger.info(f"Redis caching failed for function: {func.__name__}, Error: {e}")
             if not isinstance(result, Exception):
                 try:
                     with open(cache_file, "wb") as f:
@@ -161,7 +161,7 @@ def redis_cache(ignore_params=[], verbose=False):
             cached_result = redis_client.get(cache_key)
             if cached_result:
                 if verbose:
-                    print("Used cache for function: " + func.__name__)
+                    logger.info("Used cache for function: " + func.__name__)
                 return pickle.loads(cached_result)
 
             # Execute the function and cache the result if no cache is found
@@ -171,7 +171,7 @@ def redis_cache(ignore_params=[], verbose=False):
                 redis_client.set(cache_key, pickle.dumps(result))
             except Exception as e:
                 if verbose:
-                    print(f"Caching failed for function: {func.__name__}, Error: {e}")
+                    logger.info(f"Caching failed for function: {func.__name__}, Error: {e}")
 
             return result
 
@@ -185,8 +185,8 @@ if __name__ == "__main__":
         time.sleep(3)
         return a + b
 
-    print("Running...")
-    print(test_func(1, 1))
-    print("Running again")
-    print(test_func(1, 1))
-    print("Done")
+    logger.info("Running...")
+    logger.info(test_func(1, 1))
+    logger.info("Running again")
+    logger.info(test_func(1, 1))
+    logger.info("Done")

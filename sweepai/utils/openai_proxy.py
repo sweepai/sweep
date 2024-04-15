@@ -14,12 +14,15 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
+    PAREA_API_KEY,
 )
+from parea import Parea
 from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
 from sweepai.utils.timer import Timer
 from anthropic import Anthropic
 
+parea_client = Parea(api_key=PAREA_API_KEY)
 OPENAI_TIMEOUT = 120
 
 OPENAI_EXCLUSIVE_MODELS = [
@@ -176,6 +179,7 @@ class OpenAIProxy:
             api_version=OPENAI_API_VERSION,
             azure_deployment=AZURE_OPENAI_DEPLOYMENT,
         )
+        parea_client.wrap_openai_client(client)
         if len(tools) == 0:
             response = client.chat.completions.create(
                 model=model,
@@ -202,6 +206,7 @@ class OpenAIProxy:
             api_version=OPENAI_API_VERSION,
             azure_deployment=AZURE_OPENAI_DEPLOYMENT,
         )
+        parea_client.wrap_openai_client(client)
         if len(tools) == 0:
             response = client.chat.completions.create(
                 model=model,
@@ -237,6 +242,7 @@ class OpenAIProxy:
         self, model, messages, max_tokens, temperature, tools=[], stop_sequences=[]
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
+        parea_client.wrap_openai_client(client)
         if len(tools) == 0:
             response = client.chat.completions.create(
                 model=model,

@@ -469,6 +469,57 @@ def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoCo
             repo_context_manager.current_top_snippets = repo_context_manager.current_top_snippets[:50 - num_graph_retrievals]
     return repo_context_manager, import_graph
 
+def generate_import_graph_text(graph):
+  # Create a dictionary to store the import relationships
+  import_dict = {}
+
+  # Iterate over each node (file) in the graph
+  for node in graph.nodes():
+    # Get the files imported by the current file
+    imported_files = list(graph.successors(node))
+
+    # Add the import relationships to the dictionary
+    if imported_files:
+      import_dict[node] = imported_files
+    else:
+      import_dict[node] = []
+
+  # Generate the text-based representation
+  final_text = ""
+  visited_files = set()
+  for file, imported_files in import_dict.items():
+    if file not in visited_files:
+      final_text += generate_file_imports(graph, file, visited_files, "")
+      final_text += "\n"
+
+  # Add files that are not importing any other files
+  non_importing_files = [
+      file for file, imported_files in import_dict.items()
+      if not imported_files and file not in visited_files
+  ]
+  if non_importing_files:
+    final_text += "\n".join(non_importing_files)
+
+  return final_text
+
+
+def generate_file_imports(graph,
+                          file,
+                          visited_files,
+                          last_successor,
+                          indent_level=0):
+  # if you just added this file as a successor, you don't need to add it again
+  visited_files.add(file)
+  text = "  " * indent_level + f"{file}\n" if file != last_successor else ""
+
+  for imported_file in graph.successors(file):
+    text += "  " * (indent_level + 1) + f"──> {imported_file}\n"
+    if imported_file not in visited_files:
+      text += generate_file_imports(graph, imported_file, visited_files,
+                                    imported_file, indent_level + 2)
+
+  return text
+
 # add import trees for any relevant_file_paths (code files that appear in query)
 def build_import_trees(
     rcm: RepoContextManager,

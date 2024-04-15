@@ -272,7 +272,7 @@ class ChatGPT(MessageList):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
-    @file_cache(ignore_params=["chat_logger", "cloned_repo"])
+    @file_cache(ignore_params=["chat_logger", "cloned_repo"], verbose=True, redis=True)
     def call_openai(
         self,
         model: ChatModel | None = None,
@@ -409,7 +409,7 @@ class ChatGPT(MessageList):
         NUM_ANTHROPIC_RETRIES = 4
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
-                @file_cache(redis=True) # must be in the inner scope because this entire function manages state
+                @file_cache(redis=True, verbose=True) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str = system_message, 
