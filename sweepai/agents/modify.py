@@ -685,7 +685,7 @@ def handle_function_call(
                 # get the latest contents of the file
                 file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
                 # if the file is not in modify_files_dict, add it
-                if not (file_name in modify_files_dict):
+                if file_name not in modify_files_dict:
                     modify_files_dict[file_name] = {"contents": file_contents, "original_contents": file_contents}
                 warning_message = ""
                 
