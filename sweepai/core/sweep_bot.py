@@ -300,6 +300,7 @@ def get_files_to_change(
                 {
                     "model": MODEL,
                     "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": final_plan_response,
                 })
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []

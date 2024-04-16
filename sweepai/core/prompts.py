@@ -424,8 +424,7 @@ src/entities/post.py
 Generate three plans to address the user issue based off of your issue analysis. The best plan will be chosen later.
 """
 
-plan_selection_prompt = """
-Critique the pros and cons of each plan based on the following guidelines:
+plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines:
 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems.
 - Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on.
