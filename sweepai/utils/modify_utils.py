@@ -64,6 +64,9 @@ def manual_code_check(file_contents: str, code_snippet: str) -> tuple[int, bool]
             # now check how many leading whitespaces there are
             for line in file_lines:
                 if new_code in line:
+                    # unless the code is at the start of the line
+                    if line.startswith(new_code):
+                        return 0, False
                     return len(line)-len(line.lstrip()), False
         else:
             # now try rstrip if initially the code is not there
@@ -74,7 +77,10 @@ def manual_code_check(file_contents: str, code_snippet: str) -> tuple[int, bool]
                # now check how many leading whitespaces there are
                 for line in file_lines:
                     if new_code in line:
-                        return len(line)-len(line.lstrip()), False
+                        # unless the code is at the start of the line
+                        if line.startswith(new_code):
+                            return 0, True
+                        return len(line)-len(line.lstrip()), True
         return -1, False
                 
     # assume one indent is two spaces and check max 10 indents
