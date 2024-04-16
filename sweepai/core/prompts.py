@@ -328,8 +328,8 @@ src/entities/user.py
 src/entities/post.py
 </relevant_modules>"""
 
-files_to_change_prompt = """# Task: 
-Critically analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a COMPLETE plan for an intern to FULLY resolve the user's issue, utilizing the relevant code snippets and utility modules provided. It is absolutely critical that you list ALL files that may need to be modified. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+context_files_to_change_prompt = """# Task: 
+Critically analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a COMPLETE plan for an intern with 100% coverage to FULLY resolve the user's issue, utilizing the relevant code snippets and utility modules provided. It is absolutely critical that you list ALL files that may need to be modified. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
 
 You are provided with relevent_snippets, which contain code snippets you MAY need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
 

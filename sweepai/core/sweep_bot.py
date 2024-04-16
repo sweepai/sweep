@@ -8,12 +8,14 @@ from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
+from networkx import Graph
 from pydantic import BaseModel
 
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
+from sweepai.core.context_pruning import generate_import_graph_text
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -28,6 +30,7 @@ from sweepai.core.entities import (
 )
 from sweepai.core.prompts import (
     files_to_change_prompt,
+    context_files_to_change_prompt,
     pull_request_prompt,
     subissues_prompt,
     files_to_change_system_prompt
@@ -170,7 +173,7 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[S
 
 def get_max_snippets(
     snippets: list[Snippet],
-    budget: int = 25_000 * 3.5, # 140k tokens
+    budget: int = 150_000 * 3.5, # 140k tokens
     expand: int = 300,
 ):
     """
@@ -189,9 +192,11 @@ def get_files_to_change(
     read_only_snippets: list[Snippet],
     problem_statement,
     repo_name,
+    import_graph: Graph | None = None,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
-    seed: int = 0
+    seed: int = 0,
+    context: bool = False,
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -209,12 +214,12 @@ def get_files_to_change(
         )
     )
 
-    # interleaved_snippets = []
-    # for i in range(max(len(relevant_snippets), len(read_only_snippets))):
-    #     if i < len(relevant_snippets):
-    #         interleaved_snippets.append(relevant_snippets[i])
-    #     if i < len(read_only_snippets):
-    #         interleaved_snippets.append(read_only_snippets[i])
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
 
     interleaved_snippets = relevant_snippets
 
@@ -222,8 +227,8 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
-    read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
+    relevant_snippet_template = '<snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</snippet>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     joined_relevant_snippets = "\n".join(
         relevant_snippet_template.format(
@@ -255,6 +260,22 @@ def get_files_to_change(
             key="relevant_snippets",
         )
     )
+
+    sub_graph = import_graph.subgraph(
+        [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
+    )
+    import_graph = generate_import_graph_text(sub_graph).strip("\n")
+    # serialize the graph so LLM can read it
+    graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
+
+    messages.append(
+        Message(
+            role="user",
+            content=graph_text,
+            key="graph_text",
+        )
+    )
+
     messages.append(
         Message(
             role="user",
@@ -281,7 +302,7 @@ def get_files_to_change(
         )
         MODEL = "claude-3-opus-20240229"
         files_to_change_response = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + files_to_change_prompt,
+            content=joint_message + "\n\n" + (files_to_change_prompt if not context else context_files_to_change_prompt),
             model=MODEL,
             temperature=0.1
         )
