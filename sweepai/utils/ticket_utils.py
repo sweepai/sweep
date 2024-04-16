@@ -5,16 +5,18 @@ from time import time
 import cohere
 from loguru import logger
 from tqdm import tqdm
+import networkx as nx
 
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
-from sweepai.core.context_pruning import RepoContextManager, get_relevant_context, integrate_graph_retrieval
+from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, get_relevant_context, integrate_graph_retrieval
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
     prepare_lexical_search_index,
     search_index,
 )
+from sweepai.core.sweep_bot import get_files_to_change
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.event_logger import posthog
@@ -310,6 +312,60 @@ def prep_snippets(
     return multi_prep_snippets(
         cloned_repo, queries, ticket_progress, k, skip_reranking
     )
+
+def get_relevant_context(
+    query: str,
+    repo_context_manager: RepoContextManager,
+    seed: int = None,
+    import_graph: nx.DiGraph = None,
+    chat_logger = None,
+) -> RepoContextManager:
+    logger.info("Seed: " + str(seed))
+    repo_context_manager = build_import_trees(
+        repo_context_manager,
+        import_graph,
+    )
+    repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
+    repo_context_manager.dir_obj.add_relevant_files(
+        repo_context_manager.relevant_file_paths
+    )
+    fcrs, plan = get_files_to_change(
+        relevant_snippets=repo_context_manager.current_top_snippets,
+        read_only_snippets=repo_context_manager.snippets,
+        problem_statement=query,
+        repo_name=repo_context_manager.cloned_repo.repo_full_name,
+        import_graph=import_graph,
+        chat_logger=chat_logger,
+        seed=seed,
+        context=True
+    )
+    repo_context_manager.file_change_requests = []
+    for fcr in fcrs:
+        try:
+            content = repo_context_manager.cloned_repo.get_file_contents(fcr.filename)
+        except FileNotFoundError:
+            continue
+        snippet = Snippet(
+            file_path=fcr.filename,
+            start=0,
+            end=len(content.split("\n")),
+            content=content,
+        )
+        repo_context_manager.file_change_requests.append(snippet)
+    repo_context_manager.read_only_snippets = []
+    for file_path in fcrs[0].relevant_files:
+        try:
+            content = repo_context_manager.cloned_repo.get_file_contents(file_path)
+        except FileNotFoundError:
+            continue
+        snippet = Snippet(
+            file_path=file_path,
+            start=0,
+            end=len(content.split("\n")),
+            content=content,
+        )
+        repo_context_manager.read_only_snippets.append(snippet)
+    return repo_context_manager
 
 def fetch_relevant_files(
     cloned_repo,
