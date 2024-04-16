@@ -794,48 +794,8 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
-            next_step = "CONTINUE"
-            # next_step, feedback = ModifyEvaluatorAgent().evaluate_patch(
-            #     problem_statement=llm_state["request"],
-            #     patch = generate_diff(file_contents, new_file_contents, n=10),
-            #     changed_files=modify_files_dict,
-            #     new_file_contents=new_file_contents,
-            #     current_plan=llm_state["plan"],
-            #     current_task=llm_state["current_task"],
-            #     previous_attempt=llm_state["previous_attempt"],
-            #     file_name=file_name,
-            #     warning_message=warning_message,
-            #     chat_logger_messages=chat_logger_messages,
-            # )
-
-            # if next_step == "COMPLETE":
-            #     # Sets first fcr that is not completed to completed
-            #     for fcr in llm_state["fcrs"]:
-            #         if not fcr.is_completed:
-            #             fcr.is_completed = True
-            #             break
-            #     llm_state["plan"] = render_plan(llm_state["fcrs"])
-            #     llm_state["current_task"] = render_current_task(llm_state["fcrs"])
-            #     llm_response = f"{success_message}"
-            #     modify_files_dict[file_name]['contents'] = new_file_contents
-            #     llm_state["previous_attempt"] = ""
-            # elif next_step == "CONTINUE":
-            #     # guard modify files
             llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{SELF_REVIEW_PROMPT}"
             modify_files_dict[file_name]['contents'] = new_file_contents
-
-        # for fcr in llm_state["fcrs"]:
-        #     if not fcr.is_completed:
-        #         fcr.is_completed = True
-        #         break
-
-            # previous_attempt = f"<previous_attempt>\nThe contractor previously made this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you accepted with the following feedback:\n{feedback}\n</previous_attempt>"
-            # llm_state["previous_attempt"] = previous_attempt
-
-            # else:
-            #     previous_attempt = f"<previous_attempt>\nThe contractor previously attempted at making this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you rejected it with the following feedback:\n{feedback}\n</previous_attempt>"
-            #     llm_state["previous_attempt"] = previous_attempt
-            #     llm_response = f"Changes Rejected with ERROR:\n\n{feedback}"
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""
