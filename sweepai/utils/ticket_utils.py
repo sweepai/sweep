@@ -341,7 +341,11 @@ def get_relevant_context(
     )
     repo_context_manager.current_top_snippets = []
     repo_context_manager.read_only_snippets = []
+    visited_paths = set()
     for fcr in fcrs:
+        if fcr.filename in visited_paths:
+            continue
+        visited_paths.add(fcr.filename)
         try:
             content = repo_context_manager.cloned_repo.get_file_contents(fcr.filename)
         except FileNotFoundError:
@@ -356,6 +360,9 @@ def get_relevant_context(
     repo_context_manager.read_only_snippets = []
     if fcrs:
         for file_path in fcrs[0].relevant_files:
+            if file_path in visited_paths:
+                continue
+            visited_paths.add(file_path)
             try:
                 content = repo_context_manager.cloned_repo.get_file_contents(file_path)
             except FileNotFoundError:

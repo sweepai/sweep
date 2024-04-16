@@ -377,73 +377,92 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
-context_files_to_change_prompt = """# Task: 
-Critically analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a COMPLETE plan for an intern with 100% coverage to FULLY resolve the user's issue, utilizing the relevant code snippets and utility modules provided. It is absolutely critical that you list ALL files that may need to be modified. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
+- Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
+- Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on. 
+- Clarity: The code change should be readable, well-structured, and easy for other developers to understand and maintain. Follow existing conventions and style guides, and include documentation and comments for complex or non-obvious logic. 
+- Simplicity: Strive for a solution that is as simple as possible while still being complete and correct. Favor straightforward and easily understandable code. Performance overhead should not be a factor in evaluating simplicity. 
+- Integration: Assess how well the change fits with the overall architecture and design of the system. Avoid tightly coupling components or introducing new dependencies that could complicate future development or deployment. After evaluating the plans against these criteria, select the one that provides the most thorough and correct solution within the specific context and constraints of the project. Prioritize long-term maintainability and architectural integrity.
 
-You are provided with relevent_snippets, which contain code snippets you MAY need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
+Respond using the following XML format:
+
+<final_plan>
+[Insert the final plan here, including any modifications or improvements based on the feedback and dialogue. Explain how the plan aligns with the guidelines and why it was chosen over the alternatives.]
+</final_plan>
+
+Here is an example response format:
+
+<final_plan>
+<modify file="example.py">
+[Example instructions here]
+</modify>
+...
+<modify file="anotherexamplefile.py">
+[More example instructions here]
+</modify>
+[Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
+</final_plan>"""
+
+context_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
+
+You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
 Guidelines:
-* Always include the full file path and reference the provided snippets.
-* Provide clear, natural language instructions for updating the code logic and specify necessary imports.
-* Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
-* Include relevant type definitions, interfaces, and schemas in the relevant_files to provide a clear understanding of the entities and their relationships.
-* Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
-* Be certain that your plan is complete and covers ALL the necessary changes to FULLY resolve the issue. It is absolutely critical that you list ALL files that may need to be modified. Ensure that every edge case is covered, every occurrence of a change is addressed, every necessary import is included, and EVERY relevant file is listed.
-* Suggest high-quality changes that are completely safe, maintainable, efficient and backwards compatible.
-* Divide the task into smaller steps, where each <create> or <modify> section corresponds to one small code block of change. You may have multiple <modify> blocks for the same file.
+- Always include the full file path and reference the provided snippets 
+- Provide clear instructions for updating the code, specifying necessary imports
+- Be specific and direct, using phrases like "add", "change", "remove" instead of vague terms
+- Reference relevant type definitions, interfaces, and schemas 
+- Avoid line numbers and instead reference code locations using surrounding code or function names
+- Ensure your plan is complete and covers all necessary changes to fully resolve the issue
+- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
+- Prioritize using existing code and utility methods to minimize writing new code
+- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
 
 Please use the following XML format for your response:
 
 # Issue Analysis:
 <issue_analysis>
-* Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
+Identify the root cause of the issue referencing specific code in the relevant files. Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
 
-List ALL files we should modify to resolve the issue:
-- File path 1: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-- File path 2: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-[Additional files as needed. Ensure this list is complete.]
+List ALL files to modify:
+- File path 1: Outline of changes 
+- File path 2: Outline of changes
+[additional files]
 
-List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-- Type definitions, interfaces, and schemas
-- Helper functions
+List ALL relevant read-only utility modules to reference:
+- Type definitions, interfaces, schemas
+- Helper functions 
 - Frontend components
-- Database services
+- Database services 
 - API endpoints
-[additional relevant modules as needed]
+[additional modules]
 
-* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-[additional analysis as needed]
+For each <create> or <modify> in the plan, explain its purpose for resolving the issue.
+[additional analysis]
 </issue_analysis>
 
-# Plan:
-<plan>
+<plan number="#">
 <create file="file_path_1">
-* Natural language instructions for creating the new file to solve the issue.
-* Reference necessary imports and entity names.
-* Include references to relevant type definitions, interfaces, and schemas.
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
 </create>
+[additional creates]
 
-[additional creates as needed]
-
-<modify file="file_path_2">
-* Detailed natural language instructions for modifying the file to solve the issue.
-* Reference the locations of the changes using surrounding code or function headers, not line numbers.
-* Include references to relevant type definitions, interfaces, and schemas.
-* Describe code changes, but do not write the actual code.
-* You may modify the same file multiple times. Each <modify> block should contain a single block of code changes from one small section of the file.
+<modify file="file_path_2"> 
+Instructions for modifying one section of the file. Reference change locations using surrounding code or functions, not line numbers. Include relevant type definitions, interfaces, schemas. Describe code changes without writing code.
 </modify>
 
-[additional modifies as needed]
+<modify file="file_path_2">
+Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
+</modify>
+
+[additional modifies as needed, for the same file or different files]
 </plan>
 
 <relevant_modules>
-[List of all relevant files to use or read while making changes, such as type definitions, interfaces, and schemas, one per line]
-</relevant_modules>"""
+[List of all relevant files to reference while making changes, one per line] 
+</relevant_modules>
+
+Generate three diverse plans to address the user issue based off of your issue analysis. The best plan will be chosen later."""
 
 extract_files_to_change_prompt = """\
 # Task:
