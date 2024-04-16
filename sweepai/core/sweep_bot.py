@@ -309,22 +309,26 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1
         )
-        issue_analysis = f'<issue_analysis>{parse_xml_tag_from_string("issue_analysis", files_to_change_response)}</issue_analysis>'
-        final_plan_response = chat_gpt.chat_anthropic(
-            content=plan_selection_prompt,
-            model="claude-3-opus-20240229",
-            temperature=0.1
-        )
-        final_plan = f'<final_plan>{parse_xml_tag_from_string("final_plan", final_plan_response)}</final_plan>'
-        final_plan_response = f"Here is the issue analysis and final plan:\n{issue_analysis}\n\n{final_plan}"
-        logger.info(f"Final plan: {final_plan_response}")
-        if chat_logger:
-            chat_logger.add_chat(
-                {
-                    "model": MODEL,
-                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
-                    "output": final_plan_response,
-                })
+        plan = files_to_change_response
+        if not context:
+            issue_analysis = f'<issue_analysis>{parse_xml_tag_from_string("issue_analysis", files_to_change_response)}</issue_analysis>'
+            final_plan_response = chat_gpt.chat_anthropic(
+                content=plan_selection_prompt,
+                model="claude-3-opus-20240229",
+                temperature=0.1
+            )
+            final_plan = f'<final_plan>{parse_xml_tag_from_string("final_plan", final_plan_response)}</final_plan>'
+            final_plan_response = f"Here is the issue analysis and final plan:\n{issue_analysis}\n\n{final_plan}"
+            logger.info(f"Final plan: {final_plan_response}")
+            if chat_logger:
+                chat_logger.add_chat(
+                    {
+                        "model": MODEL,
+                        "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                        "output": final_plan_response,
+                    })
+            files_to_change_response = final_plan
+            plan = final_plan_response
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []
         pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
@@ -334,12 +338,12 @@ def get_files_to_change(
         print("relevant_modules", relevant_modules)
         file_change_requests = []
         for re_match in re.finditer(
-            FileChangeRequest._regex, final_plan, re.DOTALL
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
         ):
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
-        return file_change_requests, final_plan_response
+        return file_change_requests, plan
     except RegexMatchError as e:
         print("RegexMatchError", e)
 
@@ -393,8 +397,6 @@ class CodeGenBot(ChatGPT):
                     pr_text_response += '"""'
 
                 self.messages = self.messages[:-2]
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 e_str = str(e)
                 if "too long" in e_str:
@@ -442,8 +444,6 @@ class GithubBot(BaseModel):
         try:
             self.get_contents(path, branch)
             return True
-        except SystemExit:
-            raise SystemExit
         except Exception:
             return False
 
