@@ -310,6 +310,13 @@ def get_files_to_change(
             temperature=0.1
         )
         plan = files_to_change_response
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": files_to_change_response,
+                })
         if not context:
             issue_analysis = f'<issue_analysis>{parse_xml_tag_from_string("issue_analysis", files_to_change_response)}</issue_analysis>'
             final_plan_response = chat_gpt.chat_anthropic(

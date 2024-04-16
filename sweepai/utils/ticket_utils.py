@@ -339,7 +339,8 @@ def get_relevant_context(
         seed=seed,
         context=True
     )
-    repo_context_manager.file_change_requests = []
+    repo_context_manager.current_top_snippets = []
+    repo_context_manager.read_only_snippets = []
     for fcr in fcrs:
         try:
             content = repo_context_manager.cloned_repo.get_file_contents(fcr.filename)
@@ -351,7 +352,7 @@ def get_relevant_context(
             end=len(content.split("\n")),
             content=content,
         )
-        repo_context_manager.file_change_requests.append(snippet)
+        repo_context_manager.current_top_snippets.append(snippet)
     repo_context_manager.read_only_snippets = []
     if fcrs:
         for file_path in fcrs[0].relevant_files:
