@@ -135,16 +135,16 @@ Explain why creating this new file is necessary to complete the task and how it 
 </tool_description>
 
 <tool_description>
-<tool_name>submit_result</tool_name>
+<tool_name>submit_task</tool_name>
 <description>
-Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
+Indicate that the current task is complete.
 </description>
 <parameters>
 <parameter>
 <name>justification</name>
 <type>str</type>
 <description>
-Summarize the code changes made and explain how they fulfill the user's original request. Provide the complete, modified code if applicable.
+Summarize the code changes made and explain how they fulfill the user's original request.
 </description>
 </parameter>
 </parameters>
@@ -209,7 +209,7 @@ Here is an example:
 </invoke>
 </function_call>
 
-If you are really done, call the submit_result function.
+If the current task is complete, call the submit_task function.
 """
 
 NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
@@ -245,13 +245,37 @@ new code line here
 </make_change>
 </function_call>
 
-If you are really done, call the submit_result function.
+If the current task is complete, call the submit_task function.
 """
+
+SELF_REVIEW_PROMPT = """First, review and critique the change(s) you have made. Perform the following:
+
+1. Analyze code patch and indicate:
+   - Purpose and impact of each change
+   - Check for potential errors: 
+     - Logic errors
+     - Unhandled edge cases
+     - Missing imports
+     - Incomplete changes
+     - Undefined variables/functions
+     - Usage of nullable attributes
+     - Non-functional code
+   - Alignment with plan and requirements
+2. Perform critical contextual analysis:
+   - Break down changes 
+   - Explain reasoning
+   - Identify logic issues, edge cases, plan deviations
+   - Consider all scenarios and pitfalls
+   - Consider backwards compatibility and future-proofing
+   - Suggest fixes for problems
+3. Be extremely critical. Do not overlook ANY issues.
+
+Then, determine if the changes are correct and complete. If you are satisfied with the changes, call the submit_task function to move onto the next task. If you would like to continue making changes, continue by calling make_changes."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
-    "submit_result": ["justification"],
+    "submit_task": ["justification"],
 }
 
 def english_join(items: list[str]) -> str:
@@ -360,7 +384,7 @@ def create_user_message(
     combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}.{completed_prompt} Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
     completed_prompt = "" if current_fcr_index == 0 else f" You have already completed {current_fcr_index} of the {len(fcrs)} required changes."
     if modify_files_dict:
-        combined_request_unformatted += "\nThe above files reflect the latest updates you have already made. READ THROUGH THEM CAREFULLY TO FIGURE OUT WHAT YOUR NEXT STEPS ARE. Call the make_change, create_file or submit_result tools."
+        combined_request_unformatted += "\nThe above files reflect the latest updates you have already made. READ THROUGH THEM CAREFULLY TO FIGURE OUT WHAT YOUR NEXT STEPS ARE. Call the make_change, create_file or submit_task tools."
     files_to_modify_string = ""
 
     files_to_modify_messages = {fcr.filename: "" for fcr in fcrs}
@@ -640,8 +664,7 @@ def handle_function_call(
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
-    if tool_name == "submit_result":
-        changes_made = False
+    if tool_name == "submit_task":
         changes_made = generate_diffs(modify_files_dict)
         if changes_made:
             llm_response = "DONE"
@@ -651,6 +674,15 @@ def handle_function_call(
                 llm_response = "DONE"
             else:
                 llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
+
+        for fcr in llm_state["fcrs"]:
+            if not fcr.is_completed:
+                fcr.is_completed = True
+                llm_response = f"SUCCESS\n\nThe current task is complete. Please move on to the next task. {llm_state['current_task']}"
+                break
+
+        if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
+            llm_response = "DONE"
     elif tool_name == "no_tool_call":
         if use_openai:
             llm_response = NO_TOOL_CALL_PROMPT_OPENAI
@@ -762,40 +794,8 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
-            next_step, feedback = ModifyEvaluatorAgent().evaluate_patch(
-                problem_statement=llm_state["request"],
-                patch = generate_diff(file_contents, new_file_contents, n=10),
-                changed_files=modify_files_dict,
-                new_file_contents=new_file_contents,
-                current_plan=llm_state["plan"],
-                current_task=llm_state["current_task"],
-                previous_attempt=llm_state["previous_attempt"],
-                file_name=file_name,
-                warning_message=warning_message,
-                chat_logger_messages=chat_logger_messages,
-            )
-
-            if next_step == "COMPLETE":
-                # Sets first fcr that is not completed to completed
-                for fcr in llm_state["fcrs"]:
-                    if not fcr.is_completed:
-                        fcr.is_completed = True
-                        break
-                llm_state["plan"] = render_plan(llm_state["fcrs"])
-                llm_state["current_task"] = render_current_task(llm_state["fcrs"])
-                llm_response = f"{success_message}"
-                modify_files_dict[file_name]['contents'] = new_file_contents
-                llm_state["previous_attempt"] = ""
-            elif next_step == "CONTINUE":
-                # guard modify files
-                llm_response = f"SUCCESS\n\nThe changes have been applied. However, we need to fix a few more things before moving to the next task of the plan. Here is the feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
-                modify_files_dict[file_name]['contents'] = new_file_contents
-                previous_attempt = f"<previous_attempt>\nThe contractor previously made this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you accepted with the following feedback:\n{feedback}\n</previous_attempt>"
-                llm_state["previous_attempt"] = previous_attempt
-            else:
-                previous_attempt = f"<previous_attempt>\nThe contractor previously attempted at making this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you rejected it with the following feedback:\n{feedback}\n</previous_attempt>"
-                llm_state["previous_attempt"] = previous_attempt
-                llm_response = f"Changes Rejected with ERROR:\n\n{feedback}"
+            llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{SELF_REVIEW_PROMPT}"
+            modify_files_dict[file_name]['contents'] = new_file_contents
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""
