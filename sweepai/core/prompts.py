@@ -179,99 +179,8 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
-files_to_change_system_prompt = """You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue using the snippets provided from the codebase. You have the utmost care for the plan that you write, so you ensure that all the relevant modules in the file are identified. Take into account the current repository's language, frameworks, and dependencies, as well as the existing modules such as helper functions, utility operations and backend services."""
-
-files_to_change_system_prompt = """You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue using the snippets provided from the codebase. You have the utmost care for the plan that you write, so you ensure that all the relevant modules in the file are identified. Take into account the current repository's language, frameworks, and dependencies, as well as the existing modules such as helper functions, utility operations and backend services."""
-
 files_to_change_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to plan code changes to solve the following Github issue. You have the utmost care for the plan that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies."""
-
-
-# put more emphasis on modify
-# TODO: lots of improvements and cleanup needed here
-files_to_change_prompt = """# Task: 
-Analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a complete plan for an intern to fully resolve the user's issue, utilizing the relevant code snippets and utility modules provided. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
-
-You are provided with relevent_snippets, which contain code snippets you may need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
-
-Guidelines:
-* Always include the full file path (e.g. src/utils/strings/regex_utils.py instead of just strings/regex_utils.py or regex_utils.py) and reference the provided snippets.
-* Provide clear, natural language instructions for updating the code logic and specify necessary imports.
-* Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
-* Include relevant type definitions, interfaces, and schemas to provide a clear understanding of the entities and their relationships.
-* Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
-* When modifying code, provide detailed instructions and the actual code changes required. Write all code changes in the diff format. Do not leave comments or placeholders for the user to fill in.
-
-Please use the following XML format for your response:
-
-# Issue Analysis:
-<issue_analysis>
-* Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Outline a plan that completely resolves the user's request, referencing provided code snippets, entity names, and necessary files/directories.
-
-List ALL files we should modify to resolve the issue:
-- File path 1: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-- File path 2: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-[additional files as needed]
-
-List ALL relevant utility modules from the provided set and specify where they can be used, including:
-- Type definitions, interfaces, and schemas
-- Helper functions
-- Frontend components
-- Database services
-- API endpoints
-[additional relevant modules as needed]
-
-* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-* Topologically sort the plan so that changes in low-level modules, such as DB query logic, are made before changes in high-level modules, such as API endpoints.
-[additional analysis as needed]
-</issue_analysis>
-
-# Plan:
-<plan>
-<create file="file_path_1" relevant_files="space-separated list of files containing ALL modules to use when creating file_path_1">
-* Natural language instructions for creating the new file to solve the issue.
-* Reference necessary imports and entity names.
-* Include relevant type definitions, interfaces, and schemas.
-* Provide the actual code to be added, with detailed explanations.
-</create>
-
-[additional creates as needed]
-
-<modify file="file_path_2" relevant_files="space-separated list of files containing ALL modules to use while modifying file_path_2">
-* Detailed natural language instructions for modifying the file to solve the issue.
-* Reference the locations of the changes using surrounding code or function headers, not line numbers.
-* Include relevant type definitions, interfaces, and schemas.
-* Each file should be modified at most once. If multiple changes are needed, separate them into different <modify> blocks.
-</modify>
-
-[additional modifies as needed]
-</plan>
-
-Here's an example of an excellent issue analysis and plan:
-<issue_analysis>
-The root cause of the issue is that the searchProducts method in the ProductService class (product_service.py) does not properly handle searching for products by category, price range, and keyword simultaneously. It should return products that match all the provided criteria.
-
-To completely resolve the user's request, we need to:
-
-Modify the searchProducts method in product_service.py to:
-Add optional parameters for category_id, min_price, max_price, and keyword
-Update the database query to filter products based on the provided criteria
-Update the search_products endpoint in app.py to:
-Extract the new search parameters from the request
-Pass the parameters to the searchProducts method
-Update the ProductSchema in schemas/product_schema.py to include the category_id field
-Relevant files to modify:
-
-src/services/product_service.py - Update searchProducts to handle category, price range, and keyword filtering
-src/app.py - Update search_products endpoint to extract new parameters and pass them to searchProducts
-src/schemas/product_schema.py - Add category_id field to ProductSchema
-Relevant utility modules:
-"""
 
 # TODO: Fix relevant files block
 
@@ -417,6 +326,74 @@ In the `create_post` endpoint:
 <relevant_modules>
 src/entities/user.py
 src/entities/post.py
+</relevant_modules>"""
+
+context_files_to_change_prompt = """# Task: 
+Critically analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Propose a COMPLETE plan for an intern with 100% coverage to FULLY resolve the user's issue, utilizing the relevant code snippets and utility modules provided. It is absolutely critical that you list ALL files that may need to be modified. Because the intern is unfamiliar with the codebase, provide clear and detailed instructions for updating the code logic.
+
+You are provided with relevent_snippets, which contain code snippets you MAY need to modify or import and read_only_snippets, which contain code snippets of utility functions, services and type definitions you likely do not need to modify.
+
+Guidelines:
+* Always include the full file path and reference the provided snippets.
+* Provide clear, natural language instructions for updating the code logic and specify necessary imports.
+* Be specific and direct in your instructions, avoiding vague terms like "identify" or "ensure." Instead, use actionable phrases like "add", "locate" or "change."
+* Include relevant type definitions, interfaces, and schemas in the relevant_files to provide a clear understanding of the entities and their relationships.
+* Avoid using line numbers; instead, reference the locations of the changes using surrounding code or function headers as context.
+* Be certain that your plan is complete and covers ALL the necessary changes to FULLY resolve the issue. It is absolutely critical that you list ALL files that may need to be modified. Ensure that every edge case is covered, every occurrence of a change is addressed, every necessary import is included, and EVERY relevant file is listed.
+* Suggest high-quality changes that are completely safe, maintainable, efficient and backwards compatible.
+* Divide the task into smaller steps, where each <create> or <modify> section corresponds to one small code block of change. You may have multiple <modify> blocks for the same file.
+
+Please use the following XML format for your response:
+
+# Issue Analysis:
+<issue_analysis>
+* Identify the root cause of the issue by referencing specific code entities in the relevant files.
+* Outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
+
+List ALL files we should modify to resolve the issue:
+- File path 1: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
+- File path 2: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
+[Additional files as needed. Ensure this list is complete.]
+
+List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+- Type definitions, interfaces, and schemas
+- Helper functions
+- Frontend components
+- Database services
+- API endpoints
+[additional relevant modules as needed]
+
+* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
+[additional analysis as needed]
+</issue_analysis>
+
+# Plan:
+<plan>
+<create file="file_path_1">
+* Natural language instructions for creating the new file to solve the issue.
+* Reference necessary imports and entity names.
+* Include references to relevant type definitions, interfaces, and schemas.
+</create>
+
+[additional creates as needed]
+
+<modify file="file_path_2">
+* Detailed natural language instructions for modifying the file to solve the issue.
+* Reference the locations of the changes using surrounding code or function headers, not line numbers.
+* Include references to relevant type definitions, interfaces, and schemas.
+* Describe code changes, but do not write the actual code.
+* You may modify the same file multiple times. Each <modify> block should contain a single block of code changes from one small section of the file.
+</modify>
+
+[additional modifies as needed]
+</plan>
+
+<relevant_modules>
+[List of all relevant files to use or read while making changes, such as type definitions, interfaces, and schemas, one per line]
 </relevant_modules>"""
 
 extract_files_to_change_prompt = """\
