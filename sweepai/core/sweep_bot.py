@@ -278,13 +278,6 @@ def get_files_to_change(
             key="graph_text",
         )
     )
-
-    messages.append(
-        Message(
-            role="user",
-            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
-        )
-    )
     if pr_diffs:
         messages.append(
             Message(role="user", content=pr_diffs, key="pr_diffs")
