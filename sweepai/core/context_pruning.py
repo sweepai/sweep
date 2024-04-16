@@ -378,7 +378,7 @@ def load_graph_from_file(filename):
                     G.add_node(current_node)
     return G
 
-@file_cache(ignore_params=["rcm", "G"])
+# @file_cache(ignore_params=["rcm", "G"])
 def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoContextManager, G: nx.DiGraph):
     # TODO: tune these params
     top_paths_cutoff = 25
@@ -444,29 +444,28 @@ def graph_retrieval(formatted_query: str, top_k_paths: list[str], rcm: RepoConte
 
 # @file_cache(ignore_params=["repo_context_manager", "override_import_graph"]) # can't cache this because rcm is stateful
 def integrate_graph_retrieval(formatted_query: str, repo_context_manager: RepoContextManager, override_import_graph: nx.DiGraph = None):
-    num_graph_retrievals = 25
     repo_context_manager, import_graph = parse_query_for_files(formatted_query, repo_context_manager)
     if override_import_graph:
         import_graph = override_import_graph
-    if import_graph:
-        # Graph retrieval can fail and return [] if the graph is not found or pagerank does not converge
-        # Happens especially when graph has multiple components
-        graph_retrieved_files = graph_retrieval(formatted_query, sorted(repo_context_manager.top_snippet_paths), repo_context_manager, import_graph) # sort input for caching
-        if graph_retrieved_files:
-            sorted_snippets = sorted(
-                repo_context_manager.snippets,
-                key=lambda snippet: repo_context_manager.snippet_scores[snippet.denotation],
-                reverse=True,
-            )
-            snippets = []
-            for file_path in graph_retrieved_files:
-                for snippet in sorted_snippets[50 - num_graph_retrievals:]:
-                    if snippet.file_path == file_path:
-                        snippets.append(snippet)
-                        break
-            graph_retrieved_files = graph_retrieved_files[:num_graph_retrievals]
-            repo_context_manager.read_only_snippets = snippets[:len(graph_retrieved_files)]
-            repo_context_manager.current_top_snippets = repo_context_manager.current_top_snippets[:50 - num_graph_retrievals]
+    # if import_graph:
+    #     # Graph retrieval can fail and return [] if the graph is not found or pagerank does not converge
+    #     # Happens especially when graph has multiple components
+    #     graph_retrieved_files = graph_retrieval(formatted_query, sorted(repo_context_manager.top_snippet_paths), repo_context_manager, import_graph) # sort input for caching
+    #     if graph_retrieved_files:
+    #         sorted_snippets = sorted(
+    #             repo_context_manager.snippets,
+    #             key=lambda snippet: repo_context_manager.snippet_scores[snippet.denotation],
+    #             reverse=True,
+    #         )
+    #         snippets = []
+    #         for file_path in graph_retrieved_files:
+    #             for snippet in sorted_snippets[50 - num_graph_retrievals:]:
+    #                 if snippet.file_path == file_path:
+    #                     snippets.append(snippet)
+    #                     break
+    #         graph_retrieved_files = graph_retrieved_files[:num_graph_retrievals]
+    #         repo_context_manager.read_only_snippets = snippets[:len(graph_retrieved_files)]
+    #         repo_context_manager.current_top_snippets = repo_context_manager.current_top_snippets[:50 - num_graph_retrievals]
     return repo_context_manager, import_graph
 
 # add import trees for any relevant_file_paths (code files that appear in query)
@@ -527,6 +526,56 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
                 )
     return rcm
 
+def generate_import_graph_text(graph):
+  # Create a dictionary to store the import relationships
+  import_dict = {}
+
+  # Iterate over each node (file) in the graph
+  for node in graph.nodes():
+    # Get the files imported by the current file
+    imported_files = list(graph.successors(node))
+
+    # Add the import relationships to the dictionary
+    if imported_files:
+      import_dict[node] = imported_files
+    else:
+      import_dict[node] = []
+
+  # Generate the text-based representation
+  final_text = ""
+  visited_files = set()
+  for file, imported_files in sorted(import_dict.items(), key=lambda x: x[0]):
+    if file not in visited_files:
+      final_text += generate_file_imports(graph, file, visited_files, "")
+      final_text += "\n"
+
+  # Add files that are not importing any other files
+  non_importing_files = [
+      file for file, imported_files in import_dict.items()
+      if not imported_files and file not in visited_files
+  ]
+  if non_importing_files:
+    final_text += "\n".join(non_importing_files)
+
+  return final_text
+
+
+def generate_file_imports(graph,
+                          file,
+                          visited_files,
+                          last_successor,
+                          indent_level=0):
+  # if you just added this file as a successor, you don't need to add it again
+  visited_files.add(file)
+  text = "  " * indent_level + f"{file}\n" if file != last_successor else ""
+
+  for imported_file in graph.successors(file):
+    text += "  " * (indent_level + 1) + f"──> {imported_file}\n"
+    if imported_file not in visited_files:
+      text += generate_file_imports(graph, imported_file, visited_files,
+                                    imported_file, indent_level + 2)
+
+  return text
 
 # fetch all files mentioned in the user query
 def parse_query_for_files(
