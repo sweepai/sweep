@@ -349,12 +349,11 @@ Generate three plans to address the user issue based off of your issue analysis.
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines:
 
-- Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems.
+- Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency.
 - Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on.
 - Clarity: The code change should be readable, well-structured, and easy for other developers to understand and maintain. Follow existing conventions and style guides, and include documentation and comments for complex or non-obvious logic.
-- Simplicity: Strive for a solution that is as simple as possible while still being complete and correct. Avoid over-engineering or premature optimization. Consider the long-term maintenance burden of any new abstractions or dependencies.
+- Simplicity: Strive for a solution that is as simple as possible while still being complete and correct. Favor straightforward and easily understandable code over complex optimizations, especially when the performance gains are minimal or uncertain. 
 - Usability: The change should provide a clear and intuitive interface for end users. Hide implementation details and complexities behind well-designed abstractions and sensible defaults. Provide configuration options for important behaviors.
-- Performance and Scalability: Evaluate the impact of the change on performance and resource usage. Avoid unnecessary overhead or inefficiencies, especially in critical paths. Consider how the solution will scale as data and usage grows.
 - Integration: Assess how well the change fits with the overall architecture and design of the system. Avoid tightly coupling components or introducing new dependencies that could complicate future development or deployment.
 
 After evaluating the plans against these criteria, select the one that provides the best balance of benefits and drawbacks within the specific context and constraints of the project. Prioritize long-term maintainability and architectural integrity over short-term expediency.
