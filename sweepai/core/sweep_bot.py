@@ -261,20 +261,21 @@ def get_files_to_change(
         )
     )
 
-    sub_graph = import_graph.subgraph(
-        [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
-    )
-    import_graph = generate_import_graph_text(sub_graph).strip("\n")
-    # serialize the graph so LLM can read it
-    graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
-
-    messages.append(
-        Message(
-            role="user",
-            content=graph_text,
-            key="graph_text",
+    if import_graph:
+        sub_graph = import_graph.subgraph(
+            [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
         )
-    )
+        import_graph = generate_import_graph_text(sub_graph).strip("\n")
+        # serialize the graph so LLM can read it
+        graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
+
+        messages.append(
+            Message(
+                role="user",
+                content=graph_text,
+                key="graph_text",
+            )
+        )
 
     messages.append(
         Message(
