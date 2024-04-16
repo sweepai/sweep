@@ -347,16 +347,12 @@ src/entities/post.py
 Generate three plans to address the user issue based off of your issue analysis. The best plan will be chosen later.
 """
 
-plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines:
-
-- Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency.
-- Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on.
-- Clarity: The code change should be readable, well-structured, and easy for other developers to understand and maintain. Follow existing conventions and style guides, and include documentation and comments for complex or non-obvious logic.
-- Simplicity: Strive for a solution that is as simple as possible while still being complete and correct. Favor straightforward and easily understandable code over complex optimizations, especially when the performance gains are minimal or uncertain. 
-- Usability: The change should provide a clear and intuitive interface for end users. Hide implementation details and complexities behind well-designed abstractions and sensible defaults. Provide configuration options for important behaviors.
-- Integration: Assess how well the change fits with the overall architecture and design of the system. Avoid tightly coupling components or introducing new dependencies that could complicate future development or deployment.
-
-After evaluating the plans against these criteria, select the one that provides the best balance of benefits and drawbacks within the specific context and constraints of the project. Prioritize long-term maintainability and architectural integrity over short-term expediency.
+plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
+- Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
+- Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on. 
+- Clarity: The code change should be readable, well-structured, and easy for other developers to understand and maintain. Follow existing conventions and style guides, and include documentation and comments for complex or non-obvious logic. 
+- Simplicity: Strive for a solution that is as simple as possible while still being complete and correct. Favor straightforward and easily understandable code. Performance overhead should not be a factor in evaluating simplicity. 
+- Integration: Assess how well the change fits with the overall architecture and design of the system. Avoid tightly coupling components or introducing new dependencies that could complicate future development or deployment. After evaluating the plans against these criteria, select the one that provides the most thorough and correct solution within the specific context and constraints of the project. Prioritize long-term maintainability and architectural integrity.
 
 Respond using the following XML format:
 
@@ -365,6 +361,7 @@ Respond using the following XML format:
 </final_plan>
 
 Here is an example response format:
+
 <final_plan>
 <modify file="example.py">
 [Example instructions here]
@@ -373,7 +370,6 @@ Here is an example response format:
 <modify file="anotherexamplefile.py">
 [More example instructions here]
 </modify>
-
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
