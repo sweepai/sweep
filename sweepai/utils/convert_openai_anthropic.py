@@ -78,7 +78,7 @@ class AnthropicFunctionCall:
             for param in parameter_matches:
                 parameter_name = param[0]
                 parameter_value = param[1]
-                function_parameters[parameter_name] = parameter_value.strip()
+                function_parameters[parameter_name] = parameter_value.strip("\n")
 
             if function_name and function_parameters != {}:
                 function_calls.append(AnthropicFunctionCall(function_name, function_parameters))

@@ -5,15 +5,36 @@ from loguru import logger
 from sweepai.utils.search_and_replace import Match, find_best_match
 
 
-def generate_diff(old_code, new_code):
+def generate_diff(old_code, new_code, **kwargs):
     if old_code == new_code:
         return ""
     stripped_old_code = old_code.strip()
     stripped_new_code = new_code.strip()
 
+    default_kwargs = {"n": 5}
+    default_kwargs.update(kwargs)
+
     diff = difflib.unified_diff(
         stripped_old_code.splitlines(keepends=True),
         stripped_new_code.splitlines(keepends=True),
+        **kwargs
+    )
+
+    diff_text = "".join(diff)
+
+    return diff_text
+
+
+def generate_ndiff(old_code, new_code, **kwargs):
+    if old_code == new_code:
+        return ""
+    stripped_old_code = old_code.strip()
+    stripped_new_code = new_code.strip()
+
+    diff = difflib.ndiff(
+        stripped_old_code.splitlines(keepends=True),
+        stripped_new_code.splitlines(keepends=True),
+        **kwargs
     )
 
     diff_text = "".join(diff)

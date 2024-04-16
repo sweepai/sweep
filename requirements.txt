@@ -74,6 +74,7 @@ click==8.1.7
     # via
     #   typer
     #   uvicorn
+cohere==5.2.5
 comm==0.2.2
     # via
     #   ipykernel
@@ -119,6 +120,8 @@ exceptiongroup==1.2.0
 executing==2.0.1
     # via stack-data
 fastapi==0.110.0
+fastavro==1.9.4
+    # via cohere
 fastjsonschema==2.19.1
     # via
     #   nbformat
@@ -155,6 +158,7 @@ httpcore==1.0.4
 httpx==0.26.0
     # via
     #   anthropic
+    #   cohere
     #   jupyterlab
     #   openai
     #   parea-ai
@@ -405,6 +409,7 @@ pycparser==2.21
 pydantic==2.6.3
     # via
     #   anthropic
+    #   cohere
     #   fastapi
     #   hatchet-sdk
     #   openai
@@ -481,6 +486,7 @@ regex==2023.12.25
 requests==2.31.0
     # via
     #   cachecontrol
+    #   cohere
     #   huggingface-hub
     #   jira
     #   jupyterlab-server
@@ -560,7 +566,9 @@ tinycss2==1.2.1
 tokenize-rt==5.2.0
     # via pyupgrade
 tokenizers==0.15.2
-    # via anthropic
+    # via
+    #   anthropic
+    #   cohere
 tomli==2.0.1
     # via
     #   build
@@ -610,6 +618,8 @@ trove-classifiers==2024.3.25
 typer==0.10.0
 types-python-dateutil==2.9.0.20240316
     # via arrow
+types-requests==2.31.0.20240406
+    # via cohere
 typing-extensions==4.10.0
     # via
     #   anthropic
@@ -617,6 +627,7 @@ typing-extensions==4.10.0
     #   astroid
     #   async-lru
     #   cattrs
+    #   cohere
     #   fastapi
     #   huggingface-hub
     #   jira
@@ -635,6 +646,7 @@ urllib3==2.2.1
     #   hatchet-sdk
     #   pygithub
     #   requests
+    #   types-requests
 uvicorn==0.29.0
 virtualenv==20.25.1
     # via poetry

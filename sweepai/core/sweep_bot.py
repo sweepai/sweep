@@ -8,12 +8,14 @@ from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
+from networkx import Graph
 from pydantic import BaseModel
 
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.chat import ChatGPT
+from sweepai.core.context_pruning import generate_import_graph_text
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -28,11 +30,12 @@ from sweepai.core.entities import (
 )
 from sweepai.core.prompts import (
     files_to_change_prompt,
+    context_files_to_change_prompt,
     pull_request_prompt,
     subissues_prompt,
     files_to_change_system_prompt
 )
-from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
@@ -131,15 +134,69 @@ def validate_file_change_requests(
                 fcr.change_type = "modify" # need better handling
             except FileNotFoundError:
                 pass
+        
+def sort_and_fuse_snippets(
+    snippets: list[Snippet],
+    fuse_distance: int = 600,
+) -> list[Snippet]:
+    if len(snippets) <= 1:
+        return snippets
+    new_snippets = []
+    snippets.sort(key=lambda x: x.start)
+    current_snippet = snippets[0]
+    for snippet in snippets[1:]:
+        if current_snippet.end + fuse_distance >= snippet.start:
+            current_snippet.end = max(current_snippet.end, snippet.end)
+        else:
+            new_snippets.append(current_snippet)
+            current_snippet = snippet
+    new_snippets.append(current_snippet)
+    return new_snippets
     
+def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[Snippet]:
+    """
+    Fuse and dedup snippets that are contiguous. Combine ones of same file.
+    """
+    fused_snippets = []
+    added_file_paths = set()
+    for i, snippet in enumerate(snippets):
+        if snippet.file_path in added_file_paths:
+            continue
+        added_file_paths.add(snippet.file_path)
+        current_snippets = [snippet]
+        for current_snippet in snippets[i + 1:]:
+            if snippet.file_path == current_snippet.file_path:
+                current_snippets.append(current_snippet)
+        current_snippets = sort_and_fuse_snippets(current_snippets, fuse_distance=fuse_distance)
+        fused_snippets.extend(current_snippets)
+    return fused_snippets
+
+def get_max_snippets(
+    snippets: list[Snippet],
+    budget: int = 150_000 * 3.5, # 140k tokens
+    expand: int = 300,
+):
+    """
+    Start with max number of snippets and then remove then until the budget is met.
+    Return the resulting organized snippets.
+    """
+    for i in range(len(snippets), 0, -1):
+        proposed_snippets = organize_snippets(snippets[:i])
+        cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
+        if cost <= budget:
+            return proposed_snippets
+    raise Exception("Budget number of chars too low!")
 
 def get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],
     problem_statement,
     repo_name,
+    import_graph: Graph | None = None,
     pr_diffs: str = "",
-    seed: int = 0
+    chat_logger: ChatLogger = None,
+    seed: int = 0,
+    context: bool = False,
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -156,8 +213,22 @@ def get_files_to_change(
             key="assistant",
         )
     )
-    relevant_snippet_template = '<snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</snippet>'
-    read_only_snippet_template = '<read_only_snippet index="{i}">\n<source>\n{snippet_denotation}\n</source>\n<snippet_content>\n{content}\n</snippet_content>\n</read_only_snippet>'
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    interleaved_snippets = relevant_snippets
+
+    max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
+    relevant_snippet_template = '<snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</snippet>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     joined_relevant_snippets = "\n".join(
         relevant_snippet_template.format(
@@ -189,6 +260,22 @@ def get_files_to_change(
             key="relevant_snippets",
         )
     )
+
+    sub_graph = import_graph.subgraph(
+        [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
+    )
+    import_graph = generate_import_graph_text(sub_graph).strip("\n")
+    # serialize the graph so LLM can read it
+    graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
+
+    messages.append(
+        Message(
+            role="user",
+            content=graph_text,
+            key="graph_text",
+        )
+    )
+
     messages.append(
         Message(
             role="user",
@@ -203,9 +290,9 @@ def get_files_to_change(
         print("messages")
         for message in messages:
             print(message.content + "\n\n")
-        joint_message = "\n\n".join(message.content for message in messages[1:-1])
+        joint_message = "\n\n".join(message.content for message in messages[1:])
         print("messages", joint_message)
-        chatgpt = ChatGPT(
+        chat_gpt = ChatGPT(
             messages=[
                 Message(
                     role="system",
@@ -213,17 +300,32 @@ def get_files_to_change(
                 ),
             ],
         )
-        files_to_change_response = chatgpt.chat_anthropic(
-            content=joint_message + "\n\n" + files_to_change_prompt,
-            model="claude-3-opus-20240229",
+        MODEL = "claude-3-opus-20240229"
+        files_to_change_response = chat_gpt.chat_anthropic(
+            content=joint_message + "\n\n" + (files_to_change_prompt if not context else context_files_to_change_prompt),
+            model=MODEL,
             temperature=0.1
         )
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": files_to_change_response,
+                })
         print("files_to_change_response", files_to_change_response)
+        relevant_modules = []
+        pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+        relevant_modules_match = pattern.search(files_to_change_response)
+        if relevant_modules_match:
+            relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+        print("relevant_modules", relevant_modules)
         file_change_requests = []
         for re_match in re.finditer(
             FileChangeRequest._regex, files_to_change_response, re.DOTALL
         ):
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
@@ -753,4 +855,4 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, None, new_file_contents
+            return False, None, {}

@@ -9,7 +9,7 @@ from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sweepai.utils.str_utils import (
     blockquote,
@@ -147,6 +147,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
         | Literal["test"]
     )
     _regex = r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"( start_line=\"(?P<start_line>.*?)\")?( end_line=\"(?P<end_line>.*?)\")?( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?(.*?)>(?P<instructions>.*?)\s*<\/\1>"""
+    is_completed: bool = False
     entity: str | None = None
     source_file: str | None = None
     old_content: str | None = None
@@ -351,11 +352,12 @@ class ProposedIssue(RegexMatchableBaseModel):
 
 
 class Snippet(BaseModel):
+    # pylint: disable=E1101
     """
     Start and end refer to line numbers
     """
 
-    content: str
+    content: str = Field(repr=False)
     start: int
     end: int
     file_path: str
