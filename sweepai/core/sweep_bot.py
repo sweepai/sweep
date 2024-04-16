@@ -170,7 +170,7 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[S
 
 def get_max_snippets(
     snippets: list[Snippet],
-    budget: int = 150_000 * 3.5, # 140k tokens
+    budget: int = 25_000 * 3.5, # 140k tokens
     expand: int = 300,
 ):
     """
@@ -209,12 +209,14 @@ def get_files_to_change(
         )
     )
 
-    interleaved_snippets = []
-    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
-        if i < len(relevant_snippets):
-            interleaved_snippets.append(relevant_snippets[i])
-        if i < len(read_only_snippets):
-            interleaved_snippets.append(read_only_snippets[i])
+    # interleaved_snippets = []
+    # for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+    #     if i < len(relevant_snippets):
+    #         interleaved_snippets.append(relevant_snippets[i])
+    #     if i < len(read_only_snippets):
+    #         interleaved_snippets.append(read_only_snippets[i])
+
+    interleaved_snippets = relevant_snippets
 
     max_snippets = get_max_snippets(interleaved_snippets)
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -267,7 +269,7 @@ def get_files_to_change(
         print("messages")
         for message in messages:
             print(message.content + "\n\n")
-        joint_message = "\n\n".join(message.content for message in messages[1:-1])
+        joint_message = "\n\n".join(message.content for message in messages[1:])
         print("messages", joint_message)
         chat_gpt = ChatGPT(
             messages=[
