@@ -199,8 +199,8 @@ Guidelines:
 - Avoid line numbers and instead reference code locations using surrounding code or function names
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
-- Break the task into small steps, with each <create> or <modify> section for one small code block
 - Prioritize using existing code and utility methods to minimize writing new code
+- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
 
 Please use the following XML format for your response:
 
@@ -258,11 +258,15 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying the file. Reference change locations using surrounding code or functions, not line numbers. Include relevant type definitions, interfaces, schemas. Describe code changes without writing code. Use multiple <modify> blocks for the same file if needed, each for one small code section.
+Instructions for modifying one section of the file. Reference change locations using surrounding code or functions, not line numbers. Include relevant type definitions, interfaces, schemas. Describe code changes without writing code.
 </modify>
 
-[additional modifies]
-</plan number="#">
+<modify file="file_path_2">
+Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
+</modify>
+
+[additional modifies as needed, for the same file or different files]
+</plan>
 
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
