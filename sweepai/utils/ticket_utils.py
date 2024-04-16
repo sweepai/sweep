@@ -353,18 +353,21 @@ def get_relevant_context(
         )
         repo_context_manager.file_change_requests.append(snippet)
     repo_context_manager.read_only_snippets = []
-    for file_path in fcrs[0].relevant_files:
-        try:
-            content = repo_context_manager.cloned_repo.get_file_contents(file_path)
-        except FileNotFoundError:
-            continue
-        snippet = Snippet(
-            file_path=file_path,
-            start=0,
-            end=len(content.split("\n")),
-            content=content,
-        )
-        repo_context_manager.read_only_snippets.append(snippet)
+    if fcrs:
+        for file_path in fcrs[0].relevant_files:
+            try:
+                content = repo_context_manager.cloned_repo.get_file_contents(file_path)
+            except FileNotFoundError:
+                continue
+            snippet = Snippet(
+                file_path=file_path,
+                start=0,
+                end=len(content.split("\n")),
+                content=content,
+            )
+            repo_context_manager.read_only_snippets.append(snippet)
+    else:
+        raise Exception("No file change requests created.")
     return repo_context_manager
 
 def fetch_relevant_files(
