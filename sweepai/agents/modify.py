@@ -248,6 +248,30 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
+SELF_REVIEW_PROMPT = """First, review and critique the change(s) you have made. Perform the following:
+
+1. Analyze code patch and indicate:
+   - Purpose and impact of each change
+   - Check for potential errors: 
+     - Logic errors
+     - Unhandled edge cases
+     - Missing imports
+     - Incomplete changes
+     - Undefined variables/functions
+     - Usage of nullable attributes
+     - Non-functional code
+   - Alignment with plan and requirements
+2. Perform critical contextual analysis:
+   - Break down changes 
+   - Explain reasoning
+   - Identify logic issues, edge cases, plan deviations
+   - Consider all scenarios and pitfalls
+   - Consider backwards compatibility and future-proofing
+   - Suggest fixes for problems
+3. Be extremely critical. Do not overlook ANY issues.
+
+Then, determine if the changes are correct and complete. If you are satisfied with the changes, call the submit_task function to move onto the next task. If you would like to continue making changes, continue by calling make_changes."""
+
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
@@ -797,7 +821,7 @@ def handle_function_call(
             #     llm_state["previous_attempt"] = ""
             # elif next_step == "CONTINUE":
             #     # guard modify files
-            llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nYou may continue to make changes with the make_changes function or move onto the next task using the submit_task function."
+            llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{SELF_REVIEW_PROMPT}"
             modify_files_dict[file_name]['contents'] = new_file_contents
 
         # for fcr in llm_state["fcrs"]:
