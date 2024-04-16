@@ -290,7 +290,6 @@ Guidelines:
 * Suggest high-quality changes that are completely safe, maintainable, efficient and backwards compatible.
 * Divide the task into smaller steps, where each <create> or <modify> section corresponds to one small code block of change. You may have multiple <modify> blocks for the same file.
 * Prioritize changes that use the existing codebase and use existing utility methods to minimize the need for new code.
-* Future proof the changes that you propose, ensuring that they are scalable and maintainable.
 
 Please use the following XML format for your response:
 
