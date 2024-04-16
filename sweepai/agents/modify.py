@@ -684,6 +684,9 @@ def handle_function_call(
                     error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
                 # get the latest contents of the file
                 file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
+                # if the file is not in modify_files_dict, add it
+                if not (file_name in modify_files_dict):
+                    modify_files_dict[file_name] = {"contents": file_contents, "original_contents": file_contents}
                 warning_message = ""
                 
                 # handle special case where there are \r\n characters in the current chunk as this will cause search and replace to ALWAYS fail
@@ -753,9 +756,6 @@ def handle_function_call(
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                 + generate_diff(file_contents, new_file_contents)
             ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
-            # set contents
-            if file_name not in modify_files_dict:
-                modify_files_dict[file_name] = {}
             next_step, feedback = ModifyEvaluatorAgent().evaluate_patch(
                 problem_statement=llm_state["request"],
                 patch = generate_diff(file_contents, new_file_contents, n=10),
@@ -778,13 +778,11 @@ def handle_function_call(
                 llm_state["plan"] = render_plan(llm_state["fcrs"])
                 llm_state["current_task"] = render_current_task(llm_state["fcrs"])
                 llm_response = f"{success_message}"
-                modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["previous_attempt"] = ""
             elif next_step == "CONTINUE":
                 # guard modify files
                 llm_response = f"SUCCESS\n\nThe changes have been applied. However, we need to fix a few more things before moving to the next task of the plan. Here is the feedback from the user:\n\n```\n{generate_diff(file_contents, new_file_contents)}\n```\n{feedback}"
-                modify_files_dict[file_name]["original_contents"] = file_contents if "original_contents" not in modify_files_dict[file_name] else modify_files_dict[file_name]["original_contents"]
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 previous_attempt = f"<previous_attempt>\nThe contractor previously made this change:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\nAnd you accepted with the following feedback:\n{feedback}\n</previous_attempt>"
                 llm_state["previous_attempt"] = previous_attempt
