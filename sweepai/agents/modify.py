@@ -7,7 +7,6 @@ from loguru import logger
 from tqdm import tqdm
 from sweepai.core.chat import ChatGPT, parse_function_calls_for_openai
 from sweepai.core.entities import FileChangeRequest, Message
-from sweepai.core.reflection_utils import ModifyEvaluatorAgent
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
