@@ -56,7 +56,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
     """
 
     def decorator(func):
-        if DEBUG or True:
+        if DEBUG:
             return func
         func_source_code_hash = hash_code(inspect.getsource(func))
 

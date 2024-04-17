@@ -206,9 +206,7 @@ def get_files_to_change(
     messages.append(
         Message(role="system", content=files_to_change_system_prompt, key="system")
     )
-    messages.append(
-        Message(role="user", content=files_to_change_prompt, key="assistant")
-    )
+
     messages.append(
         Message(
             role="user",
@@ -299,10 +297,11 @@ def get_files_to_change(
         )
         MODEL = "claude-3-opus-20240229"
         files_to_change_response = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (context_files_to_change_prompt if context else ""),
+            content=joint_message + "\n\n" + (files_to_change_prompt if not context else context_files_to_change_prompt),
             model=MODEL,
             temperature=0.1
         )
+        # breakpoint()
         plan = files_to_change_response
         if chat_logger:
             chat_logger.add_chat(
@@ -330,6 +329,7 @@ def get_files_to_change(
                     })
             files_to_change_response = final_plan
             plan = final_plan_response
+            # breakpoint()
         print("files_to_change_response", files_to_change_response)
         relevant_modules = []
         pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)

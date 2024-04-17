@@ -204,41 +204,21 @@ Guidelines:
 
 Please use the following XML format for your response:
 
-# Issue Analysis:
 <issue_analysis>
-* Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
+First, identify the root cause of the issue by referencing specific code entities in the relevant files.
 
-List ALL files we should modify to resolve the issue:
-- File path 1: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-- File path 2: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-[additional files as needed]
+<unit_tests>
+Then, write unit tests that will be used to check the changes.
+</unit_tests>
 
-List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-- Type definitions, interfaces, and schemas
-- Helper functions
-- Frontend components
-- Database services
-- API endpoints
-[additional relevant modules as needed]
-
-* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-[additional analysis as needed]
-</issue_analysis>
-
-Format:
-<issue_analysis>
-Identify the root cause of the issue referencing specific code in the relevant files. Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
-
+<files_to_modify>
 List ALL files to modify:
 - File path 1: Outline of changes 
 - File path 2: Outline of changes
 [additional files]
+</files_to_modify>
 
+<readonly_files>
 List ALL relevant read-only utility modules to reference:
 - Type definitions, interfaces, schemas
 - Helper functions 
@@ -246,8 +226,8 @@ List ALL relevant read-only utility modules to reference:
 - Database services 
 - API endpoints
 [additional modules]
+</readonly_files>
 
-For each <create> or <modify> in the plan, explain its purpose for resolving the issue.
 [additional analysis]
 </issue_analysis>
 
@@ -277,6 +257,37 @@ Here's an example of an excellent issue analysis and plan:
 <issue_analysis>
 The root cause of the issue is that the `createPost` method in the `PostService` class (post_service.py) does not validate that the user submitting the post has a non-deleted account. It should check the `user.deleted` property and raise an exception if the user's account is deleted.
 
+<unit_tests>
+Here are some unit tests we will use to check the changes:
+```python
+# tests/unit/services/test_post_service.py
+from unittest.mock import MagicMock
+from src.entities.user import User
+from src.entities.post import Post
+from src.services.post_service import PostService
+from src.exceptions import DeletedAccountError
+def test_create_post_success():
+    # Arrange
+    user_id = 123
+    content = "Test post content"
+    
+    user = User(id=user_id, username="testuser", email="test@example.com", deleted=False)
+    post_repo = MagicMock()
+    logger = MagicMock()
+    
+    post_service = PostService(post_repo, logger)
+    # Act
+    post = post_service.createPost(user_id, content)
+    # Assert
+    assert isinstance(post, Post)
+    assert post.user_id == user_id
+    assert post.content == content
+    post_repo.save.assert_called_once_with(post)
+    logger.info.assert_called_once_with(f"User {user_id} created a new post with id {post.id}")
+```
+</unit_tests>
+
+<files_to_modify>
 To completely resolve the user's request, we need to:
 - Modify the `createPost` method in post_service.py to check if the user's account is deleted before creating the post
 - Add a new exception class `DeletedAccountError` in exceptions.py to raise when a deleted user tries to create a post
@@ -293,15 +304,13 @@ Relevant files to modify:
   - Import the new `DeletedAccountError`
   - Catch `DeletedAccountError` in the `create_post` endpoint
   - Return a 403 error response if `DeletedAccountError` is caught
+</files_to_modify>
 
+<readonly_files>
 The relevant utility modules are:
 - `User` entity (src/entities/user.py) - to check if user's account is deleted 
 - `Post` entity (src/entities/post.py) - the entity being created in `createPost`
-
-The <create> and <modify> changes work together to fully handle preventing deleted users from creating posts:
-- The new exception class is created first to be used in the other changes
-- The service method is updated to validate the user and raise the new exception 
-- The API endpoint is updated to catch the new exception and return an appropriate error
+</readonly_files>
 </issue_analysis>
 
 <plan number="1">
@@ -348,8 +357,7 @@ src/entities/user.py
 src/entities/post.py
 </relevant_modules>
 
-Generate three plans to address the user issue based off of your issue analysis. The best plan will be chosen later.
-"""
+Generate three plans to address the user issue based off of your issue analysis. The best plan will be chosen later."""
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
