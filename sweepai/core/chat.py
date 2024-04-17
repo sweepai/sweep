@@ -419,7 +419,7 @@ class ChatGPT(MessageList):
                     if use_openai:
                         client = OpenAI()
                     else:
-                        if ANTHROPIC_AVAILABLE and "opus" not in model:
+                        if ANTHROPIC_AVAILABLE:
                             if "anthropic" not in model:
                                 model = f"anthropic.{model}-v1:0"
                                 self.model = f"anthropic.{self.model}-v1:0"
