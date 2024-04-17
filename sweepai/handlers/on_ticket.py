@@ -1381,8 +1381,9 @@ def on_ticket(
                     body=pr_actions_message + pr_changes.body,
                     head=pr_changes.pr_head,
                     base=overrided_branch_name or SweepConfig.get_branch(repo),
-                    # TODO: reenable it later
-                    draft=True,
+                    # removed draft PR
+                    # 
+                    draft=False,
                 )
 
                 try:
