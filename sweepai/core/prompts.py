@@ -187,29 +187,198 @@ Do not write out the full code changes, but rather give detailed natural languag
 
 Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue."""
 
-files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
+# files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
+
+# You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+
+# Guidelines:
+# - Always include the full file path and reference the provided snippets 
+# - Provide clear instructions for updating the code, specifying necessary imports
+# - Be specific and direct, using phrases like "add", "change", "remove" instead of vague terms
+# - Reference relevant type definitions, interfaces, and schemas 
+# - Avoid line numbers and instead reference code locations using surrounding code or function names
+# - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
+# - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
+# - Prioritize using existing code and utility methods to minimize writing new code
+# - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
+
+# Please use the following XML format for your response:
+
+# <issue_analysis>
+# First, identify the root cause of the issue by referencing specific code entities in the relevant files.
+
+# <unit_tests>
+# Then, write extensive unit tests that will be used to check the changes, including a happy path and edge cases.
+# </unit_tests>
+
+# <files_to_modify>
+# List ALL files to modify:
+# - File path 1: Outline of changes 
+# - File path 2: Outline of changes
+# [additional files]
+# </files_to_modify>
+
+# <readonly_files>
+# List ALL relevant read-only utility modules to reference:
+# - Type definitions, interfaces, schemas
+# - Helper functions 
+# - Frontend components
+# - Database services 
+# - API endpoints
+# [additional modules]
+# </readonly_files>
+
+# [additional analysis]
+# </issue_analysis>
+
+# <plan number="#">
+# <create file="file_path_1">
+# Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
+# </create>
+# [additional creates]
+
+# <modify file="file_path_2"> 
+# Instructions for modifying one section of the file. Reference change locations using surrounding code or functions, not line numbers. Include relevant type definitions, interfaces, schemas. Describe code changes without writing code.
+# </modify>
+
+# <modify file="file_path_2">
+# Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
+# </modify>
+
+# [additional modifies as needed, for the same file or different files]
+# </plan>
+
+# <relevant_modules>
+# [List of all relevant files to reference while making changes, one per line] 
+# </relevant_modules>
+
+# Here's an example of an excellent issue analysis and plan:
+
+# <issue_analysis>
+# The root cause of the issue is that the `createPost` method in the `PostService` class (post_service.py) does not validate that the user submitting the post has a non-deleted account. It should check the `user.deleted` property and raise an exception if the user's account is deleted.
+
+# <unit_tests>
+# Here are some unit tests we will use to check the changes:
+# ```python
+# # tests/unit/services/test_post_service.py
+# from unittest.mock import MagicMock
+# from src.entities.user import User
+# from src.entities.post import Post
+# from src.services.post_service import PostService
+# from src.exceptions import DeletedAccountError
+# def test_create_post_success():
+#     # Arrange
+#     user_id = 123
+#     content = "Test post content"
+    
+#     user = User(id=user_id, username="testuser", email="test@example.com", deleted=False)
+#     post_repo = MagicMock()
+#     logger = MagicMock()
+    
+#     post_service = PostService(post_repo, logger)
+#     # Act
+#     post = post_service.createPost(user_id, content)
+#     # Assert
+#     assert isinstance(post, Post)
+#     assert post.user_id == user_id
+#     assert post.content == content
+#     post_repo.save.assert_called_once_with(post)
+#     logger.info.assert_called_once_with(f"User {user_id} created a new post with id {post.id}")
+# ```
+# </unit_tests>
+
+# <files_to_modify>
+# To completely resolve the user's request, we need to:
+# - Modify the `createPost` method in post_service.py to check if the user's account is deleted before creating the post
+# - Add a new exception class `DeletedAccountError` in exceptions.py to raise when a deleted user tries to create a post
+# - Update the `create_post` endpoint in app.py to catch the new `DeletedAccountError` and return a 403 error response
+
+# Relevant files to modify:
+# - src/services/post_service.py
+#   - Import the `User` entity and `DeletedAccountError` 
+#   - Add validation to check if the user's account is deleted in `createPost`
+#   - Raise `DeletedAccountError` if the user's account is deleted
+# - src/exceptions.py
+#   - Define a new exception class `DeletedAccountError`
+# - src/app.py
+#   - Import the new `DeletedAccountError`
+#   - Catch `DeletedAccountError` in the `create_post` endpoint
+#   - Return a 403 error response if `DeletedAccountError` is caught
+# </files_to_modify>
+
+# <readonly_files>
+# The relevant utility modules are:
+# - `User` entity (src/entities/user.py) - to check if user's account is deleted 
+# - `Post` entity (src/entities/post.py) - the entity being created in `createPost`
+# </readonly_files>
+# </issue_analysis>
+
+# <plan number="1">
+# <create file="src/exceptions.py">
+# * Define a new exception class called `DeletedAccountError`
+# * Have it inherit from the base `Exception` class
+# * Give it a clear error message indicating that a deleted account tried to perform an action
+# </create>
+
+# <modify file="src/services/post_service.py">
+# At the top of the file:
+# * Import the `User` entity from `src/entities/user.py`
+# * Import the `DeletedAccountError` from `src/exceptions.py`
+
+# In the `createPost` method of the `PostService` class:
+# * After getting the `user` by ID, add an if statement to check:
+#   - If `user.deleted` is True, raise a `DeletedAccountError`
+#   - Otherwise, continue with creating the post as normal
+# </modify>
+
+# <modify file="src/services/post_service.py">
+# In the `createPost` method of the `PostService` class:
+# * After the line that creates the new `post` instance, add:
+#   - A call to `self.post_repo.save(post)` to save the new post to the database
+#   - A call to `self.logger.info(f"User {{user.id}} created a new post with id {{post.id}}")` to log the post creation
+# * Return the newly created `post` instance
+# </modify>
+
+# <modify file="src/app.py">
+# At the top of the file: 
+# * Import the `DeletedAccountError` from `src/exceptions.py`
+
+# In the `create_post` endpoint:
+# * Wrap the existing code in a try/except block
+# * Catch the `DeletedAccountError` in the except block
+# * If caught, return a JSON response with:
+#   - A 403 status code
+#   - An error message like "Cannot create post with a deleted account"
+# </modify>
+# </plan number="1">
+
+# <relevant_modules>
+# src/entities/user.py
+# src/entities/post.py
+# </relevant_modules>
+
+# Generate three plans to address the user issue based off of your issue analysis. The best plan will be chosen later."""
+
+files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue. 
 
 You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
 Guidelines:
 - Always include the full file path and reference the provided snippets 
 - Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using phrases like "add", "change", "remove" instead of vague terms
+- Be specific and direct, using phrases like "add", "change", "remove" instead of vague terms such as "review" or "identify"
 - Reference relevant type definitions, interfaces, and schemas 
 - Avoid line numbers and instead reference code locations using surrounding code or function names
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
+- For each major design choice in the main plan, list reasonable alternative approaches in the <alternatives> section
 
 Please use the following XML format for your response:
 
 <issue_analysis>
 First, identify the root cause of the issue by referencing specific code entities in the relevant files.
-
-<unit_tests>
-Then, write unit tests that will be used to check the changes.
-</unit_tests>
 
 <files_to_modify>
 List ALL files to modify:
@@ -231,7 +400,7 @@ List ALL relevant read-only utility modules to reference:
 [additional analysis]
 </issue_analysis>
 
-<plan number="#">
+<main_plan>
 <create file="file_path_1">
 Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
 </create>
@@ -244,48 +413,27 @@ Instructions for modifying one section of the file. Reference change locations u
 <modify file="file_path_2">
 Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
-
 [additional modifies as needed, for the same file or different files]
-</plan>
+</main_plan>
 
 <relevant_modules>
-[List of all relevant files to reference while making changes, one per line] 
+List all files that are relevant for understanding the changes, even if they are not directly modified. This helps provide context.
+[List of relevant files, one per line]
 </relevant_modules>
+
+<alternatives>
+For each major design choice made in the main plan, describe reasonable alternative approaches that could have been taken:
+<alternative_choice number="1">
+Description of alternative design choice.
+</alternative_choice>
+[additional alternative choices]
+</alternatives>
 
 Here's an example of an excellent issue analysis and plan:
 
+<example>
 <issue_analysis>
 The root cause of the issue is that the `createPost` method in the `PostService` class (post_service.py) does not validate that the user submitting the post has a non-deleted account. It should check the `user.deleted` property and raise an exception if the user's account is deleted.
-
-<unit_tests>
-Here are some unit tests we will use to check the changes:
-```python
-# tests/unit/services/test_post_service.py
-from unittest.mock import MagicMock
-from src.entities.user import User
-from src.entities.post import Post
-from src.services.post_service import PostService
-from src.exceptions import DeletedAccountError
-def test_create_post_success():
-    # Arrange
-    user_id = 123
-    content = "Test post content"
-    
-    user = User(id=user_id, username="testuser", email="test@example.com", deleted=False)
-    post_repo = MagicMock()
-    logger = MagicMock()
-    
-    post_service = PostService(post_repo, logger)
-    # Act
-    post = post_service.createPost(user_id, content)
-    # Assert
-    assert isinstance(post, Post)
-    assert post.user_id == user_id
-    assert post.content == content
-    post_repo.save.assert_called_once_with(post)
-    logger.info.assert_called_once_with(f"User {user_id} created a new post with id {post.id}")
-```
-</unit_tests>
 
 <files_to_modify>
 To completely resolve the user's request, we need to:
@@ -313,7 +461,7 @@ The relevant utility modules are:
 </readonly_files>
 </issue_analysis>
 
-<plan number="1">
+<main_plan>
 <create file="src/exceptions.py">
 * Define a new exception class called `DeletedAccountError`
 * Have it inherit from the base `Exception` class
@@ -350,14 +498,27 @@ In the `create_post` endpoint:
   - A 403 status code
   - An error message like "Cannot create post with a deleted account"
 </modify>
-</plan number="1">
+</main_plan>
+
+<alternatives>
+<alternative_choice>
+Instead of raising a custom `DeletedAccountError`, we could return `None` from the `createPost` method if the user's account is deleted. The `create_post` endpoint would then check if the returned post is `None` and return a 403 error. This avoids the need for a custom exception class.
+</alternative_choice>
+
+<alternative_choice>
+We could move the deleted account check to the `create_post` endpoint instead of doing it in the `PostService`. The endpoint would check `user.deleted` and return a 403 immediately if true, before calling `createPost`. This separates the validation logic from the service layer.
+</alternative_choice>
+
+<alternative_choice>
+Instead of a 403 error, we could return a 404 "Not Found" error when a deleted user tries to create a post, since a deleted user account should act like it no longer exists.
+</alternative_choice>
+</alternatives>
 
 <relevant_modules>
 src/entities/user.py
 src/entities/post.py
 </relevant_modules>
-
-Generate three plans to address the user issue based off of your issue analysis. The best plan will be chosen later."""
+</example>"""
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
@@ -385,30 +546,32 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
-plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
-- Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
-- Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on. 
-- Clarity: The code change should be readable, well-structured, and easy for other developers to understand and maintain. Follow existing conventions and style guides, and include documentation and comments for complex or non-obvious logic. 
-- Simplicity: Strive for a solution that is as simple as possible while still being complete and correct. Favor straightforward and easily understandable code. Performance overhead should not be a factor in evaluating simplicity. 
-- Integration: Assess how well the change fits with the overall architecture and design of the system. Avoid tightly coupling components or introducing new dependencies that could complicate future development or deployment. After evaluating the plans against these criteria, select the one that provides the most thorough and correct solution within the specific context and constraints of the project. Prioritize long-term maintainability and architectural integrity.
+plan_selection_prompt = """Critique the pros and cons of each alternative choice based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead:
+
+- Correctness: The alternative approach should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority.
+- Backwards Compatibility: When possible, avoid breaking changes to public APIs, data formats, or behaviors that existing code depends on.
+- Clarity: The alternative approach should be readable, well-structured, and easy for other developers to understand and maintain. Follow existing conventions and style guides, and consider the impact on documentation and comments for complex or non-obvious logic.
+- Simplicity: Strive for an alternative that is as simple as possible while still being complete and correct. Favor straightforward and easily understandable code. Performance overhead should not be a factor in evaluating simplicity.
+- Integration: Assess how well the alternative fits with the overall architecture and design of the system. Avoid tightly coupling components or introducing new dependencies that could complicate future development or deployment.
+
+After evaluating the alternative choices against these criteria, select the ones that provide the most thorough and correct solution within the specific context and constraints of the project. Prioritize long-term maintainability and architectural integrity.
 
 Respond using the following XML format:
 
-<final_plan>
-[Insert the final plan here, including any modifications or improvements based on the feedback and dialogue. Explain how the plan aligns with the guidelines and why it was chosen over the alternatives.]
-</final_plan>
+<alternatives_analysis>
+<alternative_choice_1>
+[Pros and cons analysis of the first alternative choice]
+</alternative_choice_1>
 
-Here is an example response format:
+<alternative_choice_2>
+[Pros and cons analysis of the second alternative choice]
+</alternative_choice_2>
+
+[Additional alternative choice analysis as needed]
+</alternatives_analysis>
 
 <final_plan>
-<modify file="example.py">
-[Example instructions here]
-</modify>
-...
-<modify file="anotherexamplefile.py">
-[More example instructions here]
-</modify>
-[Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
+[Insert the final plan here, incorporating any selected alternative choices and explaining how they align with the guidelines and improve the overall solution. Follow the same XML format with the <create> and <modify> blocks.]
 </final_plan>"""
 
 context_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
