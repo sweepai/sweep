@@ -187,6 +187,21 @@ Do not write out the full code changes, but rather give detailed natural languag
 
 Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue."""
 
+"""
+First, identify the root cause of the issue by referencing specific code entities in the relevant files.
+
+Then, list relevant blocks of code that may need to be edited or used in the fix. like:
+In src/foo.py,
+```
+def foo():
+    pass
+```
+This method should be edited because xyz.
+
+Then, identify the most similar feature to the user's requested change in this codebase. Then list how that feature is implemented in full detail, mentioning everywhere the previous developers made changes to implement it. Describe how the current feature can be similarly implemented.
+
+"""
+
 files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
 You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
@@ -206,17 +221,8 @@ Please use the following XML format for your response:
 
 # Issue Analysis:
 <issue_analysis>
-* Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
-
-List ALL files we should modify to resolve the issue:
-- File path 1: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-- File path 2: Outline of instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-[additional files as needed]
+First, identify the root cause of the issue by referencing specific code entities in the relevant files.
+Then outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
 
 List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
 - Type definitions, interfaces, and schemas
@@ -276,32 +282,6 @@ Here's an example of an excellent issue analysis and plan:
 
 <issue_analysis>
 The root cause of the issue is that the `createPost` method in the `PostService` class (post_service.py) does not validate that the user submitting the post has a non-deleted account. It should check the `user.deleted` property and raise an exception if the user's account is deleted.
-
-To completely resolve the user's request, we need to:
-- Modify the `createPost` method in post_service.py to check if the user's account is deleted before creating the post
-- Add a new exception class `DeletedAccountError` in exceptions.py to raise when a deleted user tries to create a post
-- Update the `create_post` endpoint in app.py to catch the new `DeletedAccountError` and return a 403 error response
-
-Relevant files to modify:
-- src/services/post_service.py
-  - Import the `User` entity and `DeletedAccountError` 
-  - Add validation to check if the user's account is deleted in `createPost`
-  - Raise `DeletedAccountError` if the user's account is deleted
-- src/exceptions.py
-  - Define a new exception class `DeletedAccountError`
-- src/app.py
-  - Import the new `DeletedAccountError`
-  - Catch `DeletedAccountError` in the `create_post` endpoint
-  - Return a 403 error response if `DeletedAccountError` is caught
-
-The relevant utility modules are:
-- `User` entity (src/entities/user.py) - to check if user's account is deleted 
-- `Post` entity (src/entities/post.py) - the entity being created in `createPost`
-
-The <create> and <modify> changes work together to fully handle preventing deleted users from creating posts:
-- The new exception class is created first to be used in the other changes
-- The service method is updated to validate the user and raise the new exception 
-- The API endpoint is updated to catch the new exception and return an appropriate error
 </issue_analysis>
 
 <plan>
