@@ -36,6 +36,7 @@ from sweepai.core.prompts import (
     files_to_change_system_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.previous_diff_utils import get_previous_diffs
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
@@ -192,6 +193,7 @@ def get_files_to_change(
     read_only_snippets: list[Snippet],
     problem_statement,
     repo_name,
+    cloned_repo: ClonedRepo,
     import_graph: Graph | None = None,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
@@ -266,7 +268,17 @@ def get_files_to_change(
                 key="graph_text",
             )
         )
-
+    previous_diffs = get_previous_diffs(
+        problem_statement,
+        cloned_repo=cloned_repo,
+        relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
+    )
+    messages.append(
+        Message(
+            role="user",
+            content=previous_diffs,
+        )
+    )
     messages.append(
         Message(
             role="user",

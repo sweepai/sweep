@@ -982,6 +982,7 @@ def on_ticket(
                     read_only_snippets=repo_context_manager.read_only_snippets,
                     problem_statement=f"{title}\n\n{summary}",
                     repo_name=repo_full_name,
+                    cloned_repo=cloned_repo,
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
                 ticket_progress.planning_progress.file_change_requests = (
@@ -1539,6 +1540,7 @@ def on_ticket(
                                 read_only_snippets=repo_context_manager.read_only_snippets,
                                 problem_statement=all_information_prompt,
                                 repo_name=repo_full_name,
+                                cloned_repo=cloned_repo,
                             )
                             validate_file_change_requests(file_change_requests, cloned_repo)
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None

@@ -2,7 +2,6 @@ from collections import defaultdict
 import traceback
 from time import time
 
-import cohere
 from loguru import logger
 from tqdm import tqdm
 import networkx as nx
@@ -19,6 +18,7 @@ from sweepai.core.lexical_search import (
 from sweepai.core.sweep_bot import get_files_to_change
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.multi_query import generate_multi_queries
@@ -166,22 +166,6 @@ def get_top_k_snippets(
         cloned_repo, [query], ticket_progress, k
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
-
-@file_cache()
-def cohere_rerank_call(
-    query: str,
-    documents: list[str],
-    model='rerank-english-v3.0',
-    **kwargs,
-):
-    # Cohere API call with caching
-    co = cohere.Client(COHERE_API_KEY)
-    return co.rerank(
-        model=model,
-        query=query,
-        documents=documents,
-        **kwargs
-    )
 
 def get_pointwise_reranked_snippet_scores(
     query: str,
@@ -337,7 +321,8 @@ def get_relevant_context(
         import_graph=import_graph,
         chat_logger=chat_logger,
         seed=seed,
-        context=True
+        context=True,
+        cloned_repo=repo_context_manager.cloned_repo,
     )
     repo_context_manager.current_top_snippets = []
     repo_context_manager.read_only_snippets = []
