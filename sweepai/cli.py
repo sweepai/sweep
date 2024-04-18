@@ -293,7 +293,7 @@ def init(override: bool = False):
             "\nThank you for enabling telemetry. We'll collect anonymous usage statistics to improve the product. You can disable this at any time by rerunning 'sweep init'.",
             style="yellow",
         )
-        POSTHOG_DISTINCT_ID = uuid.getnode()
+        POSTHOG_DISTINCT_ID = str(uuid.getnode())
         posthog.capture(POSTHOG_DISTINCT_ID, "sweep_init", {})
 
     config = {
