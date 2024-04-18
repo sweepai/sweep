@@ -221,8 +221,17 @@ Please use the following XML format for your response:
 
 # Issue Analysis:
 <issue_analysis>
-First, identify the root cause of the issue by referencing specific code entities in the relevant files.
-Then outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
+* Identify the root cause of the issue by referencing specific code entities in the relevant files.
+* Outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
+
+List ALL files we should modify to resolve the issue:
+- File path 1: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
+- File path 2: Outline of instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
+[additional files as needed]
 
 List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
 - Type definitions, interfaces, and schemas
