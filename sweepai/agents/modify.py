@@ -1,4 +1,5 @@
 import copy
+from math import inf
 import os
 
 from rapidfuzz import fuzz, process
@@ -775,13 +776,19 @@ def handle_function_call(
 
                         # INDENTATION FIX START #
                         start_line = -1
-                        first_line = original_code_lines[0]
+                        min_diff = inf
                         file_contents_lines = file_contents.split("\n")
-                        for index, line in enumerate(file_contents_lines):
-                            if first_line == line.lstrip():
-                                start_line = index
-                                break
-                        else:
+                        for index, _line in enumerate(file_contents_lines):
+                            if all(original_line.lstrip() == file_contents_line.lstrip() for original_line, file_contents_line in zip(original_code_lines, file_contents_lines[index:index + len(original_code_lines)])):
+                                # if abs(len(line) - len(first_line)) < min_diff:
+                                current_diff = sum(abs(len(original_line) - len(file_contents_line)) for original_line, file_contents_line in zip(original_code_lines, file_contents_lines[index:index + len(original_code_lines)]))
+                                if current_diff < min_diff:
+                                    min_diff = current_diff
+                                    start_line = index
+                                    if min_diff == 0:
+                                        break
+
+                        if start_line == -1:
                             error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
                             break
                             
@@ -792,8 +799,8 @@ def handle_function_call(
                         matches = []
                         surrounding_lines = 5
 
-                        for i in range(len(file_contents_lines) - len(original_code_lines) + 1):
-                            if original_code_lines == file_contents_lines[i:i + len(original_code_lines)]:
+                        for i in range(len(file_contents_lines)):
+                            if "\n".join(original_code_lines) == "\n".join(file_contents_lines[i:i + len(original_code_lines)]):
                                 match_ = "\n".join(file_contents_lines[max(0, i - surrounding_lines):i])
                                 match_ += "\n" + "===== START =====" + "\n"
                                 match_ += "\n".join(file_contents_lines[i:i + len(original_code_lines)])
@@ -801,7 +808,7 @@ def handle_function_call(
                                 match_ += "\n".join(file_contents_lines[i + len(original_code_lines):i + len(original_code_lines) + surrounding_lines])
                                 matches.append(match_)
 
-                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the 1original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
                     else:
                         error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
                     break
