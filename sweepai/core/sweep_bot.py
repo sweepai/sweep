@@ -203,16 +203,6 @@ def get_files_to_change(
     messages.append(
         Message(role="system", content=files_to_change_system_prompt, key="system")
     )
-    messages.append(
-        Message(role="user", content=files_to_change_prompt, key="assistant")
-    )
-    messages.append(
-        Message(
-            role="user",
-            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
-            key="assistant",
-        )
-    )
 
     interleaved_snippets = []
     for i in range(max(len(relevant_snippets), len(read_only_snippets))):
@@ -252,7 +242,7 @@ def get_files_to_change(
             content=snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(read_only_snippets)
     )
-    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>" if read_only_snippets else ""
     messages.append(
         Message(
             role="user",
@@ -280,7 +270,7 @@ def get_files_to_change(
     messages.append(
         Message(
             role="user",
-            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
+            content=f"# Repo & Issue\n<repo>{repo_name}</repo>\nIssue:\n<issue>\n{problem_statement}\n</issue>",
         )
     )
     if pr_diffs:
