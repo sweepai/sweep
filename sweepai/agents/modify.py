@@ -198,18 +198,23 @@ No function calls were made or your last function call was incorrectly formatted
 
 Here is an example:
 
-<function_call>
-<invoke>
-<tool_name>analyze_problem_and_propose_plan</tool_name>
+<tool_description>
+<tool_name>submit_task</tool_name>
+<description>
+Indicate that the current task is complete.
+</description>
 <parameters>
-<problem_analysis>The problem analysis goes here</problem_analysis>
-<proposed_plan>The proposed plan goes here</proposed_plan>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Summarize the code changes made and explain how they fulfill the user's original request.
+</description>
+</parameter>
 </parameters>
-</invoke>
-</function_call>
+</tool_description>
 
-If the current task is complete, call the submit_task function.
-"""
+If the current task is complete, call the submit_task function."""
 
 NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
