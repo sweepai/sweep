@@ -834,6 +834,8 @@ def handle_function_call(
                         break
                     elif check_results_message:
                         warning_message = check_results_message
+                        if "undefined variable" in warning_message.lower():
+                            warning_message += "\n\nDouble check that the newly used variables are defined."
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
         if not error_message:
