@@ -770,7 +770,6 @@ def handle_function_call(
                 # before we apply changes make sure original_code is unique inside current_chunk
                 current_chunk_occurences = file_contents.count(original_code)
                 if current_chunk_occurences > 1:
-                    breakpoint()
                     if current_chunk_occurences * len(original_code.split("\n")) < 50:
                         # We start by setting original_code_lines with indentation fixed. Sometimes the model forgets to indent the first line.
 
@@ -779,11 +778,11 @@ def handle_function_call(
                         first_line = original_code_lines[0]
                         file_contents_lines = file_contents.split("\n")
                         for index, line in enumerate(file_contents_lines):
-                            if first_line == line.rstrip():
+                            if first_line == line.lstrip():
                                 start_line = index
                                 break
                         else:
-                            error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
+                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
                             break
                             
                         original_code_lines = file_contents_lines[start_line:start_line + len(original_code_lines)]
@@ -791,19 +790,20 @@ def handle_function_call(
 
                         # Then we find all the matches and their surrounding lines.
                         matches = []
-                        surrounding_lines = 2
+                        surrounding_lines = 5
 
                         for i in range(len(file_contents_lines) - len(original_code_lines) + 1):
                             if original_code_lines == file_contents_lines[i:i + len(original_code_lines)]:
-                                breakpoint()
-                                matches += "\n".join(file_contents_lines[max(0, i - surrounding_lines):i + len(original_code_lines) + surrounding_lines])
-                        breakpoint()
+                                match_ = "\n".join(file_contents_lines[max(0, i - surrounding_lines):i])
+                                match_ += "\n" + "===== START =====" + "\n"
+                                match_ += "\n".join(file_contents_lines[i:i + len(original_code_lines)])
+                                match_ += "\n" + "===== END =====" + "\n"
+                                match_ += "\n".join(file_contents_lines[i + len(original_code_lines):i + len(original_code_lines) + surrounding_lines])
+                                matches.append(match_)
 
-                        # error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
-                        error_message = f"The original_code is not unique in the file {file_name}, appearing {current_chunk_occurences} times! original_code MUST be unique, add some surrounding lines for context!\n\nHere are all the occurences of the original_code in the file with their surrounding lines:\n" + "\n".join([f"```\n{match_}\n```" for match_ in matches])
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the 1original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
                     else:
-                        error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
-                    breakpoint()
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
                     break
 
                 # apply changes
