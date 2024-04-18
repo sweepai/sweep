@@ -155,7 +155,8 @@ def sort_and_fuse_snippets(
     return new_snippets
     
 def parse_xml_tag_from_string(tag: str, string: str) -> str:
-    return re.search(f"<{tag}>(.*?)</{tag}>", string, re.DOTALL).group(1)
+    match = re.search(f"<{tag}>(.*?)</{tag}>", string, re.DOTALL)
+    return match.group(1) if match else f"No xml group with {tag} found"
 def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[Snippet]:
     """
     Fuse and dedup snippets that are contiguous. Combine ones of same file.
