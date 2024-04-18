@@ -38,4 +38,4 @@ jobs:
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - name: Run arbitrary code
         run: |
-          echo "Hello, World!"
+            echo "Placeholder"
