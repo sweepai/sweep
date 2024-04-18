@@ -252,7 +252,7 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
-self_review_prompt = """First, review and critique the change(s) you have made. Perform the following:
+self_review_prompt = """First, review and critique the change(s) you have made. Consider the following points:
 
 1. Analyze code patch and indicate:
    - Purpose and impact of each change
@@ -278,7 +278,9 @@ Limit the scope of the critique to the current task, which is:
 
 {current_task}
 
-Determine if the changes are correct and complete. If you are satisfied with the changes, call the submit_task function to move onto the next task. If you would like to continue making changes, call make_changes."""
+Then, determine if the changes are correct and complete.
+
+If the changes are complete and correct, call the submit_task function to move onto the next task. Otherwise, call make_changes to continue making changes."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -428,7 +430,10 @@ def create_user_message(
         files_to_modify_string += files_to_modify_messages[fcr.filename]
         already_added_files.add(fcr.filename)
 
-    deduped_file_names = list(set([fcr.filename for fcr in fcrs]))
+    deduped_file_names = []
+    for fcr in fcrs:
+        if fcr.filename not in deduped_file_names:
+            deduped_file_names.append(fcr.filename)
     combined_request_message = combined_request_unformatted \
         .replace("{files_to_modify}", files_to_modify_string.lstrip('\n')) \
         .replace("{files_to_modify_list}", english_join(deduped_file_names)) \
@@ -765,7 +770,40 @@ def handle_function_call(
                 # before we apply changes make sure original_code is unique inside current_chunk
                 current_chunk_occurences = file_contents.count(original_code)
                 if current_chunk_occurences > 1:
-                    error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
+                    breakpoint()
+                    if current_chunk_occurences * len(original_code.split("\n")) < 50:
+                        # We start by setting original_code_lines with indentation fixed. Sometimes the model forgets to indent the first line.
+
+                        # INDENTATION FIX START #
+                        start_line = -1
+                        first_line = original_code_lines[0]
+                        file_contents_lines = file_contents.split("\n")
+                        for index, line in enumerate(file_contents_lines):
+                            if first_line == line.rstrip():
+                                start_line = index
+                                break
+                        else:
+                            error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
+                            break
+                            
+                        original_code_lines = file_contents_lines[start_line:start_line + len(original_code_lines)]
+                        # INDENTATION FIX END #
+
+                        # Then we find all the matches and their surrounding lines.
+                        matches = []
+                        surrounding_lines = 2
+
+                        for i in range(len(file_contents_lines) - len(original_code_lines) + 1):
+                            if original_code_lines == file_contents_lines[i:i + len(original_code_lines)]:
+                                breakpoint()
+                                matches += "\n".join(file_contents_lines[max(0, i - surrounding_lines):i + len(original_code_lines) + surrounding_lines])
+                        breakpoint()
+
+                        # error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
+                        error_message = f"The original_code is not unique in the file {file_name}, appearing {current_chunk_occurences} times! original_code MUST be unique, add some surrounding lines for context!\n\nHere are all the occurences of the original_code in the file with their surrounding lines:\n" + "\n".join([f"```\n{match_}\n```" for match_ in matches])
+                    else:
+                        error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
+                    breakpoint()
                     break
 
                 # apply changes
