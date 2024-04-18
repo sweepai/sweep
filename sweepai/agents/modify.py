@@ -798,7 +798,10 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
-            llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{SELF_REVIEW_PROMPT}"
+            if warning_message:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{SELF_REVIEW_PROMPT}"
+            else:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{SELF_REVIEW_PROMPT}"
             modify_files_dict[file_name]['contents'] = new_file_contents
     elif tool_name == "create_file":
         error_message = ""
