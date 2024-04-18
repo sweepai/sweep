@@ -198,18 +198,23 @@ No function calls were made or your last function call was incorrectly formatted
 
 Here is an example:
 
-<function_call>
-<invoke>
-<tool_name>analyze_problem_and_propose_plan</tool_name>
+<tool_description>
+<tool_name>submit_task</tool_name>
+<description>
+Indicate that the current task is complete.
+</description>
 <parameters>
-<problem_analysis>The problem analysis goes here</problem_analysis>
-<proposed_plan>The proposed plan goes here</proposed_plan>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Summarize the code changes made and explain how they fulfill the user's original request.
+</description>
+</parameter>
 </parameters>
-</invoke>
-</function_call>
+</tool_description>
 
-If the current task is complete, call the submit_task function.
-"""
+If the current task is complete, call the submit_task function."""
 
 NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
@@ -247,7 +252,7 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
-SELF_REVIEW_PROMPT = """First, review and critique the change(s) you have made. Perform the following:
+self_review_prompt = """First, review and critique the change(s) you have made. Perform the following:
 
 1. Analyze code patch and indicate:
    - Purpose and impact of each change
@@ -269,7 +274,11 @@ SELF_REVIEW_PROMPT = """First, review and critique the change(s) you have made. 
    - Suggest fixes for problems
 3. Be extremely critical. Do not overlook ANY issues.
 
-Then, determine if the changes are correct and complete. If you are satisfied with the changes, call the submit_task function to move onto the next task. If you would like to continue making changes, continue by calling make_changes."""
+Limit the scope of the critique to the current task, which is:
+
+{current_task}
+
+Determine if the changes are correct and complete. If you are satisfied with the changes, call the submit_task function to move onto the next task. If you would like to continue making changes, call make_changes."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -793,7 +802,10 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
-            llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{SELF_REVIEW_PROMPT}"
+            if warning_message:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+            else:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
             modify_files_dict[file_name]['contents'] = new_file_contents
     elif tool_name == "create_file":
         error_message = ""
