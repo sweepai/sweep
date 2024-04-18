@@ -34,7 +34,7 @@ def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
 
 
 @file_cache()
-def download_logs(repo_full_name: str, run_id: int, installation_id: int):
+def download_logs(repo_full_name: str, run_id: int, installation_id: int, get_errors_only=True):
     token = get_token(installation_id)
     headers = {
         "Accept": "application/vnd.github+json",
@@ -56,6 +56,8 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
                     logs = f.read().decode("utf-8")
                     last_line = logs.splitlines()[-1]
                     if "##[error]" in last_line:
+                        logs_str += logs
+                    elif not get_errors_only: # get all logs
                         logs_str += logs
     return logs_str
 
