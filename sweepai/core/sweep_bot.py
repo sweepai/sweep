@@ -217,13 +217,13 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</snippet>'
-    read_only_snippet_template = '<read_only_snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    relevant_snippet_template = '# Relevant codebase snippets:\nHere are the relevant snippets from the codebase. These will be your primary reference to solve the problem:\n<snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</snippet>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     joined_relevant_snippets = "\n".join(
         relevant_snippet_template.format(
             i=i,
-            snippet_denotation=snippet.denotation,
+            file_path=snippet.file_path,
             content=snippet.expand(300).get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
@@ -238,7 +238,7 @@ def get_files_to_change(
     joined_relevant_read_only_snippets = "\n".join(
         read_only_snippet_template.format(
             i=i,
-            snippet_denotation=snippet.denotation,
+            file_path=snippet.file_path,
             content=snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(read_only_snippets)
     )
@@ -270,7 +270,7 @@ def get_files_to_change(
     messages.append(
         Message(
             role="user",
-            content=f"# Repo & Issue\n<repo>{repo_name}</repo>\nIssue:\n<issue>\n{problem_statement}\n</issue>",
+            content=f"# Issue\n<issue>\n{problem_statement}\n</issue>",
         )
     )
     if pr_diffs:

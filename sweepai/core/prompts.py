@@ -179,43 +179,39 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
-files_to_change_system_prompt = """You are an AI assistant helping an intern update code to resolve a GitHub issue. The user will provide code snippets, a description of the issue, and relevant parts of the codebase.
-
-Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code snippets in your plan.
-
+files_to_change_system_prompt = """You are a senior software engineer addressing a GitHub issue. The issue reporter has provided code snippets and description of the issue.
+Analyze the issue and codebase, then provide a clear, step-by-step plan to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code snippets in your plan.
 Give detailed natural language instructions and explanations the intern can follow to update the code themselves. Organize the steps logically and break them into small, manageable tasks.
+Prioritize using existing code and functions over new code. Your issue analysis should be extremely detailed (verbosity is fine) and cover all code changes that need to be made."""
 
-Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue."""
-
-files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
-
-You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan to address a user's GitHub issue.
+Analyze the provided code snippets and GitHub issue to understand the requested change. Create a step-by-step plan to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic.
 
 Guidelines:
 - Always include the full file path and reference the provided snippets 
 - Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using phrases like "add", "change", "remove" instead of vague terms
-- Reference relevant type definitions, interfaces, and schemas 
-- Avoid line numbers and instead reference code locations using surrounding code or function names
+- Be specific and direct, using phrases like "add", "change", "remove"
+- Reference relevant type definitions, interfaces, and schemas
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
-- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
-
-Please use the following XML format for your response:
+Use the following XML format for your response:
 
 # Issue Analysis:
+
 <issue_analysis>
 * Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories. Be complete.
+* Detail ALL changes that need to occur for the user's request to be resolved, referencing the code snippets and entity names that were provided in the above code. Be complete.
 List ALL files we should modify to resolve the issue in the following format:
 - File path 1: Detailed instructions for modifying the file
     - First change to make in the file
     - Second change to make in the file
+    - Third change to make in the file
     - Continue listing all changes that need to be made. Be complete.
 - File path 2: Detailed instructions for modifying the file
     - First change to make in the file  
     - Second change to make in the file
+    - Third change to make in the file
     - Continue listing all changes that need to be made. Be complete.
 [additional files as needed]
 List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
@@ -225,32 +221,27 @@ List ALL relevant read-only utility modules from the provided set and specify wh
 - Database services
 - API endpoints
 [additional relevant modules as needed]
-
-* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-[additional analysis as needed]
 </issue_analysis>
 
-<plan>  
+<relevant_modules>
+[List of all relevant files to reference while making changes, one per line] 
+</relevant_modules>
+
+<plan>
 <create file="file_path_1">
 Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
 </create>
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. Reference change locations using surrounding code or functions.
-Include relevant type definitions, interfaces, schemas.
+Instructions for modifying one section of the file. Reference change locations using surrounding code or functions. Include relevant type definitions, interfaces, schemas.
 </modify>
 
 <modify file="file_path_2">
 Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
-
-[additional modifies as needed, for the same file or different files]
-</plan>
-
-<relevant_modules>
-[List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>"""
+[additional modifications as needed, for the same file or different files]
+</plan>"""
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 

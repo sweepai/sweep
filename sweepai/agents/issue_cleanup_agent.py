@@ -3,7 +3,7 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
-system_prompt = """Remove all unnecessary text from the issue description."""
+system_prompt = """Remove unnecessary text from the issue description."""
 
 prompt = """\
 <issue_description>
