@@ -384,10 +384,8 @@ def create_user_message(
         relevant_filepaths: list[str] = None,
         modify_files_dict: dict[str, dict[str, str]] = None
     ) -> str:
-    current_fcr_index = 0
-    for current_fcr_index, fcr in enumerate(fcrs):
-        if not fcr.is_completed:
-            break
+    current_fcr_index = [i for i, fcr in enumerate(fcrs) if not fcr.is_completed][0] if any([not fcr.is_completed for fcr in fcrs]) else 0
+    breakpoint()
     combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}.{completed_prompt} Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
     completed_prompt = "" if current_fcr_index == 0 else f" You have already completed {current_fcr_index} of the {len(fcrs)} required changes."
     if modify_files_dict:
@@ -476,10 +474,7 @@ def ordinal(n: int):
     return "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4]) # noqa
 
 def render_plan(fcrs: list[FileChangeRequest]) -> str:
-    current_fcr_index = 0
-    for current_fcr_index, fcr in enumerate(fcrs):
-        if not fcr.is_completed:
-            break
+    current_fcr_index = [i for i, fcr in enumerate(fcrs) if not fcr.is_completed][0] if any([not fcr.is_completed for fcr in fcrs]) else 0
     plan = f"You have {len(fcrs)} changes to make and you are currently working on the {ordinal(current_fcr_index + 1)} task."
     for i, fcr in enumerate(fcrs):
         if i < current_fcr_index:
@@ -545,6 +540,7 @@ def modify(
         "fcrs": fcrs,
         "previous_attempt": "",
     }
+    breakpoint() # rerender plan and also show the current task
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
@@ -557,6 +553,7 @@ def modify(
         if function_call:
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
+            fcrs = llm_state["fcrs"]
             if function_output == "DONE":
                 # add the diff of all changes to chat_logger
                 if chat_logger:
@@ -692,7 +689,7 @@ def handle_function_call(
                 fcr.is_completed = True
                 llm_response = f"SUCCESS\n\nThe current task is complete. Please move on to the next task. {llm_state['current_task']}"
                 break
-
+        
         if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
             llm_response = "DONE"
     elif tool_name == "no_tool_call":
