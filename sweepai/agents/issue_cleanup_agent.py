@@ -12,7 +12,8 @@ prompt = """\
 
 Remove any completely irrelevant text from the issue description. Keep stacktraces and informative debugging information. Copy as much text verbatim as possible.
 
-Format your response in <new_issue_description> tags:"""
+Explain what needs to be removed.
+Then format your response in <new_issue_description> tags:"""
 
 
 class IssueCleanupBot(ChatGPT):

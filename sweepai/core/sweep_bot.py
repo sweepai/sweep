@@ -218,7 +218,7 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '# Relevant codebase snippets:\nHere are the relevant snippets from the codebase. These will be your primary reference to solve the problem:\n<snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</snippet>'
+    relevant_snippet_template = '<snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</snippet>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     joined_relevant_snippets = "\n".join(
@@ -228,7 +228,7 @@ def get_files_to_change(
             content=snippet.expand(300).get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
-    relevant_snippets_message = f"<relevant_snippets>\n{joined_relevant_snippets}\n</relevant_snippets>"
+    relevant_snippets_message = f"# Relevant codebase snippets:\nHere are the relevant snippets from the codebase. These will be your primary reference to solve the problem:\n\n<relevant_snippets>\n{joined_relevant_snippets}\n</relevant_snippets>"
     messages.append(
         Message(
             role="user",

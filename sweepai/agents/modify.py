@@ -255,9 +255,9 @@ If the current task is complete, call the submit_task function.
 
 self_review_prompt = """First, review and critique the change(s) you have made. Consider the following points:
 
-1. Analyze code patch and indicate:
-   - Purpose and impact of each change
-   - Check for potential errors: 
+1. Analyze the code patch and indicate:
+   a. Purpose and impact of each change
+   b. Check for potential errors: 
      - Logic errors
      - Unhandled edge cases
      - Missing imports
@@ -265,17 +265,13 @@ self_review_prompt = """First, review and critique the change(s) you have made. 
      - Undefined variables/functions
      - Usage of nullable attributes
      - Non-functional code
-   - Alignment with plan and requirements
+   c. Alignment with plan and requirements
 2. Perform critical contextual analysis:
    - Break down changes 
    - Explain reasoning
-   - Identify logic issues, edge cases, plan deviations
-   - Consider all scenarios and pitfalls
-   - Consider backwards compatibility and future-proofing
-   - Suggest fixes for problems
-3. Be extremely critical. Do not overlook ANY issues.
+   - Identify plan deviations
 
-Limit the scope of the critique to the current task, which is:
+Be extremely critical but limit the scope of the critique to the current task, which is:
 
 {current_task}
 
@@ -439,11 +435,12 @@ def create_user_message(
         .replace("{files_to_modify}", files_to_modify_string.lstrip('\n')) \
         .replace("{files_to_modify_list}", english_join(deduped_file_names)) \
         .replace("{completed_prompt}", completed_prompt)
+    precomputed_file_list = cloned_repo.get_file_list()
     if relevant_filepaths:
         relevant_file_paths_string = ""
         for relevant_file_path in relevant_filepaths:
-            if relevant_file_path not in cloned_repo.get_file_list():
-                logger.warning(f"Relevant file path {relevant_file_path} not found in cloned repo.")
+            if relevant_file_path not in precomputed_file_list:
+                logger.warning(f"Relevant file path {relevant_file_path} not found in cloned repo.") # the relevant file paths aren't well formatted, so we get some issues here
                 continue
             if relevant_file_path in [fcr.filename for fcr in fcrs]:
                 logger.warning(f"Relevant file path {relevant_file_path} is already in the list of files to modify.")
@@ -679,6 +676,7 @@ def handle_function_call(
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
     if tool_name == "submit_task":
+        breakpoint()
         changes_made = generate_diffs(modify_files_dict)
         if changes_made:
             llm_response = "DONE"
@@ -746,21 +744,22 @@ def handle_function_call(
                 if original_code not in file_contents and correct_indent == -1:
                     # TODO: add weighted ratio to the choices, penalize whitespace less
                     breakpoint()
-                    best_match, best_score = find_best_match(original_code, file_contents)
+                    best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
 
                     if best_score > 80:
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match)}\n```"
                     else:
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
-                    
-                    # first check the lines in original_code, if it is too long, ask for smaller changes
-                    original_code_lines_length = len(original_code.split("\n"))
-                    if original_code_lines_length > 10:
-                        error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                    else:
-                        # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                        # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                        error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in section A in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+
+                        # first check the lines in original_code, if it is too long, ask for smaller changes
+                        original_code_lines_length = len(original_code.split("\n"))
+                        if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
+                            error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                        else:
+                            # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                            # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                            # WARNING: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
+                            error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                     break
                 # ensure original_code and new_code has the correct indents
                 new_code_lines = new_code.split("\n")
