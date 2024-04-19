@@ -294,7 +294,7 @@ Please use the following XML format for your response:
 
 # Issue Analysis:
 <issue_analysis>
-Identify the root cause of the issue referencing specific code in the relevant files. Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
+Identify the root cause of the issue referencing specific code in the relevant files. Identify a similar existing feature and describe how it has been implemented in extreme detail. Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
 
 List ALL files to modify:
 - File path 1: Outline of changes 

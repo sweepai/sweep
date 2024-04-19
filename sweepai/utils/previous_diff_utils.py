@@ -154,7 +154,6 @@ def query_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_pa
         last_commits.append(Commit(sha=sha, message=full_message, diff=diff))
 
     enhanced_query = generate_query(query, cloned_repo, relevant_file_paths)
-    breakpoint()
     similarities = np.array(multi_get_query_texts_similarity([enhanced_query], [last_commit.message + last_commit.diff for last_commit in last_commits]))
     top_indices = [index for index in similarities.flatten().argsort()[-1000:][::-1]]
     top_documents = [last_commits[index].message + last_commits[index].diff for index in top_indices]
@@ -172,7 +171,6 @@ def query_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_pa
 
 def get_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_paths: list[str]) -> list[Commit]:
     commits = query_relevant_commits(query, cloned_repo, relevant_file_paths)
-    breakpoint()
     commits_str = "\n".join([commit.xml for commit in commits])
     user_prompt = commit_selection_user_prompt.format(github_issue=query, similar_commits=commits_str)
     chatgpt = ChatGPT(
