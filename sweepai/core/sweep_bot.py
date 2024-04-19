@@ -258,15 +258,16 @@ def get_files_to_change(
         )
         import_graph = generate_import_graph_text(sub_graph).strip("\n")
         # serialize the graph so LLM can read it
-        graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
+        if len(import_graph.splitlines()) > 5 and "──>" in import_graph:
+            graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
 
-        messages.append(
-            Message(
-                role="user",
-                content=graph_text,
-                key="graph_text",
+            messages.append(
+                Message(
+                    role="user",
+                    content=graph_text,
+                    key="graph_text",
+                )
             )
-        )
     # previous_diffs = get_previous_diffs(
     #     problem_statement,
     #     cloned_repo=cloned_repo,
