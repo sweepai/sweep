@@ -294,26 +294,32 @@ Please use the following XML format for your response:
 
 # Issue Analysis:
 <issue_analysis>
-Identify the root cause of the issue referencing specific code in the relevant files. Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
-
-List ALL files to modify:
-- File path 1: Outline of changes 
-- File path 2: Outline of changes
-[additional files]
-
-List ALL relevant read-only utility modules to reference:
-- Type definitions, interfaces, schemas
-- Helper functions 
+* Identify the root cause of the issue by referencing specific code entities in the relevant files.
+* Identify a similar existing feature and describe how it has been implemented in extreme detail. 
+* Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories. Be complete.
+List ALL files we should modify to resolve the issue in the following format:
+- File path 1: Detailed instructions for modifying the file
+    - First change to make in the file
+    - Second change to make in the file
+    - Continue listing all changes that need to be made. Be complete.
+- File path 2: Detailed instructions for modifying the file
+    - First change to make in the file  
+    - Second change to make in the file
+    - Continue listing all changes that need to be made. Be complete.
+[additional files as needed]
+List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+- Type definitions, interfaces, and schemas
+- Helper functions
 - Frontend components
-- Database services 
+- Database services
 - API endpoints
-[additional modules]
+[additional relevant modules as needed]
 
-For each <create> or <modify> in the plan, explain its purpose for resolving the issue.
-[additional analysis]
+* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
+[additional analysis as needed]
 </issue_analysis>
 
-<plan number="#">
+<plan number="#">  
 <create file="file_path_1">
 Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
 </create>
@@ -321,7 +327,7 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 
 <modify file="file_path_2"> 
 Instructions for modifying one section of the file. Reference change locations using surrounding code or functions.
-Include relevant type definitions, interfaces, schemas. Describe code changes without writing code.
+Include relevant type definitions, interfaces, schemas.
 </modify>
 
 <modify file="file_path_2">
