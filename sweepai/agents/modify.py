@@ -549,7 +549,6 @@ def modify(
         "fcrs": fcrs,
         "previous_attempt": "",
     }
-    breakpoint() # rerender plan and also show the current task
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
@@ -693,13 +692,13 @@ def handle_function_call(
                 llm_response = "DONE"
             else:
                 llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
-
+        breakpoint()        
         for fcr in llm_state["fcrs"]:
             if not fcr.is_completed:
                 fcr.is_completed = True
-                llm_response = f"SUCCESS\n\nThe current task is complete. Please move on to the next task. {llm_state['current_task']}"
                 break
-        
+        llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+        llm_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
         if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
             llm_response = "DONE"
     elif tool_name == "no_tool_call":
@@ -753,10 +752,13 @@ def handle_function_call(
                     breakpoint()
                     best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
 
+                    # expand best_match to include surrounding lines
+                    
+
                     if best_score > 80:
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match)}\n```"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match, n=10)}\n```"
                     else:
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. The original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
 
                         # first check the lines in original_code, if it is too long, ask for smaller changes
                         original_code_lines_length = len(original_code.split("\n"))
@@ -849,7 +851,7 @@ def handle_function_call(
         if not error_message:
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
-                + generate_diff(file_contents, new_file_contents)
+                + generate_diff(file_contents, new_file_contents, n=10)
             ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
             # set contents
             if file_name not in modify_files_dict:
