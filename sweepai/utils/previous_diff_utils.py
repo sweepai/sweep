@@ -176,14 +176,17 @@ def query_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_pa
     top_documents = [last_commits[index].message + last_commits[index].diff for index in top_indices]
     embed_index_to_rerank_index = {rank_index: actual_index for rank_index, actual_index in enumerate(top_indices)}
 
-    response = cohere_rerank_call(enhanced_query, top_documents)
+    try:
+        response = cohere_rerank_call(enhanced_query, top_documents)
+        commits = []
+        for document in response.results[:3]:
+            index = embed_index_to_rerank_index[document.index]
+            commit = last_commits[index]
+            commits.append(commit)
+    except Exception as e:
+        print(e)
+        commits = [last_commits[index] for index in top_indices[:3]]
 
-    commits = []
-    for document in response.results[:3]:
-        index = embed_index_to_rerank_index[document.index]
-        commit = last_commits[index]
-        commits.append(commit)
-    
     return commits
 
 def get_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_paths: list[str]) -> list[Commit]:
