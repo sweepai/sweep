@@ -16,7 +16,6 @@ from sweepai.core.lexical_search import (
     search_index,
 )
 from sweepai.core.sweep_bot import get_files_to_change
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
