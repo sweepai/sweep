@@ -498,6 +498,14 @@ def render_current_task(fcrs: list[FileChangeRequest]) -> str:
     fcr = fcrs[current_fcr_index]
     return f"The CURRENT TASK is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n<current_task>\n{fcr.instructions}\n</current_task>"
 
+# return the number of tasks completed
+def tasks_completed(fcrs: list[FileChangeRequest]):
+    completed_tasks = 0
+    for fcr in fcrs:
+        if fcr.is_completed:
+            completed_tasks += 1
+    return completed_tasks
+
 def modify(
     fcrs: list[FileChangeRequest],
     request: str,
@@ -536,12 +544,13 @@ def modify(
     modify_files_dict = {}
     llm_state = {
         "initial_check_results": {},
-        "done_counter": 0,
+        "done_counter": 0, # keep track of how many times the submit_task tool has been called
         "request": request,
         "plan": render_plan(fcrs), 
         "current_task": render_current_task(fcrs),
-        "user_message_index": 1,
-        "user_message_index_chat_logger": 1,
+        "user_message_index": 1,  # used for detailed chat logger messages
+        "user_message_index_chat_logger": 1,  # used for detailed chat logger messages
+        
         "fcrs": fcrs,
         "previous_attempt": "",
     }
@@ -555,6 +564,7 @@ def modify(
         else:
             function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
+            num_of_tasks_done = tasks_completed(fcrs)
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
             if function_output == "DONE":
@@ -582,9 +592,9 @@ def modify(
                     modify_files_dict=modify_files_dict
                 )
                 user_message = f"Here is the UPDATED user request, plan, and state of the code changes. REVIEW THIS CAREFULLY!\n{user_message}"
-                
-                # update context if a change was made
-                if changes_made(modify_files_dict, previous_modify_files_dict):
+                # state cleanup should only occur after a task has been finished and if a change was made and if a change was made
+                current_num_of_tasks_done = tasks_completed(fcrs)
+                if changes_made(modify_files_dict, previous_modify_files_dict) and current_num_of_tasks_done > num_of_tasks_done:
                     # remove the previous user message and add it to the end, do not remove if it is the inital user message
                     if llm_state["user_message_index"] != 1:
                         chat_gpt.messages.pop(llm_state["user_message_index"])
