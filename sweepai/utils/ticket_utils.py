@@ -74,7 +74,7 @@ def apply_adjustment_score(
     old_score: float,
 ):
     snippet_score = old_score
-    file_path, *_ = snippet.split(":")
+    file_path, *_ = snippet.rsplit(":", 1)
     file_path = file_path.lower()
     for prefix, adjustment in prefix_adjustment.items():
         if file_path.startswith(prefix):
@@ -100,7 +100,7 @@ def apply_adjustment_score(
 
 NUM_SNIPPETS_TO_RERANK = 100
 
-@file_cache()
+# @file_cache()
 def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
@@ -157,7 +157,7 @@ def multi_get_top_k_snippets(
     ]
     return ranked_snippets_list, snippets, content_to_lexical_score_list
 
-@file_cache()
+# @file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
