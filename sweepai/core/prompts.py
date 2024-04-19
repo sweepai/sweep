@@ -179,12 +179,9 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
-files_to_change_system_prompt = """You are an AI assistant helping an intern update code to resolve a GitHub issue. The user will provide code snippets, a description of the issue, and relevant parts of the codebase.
-
+files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code snippets, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code snippets in your plan.
-
-Do not write out the full code changes, but rather give detailed natural language instructions and explanations the intern can follow to update the code themselves. Organize the steps logically and break them into small, manageable tasks.
-
+Give detailed natural language instructions and explanations the intern can follow to write the code themselves. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue."""
 
 files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
@@ -207,17 +204,17 @@ Please use the following XML format for your response:
 # Issue Analysis:
 <issue_analysis>
 * Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Outline ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories.
-
-List ALL files we should modify to resolve the issue:
-- File path 1: Outline of instructions for modifying the file
+* Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories. Be complete.
+List ALL files we should modify to resolve the issue in the following format:
+- File path 1: Detailed instructions for modifying the file
     - First change to make in the file
     - Second change to make in the file
-- File path 2: Outline of instructions for modifying the file
-    - First change to make in the file
+    - Continue listing all changes that need to be made. Be complete.
+- File path 2: Detailed instructions for modifying the file
+    - First change to make in the file  
     - Second change to make in the file
+    - Continue listing all changes that need to be made. Be complete.
 [additional files as needed]
-
 List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
 - Type definitions, interfaces, and schemas
 - Helper functions
@@ -230,27 +227,6 @@ List ALL relevant read-only utility modules from the provided set and specify wh
 [additional analysis as needed]
 </issue_analysis>
 
-Format:
-<issue_analysis>
-Identify the root cause of the issue referencing specific code in the relevant files. Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
-
-List ALL files to modify:
-- File path 1: Outline of changes 
-- File path 2: Outline of changes
-[additional files]
-
-List ALL relevant read-only utility modules to reference:
-- Type definitions, interfaces, schemas
-- Helper functions 
-- Frontend components
-- Database services 
-- API endpoints
-[additional modules]
-
-For each <create> or <modify> in the plan, explain its purpose for resolving the issue.
-[additional analysis]
-</issue_analysis>
-
 <plan>  
 <create file="file_path_1">
 Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
@@ -258,7 +234,8 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. Reference change locations using surrounding code or functions, not line numbers. Include relevant type definitions, interfaces, schemas. Describe code changes without writing code.
+Instructions for modifying one section of the file. Reference change locations using surrounding code or functions.
+Include relevant type definitions, interfaces, schemas.
 </modify>
 
 <modify file="file_path_2">
@@ -270,82 +247,6 @@ Instructions for modifying a different section of the same file. Use multiple <m
 
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>
-
-Here's an example of an excellent issue analysis and plan:
-
-<issue_analysis>
-The root cause of the issue is that the `createPost` method in the `PostService` class (post_service.py) does not validate that the user submitting the post has a non-deleted account. It should check the `user.deleted` property and raise an exception if the user's account is deleted.
-
-To completely resolve the user's request, we need to:
-- Modify the `createPost` method in post_service.py to check if the user's account is deleted before creating the post
-- Add a new exception class `DeletedAccountError` in exceptions.py to raise when a deleted user tries to create a post
-- Update the `create_post` endpoint in app.py to catch the new `DeletedAccountError` and return a 403 error response
-
-Relevant files to modify:
-- src/services/post_service.py
-  - Import the `User` entity and `DeletedAccountError` 
-  - Add validation to check if the user's account is deleted in `createPost`
-  - Raise `DeletedAccountError` if the user's account is deleted
-- src/exceptions.py
-  - Define a new exception class `DeletedAccountError`
-- src/app.py
-  - Import the new `DeletedAccountError`
-  - Catch `DeletedAccountError` in the `create_post` endpoint
-  - Return a 403 error response if `DeletedAccountError` is caught
-
-The relevant utility modules are:
-- `User` entity (src/entities/user.py) - to check if user's account is deleted 
-- `Post` entity (src/entities/post.py) - the entity being created in `createPost`
-
-The <create> and <modify> changes work together to fully handle preventing deleted users from creating posts:
-- The new exception class is created first to be used in the other changes
-- The service method is updated to validate the user and raise the new exception 
-- The API endpoint is updated to catch the new exception and return an appropriate error
-</issue_analysis>
-
-<plan>
-<create file="src/exceptions.py">
-* Define a new exception class called `DeletedAccountError`
-* Have it inherit from the base `Exception` class
-* Give it a clear error message indicating that a deleted account tried to perform an action
-</create>
-
-<modify file="src/services/post_service.py">
-At the top of the file:
-* Import the `User` entity from `src/entities/user.py`
-* Import the `DeletedAccountError` from `src/exceptions.py`
-
-In the `createPost` method of the `PostService` class:
-* After getting the `user` by ID, add an if statement to check:
-  - If `user.deleted` is True, raise a `DeletedAccountError`
-  - Otherwise, continue with creating the post as normal
-</modify>
-
-<modify file="src/services/post_service.py">
-In the `createPost` method of the `PostService` class:
-* After the line that creates the new `post` instance, add:
-  - A call to `self.post_repo.save(post)` to save the new post to the database
-  - A call to `self.logger.info(f"User {{user.id}} created a new post with id {{post.id}}")` to log the post creation
-* Return the newly created `post` instance
-</modify>
-
-<modify file="src/app.py">
-At the top of the file: 
-* Import the `DeletedAccountError` from `src/exceptions.py`
-
-In the `create_post` endpoint:
-* Wrap the existing code in a try/except block
-* Catch the `DeletedAccountError` in the except block
-* If caught, return a JSON response with:
-  - A 403 status code
-  - An error message like "Cannot create post with a deleted account"
-</modify>
-</plan>
-
-<relevant_modules>
-src/entities/user.py
-src/entities/post.py
 </relevant_modules>"""
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
@@ -419,7 +320,8 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. Reference change locations using surrounding code or functions, not line numbers. Include relevant type definitions, interfaces, schemas. Describe code changes without writing code.
+Instructions for modifying one section of the file. Reference change locations using surrounding code or functions.
+Include relevant type definitions, interfaces, schemas. Describe code changes without writing code.
 </modify>
 
 <modify file="file_path_2">

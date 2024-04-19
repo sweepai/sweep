@@ -347,7 +347,8 @@ def on_comment(
                     read_only_snippets=repo_context_manager.read_only_snippets,
                     problem_statement=formatted_query,
                     repo_name=repo_name,
-                    pr_diffs=pr_diff_string
+                    pr_diffs=pr_diff_string,
+                    cloned_repo=cloned_repo,
                 )
                 validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
                 file_change_requests = sweep_bot.validate_file_change_requests(

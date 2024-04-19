@@ -192,6 +192,7 @@ def get_files_to_change(
     read_only_snippets: list[Snippet],
     problem_statement,
     repo_name,
+    cloned_repo: ClonedRepo,
     import_graph: Graph | None = None,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
@@ -202,16 +203,6 @@ def get_files_to_change(
     messages: list[Message] = []
     messages.append(
         Message(role="system", content=files_to_change_system_prompt, key="system")
-    )
-    messages.append(
-        Message(role="user", content=files_to_change_prompt, key="assistant")
-    )
-    messages.append(
-        Message(
-            role="user",
-            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
-            key="assistant",
-        )
     )
 
     interleaved_snippets = []
@@ -227,13 +218,13 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</snippet>'
-    read_only_snippet_template = '<read_only_snippet index="{i}">\n<snippet_path>\n{snippet_denotation}\n</snippet_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    relevant_snippet_template = '# Relevant codebase snippets:\nHere are the relevant snippets from the codebase. These will be your primary reference to solve the problem:\n<snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</snippet>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     joined_relevant_snippets = "\n".join(
         relevant_snippet_template.format(
             i=i,
-            snippet_denotation=snippet.denotation,
+            file_path=snippet.file_path,
             content=snippet.expand(300).get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
@@ -248,11 +239,11 @@ def get_files_to_change(
     joined_relevant_read_only_snippets = "\n".join(
         read_only_snippet_template.format(
             i=i,
-            snippet_denotation=snippet.denotation,
+            file_path=snippet.file_path,
             content=snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(read_only_snippets)
     )
-    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>" if read_only_snippets else ""
     messages.append(
         Message(
             role="user",
@@ -276,11 +267,21 @@ def get_files_to_change(
                 key="graph_text",
             )
         )
-
+    # previous_diffs = get_previous_diffs(
+    #     problem_statement,
+    #     cloned_repo=cloned_repo,
+    #     relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
+    # )
+    # messages.append( # temporarily disable in main
+    #     Message(
+    #         role="user",
+    #         content=previous_diffs,
+    #     )
+    # )
     messages.append(
         Message(
             role="user",
-            content=f"# Repo & Issue Metadata\nRepo: {repo_name}\nIssue: {problem_statement}",
+            content=f"# Issue\n<issue>\n{problem_statement}\n</issue>",
         )
     )
     if pr_diffs:
