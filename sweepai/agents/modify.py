@@ -450,9 +450,9 @@ def create_user_message(
                 continue
             relevant_file_paths_string += f"\n\n<relevant_module filename=\"{relevant_file_path}\">\n{cloned_repo.get_file_contents(file_path=relevant_file_path)}\n</relevant_module>"
         relevant_file_paths_string = f"<relevant_files>\n{relevant_file_paths_string}\n</relevant_files>"
-        combined_request_message.replace("{relevant_files}", f'\nHere are some relevant modules, such as useful helper functions for resolving this issue. You likely will not need to edit these modules but may need to import them or understand their usage interface: {relevant_file_paths_string}\n')
+        combined_request_message = combined_request_message.replace("{relevant_files}", f'\nHere are some relevant modules, such as useful helper functions for resolving this issue. You likely will not need to edit these modules but may need to import them or understand their usage interface: {relevant_file_paths_string}\n')
     else:
-        combined_request_message.replace("{relevant_files}", "")
+        combined_request_message = combined_request_message.replace("{relevant_files}", "")
     user_message = f"<user_request>\n{request}\n</user_request>\n{combined_request_message}"
     return user_message
 
@@ -703,6 +703,7 @@ def handle_function_call(
         else:
             llm_response = NO_TOOL_CALL_PROMPT
     elif tool_name == "make_change":
+        breakpoint()
         error_message = ""
         for key in ["file_name", "original_code", "new_code"]:
             if key not in tool_call:
@@ -744,6 +745,7 @@ def handle_function_call(
                 # if the original_code couldn't be found in the chunk we need to let the llm know
                 if original_code not in file_contents and correct_indent == -1:
                     # TODO: add weighted ratio to the choices, penalize whitespace less
+                    breakpoint()
                     best_match, best_score = find_best_match(original_code, file_contents)
 
                     if best_score > 80:

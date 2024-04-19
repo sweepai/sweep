@@ -234,12 +234,13 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. Reference change locations using surrounding code or functions.
+Instructions for modifying one section of the file. Reference change locations using surrounding code or functions. Referenced code must be copied verbatim from the original file.
 Include relevant type definitions, interfaces, schemas.
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
+Instructions for modifying a different section of the same file. Referenced code must be copied verbatim from the original file.
+Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
 
 [additional modifies as needed, for the same file or different files]
