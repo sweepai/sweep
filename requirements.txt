@@ -613,6 +613,7 @@ traitlets==5.14.2
 tree-sitter==0.21.0
     # via tree-sitter-languages
 tree-sitter-languages==1.10.2
+tree-sitter-python==0.21.0
 trove-classifiers==2024.3.25
     # via poetry
 typer==0.10.0
