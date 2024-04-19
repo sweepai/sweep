@@ -49,7 +49,6 @@ from sweepai.config.server import (
     MONGODB_URI,
     PROGRESS_BASE_URL,
 )
-from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -1513,14 +1512,6 @@ def on_ticket(
                             all_information_prompt = f"While trying to address the user request:\n<user_request>\n{problem_statement}\n</user_request>\n{failed_gha_logs}\nThese are the changes that were previously made:\n<diffs>\n{diffs}\n</diffs>\n\nFix the failing logs."
                             
                             repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
-                            repo_context_manager = get_relevant_context(
-                                all_information_prompt,
-                                repo_context_manager,
-                                ticket_progress,
-                                chat_logger=chat_logger,
-                                import_graph=None,
-                                num_rollouts=1,
-                            )
                             sweep_bot: SweepBot = construct_sweep_bot(
                                 repo=repo,
                                 repo_name=repo_name,
