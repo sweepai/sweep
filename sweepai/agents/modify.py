@@ -326,7 +326,7 @@ def find_best_match(needle: str, haystack: str, threshold: int = 80):
         return best_match, best_score
     return "", 0
 
-MODEL = "claude-3-opus-20240229"
+MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call_openai(
     function_calls_string: str, chat_gpt: ChatGPT
