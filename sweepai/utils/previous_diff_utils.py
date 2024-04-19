@@ -19,17 +19,16 @@ Steps:
     - Example: If the current issue involves adding a filter to hide deleted posts, a similar feature might be adding a filter to hide deleted users.
 - Compose a high-quality search query designed to locate the commit that implemented the identified similar feature.
 - The search query should be specific and targeted, using relevant keywords and phrases to narrow down the search results effectively.
-- Provide a Chain of Thought (COT) block that outlines the reasoning behind the selected similar feature and the thought process used to create the search query.
+- Provide an analysis that outlines the reasoning behind the selected similar feature and the thought process used to create the search query.
 - Present the final search query within XML blocks to ensure it is clearly distinguishable and easy to extract.
 
 Format:
-Chain of Thought (COT):
-<cot>
+<analysis>
 The COT block should include:
 An explanation of why the identified feature is considered the most similar to the current issue.
 A breakdown of the key components and considerations used to construct the search query.
 Any assumptions made or additional information that could help refine the search query.
-</cot>
+</analysis>
 
 Final Search Query:
 <query>
@@ -67,7 +66,7 @@ generate_query_user_prompt = """<relevant_files>
 commit_selection_format_prompt = """Respond in the following format. First think step-by-step, then select any commits to show to the engineer. You don't want to overload the engineer with noise so only pick commits containing code that would be very similar to the final implementation.
 
 <thinking>
-Summarize each commit and the issue and think step-by-step. Then determine which commits contain code that would be very similar to the final implementation for this current feature, as well as which files from each commit contains relevant information
+Summarize each commit and the issue and think step-by-step. Then determine which commits contain code that would be very similar to the final implementation for this current feature, as well as which files from each commit contains relevant information. Avoid adding files with large diffs that are not relevant to the current feature.
 </thinking>
 
 <selected_commits>
@@ -176,16 +175,17 @@ def query_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_pa
     top_documents = [last_commits[index].message + last_commits[index].diff for index in top_indices]
     embed_index_to_rerank_index = {rank_index: actual_index for rank_index, actual_index in enumerate(top_indices)}
 
+    NUM_DIFFS = 5
     try:
         response = cohere_rerank_call(enhanced_query, top_documents)
         commits = []
-        for document in response.results[:3]:
+        for document in response.results[:NUM_DIFFS]:
             index = embed_index_to_rerank_index[document.index]
             commit = last_commits[index]
             commits.append(commit)
     except Exception as e:
         print(e)
-        commits = [last_commits[index] for index in top_indices[:3]]
+        commits = [last_commits[index] for index in top_indices[:NUM_DIFFS]]
 
     return commits
 
