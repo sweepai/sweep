@@ -1,4 +1,5 @@
 import copy
+from math import inf
 import os
 
 from rapidfuzz import fuzz, process
@@ -198,18 +199,23 @@ No function calls were made or your last function call was incorrectly formatted
 
 Here is an example:
 
-<function_call>
-<invoke>
-<tool_name>analyze_problem_and_propose_plan</tool_name>
+<tool_description>
+<tool_name>submit_task</tool_name>
+<description>
+Indicate that the current task is complete.
+</description>
 <parameters>
-<problem_analysis>The problem analysis goes here</problem_analysis>
-<proposed_plan>The proposed plan goes here</proposed_plan>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Summarize the code changes made and explain how they fulfill the user's original request.
+</description>
+</parameter>
 </parameters>
-</invoke>
-</function_call>
+</tool_description>
 
-If the current task is complete, call the submit_task function.
-"""
+If the current task is complete, call the submit_task function."""
 
 NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
@@ -247,7 +253,7 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
-SELF_REVIEW_PROMPT = """First, review and critique the change(s) you have made. Perform the following:
+self_review_prompt = """First, review and critique the change(s) you have made. Consider the following points:
 
 1. Analyze code patch and indicate:
    - Purpose and impact of each change
@@ -269,7 +275,13 @@ SELF_REVIEW_PROMPT = """First, review and critique the change(s) you have made. 
    - Suggest fixes for problems
 3. Be extremely critical. Do not overlook ANY issues.
 
-Then, determine if the changes are correct and complete. If you are satisfied with the changes, call the submit_task function to move onto the next task. If you would like to continue making changes, continue by calling make_changes."""
+Limit the scope of the critique to the current task, which is:
+
+{current_task}
+
+Then, determine if the changes are correct and complete.
+
+If the changes are complete and correct, call the submit_task function to move onto the next task. Otherwise, call make_changes to continue making changes."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -419,7 +431,10 @@ def create_user_message(
         files_to_modify_string += files_to_modify_messages[fcr.filename]
         already_added_files.add(fcr.filename)
 
-    deduped_file_names = list(set([fcr.filename for fcr in fcrs]))
+    deduped_file_names = []
+    for fcr in fcrs:
+        if fcr.filename not in deduped_file_names:
+            deduped_file_names.append(fcr.filename)
     combined_request_message = combined_request_unformatted \
         .replace("{files_to_modify}", files_to_modify_string.lstrip('\n')) \
         .replace("{files_to_modify_list}", english_join(deduped_file_names)) \
@@ -756,7 +771,46 @@ def handle_function_call(
                 # before we apply changes make sure original_code is unique inside current_chunk
                 current_chunk_occurences = file_contents.count(original_code)
                 if current_chunk_occurences > 1:
-                    error_message = f"The original_code is not unique in the file {file_name}. It appears {current_chunk_occurences} times! original_code MUST be unique, add some more lines for context!"
+                    if current_chunk_occurences * len(original_code.split("\n")) < 50:
+                        # We start by setting original_code_lines with indentation fixed. Sometimes the model forgets to indent the first line.
+
+                        # INDENTATION FIX START #
+                        start_line = -1
+                        min_diff = inf
+                        file_contents_lines = file_contents.split("\n")
+                        for index, _line in enumerate(file_contents_lines):
+                            if all(original_line.lstrip() == file_contents_line.lstrip() for original_line, file_contents_line in zip(original_code_lines, file_contents_lines[index:index + len(original_code_lines)])):
+                                # if abs(len(line) - len(first_line)) < min_diff:
+                                current_diff = sum(abs(len(original_line) - len(file_contents_line)) for original_line, file_contents_line in zip(original_code_lines, file_contents_lines[index:index + len(original_code_lines)]))
+                                if current_diff < min_diff:
+                                    min_diff = current_diff
+                                    start_line = index
+                                    if min_diff == 0:
+                                        break
+
+                        if start_line == -1:
+                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                            break
+                            
+                        original_code_lines = file_contents_lines[start_line:start_line + len(original_code_lines)]
+                        # INDENTATION FIX END #
+
+                        # Then we find all the matches and their surrounding lines.
+                        matches = []
+                        surrounding_lines = 5
+
+                        for i in range(len(file_contents_lines)):
+                            if "\n".join(original_code_lines) == "\n".join(file_contents_lines[i:i + len(original_code_lines)]):
+                                match_ = "\n".join(file_contents_lines[max(0, i - surrounding_lines):i])
+                                match_ += "\n" + "===== START =====" + "\n"
+                                match_ += "\n".join(file_contents_lines[i:i + len(original_code_lines)])
+                                match_ += "\n" + "===== END =====" + "\n"
+                                match_ += "\n".join(file_contents_lines[i + len(original_code_lines):i + len(original_code_lines) + surrounding_lines])
+                                matches.append(match_)
+
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
+                    else:
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
                     break
 
                 # apply changes
@@ -780,6 +834,8 @@ def handle_function_call(
                         break
                     elif check_results_message:
                         warning_message = check_results_message
+                        if "undefined variable" in warning_message.lower():
+                            warning_message += "\n\nDouble check that the newly used variables are defined."
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
         if not error_message:
@@ -793,7 +849,10 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
-            llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{SELF_REVIEW_PROMPT}"
+            if warning_message:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+            else:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
             modify_files_dict[file_name]['contents'] = new_file_contents
     elif tool_name == "create_file":
         error_message = ""
