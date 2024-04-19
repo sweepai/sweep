@@ -204,6 +204,7 @@ Please use the following XML format for your response:
 # Issue Analysis:
 <issue_analysis>
 * Identify the root cause of the issue by referencing specific code entities in the relevant files.
+* Identify a similar existing feature and describe how it has been implemented in extreme detail. 
 * Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories. Be complete.
 List ALL files we should modify to resolve the issue in the following format:
 - File path 1: Detailed instructions for modifying the file
@@ -294,7 +295,11 @@ Please use the following XML format for your response:
 
 # Issue Analysis:
 <issue_analysis>
-Identify the root cause of the issue referencing specific code in the relevant files. Identify a similar existing feature and describe how it has been implemented in extreme detail. Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
+Identify the root cause of the issue referencing specific code in the relevant files.
+
+Identify a similar existing feature and describe how it has been implemented in extreme detail. 
+
+Outline ALL changes needed to resolve the user's request, referencing provided code snippets, entity names, and necessary files/directories. 
 
 List ALL files to modify:
 - File path 1: Outline of changes 

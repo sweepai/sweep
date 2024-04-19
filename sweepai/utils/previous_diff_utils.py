@@ -33,7 +33,25 @@ Any assumptions made or additional information that could help refine the search
 
 Final Search Query:
 <query>
-Insert the final natural language search query here, ensuring it is specific, targeted, and includes relevant keywords and phrases to effectively narrow down the search results. It should be a question. Do not reference files.
+Insert the final natural language search query here, ensuring it is specific, targeted, and includes relevant keywords and phrases to effectively narrow down the search results. It should be a command starting with "Find the commit that...". Do NOT reference any files.
+</query>
+
+Note: The example provided below is for illustration purposes only. When using this prompt, focus on the actual input issue and codebase to identify the most relevant similar feature and craft an appropriate search query.
+
+Example:
+
+Current Issue: Implement a feature to allow users to mark comments as spoilers, hiding the content until clicked.
+
+Chain of Thought (COT):
+<cot>
+The most similar existing feature to marking comments as spoilers is the implementation of the "Show/Hide" functionality for sensitive content in posts. This feature allows users to hide sensitive content behind a warning message, requiring a click to reveal the hidden content.
+
+To search for the commit that implemented this feature, the query should reference specific entities such as the "Post" and "Content" models, as well as relevant actions like "hide," "show," "click," and "reveal." Additionally, mentioning the "warning message" and the "sensitive" nature of the content can help pinpoint the desired commit more accurately.
+</cot>
+
+Final Search Query:
+<query>
+Find the commit that introduced the functionality to hide sensitive content within a Post entity behind a warning message, allowing users to click and reveal the hidden Post.Content, similar to a "spoiler" feature for comments.
 </query>"""
 
 generate_query_user_prompt = """<relevant_files>
@@ -125,7 +143,7 @@ def generate_query(query: str, cloned_repo: ClonedRepo, relevant_file_path: list
     )
     response = chatgpt.chat_anthropic(
         user_message,
-        model="claude-3-sonnet-20240229",
+        model="claude-3-opus-20240229", # Sonnet doesn't work well with this prompt
     )
     match_ = re.search(r"<query>(.*?)</query>", response, re.DOTALL)
     if match_:
@@ -133,7 +151,6 @@ def generate_query(query: str, cloned_repo: ClonedRepo, relevant_file_path: list
     else:
         return query
 
-@file_cache()
 def query_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_paths: list[str]) -> list[Commit]:
     # only get git blames of the file
     last_commits = []
@@ -183,7 +200,7 @@ def get_relevant_commits(query: str, cloned_repo: ClonedRepo, relevant_file_path
     )
     response = chatgpt.chat_anthropic(
         user_prompt,
-        model="claude-3-sonnet-20240229",
+        model="claude-3-opus-20240229", # Sonnet fails at this task
     )
     commits_pattern = re.compile(r"<commit>\s*?<sha>(?P<sha>.*?)</sha>\s*?<file_paths>\s*?(?P<file_paths>.*?)\s*?</file_paths>\s*?</commit>", re.DOTALL)
     result_str = ""
