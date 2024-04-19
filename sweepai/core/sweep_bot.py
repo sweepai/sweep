@@ -273,12 +273,12 @@ def get_files_to_change(
         cloned_repo=cloned_repo,
         relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
     )
-    messages.append(
-        Message(
-            role="user",
-            content=previous_diffs,
-        )
-    )
+    # messages.append( # temporarily disable in main
+    #     Message(
+    #         role="user",
+    #         content=previous_diffs,
+    #     )
+    # )
     messages.append(
         Message(
             role="user",
