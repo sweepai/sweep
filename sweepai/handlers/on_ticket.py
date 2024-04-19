@@ -49,7 +49,6 @@ from sweepai.config.server import (
     MONGODB_URI,
     PROGRESS_BASE_URL,
 )
-from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
