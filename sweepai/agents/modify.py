@@ -697,7 +697,7 @@ def handle_function_call(
         for fcr in llm_state["fcrs"]:
             if not fcr.is_completed:
                 fcr.is_completed = True
-                llm_response = f"SUCCESS\n\nThe current task is complete. Please move on to the next task. {llm_state['current_task']}"
+                llm_response = f"SUCCESS\n\nThe current task is complete. Please move on to the next task. {render_next_task(llm_state['fcrs'])}"
                 break
         
         if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
