@@ -629,12 +629,13 @@ def modify(
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
-            chat_logger.add_chat(
-                {
-                    "model": chat_gpt.model,
-                    "messages": detailed_chat_logger_messages,
-                    "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
-                })
+            if chat_logger is not None:
+                chat_logger.add_chat(
+                    {
+                        "model": chat_gpt.model,
+                        "messages": detailed_chat_logger_messages,
+                        "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
+                    })
             break
     # before we return clean up modify files dict by removing any files with no changes
     files_to_remove = []
