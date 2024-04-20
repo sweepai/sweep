@@ -45,7 +45,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
-    MERGE_CONFLICT_ENABLED,
 )
 from sweepai.core.entities import PRChangeRequest
 from sweepai.global_threads import global_threads
@@ -61,10 +60,7 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_jira_ticket import handle_jira_ticket
-from sweepai.handlers.on_merge import on_merge
-from sweepai.handlers.on_merge_conflict import on_merge_conflict
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.handlers.pr_utils import make_pr
 from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import (
     Button,
@@ -239,12 +235,6 @@ def call_on_comment(
         thread = threading.Thread(target=worker, name=key)
         thread.start()
         global_threads.append(thread)
-
-
-def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
-    thread.start()
-    global_threads.append(thread)
 
 
 @app.get("/health")
@@ -503,50 +493,6 @@ def handle_event(request_dict, event):
                                 tracking_id=tracking_id,
                                 commit_hash=pr.head.sha,
                             )
-                elif (
-                    request.check_run.check_suite.head_branch == repo.default_branch
-                    and get_gha_enabled(repo)
-                    and GHA_AUTOFIX_ENABLED
-                ):
-                    if request.check_run.conclusion == "failure":
-                        commit = repo.get_commit(request.check_run.head_sha)
-                        attributor = request.sender.login
-                        if attributor.endswith("[bot]"):
-                            attributor = commit.author.login
-                        if attributor.endswith("[bot]"):
-                            return {
-                                "success": False,
-                                "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
-                            }
-                        logs = download_logs(
-                            request.repository.full_name,
-                            request.check_run.run_id,
-                            request.installation.id,
-                        )
-                        logs, user_message = clean_gh_logs(logs)
-                        chat_logger = ChatLogger(
-                            data={
-                                "username": attributor,
-                                "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
-                            }
-                        )
-                        if chat_logger.use_faster_model() and not IS_SELF_HOSTED:
-                            return {
-                                "success": False,
-                                "error_message": "Disabled for free users",
-                            }
-                        make_pr(
-                            title=f"[Sweep GHA Fix] Fix the failing GitHub Actions on {request.check_run.head_sha[:7]} ({repo.default_branch})",
-                            repo_description=repo.description,
-                            summary=f"The GitHub Actions run failed with the following error logs:\n\n```\n{logs}\n```",
-                            repo_full_name=request_dict["repository"]["full_name"],
-                            installation_id=request_dict["installation"]["id"],
-                            user_token=None,
-                            use_faster_model=chat_logger.use_faster_model(),
-                            username=attributor,
-                            chat_logger=chat_logger,
-                        )
-
             case "pull_request", "opened":
                 _, g = get_github_client(request_dict["installation"]["id"])
                 repo = g.get_repo(request_dict["repository"]["full_name"])
@@ -575,34 +521,6 @@ def handle_event(request_dict, event):
                         buttons=rule_buttons, title=RULES_TITLE
                     )
                     pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
-
-                if pr.mergeable is False and MERGE_CONFLICT_ENABLED:
-                    attributor = pr.user.login
-                    if attributor.endswith("[bot]"):
-                        attributor = pr.assignee.login
-                    if attributor.endswith("[bot]"):
-                        return {
-                            "success": False,
-                            "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
-                        }
-                    chat_logger = ChatLogger(
-                        data={
-                            "username": attributor,
-                            "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
-                        }
-                    )
-                    if chat_logger.use_faster_model() and not IS_SELF_HOSTED:
-                        return {
-                            "success": False,
-                            "error_message": "Disabled for free users",
-                        }
-                    on_merge_conflict(
-                        pr_number=pr.number,
-                        username=attributor,
-                        repo_full_name=request_dict["repository"]["full_name"],
-                        installation_id=request_dict["installation"]["id"],
-                        tracking_id=get_hash(),
-                    )
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
@@ -1107,72 +1025,6 @@ def handle_event(request_dict, event):
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})
-            case "push", None:
-                if event != "pull_request" or request_dict["base"]["merged"] is True:
-                    chat_logger = ChatLogger(
-                        {"username": request_dict["pusher"]["name"]}
-                    )
-                    # on merge
-                    call_on_merge(request_dict, chat_logger)
-                    ref = request_dict["ref"] if "ref" in request_dict else ""
-                    if ref.startswith("refs/heads") and not ref.startswith(
-                        "ref/heads/sweep"
-                    ):
-                        _, g = get_github_client(request_dict["installation"]["id"])
-                        repo = g.get_repo(request_dict["repository"]["full_name"])
-                        if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
-                            update_sweep_prs_v2(
-                                request_dict["repository"]["full_name"],
-                                installation_id=request_dict["installation"]["id"],
-                            )
-                    if ref.startswith("refs/heads"):
-                        branch_name = ref[len("refs/heads/") :]
-                        # Check if the branch has an associated PR
-
-                        org_name, repo_name = request_dict["repository"][
-                            "full_name"
-                        ].split("/")
-                        pulls = repo.get_pulls(
-                            state="open",
-                            sort="created",
-                            head=org_name + ":" + branch_name,
-                        )
-                        for pr in pulls:
-                            logger.info(
-                                f"PR associated with branch {branch_name}: #{pr.number} - {pr.title}"
-                            )
-                            if pr.mergeable is False and MERGE_CONFLICT_ENABLED:
-                                attributor = pr.user.login
-                                if attributor.endswith("[bot]"):
-                                    attributor = pr.assignee.login
-                                if attributor.endswith("[bot]"):
-                                    return {
-                                        "success": False,
-                                        "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
-                                    }
-                                chat_logger = ChatLogger(
-                                    data={
-                                        "username": attributor,
-                                        "title": "[Sweep GHA Fix] Fix the failing GitHub Actions",
-                                    }
-                                )
-                                if (
-                                    chat_logger.use_faster_model()
-                                    and not IS_SELF_HOSTED
-                                ):
-                                    return {
-                                        "success": False,
-                                        "error_message": "Disabled for free users",
-                                    }
-                                on_merge_conflict(
-                                    pr_number=pr.number,
-                                    username=pr.user.login,
-                                    repo_full_name=request_dict["repository"][
-                                        "full_name"
-                                    ],
-                                    installation_id=request_dict["installation"]["id"],
-                                    tracking_id=get_hash(),
-                                )
             case "ping", None:
                 return {"message": "pong"}
             case _:
