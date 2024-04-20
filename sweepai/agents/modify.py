@@ -377,7 +377,7 @@ def validate_and_parse_function_call(
         )
     return function_calls[0] if len(function_calls) > 0 else None
 
-def create_user_message( # has non-deterministic behavior
+def create_user_message( # TODO: has non-deterministic behavior
         fcrs: list[FileChangeRequest],
         request: str,
         cloned_repo: ClonedRepo,
