@@ -179,6 +179,183 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
+# add two newlines
+files_to_change_example = """
+
+Here is an example issue and output to illustrate the desired format:
+
+<example>
+# Issue
+<issue>
+The product list page is displaying all products in one long list. Update it to paginate the results, showing 10 products per page with next/previous navigation links. The pagination should be done on the client-side by updating the necessary React components and Redux store.
+</issue>
+
+<example_output>
+<issue_analysis>
+The current implementation of the product list page has the following issues:
+
+1. All products are displayed on a single page.
+   - This can lead to slow load times, especially for large product catalogs.
+   - Users have to scroll through a long list to browse products.
+   - There is no way to navigate to different subsets of products.
+
+2. The ProductList component in src/components/ProductList.js renders the entire list of products passed to it.
+   - It needs to be updated to only render the products for the current page.
+   - Pagination navigation links need to be added to allow users to switch between pages.
+
+3. The ProductsContainer in src/containers/ProductsContainer.js fetches all products in the componentDidMount lifecycle method.
+   - It should be updated to keep track of the current page number in the component's state.
+   - When the page changes (by clicking on a pagination link), it should update the current page in the state.
+
+4. The products reducer in src/reducers/productReducer.js stores the fetched products in the state.
+   - It should be updated to store the current page number.
+   - When the products are fetched successfully, it should update the products and current page in the state.
+
+To implement client-side pagination, the following changes are needed:
+
+- src/components/ProductList.js:
+  - Modify to render pagination links and display only the products for the current page.
+- src/containers/ProductsContainer.js:
+  - Update to keep track of the current page in its state.
+  - Pass the current page to the ProductList component.
+  - Update the current page in the state when the page changes.
+- src/reducers/productReducer.js:
+  - Update to store the current page number in the state.
+  - Handle the fetched products and update the current page in the state.
+
+By making these changes, the product list page will be paginated on the client-side, showing only a limited number of products per page. Users can navigate between pages using the pagination links. This improves the user experience for browsing large product catalogs.
+
+The pagination will be implemented purely on the client-side by updating the necessary React components and Redux store. The server-side API endpoint for fetching products will remain unchanged.
+</issue_analysis>
+
+<plan>
+<modify file="src/components/ProductList.js">
+Import the Link component from react-router-dom:
+```js
+import { Link } from 'react-router-dom';
+```
+
+Add `currentPage` and `totalPages` props to the component:
+```js
+const ProductList = ({ products, onAddToCart, currentPage, totalPages }) => (
+```
+
+Update the PropTypes definition to include `currentPage` and `totalPages`:
+```js
+ProductList.propTypes = {
+  products: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      title: PropTypes.string.isRequired,
+      price: PropTypes.number.isRequired,
+    })
+  ).isRequired,
+  onAddToCart: PropTypes.func.isRequired,
+  currentPage: PropTypes.number.isRequired,
+  totalPages: PropTypes.number.isRequired,
+};
+```
+
+Add pagination navigation links before the closing `</div>`:
+```js
+<div className="pagination">
+  {currentPage > 1 && (
+    <Link to={`/products?page=${currentPage - 1}`}>Previous</Link>
+  )}
+  <span>{currentPage}</span>
+  {currentPage < totalPages && (
+    <Link to={`/products?page=${currentPage + 1}`}>Next</Link>
+  )}
+</div>
+```
+This renders "Previous" and "Next" links that navigate to the corresponding page. The links are conditionally rendered based on the current page number.
+</modify>
+
+<modify file="src/containers/ProductsContainer.js">
+Add `currentPage` to the component state in the constructor:
+```js
+constructor(props) {
+  super(props);
+  this.state = {
+    currentPage: 1,
+  };
+}
+```
+
+Add a `componentDidUpdate` method to update the current page when the URL changes:
+```js
+componentDidUpdate(prevProps) {
+  const { location } = this.props;
+  const { search } = location;
+  const query = new URLSearchParams(search);
+  const page = parseInt(query.get('page'), 10) || 1;
+
+  if (prevProps.location.search !== search) {
+    this.setState({ currentPage: page });
+  }
+}
+```
+This method compares the current URL search params with the previous ones. If the "page" query param has changed, it updates the `currentPage` state.
+
+Calculate the `totalPages` based on the number of products and pass it along with the `currentPage` state to the `ProductList` component:
+```js
+render() {
+  const { products } = this.props;
+  const { currentPage } = this.state;
+  const totalPages = Math.ceil(products.length / 10);
+
+  const startIndex = (currentPage - 1) * 10;
+  const endIndex = startIndex + 10;
+  const currentProducts = products.slice(startIndex, endIndex);
+
+  return (
+    <div>
+      <h2>Products</h2>
+      <ProductList
+        products={currentProducts}
+        onAddToCart={this.props.addToCart}
+        currentPage={currentPage}
+        totalPages={totalPages}
+      />
+    </div>
+  );
+}
+```
+This calculates the `totalPages` based on the number of products and passes it to the `ProductList` component. It also slices the `products` array to get the products for the current page.
+</modify>
+
+<modify file="src/reducers/productReducer.js">
+Add a `currentPage` field to the initial state:
+```js
+const initialState = {
+  items: [],
+  currentPage: 1,
+  loading: false,
+  error: null,
+};
+```
+
+Update the `FETCH_PRODUCTS_SUCCESS` case in the reducer to set the `currentPage` to 1:
+```js
+case FETCH_PRODUCTS_SUCCESS:
+  return {
+    ...state,
+    loading: false,
+    items: action.payload,
+    currentPage: 1,
+  };
+```
+This ensures that when the products are fetched successfully, the current page is reset to 1.
+</modify>
+</plan>
+
+<relevant_modules>
+src/actions/types.js
+src/store.js
+</relevant_modules>
+</example_output>
+<example>"""
+
 files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code snippets, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code snippets in your plan.
 Give detailed natural language instructions and explanations the intern can follow to write the code themselves. Organize the steps logically and break them into small, manageable tasks.
@@ -234,12 +411,13 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. Reference change locations using surrounding code or functions.
+Instructions for modifying one section of the file. If you reference specific lines of code, code must be copied VERBATIM from the file. Never paraphrase code or comments.
 Include relevant type definitions, interfaces, schemas.
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
+Instructions for modifying a different section of the same file. If you reference specific lines of code, code must be copied VERBATIM from the file. Never paraphrase code or comments.
+Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
 
 [additional modifies as needed, for the same file or different files]
@@ -247,7 +425,8 @@ Instructions for modifying a different section of the same file. Use multiple <m
 
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>"""
+</relevant_modules>""" # + files_to_change_example TODO: test separately
+
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
