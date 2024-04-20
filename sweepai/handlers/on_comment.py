@@ -17,7 +17,6 @@ from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
 )
-from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException
 from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 from sweepai.handlers.on_review import get_pr_diffs
@@ -270,12 +269,6 @@ def on_comment(
                     formatted_query = (f"{comment}").strip("\n")
                     repo_context_manager = prep_snippets(
                         cloned_repo, search_query, TicketProgress(tracking_id="none")
-                    )
-                    repo_context_manager = get_relevant_context(
-                        formatted_query,
-                        repo_context_manager,
-                        TicketProgress(tracking_id="none"),
-                        chat_logger=chat_logger,
                     )
                     snippets = repo_context_manager.current_top_snippets
                     tree = str(repo_context_manager.dir_obj)

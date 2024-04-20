@@ -9,7 +9,6 @@ from sweepai.config.client import (
     get_documentation_dict,
 )
 from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
-from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import NoFilesException, SandboxResponse
 from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 
@@ -48,11 +47,6 @@ def make_pr(
     search_query = (title + summary).strip("\n")
     formatted_query = (f"{title.strip()}\n{summary.strip()}").strip("\n")
     repo_context_manager = prep_snippets(cloned_repo, search_query)
-    repo_context_manager = get_relevant_context(
-        formatted_query,
-        repo_context_manager,
-        chat_logger=chat_logger,
-    )
     snippets = repo_context_manager.current_top_snippets
     tree = str(repo_context_manager.dir_obj)
     message_summary = summary

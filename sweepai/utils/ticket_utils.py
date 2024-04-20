@@ -53,6 +53,7 @@ suffix_adjustment = {
     ".1": 0.5, # man pages
     ".spec.ts": 0.6,
     ".spec.js": 0.6,
+    ".test.ts": 0.6,
     ".generated.ts": 0.5,
     ".generated.graphql": 0.5,
     ".generated.js": 0.5,
@@ -62,6 +63,7 @@ suffix_adjustment = {
 substring_adjustment = {
     "tests/": 0.5,
     "test_": 0.5,
+    "test/": 0.5,
     "_test": 0.5,
     "egg-info": 0.5,
     "LICENSE": 0.5,
@@ -72,7 +74,7 @@ def apply_adjustment_score(
     old_score: float,
 ):
     snippet_score = old_score
-    file_path, *_ = snippet.split(":")
+    file_path, *_ = snippet.rsplit(":", 1)
     file_path = file_path.lower()
     for prefix, adjustment in prefix_adjustment.items():
         if file_path.startswith(prefix):
