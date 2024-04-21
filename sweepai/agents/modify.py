@@ -645,6 +645,14 @@ def modify(
     for file_name in files_to_remove:
         modify_files_dict.pop(file_name)
         logger.info(f"Removed file {file_name} from modify_files_dict as it had no changes.")
+    # logging start
+    diff_string = ""
+    for file_name, file_data in modify_files_dict.items():
+        diff = generate_diff(file_data['original_contents'], file_data['contents'])
+        if diff:
+            diff_string += f"\nChanges made to {file_name}:\n{diff}"
+    logger.info(diff_string)
+    # logging end
     return modify_files_dict
 
 
