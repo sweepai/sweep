@@ -437,7 +437,7 @@ def on_ticket(
     tracking_id: str | None = None,
 ):
     if not os.environ.get("CLI"):
-        assert validate_license()
+        assert validate_license(), "License key is invalid or expired. Please contact us at team@sweep.dev to upgrade to an enterprise license."
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
