@@ -333,7 +333,6 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1
         )
-        breakpoint()
         if chat_logger:
             chat_logger.add_chat(
                 {
