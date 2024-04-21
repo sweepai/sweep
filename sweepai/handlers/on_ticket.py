@@ -66,6 +66,7 @@ from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_check_suite import clean_gh_logs
+from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -435,6 +436,8 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
+    if not os.environ.get("CLI"):
+        assert validate_license()
     with logger.contextualize(
         tracking_id=tracking_id,
     ):

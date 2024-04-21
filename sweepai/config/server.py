@@ -248,3 +248,5 @@ DEPLOYMENT_GHA_ENABLED = os.environ.get("DEPLOYMENT_GHA_ENABLED", "true").lower(
 JIRA_USER_NAME = os.environ.get("JIRA_USER_NAME", None)
 JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", None)
 JIRA_URL = os.environ.get("JIRA_URL", None)
+
+LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
