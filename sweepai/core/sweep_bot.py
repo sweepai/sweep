@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
+from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
 from sweepai.core.context_pruning import generate_import_graph_text
 from sweepai.core.entities import (
@@ -218,17 +219,27 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</snippet>'
+    relevant_snippet_template = '<file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    joined_relevant_snippets = "\n".join(
-        relevant_snippet_template.format(
-            i=i,
-            file_path=snippet.file_path,
-            content=snippet.expand(300).get_snippet(add_lines=False),
-        ) for i, snippet in enumerate(relevant_snippets)
-    )
-    relevant_snippets_message = f"# Relevant codebase snippets:\nHere are the relevant snippets from the codebase. These will be your primary reference to solve the problem:\n\n<relevant_snippets>\n{joined_relevant_snippets}\n</relevant_snippets>"
+    if not context:
+        formatted_relevant_snippets = [relevant_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=get_annotated_source_code(snippet.get_snippet(add_lines=False), problem_statement, snippet.file_path),
+            ) for i, snippet in enumerate(relevant_snippets)]
+        joined_relevant_snippets = "\n".join(
+            formatted_relevant_snippets
+        )
+    else:
+        joined_relevant_snippets = "\n".join(
+            relevant_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=snippet.expand(300).get_snippet(add_lines=False),
+            ) for i, snippet in enumerate(relevant_snippets)
+        )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
             role="user",
@@ -243,14 +254,15 @@ def get_files_to_change(
             content=snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(read_only_snippets)
     )
-    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>" if read_only_snippets else ""
-    messages.append(
-        Message(
-            role="user",
-            content=read_only_snippets_message,
-            key="relevant_snippets",
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    if read_only_snippets:
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippets_message,
+                key="relevant_snippets",
+            )
         )
-    )
 
     if import_graph:
         sub_graph = import_graph.subgraph(
@@ -282,7 +294,7 @@ def get_files_to_change(
     messages.append(
         Message(
             role="user",
-            content=f"# Issue\n<issue>\n{problem_statement}\n</issue>",
+            content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
         )
     )
     if pr_diffs:
@@ -309,6 +321,7 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1
         )
+        breakpoint()
         if chat_logger:
             chat_logger.add_chat(
                 {
