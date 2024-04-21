@@ -202,7 +202,6 @@ Guidelines:
 - Provide clear instructions for updating the code, specifying necessary imports
 - Be specific and direct, using the phrases "add", "replace", and "remove".
 - Reference relevant type definitions, interfaces, and schemas 
-- Avoid line numbers and instead reference code locations using surrounding code or function names
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
@@ -215,17 +214,17 @@ Please use the following XML format for your response:
 <issue_analysis>
 a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
 
-b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete. (1 paragraph)
+b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
-c. List ALL files we should modify to resolve the issue in the following format:
-  - File path 1: Detailed instructions for modifying the file
-      a. First change to make in the file
-      b. Second change to make in the file
-      c. Continue listing all changes that need to be made. Be complete.
-  - File path 2: Detailed instructions for modifying the file
-      a. First change to make in the file  
-      b. Second change to make in the file
-      c. Continue listing all changes that need to be made. Be complete.
+c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+  - File path 1: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+  - File path 2: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
 
 d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:

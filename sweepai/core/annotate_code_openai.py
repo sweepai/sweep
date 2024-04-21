@@ -41,7 +41,7 @@ Describe what this block of code does as if you were explaining it to an junior 
 <code_annotation>
 - Information-dense explanation of each block of code.
 - This explanation may span over multiple lines.
-</code_annotation>"""
+</code_annotation>""" # prompt can be optimized
 
 class AnnotateCodeBot(ChatGPT):
     def annotate_code(
@@ -117,14 +117,15 @@ def get_annotated_source_code(source_code: str, issue_text: str, file_path: str)
     ]
     pool.close()
     pool.join()
-
+    code_with_summaries = []
     for result in results:
         chunk_result = result.get()
         if chunk_result is not None:
             idx, formatted_code_content, formatted_annotation = chunk_result
-            code_with_summary = f"{formatted_code_content + formatted_annotation}"
+            code_with_summary = f"{formatted_annotation + formatted_code_content}"
             annotated_source_code = annotated_source_code.replace(code_contents[idx], code_with_summary)
-    return annotated_source_code
+            code_with_summaries.append(code_with_summary)
+    return annotated_source_code.strip("\n"), code_with_summaries
 
 if __name__ == '__main__':
     source_code = ""
