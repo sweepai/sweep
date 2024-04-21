@@ -130,4 +130,5 @@ def get_annotated_source_code(source_code: str, issue_text: str, file_path: str)
 if __name__ == '__main__':
     source_code = ""
     issue_text = ""
-    get_annotated_source_code(source_code, issue_text)
+    file_path = ""
+    get_annotated_source_code(source_code, issue_text, file_path)
