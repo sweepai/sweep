@@ -199,6 +199,7 @@ def get_files_to_change(
     seed: int = 0,
     context: bool = False,
 ) -> tuple[list[FileChangeRequest], str]:
+    assert len(relevant_snippets) > 0
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
