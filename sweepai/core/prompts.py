@@ -207,14 +207,16 @@ Guidelines:
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
-- To delete code, replace it with empty <new_code> tags.
+- To remove code, replace it with empty <new_code> tags.
 
 Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
 a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
-b. Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code files, entity names, and necessary files/directories. Be complete.
+
+b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete. (1 paragraph)
+
 c. List ALL files we should modify to resolve the issue in the following format:
   - File path 1: Detailed instructions for modifying the file
       a. First change to make in the file
@@ -225,6 +227,7 @@ c. List ALL files we should modify to resolve the issue in the following format:
       b. Second change to make in the file
       c. Continue listing all changes that need to be made. Be complete.
 [additional files as needed]
+
 d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
   - Type definitions, interfaces, and schemas
   - Helper functions
@@ -232,9 +235,6 @@ d. List ALL relevant read-only utility modules from the provided set and specify
   - Database services
   - API endpoints
   [additional relevant modules as needed]
-
-* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-[additional analysis as needed]
 </issue_analysis>
 
 # 2. Plan:
