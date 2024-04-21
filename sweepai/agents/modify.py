@@ -377,7 +377,7 @@ def validate_and_parse_function_call(
         )
     return function_calls[0] if len(function_calls) > 0 else None
 
-def create_user_message(
+def create_user_message( # TODO: has non-deterministic behavior
         fcrs: list[FileChangeRequest],
         request: str,
         cloned_repo: ClonedRepo,
@@ -385,7 +385,6 @@ def create_user_message(
         modify_files_dict: dict[str, dict[str, str]] = None
     ) -> str:
     current_fcr_index = [i for i, fcr in enumerate(fcrs) if not fcr.is_completed][0] if any([not fcr.is_completed for fcr in fcrs]) else 0
-    breakpoint()
     combined_request_unformatted = "{relevant_files}# Plan of Code Changes\n\nIn order to solve the user's request you will need to modify or create {files_to_modify_list}.{completed_prompt} Here are the instructions for the edits you need to make:\n\n<files_to_change>\n{files_to_modify}\n</files_to_change>"
     completed_prompt = "" if current_fcr_index == 0 else f" You have already completed {current_fcr_index} of the {len(fcrs)} required changes."
     if modify_files_dict:
@@ -630,12 +629,13 @@ def modify(
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
-            chat_logger.add_chat(
-                {
-                    "model": chat_gpt.model,
-                    "messages": detailed_chat_logger_messages,
-                    "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
-                })
+            if chat_logger is not None:
+                chat_logger.add_chat(
+                    {
+                        "model": chat_gpt.model,
+                        "messages": detailed_chat_logger_messages,
+                        "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
+                    })
             break
     # before we return clean up modify files dict by removing any files with no changes
     files_to_remove = []
@@ -692,7 +692,6 @@ def handle_function_call(
                 llm_response = "DONE"
             else:
                 llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
-        breakpoint()        
         for fcr in llm_state["fcrs"]:
             if not fcr.is_completed:
                 fcr.is_completed = True
@@ -747,16 +746,39 @@ def handle_function_call(
                 # check to see that the original_code is in the new_code by trying all possible indentations
                 correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                 # if the original_code couldn't be found in the chunk we need to let the llm know
+                
                 if original_code not in file_contents and correct_indent == -1:
                     # TODO: add weighted ratio to the choices, penalize whitespace less
-                    breakpoint()
                     best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
-
-                    # expand best_match to include surrounding lines
-                    
-
                     if best_score > 80:
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff:\n```\n{generate_diff(tool_call['original_code'], best_match, n=10)}\n```"
+                        # expand best_match to include surrounding lines
+                        best_match_index = file_contents.find(best_match)
+                        NUM_LINES_SURROUNDING = 6
+                        surrounding_lines_before = "\n"
+                        surrounding_lines_after = ""
+                        if best_match_index != -1:
+                            # OPUS START - this is a hacky way to get the surrounding lines, doesn't handle inline \n
+                            # Find the index of the fifth \n before the best_match_index
+                            best_match_start = max(0, file_contents.rfind("\n", 0, best_match_index))
+                            for _ in range(NUM_LINES_SURROUNDING - 1):
+                                best_match_start = max(0, file_contents.rfind("\n", 0, best_match_start))
+
+                            # Find the index of the fifth \n after the best_match_index
+                            best_match_end = best_match_index + len(best_match)
+                            for _ in range(NUM_LINES_SURROUNDING * 2): # 2x the number of lines surrounding after for now
+                                best_match_end = file_contents.find("\n", best_match_end + 1)
+                                if best_match_end == -1:
+                                    best_match_end = len(file_contents)
+                                    break
+                            # OPUS END
+                            surrounding_lines_before = file_contents[best_match_start:best_match_index]
+                            surrounding_lines_after = file_contents[best_match_index:best_match_end]
+
+                        first_diff_text = surrounding_lines_before + tool_call['original_code'] + surrounding_lines_after
+                        second_diff_text = surrounding_lines_before + best_match + surrounding_lines_after
+                        best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
+                        # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
 
@@ -767,7 +789,7 @@ def handle_function_call(
                         else:
                             # generate the diff between the original code and the current chunk to help the llm identify what it messed up
                             # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                            # WARNING: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
+                            # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
                             error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                     break
                 # ensure original_code and new_code has the correct indents

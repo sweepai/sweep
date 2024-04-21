@@ -425,7 +425,7 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>""" + files_to_change_example
+</relevant_modules>""" # + files_to_change_example TODO: test separately
 
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 

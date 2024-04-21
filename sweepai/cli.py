@@ -28,6 +28,7 @@ app = typer.Typer(
 )
 app_dir = typer.get_app_dir("sweepai")
 config_path = os.path.join(app_dir, "config.json")
+os.environ["CLI"] = "True"
 
 console = Console()
 cprint = console.print
@@ -44,7 +45,11 @@ def load_config():
         cprint(f"\nLoading configuration from {config_path}", style="yellow")
         with open(config_path, "r") as f:
             config = json.load(f)
-        os.environ.update(config)
+        for key, value in config.items():
+            try:
+                os.environ[key] = value
+            except Exception as e:
+                cprint(f"Error loading config: {e}, skipping.", style="yellow")
         os.environ["POSTHOG_DISTINCT_ID"] = str(os.environ.get("POSTHOG_DISTINCT_ID", ""))
         # Should contain:
         # GITHUB_PAT
