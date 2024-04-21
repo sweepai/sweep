@@ -372,7 +372,7 @@ Guidelines:
 - Reference relevant type definitions, interfaces, and schemas 
 - Avoid line numbers and instead reference code locations using surrounding code or function names
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
-- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
+- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes. When you make changes to function signatures, ensure you update the type definitions, interfaces, and all calls to the function accordingly. 
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
 
@@ -381,6 +381,7 @@ Please use the following XML format for your response:
 # Issue Analysis:
 <issue_analysis>
 * Identify the root cause of the issue by referencing specific code entities in the relevant files.
+* Identify the framework, stack and all relevant third-party libraries used in the project.
 * Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories. Be complete.
 List ALL files we should modify to resolve the issue in the following format:
 - File path 1: Detailed instructions for modifying the file
@@ -411,7 +412,7 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. If you reference specific lines of code, code must be copied VERBATIM from the file. Never paraphrase code or comments.
+Instructions for modifying one section of the file. If you reference specific lines of code, you must copy the code VERBATIM from the file. Then, write what the code should be updated to. Never paraphrase code or comments.
 Include relevant type definitions, interfaces, schemas.
 </modify>
 
@@ -425,7 +426,121 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>""" # + files_to_change_example TODO: test separately
+</relevant_modules>
+
+The following is an example of a high quality plan for illustrative purposes:
+
+<example>
+<input>
+I've been working on adding a soft deletion feature to the blog posts in my application. The idea is that when a post is "deleted", it's not actually removed from the database, but instead marked as deleted and then filtered out from display.
+
+I added a new `deleted` field to the `Post` model to track this:
+
+```js
+const postSchema = new Schema({
+  title: String,
+  content: String,
+  author: { 
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  deleted: {
+    type: Boolean, 
+    default: false
+  }
+}, {
+  timestamps: true
+});
+```
+
+And I updated the delete post endpoint to just flip this `deleted` flag to `true` instead of actually removing the post.
+
+The problem is, even after I "delete" a post through this endpoint, I still see the post when I fetch the list of all posts from the GET `/posts` API endpoint. 
+
+I expected the deleted post to no longer show up there, but for some reason it still does. I'm not sure if I'm missing something in how I'm querying for the posts or if there's some other issue.
+</input>
+<output>
+<issue_analysis>
+* The root cause of the issue appears to be that deleted posts are still showing up in the GET /posts API endpoint response from the Express backend. This is likely due to an issue with how deleted posts are filtered out.
+* The project uses an Express backend with a MongoDB database. Relevant libraries include mongoose for the MongoDB ODM and express for the web framework.
+* To resolve the issue, we will need to modify the following:
+- routes/posts.js: Update the GET /posts route handler to properly filter out deleted posts
+    - Modify the mongoose query to exclude posts where deleted is true
+- models/Post.js: Add a deleted field to the Post schema to track deletion status
+    - Add a deleted field with type Boolean and default false
+* Relevant utility modules to reference:
+- db.js: Contains the MongoDB connection logic using mongoose
+- models/Post.js: Contains the mongoose schema and model definition for posts
+- routes/index.js: Mounts the posts router at the /posts path
+* The <modify> block for routes/posts.js will update the API endpoint to filter out deleted posts, which is the core change needed to resolve the issue.
+* The <modify> block for models/Post.js will add the necessary deleted field to the schema so that post deletion status can be tracked.
+</issue_analysis>
+
+<plan>
+<modify file="models/Post.js">
+Add a `deleted` field to the Post schema to track whether a post has been soft deleted or not.
+
+Currently, the Post schema is defined as:
+
+```js
+const postSchema = new Schema({
+  title: String,
+  content: String,
+  author: { 
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }
+}, {
+  timestamps: true
+});
+```
+
+Update it to add the `deleted` field:
+
+```js
+const postSchema = new Schema({
+  title: String, 
+  content: String,
+  author: {
+    type: Schema.Types.ObjectId,  
+    ref: 'User'
+  },
+  deleted: {
+    type: Boolean,
+    default: false
+  }
+}, {
+  timestamps: true  
+});
+```
+</modify>
+
+<modify file="routes/posts.js">
+Update the GET /posts route handler to filter out posts where `deleted` is true.
+
+Currently, the route handler queries for posts like:
+
+```js
+const posts = await Post.find().populate('author').exec();
+```
+
+Modify the query to add a filter for the `deleted` field:
+
+```js
+const posts = await Post.find({ deleted: false }).populate('author').exec();
+```
+
+This will exclude any posts that have `deleted` set to `true`.
+</modify>
+</plan>
+
+<relevant_modules>
+db.js
+models/Post.js 
+routes/index.js
+</relevant_modules>
+</output>
+</example>""" # + files_to_change_example TODO: test separately
 
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
