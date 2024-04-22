@@ -29,35 +29,6 @@ GITHUB_BOT_USER=sweepai-self-hosted
 LICENSE_KEY=ABCDE-FGHIJ-KLMNO-PQRST-UVWXY
 ```
 
-{/* We can create an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
-> Run this GitHub App locally! This tool is only used for creating the GitHub App, not hosting Sweep.
->
-First, open a terminal and run the following commands on your **local machine**:
-```sh filename="terminal"
-git clone https://github.com/sweepai/sweep
-cd sweep/probot
-npm install
-npm start
-```
-Second, open http://localhost:3000 in your browser, and:
-1. Click the "Register GitHub App" button.
-2. Choose which repositories you'd like to install your app on and then click "Install".
-You can now stop the Probot server. Once it has stopped, open the `.env` file in `sweep/probot`. You should see something like this:
-```sh filename=".env"
-APP_ID=123456
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
-WEBHOOK_SECRET=213921898f9as8f92139128989f
-GITHUB_CLIENT_ID=Iv1.123218f182131
-GITHUB_CLIENT_SECRET=6g626312b212142132121321412
-```
-Add your `GITHUB_BOT_USERNAME` and `WHITELISTED_USERS` (your GitHub username) to the end of the file:
-```sh filename=".env"
-...
-GITHUB_BOT_USERNAME=sweep-example-name
-WHITELISTED_USERS=your-username,other-username
-``` */}
-{/* If Probot fails, please follow the manual instructions instead. */}
-
 ---
 
 ### Anthropic and OpenAI API keys
@@ -115,14 +86,10 @@ Copy the following from your local `.env` to your remote `.env`:
 
 ```sh filename=".env"
 # Step 1
-APP_ID=123456
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
-WEBHOOK_SECRET=213921898f9as8f92139128989f
-GITHUB_CLIENT_ID=Iv1.123218f182131
-GITHUB_CLIENT_SECRET=6g626312b212142132121321412
-GITHUB_BOT_USERNAME=sweep-example-name
-WHITELISTED_USERS=your-username,other-username
-LICENSE_KEY=abcde-fghij-klmno-pqrst-uvwxy
+GITHUB_APP_ID=123456
+GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n
+GITHUB_BOT_USER=sweepai-self-hosted
+LICENSE_KEY=ABCDE-FGHIJ-KLMNO-PQRST-UVWXY
 # Step 2
 ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
