@@ -868,7 +868,6 @@ def handle_function_call(
                 # Check if changes were made
                 if new_file_contents == file_contents:
                     logger.warning("No changes were made to the code.")
-                    breakpoint()
                     error_message = "No changes were made, it seems the changes you requested were not applied or made no difference to the code file."
                     break
                 
