@@ -16,11 +16,23 @@ from pylint.lint import Run
 from pylint.reporters.text import TextReporter
 import tiktoken
 from loguru import logger
-from tree_sitter import Node
-from tree_sitter_languages import get_parser
+from tree_sitter import Node, Language, Parser
+from tree_sitter_languages import get_parser as languages_get_parser
+import tree_sitter_python as tspython
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
+
+def get_parser(language: str):
+    parser = Parser()
+    if language == "python":
+        lang = Language(tspython.language(), "python")
+    elif language == "javascript":
+        lang = Language(tree_sitter_javascript.language(), "javascript")
+    else:
+        return languages_get_parser(language)
+    parser.set_language(lang)
+    return parser
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
