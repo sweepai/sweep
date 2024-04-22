@@ -334,6 +334,16 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1
         )
+        max_tokens = 4096 * 3.5 # approx max tokens per response
+        if len(files_to_change_response) > max_tokens:
+            # ask for a second response
+            second_response = chat_gpt.chat_anthropic(
+                content="",
+                model=MODEL,
+                temperature=0.1
+            )
+            # we can simply concatenate the responses
+            files_to_change_response += second_response
         if chat_logger:
             chat_logger.add_chat(
                 {
