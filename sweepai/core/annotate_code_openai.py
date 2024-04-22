@@ -12,11 +12,11 @@ NUM_WORKERS = 6 # tune based on haiku rate limit
 system_prompt = """Analyze the provided source_code, GitHub issue, and code_annotation to generate an explanation with the following format:
 
 <analysis>
-Describe what this block of code does as if you were explaining it to an junior engineer. If it is salient to the github issue, we may add why in the code annotation.
+Describe what this block of code does as if you were explaining it to an junior engineer.
 </analysis>
 
 <code_annotation>
-- Information-dense explanation of each block of code.
+- Information-dense explanation of each block of code in code_to_annotate.
 - This explanation may span over multiple lines.
 </code_annotation>"""
 
@@ -35,11 +35,11 @@ user_prompt = """<source_code>
 Analyze the provided source_code, GitHub issue, and code_annotation to generate an explanation with the following format:
 
 <analysis>
-Describe what this block of code does as if you were explaining it to an junior engineer. If it is salient to the github issue, we may add why in the code annotation.
+Describe what this block of code does as if you were explaining it to an junior engineer.
 </analysis>
 
 <code_annotation>
-- Information-dense explanation of each block of code.
+- Information-dense explanation of each block of code in code_to_annotate.
 - This explanation may span over multiple lines.
 </code_annotation>""" # prompt can be optimized
 
@@ -122,7 +122,7 @@ def get_annotated_source_code(source_code: str, issue_text: str, file_path: str)
         chunk_result = result.get()
         if chunk_result is not None:
             idx, formatted_code_content, formatted_annotation = chunk_result
-            code_with_summary = f"{formatted_annotation + formatted_code_content}"
+            code_with_summary = f"{formatted_code_content + formatted_annotation}"
             annotated_source_code = annotated_source_code.replace(code_contents[idx], code_with_summary)
             code_with_summaries.append(code_with_summary)
     return annotated_source_code.strip("\n"), code_with_summaries
