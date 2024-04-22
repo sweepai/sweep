@@ -6,7 +6,7 @@ import YouTube from 'react-youtube';
 
 <Callout type="info">This is a guide for self-hosting Sweep. If you are interested in our hosted version please visit https://github.com/apps/sweep-ai.</Callout>
 
-Sweep GitHub App is a air-gapped, self-hostable version of Sweep which serves many repositories at once.<br/>
+Sweep GitHub App is an air-gapped, self-hostable version of Sweep which serves many repositories at once.<br/>
 *To try out Sweep on a few example GitHub issues, see [Sweep CLI](/cli).*
 
 Setting up the Sweep GitHub App involves:
@@ -18,47 +18,16 @@ Setting up the Sweep GitHub App involves:
 <Steps>
 ### Create GitHub App
 
-Create a [GitHub App here](https://create-sweep-app.vercel.app/) (3 minutes). This tool will guide you through the process of creating a GitHub App, create a license key, and provide you with the necessary `.env` file.
+Create a [GitHub App here](https://deploy.sweep.dev/) (1 minute). This tool will guide you through the process of creating a GitHub App, create a license key, and provide you with the necessary `.env` file.
 
 It will be named `.env.txt` and you will need to rename it to `.env` (browser security reasons). It should look something like this.
 
 ```sh filename=".env"
-APP_ID=123456
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
-WEBHOOK_SECRET=213921898f9as8f92139128989f
-GITHUB_CLIENT_ID=Iv1.123218f182131
-GITHUB_CLIENT_SECRET=6g626312b212142132121321412
-LICENSE_KEY=abcde-fghij-klmno-pqrst-uvwxy
+GITHUB_APP_ID=123456
+GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n
+GITHUB_BOT_USER=sweepai-self-hosted
+LICENSE_KEY=ABCDE-FGHIJ-KLMNO-PQRST-UVWXY
 ```
-
-{/* We can create an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
-> Run this GitHub App locally! This tool is only used for creating the GitHub App, not hosting Sweep.
->
-First, open a terminal and run the following commands on your **local machine**:
-```sh filename="terminal"
-git clone https://github.com/sweepai/sweep
-cd sweep/probot
-npm install
-npm start
-```
-Second, open http://localhost:3000 in your browser, and:
-1. Click the "Register GitHub App" button.
-2. Choose which repositories you'd like to install your app on and then click "Install".
-You can now stop the Probot server. Once it has stopped, open the `.env` file in `sweep/probot`. You should see something like this:
-```sh filename=".env"
-APP_ID=123456
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
-WEBHOOK_SECRET=213921898f9as8f92139128989f
-GITHUB_CLIENT_ID=Iv1.123218f182131
-GITHUB_CLIENT_SECRET=6g626312b212142132121321412
-```
-Add your `GITHUB_BOT_USERNAME` and `WHITELISTED_USERS` (your GitHub username) to the end of the file:
-```sh filename=".env"
-...
-GITHUB_BOT_USERNAME=sweep-example-name
-WHITELISTED_USERS=your-username,other-username
-``` */}
-{/* If Probot fails, please follow the manual instructions instead. */}
 
 ---
 
@@ -81,7 +50,7 @@ To host Sweep you need to run the Sweep webhook on a publicly accessible server.
 
 <Tabs items={["Cloud (recommended)", "Local"]}>
 <Tabs.Tab>
-We recommend deploying on cloud for most users as the networking setup is easier. For this guide, we will use DigitalOcean.
+We recommend deploying on the cloud for most users as the networking setup is easier. For this guide, we will use DigitalOcean.
 
 ##### 1. Create Instance
 Recommended specs:
@@ -117,14 +86,10 @@ Copy the following from your local `.env` to your remote `.env`:
 
 ```sh filename=".env"
 # Step 1
-APP_ID=123456
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
-WEBHOOK_SECRET=213921898f9as8f92139128989f
-GITHUB_CLIENT_ID=Iv1.123218f182131
-GITHUB_CLIENT_SECRET=6g626312b212142132121321412
-GITHUB_BOT_USERNAME=sweep-example-name
-WHITELISTED_USERS=your-username,other-username
-LICENSE_KEY=abcde-fghij-klmno-pqrst-uvwxy
+GITHUB_APP_ID=123456
+GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n
+GITHUB_BOT_USER=sweepai-self-hosted
+LICENSE_KEY=ABCDE-FGHIJ-KLMNO-PQRST-UVWXY
 # Step 2
 ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

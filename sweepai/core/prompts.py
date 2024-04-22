@@ -179,250 +179,93 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
-# add two newlines
-files_to_change_example = """
+files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
+Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue.
 
-Here is an example issue and output to illustrate the desired format:
+Take these steps:
+1. Analyze the issue and codebase to understand the problem.
 
-<example>
-# Issue
-<issue>
-The product list page is displaying all products in one long list. Update it to paginate the results, showing 10 products per page with next/previous navigation links. The pagination should be done on the client-side by updating the necessary React components and Redux store.
-</issue>
+2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+    - When modifying code you MUST take the following approach:
+        - Modify step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+        - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 
-<example_output>
-<issue_analysis>
-The current implementation of the product list page has the following issues:
+3. List all of the relevant files to reference while making changes, one per line."""
 
-1. All products are displayed on a single page.
-   - This can lead to slow load times, especially for large product catalogs.
-   - Users have to scroll through a long list to browse products.
-   - There is no way to navigate to different subsets of products.
-
-2. The ProductList component in src/components/ProductList.js renders the entire list of products passed to it.
-   - It needs to be updated to only render the products for the current page.
-   - Pagination navigation links need to be added to allow users to switch between pages.
-
-3. The ProductsContainer in src/containers/ProductsContainer.js fetches all products in the componentDidMount lifecycle method.
-   - It should be updated to keep track of the current page number in the component's state.
-   - When the page changes (by clicking on a pagination link), it should update the current page in the state.
-
-4. The products reducer in src/reducers/productReducer.js stores the fetched products in the state.
-   - It should be updated to store the current page number.
-   - When the products are fetched successfully, it should update the products and current page in the state.
-
-To implement client-side pagination, the following changes are needed:
-
-- src/components/ProductList.js:
-  - Modify to render pagination links and display only the products for the current page.
-- src/containers/ProductsContainer.js:
-  - Update to keep track of the current page in its state.
-  - Pass the current page to the ProductList component.
-  - Update the current page in the state when the page changes.
-- src/reducers/productReducer.js:
-  - Update to store the current page number in the state.
-  - Handle the fetched products and update the current page in the state.
-
-By making these changes, the product list page will be paginated on the client-side, showing only a limited number of products per page. Users can navigate between pages using the pagination links. This improves the user experience for browsing large product catalogs.
-
-The pagination will be implemented purely on the client-side by updating the necessary React components and Redux store. The server-side API endpoint for fetching products will remain unchanged.
-</issue_analysis>
-
-<plan>
-<modify file="src/components/ProductList.js">
-Import the Link component from react-router-dom:
-```js
-import { Link } from 'react-router-dom';
-```
-
-Add `currentPage` and `totalPages` props to the component:
-```js
-const ProductList = ({ products, onAddToCart, currentPage, totalPages }) => (
-```
-
-Update the PropTypes definition to include `currentPage` and `totalPages`:
-```js
-ProductList.propTypes = {
-  products: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      title: PropTypes.string.isRequired,
-      price: PropTypes.number.isRequired,
-    })
-  ).isRequired,
-  onAddToCart: PropTypes.func.isRequired,
-  currentPage: PropTypes.number.isRequired,
-  totalPages: PropTypes.number.isRequired,
-};
-```
-
-Add pagination navigation links before the closing `</div>`:
-```js
-<div className="pagination">
-  {currentPage > 1 && (
-    <Link to={`/products?page=${currentPage - 1}`}>Previous</Link>
-  )}
-  <span>{currentPage}</span>
-  {currentPage < totalPages && (
-    <Link to={`/products?page=${currentPage + 1}`}>Next</Link>
-  )}
-</div>
-```
-This renders "Previous" and "Next" links that navigate to the corresponding page. The links are conditionally rendered based on the current page number.
-</modify>
-
-<modify file="src/containers/ProductsContainer.js">
-Add `currentPage` to the component state in the constructor:
-```js
-constructor(props) {
-  super(props);
-  this.state = {
-    currentPage: 1,
-  };
-}
-```
-
-Add a `componentDidUpdate` method to update the current page when the URL changes:
-```js
-componentDidUpdate(prevProps) {
-  const { location } = this.props;
-  const { search } = location;
-  const query = new URLSearchParams(search);
-  const page = parseInt(query.get('page'), 10) || 1;
-
-  if (prevProps.location.search !== search) {
-    this.setState({ currentPage: page });
-  }
-}
-```
-This method compares the current URL search params with the previous ones. If the "page" query param has changed, it updates the `currentPage` state.
-
-Calculate the `totalPages` based on the number of products and pass it along with the `currentPage` state to the `ProductList` component:
-```js
-render() {
-  const { products } = this.props;
-  const { currentPage } = this.state;
-  const totalPages = Math.ceil(products.length / 10);
-
-  const startIndex = (currentPage - 1) * 10;
-  const endIndex = startIndex + 10;
-  const currentProducts = products.slice(startIndex, endIndex);
-
-  return (
-    <div>
-      <h2>Products</h2>
-      <ProductList
-        products={currentProducts}
-        onAddToCart={this.props.addToCart}
-        currentPage={currentPage}
-        totalPages={totalPages}
-      />
-    </div>
-  );
-}
-```
-This calculates the `totalPages` based on the number of products and passes it to the `ProductList` component. It also slices the `products` array to get the products for the current page.
-</modify>
-
-<modify file="src/reducers/productReducer.js">
-Add a `currentPage` field to the initial state:
-```js
-const initialState = {
-  items: [],
-  currentPage: 1,
-  loading: false,
-  error: null,
-};
-```
-
-Update the `FETCH_PRODUCTS_SUCCESS` case in the reducer to set the `currentPage` to 1:
-```js
-case FETCH_PRODUCTS_SUCCESS:
-  return {
-    ...state,
-    loading: false,
-    items: action.payload,
-    currentPage: 1,
-  };
-```
-This ensures that when the products are fetched successfully, the current page is reset to 1.
-</modify>
-</plan>
-
-<relevant_modules>
-src/actions/types.js
-src/store.js
-</relevant_modules>
-</example_output>
-<example>"""
-
-files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code snippets, a description of the issue, and relevant parts of the codebase.
-Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code snippets in your plan.
-Give detailed natural language instructions and explanations the intern can follow to write the code themselves. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue."""
-
+# the current issue analysis is heavily optimized, i'd like to try removing step d though
 files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
-You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
 Guidelines:
-- Always include the full file path and reference the provided snippets 
+- Always include the full file path and reference the provided files 
 - Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using phrases like "add", "change", "remove" instead of vague terms
+- Be specific and direct, using the phrases "add", "replace", and "remove".
 - Reference relevant type definitions, interfaces, and schemas 
-- Avoid line numbers and instead reference code locations using surrounding code or function names
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
+- To remove code, replace it with empty <new_code> tags.
 
 Please use the following XML format for your response:
 
-# Issue Analysis:
+# 1. Issue Analysis:
 <issue_analysis>
-* Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories. Be complete.
-List ALL files we should modify to resolve the issue in the following format:
-- File path 1: Detailed instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-    - Continue listing all changes that need to be made. Be complete.
-- File path 2: Detailed instructions for modifying the file
-    - First change to make in the file  
-    - Second change to make in the file
-    - Continue listing all changes that need to be made. Be complete.
-[additional files as needed]
-List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-- Type definitions, interfaces, and schemas
-- Helper functions
-- Frontend components
-- Database services
-- API endpoints
-[additional relevant modules as needed]
+a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
 
-* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-[additional analysis as needed]
+b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+
+c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+  - File path 1: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+  - File path 2: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+[additional files as needed]
+
+d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+  - Type definitions, interfaces, and schemas
+  - Helper functions
+  - Frontend components
+  - Database services
+  - API endpoints
+  [additional relevant modules as needed]
 </issue_analysis>
 
+# 2. Plan:
 <plan>  
 <create file="file_path_1">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
 </create>
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. If you reference specific lines of code, code must be copied VERBATIM from the file. Never paraphrase code or comments.
-Include relevant type definitions, interfaces, schemas.
+Instructions for modifying one section of the file. 
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying a different section of the same file. If you reference specific lines of code, code must be copied VERBATIM from the file. Never paraphrase code or comments.
+Instructions for modifying a different section of the same file. 
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+
 Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
 
 [additional modifies as needed, for the same file or different files]
 </plan>
 
+# 3. Relevant Modules:
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
 </relevant_modules>""" # + files_to_change_example TODO: test separately

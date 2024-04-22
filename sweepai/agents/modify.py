@@ -277,7 +277,7 @@ Be extremely critical but limit the scope of the critique to the current task, w
 
 Then, determine if the changes are correct and complete.
 
-If the changes are complete and correct, call the submit_task function to move onto the next task. Otherwise, call make_changes to continue making changes."""
+If the changes are complete and correct, call the submit_task function to move onto the next task. Otherwise, call the make_change function to continue making changes."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -322,6 +322,7 @@ def find_best_match(needle: str, haystack: str, threshold: int = 80):
         return best_match, best_score
     return "", 0
 
+# MODEL = "claude-3-haiku-20240307"
 MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call_openai(
@@ -645,6 +646,14 @@ def modify(
     for file_name in files_to_remove:
         modify_files_dict.pop(file_name)
         logger.info(f"Removed file {file_name} from modify_files_dict as it had no changes.")
+    # logging start
+    diff_string = ""
+    for file_name, file_data in modify_files_dict.items():
+        diff = generate_diff(file_data['original_contents'], file_data['contents'])
+        if diff:
+            diff_string += f"\nChanges made to {file_name}:\n{diff}"
+    logger.info(diff_string)
+    # logging end
     return modify_files_dict
 
 
@@ -777,8 +786,8 @@ def handle_function_call(
                         first_diff_text = surrounding_lines_before + tool_call['original_code'] + surrounding_lines_after
                         second_diff_text = surrounding_lines_before + best_match + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
-                        # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                        # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
 
