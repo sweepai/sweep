@@ -1,10 +1,12 @@
 import copy
 from math import inf
 import os
+import re
 
 from rapidfuzz import fuzz, process
 
 from loguru import logger
+from regex import D
 from tqdm import tqdm
 from sweepai.core.chat import ChatGPT, parse_function_calls_for_openai
 from sweepai.core.entities import FileChangeRequest, Message
@@ -285,6 +287,26 @@ tool_call_parameters = {
     "submit_task": ["justification"],
 }
 
+DEFAULT_FUNCTION_CALL = """<function_call>
+<invoke>
+<tool_name>make_change</tool_name>
+<parameters>
+<justification>
+{justification}
+</justification>
+<file_name>
+{file_path}
+</file_name>
+<original_code>
+{original_code}
+</original_code>
+<new_code>
+{new_code}
+</new_code>
+</parameters>
+</invoke>
+</function_call>"""
+
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
         return ""
@@ -493,6 +515,17 @@ def render_current_task(fcrs: list[FileChangeRequest]) -> str:
     fcr = fcrs[current_fcr_index]
     return f"The CURRENT TASK is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n<current_task>\n{fcr.instructions}\n</current_task>"
 
+def compile_fcr(fcr: FileChangeRequest) -> str:
+    justification, *_ = fcr.instructions.split("<original_code>", 1)
+    original_code_pattern = r"<original_code>(.*?)</original_code>"
+    new_code_pattern = r"<new_code>(.*?)</new_code>"
+    original_code_match = re.search(original_code_pattern, fcr.instructions, re.DOTALL)
+    new_code_match = re.search(new_code_pattern, fcr.instructions, re.DOTALL)
+    if original_code_match and new_code_match:
+        original_code = original_code_match.group(1).strip("\n")
+        new_code = new_code_match.group(1).strip("\n")
+        return DEFAULT_FUNCTION_CALL.format(justification=justification.strip(), file_path=fcr.filename, original_code=original_code, new_code=new_code)
+
 # return the number of tasks completed
 def tasks_completed(fcrs: list[FileChangeRequest]):
     completed_tasks = 0
@@ -511,6 +544,8 @@ def modify(
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
+    if not fcrs:
+        return previous_modify_files_dict
     user_message = create_user_message(
         fcrs=fcrs,
         request=request,
@@ -521,13 +556,18 @@ def modify(
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
-        function_calls_string = chat_gpt.chat_anthropic(
-            content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
-            stop_sequences=["</function_call>"],
-            model=MODEL,
-            message_key="user_request",
-            use_openai=use_openai,
-        )
+        chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
+        compiled_fcr = compile_fcr(fcrs[0])
+        if compiled_fcr:
+            function_calls_string = compiled_fcr
+        else:
+            function_calls_string = chat_gpt.chat_anthropic(
+                content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
+                stop_sequences=["</function_call>"],
+                model=MODEL,
+                message_key="user_request",
+                use_openai=use_openai,
+            )
     except Exception as e:
         logger.error(f"Error in chat_anthropic: {e}")
         chat_logger.add_chat(
