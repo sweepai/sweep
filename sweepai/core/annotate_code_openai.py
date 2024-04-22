@@ -101,8 +101,8 @@ def process_chunk(idx, code_content, source_code, issue_text, file_path):
     )
     if not annotation:
         annotation = "No summary was provided for this code block."
-    formatted_code_content = f'<original_code file_path="{file_path}" index="{idx}">\n' + code_content + "\n<original_code>\n"
-    formatted_annotation = f'<code_summary file_path="{file_path}" index="{idx}">\n' + annotation + "\n<code_summary>\n"
+    formatted_code_content = f'<original_code file_path="{file_path}" index="{idx}">\n' + code_content + "\n</original_code>\n"
+    formatted_annotation = f'<code_summary file_path="{file_path}" index="{idx}">\n' + annotation + "\n</code_summary>\n"
     return idx, formatted_code_content, formatted_annotation
 
 def get_annotated_source_code(source_code: str, issue_text: str, file_path: str):
