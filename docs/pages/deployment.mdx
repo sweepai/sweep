@@ -23,11 +23,9 @@ Create a [GitHub App here](https://deploy.sweep.dev/) (1 minute). This tool will
 It will be named `.env.txt` and you will need to rename it to `.env` (browser security reasons). It should look something like this.
 
 ```sh filename=".env"
-APP_ID=123456
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
-WEBHOOK_SECRET=213921898f9as8f92139128989f
-GITHUB_CLIENT_ID=Iv1.123218f182131
-GITHUB_CLIENT_SECRET=6g626312b212142132121321412
+GITHUB_APP_ID=123456
+GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n
+GITHUB_BOT_USER=sweepai-self-hosted
 LICENSE_KEY=abcde-fghij-klmno-pqrst-uvwxy
 ```
 
