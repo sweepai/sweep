@@ -691,7 +691,6 @@ def handle_function_call(
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
     if tool_name == "submit_task":
-        breakpoint()
         changes_made = generate_diffs(modify_files_dict)
         if changes_made:
             llm_response = "DONE"
@@ -715,7 +714,6 @@ def handle_function_call(
         else:
             llm_response = NO_TOOL_CALL_PROMPT
     elif tool_name == "make_change":
-        breakpoint()
         error_message = ""
         for key in ["file_name", "original_code", "new_code"]:
             if key not in tool_call:

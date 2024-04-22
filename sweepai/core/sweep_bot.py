@@ -11,6 +11,7 @@ from loguru import logger
 from networkx import Graph
 from pydantic import BaseModel
 
+from sweepai.agents.modify import validate_and_parse_function_call
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -33,9 +34,14 @@ from sweepai.core.prompts import (
     context_files_to_change_prompt,
     pull_request_prompt,
     subissues_prompt,
-    files_to_change_system_prompt
+    files_to_change_system_prompt,
+    plan_review_prompt,
+    planning_tools_for_eval,
+    planning_tools_prompt,
+    planning_redo_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
@@ -46,6 +52,33 @@ from sweepai.utils.utils import check_syntax
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
+MODEL = "claude-3-opus-20240229"
+
+NO_FUNCTION_CALL = """ERROR!\n\nNo function call was made. If you attempted to make a function call but failed retry again but with the correct xml format.
+If you are finished with fixing the issues with the plan you can submit the final plan by using the `submit_final_plan` tool.
+An example is given below:
+<function_call>
+<invoke>
+<parameters>
+<submit_final_plan>
+<explanation>
+[Explanation of why this plan was chosen, what issues were fixed (if any) and how it solves the original problem]
+</explanation>
+<final_plan>
+<modify file="example.py">
+[Example instructions here]
+</modify>
+...
+<modify file="anotherexamplefile.py">
+[More example instructions here]
+</modify>
+[Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
+</final_plan>
+</submit_final_plan>
+</parameters>
+</invoke>
+</function_call>
+"""
 
 
 def to_raw_string(s):
@@ -174,7 +207,7 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[S
 def get_max_snippets(
     snippets: list[Snippet],
     budget: int = 150_000 * 3.5, # 140k tokens
-    expand: int = 300,
+    expand: int = 3000, # testing expand
 ):
     """
     Start with max number of snippets and then remove then until the budget is met.
@@ -187,6 +220,159 @@ def get_max_snippets(
             return proposed_snippets
     raise Exception("Budget number of chars too low!")
 
+def parse_xml_tag_from_string(tag: str, string: str) -> str:
+    match = re.search(f"<{tag}>(.*?)</{tag}>", string, re.DOTALL)
+    return match.group(1) if match else None
+
+# handles function calls made by planning
+def handle_planning_function_call(
+        function_call: AnthropicFunctionCall, 
+        llm_state: dict[str, str | bool | list[str]],
+        cloned_repo: ClonedRepo):
+    tool_name = function_call.function_name
+    tool_call = function_call.function_parameters
+    if tool_name == "submit_final_plan":
+        llm_state["done"] = True
+        final_plan = tool_call["final_plan"].strip("\n")
+        return final_plan, llm_state
+    elif tool_name == "view_file":
+        file_path = tool_call["file_name"].strip() # strip ALL whitespace
+        try:
+            file_contents = cloned_repo.get_file_contents(file_path)
+            success_message = f'SUCCESS!\n\nFile {file_path} found in the codebase. Here are the contents:\n\n<file name="{file_path}">\n{file_contents}\n</file>'
+            return success_message, llm_state
+        except FileNotFoundError:
+            import pdb; pdb.set_trace()
+            error_message = f"ERROR!\n\nFile {file_path} not found in the codebase."
+            return error_message, llm_state
+    else:
+        available_tools = ", ".join(llm_state["available_tools"])
+        error_message = f"ERROR!\n\nUnknown tool {tool_name}:\n\nYou have access to the following tools only:\n{available_tools}\n\nMake sure you respond with the correct xml format."
+        return error_message, llm_state
+
+# iterate on the initial plan to improve it using an agent
+def iterate_on_plan(chat_gpt: ChatGPT, cloned_repo: ClonedRepo, chat_logger: ChatLogger = None):
+    # keep track of state
+    llm_state = {
+        "done": False,
+        "available_tools": ["view_file", "submit_final_plan"]
+    }
+    # make initial function call
+    planning_tools_prompt_string = planning_tools_prompt
+    # give agent what tools it has available
+    for tool in llm_state["available_tools"]:
+        planning_tools_prompt_string += f'\n\n{planning_tools_for_eval[tool]}'
+    function_calls_string = chat_gpt.chat_anthropic(
+        content=planning_tools_prompt_string,
+        model=MODEL,
+        stop_sequences=["</function_call>"],
+        temperature=0.1
+    )
+    final_plan = ""
+    # max 10 iterations anymore probably means something has gone wrong.
+    max_iterations = 10
+    for i in range(max_iterations):
+        function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
+        if function_call:
+            function_output, llm_state = handle_planning_function_call(function_call, llm_state, cloned_repo)
+            # check if we are done
+            if llm_state["done"]:
+                # update chat logger
+                if chat_logger:
+                    chat_logger.add_chat(
+                        {
+                            "model": MODEL,
+                            "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                            "output": f"We are done! Here is the final output:\n\n{function_output}",
+                        }
+                    )
+                final_plan = function_output
+                break
+            # get the next function call
+            function_calls_string = chat_gpt.chat_anthropic(
+                content=function_output,
+                model=MODEL,
+                stop_sequences=["</function_call>"],
+                temperature=0.1
+            )
+        else:
+            # get the next function call
+            function_calls_string = chat_gpt.chat_anthropic(
+                content=NO_FUNCTION_CALL,
+                model=MODEL,
+                stop_sequences=["</function_call>"],
+                temperature=0.1
+            )
+
+        if chat_logger:
+            output_message = function_call
+            if i == max_iterations - 1:
+                output_message += f"\n\nMAX ITERATIONS REACHED!"
+
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": output_message,
+                }
+            )
+    return final_plan
+
+# parse the output of the evaluation of the planning
+def parse_planning_evaluation(evaluation: str) -> tuple[list[str], bool]:
+    initial_plan_is_good = parse_xml_tag_from_string("initial_plan_is_good", evaluation)
+    code_files_to_fetch = parse_xml_tag_from_string("code_files_to_fetch", evaluation)
+    initial_plan_is_good = False if initial_plan_is_good and 'no' in initial_plan_is_good else True # default to True if no tag is found
+    code_files_to_fetch = [file.strip() for file in code_files_to_fetch.split(",")] if code_files_to_fetch and code_files_to_fetch.strip() else [] # default to empty list if no tag is found
+    return code_files_to_fetch, initial_plan_is_good
+
+def planning_qc_pipeline(chat_gpt: ChatGPT, cloned_repo: ClonedRepo, chat_logger: ChatLogger = None):
+    # get initial evaluation
+    initial_evaluation = chat_gpt.chat_anthropic(
+        content=plan_review_prompt,
+        model=MODEL,
+        temperature=0.1
+    )
+
+    if chat_logger:
+        chat_logger.add_chat(
+            {
+                "model": MODEL,
+                "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                "output": initial_evaluation,
+            })
+    # based on results of evaluation, iterate on the plan
+    # first parse the initial evaluation to see if there are any code files we need to fetch
+    code_files_to_fetch, initial_plan_is_good = parse_planning_evaluation(initial_evaluation)
+    if initial_plan_is_good:
+        return "" # return if no fixes are needed
+    fetched_code_files = {}
+    for code_file in code_files_to_fetch:
+        try:
+            fetched_code_file = cloned_repo.get_file_contents(code_file)
+            fetched_code_files[code_file] = fetched_code_file
+        except FileNotFoundError:
+            pass
+    formatted_code_files = ""
+    for code_file, fetched_code_file in fetched_code_files.items():
+        formatted_code_files += f'\n<code_file name="{code_file}">\n{fetched_code_file}\n</code_file>\n'
+    # now we get a new plan
+    formatted_planning_redo_prompt = planning_redo_prompt.format(code_files=formatted_code_files)
+    final_plan = chat_gpt.chat_anthropic(
+        content=formatted_planning_redo_prompt,
+        model=MODEL,
+        temperature=0.1
+    )
+    if chat_logger:
+        chat_logger.add_chat(
+            {
+                "model": MODEL,
+                "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                "output": final_plan,
+            })
+    return final_plan
+
+# get the plan and fcrs for the change
 def get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],
@@ -257,7 +443,7 @@ def get_files_to_change(
         Message(
             role="user",
             content=relevant_snippets_message,
-            key="relevant_snippets",
+            key="relevant_code_files",
         )
     )
     joined_relevant_read_only_snippets = "\n".join(
@@ -328,12 +514,18 @@ def get_files_to_change(
                 ),
             ],
         )
-        MODEL = "claude-3-opus-20240229"
+        # get initial plan
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt if not context else context_files_to_change_prompt),
             model=MODEL,
             temperature=0.1
         )
+        
+        final_plan = planning_qc_pipeline(chat_gpt, cloned_repo, chat_logger=chat_logger)
+        if final_plan:
+            files_to_change_response = final_plan # update our final plan
+
+        # files_to_change_response = iterate_on_plan(chat_gpt, cloned_repo, chat_logger=chat_logger)
         if chat_logger:
             chat_logger.add_chat(
                 {

@@ -297,6 +297,142 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
+plan_review_prompt = """Now you are to double check the plan you have generated using the following guidelines:
+- Name the types for each variable you are using/creating. You can do this by adding comments above each line of code.
+- Double check that the attributes you are accessing/modifying for classes and variables actually exist. Comment where in the code each attribute is defined.
+
+FOCUS ONLY ON THE GUIDELINES AND YOUR EVALUATION
+
+List out all mistakes/errors you spot, and list out how to fix them. If the mistake/error is currently not fixable due to a lack of context, explain what you would need in order to be able to fi the issue. If there are no errors simply continue to the next check.
+After you have made your evaluation you will be given a chance to correct these mistakes at a later date.
+Respond in the following xml format:
+
+<plan_evaluation>
+<mistake number="1">
+[Describe the mistake and how to fix it. If the mistake is not fixable due to a lack of context, explain what you would need to fix it.]
+</mistake>
+...
+<mistake number="n">
+[Describe the mistake and how to fix it. If the mistake is not fixable due to a lack of context, explain what you would need to fix it.]
+</mistake>
+</plan_evaluation>
+
+<code_files_to_fetch>
+[A comma separated list of file paths to fetch the contents of. Make sure that the file paths are correct and spelled correct. Incorrectly spelled file paths will not be fetched, if you don't include this tag, it is assumed you do not need any extra code files to be fetched]
+</code_files_to_fetch>
+
+<initial_plan_is_good>
+['yes' if you did not find any mistakes and the original plan is good to go as is. 'no' otherwise. If you don't include this tag, it will be assumed that the original plan was good to go]
+</initial_plan_is_good>"""
+
+planning_tool_for_eval_view = """
+<tool_description>
+<tool_name>view_file</tool_name>
+<description>
+View a full code file in the code base.
+</description>
+<parameters>
+<parameter>
+<name>justification</name>
+<type>str</type>
+<description>
+Explain why you need to view this file specifically.
+</description>
+</parameter>
+<parameter>
+<name>file_name</name>
+<type>str</type>
+<description>
+Name of the file that you want to view. Ensure correct spelling as this is case-sensitive.
+</description>
+</parameter>
+</parameters>
+</tool_description>
+"""
+
+planning_tool_for_eval_submit = """
+<tool_description>
+<tool_name>submit_final_plan</tool_name>
+<description>
+Once you are certain all issues have been resolved, submit the final revised plan.
+</description>
+<parameters>
+<parameter>
+<name>explanation</name>
+Explain how this final plan differs from the original (if any) and why it is ready to submit.
+<type>str</type>
+<description>
+</description>
+</parameter>
+<parameter>
+<name>final_plan</name>
+<type>str</type>
+<description>
+Your final plan revised should go here. Make sure fix ALL the mistakes you identified while still solving the user request. Be sure that the final plan is still in the correct xml format.
+Here is an example:
+<modify file="example.py">
+[Example instructions here]
+</modify>
+...
+<modify file="anotherexamplefile.py">
+[More example instructions here]
+</modify>
+[Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
+</description>
+</parameter>
+</tool_description>
+"""
+
+planning_tools_for_eval = {"submit_final_plan": planning_tool_for_eval_submit,
+                           "view_file": planning_tool_for_eval_view}
+
+planning_tools_prompt = """Now that you have evaluated the plan, you will take the necessary steps in order to improve the plan.
+In this environment, you have access to the following tools to assist in fulfilling the user request:
+
+You MUST call them like this:
+<function_call>
+<invoke>
+<tool_name>$TOOL_NAME</tool_name>
+<parameters>
+<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+...
+</parameters>
+</invoke>
+</function_call>
+
+Here are the tools available:
+"""
+
+planning_redo_prompt = """
+Here are the code files that you have requested as further context to improve the plan:
+<code_files>
+{code_files}
+</code_files>
+
+With this new context, you are to improve the inital plan created by fixing all the issues that were discovered in the evaluation of the plan.
+Remember to respond in the following xml format:
+
+<revised_plan>  
+<create file="file_path_1">
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
+</create>
+[additional creates]
+
+<modify file="file_path_2"> 
+Instructions for modifying one section of the file. If you reference specific lines of code, code must be copied VERBATIM from the file. Never paraphrase code or comments.
+Include relevant type definitions, interfaces, schemas.
+</modify>
+
+<modify file="file_path_2">
+Instructions for modifying a different section of the same file. If you reference specific lines of code, code must be copied VERBATIM from the file. Never paraphrase code or comments.
+Use multiple <modify> blocks for the same file to separate distinct changes.
+</modify>
+
+[additional modifies as needed, for the same file or different files]
+</revised_plan>
+
+MAKE SURE TO ADDRESS ALL ISSUES/ERRORS FOUND IN THE EVALUATION OF THE PLAN"""
+
 context_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
 You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
