@@ -334,6 +334,7 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1
         )
+        breakpoint()
         max_tokens = 4096 * 3.5 # approx max tokens per response
         if len(files_to_change_response) > max_tokens:
             # ask for a second response
@@ -344,6 +345,7 @@ def get_files_to_change(
             )
             # we can simply concatenate the responses
             files_to_change_response += second_response
+        breakpoint()
         if chat_logger:
             chat_logger.add_chat(
                 {
