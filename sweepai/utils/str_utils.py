@@ -36,7 +36,7 @@ bot_suffix = (
     " title or description."
 )
 discord_suffix = (
-    "\n<sup>Something wrong? [Let us know](https://discord.gg/sweep).</sup>"
+    "\n<sup>Something wrong? [Let us know](https://community.sweep.dev/).</sup>"
 )
 
 stars_suffix = ""
