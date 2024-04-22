@@ -16,11 +16,24 @@ from pylint.lint import Run
 from pylint.reporters.text import TextReporter
 import tiktoken
 from loguru import logger
-from tree_sitter import Node
-from tree_sitter_languages import get_parser
+from tree_sitter import Node, Language, Parser
+from tree_sitter_languages import get_parser as languages_get_parser
+import tree_sitter_python
+import tree_sitter_javascript
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
+
+def get_parser(language: str):
+    parser = Parser()
+    if language in ("python", "py"):
+        lang = Language(tree_sitter_python.language(), "python")
+    elif language in ("javascript", "js"):
+        lang = Language(tree_sitter_javascript.language(), "javascript")
+    else:
+        return languages_get_parser(language)
+    parser.set_language(lang)
+    return parser
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -651,7 +664,7 @@ export function removeEmailAlias(email: string): string {
   }
 """
     new_code = """console.log("hello world")"""
-    check_results = check_valid_typescript("test.ts",new_code)
+    check_results = check_syntax("test.js", new_code)
     import pdb
     # pylint: disable=no-member
     pdb.set_trace()
