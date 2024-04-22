@@ -1611,8 +1611,9 @@ def on_ticket(
                     (
                         "Sorry, Sweep could not find any appropriate files to edit to address"
                         " this issue. If this is a mistake, please provide more context and Sweep"
-                        f" will retry!\n\n> @{username}, please edit the issue description to"
-                        " include more details about this issue."
+                        f" will retry!\n\n@{username}, please edit the issue description to"
+                        " include more details. You can also ask for help on our community" 
+                        " forum: https://community.sweep.dev/"
                     ),
                     -1,
                 )
@@ -1688,13 +1689,13 @@ def on_ticket(
                 if len(title + summary) < 60:
                     edit_sweep_comment(
                         (
-                            "I'm sorry, but it looks like an error has occurred due to"
-                            + " a planning failure. Feel free to add more details to the issue description"
-                            + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
-                            + " https://discord.gg/sweep."
+                            "I'm sorry, but it looks like an error occurred due to" 
+                            " a planning failure. Feel free to add more details to the issue description"
+                            " so Sweep can better address it. Alternatively, post on our community forum"
+                            " for assistance: https://community.sweep.dev/"
                         ),
                         -1,
-                    )
+                    )  
                 else:
                     edit_sweep_comment(
                         (
