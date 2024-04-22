@@ -508,6 +508,7 @@ def modify(
     relevant_filepaths: list[str],
     chat_logger: ChatLogger | None = None,
     use_openai: bool = False,
+    previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
     user_message = create_user_message(
@@ -536,7 +537,7 @@ def modify(
                 "output": f"ERROR:\n{e}\nEND OF ERROR",
             })
         return {}
-    modify_files_dict = {}
+    modify_files_dict = previous_modify_files_dict
     llm_state = {
         "initial_check_results": {},
         "done_counter": 0, # keep track of how many times the submit_task tool has been called
