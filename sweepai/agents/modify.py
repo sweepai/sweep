@@ -801,12 +801,19 @@ def handle_function_call(
                     break
                 # ensure original_code and new_code has the correct indents
                 new_code_lines = new_code.split("\n")
-                new_code = "\n".join(f'{correct_indent*" "}{line}' for line in new_code_lines)
+                original_code_lines = original_code.split("\n")
+                if len(original_code_lines) > 1:
+                    new_code = "\n".join(f'{correct_indent * " "}{line}' for line in new_code_lines)
+                else:
+                    new_code = f'{correct_indent * " "}{new_code.lstrip()}'
                 if rstrip_original_code:
                     original_code_lines = [line.rstrip() for line in original_code.split("\n")]
                 else:
                     original_code_lines = original_code.split("\n")
-                original_code = "\n".join(f'{correct_indent*" "}{line}' for line in original_code_lines)
+                if len(original_code_lines) > 1:
+                    original_code = "\n".join(f'{correct_indent * " "}{line}' for line in original_code_lines)
+                else:
+                    original_code = f'{correct_indent * " "}{original_code.lstrip()}'
                 # before we apply changes make sure original_code is unique inside current_chunk
                 current_chunk_occurences = file_contents.count(original_code)
                 if current_chunk_occurences > 1:
@@ -851,12 +858,17 @@ def handle_function_call(
                     else:
                         error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
                     break
+                
+                if original_code not in file_contents:
+                    error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                    break
 
                 # apply changes
                 new_file_contents = file_contents.replace(original_code, new_code, 1)
                 # Check if changes were made
                 if new_file_contents == file_contents:
                     logger.warning("No changes were made to the code.")
+                    breakpoint()
                     error_message = "No changes were made, it seems the changes you requested were not applied or made no difference to the code file."
                     break
                 
