@@ -229,7 +229,18 @@ c. List ALL of the files we should modify to resolve the issue. Reference the pr
       c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
 
-d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+d. List ALL of the tests we should add or update to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+  - File path 1: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+  - File path 2: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+[additional files as needed]
+
+e. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
   - Type definitions, interfaces, and schemas
   - Helper functions
   - Frontend components
@@ -298,6 +309,18 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
+context_files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
+Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue.
+
+Take these steps:
+1. Analyze the issue and codebase to understand the problem.
+
+2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+
+3. List all of the relevant files to reference while making changes, one per line."""
+
+# Can be optimized further, ask it to not generate any code and just describe at a high-level what it would change.
 context_files_to_change_prompt = """Your job is to write three high quality, detailed, step-by-step plans for an intern to help resolve a user's GitHub issue. Each plan should consider a different approach to solving the problem, particularly focusing on different files and code sections to change.
 
 You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create three step-by-step plans for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
@@ -333,7 +356,18 @@ c. List ALL of the files we should modify to resolve the issue. Reference the pr
       c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
 
-d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+d. List ALL of the tests we should add or update to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+  - File path 1: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+  - File path 2: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+[additional files as needed]
+
+e. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
   - Type definitions, interfaces, and schemas
   - Helper functions
   - Frontend components
@@ -352,17 +386,13 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 <modify file="file_path_2"> 
 Instructions for modifying one section of the file. 
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+Reference the original code and write the new code, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas.
 </modify>
 
 <modify file="file_path_2">
 Instructions for modifying a different section of the same file. 
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+Reference the original code and write the new code, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas.
 
 Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
