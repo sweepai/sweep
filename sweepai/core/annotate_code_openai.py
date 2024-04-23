@@ -66,6 +66,7 @@ class AnnotateCodeBot(ChatGPT):
                 ),
                 temperature=0.2,
                 model=CLAUDE_MODEL,
+                verbose=False
             )
         except Exception as e:
             logger.warning(f"AnnotateCodeBot failed with error: {e}")

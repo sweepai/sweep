@@ -389,6 +389,7 @@ class ChatGPT(MessageList):
         stop_sequences: list[str] = [],
         max_tokens: int = 4096,
         use_openai: bool = False,
+        verbose: bool = True,
     ):
         # use openai
         if use_openai:
@@ -405,7 +406,8 @@ class ChatGPT(MessageList):
             self.messages.append(Message(role="assistant", content=assistant_message_content))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
-        logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
+        if verbose:
+            logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         content = ""
         e = None
@@ -490,7 +492,8 @@ class ChatGPT(MessageList):
                 key=message_key,
             )
         )
-        logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
+        if verbose:
+            logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
