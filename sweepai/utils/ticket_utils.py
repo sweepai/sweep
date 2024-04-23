@@ -368,12 +368,12 @@ def get_relevant_context(
                 content=content,
             )
             repo_context_manager.read_only_snippets.append(snippet)
+    else:
+        raise Exception("No file change requests created.")
     if all_create:
         # special case if all fcrs were create fcrs
         repo_context_manager.current_top_snippets = copy.deepcopy(previous_top_snippets)
         repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
-    else:
-        raise Exception("No file change requests created.")
     return repo_context_manager
 
 def fetch_relevant_files(
