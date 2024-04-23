@@ -675,6 +675,30 @@ def get_latest_contents(file_name: str, cloned_repo: ClonedRepo, modify_files_di
         return cloned_repo.get_file_contents(file_name)
     else:
         return ""
+    
+def get_surrounding_lines(file_contents: str, best_match: str) -> tuple[str, str]:
+    best_match_index = file_contents.find(best_match)
+    NUM_LINES_SURROUNDING = 6
+    surrounding_lines_before = "\n"
+    surrounding_lines_after = ""
+    if best_match_index != -1:
+        # OPUS START - this is a hacky way to get the surrounding lines, doesn't handle inline \n
+        # Find the index of the fifth \n before the best_match_index
+        best_match_start = max(0, file_contents.rfind("\n", 0, best_match_index))
+        for _ in range(NUM_LINES_SURROUNDING - 1):
+            best_match_start = max(0, file_contents.rfind("\n", 0, best_match_start))
+
+        # Find the index of the fifth \n after the best_match_index
+        best_match_end = best_match_index + len(best_match)
+        for _ in range(NUM_LINES_SURROUNDING * 2): # 2x the number of lines surrounding after for now
+            best_match_end = file_contents.find("\n", best_match_end + 1)
+            if best_match_end == -1:
+                best_match_end = len(file_contents)
+                break
+        # OPUS END
+        surrounding_lines_before = file_contents[best_match_start:best_match_index]
+        surrounding_lines_after = file_contents[best_match_index:best_match_end]
+    return surrounding_lines_before, surrounding_lines_after
 
 def handle_function_call(
     cloned_repo: ClonedRepo,
@@ -756,46 +780,39 @@ def handle_function_call(
                     # TODO: add weighted ratio to the choices, penalize whitespace less
                     best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
                     if best_score > 80:
-                        # expand best_match to include surrounding lines
-                        best_match_index = file_contents.find(best_match)
-                        NUM_LINES_SURROUNDING = 6
-                        surrounding_lines_before = "\n"
-                        surrounding_lines_after = ""
-                        if best_match_index != -1:
-                            # OPUS START - this is a hacky way to get the surrounding lines, doesn't handle inline \n
-                            # Find the index of the fifth \n before the best_match_index
-                            best_match_start = max(0, file_contents.rfind("\n", 0, best_match_index))
-                            for _ in range(NUM_LINES_SURROUNDING - 1):
-                                best_match_start = max(0, file_contents.rfind("\n", 0, best_match_start))
-
-                            # Find the index of the fifth \n after the best_match_index
-                            best_match_end = best_match_index + len(best_match)
-                            for _ in range(NUM_LINES_SURROUNDING * 2): # 2x the number of lines surrounding after for now
-                                best_match_end = file_contents.find("\n", best_match_end + 1)
-                                if best_match_end == -1:
-                                    best_match_end = len(file_contents)
-                                    break
-                            # OPUS END
-                            surrounding_lines_before = file_contents[best_match_start:best_match_index]
-                            surrounding_lines_after = file_contents[best_match_index:best_match_end]
-
+                        surrounding_lines_before, surrounding_lines_after = get_surrounding_lines(file_contents, best_match)
                         first_diff_text = surrounding_lines_before + tool_call['original_code'] + surrounding_lines_after
                         second_diff_text = surrounding_lines_before + best_match + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
-
-                        # first check the lines in original_code, if it is too long, ask for smaller changes
-                        original_code_lines_length = len(original_code.split("\n"))
-                        if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
-                            error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                        else:
-                            # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                            # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                            # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
-                            error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                        # check other files, this code should skip if there are no other files
+                        all_file_contents = list(dict.fromkeys([get_latest_contents(fcr.filename, cloned_repo, modify_files_dict) for fcr in llm_state["fcrs"] if fcr.filename != file_name]))
+                        all_file_names = list(dict.fromkeys([fcr.filename for fcr in llm_state["fcrs"] if fcr.filename != file_name]))
+                        best_matches = [find_best_match(original_code, file_contents) for file_contents in all_file_contents]
+                        for (best_match, best_score), other_file_name in zip(best_matches, all_file_names):
+                            if best_score > 80:
+                                surrounding_lines_before, surrounding_lines_after = get_surrounding_lines(file_contents, best_match)
+                                first_diff_text = surrounding_lines_before + tool_call['original_code'] + surrounding_lines_after
+                                second_diff_text = surrounding_lines_before + best_match + surrounding_lines_after
+                                best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of 
+                                if first_diff_text == second_diff_text or best_match_diff.strip() == "":
+                                    error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nThe code was found in {other_file_name}. Call make_changes again with the correct file name."
+                                else:
+                                    error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the {other_file_name} file?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                                break
+                        else: # if no other file match was found then return this block
+                            error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                            # first check the lines in original_code, if it is too long, ask for smaller changes
+                            original_code_lines_length = len(original_code.split("\n"))
+                            if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
+                                error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                            else:
+                                # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                                # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                                # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
+                                error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                     break
                 # ensure original_code and new_code has the correct indents
                 new_code_lines = new_code.split("\n")
