@@ -141,20 +141,6 @@ def sort_snippets_by_start(snippets:list[Snippet]) -> list[Snippet]:
     snippets.sort(key=lambda x: x.start)
     return snippets
 
-def fuse_snippets(snippets: list[Snippet], fuse_distance: int = 600) -> list[Snippet]:
-    if len(snippets) <= 1:
-        return snippets
-    fused_snippets = []
-    current_snippet = snippets[0]
-    for snippet in snippets[1:]:
-        if current_snippet.end + fuse_distance >= snippet.start:
-            current_snippet.end = max(current_snippet.end, snippet.end)
-        else:
-            fused_snippets.append(current_snippet)
-            current_snippet = snippet
-    fused_snippets.append(current_snippet)
-    return fused_snippets
-
 def organize_snippets(snippets: list[Snippet], fuse_distance: int = 600, file_path_groups: dict = None) -> list[Snippet]:
     """
     Fuse and dedup snippets that are contiguous. Combine ones of same file.
@@ -171,8 +157,11 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int = 600, file_pa
 
     fused_snippets = []
     for file_path, group_snippets in file_path_groups.items():
-        fused_group_snippets = fuse_snippets(group_snippets, fuse_distance)
-        fused_snippets.extend(fused_group_snippets)
+        start = min([snippet.start for snippet in group_snippets])
+        end = max([snippet.end for snippet in group_snippets])
+        group_snippets[0].start = start
+        group_snippets[0].end = end
+        fused_snippets.append(group_snippets[0])
 
     return fused_snippets
 
