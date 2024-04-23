@@ -1,4 +1,5 @@
 from collections import defaultdict
+import copy
 import traceback
 from time import time
 
@@ -328,13 +329,19 @@ def get_relevant_context(
         context=True,
         cloned_repo=repo_context_manager.cloned_repo,
     )
+    previous_top_snippets = copy.deepcopy(repo_context_manager.current_top_snippets)
+    previous_read_only_snippets = copy.deepcopy(repo_context_manager.read_only_snippets)
     repo_context_manager.current_top_snippets = []
     repo_context_manager.read_only_snippets = []
     visited_paths = set()
+    all_create = True
     for fcr in fcrs:
         if fcr.filename in visited_paths:
             continue
         visited_paths.add(fcr.filename)
+        if fcr.change_type == "create":
+            continue
+        all_create = False
         try:
             content = repo_context_manager.cloned_repo.get_file_contents(fcr.filename)
         except FileNotFoundError:
@@ -365,6 +372,10 @@ def get_relevant_context(
             repo_context_manager.read_only_snippets.append(snippet)
     else:
         raise Exception("No file change requests created.")
+    if all_create:
+        # special case if all fcrs were create fcrs
+        repo_context_manager.current_top_snippets = copy.deepcopy(previous_top_snippets)
+        repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
     return repo_context_manager
 
 def fetch_relevant_files(
