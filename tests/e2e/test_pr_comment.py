@@ -61,8 +61,11 @@ def test_e2e_pr_comment():
                     "Wrote Changes" in comment.body
                     and creation_date.timestamp() > current_date.timestamp()
                 ):
+                    i = 1
                     for thread in global_threads:
                         thread.join()
+                        print(f"joining thread {i} of {len(global_threads)}")
+                        i += 1
                     print(f"PR successfully updated: {pr.title}")
                     print(f"PR object is: {pr}")
                     return
