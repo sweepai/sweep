@@ -249,6 +249,11 @@ def get_failing_gha_logs(runs, installation_id) -> str:
                 "Failed to get jobs for failing github actions, possible a credentials issue"
             )
             return all_logs
+        # make sure jobs in valid
+        if jobs_response.json()['total_count'] == 0:
+            logger.error(f"no jobs for this run: {run}, continuing...")
+            continue
+
         # logs url
         logs_url = run.logs_url
         logs_response = requests.get(
@@ -274,7 +279,6 @@ def get_failing_gha_logs(runs, installation_id) -> str:
             logger.error(
                 "Failed to get logs for failing github actions, likely a credentials issue"
             )
-            return all_logs
     return all_logs
 
 
@@ -977,7 +981,6 @@ def on_ticket(
                     + (f"\n\n{docs_results}\n\n" if docs_results else ""),
                     1,
                 )
-
                 logger.info("Fetching files to modify/create...")
                 file_change_requests, plan = get_files_to_change(
                     relevant_snippets=repo_context_manager.current_top_snippets,
@@ -1472,7 +1475,7 @@ def on_ticket(
                 total_edit_attempts = 0
                 SLEEP_DURATION_SECONDS = 15
                 GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
-                GHA_MAX_EDIT_ATTEMPTS = 1 # max number of times to edit PR
+                GHA_MAX_EDIT_ATTEMPTS = 2 # max number of times to edit PR
                 while True and GITHUB_ACTIONS_ENABLED:
                     logger.info(
                         f"Polling to see if Github Actions have finished... {total_poll_attempts}"
