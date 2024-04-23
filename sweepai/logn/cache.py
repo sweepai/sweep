@@ -85,6 +85,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
             cache_file = os.path.join(
                 cache_dir, f"{cache_key}.pickle"
             )
+            redis_cache_hit = False
             if redis and redis_client: # only use this for LLM calls
                 try:
                     cached_result = redis_client.get(cache_key)
@@ -92,6 +93,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
                         if verbose:
                             print("Used redis cache for function: " + func.__name__)
                         result = pickle.loads(cached_result)
+                        redis_cache_hit = True
                 except Exception:
                     pass
             if result is None:
@@ -108,21 +110,21 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
             if result is None:
                 result = func(*args, **kwargs)
             # hydrate both caches in all cases
-            if redis and redis_client: # cache this to redis as well
+            if redis and redis_client and not redis_cache_hit: # cache this to redis as well
                 try:
-                    # Cache the result using the unique cache key
+                    # Cache the result using the unique cache key only if it wasn't a redis cache hit
                     redis_client.set(cache_key, pickle.dumps(result))
                 except Exception as e:
                     if verbose:
                         print(f"Redis caching failed for function: {func.__name__}, Error: {e}")
-            if not isinstance(result, Exception):
+            if isinstance(result, Exception):
+                logger.info(f"Function {func.__name__} returned an exception")
+            elif not os.path.exists(cache_file):
                 try:
                     with open(cache_file, "wb") as f:
                         pickle.dump(result, f)
                 except Exception as e:
                     logger.info(f"Pickling failed: {e}")
-            else:
-                logger.info(f"Function {func.__name__} returned an exception")
             return result
 
         return wrapper
