@@ -838,7 +838,7 @@ def on_ticket(
             try:
                 # search/context manager
                 logger.info("Searching for relevant snippets...")
-                snippets, _, _, repo_context_manager = fetch_relevant_files(
+                snippets, tree, _, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
                     message_summary,
