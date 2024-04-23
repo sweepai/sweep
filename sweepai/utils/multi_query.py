@@ -85,9 +85,9 @@ def generate_multi_queries(input_query: str):
         ],
     )
     stripped_input = input_query.strip('\n')
-    response = chatgpt.chat_anthropic(
-        f"<github_issue>\n{stripped_input}\n</github_issue>", 
-        model="claude-3-opus-20240229"
+    response = chatgpt.chat(
+        content=f"<github_issue>\n{stripped_input}\n</github_issue>",
+        model="gpt-4-turbo-2024-04-09",
     )
     pattern = re.compile(r"<query>(?P<query>.*?)</query>", re.DOTALL)
     queries = []
