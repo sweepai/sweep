@@ -92,6 +92,7 @@ if __name__ == "__main__":
 
         new_file = modify_file(
             cloned_repo=cloned_repo,
+            request="complete the user request",
             metadata="This repo is Sweep.",
             file_change_requests=[FileChangeRequest(
                 filename="sweepai/api.py",
