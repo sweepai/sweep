@@ -298,74 +298,84 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
-context_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
+context_files_to_change_prompt = """Your job is to write three high quality, detailed, step-by-step plans for an intern to help resolve a user's GitHub issue. Each plan should consider a different approach to solving the problem, particularly focusing on different files and code sections to change.
 
-You will analyze the provided code snippets, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code snippets and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create three step-by-step plans for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
 Guidelines:
-- Always include the full file path and reference the provided snippets 
+- Always include the full file path and reference the provided files 
 - Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using phrases like "add", "change", "remove" instead of vague terms
+- Be specific and direct, using the phrases "add", "replace", and "remove".
 - Reference relevant type definitions, interfaces, and schemas 
-- Avoid line numbers and instead reference code locations using surrounding code or function names
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Update tests accordingly to ensure the changes are correct
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
+- To remove code, replace it with empty <new_code> tags.
 
-Please use the following XML format for your response:
+Please use the following XML format for each of your responses:
 
-# Issue Analysis:
-<issue_analysis>
-* Identify the root cause of the issue by referencing specific code entities in the relevant files.
-* Identify a similar existing feature and describe how it has been implemented in extreme detail. 
-* Detail ALL changes that need to occur for the user's request to be resolved, by referencing provided code snippets, entity names, and necessary files/directories. Be complete.
-List ALL files we should modify to resolve the issue in the following format:
-- File path 1: Detailed instructions for modifying the file
-    - First change to make in the file
-    - Second change to make in the file
-    - Continue listing all changes that need to be made. Be complete.
-- File path 2: Detailed instructions for modifying the file
-    - First change to make in the file  
-    - Second change to make in the file
-    - Continue listing all changes that need to be made. Be complete.
+# 1. Issue Analysis:
+<issue_analysis number="#">
+a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+
+b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+
+c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+  - File path 1: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+  - File path 2: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file.
+      b. Describe the second change to make in the file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
-List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-- Type definitions, interfaces, and schemas
-- Helper functions
-- Frontend components
-- Database services
-- API endpoints
-[additional relevant modules as needed]
 
-* For each <create> or <modify> section in your plan, explain its purpose and how it contributes to resolving the issue.
-[additional analysis as needed]
+d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+  - Type definitions, interfaces, and schemas
+  - Helper functions
+  - Frontend components
+  - Database services
+  - API endpoints
+  [additional relevant modules as needed]
 </issue_analysis>
 
+# 2. Plan:
 <plan number="#">  
 <create file="file_path_1">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, schemas.
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
 </create>
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. Reference change locations using surrounding code or functions.
-Include relevant type definitions, interfaces, schemas.
+Instructions for modifying one section of the file. 
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying a different section of the same file. Use multiple <modify> blocks for the same file to separate distinct changes.
+Instructions for modifying a different section of the same file. 
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+
+Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
 
 [additional modifies as needed, for the same file or different files]
 </plan>
 
+# 3. Relevant Modules:
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
 </relevant_modules>
 
-Generate three diverse plans to address the user issue based off of your issue analysis. The best plan will be chosen later."""
+Generate three diverse plans to address the user issue. The best plan will be chosen later."""
 
 extract_files_to_change_prompt = """\
 # Task:

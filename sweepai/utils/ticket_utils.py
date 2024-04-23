@@ -111,7 +111,7 @@ def multi_get_top_k_snippets(
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
     _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.cached_dir,
+        cloned_repo.repo_dir,
         sweep_config,
         ticket_progress,
         ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
@@ -256,7 +256,7 @@ def multi_prep_snippets(
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
     # you can use snippet.denotation and snippet.get_snippet()
-    if not skip_reranking and not skip_pointwise_reranking:
+    if not skip_reranking and skip_pointwise_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
     snippet_paths = [snippet.file_path for snippet in ranked_snippets]
     prefixes = []
@@ -314,7 +314,7 @@ def get_relevant_context(
     )
     fcrs, plan = get_files_to_change(
         relevant_snippets=repo_context_manager.current_top_snippets,
-        read_only_snippets=repo_context_manager.snippets,
+        read_only_snippets=repo_context_manager.read_only_snippets,
         problem_statement=query,
         repo_name=repo_context_manager.cloned_repo.repo_full_name,
         import_graph=import_graph,

@@ -49,6 +49,8 @@ OpenAIModel = (
     | Literal["gpt-3.5-turbo-16k-0613"]
     | Literal["gpt-4-1106-preview"]
     | Literal["gpt-4-0125-preview"]
+    | Literal["gpt-4-turbo-2024-04-09"]
+    | Literal["gpt-4-turbo"]
 )
 
 AnthropicModel = (
