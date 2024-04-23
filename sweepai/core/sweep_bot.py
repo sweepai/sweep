@@ -36,6 +36,7 @@ from sweepai.core.prompts import (
     files_to_change_system_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
@@ -213,7 +214,6 @@ def get_files_to_change(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
 
-    interleaved_snippets = relevant_snippets
 
     max_snippets = get_max_snippets(interleaved_snippets)
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -276,7 +276,6 @@ def get_files_to_change(
                 key="relevant_snippets",
             )
         )
-
     # if import_graph: # no evidence this helps
     #     sub_graph = import_graph.subgraph(
     #         [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
