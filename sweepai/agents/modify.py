@@ -831,7 +831,7 @@ def handle_function_call(
                 if new_code == original_code:
                     error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                     break
-                if not original_code:
+                if not original_code.strip():
                     error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
                 # get the latest contents of the file
                 file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
@@ -875,8 +875,10 @@ def handle_function_call(
                             surrounding_lines_before = file_contents[best_match_start:best_match_index]
                             surrounding_lines_after = file_contents[best_match_index:best_match_end]
 
-                        first_diff_text = surrounding_lines_before + tool_call['original_code'] + surrounding_lines_after
-                        second_diff_text = surrounding_lines_before + best_match + surrounding_lines_after
+                        START_MARKER = "\n===== START =====\n"
+                        END_MARKER = "\n===== END =====\n"
+                        first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
+                        second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
@@ -996,16 +998,35 @@ def handle_function_call(
                 }
             if warning_message:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
-            else:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
-            modify_files_dict[file_name]['contents'] = new_file_contents
-            # update llm_state to show that this task was attempted
-            current_fcr_index = get_current_task_index(llm_state["fcrs"])
-            if warning_message:
+                modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                modify_files_dict[file_name]['contents'] = new_file_contents
+
+                # Success without warning, let's move onto the next task:
+                changes_made = generate_diffs(modify_files_dict)
+                if changes_made:
+                    llm_response = "DONE"
+                else:
+                    llm_state["done_counter"] += 1
+                    if llm_state["done_counter"] > 3:
+                        llm_response = "DONE"
+                    else:
+                        llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
+                for fcr in llm_state["fcrs"]:
+                    if not fcr.is_completed:
+                        fcr.is_completed = True
+                        break
+                llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+                llm_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
+                if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
+                    llm_response = "DONE"
+
                 llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
-                llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
+
+            current_fcr_index = get_current_task_index(llm_state["fcrs"])
+            llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""
@@ -1038,6 +1059,8 @@ def handle_function_call(
             llm_response = f"SUCCESS\n\n{success_message}"
     else:
         llm_response = f"ERROR\nUnexpected tool name: {tool_name}"
+    print(llm_response)
+    # breakpoint()
     return llm_response, modify_files_dict, llm_state
 
 if __name__ == "__main__":

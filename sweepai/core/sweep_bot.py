@@ -31,6 +31,7 @@ from sweepai.core.entities import (
 from sweepai.core.prompts import (
     files_to_change_prompt,
     context_files_to_change_prompt,
+    context_files_to_change_system_prompt,
     pull_request_prompt,
     subissues_prompt,
     files_to_change_system_prompt
@@ -208,6 +209,8 @@ def get_files_to_change(
         Message(role="system", content=files_to_change_system_prompt, key="system")
     )
 
+    # relevant_snippets = relevant_snippets[::-1]
+
     interleaved_snippets = []
     for i in range(max(len(relevant_snippets), len(read_only_snippets))):
         if i < len(relevant_snippets):
@@ -223,7 +226,7 @@ def get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if not context:
+    if context:
         formatted_relevant_snippets = []
         for i, snippet in enumerate(relevant_snippets):
             annotated_source_code, code_summaries = get_annotated_source_code(
@@ -308,7 +311,7 @@ def get_files_to_change(
             messages=[
                 Message(
                     role="system",
-                    content=files_to_change_system_prompt,
+                    content=files_to_change_system_prompt if not context else context_files_to_change_system_prompt,
                 ),
             ],
         )
