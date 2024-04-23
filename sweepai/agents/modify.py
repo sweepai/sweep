@@ -6,7 +6,6 @@ import re
 from rapidfuzz import fuzz, process
 
 from loguru import logger
-from regex import D
 from tqdm import tqdm
 from sweepai.core.chat import ChatGPT, parse_function_calls_for_openai
 from sweepai.core.entities import FileChangeRequest, Message
