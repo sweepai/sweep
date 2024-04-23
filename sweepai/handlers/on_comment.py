@@ -400,7 +400,6 @@ def on_comment(
                 ):
                     # Update the PR title to remove the "[DRAFT]" prefix
                     pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
-
             logger.info("Done!")
         except NoFilesException:
             elapsed_time = time.time() - start_time
