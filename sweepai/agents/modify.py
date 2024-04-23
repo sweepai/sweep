@@ -510,6 +510,7 @@ def modify(
     use_openai: bool = False,
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
+    # Unit tests for this function can be found in tests/agents/test_modify.py
     # join fcr in case of duplicates
     user_message = create_user_message(
         fcrs=fcrs,
