@@ -31,7 +31,7 @@ def get_parser(language: str):
     elif language in ("javascript", "js"):
         lang = Language(tree_sitter_javascript.language(), "javascript")
     else:
-        return languages_get_parser(language)
+        return tree_sitter_get_parser(language)
     parser.set_language(lang)
     return parser
 
