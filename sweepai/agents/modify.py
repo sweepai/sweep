@@ -507,6 +507,14 @@ def render_plan(fcrs: list[FileChangeRequest]) -> str:
             plan += f"\n\nTask {i}: You will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
     return plan.strip('\n')
 
+# get current task being worked on
+def get_current_task_index(fcrs: list[FileChangeRequest]) -> str:
+    current_fcr_index = 0
+    for current_fcr_index, fcr in enumerate(fcrs):
+        if not fcr.is_completed:
+            break
+    return current_fcr_index
+
 def render_current_task(fcrs: list[FileChangeRequest]) -> str:
     current_fcr_index = 0
     for current_fcr_index, fcr in enumerate(fcrs):
@@ -515,15 +523,34 @@ def render_current_task(fcrs: list[FileChangeRequest]) -> str:
     fcr = fcrs[current_fcr_index]
     return f"The CURRENT TASK is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n<current_task>\n{fcr.instructions}\n</current_task>"
 
-def compile_fcr(fcr: FileChangeRequest) -> str:
+# return replaces per fcr, -1 if there are any issues
+def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
+    original_code_pattern = r"<original_code>(.*?)</original_code>"
+    new_code_pattern = r"<new_code>(.*?)</new_code>"
+    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
+    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
+    if len(original_code_matches) != len(new_code_matches):
+        logger.error(f"Mismatched old/new code sections in fcr! {len(original_code_matches)} to {len(new_code_matches)}")
+        return -1
+    return len(original_code_matches)
+
+# returns the old/new code change as a function call
+def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
+    # justification is wrong, fix this later!
     justification, *_ = fcr.instructions.split("<original_code>", 1)
     original_code_pattern = r"<original_code>(.*?)</original_code>"
     new_code_pattern = r"<new_code>(.*?)</new_code>"
-    original_code_match = re.search(original_code_pattern, fcr.instructions, re.DOTALL)
-    new_code_match = re.search(new_code_pattern, fcr.instructions, re.DOTALL)
-    if original_code_match and new_code_match:
-        original_code = original_code_match.group(1).strip("\n")
-        new_code = new_code_match.group(1).strip("\n")
+    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
+    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
+    if original_code_matches and new_code_matches:
+        try:
+            if len(original_code_matches) != len(new_code_matches):
+                raise Exception(f"Mismatch between original_code and new_code sections: {len(original_code_matches)} to {len(new_code_matches)}")
+            original_code = original_code_matches[index].group(1).strip("\n")
+            new_code = new_code_matches[index].group(1).strip("\n")
+        except Exception as e:
+            logger.error(f"Error while running compile_fcr: {e}")
+            return ""
         return DEFAULT_FUNCTION_CALL.format(justification=justification.strip(), file_path=fcr.filename, original_code=original_code, new_code=new_code)
 
 # return the number of tasks completed
@@ -553,13 +580,32 @@ def modify(
         relevant_filepaths=relevant_filepaths,
     )
     chat_gpt = ChatGPT()
+    llm_state = {
+        "initial_check_results": {},
+        "done_counter": 0, # keep track of how many times the submit_task tool has been called
+        "request": request,
+        "plan": render_plan(fcrs), 
+        "current_task": render_current_task(fcrs),
+        "user_message_index": 1,  # used for detailed chat logger messages
+        "user_message_index_chat_logger": 1,  # used for detailed chat logger messages
+        "fcrs": fcrs,
+        "previous_attempt": "",
+        "changes_per_fcr": [get_replaces_per_fcr(fcr) for fcr in fcrs], # how many old/new code pairs there are per fcr
+        "completed_changes_per_fcr": [0 for _ in fcrs], # how many successful changes have been applied per fcr
+        "attempt_lazy_change": True # whether or not we attempt to bypass the llm call and apply old/new code pair directly
+    }
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
         chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
-        compiled_fcr = compile_fcr(fcrs[0])
+        compiled_fcr = compile_fcr(fcrs[0], 0)
         if compiled_fcr:
             function_calls_string = compiled_fcr
+            # update messages to make it seem as if it called the fcr
+            chat_gpt.messages.append(Message(
+                role="assistant",
+                content=function_calls_string
+            ))
         else:
             function_calls_string = chat_gpt.chat_anthropic(
                 content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
@@ -578,23 +624,12 @@ def modify(
             })
         return {}
     modify_files_dict = previous_modify_files_dict
-    llm_state = {
-        "initial_check_results": {},
-        "done_counter": 0, # keep track of how many times the submit_task tool has been called
-        "request": request,
-        "plan": render_plan(fcrs), 
-        "current_task": render_current_task(fcrs),
-        "user_message_index": 1,  # used for detailed chat logger messages
-        "user_message_index_chat_logger": 1,  # used for detailed chat logger messages
-        
-        "fcrs": fcrs,
-        "previous_attempt": "",
-    }
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
+        import pdb; pdb.set_trace()
         if use_openai:
             function_call = validate_and_parse_function_call_openai(function_calls_string, chat_gpt)
         else:
@@ -662,12 +697,33 @@ def modify(
                         "output": detailed_chat_logger_messages[-1]["content"],
                     })
         try:
-            function_calls_string = chat_gpt.chat_anthropic(
-                content=function_output,
-                model=MODEL,
-                stop_sequences=["</function_call>"],
-                use_openai=use_openai,
-            )
+            function_calls_string = ""
+            compiled_fcr = ""
+            current_fcr_index = get_current_task_index(fcrs)
+            lazy_change = llm_state["attempt_lazy_change"]
+            # on first attempt of a new task we use the first fcr
+            if lazy_change:
+                change_in_fcr_index = llm_state["completed_changes_per_fcr"][current_fcr_index]
+                max_changes = llm_state["changes_per_fcr"][current_fcr_index]
+                if change_in_fcr_index >= max_changes or change_in_fcr_index == -1:
+                    logger.error(f"Issue with change_in_fcr_index: {change_in_fcr_index}, total changes in fcr {max_changes}:, falling back to llm")
+                else:
+                    compiled_fcr = compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)
+                    if compiled_fcr:
+                        function_calls_string = compiled_fcr
+                        # update messages to make it seem as if it called the fcr
+                        chat_gpt.messages.append(Message(
+                            role="assistant",
+                            content=function_calls_string
+                        ))
+            # if previous things go wrong we make llm call
+            if not function_calls_string:
+                function_calls_string = chat_gpt.chat_anthropic(
+                    content=function_output,
+                    model=MODEL,
+                    stop_sequences=["</function_call>"],
+                    use_openai=use_openai,
+                )
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
@@ -749,6 +805,7 @@ def handle_function_call(
         llm_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
         if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
             llm_response = "DONE"
+        llm_state["attempt_lazy_change"] = True
     elif tool_name == "no_tool_call":
         if use_openai:
             llm_response = NO_TOOL_CALL_PROMPT_OPENAI
@@ -929,6 +986,7 @@ def handle_function_call(
                             warning_message += "\n\nDouble check that the newly used variables are defined."
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
+            llm_state["attempt_lazy_change"] = False
         if not error_message:
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
@@ -945,6 +1003,13 @@ def handle_function_call(
             else:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
             modify_files_dict[file_name]['contents'] = new_file_contents
+            # update llm_state to show that this task was attempted
+            current_fcr_index = get_current_task_index(llm_state["fcrs"])
+            if warning_message:
+                llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+            else:
+                llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
+                llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""
