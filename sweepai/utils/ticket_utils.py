@@ -1,4 +1,5 @@
 from collections import defaultdict
+import copy
 import traceback
 from time import time
 
@@ -24,6 +25,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.multi_query import generate_multi_queries
 from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import TicketProgress
+from sweepai.utils.tree_utils import DirectoryTree
 
 """
 Input queries are in natural language so both lexical search 
@@ -266,10 +268,11 @@ def multi_prep_snippets(
             if idx > snippet_depth // 2:
                 prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
         prefixes.append(snippet_path)
-    _, dir_obj = cloned_repo.list_directory_tree(
-        included_directories=list(set(prefixes)),
-        included_files=list(set(snippet_paths)),
-    )
+    # _, dir_obj = cloned_repo.list_directory_tree(
+    #     included_directories=list(set(prefixes)),
+    #     included_files=list(set(snippet_paths)),
+    # )
+    dir_obj = DirectoryTree() # init dummy one for now, this shouldn't be used
     repo_context_manager = RepoContextManager(
         dir_obj=dir_obj,
         current_top_tree=str(dir_obj),
@@ -323,13 +326,19 @@ def get_relevant_context(
         context=True,
         cloned_repo=repo_context_manager.cloned_repo,
     )
+    previous_top_snippets = copy.deepcopy(repo_context_manager.current_top_snippets)
+    previous_read_only_snippets = copy.deepcopy(repo_context_manager.read_only_snippets)
     repo_context_manager.current_top_snippets = []
     repo_context_manager.read_only_snippets = []
     visited_paths = set()
+    all_create = True
     for fcr in fcrs:
         if fcr.filename in visited_paths:
             continue
         visited_paths.add(fcr.filename)
+        if fcr.change_type == "create":
+            continue
+        all_create = False
         try:
             content = repo_context_manager.cloned_repo.get_file_contents(fcr.filename)
         except FileNotFoundError:
@@ -360,6 +369,10 @@ def get_relevant_context(
             repo_context_manager.read_only_snippets.append(snippet)
     else:
         raise Exception("No file change requests created.")
+    if all_create:
+        # special case if all fcrs were create fcrs
+        repo_context_manager.current_top_snippets = copy.deepcopy(previous_top_snippets)
+        repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
     return repo_context_manager
 
 def fetch_relevant_files(
@@ -388,7 +401,6 @@ def fetch_relevant_files(
 
         repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
-        ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.save()
         repo_context_manager = get_relevant_context(
             formatted_query,
@@ -398,12 +410,9 @@ def fetch_relevant_files(
             import_graph=import_graph,
         )
         snippets = repo_context_manager.current_top_snippets
-        ticket_progress.search_progress.repo_tree = str(repo_context_manager.dir_obj)
         ticket_progress.search_progress.final_snippets = snippets
         ticket_progress.save()
 
-        tree = str(repo_context_manager.dir_obj)
-        dir_obj = repo_context_manager.dir_obj
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")

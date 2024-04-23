@@ -409,7 +409,7 @@ class ChatGPT(MessageList):
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         content = ""
         e = None
-        NUM_ANTHROPIC_RETRIES = 4
+        NUM_ANTHROPIC_RETRIES = 6
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
                 @file_cache(redis=True) # must be in the inner scope because this entire function manages state
