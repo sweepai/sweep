@@ -46,7 +46,7 @@ from sweepai.utils.utils import check_syntax
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-SNIPPET_TOKEN_BUDGET = 125_000 * 3.5
+SNIPPET_TOKEN_BUDGET = 150_000 * 3.5
 
 def to_raw_string(s):
     return repr(s).lstrip("u")[1:-1]

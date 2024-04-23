@@ -297,9 +297,9 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
-context_files_to_change_prompt = """Your job is to write three high quality, detailed, step-by-step plans for an intern to help resolve a user's GitHub issue.
+context_files_to_change_prompt = """Your job is to write three high quality, detailed, step-by-step plans for an intern to help resolve a user's GitHub issue. Each plan should consider a different approach to solving the problem, particularly focusing on different files and code sections to change.
 
-You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create three step-by-step plans for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
 Guidelines:
 - Always include the full file path and reference the provided files 
