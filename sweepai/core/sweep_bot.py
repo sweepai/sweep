@@ -136,10 +136,14 @@ def validate_file_change_requests(
             except FileNotFoundError:
                 pass
         
-def sort_and_fuse_snippets(snippets: list[Snippet], fuse_distance: int = 600) -> list[Snippet]:
+# sort snippets based on start
+def sort_snippets_by_start(snippets:list[Snippet]) -> list[Snippet]:
+    snippets.sort(key=lambda x: x.start)
+    return snippets
+
+def fuse_snippets(snippets: list[Snippet], fuse_distance: int = 600) -> list[Snippet]:
     if len(snippets) <= 1:
         return snippets
-    snippets.sort(key=lambda x: x.start)
     fused_snippets = []
     current_snippet = snippets[0]
     for snippet in snippets[1:]:
@@ -155,6 +159,8 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int = 600, file_pa
     """
     Fuse and dedup snippets that are contiguous. Combine ones of same file.
     """
+    # sort snippets, make sure following operations do not mutate this order
+    snippets = sort_snippets_by_start(snippets)
     if file_path_groups is None:
         file_path_groups = {}
         for snippet in snippets:
@@ -165,8 +171,7 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int = 600, file_pa
 
     fused_snippets = []
     for file_path, group_snippets in file_path_groups.items():
-        group_snippets.sort(key=lambda x: x.start)
-        fused_group_snippets = sort_and_fuse_snippets(group_snippets, fuse_distance)
+        fused_group_snippets = fuse_snippets(group_snippets, fuse_distance)
         fused_snippets.extend(fused_group_snippets)
 
     return fused_snippets
@@ -220,7 +225,6 @@ def get_files_to_change(
             interleaved_snippets.append(relevant_snippets[i])
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
-
     max_snippets = get_max_snippets(interleaved_snippets)
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -867,6 +871,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             try:
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in new_file_contents.items()}
+                import pdb; pdb.set_trace()
                 result = commit_multi_file_changes(self.repo, new_file_contents_to_commit, commit_message, branch)
             except AssistantRaisedException as e:
                 raise e
