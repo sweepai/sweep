@@ -629,7 +629,6 @@ def modify(
     # used to determine if changes were made
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
-        import pdb; pdb.set_trace()
         if use_openai:
             function_call = validate_and_parse_function_call_openai(function_calls_string, chat_gpt)
         else:
