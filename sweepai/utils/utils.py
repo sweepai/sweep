@@ -20,21 +20,19 @@ from tree_sitter import Node, Parser, Language
 from tree_sitter_languages import get_parser as tree_sitter_get_parser
 import tree_sitter_python
 import tree_sitter_javascript
-import tree_sitter_javascript
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
 
-def get_parser(lang: str):
+def get_parser(language: str):
     parser = Parser()
-    language = None
-    if lang == "python":
-        language = Language(tree_sitter_python.language(), "python")
-    elif lang == "javascript":
-        language = Language(tree_sitter_javascript.language(), "javascript")
+    if language in ("python", "py"):
+        lang = Language(tree_sitter_python.language(), "python")
+    elif language in ("javascript", "js"):
+        lang = Language(tree_sitter_javascript.language(), "javascript")
     else:
-        return tree_sitter_get_parser(lang)
-    parser.set_language(language)
+        return languages_get_parser(language)
+    parser.set_language(lang)
     return parser
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -665,7 +663,7 @@ export function removeEmailAlias(email: string): string {
   }
 """
     new_code = """console.log("hello world")"""
-    check_results = check_valid_typescript("test.ts",new_code)
+    check_results = check_syntax("test.js", new_code)
     import pdb
     # pylint: disable=no-member
     pdb.set_trace()

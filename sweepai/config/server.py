@@ -198,7 +198,7 @@ if WHITELISTED_USERS:
     WHITELISTED_USERS = WHITELISTED_USERS.split(",")
     WHITELISTED_USERS.append(GITHUB_BOT_USERNAME)
 
-DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-0125-preview")
+DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-turbo-2024-04-09")
 DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
@@ -248,3 +248,5 @@ DEPLOYMENT_GHA_ENABLED = os.environ.get("DEPLOYMENT_GHA_ENABLED", "true").lower(
 JIRA_USER_NAME = os.environ.get("JIRA_USER_NAME", None)
 JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", None)
 JIRA_URL = os.environ.get("JIRA_URL", None)
+
+LICENSE_KEY = os.environ.get("LICENSE_KEY", None)

@@ -280,11 +280,14 @@ f'''
         for snippet in snippets_to_add:
             self.current_top_snippets.append(snippet)
 
-    # does the same thing as add_snippets but adds it to the beginning of the list
-    def boost_snippets_to_top(self, snippets_to_boost: list[Snippet]):
+    def boost_snippets_to_top(self, snippets_to_boost: list[Snippet], code_files_in_query: list[str]):
         # self.dir_obj.add_file_paths([snippet.file_path for snippet in snippets_to_boost])
         for snippet in snippets_to_boost:
-            self.current_top_snippets.insert(0, snippet)
+            # get first positions of all snippets that are in the code_files_in_query
+            all_first_in_query_positions = [self.top_snippet_paths.index(file_path) for file_path in code_files_in_query if file_path in self.top_snippet_paths]
+            last_mentioned_result_index = (max(all_first_in_query_positions, default=-1) + 1) if all_first_in_query_positions else 0
+            # insert after the last mentioned result
+            self.current_top_snippets.insert(max(0, last_mentioned_result_index), snippet)
 
     def add_import_trees(self, import_trees: str):
         self.import_trees += "\n" + import_trees
@@ -519,7 +522,7 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
                 code_snippets = [
                     snippet for snippet in rcm.snippets if snippet.file_path == file
                 ]
-                rcm.boost_snippets_to_top(code_snippets)
+                rcm.boost_snippets_to_top(code_snippets, code_files_in_query)
             except Exception as e:
                 logger.error(
                     f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one."

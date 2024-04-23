@@ -397,7 +397,8 @@ class ChatGPT(MessageList):
             ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
             assert ANTHROPIC_API_KEY
             self.model = model
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        if content:
+            self.messages.append(Message(role="user", content=content, key=message_key))
         if assistant_message_content:
             self.messages.append(Message(role="assistant", content=assistant_message_content))
         temperature = temperature or self.temperature or default_temperature

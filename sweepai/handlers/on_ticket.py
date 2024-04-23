@@ -49,7 +49,6 @@ from sweepai.config.server import (
     MONGODB_URI,
     PROGRESS_BASE_URL,
 )
-from sweepai.core.context_pruning import get_relevant_context
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -67,6 +66,7 @@ from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_check_suite import clean_gh_logs
+from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
@@ -436,6 +436,8 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
+    if not os.environ.get("CLI"):
+        assert validate_license(), "License key is invalid or expired. Please contact us at team@sweep.dev to upgrade to an enterprise license."
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
@@ -1513,14 +1515,6 @@ def on_ticket(
                             all_information_prompt = f"While trying to address the user request:\n<user_request>\n{problem_statement}\n</user_request>\n{failed_gha_logs}\nThese are the changes that were previously made:\n<diffs>\n{diffs}\n</diffs>\n\nFix the failing logs."
                             
                             repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
-                            repo_context_manager = get_relevant_context(
-                                all_information_prompt,
-                                repo_context_manager,
-                                ticket_progress,
-                                chat_logger=chat_logger,
-                                import_graph=None,
-                                num_rollouts=1,
-                            )
                             sweep_bot: SweepBot = construct_sweep_bot(
                                 repo=repo,
                                 repo_name=repo_name,
@@ -1617,8 +1611,9 @@ def on_ticket(
                     (
                         "Sorry, Sweep could not find any appropriate files to edit to address"
                         " this issue. If this is a mistake, please provide more context and Sweep"
-                        f" will retry!\n\n> @{username}, please edit the issue description to"
-                        " include more details about this issue."
+                        f" will retry!\n\n@{username}, please edit the issue description to"
+                        " include more details. You can also ask for help on our community" 
+                        " forum: https://community.sweep.dev/"
                     ),
                     -1,
                 )
@@ -1694,13 +1689,13 @@ def on_ticket(
                 if len(title + summary) < 60:
                     edit_sweep_comment(
                         (
-                            "I'm sorry, but it looks like an error has occurred due to"
-                            + " a planning failure. Feel free to add more details to the issue description"
-                            + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
-                            + " https://discord.gg/sweep."
+                            "I'm sorry, but it looks like an error occurred due to" 
+                            " a planning failure. Feel free to add more details to the issue description"
+                            " so Sweep can better address it. Alternatively, post on our community forum"
+                            " for assistance: https://community.sweep.dev/"
                         ),
                         -1,
-                    )
+                    )  
                 else:
                     edit_sweep_comment(
                         (
