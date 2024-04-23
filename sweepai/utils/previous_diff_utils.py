@@ -3,7 +3,7 @@ import numpy as np
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.vector_db import multi_get_query_texts_similarity
-from sweepai.logn.cache import file_cache
+# from sweepai.logn.cache import file_cache
 from sweepai.utils.cohere_utils import cohere_rerank_call
 
 from dataclasses import field, dataclass

@@ -36,7 +36,7 @@ from sweepai.core.prompts import (
     files_to_change_system_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.previous_diff_utils import get_relevant_commits
+# from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.progress import (
     AssistantAPIMessage,
     AssistantConversation,
