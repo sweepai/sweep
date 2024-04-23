@@ -1,5 +1,5 @@
 import base64
-import copy
+from copy import deepcopy
 import re
 import traceback
 from typing import Dict, Generator
@@ -136,40 +136,39 @@ def validate_file_change_requests(
             except FileNotFoundError:
                 pass
         
-def sort_and_fuse_snippets(
-    snippets: list[Snippet],
-    fuse_distance: int = 600,
-) -> list[Snippet]:
+def sort_and_fuse_snippets(snippets: list[Snippet], fuse_distance: int = 600) -> list[Snippet]:
     if len(snippets) <= 1:
         return snippets
-    new_snippets = []
     snippets.sort(key=lambda x: x.start)
+    fused_snippets = []
     current_snippet = snippets[0]
     for snippet in snippets[1:]:
         if current_snippet.end + fuse_distance >= snippet.start:
             current_snippet.end = max(current_snippet.end, snippet.end)
         else:
-            new_snippets.append(current_snippet)
+            fused_snippets.append(current_snippet)
             current_snippet = snippet
-    new_snippets.append(current_snippet)
-    return new_snippets
-    
-def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[Snippet]:
+    fused_snippets.append(current_snippet)
+    return fused_snippets
+
+def organize_snippets(snippets: list[Snippet], fuse_distance: int = 600, file_path_groups: dict = None) -> list[Snippet]:
     """
     Fuse and dedup snippets that are contiguous. Combine ones of same file.
     """
+    if file_path_groups is None:
+        file_path_groups = {}
+        for snippet in snippets:
+            if snippet.file_path not in file_path_groups:
+                file_path_groups[snippet.file_path] = [snippet]
+            else:
+                file_path_groups[snippet.file_path].append(snippet)
+
     fused_snippets = []
-    added_file_paths = set()
-    for i, snippet in enumerate(snippets):
-        if snippet.file_path in added_file_paths:
-            continue
-        added_file_paths.add(snippet.file_path)
-        current_snippets = [snippet]
-        for current_snippet in snippets[i + 1:]:
-            if snippet.file_path == current_snippet.file_path:
-                current_snippets.append(current_snippet)
-        current_snippets = sort_and_fuse_snippets(current_snippets, fuse_distance=fuse_distance)
-        fused_snippets.extend(current_snippets)
+    for file_path, group_snippets in file_path_groups.items():
+        group_snippets.sort(key=lambda x: x.start)
+        fused_group_snippets = sort_and_fuse_snippets(group_snippets, fuse_distance)
+        fused_snippets.extend(fused_group_snippets)
+
     return fused_snippets
 
 def get_max_snippets(
@@ -181,11 +180,19 @@ def get_max_snippets(
     Start with max number of snippets and then remove then until the budget is met.
     Return the resulting organized snippets.
     """
+    file_path_groups = {}
+    for snippet in snippets:
+        if snippet.file_path not in file_path_groups:
+            file_path_groups[snippet.file_path] = [snippet]
+        else:
+            file_path_groups[snippet.file_path].append(snippet)
+
     for i in range(len(snippets), 0, -1):
-        proposed_snippets = organize_snippets(snippets[:i])
-        cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
+        proposed_snippets = organize_snippets(snippets[:i], file_path_groups=file_path_groups)
+        cost = sum([snippet.expand(expand * 2).get_content_character_count() for snippet in proposed_snippets])
         if cost <= budget:
             return proposed_snippets
+
     raise Exception("Budget number of chars too low!")
 
 def get_files_to_change(
@@ -213,7 +220,6 @@ def get_files_to_change(
             interleaved_snippets.append(relevant_snippets[i])
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
-
 
     max_snippets = get_max_snippets(interleaved_snippets)
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -788,7 +794,7 @@ class SweepBot(CodeGenBot, GithubBot):
         additional_messages: list[Message] = []
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
-        additional_messages_copy = copy.deepcopy(additional_messages)
+        additional_messages_copy = deepcopy(additional_messages)
         (
             changed_file,
             commit,

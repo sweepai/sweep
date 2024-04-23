@@ -416,6 +416,13 @@ class Snippet(BaseModel):
             end=max(self.end, other.end),
             file_path=self.file_path,
         )
+    
+    def get_content_character_count(self) -> int:
+        start_pos = 0 if self.start == 1 else self.content.find('\n', self.start - 2) + 1
+        end_pos = self.content.find('\n', self.end - 1)
+        if end_pos == -1:
+            end_pos = len(self.content)
+        return end_pos - start_pos
 
     @property
     def xml(self):
