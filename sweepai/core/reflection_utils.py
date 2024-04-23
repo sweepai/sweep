@@ -423,8 +423,6 @@ class ModifyEvaluatorAgent(ChatGPT):
         if previous_attempt:
             content += "\n\n" + previous_attempt
         content += "\n\n" + modify_eval_suffix_prompt
-        # if warning_message:
-        #     breakpoint()
         evaluate_response = self.chat_anthropic(
             content=content,
             stop_sequences=["</message_to_contractor>"],
@@ -432,7 +430,6 @@ class ModifyEvaluatorAgent(ChatGPT):
             message_key="user_request",
         )
         evaluate_response += "</message_to_contractor>" # add the stop sequence back in, if it stopped for another reason we've crashed
-        # breakpoint()
         # update chat_logger_messages in place if they are passed in
         if chat_logger_messages:
             chat_logger_messages.append({"role": "assistant", "content": content})

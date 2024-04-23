@@ -46,7 +46,7 @@ from sweepai.utils.utils import check_syntax
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-
+SNIPPET_TOKEN_BUDGET = 125_000 * 3.5
 
 def to_raw_string(s):
     return repr(s).lstrip("u")[1:-1]
@@ -173,7 +173,7 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[S
 
 def get_max_snippets(
     snippets: list[Snippet],
-    budget: int = 150_000 * 3.5, # 140k tokens
+    budget: int = SNIPPET_TOKEN_BUDGET,
     expand: int = 300,
 ):
     """
@@ -276,23 +276,6 @@ def get_files_to_change(
                 key="relevant_snippets",
             )
         )
-
-    # if import_graph: # no evidence this helps
-    #     sub_graph = import_graph.subgraph(
-    #         [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
-    #     )
-    #     import_graph = generate_import_graph_text(sub_graph).strip("\n")
-    #     # serialize the graph so LLM can read it
-    #     if len(import_graph.splitlines()) > 5 and "──>" in import_graph:
-    #         graph_text = f"<graph_text>\nThis represents the file-to-file import graph, where each file is listed along with its imported files using arrows (──>) to show the directionality of the imports. Indentation is used to indicate the hierarchy of imports, and files that are not importing any other files are listed separately at the bottom.\n{import_graph}\n</graph_text>"
-
-    #         messages.append(
-    #             Message(
-    #                 role="user",
-    #                 content=graph_text,
-    #                 key="graph_text",
-    #             )
-    #         )
     # previous_diffs = get_previous_diffs(
     #     problem_statement,
     #     cloned_repo=cloned_repo,
@@ -334,16 +317,21 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1
         )
-        max_tokens = 4096 * 3.5 # approx max tokens per response
-        if len(files_to_change_response) > max_tokens:
+        max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
+        expected_plan_count = 3 if context else 1
+        call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
+        if call_anthropic_second_time:
             # ask for a second response
-            second_response = chat_gpt.chat_anthropic(
-                content="",
-                model=MODEL,
-                temperature=0.1
-            )
-            # we can simply concatenate the responses
-            files_to_change_response += second_response
+            try:
+                second_response = chat_gpt.chat_anthropic(
+                    content="",
+                    model=MODEL,
+                    temperature=0.1
+                )
+                # we can simply concatenate the responses
+                files_to_change_response += second_response
+            except Exception as e:
+                logger.warning(f"Failed to get second response due to {e}")
         if chat_logger:
             chat_logger.add_chat(
                 {
