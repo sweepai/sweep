@@ -317,7 +317,7 @@ def get_relevant_context(
     )
     fcrs, plan = get_files_to_change(
         relevant_snippets=repo_context_manager.current_top_snippets,
-        read_only_snippets=repo_context_manager.snippets,
+        read_only_snippets=repo_context_manager.read_only_snippets,
         problem_statement=query,
         repo_name=repo_context_manager.cloned_repo.repo_full_name,
         import_graph=import_graph,
