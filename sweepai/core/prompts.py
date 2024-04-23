@@ -206,6 +206,7 @@ Guidelines:
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
+- Update tests accordingly to ensure the changes are correct
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
 - To remove code, replace it with empty <new_code> tags.
 
@@ -309,6 +310,7 @@ Guidelines:
 - Avoid line numbers and instead reference code locations using surrounding code or function names
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
+- Update tests accordingly to ensure the changes are correct
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
 
