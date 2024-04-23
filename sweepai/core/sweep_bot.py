@@ -181,6 +181,8 @@ def get_max_snippets(
     Start with max number of snippets and then remove then until the budget is met.
     Return the resulting organized snippets.
     """
+    if not snippets:
+        return []
     for i in range(len(snippets), 0, -1):
         proposed_snippets = organize_snippets(snippets[:i])
         cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
@@ -200,7 +202,6 @@ def get_files_to_change(
     seed: int = 0,
     context: bool = False,
 ) -> tuple[list[FileChangeRequest], str]:
-    assert len(relevant_snippets) > 0
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
