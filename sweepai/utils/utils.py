@@ -17,7 +17,7 @@ from pylint.reporters.text import TextReporter
 import tiktoken
 from loguru import logger
 from tree_sitter import Node, Parser, Language
-from tree_sitter_languages import get_parser as tree_sitter_get_parser
+from tree_sitter_languages import get_parser as languages_get_parser
 import tree_sitter_python
 import tree_sitter_javascript
 
