@@ -247,6 +247,22 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
+EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It should contain a valid section of code that you want to modify. To use the make_change function, follow these steps:
+
+1. Ensure that the original_code variable is not empty. It should contain a valid section of code that you want to modify.
+2. If you want to replace code:
+    - Put the code you want to replace in the original_code variable.
+    - Put the new code that will replace the original code in the new_code variable.
+
+3. If you want to append code:
+    - Put the block of code you want to append to in the original_code variable.
+    - Copy the code from original_code and paste it into the new_code variable.
+    - Append the new code you want to add after the original code in the new_code variable.
+
+4. Call the function with the appropriate arguments.
+
+Note: Make sure that the code provided in both original_code and new_code is syntactically valid and free of errors."""
+
 self_review_prompt = """First, review and critique the change(s) you have made. Consider the following points:
 
 1. Analyze the code patch and indicate:
@@ -337,7 +353,7 @@ def find_best_match(needle: str, haystack: str, threshold: int = 80):
     return "", 0
 
 MODEL = "claude-3-haiku-20240307"
-# MODEL = "claude-3-opus-20240229" # try haiku
+SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call_openai(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -599,10 +615,12 @@ def modify(
                 content=function_calls_string
             ))
         else:
+            model = MODEL if llm_state["done_counter"] < 2 else SLOW_MODEL
+            logger.info(f"Using model: {model}")
             function_calls_string = chat_gpt.chat_anthropic(
                 content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
                 stop_sequences=["</function_call>"],
-                model=MODEL,
+                model=model,
                 message_key="user_request",
                 use_openai=use_openai,
             )
@@ -709,9 +727,11 @@ def modify(
                         ))
             # if previous things go wrong we make llm call
             if not function_calls_string:
+                model = MODEL if llm_state["done_counter"] < 2 else SLOW_MODEL
+                logger.info(f"Using model: {model}")
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_output,
-                    model=MODEL,
+                    model=model,
                     stop_sequences=["</function_call>"],
                     use_openai=use_openai,
                 )
@@ -823,7 +843,7 @@ def handle_function_call(
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
         if not tool_call["original_code"].strip():
-            error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
+            error_message = EMPTY_ORIGINAL_CODE_PROMPT
         warning_message = ""
         if not error_message:
             for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
