@@ -292,7 +292,7 @@ Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
-a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+a. Identify the functional changes made and which functions and classes they are from. Then, indicate how we should list all features we need to test. Then, locate the tests for the function and similar features, so we know where to add the new tests or update existing tests. (1 paragraph)
 
 b. Detail ALL of the tests that need to be added or updated to validate the proposed changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
