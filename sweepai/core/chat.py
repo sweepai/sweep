@@ -430,7 +430,6 @@ class ChatGPT(MessageList):
                         if ANTHROPIC_AVAILABLE and use_aws:
                             if "anthropic" not in model:
                                 model = f"anthropic.{model}-v1:0"
-                                self.model = f"anthropic.{self.model}-v1:0"
                             client = AnthropicBedrock(
                                 aws_access_key=AWS_ACCESS_KEY,
                                 aws_secret_key=AWS_SECRET_KEY,
