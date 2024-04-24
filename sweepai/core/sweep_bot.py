@@ -590,37 +590,6 @@ def get_files_to_change_for_gha(
 
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
-    # attach all relevant snippets
-    if True:
-        formatted_relevant_snippets = []
-        for i, snippet in enumerate(relevant_snippets):
-            annotated_source_code, code_summaries = get_annotated_source_code(
-                source_code=snippet.get_snippet(add_lines=False),
-                issue_text=problem_statement,
-                file_path=snippet.file_path,
-            )
-            formatted_relevant_snippets.append(
-                relevant_snippet_template.format(
-                    i=i,
-                    file_path=snippet.file_path,
-                    content=annotated_source_code,
-                )
-            )
-            # cohere_rerank_response = cohere_rerank_call(
-            #     query=problem_statement,
-            #     documents=code_summaries,
-            # )
-        joined_relevant_snippets = "\n".join(
-            formatted_relevant_snippets
-        )
-    else:
-        joined_relevant_snippets = "\n".join(
-            relevant_snippet_template.format(
-                i=i,
-                file_path=snippet.file_path,
-                content=snippet.expand(300).get_snippet(add_lines=False),
-            ) for i, snippet in enumerate(relevant_snippets)
-        )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
