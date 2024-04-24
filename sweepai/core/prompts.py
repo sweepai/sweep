@@ -181,7 +181,7 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 
 files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
 1. Analyze the issue and codebase to understand the problem.
@@ -288,7 +288,7 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 
 gha_files_to_change_system_prompt = """You are an AI assistant helping an intern write a plan to fix failing errors in his code. The intern will provide code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to fix the errors. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
 1. Analyze the issue, errors, codebase and existing changes to understand the problem.
@@ -417,7 +417,7 @@ Here is an example response format:
 
 context_files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
 1. Analyze the issue and codebase to understand the problem.
@@ -502,7 +502,7 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 
 # 3. Relevant Modules:
 <relevant_modules>
-[List of all relevant files to reference while making changes, one per line] 
+[List of all relevant files to reference while making changes, one per line]
 </relevant_modules>
 
 Generate three diverse plans to address the user issue. The best plan will be chosen later."""
