@@ -458,7 +458,8 @@ def on_ticket(
             fast_mode,
             lint_mode,
         ) = strip_sweep(title)
-
+        # image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
+        # image_contents = get_image_blobs_from_urls(image_urls)
         summary = summary or ""
         summary = re.sub(
             "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
