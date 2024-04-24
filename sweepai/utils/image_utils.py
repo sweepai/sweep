@@ -28,16 +28,17 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
         for match in image_url_matches:
             url = match.group('url')
             # only accept png, jpg, jpeg or webp
+            added = False
             for ext in sweep_config.allowed_image_types:
                 if ext in url:
                     urls.append((url, ext))
+                    added = True
                     break
             # unsupported type
-            if url not in urls:
+            if not added:
                 logger.error(f"Did not add image url: {url}\nReason: image type unsupported!")
     except Exception as e:
         logger.error(f"Encountered error while attempting to fetch raw issue {num} for {repo_full_name}")
-        raise e
     return urls
 
 
@@ -45,7 +46,7 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
 def get_image_blobs_from_urls(urls: list[tuple[str, str]]):
     image_contents = []
     for url, image_type in urls:
-        response = requests.get(url[0])
+        response = requests.get(url)
         if response.status_code == 200:
             image_contents.append((base64.b64encode(response.content).decode('utf-8'), image_type))
         else:
