@@ -92,7 +92,7 @@ class OpenAIProxy:
                                 max_tokens=max_tokens,
                                 temperature=temperature,
                             )
-                            return response
+                            return response.choices[0].message.content
                     except RateLimitError as e:
                         logger.exception(f"Rate Limit Error calling Azure: {e}")
                 else:
@@ -129,7 +129,7 @@ class OpenAIProxy:
                             max_tokens=max_tokens,
                             temperature=temperature,
                         )
-                        return response
+                        return response.choices[0].message.content
                 except (RateLimitError, APITimeoutError, InternalServerError) as e:
                     logger.exception(f"RateLimitError calling {region_url}: {e}")
             raise Exception("No Azure regions available")
@@ -246,7 +246,16 @@ class OpenAIProxy:
                 timeout=OPENAI_TIMEOUT,
                 seed=SEED,
                 stop=stop_sequences,
+                stream=True,
             )
+            text = ""
+            for chunk in response:
+                new_content = chunk.choices[0].delta.content
+                text += new_content if new_content else ""
+                if new_content:
+                    print(new_content, end="", flush=True)
+            print() # clear the line
+            return text
         else:
             response = client.chat.completions.create(
                 model=model,
@@ -258,7 +267,7 @@ class OpenAIProxy:
                 seed=SEED,
                 stop=stop_sequences,
             )
-        return response
+            return response.choices[0].message.content
 
 
 def get_client():
@@ -324,5 +333,20 @@ def test_get_client():
     )
 
 if __name__ == "__main__":
-    test_openai_proxy()
-    test_get_client()
+    model, client = get_client()
+    response = client.chat.completions.create(
+        model=model,
+        messages=[Message(
+            role="user",
+            content="Say this is a test",
+        ).to_openai()],
+        stream=True,
+    )
+    print("Generating response...", flush=True)
+    text = ""
+    for chunk in response:
+        new_content = chunk.choices[0].delta.content
+        text += new_content if new_content else ""
+        if new_content:
+            print(new_content, end="", flush=True)
+    print()

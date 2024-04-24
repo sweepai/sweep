@@ -327,21 +327,21 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1
         )
-        max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
         expected_plan_count = 3 if context else 1
-        call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
-        if call_anthropic_second_time:
+        calls = 0
+        while files_to_change_response.count("</plan>") < expected_plan_count and calls < 3:
             # ask for a second response
             try:
-                second_response = chat_gpt.chat_anthropic(
+                next_response = chat_gpt.chat_anthropic(
                     content="",
                     model=MODEL,
                     temperature=0.1
                 )
                 # we can simply concatenate the responses
-                files_to_change_response += second_response
+                files_to_change_response += next_response
             except Exception as e:
                 logger.warning(f"Failed to get second response due to {e}")
+            calls += 1
         if chat_logger:
             chat_logger.add_chat(
                 {
