@@ -118,7 +118,7 @@ def stack_pr(
         edit_comment("Currently fetching files... (step 1/3)")
 
         try:
-            snippets, tree, _ = fetch_relevant_files(
+            snippets, rcm = fetch_relevant_files(
                 cloned_repo,
                 request,
                 "",
