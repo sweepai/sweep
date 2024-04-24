@@ -217,7 +217,7 @@ Please use the following XML format for your response:
 <issue_analysis>
 a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
 
-b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
 c. Detail ALL of the tests we should add or update to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
@@ -441,7 +441,6 @@ Guidelines:
 - Update tests accordingly to ensure the changes are correct
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
-- To remove code, replace it with empty <new_code> tags.
 
 Please use the following XML format for each of your responses:
 
@@ -491,15 +490,10 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 
 <modify file="file_path_2"> 
 Instructions for modifying one section of the file. 
-
-Reference the original code and write the new code, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas.
 </modify>
 
 <modify file="file_path_2">
 Instructions for modifying a different section of the same file. 
-
-Reference the original code and write the new code, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas.
-
 Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
 

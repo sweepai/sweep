@@ -482,7 +482,7 @@ class ChatGPT(MessageList):
             except Exception as e_:
                 logger.exception(e_)
                 e = e_
-                time.sleep(4 * 2 ** i) # faster debugging
+                time.sleep(4 * 1.75 ** i) # faster debugging
         else:
             raise Exception("Anthropic call failed") from e
         self.messages.append(

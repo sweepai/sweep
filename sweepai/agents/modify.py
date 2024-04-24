@@ -1062,7 +1062,6 @@ def handle_function_call(
             llm_response = f"SUCCESS\n\n{success_message}"
     else:
         llm_response = f"ERROR\nUnexpected tool name: {tool_name}"
-    print(llm_response)
     # breakpoint()
     return llm_response, modify_files_dict, llm_state
 
