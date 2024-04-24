@@ -29,7 +29,7 @@ Explain how this SINGLE change contributes to fulfilling the user's request.
 Name of the file where the change will be made. Ensure correct spelling as this is case-sensitive.
 </file_name>
 <original_code>
-The existing lines of code that need modification or replacement. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need modification or replacement. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context. This CAN NOT be empty.
 </original_code>
 <new_code>
 The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
@@ -85,7 +85,7 @@ Name of the file where the change will be made. Ensure correct spelling as this 
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need modification or replacement. This should be a short SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need modification or replacement. This should be a short SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context. This CAN NOT be empty.
 </description>
 </parameter>
 <parameter>
@@ -247,21 +247,91 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
-EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It should contain a valid section of code that you want to modify. To use the make_change function, follow these steps:
+EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It MUST contain a valid section of code that you want to modify. To use the make_change function, follow these steps:
 
-1. Ensure that the original_code variable is not empty. It should contain a valid section of code that you want to modify.
-2. If you want to replace code:
-    - Put the code you want to replace in the original_code variable.
-    - Put the new code that will replace the original code in the new_code variable.
-
-3. If you want to append code:
+If you want to append code:
     - Put the code you want to append to in the original_code variable.
     - Copy the code from original_code and paste it into the new_code variable.
     - Append the new code you want to add after the original code in the new_code variable.
 
-4. Call the function with the appropriate arguments.
+Here's an example of how to use the make_change function to append code:
 
-Note: Make sure that the code provided in both original_code and new_code is syntactically valid and free of errors."""
+<example>
+Here's an example of the input file:
+<input>
+<file_to_modify filename="src/math_test.py">
+from math import add_numbers
+
+class TestAddNumbers(unittest.TestCase):
+    def test_add_positive_numbers(self):
+        result = add_numbers(2, 3)
+        self.assertEqual(result, 5)
+
+    def test_add_negative_numbers(self):
+        result = add_numbers(-2, -3)
+        self.assertEqual(result, -5)
+
+    def test_add_zero(self):
+        result = add_numbers(0, 0)
+        self.assertEqual(result, 0)
+</file_to_modify>
+</input>
+
+Here's an example of the make_change function we would use to append code:
+<function_call>
+<make_change>
+<justification>
+Add additional test cases to the math_test.py file.
+</justification>
+<file_name>
+src/math_test.py
+</file_name>
+<original_code>
+class TestAddNumbers(unittest.TestCase):
+    def test_add_positive_numbers(self):
+        result = add_numbers(2, 3)
+        self.assertEqual(result, 5)
+
+    def test_add_negative_numbers(self):
+        result = add_numbers(-2, -3)
+        self.assertEqual(result, -5)
+
+    def test_add_zero(self):
+        result = add_numbers(0, 0)
+        self.assertEqual(result, 0)
+</original_code>
+<new_code>
+class TestAddNumbers(unittest.TestCase):
+    def test_add_positive_numbers(self):
+        result = add_numbers(2, 3)
+        self.assertEqual(result, 5)
+
+    def test_add_negative_numbers(self):
+        result = add_numbers(-2, -3)
+        self.assertEqual(result, -5)
+
+    def test_add_zero(self):
+        result = add_numbers(0, 0)
+        self.assertEqual(result, 0)
+
+class TestSubtractNumbers(unittest.TestCase):
+    def test_subtract_positive_numbers(self):
+        result = subtract_numbers(5, 3)
+        self.assertEqual(result, 2)
+
+    def test_subtract_negative_numbers(self):
+        result = subtract_numbers(-5, -3)
+        self.assertEqual(result, -2)
+
+    def test_subtract_zero(self):
+        result = subtract_numbers(5, 0)
+        self.assertEqual(result, 5)
+</new_code>
+</make_change>
+</function_call>
+</example>
+
+In either case, the original_code variable must NOT be empty. Please make another make_change function call with the corrected, non-empty <original_code> block."""
 
 self_review_prompt = """First, review and critique the change(s) you have made. Consider the following points:
 
@@ -843,6 +913,7 @@ def handle_function_call(
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
         if not tool_call["original_code"].strip():
+            # breakpoint()
             error_message = EMPTY_ORIGINAL_CODE_PROMPT
         warning_message = ""
         if not error_message:
