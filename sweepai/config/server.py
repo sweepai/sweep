@@ -250,3 +250,4 @@ JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", None)
 JIRA_URL = os.environ.get("JIRA_URL", None)
 
 LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
+ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", None).lower() == "true"
