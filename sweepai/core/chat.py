@@ -483,6 +483,8 @@ class ChatGPT(MessageList):
                 e = e_ # sometimes prompt is too long
                 if not ALTERNATE_AWS:
                     raise e_
+                elif hit_content_filtering: # hit it twice, raise error
+                    raise e_
                 else:
                     hit_content_filtering = True # stop using anthropic
             except Exception as e_:
