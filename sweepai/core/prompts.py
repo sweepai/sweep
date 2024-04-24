@@ -325,7 +325,7 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. 
+One sentence explanation of the change. Instructions for modifying one section of the file.
 
 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
 
@@ -333,7 +333,7 @@ Instructions for modifying one section of the file.
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying a different section of the same file. 
+One sentence explanation of the change. Instructions for modifying one section of the file.
 
 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
 
