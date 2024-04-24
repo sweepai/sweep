@@ -49,7 +49,7 @@ def hash_code(code):
     return hashlib.md5(code.encode()).hexdigest()
 
 
-def file_cache(ignore_params=[], verbose=False, redis=False):
+def file_cache(ignore_params=[], ignore_contents=False, verbose=False, redis=False):
     """Decorator to cache function output based on its inputs, ignoring specified parameters.
     Ignore parameters are used to avoid caching on non-deterministic inputs, such as timestamps.
     We can also ignore parameters that are slow to serialize/constant across runs, such as large objects.
@@ -58,7 +58,7 @@ def file_cache(ignore_params=[], verbose=False, redis=False):
     def decorator(func):
         if DEBUG:
             return func
-        func_source_code_hash = hash_code(inspect.getsource(func))
+        func_source_code_hash = hash_code(inspect.getsource(func)) if not ignore_contents else ""
 
         def wrapper(*args, **kwargs):
             cache_dir = os.environ.get("MOUNT_DIR", "") + "/tmp/file_cache"

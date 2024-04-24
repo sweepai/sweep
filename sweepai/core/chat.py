@@ -417,7 +417,7 @@ class ChatGPT(MessageList):
         hit_content_filtering = False
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
-                @file_cache(redis=True) # must be in the inner scope because this entire function manages state
+                @file_cache(redis=True, ignore_contents=True) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str = system_message, 
@@ -455,7 +455,7 @@ class ChatGPT(MessageList):
                         response = ""
                         start_time = time.time()
                         if verbose:
-                            print("In queue...")
+                            print(f"In queue with model {model}...")
                         with client.messages.stream(
                             model=model,
                             temperature=temperature,
