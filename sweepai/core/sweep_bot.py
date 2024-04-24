@@ -34,7 +34,9 @@ from sweepai.core.prompts import (
     context_files_to_change_system_prompt,
     pull_request_prompt,
     subissues_prompt,
-    files_to_change_system_prompt
+    files_to_change_system_prompt,
+    gha_files_to_change_system_prompt,
+    gha_files_to_change_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
@@ -226,7 +228,7 @@ def get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if context:
+    if context or True:
         formatted_relevant_snippets = []
         for i, snippet in enumerate(relevant_snippets):
             annotated_source_code, code_summaries = get_annotated_source_code(
@@ -363,6 +365,181 @@ def get_files_to_change(
 
     return [], ""
 
+
+def get_files_to_change_for_gha(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+    updated_files: dict[str, str],
+    pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    messages.append(
+        Message(role="system", content=files_to_change_system_prompt, key="system")
+    )
+
+    for relevant_snippet in relevant_snippets:
+        if relevant_snippet.file_path in updated_files:
+            relevant_snippet.content = updated_files[relevant_snippet.file_path]["contents"]
+    
+    for read_only_snippet in read_only_snippets:
+        if read_only_snippet.file_path in updated_files:
+            read_only_snippet.content = updated_files[read_only_snippet.file_path]["contents"]
+
+    # relevant_snippets = relevant_snippets[::-1]
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    # attach all relevant snippets
+    if True:
+        formatted_relevant_snippets = []
+        for i, snippet in enumerate(relevant_snippets):
+            annotated_source_code, code_summaries = get_annotated_source_code(
+                source_code=snippet.get_snippet(add_lines=False),
+                issue_text=problem_statement,
+                file_path=snippet.file_path,
+            )
+            formatted_relevant_snippets.append(
+                relevant_snippet_template.format(
+                    i=i,
+                    file_path=snippet.file_path,
+                    content=annotated_source_code,
+                )
+            )
+            # cohere_rerank_response = cohere_rerank_call(
+            #     query=problem_statement,
+            #     documents=code_summaries,
+            # )
+        joined_relevant_snippets = "\n".join(
+            formatted_relevant_snippets
+        )
+    else:
+        joined_relevant_snippets = "\n".join(
+            relevant_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=snippet.expand(300).get_snippet(add_lines=False),
+            ) for i, snippet in enumerate(relevant_snippets)
+        )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    messages.append(
+        Message(
+            role="user",
+            content=relevant_snippets_message,
+            key="relevant_snippets",
+        )
+    )
+    joined_relevant_read_only_snippets = "\n".join(
+        read_only_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(read_only_snippets)
+    )
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    if read_only_snippets:
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippets_message,
+                key="relevant_snippets",
+            )
+        )
+    # previous_diffs = get_previous_diffs(
+    #     problem_statement,
+    #     cloned_repo=cloned_repo,
+    #     relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
+    # )
+    # messages.append( # temporarily disable in main
+    #     Message(
+    #         role="user",
+    #         content=previous_diffs,
+    #     )
+    # )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
+        )
+    )
+    if pr_diffs:
+        messages.append(
+            Message(role="user", content=pr_diffs, key="pr_diffs")
+        )
+    try:
+        print("messages")
+        for message in messages:
+            print(message.content + "\n\n")
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+        print("messages", joint_message)
+        chat_gpt = ChatGPT(
+            messages=[
+                Message(
+                    role="system",
+                    content=gha_files_to_change_system_prompt,
+                ),
+            ],
+        )
+        MODEL = "claude-3-opus-20240229"
+        files_to_change_response = chat_gpt.chat_anthropic(
+            content=joint_message + "\n\n" + gha_files_to_change_prompt,
+            model=MODEL,
+            temperature=0.1
+        )
+        max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
+        expected_plan_count = 1
+        call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
+        if call_anthropic_second_time:
+            # ask for a second response
+            try:
+                second_response = chat_gpt.chat_anthropic(
+                    content="",
+                    model=MODEL,
+                    temperature=0.1
+                )
+                # we can simply concatenate the responses
+                files_to_change_response += second_response
+            except Exception as e:
+                logger.warning(f"Failed to get second response due to {e}")
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": files_to_change_response,
+                })
+        print("files_to_change_response", files_to_change_response)
+        relevant_modules = []
+        pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+        relevant_modules_match = pattern.search(files_to_change_response)
+        if relevant_modules_match:
+            relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+        print("relevant_modules", relevant_modules)
+        file_change_requests = []
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_requests.append(file_change_request)
+        return file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
+
+    return [], ""
 
 class CodeGenBot(ChatGPT):
     def generate_subissues(self, retries: int = 3):

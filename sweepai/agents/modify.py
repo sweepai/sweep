@@ -200,21 +200,14 @@ No function calls were made or your last function call was incorrectly formatted
 
 Here is an example:
 
-<tool_description>
+<function_call>
+<invoke>
 <tool_name>submit_task</tool_name>
-<description>
-Indicate that the current task is complete.
-</description>
 <parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Summarize the code changes made and explain how they fulfill the user's original request.
-</description>
-</parameter>
+<justification>The justification for making this change goes here.</justification>
 </parameters>
-</tool_description>
+</invoke>
+</function_call>
 
 If the current task is complete, call the submit_task function."""
 
@@ -343,8 +336,8 @@ def find_best_match(needle: str, haystack: str, threshold: int = 80):
         return best_match, best_score
     return "", 0
 
-# MODEL = "claude-3-haiku-20240307"
-MODEL = "claude-3-opus-20240229" # try haiku
+MODEL = "claude-3-haiku-20240307"
+# MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call_openai(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -733,14 +726,6 @@ def modify(
                         "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
                     })
             break
-    # before we return clean up modify files dict by removing any files with no changes
-    files_to_remove = []
-    for file_name, file_data in modify_files_dict.items():
-        if not file_data or file_data['original_contents'] == file_data['contents']:
-            files_to_remove.append(file_name)
-    for file_name in files_to_remove:
-        modify_files_dict.pop(file_name)
-        logger.info(f"Removed file {file_name} from modify_files_dict as it had no changes.")
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
         diff = generate_diff(file_data['original_contents'], file_data['contents'])
