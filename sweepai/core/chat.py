@@ -417,7 +417,7 @@ class ChatGPT(MessageList):
         hit_content_filtering = False
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
-                @file_cache(redis=True) # must be in the inner scope because this entire function manages state
+                @file_cache(redis=True, ignore_contents=True) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str = system_message, 
@@ -452,14 +452,28 @@ class ChatGPT(MessageList):
                             stop=stop_sequences,
                         ).choices[0].message.content
                     else:
-                        response = client.messages.create(
+                        response = ""
+                        start_time = time.time()
+                        if verbose:
+                            print(f"In queue with model {model}...")
+                        with client.messages.stream(
                             model=model,
                             temperature=temperature,
                             max_tokens=max_tokens,
                             messages=message_dicts,
-                            system=system_message,
+                            system=system_message,  
                             stop_sequences=stop_sequences,
-                        ).content[0].text
+                        ) as stream:
+                            if verbose:
+                                print(f"Started stream in {time.time() - start_time:.2f}s!")
+                            for i, text in enumerate(stream.text_stream):
+                                if verbose:
+                                    if i == 0:
+                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                    print(text, end="", flush=True)
+                        response = stream.get_final_message().content[0].text
+                        if verbose:
+                            print("Done streaming results!")
                     return response
                 if use_openai:
                     message_dicts = [

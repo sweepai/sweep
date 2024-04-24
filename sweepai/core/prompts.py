@@ -187,9 +187,12 @@ Take these steps:
 1. Analyze the issue and codebase to understand the problem.
 
 2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
-    - When modifying code you MUST take the following approach:
-        - Modify step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+    - When modifying code you MUST do the following:
+        - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
         - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+    - When appending code you MUST to the following:
+        - Append step 1. Copy the code you want to append to in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+        - Append step 2. Copy the original code and then add the new code below it, placing everything in <new_code> tags. BE EXACT as this code will replace the mentioned <original_code>.
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
