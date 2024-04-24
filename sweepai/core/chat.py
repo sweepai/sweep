@@ -460,6 +460,7 @@ class ChatGPT(MessageList):
                         #     system=system_message,
                         #     stop_sequences=stop_sequences,
                         # ).content[0].text
+                        verbose = True
                         start_time = time.time()
                         if verbose:
                             print(f"In queue with model {model}...")
