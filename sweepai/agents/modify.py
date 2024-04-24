@@ -255,7 +255,7 @@ EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It should c
     - Put the new code that will replace the original code in the new_code variable.
 
 3. If you want to append code:
-    - Put the block of code you want to append to in the original_code variable.
+    - Put the code you want to append to in the original_code variable.
     - Copy the code from original_code and paste it into the new_code variable.
     - Append the new code you want to add after the original code in the new_code variable.
 
