@@ -218,6 +218,8 @@ a. Identify the root cause of the issue by referencing specific code entities in
 
 b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
+c. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Then describe how we can implement the current feature similarly. Be complete and precise. (1 paragraph)
+
 c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
       a. Describe the first change to make in the file.
