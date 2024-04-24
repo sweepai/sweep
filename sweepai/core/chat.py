@@ -414,6 +414,7 @@ class ChatGPT(MessageList):
         e = None
         NUM_ANTHROPIC_RETRIES = 6
         use_aws = True
+        hit_content_filtering = False
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
                 @file_cache(redis=True) # must be in the inner scope because this entire function manages state
@@ -480,13 +481,16 @@ class ChatGPT(MessageList):
                 break
             except BadRequestError as e_:
                 e = e_ # sometimes prompt is too long
-                raise e_
+                if not ALTERNATE_AWS:
+                    raise e_
+                else:
+                    hit_content_filtering = True # stop using anthropic
             except Exception as e_:
                 logger.exception(e_)
                 e = e_
                 time.sleep(4 * 1.75 ** i) # faster debugging
                 if ALTERNATE_AWS: # alternate between aws and anthropic (for load balancing only)
-                    use_aws = not use_aws
+                    use_aws = not use_aws and not hit_content_filtering
         else:
             raise Exception("Anthropic call failed") from e
         self.messages.append(
