@@ -466,8 +466,10 @@ class ChatGPT(MessageList):
                         ) as stream:
                             if verbose:
                                 print(f"Started stream in {time.time() - start_time:.2f}s!")
-                            for text in stream.text_stream:
+                            for i, text in enumerate(stream.text_stream):
                                 if verbose:
+                                    if i == 0:
+                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
                                     print(text, end="", flush=True)
                         response = stream.get_final_message().content[0].text
                         if verbose:
