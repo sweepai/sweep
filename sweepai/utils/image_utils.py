@@ -5,9 +5,7 @@ import re
 import base64
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
-from sweepai.utils.github_utils import get_jwt, get_token
+from sweepai.utils.github_utils import get_token
 
 # we must get the raw issue which contains the body html
 def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: int):
@@ -38,7 +36,7 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
             if not added:
                 logger.error(f"Did not add image url: {url}\nReason: image type unsupported!")
     except Exception as e:
-        logger.error(f"Encountered error while attempting to fetch raw issue {num} for {repo_full_name}")
+        logger.error(f"Encountered error while attempting to fetch raw issue {num} for {repo_full_name}:\n{e}")
     return urls
 
 
@@ -78,7 +76,6 @@ def summarize_images(images: list[tuple[str, str]]):
             max_tokens=1024,
         )
         summaries.append(response.choices[0].message.content)
-        import pdb; pdb.set_trace()
 
     return summaries
 
