@@ -383,6 +383,20 @@ def get_files_to_change_for_test(
         Message(role="system", content=files_to_change_system_prompt, key="system")
     )
 
+    # keep order but move all files without tests to read only snippets
+    new_relevant_snippets = []
+    new_read_only_snippets = []
+    for snippet in relevant_snippets:
+        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+            continue
+        if "test" in snippet.file_path:
+            new_relevant_snippets.append(snippet)
+        else:
+            new_read_only_snippets.append(snippet)
+    
+    relevant_snippets = new_relevant_snippets
+    read_only_snippets = new_read_only_snippets
+
     for relevant_snippet in relevant_snippets:
         if relevant_snippet.file_path in updated_files:
             relevant_snippet.content = updated_files[relevant_snippet.file_path]["contents"]
@@ -467,7 +481,7 @@ def get_files_to_change_for_test(
     )
     diff_string = ""
     for file_path, file_info in updated_files.items():
-        diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'])}\n```"
+        diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'], n=10)}\n```"
     if diff_string:
         messages.append(
             Message(
