@@ -381,7 +381,7 @@ class ClonedRepo:
             if file_path.startswith("/")
             else f"{self.repo_dir}/{file_path}"
         )
-        if os.path.exists(local_path):
+        if os.path.exists(local_path) and os.path.isfile(local_path):
             with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()
             return contents
