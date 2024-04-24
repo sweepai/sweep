@@ -4,6 +4,7 @@ import re
 from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
+from sweepai.logn.cache import file_cache
 from sweepai.utils.utils import chunk_code
 
 CLAUDE_MODEL = "claude-3-haiku-20240307"
@@ -106,6 +107,7 @@ def process_chunk(idx, code_content, source_code, issue_text, file_path):
     formatted_annotation = f'<code_summary file_path="{file_path}" index="{idx}">\n' + annotation + "\n</code_summary>\n"
     return idx, formatted_code_content, formatted_annotation
 
+@file_cache() # safe to cache
 def get_annotated_source_code(source_code: str, issue_text: str, file_path: str):
     annotated_source_code = source_code
     code_chunks = chunk_code(source_code, "test.py", MAX_CHARS=60 * 50)
@@ -124,7 +126,7 @@ def get_annotated_source_code(source_code: str, issue_text: str, file_path: str)
         if chunk_result is not None:
             idx, formatted_code_content, formatted_annotation = chunk_result
             code_with_summary = f"{formatted_code_content + formatted_annotation}"
-            annotated_source_code = annotated_source_code.replace(code_contents[idx], code_with_summary)
+            annotated_source_code = annotated_source_code.replace(code_contents[idx], code_with_summary, 1)
             code_with_summaries.append(code_with_summary)
     return annotated_source_code.strip("\n"), code_with_summaries
 
