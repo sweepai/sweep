@@ -10,6 +10,7 @@ from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
 from pydantic import BaseModel
+from tqdm import tqdm
 
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
@@ -230,7 +231,7 @@ def get_files_to_change(
     # attach all relevant snippets
     if context or True:
         formatted_relevant_snippets = []
-        for i, snippet in enumerate(relevant_snippets):
+        for i, snippet in enumerate(tqdm(relevant_snippets)):
             annotated_source_code, code_summaries = get_annotated_source_code(
                 source_code=snippet.get_snippet(add_lines=False),
                 issue_text=problem_statement,

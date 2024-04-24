@@ -452,14 +452,26 @@ class ChatGPT(MessageList):
                             stop=stop_sequences,
                         ).choices[0].message.content
                     else:
-                        response = client.messages.create(
+                        response = ""
+                        start_time = time.time()
+                        if verbose:
+                            print("In queue...")
+                        with client.messages.stream(
                             model=model,
                             temperature=temperature,
                             max_tokens=max_tokens,
                             messages=message_dicts,
-                            system=system_message,
+                            system=system_message,  
                             stop_sequences=stop_sequences,
-                        ).content[0].text
+                        ) as stream:
+                            if verbose:
+                                print(f"Started stream in {time.time() - start_time:.2f}s!")
+                            for text in stream.text_stream:
+                                if verbose:
+                                    print(text, end="", flush=True)
+                        response = stream.get_final_message().content[0].text
+                        if verbose:
+                            print("Done streaming results!")
                     return response
                 if use_openai:
                     message_dicts = [
