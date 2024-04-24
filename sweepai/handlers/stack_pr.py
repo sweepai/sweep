@@ -153,7 +153,6 @@ def stack_pr(
             title=request,
             summary=request,
             snippets=snippets,
-            tree=tree,
         )
 
         sweep_bot = SweepBot.from_system_message_content(
