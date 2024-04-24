@@ -116,6 +116,13 @@ class SweepConfig(BaseModel):
     max_file_limit: int = 60_000
     # github comments
     max_github_comment_body_length: int = 65535
+    # allowed image types for vision
+    allowed_image_types: list[str] = [
+        "jpg",
+        "jpeg",
+        "webp",
+        "png"
+    ]
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(self.dict())
