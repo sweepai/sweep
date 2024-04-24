@@ -257,18 +257,19 @@ class ChatGPT(MessageList):
         max_tokens: int | None = None,
         stop_sequences: list[str] = [],
     ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        self.messages.append(Message(role="user", content=content, key=message_key)) if content else None # supports calling assistant again
         model = model or self.model
         temperature = temperature or self.temperature or default_temperature
+        new_content = self.call_openai(
+            model=model,
+            temperature=temperature,
+            requested_max_tokens=max_tokens,
+            stop_sequences=stop_sequences,
+        )
         self.messages.append(
             Message(
                 role="assistant",
-                content=self.call_openai(
-                    model=model,
-                    temperature=temperature,
-                    requested_max_tokens=max_tokens,
-                    stop_sequences=stop_sequences,
-                ),
+                content=new_content,
                 key=message_key,
             )
         )
@@ -335,7 +336,7 @@ class ChatGPT(MessageList):
                     max_tokens=max_tokens - token_sub,
                     temperature=temperature,
                     stop_sequences=stop_sequences,
-                ).choices[0].message.content
+                )
                 if self.chat_logger is not None:
                     self.chat_logger.add_chat(
                         {
