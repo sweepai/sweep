@@ -452,7 +452,14 @@ class ChatGPT(MessageList):
                             stop=stop_sequences,
                         ).choices[0].message.content
                     else:
-                        response = ""
+                        # response = client.messages.create(
+                        #     model=model,
+                        #     messages=message_dicts,
+                        #     max_tokens=max_tokens,
+                        #     temperature=temperature,
+                        #     system=system_message,
+                        #     stop_sequences=stop_sequences,
+                        # ).content[0].text
                         start_time = time.time()
                         if verbose:
                             print(f"In queue with model {model}...")
