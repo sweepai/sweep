@@ -232,7 +232,24 @@ def get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if context or True:
+    # if context or True:
+    if read_only_snippets:
+        joined_relevant_read_only_snippets = "\n".join(
+            read_only_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=snippet.get_snippet(add_lines=False),
+            ) for i, snippet in enumerate(read_only_snippets)
+        )
+        read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippets_message,
+                key="relevant_snippets",
+            )
+        )
+    if context:
         formatted_relevant_snippets = []
         for i, snippet in enumerate(tqdm(relevant_snippets)):
             annotated_source_code, code_summaries = get_annotated_source_code(
@@ -270,22 +287,6 @@ def get_files_to_change(
             key="relevant_snippets",
         )
     )
-    joined_relevant_read_only_snippets = "\n".join(
-        read_only_snippet_template.format(
-            i=i,
-            file_path=snippet.file_path,
-            content=snippet.get_snippet(add_lines=False),
-        ) for i, snippet in enumerate(read_only_snippets)
-    )
-    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
-    if read_only_snippets:
-        messages.append(
-            Message(
-                role="user",
-                content=read_only_snippets_message,
-                key="relevant_snippets",
-            )
-        )
     # previous_diffs = get_previous_diffs(
     #     problem_statement,
     #     cloned_repo=cloned_repo,
