@@ -163,12 +163,12 @@ def file_exists_in_repo(repo: Repository, filepath: str):
 def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dict[str, str], fcrs: list[FileChangeRequest]):
     sanitized_file_changes = {}
     all_file_names = list(file_changes.keys())
-    all_fcr_file_names = set(fcr.filename for fcr in fcrs)
+    all_fcr_file_names = set(os.path.normpath(fcr.filename) for fcr in fcrs)
     file_removed = False
     # validate each file change
     for file_name in all_file_names:
         # file_name must either appear in the repo or in a fcr
-        if file_name in all_fcr_file_names or file_exists_in_repo(repo, file_name):
+        if os.path.normpath(file_name) in all_fcr_file_names or file_exists_in_repo(repo, os.path.normpath(file_name)):
             sanitized_file_changes[file_name] = copy.deepcopy(file_changes[file_name])
         else:
             file_removed = True
