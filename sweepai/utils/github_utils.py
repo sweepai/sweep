@@ -181,12 +181,12 @@ def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], co
     for path, content in file_changes.items():
         blob = repo.create_git_blob(content, "utf-8")
         blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(path), mode="100644", type="blob", sha=blob.sha))
-    head_sha = repo.get_branch(branch).commit.sha
-    base_tree = repo.get_git_tree(sha=head_sha)
+    latest_commit = repo.get_branch(branch).commit
+    base_tree = latest_commit.commit.tree
     # create new git tree
     new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
     # commit the changes
-    parent = repo.get_git_commit(sha=head_sha)
+    parent = repo.get_git_commit(latest_commit.sha)
     commit = repo.create_git_commit(
         commit_message,
         new_tree,
