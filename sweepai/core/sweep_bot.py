@@ -232,7 +232,7 @@ def get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if context or True:
+    if not context:
         formatted_relevant_snippets = []
         for i, snippet in enumerate(tqdm(relevant_snippets)):
             annotated_source_code, code_summaries = get_annotated_source_code(
