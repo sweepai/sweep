@@ -294,20 +294,44 @@ Please use the following XML format for your response:
 # 1. Issue Analysis:
 <issue_analysis>
 a. Identify the functional changes made and locate the tests for the edited code. Respond in the following format:
+
   - File path 1:
-      a. Identify the edited functions and classes.
-      b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
-      c. List and summarize all tests in each file. Then, identify the most similar tests we can copy with some minor edits. Indicate the name of the tests and which section of tests they are located in. Be as specific as possible.
-      d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
-          - First place to make a change or create a new test in extreme detail.
-          - Second place to make a change or create a new test in extreme detail.
+    a. Identify the edited functions and classes.
+    b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
+    c. List and summarize all tests in each relevant test from step b. Then, identify the most similar tests we can copy with some minor edits. For example, if you need to test a functionality with a specific new feature, you can copy the test of the base functionality. Be as specific as possible. Follow the following format:
+
+First test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+Second test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+    d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
+      - First place to make a change or create a new test in extreme detail.
+      - Second place to make a change or create a new test in extreme detail.
+
   - File path 2:
-      a. Identify the edited functions and classes.
-      b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
-      c. List and summarize all tests in each file. Then, identify the most similar tests we can copy with some minor edits. Indicate the name of the tests and which section of tests they are located in. Be as specific as possible.
-      d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
-          - First place to make a change or create a new test in extreme detail.
-          - Second place to make a change or create a new test in extreme detail.
+    a. Identify the edited functions and classes.
+    b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
+    c. List and summarize all tests in each relevant test from step b. Then, identify the most similar tests we can copy with some minor edits. For example, if you need to test a functionality with a specific new feature, you can copy the test of the base functionality. Be as specific as possible. Follow the following format:
+
+First test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+Second test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+    d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
+      - First place to make a change or create a new test in extreme detail.
+      - Second place to make a change or create a new test in extreme detail.
 [additional files as needed]
 
 b. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other tests, including:
@@ -485,8 +509,6 @@ Here is an example response format:
 
 context_files_to_change_system_prompt = """You are an AI assistant helping an intern plan the resolution to a GitHub issue. Code files, a description of the issue, and relevant parts of the codebase have been provided. List all of the relevant files to reference while making changes, one per line."""
 
-# Can be optimized further, ask it to not generate any code and just describe at a high-level what it would change.
-# can consider adding (1 paragraph) to the end of the first step
 context_files_to_change_prompt = """Your job is to write two high quality approaches for an intern to help resolve a user's GitHub issue. 
 
 Follow the below steps:
@@ -496,7 +518,25 @@ Follow the below steps:
     - Plan 1: The most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
     - Plan 2: The second most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
 
-3a. List all files that may need to be modified to resolve the issue given the two approaches.
+3. List all tests that may need to be added or updated to validate the changes given the two approaches. Follow the following format:
+    - Plan 1:
+        - File path 1: Detailed description of functionality we need to test in file path 1
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 1 to identify where the existing tests for this are located.
+        - File path 2: Detailed description of functionality we need to test in file path 2
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 2 to identify where the existing tests for this are located.
+        [additional files as needed]
+    - Plan 2:
+        - File path 1: Detailed description of functionality we need to test in file path 1
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 1 to identify where the existing tests for this are located.
+        - File path 2: Detailed description of functionality we need to test in file path 2
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 2 to identify where the existing tests for this are located.
+        [additional files as needed]
+
+4a. List all files, including tests, that may need to be modified to resolve the issue given the two approaches.
 
 - These files must be formatted in <relevant_files> tags like so:
 <relevant_files>
@@ -505,7 +545,7 @@ file_path_2
 ...
 </relevant_files>
 
-3b. List all relevant read-only files from the provided set given the two approaches.
+4b. List all relevant read-only files from the provided set given the two approaches.
 
 - These files must be formatted in <read_only_files> tags like so:
 <read_only_files>
