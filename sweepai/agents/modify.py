@@ -339,16 +339,44 @@ class TestSubtractNumbers(unittest.TestCase):
 
 In either case, the original_code variable must NOT be empty. Please make another make_change function call with the corrected, non-empty <original_code> block."""
 
-self_review_prompt = """There is a linter warning in the code changes. Resolve the warnings by following these steps:
+self_review_prompt = """You have suggested making a large amount of changes to the code. Before proceeding, it is important to review and critique the changes you have made. Follow these steps:
+
+1. Review CURRENT TASK for requirements.
+2. Analyze code patch:
+   - Purpose and impact of each change
+   - Check for the following: 
+     - Unnecessary deletions
+     - Logic errors
+     - Unhandled edge cases
+     - Missing imports
+     - Incomplete changes
+     - Undefined variables/functions
+     - Usage of nullable attributes
+     - Non-functional code
+   - Alignment with plan and requirements
+3. Perform critical contextual analysis:
+   - Break down changes 
+   - Explain reasoning
+   - Identify logic issues, edge cases, plan deviations
+   - Consider all scenarios and pitfalls
+   - Consider backwards compatibility and future-proofing
+   - Suggest fixes for problems
+   - Evaluate error handling and fallback mechanisms
+4. Be extremely critical. Do not overlook ANY issues.
+5. Finally decide whether additional changes are needed or if the task is complete.
+
+If additional changes are needed, make the necessary changes and call the make_change function again. If the task is complete, call the submit_task function."""
+
+linter_warning_prompt = """There is a linter warning in the code changes. Resolve the warnings by following these steps:
 
 # Thinking
 <thinking>
 1. Review and critique the change(s) you have made. 
 2. Then, identify what may be causing the linter warning.
-3. Make the necessary changes to resolve the linter warning.
+3. Indicate the minimum amount of changes required to resolve the linter warning.
 </thinking>
 
-Then, call the make_change function to fix the linter warnings."""
+Then, call the make_change function to fix the linter warnings. If the warning cannot be resolved, call submit_task with an explanation of the issue."""
 
 ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear to be present in file {file_path}. Your provided original_code erroneously contains:
 ```
@@ -375,7 +403,7 @@ The most similar section of the ACTUAL contents of {file_path}
 </thinking>
 
 # Function call
-Then, follow up with the corrected function call."""
+Then, follow up with a make_change function call with the corrected parameters."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -1106,6 +1134,7 @@ def handle_function_call(
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                 + generate_diff(file_contents, new_file_contents, n=10)
             ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
+            diff_string = generate_diff(file_contents, new_file_contents)
             # set contents
             if file_name not in modify_files_dict:
                 modify_files_dict[file_name] = {
@@ -1113,7 +1142,12 @@ def handle_function_call(
                     "original_contents": file_contents,
                 }
             if warning_message:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
+                # breakpoint()
+                modify_files_dict[file_name]['contents'] = new_file_contents
+                llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+            elif diff_string.count("\n+") + diff_string.count("\n-") > 8:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
