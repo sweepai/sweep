@@ -216,11 +216,11 @@ Please use the following XML format for your response:
 <issue_analysis>
 a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
 
-b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+b. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Be complete and precise. (1 paragraph)
 
-c. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Then describe how we can implement the current feature similarly. Be complete and precise. (1 paragraph)
+c. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
-c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+d. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
       a. Describe the first change to make in the file.
       b. Describe the second change to make in the file.
@@ -231,7 +231,7 @@ c. List ALL of the files we should modify to resolve the issue. Reference the pr
       c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
 
-d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+e. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
   - Type definitions, interfaces, and schemas
   - Helper functions
   - Frontend components
