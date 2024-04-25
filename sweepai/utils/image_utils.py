@@ -174,8 +174,9 @@ def create_message_with_images(message: dict[str, str], images: dict[str, dict[s
     }
     return new_message
 
-
-    
-    
+if __name__ == "__main__":
+    image_urls = {"https://github.com/trilogy-group/eng-maintenance/assets/3426344/340b04eb-528f-4167-a01e-5f108bbe7e75":"png"}
+    image_contents = get_image_contents_from_urls(image_urls)
+    import pdb; pdb.set_trace()
 
 

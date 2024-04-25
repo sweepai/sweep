@@ -36,6 +36,7 @@ from sweepai.core.prompts import (
     files_to_change_system_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.event_logger import posthog
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.progress import (
     AssistantAPIMessage,
@@ -789,7 +790,8 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_requests: list[FileChangeRequest],
         branch: str,
         blocked_dirs: list[str],
-        additional_messages: list[Message] = []
+        additional_messages: list[Message] = [],
+        username: str = ""
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
         additional_messages_copy = copy.deepcopy(additional_messages)
@@ -802,14 +804,15 @@ class SweepBot(CodeGenBot, GithubBot):
             assistant_conversation=None,
             additional_messages=additional_messages_copy,
             previous_modify_files_dict=previous_modify_files_dict,
-            file_change_requests=file_change_requests
+            file_change_requests=file_change_requests,
+            username=username
         )
         # update previous_modify_files_dict
         if not previous_modify_files_dict:
             previous_modify_files_dict = {}
         if new_file_contents:
             for file_name, file_content in new_file_contents.items():
-                previous_modify_files_dict[file_name] = file_content
+                previous_modify_files_dict[file_name] = copy.deepcopy(file_content)
                 # update status of corresponding fcr to be succeeded
                 for file_change_request in file_change_requests:
                     if file_change_request.filename == file_name:
@@ -835,6 +838,7 @@ class SweepBot(CodeGenBot, GithubBot):
         assistant_conversation: AssistantConversation | None = None,
         additional_messages: list[Message] = [],
         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
+        username: str = "",
     ): # this is enough to make changes to a branch
         commit_message: str = None
         try:
@@ -865,7 +869,17 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             try:
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in new_file_contents.items()}
-                new_file_contents_to_commit = validate_and_sanitize_multi_file_changes(self.repo, new_file_contents_to_commit, file_change_requests)
+                previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+                new_file_contents_to_commit, file_removed = validate_and_sanitize_multi_file_changes(self.repo, new_file_contents_to_commit, file_change_requests)
+                if file_removed and username:
+                    posthog.capture(
+                        username,
+                        "polluted_commits_error",
+                        properties={
+                            "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                        },
+                    )
                 result = commit_multi_file_changes(self.repo, new_file_contents_to_commit, commit_message, branch)
             except AssistantRaisedException as e:
                 raise e

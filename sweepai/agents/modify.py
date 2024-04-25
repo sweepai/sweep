@@ -537,7 +537,9 @@ def modify(
                 "output": f"ERROR:\n{e}\nEND OF ERROR",
             })
         return {}
-    modify_files_dict = previous_modify_files_dict
+    if not previous_modify_files_dict:
+        previous_modify_files_dict = {}
+    modify_files_dict = copy.deepcopy(previous_modify_files_dict)
     llm_state = {
         "initial_check_results": {},
         "done_counter": 0, # keep track of how many times the submit_task tool has been called
@@ -546,7 +548,6 @@ def modify(
         "current_task": render_current_task(fcrs),
         "user_message_index": 1,  # used for detailed chat logger messages
         "user_message_index_chat_logger": 1,  # used for detailed chat logger messages
-        
         "fcrs": fcrs,
         "previous_attempt": "",
     }

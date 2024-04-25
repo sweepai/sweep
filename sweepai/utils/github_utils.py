@@ -164,12 +164,15 @@ def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dic
     sanitized_file_changes = {}
     all_file_names = list(file_changes.keys())
     all_fcr_file_names = set(fcr.filename for fcr in fcrs)
+    file_removed = False
     # validate each file change
     for file_name in all_file_names:
         # file_name must either appear in the repo or in a fcr
         if file_name in all_fcr_file_names or file_exists_in_repo(repo, file_name):
             sanitized_file_changes[file_name] = copy.deepcopy(file_changes[file_name])
-    return sanitized_file_changes
+        else:
+            file_removed = True
+    return sanitized_file_changes, file_removed
 
 # commits multiple files in a single commit, returns the commit object
 def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
@@ -178,12 +181,12 @@ def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], co
     for path, content in file_changes.items():
         blob = repo.create_git_blob(content, "utf-8")
         blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(path), mode="100644", type="blob", sha=blob.sha))
-    latest_commit = repo.get_branch(branch).commit
-    base_tree = latest_commit.commit.tree
+    head_sha = repo.get_branch(branch).commit.sha
+    base_tree = repo.get_git_tree(sha=head_sha)
     # create new git tree
     new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
     # commit the changes
-    parent = repo.get_git_commit(latest_commit.sha)
+    parent = repo.get_git_commit(sha=head_sha)
     commit = repo.create_git_commit(
         commit_message,
         new_tree,
