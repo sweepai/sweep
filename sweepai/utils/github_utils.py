@@ -1,3 +1,4 @@
+import copy
 import datetime
 import difflib
 import hashlib
@@ -15,12 +16,13 @@ from typing import Any
 
 import git
 import requests
-from github import Github, PullRequest, Repository, InputGitTreeElement
+from github import Github, PullRequest, Repository, InputGitTreeElement, GithubException
 from jwt import encode
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
+from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
 MAX_FILE_COUNT = 50
@@ -148,6 +150,26 @@ def get_installation_id(username: str) -> str:
             logger.error(e)
             logger.error(response.text)
         raise Exception("Could not get installation id, probably not installed")
+    
+# for check if a file exists within a github repo (calls the actual github api)
+def file_exists_in_repo(repo: Repository, filepath: str):
+    try:
+        # Attempt to get the contents of the file
+        repo.get_contents(filepath)
+        return True  # If no exception, the file exists
+    except GithubException as e:
+        return False  # File does not exist
+    
+def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dict[str, str], fcrs: list[FileChangeRequest]):
+    sanitized_file_changes = {}
+    all_file_names = list(file_changes.keys())
+    all_fcr_file_names = set(fcr.filename for fcr in fcrs)
+    # validate each file change
+    for file_name in all_file_names:
+        # file_name must either appear in the repo or in a fcr
+        if file_name in all_fcr_file_names or file_exists_in_repo(repo, file_name):
+            sanitized_file_changes[file_name] = copy.deepcopy(file_changes[file_name])
+    return sanitized_file_changes
 
 # commits multiple files in a single commit, returns the commit object
 def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
