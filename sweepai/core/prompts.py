@@ -220,7 +220,7 @@ b. Detail ALL of the changes that need to be made to the codebase (excluding tes
 
 c. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Then describe how we can implement the current feature similarly. Be complete and precise. (1 paragraph)
 
-c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+d. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
       a. Describe the first change to make in the file.
       b. Describe the second change to make in the file.
@@ -231,7 +231,7 @@ c. List ALL of the files we should modify to resolve the issue. Reference the pr
       c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
 
-d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+e. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
   - Type definitions, interfaces, and schemas
   - Helper functions
   - Frontend components
@@ -482,97 +482,37 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
-context_files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
-Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
-
-Take these steps:
-1. Analyze the issue and codebase to understand the problem.
-
-2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
-
-3. List all of the relevant files to reference while making changes, one per line."""
+context_files_to_change_system_prompt = """You are an AI assistant helping an intern plan the resolution to a GitHub issue. Code files, a description of the issue, and relevant parts of the codebase have been provided. List all of the relevant files to reference while making changes, one per line."""
 
 # Can be optimized further, ask it to not generate any code and just describe at a high-level what it would change.
-context_files_to_change_prompt = """Your job is to write three high quality, detailed, step-by-step plans for an intern to help resolve a user's GitHub issue. Each plan should consider a different approach to solving the problem, particularly focusing on different files and code sections to change.
+context_files_to_change_prompt = """Your job is to write two high quality approaches for an intern to help resolve a user's GitHub issue. 
 
-You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create three step-by-step plans for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+Follow the below steps:
+1. Identify the root cause of the issue by referencing specific code entities in the relevant files.
 
-Guidelines:
-- Always include the full file path and reference the provided files 
-- Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using the phrases "add", "replace", and "remove".
-- Reference relevant type definitions, interfaces, and schemas 
-- Ensure your plan is complete and covers all necessary changes to fully resolve the issue
-- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
-- Update tests accordingly to ensure the changes are correct
-- Prioritize using existing code and utility methods to minimize writing new code
-- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
+2. Plan two possible solutions to the user's request, prioritizing changes that use different files in the codebase. List them below as follows:
+    - Plan 1: The most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
+    - Plan 2: The second most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
 
-Please use the following XML format for each of your responses:
+3a. List all files that may need to be modified to resolve the issue given the two approaches.
 
-# 1. Issue Analysis:
-<issue_analysis number="#">
-a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+- These files must be formatted in <relevant_files> tags like so:
+<relevant_files>
+file_path_1
+file_path_2
+...
+</relevant_files>
 
-b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+3b. List all relevant read-only files from the provided set given the two approaches.
 
-c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
-  - File path 1: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-  - File path 2: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-[additional files as needed]
+- These files must be formatted in <read_only_files> tags like so:
+<read_only_files>
+file_path_1
+file_path_2
+...
+</read_only_files>
 
-d. List ALL of the tests we should add or update to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
-  - File path 1: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-  - File path 2: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-[additional files as needed]
-
-e. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-  - Type definitions, interfaces, and schemas
-  - Helper functions
-  - Frontend components
-  - Database services
-  - API endpoints
-  [additional relevant modules as needed]
-</issue_analysis>
-
-# 2. Plan:
-<plan number="#">  
-<create file="file_path_1">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
-</create>
-[additional creates]
-
-<modify file="file_path_2"> 
-Instructions for modifying one section of the file. 
-</modify>
-
-<modify file="file_path_2">
-Instructions for modifying a different section of the same file. 
-Use multiple <modify> blocks for the same file to separate distinct changes.
-</modify>
-
-[additional modifies as needed, for the same file or different files]
-</plan>
-
-# 3. Relevant Modules:
-<relevant_modules>
-[List of all relevant files to reference while making changes, one per line]
-</relevant_modules>
-
-Generate three diverse plans to address the user issue. The best plan will be chosen later."""
+Generate two diverse plans to address the user issue. The best plan will be chosen later."""
 
 extract_files_to_change_prompt = """\
 # Task:
