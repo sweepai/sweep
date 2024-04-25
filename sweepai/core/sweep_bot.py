@@ -761,6 +761,13 @@ def get_files_to_change_for_gha(
 
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.expand(300).get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
