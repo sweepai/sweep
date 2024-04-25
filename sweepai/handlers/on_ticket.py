@@ -66,7 +66,7 @@ from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_check_suite import clean_gh_logs
-from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue, get_image_urls_from_issue_body, match_image_url_to_image_contents
+from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger

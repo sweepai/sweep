@@ -5,7 +5,6 @@ import re
 import base64
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.entities import Message
 from sweepai.utils.github_utils import get_token
 
 # we must get the raw issue which contains the body html and the actual links to the images
