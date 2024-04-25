@@ -16,7 +16,7 @@ from sweepai.core.lexical_search import (
     prepare_lexical_search_index,
     search_index,
 )
-from sweepai.core.sweep_bot import get_files_to_change
+from sweepai.core.sweep_bot import context_get_files_to_change
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.cohere_utils import cohere_rerank_call
@@ -315,7 +315,7 @@ def get_relevant_context(
     repo_context_manager.dir_obj.add_relevant_files(
         repo_context_manager.relevant_file_paths
     )
-    fcrs, plan = get_files_to_change(
+    relevant_files, read_only_files = context_get_files_to_change(
         relevant_snippets=repo_context_manager.current_top_snippets,
         read_only_snippets=repo_context_manager.read_only_snippets,
         problem_statement=query,
@@ -323,54 +323,38 @@ def get_relevant_context(
         import_graph=import_graph,
         chat_logger=chat_logger,
         seed=seed,
-        context=True,
         cloned_repo=repo_context_manager.cloned_repo,
     )
     previous_top_snippets = copy.deepcopy(repo_context_manager.current_top_snippets)
     previous_read_only_snippets = copy.deepcopy(repo_context_manager.read_only_snippets)
     repo_context_manager.current_top_snippets = []
     repo_context_manager.read_only_snippets = []
-    visited_paths = set()
-    all_create = True
-    for fcr in fcrs:
-        if fcr.filename in visited_paths:
-            continue
-        visited_paths.add(fcr.filename)
-        if fcr.change_type == "create":
-            continue
-        all_create = False
+    for relevant_file in relevant_files:
         try:
-            content = repo_context_manager.cloned_repo.get_file_contents(fcr.filename)
+            content = repo_context_manager.cloned_repo.get_file_contents(relevant_file)
         except FileNotFoundError:
             continue
         snippet = Snippet(
-            file_path=fcr.filename,
+            file_path=relevant_file,
             start=0,
             end=len(content.split("\n")),
             content=content,
         )
         repo_context_manager.current_top_snippets.append(snippet)
-    repo_context_manager.read_only_snippets = []
-    if fcrs:
-        for file_path in fcrs[0].relevant_files:
-            if file_path in visited_paths:
-                continue
-            visited_paths.add(file_path)
-            try:
-                content = repo_context_manager.cloned_repo.get_file_contents(file_path)
-            except FileNotFoundError:
-                continue
-            snippet = Snippet(
-                file_path=file_path,
-                start=0,
-                end=len(content.split("\n")),
-                content=content,
-            )
-            repo_context_manager.read_only_snippets.append(snippet)
-    else:
-        raise Exception("No file change requests created.")
-    if all_create:
-        # special case if all fcrs were create fcrs
+    for read_only_file in read_only_files:
+        try:
+            content = repo_context_manager.cloned_repo.get_file_contents(read_only_file)
+        except FileNotFoundError:
+            continue
+        snippet = Snippet(
+            file_path=read_only_file,
+            start=0,
+            end=len(content.split("\n")),
+            content=content,
+        )
+        repo_context_manager.read_only_snippets.append(snippet)
+    
+    if not repo_context_manager.current_top_snippets and not repo_context_manager.read_only_snippets:
         repo_context_manager.current_top_snippets = copy.deepcopy(previous_top_snippets)
         repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
     return repo_context_manager
