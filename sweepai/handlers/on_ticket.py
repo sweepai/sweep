@@ -78,6 +78,7 @@ from sweepai.utils.github_utils import (
     convert_pr_draft_field,
     get_github_client,
     get_token,
+    sanitize_string_for_github,
 )
 from sweepai.utils.progress import (
     AssistantConversation,
@@ -713,6 +714,9 @@ def on_ticket(
                 add_bonus_message=True,
             ):
                 nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
+                message = sanitize_string_for_github(message)
+                if pr_message:
+                    pr_message = sanitize_string_for_github(pr_message)
                 # -1 = error, -2 = retry
                 # Only update the progress bar if the issue generation errors.
                 errored = index == -1
@@ -866,7 +870,7 @@ def on_ticket(
                 edit_sweep_comment(
                     (
                         "It looks like an issue has occurred around fetching the files."
-                        " Perhaps the repo failed to initialized. If this error persists"
+                        f" The exception was {str(e)}. If this error persists"
                         f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
                     ),
                     -1,
@@ -1698,7 +1702,7 @@ def on_ticket(
                     edit_sweep_comment(
                         (
                             "I'm sorry, but it looks like an error occurred due to" 
-                            " a planning failure. Feel free to add more details to the issue description"
+                            f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
                             " so Sweep can better address it. Alternatively, post on our community forum"
                             " for assistance: https://community.sweep.dev/"
                         ),
@@ -1708,7 +1712,7 @@ def on_ticket(
                     edit_sweep_comment(
                         (
                             "I'm sorry, but it looks like an error has occurred due to"
-                            + " a planning failure. Feel free to add more details to the issue description"
+                            + f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
                             + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
                             + " https://discord.gg/sweep."
                         ),

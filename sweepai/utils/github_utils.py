@@ -658,6 +658,27 @@ def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False, installation
         return False
     return True
 
+# makes sure no secrets are in the message
+def sanitize_string_for_github(message: str):
+    GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM", "")
+    GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", "")
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+    INSTALLATION_ID = os.environ.get("INSTALLATION_ID", "")
+    GITHUB_PAT = os.environ.get("GITHUB_PAT", "")
+    COHERE_API_KEY = os.environ.get("COHERE_API_KEY", "")
+    LICENSE_KEY = os.environ.get("LICENSE_KEY", "")
+    VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", "")
+    AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY", "")
+    AWS_SECRET_KEY = os.environ.get("AWS_SECRET_KEY", "")
+    # include all previous env vars in secrets array
+    secrets = [GITHUB_APP_PEM, GITHUB_APP_ID, ANTHROPIC_API_KEY, OPENAI_API_KEY, INSTALLATION_ID, GITHUB_PAT, COHERE_API_KEY, LICENSE_KEY, VOYAGE_API_KEY, AWS_ACCESS_KEY, AWS_SECRET_KEY]
+    secrets = [secret for secret in secrets if secret]
+    for secret in secrets:
+        if secret in message:
+            message = message.replace(secret, "*" * len(secret))
+    return message
+
 
 try:
     g = Github(os.environ.get("GITHUB_PAT"))
