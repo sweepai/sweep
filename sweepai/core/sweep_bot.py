@@ -221,6 +221,21 @@ def get_files_to_change(
         Message(role="system", content=files_to_change_system_prompt, key="system")
     )
 
+    if not context:
+        new_relevant_snippets = []
+        new_read_only_snippets = []
+        
+        for snippet in relevant_snippets:
+            if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+                continue
+            if "test" in snippet.file_path:
+                new_read_only_snippets.append(snippet)
+            else:
+                new_relevant_snippets.append(snippet)
+        
+        relevant_snippets = new_relevant_snippets
+        read_only_snippets = new_read_only_snippets + read_only_snippets
+
     interleaved_snippets = []
     for i in range(max(len(relevant_snippets), len(read_only_snippets))):
         if i < len(relevant_snippets):
@@ -274,22 +289,6 @@ def get_files_to_change(
             key="relevant_snippets",
         )
     )
-    joined_relevant_read_only_snippets = "\n".join(
-        read_only_snippet_template.format(
-            i=i,
-            file_path=snippet.file_path,
-            content=snippet.get_snippet(add_lines=False),
-        ) for i, snippet in enumerate(read_only_snippets)
-    )
-    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
-    if read_only_snippets:
-        messages.append(
-            Message(
-                role="user",
-                content=read_only_snippets_message,
-                key="relevant_snippets",
-            )
-        )
     # previous_diffs = get_previous_diffs(
     #     problem_statement,
     #     cloned_repo=cloned_repo,
@@ -326,6 +325,7 @@ def get_files_to_change(
             ],
         )
         MODEL = "claude-3-opus-20240229"
+        f = open("msg.txt", "w")
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt),
             model=MODEL,

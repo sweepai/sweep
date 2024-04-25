@@ -333,31 +333,13 @@ class TestSubtractNumbers(unittest.TestCase):
 
 In either case, the original_code variable must NOT be empty. Please make another make_change function call with the corrected, non-empty <original_code> block."""
 
-self_review_prompt = """First, review and critique the change(s) you have made. Consider the following points:
+self_review_prompt = """There is a linter warning in the code changes. Resolve the warnings by performing the following:
 
-1. Analyze the code patch and indicate:
-   a. Purpose and impact of each change
-   b. Check for potential errors: 
-     - Logic errors
-     - Unhandled edge cases
-     - Missing imports
-     - Incomplete changes
-     - Undefined variables/functions
-     - Usage of nullable attributes
-     - Non-functional code
-   c. Alignment with plan and requirements
-2. Perform critical contextual analysis:
-   - Break down changes 
-   - Explain reasoning
-   - Identify plan deviations
+1. Review and critique the change(s) you have made. 
+2. Then, identify what may be causing the linter warning.
+3. Make the necessary changes to resolve the linter warning.
 
-Be extremely critical but limit the scope of the critique to the current task, which is:
-
-{current_task}
-
-Then, determine if the changes are correct and complete.
-
-If the changes are complete and correct, call the submit_task function to move onto the next task. Otherwise, call the make_change function to continue making changes."""
+Call the make_change function to fix the linter warnings."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -957,7 +939,7 @@ def handle_function_call(
                         first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the code from the file with its surrounding code:\n```\n{best_match_diff}\n```\nFirst, identify how your original_code differs from the code in the file. Then, call make_change again with the corrected original_code."
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
                         # check other files, this code should skip if there are no other files
@@ -1092,6 +1074,7 @@ def handle_function_call(
                 }
             if warning_message:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
