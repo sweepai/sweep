@@ -383,6 +383,20 @@ def get_files_to_change_for_test(
         Message(role="system", content=files_to_change_system_prompt, key="system")
     )
 
+    # keep order but move all files without tests to read only snippets
+    new_relevant_snippets = []
+    new_read_only_snippets = []
+    for snippet in relevant_snippets:
+        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+            continue
+        if "test" in snippet.file_path:
+            new_relevant_snippets.append(snippet)
+        else:
+            new_read_only_snippets.append(snippet)
+    
+    relevant_snippets = new_relevant_snippets
+    read_only_snippets = new_read_only_snippets
+
     for relevant_snippet in relevant_snippets:
         if relevant_snippet.file_path in updated_files:
             relevant_snippet.content = updated_files[relevant_snippet.file_path]["contents"]
@@ -467,7 +481,7 @@ def get_files_to_change_for_test(
     )
     diff_string = ""
     for file_path, file_info in updated_files.items():
-        diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'])}\n```"
+        diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'], n=10)}\n```"
     if diff_string:
         messages.append(
             Message(
@@ -576,37 +590,6 @@ def get_files_to_change_for_gha(
 
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
-    # attach all relevant snippets
-    if True:
-        formatted_relevant_snippets = []
-        for i, snippet in enumerate(relevant_snippets):
-            annotated_source_code, code_summaries = get_annotated_source_code(
-                source_code=snippet.get_snippet(add_lines=False),
-                issue_text=problem_statement,
-                file_path=snippet.file_path,
-            )
-            formatted_relevant_snippets.append(
-                relevant_snippet_template.format(
-                    i=i,
-                    file_path=snippet.file_path,
-                    content=annotated_source_code,
-                )
-            )
-            # cohere_rerank_response = cohere_rerank_call(
-            #     query=problem_statement,
-            #     documents=code_summaries,
-            # )
-        joined_relevant_snippets = "\n".join(
-            formatted_relevant_snippets
-        )
-    else:
-        joined_relevant_snippets = "\n".join(
-            relevant_snippet_template.format(
-                i=i,
-                file_path=snippet.file_path,
-                content=snippet.expand(300).get_snippet(add_lines=False),
-            ) for i, snippet in enumerate(relevant_snippets)
-        )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(

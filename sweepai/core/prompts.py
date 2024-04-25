@@ -218,6 +218,8 @@ a. Identify the root cause of the issue by referencing specific code entities in
 
 b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
+c. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Then describe how we can implement the current feature similarly. Be complete and precise. (1 paragraph)
+
 c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
       a. Describe the first change to make in the file.
@@ -292,7 +294,7 @@ Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
-a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+a. Identify the functional changes made and which functions and classes they are from. Then, indicate how we should list all features we need to test. Then, locate the tests for the function and similar features, so we know where to add the new tests or update existing tests. (1 paragraph)
 
 b. Detail ALL of the tests that need to be added or updated to validate the proposed changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
@@ -325,7 +327,7 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. 
+One sentence explanation of the change. Instructions for modifying one section of the file.
 
 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
 
@@ -333,7 +335,7 @@ Instructions for modifying one section of the file.
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying a different section of the same file. 
+One sentence explanation of the change. Instructions for modifying one section of the file.
 
 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
 
