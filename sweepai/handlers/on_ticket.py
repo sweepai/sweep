@@ -1117,7 +1117,6 @@ def on_ticket(
                 )
 
                 delete_branch = False
-
                 generator = create_pr_changes(
                     file_change_requests,
                     pull_request,
@@ -1555,7 +1554,8 @@ def on_ticket(
                                 assistant_conversation=None,
                                 additional_messages=[],
                                 previous_modify_files_dict=previous_modify_files_dict,
-                                file_change_requests=file_change_requests
+                                file_change_requests=file_change_requests,
+                                username=username
                             )
                             pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                             total_edit_attempts += 1
