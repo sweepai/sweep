@@ -484,10 +484,11 @@ Here is an example response format:
 context_files_to_change_system_prompt = """You are an AI assistant helping an intern plan the resolution to a GitHub issue. Code files, a description of the issue, and relevant parts of the codebase have been provided. List all of the relevant files to reference while making changes, one per line."""
 
 # Can be optimized further, ask it to not generate any code and just describe at a high-level what it would change.
+# can consider adding (1 paragraph) to the end of the first step
 context_files_to_change_prompt = """Your job is to write two high quality approaches for an intern to help resolve a user's GitHub issue. 
 
 Follow the below steps:
-1. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+1. Identify the root cause of the issue by referencing specific code entities in the relevant files. (1 paragraph)
 
 2. Plan two possible solutions to the user's request, prioritizing changes that use different files in the codebase. List them below as follows:
     - Plan 1: The most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
