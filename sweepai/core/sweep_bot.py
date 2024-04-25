@@ -631,6 +631,17 @@ def get_files_to_change_for_test(
             content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
         )
     )
+    diff_string = ""
+    for file_path, file_info in updated_files.items():
+        diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'], n=10)}\n```"
+    if diff_string:
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Here are the changes we have made to resolve the issue that needs testing:\n<diff>\n{diff_string}\n</diff>\n",
+                key="pr_diffs"
+            )
+        )
     if import_graph:
         graph_string = ""
         reverse_graph = import_graph.reverse()
@@ -642,22 +653,11 @@ def get_files_to_change_for_test(
             for import_path in reverse_graph[file_path]:
                 if "egg-info" in import_path or "build" in import_path:
                     continue
-                graph_string += f"    <── {import_path}\n"
+                graph_string += f"- {import_path}\n"
         messages.append(
             Message(
                 role="user",
                 content=f"# Here's the structure of the imports:\n<import_graph>\n{graph_string}\n</import_graph>",
-            )
-        )
-    diff_string = ""
-    for file_path, file_info in updated_files.items():
-        diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'], n=10)}\n```"
-    if diff_string:
-        messages.append(
-            Message(
-                role="user",
-                content=f"# Here are the changes we have made to resolve the issue that needs testing:\n<diff>\n{diff_string}\n</diff>\n",
-                key="pr_diffs"
             )
         )
     try:
