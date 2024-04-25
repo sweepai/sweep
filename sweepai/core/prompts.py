@@ -285,8 +285,7 @@ Take these steps:
         - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
         - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 
-3. List all of the relevant files to reference while making changes, one per line.
-"""
+3. List all of the relevant files to reference while making changes, one per line."""
 
 test_files_to_change_prompt = """Now let's add tests to the code changes you made in the previous step. You will need to add or update tests to ensure that the changes you made are correct and do not break existing functionality.
 
@@ -294,7 +293,7 @@ Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
-a. Identify the functional changes made and which functions and classes they are from. Then, indicate how we should list all features we need to test. Then, locate the tests for the function and similar features, so we know where to add the new tests or update existing tests. (1 paragraph)
+a. Identify the functional changes made and which functions and classes they are from. Then, locate the tests for these functions and classes as well as similar features. We should add new tests or update the existing ones in similar places. (1 paragraph)
 
 b. Detail ALL of the tests that need to be added or updated to validate the proposed changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 

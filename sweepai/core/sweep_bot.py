@@ -17,6 +17,7 @@ from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
+from sweepai.core.context_pruning import build_full_hierarchy, generate_file_imports
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -528,8 +529,8 @@ def get_files_to_change_for_test(
     read_only_snippets: list[Snippet],
     problem_statement: str,
     updated_files: dict[str, dict[str, str]],
+    import_graph: Graph | None = None,
     chat_logger: ChatLogger = None,
-    context: bool = False,
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -567,17 +568,31 @@ def get_files_to_change_for_test(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
 
-
     max_snippets = get_max_snippets(interleaved_snippets)
-    if context:
-        max_snippets = max_snippets[::-1]
+    max_snippets = max_snippets[::-1]
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if context or True:
+    if read_only_snippets:
+        joined_relevant_read_only_snippets = "\n".join(
+            read_only_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=snippet.get_snippet(add_lines=False),
+            ) for i, snippet in enumerate(read_only_snippets)
+        )
+        read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippets_message,
+                key="relevant_snippets",
+            )
+        )
+    if True:
         formatted_relevant_snippets = []
         for i, snippet in enumerate(tqdm(relevant_snippets)):
             annotated_source_code, code_summaries = get_annotated_source_code(
@@ -611,28 +626,30 @@ def get_files_to_change_for_test(
             key="relevant_snippets",
         )
     )
-    joined_relevant_read_only_snippets = "\n".join(
-        read_only_snippet_template.format(
-            i=i,
-            file_path=snippet.file_path,
-            content=snippet.get_snippet(add_lines=False),
-        ) for i, snippet in enumerate(read_only_snippets)
-    )
-    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
-    if read_only_snippets:
-        messages.append(
-            Message(
-                role="user",
-                content=read_only_snippets_message,
-                key="relevant_snippets",
-            )
-        )
     messages.append(
         Message(
             role="user",
             content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
         )
     )
+    if import_graph:
+        graph_string = ""
+        reverse_graph = import_graph.reverse()
+        for snippet in relevant_snippets + read_only_snippets:
+            file_path = snippet.file_path
+            if file_path not in reverse_graph or not reverse_graph[file_path]:
+                continue
+            graph_string += f"\nThe file '{file_path}' is imported by the following files:\n"
+            for import_path in reverse_graph[file_path]:
+                if "egg-info" in import_path or "build" in import_path:
+                    continue
+                graph_string += f"    <── {import_path}\n"
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Here's the structure of the imports:\n<import_graph>\n{graph_string}\n</import_graph>",
+            )
+        )
     diff_string = ""
     for file_path, file_info in updated_files.items():
         diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'], n=10)}\n```"
@@ -659,13 +676,14 @@ def get_files_to_change_for_test(
             ],
         )
         MODEL = "claude-3-opus-20240229"
+        # breakpoint()
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1
         )
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
-        expected_plan_count = 3 if context else 1
+        expected_plan_count = 1
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
         if call_anthropic_second_time:
             # ask for a second response
