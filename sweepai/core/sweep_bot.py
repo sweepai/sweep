@@ -249,7 +249,7 @@ def get_files_to_change(
                 key="relevant_snippets",
             )
         )
-    if context:
+    if not context:
         formatted_relevant_snippets = []
         for i, snippet in enumerate(tqdm(relevant_snippets)):
             annotated_source_code, code_summaries = get_annotated_source_code(
