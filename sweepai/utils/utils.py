@@ -226,10 +226,11 @@ class CheckResults:
         return len(self.pylint.splitlines()) > len(other.pylint.splitlines()) or len(self.eslint.splitlines()) > len(other.eslint.splitlines())
     
     def is_worse_than_message(self, other: CheckResults) -> str:
+        if other.parse_error_message:
+            # Previously failing
+            return ""
         if self.parse_error_message:
             return self.parse_error_message
-        if other.parse_error_message:
-            return other.parse_error_message
         if len(self.pylint.splitlines()) > len(other.pylint.splitlines()):
             # return f"The code has the following pylint errors:\n\n{self.pylint}"
             if not other.pylint:
