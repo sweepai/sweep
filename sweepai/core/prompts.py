@@ -488,7 +488,7 @@ context_files_to_change_system_prompt = """You are an AI assistant helping an in
 context_files_to_change_prompt = """Your job is to write two high quality approaches for an intern to help resolve a user's GitHub issue. 
 
 Follow the below steps:
-1. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+1. Identify the root cause of the issue by referencing specific code entities in the relevant files. (1 paragraph)
 
 2. Plan two possible solutions to the user's request, prioritizing changes that use different files in the codebase. List them below as follows:
     - Plan 1: The most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
