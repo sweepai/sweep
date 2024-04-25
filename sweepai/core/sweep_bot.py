@@ -809,7 +809,7 @@ class SweepBot(CodeGenBot, GithubBot):
             previous_modify_files_dict = {}
         if new_file_contents:
             for file_name, file_content in new_file_contents.items():
-                previous_modify_files_dict[file_name] = file_content
+                previous_modify_files_dict[file_name] = copy.deepcopy(file_content)
                 # update status of corresponding fcr to be succeeded
                 for file_change_request in file_change_requests:
                     if file_change_request.filename == file_name:
