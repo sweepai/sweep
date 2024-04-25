@@ -44,7 +44,7 @@ from sweepai.utils.progress import (
 )
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.utils import check_syntax
-from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, validate_and_sanitize_multi_file_changes
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = 150_000 * 3.5
@@ -865,6 +865,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             try:
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in new_file_contents.items()}
+                new_file_contents_to_commit = validate_and_sanitize_multi_file_changes(self.repo, new_file_contents_to_commit, file_change_requests)
                 result = commit_multi_file_changes(self.repo, new_file_contents_to_commit, commit_message, branch)
             except AssistantRaisedException as e:
                 raise e
