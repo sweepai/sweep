@@ -215,6 +215,21 @@ def get_files_to_change(
         Message(role="system", content=files_to_change_system_prompt, key="system")
     )
 
+    if not context:
+        new_relevant_snippets = []
+        new_read_only_snippets = []
+        
+        for snippet in relevant_snippets:
+            if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+                continue
+            if "test" in snippet.file_path:
+                new_read_only_snippets.append(snippet)
+            else:
+                new_relevant_snippets.append(snippet)
+        
+        relevant_snippets = new_relevant_snippets
+        read_only_snippets = new_read_only_snippets + read_only_snippets
+
     interleaved_snippets = []
     for i in range(max(len(relevant_snippets), len(read_only_snippets))):
         if i < len(relevant_snippets):
@@ -323,6 +338,8 @@ def get_files_to_change(
             ],
         )
         MODEL = "claude-3-opus-20240229"
+        f = open("msg.txt", "w")
+        breakpoint()
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt if not context else context_files_to_change_prompt),
             model=MODEL,
