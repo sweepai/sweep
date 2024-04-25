@@ -201,6 +201,7 @@ def get_files_to_change(
     chat_logger: ChatLogger = None,
     seed: int = 0,
     context: bool = False,
+    images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -316,7 +317,8 @@ def get_files_to_change(
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt if not context else context_files_to_change_prompt),
             model=MODEL,
-            temperature=0.1
+            temperature=0.1,
+            images=images
         )
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
         expected_plan_count = 3 if context else 1
@@ -327,7 +329,8 @@ def get_files_to_change(
                 second_response = chat_gpt.chat_anthropic(
                     content="",
                     model=MODEL,
-                    temperature=0.1
+                    temperature=0.1,
+                    images=images
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response
