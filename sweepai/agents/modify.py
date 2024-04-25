@@ -95,6 +95,13 @@ The existing lines of code that need modification or replacement. This should be
 The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
 </description>
 </parameter>
+<parameter>
+<name>append</name>
+<type>bool</type>
+<description>
+Optional: either true or false. If true, the new code will be appended to the original code. If false, the original code will be replaced by the new code. Use this to add new methods or test cases. Default is false.
+</description>
+</parameter>
 </parameters>
 </tool_description>
 
@@ -247,97 +254,127 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
-EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It MUST contain a valid section of code that you want to modify. To use the make_change function to append code, you must follow these steps:
+EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It MUST contain a valid section of code from the existing file that you want to modify.
 
-a. List all function and class headers in this file and explain what they each do. Follow this format:
+It seems like you are trying to use the make_change function to append code, you must follow these steps:
+
+# 1. Thinking
+<thinking>
+a. Identify the test case we are trying to append.
+b. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
     - Function: [function_name] - [description]
-    - Class: [class_name] - [description]
-    [additional functions and classes]
-b. Identify the section of code you want to append the new_code block to.
+    [additional functions]
+c. Identify the function you want to append the new_code block to.
+</thinking>
 
+# 2. Function call
 Then generate a make_change function call with the following parameters:
 a. Put the code you want to append to in the original_code variable.
 b. Copy the code from original_code and paste it into the new_code variable.
 c. Append the new code you want to add after the original code in the new_code variable.
+d. Set the append argument to true. This is critical to ensure the new code is ADDED after the original code, instead of replacing the code.
 
-Here's an example of how to use the make_change function to append code:
+Here's an illustrative example of how to use the make_change function to append code:
 
 <example>
 Here's an example of the input file:
 <input>
-<file_to_modify filename="src/math_test.py">
-from math import add_numbers
+<file_to_modify filename="tests/calculator_test.py">
+import unittest
+from calculator import Calculator
 
-class TestAddNumbers(unittest.TestCase):
+class TestAddition(unittest.TestCase):
+    def setUp(self):
+        self.calc = Calculator()
+
     def test_add_positive_numbers(self):
-        result = add_numbers(2, 3)
+        result = self.calc.add(2, 3)
         self.assertEqual(result, 5)
 
     def test_add_negative_numbers(self):
-        result = add_numbers(-2, -3)
+        result = self.calc.add(-2, -3)
         self.assertEqual(result, -5)
 
     def test_add_zero(self):
-        result = add_numbers(0, 0)
+        result = self.calc.add(0, 0)
+        self.assertEqual(result, 0)
+
+class TestSubtraction(unittest.TestCase):
+    def setUp(self):
+        self.calc = Calculator()
+
+    def test_subtract_positive_numbers(self):
+        result = self.calc.subtract(5, 3)
+        self.assertEqual(result, 2)
+
+    def test_subtract_negative_numbers(self):
+        result = self.calc.subtract(-5, -3)
+        self.assertEqual(result, -2)
+
+    def test_subtract_zero(self):
+        result = self.calc.subtract(5, 0)
+        self.assertEqual(result, 5)
+
+class TestMultiplication(unittest.TestCase):
+    def setUp(self):
+        self.calc = Calculator()
+
+    def test_multiply_positive_numbers(self):
+        result = self.calc.multiply(2, 3)
+        self.assertEqual(result, 6)
+
+    def test_multiply_negative_numbers(self):
+        result = self.calc.multiply(-2, 3)
+        self.assertEqual(result, -6)
+
+    def test_multiply_by_zero(self):
+        result = self.calc.multiply(5, 0)
         self.assertEqual(result, 0)
 </file_to_modify>
 </input>
 
-Here's an example of the make_change function we would use to append code:
+<thinking>
+a. We are adding a new test case for multiplying two negative numbers in the calculator_test.py file.
+b. List of relevant functions:
+    - Function: test_multiply_positive_numbers - Tests multiplying positive numbers
+    - Function: test_multiply_negative_numbers - Tests multiplying negative numbers
+    - Function: test_multiply_by_zero - Tests multiplying by zero
+
+c. Since we are adding a test case for multiplying two negative numbers, we should append the new test case right after the test_multiply_negative_numbers test.
+</thinking>
+
 <function_call>
 <make_change>
 <justification>
-Add additional test cases to the math_test.py file.
+Add a test case for multiplying a negative number by a negative number right after the test_multiply_negative_numbers test.
 </justification>
-<file_name>
-src/math_test.py
-</file_name>
+<file_name>tests/calculator_test.py</file_name>
 <original_code>
-class TestAddNumbers(unittest.TestCase):
-    def test_add_positive_numbers(self):
-        result = add_numbers(2, 3)
-        self.assertEqual(result, 5)
+    def test_multiply_positive_numbers(self):
+        result = self.calc.multiply(2, 3)
+        self.assertEqual(result, 6)
 
-    def test_add_negative_numbers(self):
-        result = add_numbers(-2, -3)
-        self.assertEqual(result, -5)
-
-    def test_add_zero(self):
-        result = add_numbers(0, 0)
-        self.assertEqual(result, 0)
+    def test_multiply_negative_numbers(self):
+        result = self.calc.multiply(-2, 3)
+        self.assertEqual(result, -6)
 </original_code>
 <new_code>
-class TestAddNumbers(unittest.TestCase):
-    def test_add_positive_numbers(self):
-        result = add_numbers(2, 3)
-        self.assertEqual(result, 5)
-
-    def test_add_negative_numbers(self):
-        result = add_numbers(-2, -3)
-        self.assertEqual(result, -5)
-
-    def test_add_zero(self):
-        result = add_numbers(0, 0)
-        self.assertEqual(result, 0)
-
-class TestSubtractNumbers(unittest.TestCase):
-    def test_subtract_positive_numbers(self):
-        result = subtract_numbers(5, 3)
-        self.assertEqual(result, 2)
-
-    def test_subtract_negative_numbers(self):
-        result = subtract_numbers(-5, -3)
-        self.assertEqual(result, -2)
-
-    def test_subtract_zero(self):
-        result = subtract_numbers(5, 0)
-        self.assertEqual(result, 5)
+    def test_multiply_negative_by_negative(self):
+        result = self.calc.multiply(-4, -2)
+        self.assertEqual(result, 8)
 </new_code>
+<append>true</append>
 </make_change>
 </function_call>
 </example>
 
-In either case, the original_code variable must NOT be empty. Please make another make_change function call with the corrected, non-empty <original_code> block."""
+Notice how:
+a. The original_code block is copied exactly from the existing code.
+b. The original_code block consists of the functions we want to append the new code after.
+c. Only a several lines of code are included before where you want to add the new code in the original_code block, but enough code is provided to give context.
+d. The indentation in both original_code and new_code matches the file_to_modify code.
+
+This is how you should append code using the make_change function. Please make another make_change function call with the corrected, non-empty <original_code> block and append flag set to true."""
 
 self_review_prompt = """You have suggested making a large amount of changes to the code. Before proceeding, it is important to review and critique the changes you have made. Follow these steps:
 
@@ -387,7 +424,7 @@ Let's fix this error by responding in the following format:
 
 # Thinking
 <thinking>
-1. Copy the first 100 lines of the ACTUAL contents of {file_path} by copying from the corresponding <file_to_modify> block. Follow this format:
+1. Copy the first 50 lines of the ACTUAL contents of {file_path} by copying from the corresponding <file_to_modify> block. Follow this format:
 <file_to_modify filename="{file_path}">
 ```
 ACTUAL contents of {file_path}, not the contents of original_code
@@ -975,8 +1012,10 @@ def handle_function_call(
                 success_message = ""
                 original_code = tool_call["original_code"].strip("\n")
                 new_code = tool_call["new_code"].strip("\n")
+                if tool_call.get("append", "false") == "true":
+                    new_code = original_code + "\n\n" + new_code
                 if new_code == original_code:
-                    error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
+                    error_message += "The new_code and original_code are the same. If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                     break
                 # get the latest contents of the file
                 file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
@@ -1129,6 +1168,7 @@ def handle_function_call(
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
             llm_state["attempt_lazy_change"] = False
+            breakpoint()
         if not error_message:
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
@@ -1142,7 +1182,7 @@ def handle_function_call(
                     "original_contents": file_contents,
                 }
             if warning_message:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=15)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
