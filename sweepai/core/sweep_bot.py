@@ -651,7 +651,7 @@ def get_files_to_change_for_test(
                 continue
             graph_string += f"\nThe file '{file_path}' is imported by the following files:\n"
             for import_path in reverse_graph[file_path]:
-                if "egg-info" in import_path or "build" in import_path:
+                if ".venv" in import_path or "build" in import_path:
                     continue
                 graph_string += f"- {import_path}\n"
         messages.append(
@@ -675,12 +675,12 @@ def get_files_to_change_for_test(
             ],
         )
         MODEL = "claude-3-opus-20240229"
-        # breakpoint()
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1
         )
+        # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
         expected_plan_count = 1
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
