@@ -116,7 +116,7 @@ def multi_get_top_k_snippets(
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
     _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.repo_dir,
+        cloned_repo.cached_dir,
         sweep_config,
         ticket_progress,
         ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
