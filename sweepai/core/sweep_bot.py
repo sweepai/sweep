@@ -472,6 +472,24 @@ def context_get_files_to_change(
     #         content=previous_diffs,
     #     )
     # )
+    if import_graph:
+        graph_string = ""
+        reverse_graph = import_graph.reverse()
+        for snippet in relevant_snippets + read_only_snippets:
+            file_path = snippet.file_path
+            if file_path not in reverse_graph or not reverse_graph[file_path]:
+                continue
+            graph_string += f"\nThe file '{file_path}' is imported by the following files:\n"
+            for import_path in reverse_graph[file_path]:
+                if ".venv" in import_path or "build" in import_path:
+                    continue
+                graph_string += f"- {import_path}\n"
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Here's the structure of the imports:\n<import_graph>\n{graph_string}\n</import_graph>",
+            )
+        )
     messages.append(
         Message(
             role="user",
@@ -540,7 +558,7 @@ def get_files_to_change_for_test(
     # keep order but move all files without tests to read only snippets
     new_relevant_snippets = []
     new_read_only_snippets = []
-    for snippet in relevant_snippets:
+    for snippet in relevant_snippets + read_only_snippets:
         if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
             continue
         if "test" in snippet.file_path:
