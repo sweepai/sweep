@@ -22,7 +22,7 @@ from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.github_utils import ClonedRepo, get_github_client, sanitize_string_for_github
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
@@ -174,6 +174,7 @@ def on_comment(
         bot_comment = None
 
         def edit_comment(new_comment: str) -> None:
+            new_comment = sanitize_string_for_github(new_comment)
             if bot_comment is not None:
                 bot_comment.edit(new_comment + BOT_SUFFIX)
 
@@ -307,20 +308,21 @@ def on_comment(
                 cloned_repo=cloned_repo,
             )
         except Exception as e:
-            logger.error(traceback.format_exc())
+            stack_trace = traceback.format_exc()
+            logger.error(stack_trace)
             elapsed_time = time.time() - start_time
             posthog.capture(
                 username,
                 "failed",
                 properties={
                     "error": str(e),
-                    "reason": "Failed to get files",
+                    "reason": f"An error occured! The stack trace is below:\n\n{stack_trace}",
                     "duration": elapsed_time,
                     "tracking_id": tracking_id,
                     **metadata,
                 },
             )
-            edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
+            edit_comment(ERROR_FORMAT.format(title=f"An error occured!\n\nThe exception message is:{str(e)}\n\nThe stack trace is:{stack_trace}"))
             raise e
 
         try:
@@ -416,7 +418,8 @@ def on_comment(
             edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
             return {"success": True, "message": "No files to change."}
         except Exception as e:
-            logger.error(traceback.format_exc())
+            stack_trace = traceback.format_exc()
+            logger.error(stack_trace)
             elapsed_time = time.time() - start_time
             posthog.capture(
                 username,
@@ -428,7 +431,7 @@ def on_comment(
                     **metadata,
                 },
             )
-            edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
+            edit_comment(ERROR_FORMAT.format(title=f"Failed to make changes:\n\nThe exception message is:{str(e)}\n\nThe stack trace is:{stack_trace}"))
             raise e
 
         # Delete eyes
