@@ -339,7 +339,6 @@ def get_files_to_change(
         )
         MODEL = "claude-3-opus-20240229"
         f = open("msg.txt", "w")
-        breakpoint()
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt if not context else context_files_to_change_prompt),
             model=MODEL,
