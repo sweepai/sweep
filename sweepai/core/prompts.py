@@ -214,7 +214,7 @@ Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
-a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
 b. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Be complete and precise. (1 paragraph)
 
