@@ -23,7 +23,7 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
         body_html = response.json()['body_html']
         if not body_html:
             return urls
-        image_url_regex = r'<img src="(?P<url>https?:[^"]+)"'
+        image_url_regex = r'<img.*?src="(?P<url>https?:[^"]+)"'
         image_url_matches = list(re.finditer(image_url_regex, body_html, re.DOTALL))
         for match in image_url_matches:
             url = match.group('url').strip()
