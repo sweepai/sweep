@@ -512,7 +512,7 @@ file_path_2
 ...
 </read_only_files>
 
-Generate two diverse plans to address the user issue. The best plan will be chosen later."""
+Generate two different plans to address the user issue. The best plan will be chosen later."""
 
 extract_files_to_change_prompt = """\
 # Task:

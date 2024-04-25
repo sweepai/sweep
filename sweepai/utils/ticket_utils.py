@@ -327,6 +327,8 @@ def get_relevant_context(
     )
     previous_top_snippets = copy.deepcopy(repo_context_manager.current_top_snippets)
     previous_read_only_snippets = copy.deepcopy(repo_context_manager.read_only_snippets)
+    repo_context_manager.current_top_snippets = []
+    repo_context_manager.read_only_snippets = []
     for relevant_file in relevant_files:
         try:
             content = repo_context_manager.cloned_repo.get_file_contents(relevant_file)
@@ -339,7 +341,6 @@ def get_relevant_context(
             content=content,
         )
         repo_context_manager.current_top_snippets.append(snippet)
-
     for read_only_file in read_only_files:
         try:
             content = repo_context_manager.cloned_repo.get_file_contents(read_only_file)
@@ -352,8 +353,8 @@ def get_relevant_context(
             content=content,
         )
         repo_context_manager.read_only_snippets.append(snippet)
-
-    if not (repo_context_manager.current_top_snippets or repo_context_manager.read_only_snippets):
+    
+    if not repo_context_manager.current_top_snippets and not repo_context_manager.read_only_snippets:
         repo_context_manager.current_top_snippets = copy.deepcopy(previous_top_snippets)
         repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
     return repo_context_manager
