@@ -247,12 +247,18 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
-EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It MUST contain a valid section of code that you want to modify. To use the make_change function, follow these steps:
+EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It MUST contain a valid section of code that you want to modify. To use the make_change function to append code, you must follow these steps:
 
-If you want to append code:
-    - Put the code you want to append to in the original_code variable.
-    - Copy the code from original_code and paste it into the new_code variable.
-    - Append the new code you want to add after the original code in the new_code variable.
+a. List all function and class headers in this file and explain what they each do. Follow this format:
+    - Function: [function_name] - [description]
+    - Class: [class_name] - [description]
+    [additional functions and classes]
+b. Identify the section of code you want to append the new_code block to.
+
+Then generate a make_change function call with the following parameters:
+a. Put the code you want to append to in the original_code variable.
+b. Copy the code from original_code and paste it into the new_code variable.
+c. Append the new code you want to add after the original code in the new_code variable.
 
 Here's an example of how to use the make_change function to append code:
 
@@ -333,13 +339,43 @@ class TestSubtractNumbers(unittest.TestCase):
 
 In either case, the original_code variable must NOT be empty. Please make another make_change function call with the corrected, non-empty <original_code> block."""
 
-self_review_prompt = """There is a linter warning in the code changes. Resolve the warnings by performing the following:
+self_review_prompt = """There is a linter warning in the code changes. Resolve the warnings by following these steps:
 
+# Thinking
+<thinking>
 1. Review and critique the change(s) you have made. 
 2. Then, identify what may be causing the linter warning.
 3. Make the necessary changes to resolve the linter warning.
+</thinking>
 
-Call the make_change function to fix the linter warnings."""
+Then, call the make_change function to fix the linter warnings."""
+
+ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear to be present in file {file_path}. Your provided original_code erroneously contains:
+```
+{original_code}
+```
+
+Let's fix this error by responding in the following format:
+
+# Thinking
+<thinking>
+1. Copy the first 100 lines of the ACTUAL contents of {file_path} by copying from the corresponding <file_to_modify> block. Follow this format:
+<file_to_modify filename="{file_path}">
+```
+ACTUAL contents of {file_path}, not the contents of original_code
+```
+</file_to_modify>
+
+2. Copy the most similar section of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
+```
+The most similar section of the ACTUAL contents of {file_path}
+```
+
+3. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
+</thinking>
+
+# Function call
+Then, follow up with the corrected function call."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -501,7 +537,7 @@ def create_user_message( # TODO: has non-deterministic behavior
                 files_to_modify_messages[fcr.filename] += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
     # now we combine the messages into a single string
     already_added_files = set([])
-    for fcr in fcrs:
+    for fcr in fcrs[::-1]:
         if fcr.filename in already_added_files:
             continue
         files_to_modify_string += files_to_modify_messages[fcr.filename]
@@ -729,10 +765,8 @@ def modify(
                 current_num_of_tasks_done = tasks_completed(fcrs)
                 if changes_made(modify_files_dict, previous_modify_files_dict) and current_num_of_tasks_done > num_of_tasks_done:
                     # remove the previous user message and add it to the end, do not remove if it is the inital user message
-                    if llm_state["user_message_index"] != 1:
-                        chat_gpt.messages.pop(llm_state["user_message_index"])
-                    if llm_state["user_message_index_chat_logger"] != 1:
-                        detailed_chat_logger_messages.pop(llm_state["user_message_index_chat_logger"])
+                    chat_gpt.messages = chat_gpt.messages[:1]
+                    detailed_chat_logger_messages = detailed_chat_logger_messages[:1]
                     chat_gpt.messages.append(Message(role="user", content=user_message))
                     detailed_chat_logger_messages.append({"role": "user", "content": user_message})
                     # update the index
@@ -790,6 +824,9 @@ def modify(
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
+            with open("msg.txt", "w") as f:
+                for message in chat_gpt.messages:
+                    f.write(f"{message.content}\n\n")
             if chat_logger is not None:
                 chat_logger.add_chat(
                     {
@@ -895,7 +932,6 @@ def handle_function_call(
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
         if not tool_call["original_code"].strip():
-            # breakpoint()
             error_message = EMPTY_ORIGINAL_CODE_PROMPT
         warning_message = ""
         if not error_message:
@@ -960,16 +996,20 @@ def handle_function_call(
                                     error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the {other_file_name} file?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                                 break
                         else: # if no other file match was found then return this block
-                            error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
-                            # first check the lines in original_code, if it is too long, ask for smaller changes
-                            original_code_lines_length = len(original_code.split("\n"))
-                            if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
-                                error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                            else:
-                                # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                                # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                                # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
-                                error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                            # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                            # # first check the lines in original_code, if it is too long, ask for smaller changes
+                            # original_code_lines_length = len(original_code.split("\n"))
+                            # if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
+                            #     error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                            # else:
+                            #     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                            #     # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                            #     # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
+                            #     error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                            error_message = ORIGINAL_CODE_NOT_FOUND_PROMPT.format(
+                                original_code=tool_call['original_code'],
+                                file_path=file_name
+                            )
                     break
                 # ensure original_code and new_code has the correct indents
                 new_code_lines = new_code.split("\n")
@@ -1074,7 +1114,7 @@ def handle_function_call(
                 }
             if warning_message:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
-                breakpoint()
+                # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
