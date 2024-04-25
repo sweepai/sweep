@@ -296,14 +296,16 @@ Please use the following XML format for your response:
 a. Identify the functional changes made and locate the tests for the edited code. Respond in the following format:
   - File path 1:
       a. Identify the edited functions and classes.
-      b. Then, locate the tests for this module by checking for files that import the file in the <imports> section.
-      c. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
+      b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
+      c. List and summarize all tests in each file. Then, identify the most similar tests we can copy with some minor edits. Indicate the name of the tests and which section of tests they are located in. Be as specific as possible.
+      d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
           - First place to make a change or create a new test in extreme detail.
           - Second place to make a change or create a new test in extreme detail.
   - File path 2:
       a. Identify the edited functions and classes.
-      b. Then, locate the tests for this module by checking for files that import the file in the <imports> section.
-      c. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
+      b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
+      c. List and summarize all tests in each file. Then, identify the most similar tests we can copy with some minor edits. Indicate the name of the tests and which section of tests they are located in. Be as specific as possible.
+      d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
           - First place to make a change or create a new test in extreme detail.
           - Second place to make a change or create a new test in extreme detail.
 [additional files as needed]
