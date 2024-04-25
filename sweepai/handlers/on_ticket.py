@@ -66,6 +66,7 @@ from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_check_suite import clean_gh_logs
+from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
@@ -458,8 +459,9 @@ def on_ticket(
             fast_mode,
             lint_mode,
         ) = strip_sweep(title)
-        # image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
-        # image_contents = get_image_blobs_from_urls(image_urls)
+        # fetch images from body of issue
+        image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
+        image_contents = get_image_contents_from_urls(image_urls)
         summary = summary or ""
         summary = re.sub(
             "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
@@ -857,6 +859,7 @@ def on_ticket(
                     issue_url,
                     chat_logger,
                     ticket_progress,
+                    images=image_contents
                 )
                 cloned_repo = repo_context_manager.cloned_repo
             except Exception as e:
@@ -989,6 +992,7 @@ def on_ticket(
                     problem_statement=f"{title}\n\n{summary}",
                     repo_name=repo_full_name,
                     cloned_repo=cloned_repo,
+                    images=image_contents
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
                 ticket_progress.planning_progress.file_change_requests = (

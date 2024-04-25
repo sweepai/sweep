@@ -28,6 +28,7 @@ from sweepai.utils.anthropic_client import sanitize_anthropic_messages
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.image_utils import create_message_with_images
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.utils import Tiktoken
@@ -175,6 +176,16 @@ def parse_function_calls_for_openai(response_contents: str) -> list[dict[str, st
                         }
             tool_calls.append(tool_call)
     return tool_calls
+
+# go through each message and see if we need to update it to include images or not
+def add_images_to_messages(message_dicts: list[dict[str, str]], images: list[tuple[str, str, str]], use_openai: bool = False):
+    if not images:
+        return message_dicts
+    new_message_dicts = []
+    for message in message_dicts:
+        new_message = create_message_with_images(message, images, use_openai=use_openai)
+        new_message_dicts.append(new_message)
+    return new_message_dicts
 
 class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
@@ -389,6 +400,7 @@ class ChatGPT(MessageList):
         stop_sequences: list[str] = [],
         max_tokens: int = 4096,
         use_openai: bool = False,
+        images: list[tuple[str, str, str]] | None = None
     ):
         # use openai
         if use_openai:
@@ -472,6 +484,9 @@ class ChatGPT(MessageList):
                         } for message in self.messages if message.role != "system"
                     ]
                     message_dicts = sanitize_anthropic_messages(message_dicts)
+                # need to modify message dicts if we have images
+                if images:
+                    message_dicts = add_images_to_messages(message_dicts, images, use_openai=use_openai)
                 content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai)
                 break
             except BadRequestError as e_:

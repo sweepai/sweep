@@ -20,6 +20,7 @@ try:
 except Exception as e:
     logger.info(f"Failed to initialize Parea client: {e}")
 
+# we cannot have two user messages in a row
 def sanitize_anthropic_messages(messages: list[dict[str, str]]):
     new_messages = []
     for message in messages:
