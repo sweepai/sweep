@@ -157,7 +157,7 @@ def file_exists_in_repo(repo: Repository, filepath: str):
         # Attempt to get the contents of the file
         repo.get_contents(filepath)
         return True  # If no exception, the file exists
-    except GithubException as e:
+    except GithubException:
         return False  # File does not exist
     
 def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dict[str, str], fcrs: list[FileChangeRequest]):
