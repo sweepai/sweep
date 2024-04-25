@@ -939,7 +939,7 @@ def handle_function_call(
                         first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the code from the file with its surrounding code:\n```\n{best_match_diff}\n```\nFirst, identify how your original_code differs from the code in the file. Then, call make_change again with the corrected original_code."
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
                         # check other files, this code should skip if there are no other files
