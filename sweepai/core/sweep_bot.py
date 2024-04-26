@@ -598,7 +598,6 @@ def get_files_to_change_for_test(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
     
-    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=True)
     max_snippets = get_max_snippets(interleaved_snippets)
     max_snippets = max_snippets[::-1]
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
