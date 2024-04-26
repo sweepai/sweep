@@ -208,6 +208,10 @@ def get_pointwise_reranked_snippet_scores(
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
         new_snippet_scores[snippet.denotation] = snippet_scores[snippet.denotation] * 1_000
     
+    # override score with Cohere score
+    for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]:
+        if snippet.denotation in new_snippet_scores:
+            snippet.score = new_snippet_scores[snippet.denotation]
     return new_snippet_scores
 
 def multi_prep_snippets(

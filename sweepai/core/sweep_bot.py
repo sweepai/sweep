@@ -56,6 +56,8 @@ from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, va
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = 150_000 * 3.5  # 140k tokens
+MAX_SNIPPETS = 15
+RELEVANCE_THRESHOLD = 0.125
 
 def to_raw_string(s):
     return repr(s).lstrip("u")[1:-1]
@@ -163,6 +165,7 @@ def sort_and_fuse_snippets(
     for snippet in snippets[1:]:
         if current_snippet.end + fuse_distance >= snippet.start:
             current_snippet.end = max(current_snippet.end, snippet.end)
+            current_snippet.score = max(current_snippet.score, snippet.score)
         else:
             new_snippets.append(current_snippet)
             current_snippet = snippet
@@ -198,12 +201,19 @@ def get_max_snippets(
     """
     if not snippets:
         return []
-    for i in range(len(snippets), 0, -1):
-        proposed_snippets = organize_snippets(snippets[:i])
-        cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
+    START_INDEX = min(len(snippets), MAX_SNIPPETS)
+    for i in range(START_INDEX, 0, -1):
+        expanded_snippets = [snippet.expand(expand * 2) for snippet in snippets[:i]]
+        proposed_snippets = organize_snippets(expanded_snippets[:i])
+        cost = sum([len(snippet.get_snippet(False, False)) for snippet in proposed_snippets])
         if cost <= budget:
             return proposed_snippets
     raise Exception("Budget number of chars too low!")
+
+def partition_snippets_if_test(snippets: list[Snippet], include_tests=False):
+    if include_tests:
+        return [snippet for snippet in snippets if "test" in snippet.file_path]
+    return [snippet for snippet in snippets if "test" not in snippet.file_path]
 
 def get_files_to_change(
     relevant_snippets: list[Snippet],
@@ -244,7 +254,7 @@ def get_files_to_change(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
 
-
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
     max_snippets = get_max_snippets(interleaved_snippets)
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -398,7 +408,9 @@ def context_get_files_to_change(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
 
-
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
+    # we can change this to be a length + score penalty
+    interleaved_snippets = [snippet for snippet in interleaved_snippets if snippet.score > RELEVANCE_THRESHOLD] # this will break if old caches exist
     max_snippets = get_max_snippets(interleaved_snippets)
     if True:
         max_snippets = max_snippets[::-1]
@@ -586,7 +598,8 @@ def get_files_to_change_for_test(
             interleaved_snippets.append(relevant_snippets[i])
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
-
+    
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=True)
     max_snippets = get_max_snippets(interleaved_snippets)
     max_snippets = max_snippets[::-1]
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]

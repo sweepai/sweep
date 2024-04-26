@@ -35,7 +35,7 @@ Describe thoroughly in extreme detail what the ideal code fix would look like:
 
 3. Queries
 
-Generate a list of 10 diverse, highly specific, focused "where" queries to use as vector database search queries to find the most relevant code sections to directly resolve the GitHub issue.
+Generate a list of 10 DIVERSE, highly specific, focused "where" queries to use as vector database search queries to find the most relevant code sections to directly resolve the GitHub issue.
 - Reference very specific functions, variables, classes, endpoints, etc. using exact names.
 - Describe the purpose and behavior of the code in detail to differentiate it. 
 - Ask about granular logic within individual functions/methods.
@@ -59,9 +59,9 @@ Exhaustive list of relevant parts of the codebase that could be used in the solu
 </solution>
 
 <queries>
-<query>Where is the [extremely specific description of code section 1]?</query>
-<query>Where is the [extremely specific description of code section 2]?</query>
-<query>Where is the [extremely specific description of code section 3]?</query>
+<query>Where is the [EXTREMELY specific description of code section 1]?</query>
+<query>Where is the [EXTREMELY specific description of code section 2]?</query>
+<query>Where is the [EXTREMELY specific description of code section 3]?</query>
 ...
 </queries>
 
@@ -88,6 +88,7 @@ def generate_multi_queries(input_query: str):
     response = chatgpt.chat(
         content=f"<github_issue>\n{stripped_input}\n</github_issue>",
         model="gpt-4-turbo-2024-04-09",
+        temperature=0.7, # I bumped this and it improved the benchmarks
     )
     pattern = re.compile(r"<query>(?P<query>.*?)</query>", re.DOTALL)
     queries = []

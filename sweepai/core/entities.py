@@ -361,6 +361,7 @@ class Snippet(BaseModel):
     start: int
     end: int
     file_path: str
+    score: float = 0.0 # TODO: migrate all usages to use this
 
     def __eq__(self, other):
         if isinstance(other, Snippet):
@@ -457,6 +458,7 @@ class Snippet(BaseModel):
             start=max(self.start - num_lines, 1),
             end=min(self.end + num_lines, self.content.count("\n") + 1),
             file_path=self.file_path,
+            score=self.score,
         )
 
     @property
