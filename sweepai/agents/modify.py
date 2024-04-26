@@ -707,7 +707,7 @@ def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
     replace_all_pattern = r"<replace_all>(.*?)</replace_all>"
     replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
     if replace_all_matches:
-        flags += "<replace_all>true</replace_all>"
+        flags += "\n<replace_all>true</replace_all>"
     if original_code_matches and new_code_matches:
         try:
             if len(original_code_matches) != len(new_code_matches):
