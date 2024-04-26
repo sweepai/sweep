@@ -629,6 +629,41 @@ x = "test"
 import numpy
 """
 
+def get_function_name(file_name: str, source_code: str, line_number: int):
+    ext = file_name.split(".")[-1]
+    if ext in extension_to_language:
+        language = extension_to_language[ext]
+    else:
+        return None
+    type_mapping_per_language = {
+        "python": "function_definition",
+        "tsx": "function_declaration",
+        "js": "function_declaration"
+    }
+    function_type_string = type_mapping_per_language.get(language)
+    parser = get_parser(language)
+
+    # Parse the source code
+    tree = parser.parse(bytes(source_code, 'utf8'))
+
+    # Get the root node of the syntax tree
+    root_node = tree.root_node
+
+    # Find the function node that contains the given line number
+    function_node = root_node.descendant_for_point_range((line_number, 0), (line_number, 1))
+
+    max_depth = 25 # Maximum depth to search for the function node
+    while function_node.type != function_type_string:
+        function_node = function_node.parent
+        max_depth -= 1
+        if max_depth == 0 or function_node is None:
+            return None
+
+    # Extract the function name
+    function_name = function_node.child_by_field_name('name').text.decode('utf8')
+
+    return function_name
+
 if __name__ == "__main__":
     # print(check_code("main.tsx", test_code))
     # print(get_check_results("main.py", test_code))
@@ -663,8 +698,14 @@ export function removeEmailAlias(email: string): string {
   return email
   }
 """
-    new_code = """console.log("hello world")"""
-    check_results = check_syntax("test.js", new_code)
-    import pdb
-    # pylint: disable=no-member
-    pdb.set_trace()
+    python_code = """import math
+
+def get_circle_area(radius: float) -> float:
+    return math.pi * radius ** 2
+"""
+    function_name = get_function_name("main.ts", code, 20)
+    print(function_name)
+    function_name = get_function_name("main.py", python_code, 3)
+    print(function_name)
+    # new_code = """console.log("hello world")"""
+    # check_results = check_syntax("test.js", new_code)
