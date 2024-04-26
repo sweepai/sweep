@@ -264,15 +264,22 @@ a. Identify the code we are trying to append.
 b. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
     - Function: [function_name] - [description]
     [additional functions]
-c. Identify the function you want to append the new_code block to.
+c. Identify the function you want to append the new_code block to, copying them completely and VERBATIM from the file. Do NOT paraphrase or abbreviate the source code, keeping all comments, docstrings, indentation, and whitespace. Placeholder comments like "# existing code" are not permitted. Be sure to copy the ENTIRE function or section of code. 
+```
+The function or section of code you want to append to.
+```
+d. Copy the new code you want to append with indentation matching that of the original_code block.
+```
+The new code you want to append.
+```
 </thinking>
 
 # 2. Function call
 Then generate a make_change function call with the following parameters:
-a. Put the code you want to append to in the original_code variable.
+a. Put the code from section c into the original_code variable.
 b. Copy the code from original_code and paste it into the new_code variable.
 c. Append the new code you want to add after the original code in the new_code variable.
-d. Set the append argument to true. This is critical to ensure the new code is ADDED after the original code, instead of replacing the code.
+d. Add the <append>true</append> flag. This is critical to ensure the new code is ADDED after the original code, instead of replacing the code.
 
 Here's an illustrative example of how to use the make_change function to append code:
 
@@ -340,7 +347,18 @@ b. List of relevant functions:
     - Function: test_multiply_negative_numbers - Tests multiplying negative numbers
     - Function: test_multiply_by_zero - Tests multiplying by zero
 
-c. Since we are adding a test case for multiplying two negative numbers, we should append the new test case right after the test_multiply_negative_numbers test.
+c. Since we are adding a test case for multiplying two negative numbers, we should append the new test case right after the test_multiply_negative_numbers test. Here is the function we want to append to:
+```
+    def test_multiply_negative_numbers(self):
+        result = self.calc.multiply(-2, 3)
+        self.assertEqual(result, -6)
+```
+d. Here is the new test case we want to append with matching indentation:
+```
+    def test_multiply_negative_by_negative(self):
+        result = self.calc.multiply(-4, -2)
+        self.assertEqual(result, 8)
+```
 </thinking>
 
 <function_call>
@@ -373,6 +391,7 @@ a. The original_code block is copied exactly from the existing code.
 b. The original_code block consists of the functions we want to append the new code after.
 c. Only a several lines of code are included before where you want to add the new code in the original_code block, but enough code is provided to give context.
 d. The indentation in both original_code and new_code matches the file_to_modify code.
+e. There are no placeholder comments like "# existing code" in the original_code block.
 
 This is how you should append code using the make_change function. Please make another make_change function call with the corrected, non-empty <original_code> block and append flag set to true."""
 
@@ -925,6 +944,8 @@ def modify(
                         ))
             # if previous things go wrong we make llm call
             if not function_calls_string:
+                if "The previous task is now complete" in function_output:
+                    breakpoint()
                 model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
                 logger.info(f"Using model: {model}")
                 function_calls_string = chat_gpt.chat_anthropic(
@@ -1092,7 +1113,9 @@ def handle_function_call(
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the most similar existing code from the file, along with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
+                        breakpoint()
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                        manual_code_check(file_contents, original_code)
                     else:
                         # check other files, this code should skip if there are no other files
                         all_file_contents = list(dict.fromkeys([get_latest_contents(fcr.filename, cloned_repo, modify_files_dict) for fcr in llm_state["fcrs"] if fcr.filename != file_name]))
@@ -1260,12 +1283,12 @@ def handle_function_call(
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             elif diff_string.count("\n+") + diff_string.count("\n-") > 10:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 modify_files_dict[file_name]['contents'] = new_file_contents
 
                 # Success without warning, let's move onto the next task:
