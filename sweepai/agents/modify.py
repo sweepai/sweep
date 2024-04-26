@@ -418,13 +418,9 @@ linter_warning_prompt = """There is a linter warning in the code changes. Resolv
 
 # Thinking
 <thinking>
-a. Repeat the changes you have made.
-```diff
-Copy the diff here. Include lines before and after the diff.
-```
-Then, identify any immediate syntax or visual errors that may have caused the linter errors
+a. Look closely at the changes made to identify any immediate syntax errors that may have caused the linter errors. Count the number of indents in the changed code and compare it to the surrounding code.
 b. Critique the change(s) you have made for any potential logical errors.
-c. Identify what the linter warning is, and what may be causing it. Pay special attention to the indentation of the modified code and ensure that it aligns with the surrounding code. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as incorrect indentation.
+c. Identify what the linter warning is, and what may be causing it. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as inconsistent indentation.
 d. Indicate the minimum amount of changes required to resolve the linter warning.
 </thinking>
 
@@ -820,7 +816,7 @@ def modify(
                 content=function_calls_string
             ))
         else:
-            model = MODEL if llm_state["attempt_count"] < 2 else SLOW_MODEL
+            model = MODEL if llm_state["attempt_count"] < 4 else SLOW_MODEL
             logger.info(f"Using model: {model}")
             function_calls_string = chat_gpt.chat_anthropic(
                 content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
@@ -930,7 +926,7 @@ def modify(
                         ))
             # if previous things go wrong we make llm call
             if not function_calls_string:
-                model = MODEL if llm_state["attempt_count"] < 2 else SLOW_MODEL
+                model = MODEL if llm_state["attempt_count"] < 4 else SLOW_MODEL
                 logger.info(f"Using model: {model}")
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_output,
@@ -1034,6 +1030,7 @@ def handle_function_call(
             if not fcr.is_completed:
                 fcr.is_completed = True
                 break
+        llm_state["attempt_count"] = 0
         llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
         llm_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
         if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
@@ -1233,7 +1230,7 @@ def handle_function_call(
             llm_response = f"ERROR\n\n{error_message}"
             llm_state["attempt_lazy_change"] = False
             llm_state["attempt_count"] += 1
-            if llm_state["attempt_count"] > 5:
+            if llm_state["attempt_count"] > 7:
                 for fcr in llm_state["fcrs"]:
                     if not fcr.is_completed:
                         fcr.is_completed = True
