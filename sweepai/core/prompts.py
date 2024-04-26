@@ -414,11 +414,11 @@ Please use the following XML format for your response:
 a. Summarize what the original GitHub issue is. Then summarize all the changes made so far. (1 paragraph)
 
 b. List all the types of error messages in the error logs and theirr root causes. Follow this format:
-    Error type 1: Brief summary of error message
+    Error type 1: Copy the exact error message here
         - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code
         - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
-    Error type 2: Brief summary of error message
+    Error type 2: Copy the exact error message here
         - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code
         - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
