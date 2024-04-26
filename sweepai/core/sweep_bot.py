@@ -46,7 +46,6 @@ from sweepai.utils.event_logger import posthog
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import (
-    AssistantAPIMessage,
     AssistantConversation,
     TicketProgress,
 )
@@ -929,78 +928,6 @@ class CodeGenBot(ChatGPT):
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
-        raise NoFilesException()
-
-    def get_files_to_change(
-        self, retries=1, pr_diffs: str | None = None
-    ) -> tuple[list[FileChangeRequest], str]:
-        raise DeprecationWarning("This function is deprecated. Use get_files_to_change instead.")
-        file_change_requests: list[FileChangeRequest] = []
-        try:
-            if pr_diffs is not None:
-                self.delete_messages_from_chat("pr_diffs")
-                self.messages.insert(
-                    1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                )
-
-            # pylint: disable=no-member
-            # pylint: disable=access-member-before-definition
-            if hasattr(self, "ticket_progress") and self.ticket_progress is not None:
-                self.ticket_progress: TicketProgress = self.ticket_progress
-                self.ticket_progress.planning_progress.assistant_conversation.messages = (
-                    []
-                )
-                for message in self.messages:
-                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                        AssistantAPIMessage(
-                            content=message.content,
-                            role=message.role,
-                        )
-                    )
-                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                    AssistantAPIMessage(
-                        content=files_to_change_prompt,
-                        role="user",
-                    )
-                )
-                self.ticket_progress.save()
-            old_system_prompt = self.messages[0].content
-            self.messages[0].content = files_to_change_system_prompt
-            # pylint: enable=no-member
-            # pylint: enable=access-member-before-definition
-            try:
-                files_to_change_response = self.chat_anthropic(
-                    files_to_change_prompt, message_key="files_to_change", model="claude-3-opus-20240229"
-                )
-            except Exception:
-                files_to_change_response = self.chat(
-                    files_to_change_prompt, message_key="files_to_change"
-                )
-            self.messages[0].content = old_system_prompt
-            if self.ticket_progress is not None:
-                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                    AssistantAPIMessage(
-                        content=files_to_change_response, role="assistant"
-                    )
-                )
-                self.ticket_progress.save()
-            file_change_requests = []
-            for re_match in re.finditer(
-                FileChangeRequest._regex, files_to_change_response, re.DOTALL
-            ):
-                file_change_request = FileChangeRequest.from_string(re_match.group(0))
-                file_change_requests.append(file_change_request)
-            if file_change_requests:
-                plan_str = "\n".join(
-                    [fcr.instructions_display for fcr in file_change_requests]
-                )
-                return file_change_requests, plan_str
-        except RegexMatchError as e:
-            logger.info(f"{e}")
-            logger.warning("Failed to parse! Retrying...")
-            self.delete_messages_from_chat("files_to_change")
-            self.delete_messages_from_chat("pr_diffs")
-
         raise NoFilesException()
 
     def generate_pull_request(self, retries=2) -> PullRequest:
