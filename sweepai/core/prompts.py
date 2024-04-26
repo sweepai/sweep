@@ -214,13 +214,11 @@ Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
-a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
+a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (write 1 paragraph)
 
-b. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Be complete and precise. (1 paragraph)
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (write 1 paragraph)
 
-c. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
-
-d. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
       a. Describe the first change to make in the file.
       b. Describe the second change to make in the file.
@@ -230,14 +228,6 @@ d. List ALL of the files we should modify to resolve the issue. Reference the pr
       b. Describe the second change to make in the file.
       c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
-
-e. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-  - Type definitions, interfaces, and schemas
-  - Helper functions
-  - Frontend components
-  - Database services
-  - API endpoints
-  [additional relevant modules as needed]
 </issue_analysis>
 
 # 2. Plan:
@@ -266,12 +256,7 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
 
 [additional modifies as needed, for the same file or different files]
-</plan>
-
-# 3. Relevant Modules:
-<relevant_modules>
-[List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>""" # + files_to_change_example TODO: test separately
+</plan>""" # + files_to_change_example TODO: test separately
 
 test_files_to_change_system_prompt = """You are an AI assistant helping an intern write tests to validate his code that aims to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.

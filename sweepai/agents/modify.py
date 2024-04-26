@@ -618,7 +618,7 @@ def create_user_message( # TODO: has non-deterministic behavior
     for i, fcr in enumerate(fcrs):
         # first add the instructions to the user message
         if i < current_fcr_index: # already done
-            files_to_modify_messages[fcr.filename] += f"\n\nYou have already {fcr.change_type} {fcr.filename}, where the specific instructions were to:\n\n{fcr.instructions}"
+            files_to_modify_messages[fcr.filename] += f"\n\nYou have already {past_tense_mapping[fcr.change_type]} {fcr.filename}, where the specific instructions were to:\n\n{fcr.instructions}"
         elif i == current_fcr_index:
             files_to_modify_messages[fcr.filename] += f"\n\nYour current task is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
         else:
