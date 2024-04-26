@@ -189,6 +189,7 @@ class RepoContextManager:
     cloned_repo: ClonedRepo
     current_top_snippets: list[Snippet] = field(default_factory=list)
     read_only_snippets: list[Snippet] = field(default_factory=list)
+    test_current_top_snippets: list[Snippet] = field(default_factory=list)
     issue_report_and_plan: str = ""
     import_trees: str = ""
     relevant_file_paths: list[str] = field(
