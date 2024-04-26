@@ -66,6 +66,7 @@ from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_check_suite import clean_gh_logs
+from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
@@ -77,6 +78,7 @@ from sweepai.utils.github_utils import (
     convert_pr_draft_field,
     get_github_client,
     get_token,
+    sanitize_string_for_github,
 )
 from sweepai.utils.progress import (
     AssistantConversation,
@@ -458,7 +460,9 @@ def on_ticket(
             fast_mode,
             lint_mode,
         ) = strip_sweep(title)
-
+        # fetch images from body of issue
+        image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
+        image_contents = get_image_contents_from_urls(image_urls)
         summary = summary or ""
         summary = re.sub(
             "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
@@ -710,6 +714,9 @@ def on_ticket(
                 add_bonus_message=True,
             ):
                 nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
+                message = sanitize_string_for_github(message)
+                if pr_message:
+                    pr_message = sanitize_string_for_github(pr_message)
                 # -1 = error, -2 = retry
                 # Only update the progress bar if the issue generation errors.
                 errored = index == -1
@@ -856,13 +863,14 @@ def on_ticket(
                     issue_url,
                     chat_logger,
                     ticket_progress,
+                    images=image_contents
                 )
                 cloned_repo = repo_context_manager.cloned_repo
             except Exception as e:
                 edit_sweep_comment(
                     (
                         "It looks like an issue has occurred around fetching the files."
-                        " Perhaps the repo failed to initialized. If this error persists"
+                        f" The exception was {str(e)}. If this error persists"
                         f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
                     ),
                     -1,
@@ -988,6 +996,7 @@ def on_ticket(
                     problem_statement=f"{title}\n\n{summary}",
                     repo_name=repo_full_name,
                     cloned_repo=cloned_repo,
+                    images=image_contents
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
                 ticket_progress.planning_progress.file_change_requests = (
@@ -1108,7 +1117,6 @@ def on_ticket(
                 )
 
                 delete_branch = False
-
                 generator = create_pr_changes(
                     file_change_requests,
                     pull_request,
@@ -1546,7 +1554,8 @@ def on_ticket(
                                 assistant_conversation=None,
                                 additional_messages=[],
                                 previous_modify_files_dict=previous_modify_files_dict,
-                                file_change_requests=file_change_requests
+                                file_change_requests=file_change_requests,
+                                username=username
                             )
                             pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                             total_edit_attempts += 1
@@ -1693,7 +1702,7 @@ def on_ticket(
                     edit_sweep_comment(
                         (
                             "I'm sorry, but it looks like an error occurred due to" 
-                            " a planning failure. Feel free to add more details to the issue description"
+                            f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
                             " so Sweep can better address it. Alternatively, post on our community forum"
                             " for assistance: https://community.sweep.dev/"
                         ),
@@ -1703,7 +1712,7 @@ def on_ticket(
                     edit_sweep_comment(
                         (
                             "I'm sorry, but it looks like an error has occurred due to"
-                            + " a planning failure. Feel free to add more details to the issue description"
+                            + f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
                             + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
                             + " https://discord.gg/sweep."
                         ),

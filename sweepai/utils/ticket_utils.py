@@ -113,7 +113,7 @@ def multi_get_top_k_snippets(
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
     _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.repo_dir,
+        cloned_repo.cached_dir,
         sweep_config,
         ticket_progress,
         ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
@@ -305,6 +305,7 @@ def get_relevant_context(
     seed: int = None,
     import_graph: nx.DiGraph = None,
     chat_logger = None,
+    images = None
 ) -> RepoContextManager:
     logger.info("Seed: " + str(seed))
     repo_context_manager = build_import_trees(
@@ -324,6 +325,7 @@ def get_relevant_context(
         chat_logger=chat_logger,
         seed=seed,
         cloned_repo=repo_context_manager.cloned_repo,
+        images=images
     )
     previous_top_snippets = copy.deepcopy(repo_context_manager.current_top_snippets)
     previous_read_only_snippets = copy.deepcopy(repo_context_manager.read_only_snippets)
@@ -373,6 +375,7 @@ def fetch_relevant_files(
     issue_url,
     chat_logger,
     ticket_progress: TicketProgress,
+    images = None
 ):
     logger.info("Fetching relevant files...")
     try:
@@ -392,6 +395,7 @@ def fetch_relevant_files(
             ticket_progress,
             chat_logger=chat_logger,
             import_graph=import_graph,
+            images=images
         )
         snippets = repo_context_manager.current_top_snippets
         ticket_progress.search_progress.final_snippets = snippets

@@ -108,7 +108,8 @@ def create_pr_changes(
             file_change_requests,
             pull_request.branch_name,
             blocked_dirs,
-            additional_messages=additional_messages
+            additional_messages=additional_messages,
+            username=username
         ):
             completed_count += len(new_file_contents or [])
             logger.info(f"Completed {completed_count}/{fcr_count} files")

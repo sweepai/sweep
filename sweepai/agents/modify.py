@@ -813,7 +813,7 @@ def modify(
                 content=function_calls_string
             ))
         else:
-            model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
+            model = MODEL
             logger.info(f"Using model: {model}")
             function_calls_string = chat_gpt.chat_anthropic(
                 content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
@@ -831,7 +831,9 @@ def modify(
                 "output": f"ERROR:\n{e}\nEND OF ERROR",
             })
         return {}
-    modify_files_dict = previous_modify_files_dict
+    if not previous_modify_files_dict:
+        previous_modify_files_dict = {}
+    modify_files_dict = copy.deepcopy(previous_modify_files_dict)
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made

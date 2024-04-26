@@ -1,3 +1,4 @@
+import copy
 import datetime
 import difflib
 import hashlib
@@ -15,12 +16,13 @@ from typing import Any
 
 import git
 import requests
-from github import Github, PullRequest, Repository, InputGitTreeElement
+from github import Github, PullRequest, Repository, InputGitTreeElement, GithubException
 from jwt import encode
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
+from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
 MAX_FILE_COUNT = 50
@@ -63,7 +65,7 @@ def get_token(installation_id: int):
         except Exception:
             time.sleep(timeout)
     raise Exception(
-        "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
+        "Could not get token, please double check your GITHUB_APP_PEM and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
     )
 
 
@@ -148,6 +150,29 @@ def get_installation_id(username: str) -> str:
             logger.error(e)
             logger.error(response.text)
         raise Exception("Could not get installation id, probably not installed")
+    
+# for check if a file exists within a github repo (calls the actual github api)
+def file_exists_in_repo(repo: Repository, filepath: str):
+    try:
+        # Attempt to get the contents of the file
+        repo.get_contents(filepath)
+        return True  # If no exception, the file exists
+    except GithubException:
+        return False  # File does not exist
+    
+def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dict[str, str], fcrs: list[FileChangeRequest]):
+    sanitized_file_changes = {}
+    all_file_names = list(file_changes.keys())
+    all_fcr_file_names = set(os.path.normpath(fcr.filename) for fcr in fcrs)
+    file_removed = False
+    # validate each file change
+    for file_name in all_file_names:
+        # file_name must either appear in the repo or in a fcr
+        if os.path.normpath(file_name) in all_fcr_file_names or file_exists_in_repo(repo, os.path.normpath(file_name)):
+            sanitized_file_changes[file_name] = copy.deepcopy(file_changes[file_name])
+        else:
+            file_removed = True
+    return sanitized_file_changes, file_removed
 
 # commits multiple files in a single commit, returns the commit object
 def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
@@ -156,12 +181,12 @@ def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], co
     for path, content in file_changes.items():
         blob = repo.create_git_blob(content, "utf-8")
         blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(path), mode="100644", type="blob", sha=blob.sha))
-    latest_commit = repo.get_branch(branch).commit
-    base_tree = latest_commit.commit.tree
+    head_sha = repo.get_branch(branch).commit.sha
+    base_tree = repo.get_git_tree(sha=head_sha)
     # create new git tree
     new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
     # commit the changes
-    parent = repo.get_git_commit(latest_commit.sha)
+    parent = repo.get_git_commit(sha=head_sha)
     commit = repo.create_git_commit(
         commit_message,
         new_tree,
@@ -657,6 +682,27 @@ def convert_pr_draft_field(pr: PullRequest, is_draft: bool = False, installation
         logger.error(f"Failed to convert PR to {'draft' if is_draft else 'open'}")
         return False
     return True
+
+# makes sure no secrets are in the message
+def sanitize_string_for_github(message: str):
+    GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM", "")
+    GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", "")
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+    INSTALLATION_ID = os.environ.get("INSTALLATION_ID", "")
+    GITHUB_PAT = os.environ.get("GITHUB_PAT", "")
+    COHERE_API_KEY = os.environ.get("COHERE_API_KEY", "")
+    LICENSE_KEY = os.environ.get("LICENSE_KEY", "")
+    VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", "")
+    AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY", "")
+    AWS_SECRET_KEY = os.environ.get("AWS_SECRET_KEY", "")
+    # include all previous env vars in secrets array
+    secrets = [GITHUB_APP_PEM, GITHUB_APP_ID, ANTHROPIC_API_KEY, OPENAI_API_KEY, INSTALLATION_ID, GITHUB_PAT, COHERE_API_KEY, LICENSE_KEY, VOYAGE_API_KEY, AWS_ACCESS_KEY, AWS_SECRET_KEY]
+    secrets = [secret for secret in secrets if secret]
+    for secret in secrets:
+        if secret in message:
+            message = message.replace(secret, "*" * len(secret))
+    return message
 
 
 try:

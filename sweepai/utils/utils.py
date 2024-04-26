@@ -373,42 +373,43 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
 # Need to add "import/first": "error"
 
 DEFAULT_ESLINTRC = """{
-  "parser": "@typescript-eslint/parser",
-  "parserOptions": {
-    "ecmaVersion": 2020,
-    "sourceType": "module"
-  },
-  "plugins": [
-    "@typescript-eslint",
-    "import"
-  ],
-  "rules": {
-    "no-undef": "error",
-    "no-const-assign": "error",
-    "no-redeclare": "error",
-    "no-unused-vars": "error",
-    "no-use-before-define": ["error", { "functions": true, "classes": true, "variables": true }],
-    "import/first": "error"
-  },
-  "settings": {
-    "import/resolver": {
-      "typescript": {}
-    }
-  },
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "plugin:import/typescript"
-  ],
-  "overrides": [
-    {
-      "files": ["*.ts", "*.tsx"],
-      "rules": {
-        "no-undef": "off"
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "ecmaVersion": 2020,
+      "sourceType": "module",
+      "ecmaFeatures": {
+        "jsx": true
       }
+    },
+    "settings": {
+      "react": {
+        "version": "detect"
+      }
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:react/recommended",
+      "plugin:@typescript-eslint/recommended"
+    ],
+    "env": {
+      "browser": true,
+      "es2021": true,
+      "node": true
+    },
+    "plugins": [
+      "react",
+      "@typescript-eslint"
+    ],
+    "rules": {
+        "no-undef": "error",
+        "no-const-assign": "error",
+        "no-redeclare": "error",
+        "no-unused-vars": "error",
+        "no-use-before-define": ["error", { "functions": true, "classes": true, "variables": true }],
+        "import/first": "error"
     }
-  ]
-}"""
+  }
+  """
 
 def get_check_results(file_path: str, code: str) -> CheckResults:
     is_valid, error_message = check_syntax(file_path, code)
@@ -450,7 +451,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
             return CheckResults(pylint=error_message if not succeeded else "")
         except Exception as e:
             logger.exception(e)
-    if ext == "ts":
+    elif ext in ["js", "jsx", "ts", "tsx"]:
         # see if eslint is installed
         npx_commands = ["npx", "eslint", "--version"]
         result = subprocess.run(
@@ -461,14 +462,16 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
             shell=True,
         )
         if result.returncode == 0:
-            with TemporaryDirectory() as temp_dir:
-                new_file = os.path.join(temp_dir, "temp.ts")
-                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
+            with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+                file_name = file_path.split(os.path.sep)[-1]
+                new_file = os.path.join(temp_dir, f"{file_name}")
+                config_file = os.path.join(temp_dir, ".eslintrc")
+                with open(config_file, "w") as f:
                     f.write(DEFAULT_ESLINTRC)
                 with open(new_file, "w") as f:
                     f.write(code)
                 try:
-                    eslint_commands = ["npx", "eslint", new_file]
+                    eslint_commands = ["npx", "eslint", new_file, "--config", config_file, "--no-ignore"]
                     result = subprocess.run(
                         " ".join(eslint_commands),
                         capture_output=True,
@@ -686,37 +689,38 @@ def get_function_name(file_name: str, source_code: str, line_number: int):
 if __name__ == "__main__":
     # print(check_code("main.tsx", test_code))
     # print(get_check_results("main.py", test_code))
-    code = """import { isPossiblyValidEmail } from '../validation-utils'
-import { PulseValidationException } from '../pulse-exceptions'
-
-export function getEmailDomain (email: string): string {
-  if (!isPossiblyValidEmail(email)) {
-    throw new PulseValidationException(`Email is invalid: ${email}`)
-  }
-  // Emails are tough. An email can contain multiple '@' symbols.
-  // Thankfully, domains cannot contain @, so the domain will be
-  // part after the last @ in the email.
-  // e.g., "steve@macbook"@trilogy.com is a valid email.
-  //
-  const tokens = email.split('@')
-  return tokens[tokens.length - 1].toLowerCase().trim()
-}
-
-export function removeEmailAlias(email: string): string {
-  if (!isPossiblyValidEmail(email)) {
-    throw new PulseValidationException(`Email is invalid: ${email}`)
+    code = """import {
+    Flex,
+    Container,
+    Heading,
+    Stack,
+    Text,
+    Button,
+  } from "@chakra-ui/react";
+  import { tsParticles } from "tsparticles";
+  import { loadConfettiPreset } from "tsparticles-preset-confetti";
+  import { useState } from "react";
+  import logo from "../assets/icon.png";
   
-  }
-  const atIndex = email.lastIndexOf('@')
-  const aliasIndex = email.lastIndexOf('+', atIndex)
-
-  if (aliasIndex > 0) {
-    return email.substring(0, aliasIndex) + email.substring(atIndex)
-  }
-
-  return email
-  }
+  import ExternalLinkWithText from "./ExternalLinkWithText";
+  import { TypeAnimation } from "react-type-animation";
+  import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+  import { faUsers } from '@fortawesome/free-solid-svg-icons';
+  const demo = require("../assets/demo.mp4");
+  
+export default function CallToAction() {
+    const [spin, setSpin] = useState(false);
+    // const canvas = document.getElementById('canvas3d');
+    // const app = new Application(canvas);
+    // app.load('https://prod.spline.design/jzV1MbbHCyCmMG7u/scene.splinecode');
+    return (
+      <Container maxW={"5xl"}>
+      </Container>
+    );
+}
 """
+   
+ if __main__ == "__main__":
     python_code = """import math
 
 def get_circle_area(radius: float) -> float:
@@ -728,3 +732,7 @@ def get_circle_area(radius: float) -> float:
     print(function_name)
     # new_code = """console.log("hello world")"""
     # check_results = check_syntax("test.js", new_code)
+    check_results = get_check_results("test.tsx", code)
+    import pdb
+    # pylint: disable=no-member
+    pdb.set_trace()
