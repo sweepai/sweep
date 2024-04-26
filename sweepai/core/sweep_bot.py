@@ -46,7 +46,6 @@ from sweepai.utils.event_logger import posthog
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import (
-    AssistantAPIMessage,
     AssistantConversation,
     TicketProgress,
 )
@@ -56,6 +55,8 @@ from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, va
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = 150_000 * 3.5  # 140k tokens
+MAX_SNIPPETS = 15
+RELEVANCE_THRESHOLD = 0.125
 
 def to_raw_string(s):
     return repr(s).lstrip("u")[1:-1]
@@ -163,6 +164,7 @@ def sort_and_fuse_snippets(
     for snippet in snippets[1:]:
         if current_snippet.end + fuse_distance >= snippet.start:
             current_snippet.end = max(current_snippet.end, snippet.end)
+            current_snippet.score = max(current_snippet.score, snippet.score)
         else:
             new_snippets.append(current_snippet)
             current_snippet = snippet
@@ -198,12 +200,19 @@ def get_max_snippets(
     """
     if not snippets:
         return []
-    for i in range(len(snippets), 0, -1):
-        proposed_snippets = organize_snippets(snippets[:i])
-        cost = sum([len(snippet.expand(expand * 2).get_snippet(False, False)) for snippet in proposed_snippets])
+    START_INDEX = min(len(snippets), MAX_SNIPPETS)
+    for i in range(START_INDEX, 0, -1):
+        expanded_snippets = [snippet.expand(expand * 2) for snippet in snippets[:i]]
+        proposed_snippets = organize_snippets(expanded_snippets[:i])
+        cost = sum([len(snippet.get_snippet(False, False)) for snippet in proposed_snippets])
         if cost <= budget:
             return proposed_snippets
     raise Exception("Budget number of chars too low!")
+
+def partition_snippets_if_test(snippets: list[Snippet], include_tests=False):
+    if include_tests:
+        return [snippet for snippet in snippets if "test" in snippet.file_path]
+    return [snippet for snippet in snippets if "test" not in snippet.file_path]
 
 def get_files_to_change(
     relevant_snippets: list[Snippet],
@@ -244,7 +253,7 @@ def get_files_to_change(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
 
-
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
     max_snippets = get_max_snippets(interleaved_snippets)
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -398,7 +407,9 @@ def context_get_files_to_change(
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
 
-
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
+    # we can change this to be a length + score penalty
+    interleaved_snippets = [snippet for snippet in interleaved_snippets if snippet.score > RELEVANCE_THRESHOLD] # this will break if old caches exist
     max_snippets = get_max_snippets(interleaved_snippets)
     if True:
         max_snippets = max_snippets[::-1]
@@ -586,7 +597,7 @@ def get_files_to_change_for_test(
             interleaved_snippets.append(relevant_snippets[i])
         if i < len(read_only_snippets):
             interleaved_snippets.append(read_only_snippets[i])
-
+    
     max_snippets = get_max_snippets(interleaved_snippets)
     max_snippets = max_snippets[::-1]
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
@@ -916,78 +927,6 @@ class CodeGenBot(ChatGPT):
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
-        raise NoFilesException()
-
-    def get_files_to_change(
-        self, retries=1, pr_diffs: str | None = None
-    ) -> tuple[list[FileChangeRequest], str]:
-        raise DeprecationWarning("This function is deprecated. Use get_files_to_change instead.")
-        file_change_requests: list[FileChangeRequest] = []
-        try:
-            if pr_diffs is not None:
-                self.delete_messages_from_chat("pr_diffs")
-                self.messages.insert(
-                    1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                )
-
-            # pylint: disable=no-member
-            # pylint: disable=access-member-before-definition
-            if hasattr(self, "ticket_progress") and self.ticket_progress is not None:
-                self.ticket_progress: TicketProgress = self.ticket_progress
-                self.ticket_progress.planning_progress.assistant_conversation.messages = (
-                    []
-                )
-                for message in self.messages:
-                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                        AssistantAPIMessage(
-                            content=message.content,
-                            role=message.role,
-                        )
-                    )
-                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                    AssistantAPIMessage(
-                        content=files_to_change_prompt,
-                        role="user",
-                    )
-                )
-                self.ticket_progress.save()
-            old_system_prompt = self.messages[0].content
-            self.messages[0].content = files_to_change_system_prompt
-            # pylint: enable=no-member
-            # pylint: enable=access-member-before-definition
-            try:
-                files_to_change_response = self.chat_anthropic(
-                    files_to_change_prompt, message_key="files_to_change", model="claude-3-opus-20240229"
-                )
-            except Exception:
-                files_to_change_response = self.chat(
-                    files_to_change_prompt, message_key="files_to_change"
-                )
-            self.messages[0].content = old_system_prompt
-            if self.ticket_progress is not None:
-                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                    AssistantAPIMessage(
-                        content=files_to_change_response, role="assistant"
-                    )
-                )
-                self.ticket_progress.save()
-            file_change_requests = []
-            for re_match in re.finditer(
-                FileChangeRequest._regex, files_to_change_response, re.DOTALL
-            ):
-                file_change_request = FileChangeRequest.from_string(re_match.group(0))
-                file_change_requests.append(file_change_request)
-            if file_change_requests:
-                plan_str = "\n".join(
-                    [fcr.instructions_display for fcr in file_change_requests]
-                )
-                return file_change_requests, plan_str
-        except RegexMatchError as e:
-            logger.info(f"{e}")
-            logger.warning("Failed to parse! Retrying...")
-            self.delete_messages_from_chat("files_to_change")
-            self.delete_messages_from_chat("pr_diffs")
-
         raise NoFilesException()
 
     def generate_pull_request(self, retries=2) -> PullRequest:
