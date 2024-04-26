@@ -325,7 +325,6 @@ def get_files_to_change(
             ],
         )
         MODEL = "claude-3-opus-20240229"
-        f = open("msg.txt", "w")
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt),
             model=MODEL,
@@ -851,7 +850,7 @@ def get_files_to_change_for_gha(
             model=MODEL,
             temperature=0.1
         )
-        breakpoint()
+        # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
         expected_plan_count = 1
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
