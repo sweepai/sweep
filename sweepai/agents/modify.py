@@ -526,6 +526,17 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </invoke>
 </function_call>"""
 
+SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
+<invoke>
+<tool_name>submit_task</tool_name>
+<parameters>
+<justification>
+{justification}
+</justification>
+</parameters>
+</invoke>
+</function_call>"""
+
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
         return ""
@@ -926,14 +937,15 @@ def modify(
             function_calls_string = ""
             compiled_fcr = ""
             current_fcr_index = get_current_task_index(fcrs)
+            change_in_fcr_index = llm_state["completed_changes_per_fcr"][current_fcr_index]
+            max_changes = llm_state["changes_per_fcr"][current_fcr_index]
             lazy_change = llm_state["attempt_lazy_change"]
             # on first attempt of a new task we use the first fcr
-            if lazy_change:
-                change_in_fcr_index = llm_state["completed_changes_per_fcr"][current_fcr_index]
-                max_changes = llm_state["changes_per_fcr"][current_fcr_index]
-                if change_in_fcr_index >= max_changes or change_in_fcr_index == -1:
-                    logger.error(f"Issue with change_in_fcr_index: {change_in_fcr_index}, total changes in fcr {max_changes}:, falling back to llm")
-                else:
+            if change_in_fcr_index >= max_changes:
+                function_calls_string = SUBMIT_TASK_MOCK_FUNCTION_CALL.format(justification=f"Task {current_fcr_index} is now complete.")
+                # breakpoint()
+            else:
+                if lazy_change:
                     compiled_fcr = compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)
                     if compiled_fcr:
                         function_calls_string = compiled_fcr
@@ -942,18 +954,16 @@ def modify(
                             role="assistant",
                             content=function_calls_string
                         ))
-            # if previous things go wrong we make llm call
-            if not function_calls_string:
-                if "The previous task is now complete" in function_output:
-                    breakpoint()
-                model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
-                logger.info(f"Using model: {model}")
-                function_calls_string = chat_gpt.chat_anthropic(
-                    content=function_output,
-                    model=model,
-                    stop_sequences=["</function_call>"],
-                    use_openai=use_openai,
-                )
+                # if previous things go wrong we make llm call
+                if not function_calls_string:
+                    model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
+                    logger.info(f"Using model: {model}")
+                    function_calls_string = chat_gpt.chat_anthropic(
+                        content=function_output,
+                        model=model,
+                        stop_sequences=["</function_call>"],
+                        use_openai=use_openai,
+                    )
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
@@ -1037,6 +1047,8 @@ def handle_function_call(
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
     if tool_name == "submit_task":
+        current_fcr_index = get_current_task_index(llm_state["fcrs"])
+        llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
         changes_made = generate_diffs(modify_files_dict)
         if changes_made:
             llm_response = "DONE"
@@ -1113,7 +1125,7 @@ def handle_function_call(
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the most similar existing code from the file, along with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
-                        breakpoint()
+                        # breakpoint()
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                         manual_code_check(file_contents, original_code)
                     else:
@@ -1270,6 +1282,7 @@ def handle_function_call(
                 + generate_diff(file_contents, new_file_contents, n=10)
             ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
             diff_string = generate_diff(file_contents, new_file_contents)
+            current_fcr_index = get_current_task_index(llm_state["fcrs"])
             # set contents
             if file_name not in modify_files_dict:
                 modify_files_dict[file_name] = {
@@ -1282,6 +1295,13 @@ def handle_function_call(
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+            elif llm_state["completed_changes_per_fcr"][current_fcr_index] + 1 < llm_state["changes_per_fcr"][current_fcr_index]:
+                # Incomplete changes, should use a different prompt realistically
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                modify_files_dict[file_name]['contents'] = new_file_contents
+                llm_state["attempt_lazy_change"] = True
+
+                llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
             elif diff_string.count("\n+") + diff_string.count("\n-") > 10:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 # breakpoint()
@@ -1308,9 +1328,7 @@ def handle_function_call(
                     llm_response = "DONE"
 
                 llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
-
-            current_fcr_index = get_current_task_index(llm_state["fcrs"])
-            llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
+                llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""
