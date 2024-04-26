@@ -1012,8 +1012,9 @@ def handle_function_call(
                 success_message = ""
                 original_code = tool_call["original_code"].strip("\n")
                 new_code = tool_call["new_code"].strip("\n")
-                if tool_call.get("append", "false") == "true":
+                if tool_call.get("append", "false").strip() == "true":
                     new_code = original_code + "\n\n" + new_code
+                replace_all = tool_call.get("replace_all", "false").strip() == "true"
                 if new_code == original_code:
                     error_message += "The new_code and original_code are the same. If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                     break
@@ -1095,7 +1096,7 @@ def handle_function_call(
                     original_code = f'{correct_indent * " "}{original_code.lstrip()}'
                 # before we apply changes make sure original_code is unique inside current_chunk
                 current_chunk_occurences = file_contents.count(original_code)
-                if current_chunk_occurences > 1:
+                if current_chunk_occurences > 1 and not replace_all:
                     if current_chunk_occurences * len(original_code.split("\n")) < 50:
                         # We start by setting original_code_lines with indentation fixed. Sometimes the model forgets to indent the first line.
 
@@ -1114,7 +1115,8 @@ def handle_function_call(
                                         break
 
                         if start_line == -1:
-                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                            breakpoint()
                             break
                             
                         original_code_lines = file_contents_lines[start_line:start_line + len(original_code_lines)]
@@ -1133,9 +1135,10 @@ def handle_function_call(
                                 match_ += "\n".join(file_contents_lines[i + len(original_code_lines):i + len(original_code_lines) + surrounding_lines])
                                 matches.append(match_)
 
-                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
                     else:
-                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                    breakpoint()
                     break
                 
                 if original_code not in file_contents:
@@ -1143,7 +1146,10 @@ def handle_function_call(
                     break
 
                 # apply changes
-                new_file_contents = file_contents.replace(original_code, new_code, 1)
+                if replace_all:
+                    new_file_contents = file_contents.replace(original_code, new_code)
+                else:
+                    new_file_contents = file_contents.replace(original_code, new_code, 1)
                 # Check if changes were made
                 if new_file_contents == file_contents:
                     logger.warning("No changes were made to the code.")
@@ -1168,7 +1174,6 @@ def handle_function_call(
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
             llm_state["attempt_lazy_change"] = False
-            breakpoint()
         if not error_message:
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
