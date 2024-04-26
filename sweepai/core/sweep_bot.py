@@ -384,6 +384,7 @@ def context_get_files_to_change(
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
     seed: int = 0,
+    images: list[tuple[str, str, str]] | None = None
 ):
     messages: list[Message] = []
     messages.append(
@@ -518,7 +519,8 @@ def context_get_files_to_change(
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (context_files_to_change_prompt),
             model=MODEL,
-            temperature=0.1
+            temperature=0.1,
+            images=images
         )
         relevant_files = []
         read_only_files = []

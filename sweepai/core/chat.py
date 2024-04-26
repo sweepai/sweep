@@ -516,7 +516,7 @@ class ChatGPT(MessageList):
                     message_dicts = sanitize_anthropic_messages(message_dicts)
                 # need to modify message dicts if we have images
                 if images:
-                    message_dicts = add_images_to_messages(message_dicts, images, use_openai=use_openai, use_aws=use_aws)
+                    message_dicts = add_images_to_messages(message_dicts, images, use_openai=use_openai)
                 content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai, use_aws=use_aws)
                 break
             except BadRequestError as e_:
