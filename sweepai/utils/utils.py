@@ -221,7 +221,7 @@ def get_new_lint_errors_for_pylint(new_errors: str, old_errors: str) -> str:
     results = []
     for line in additional_errors:
         _file_delimiter, error_type, *_ = line.split(" ")
-        if old_error_types.count(error_type) > 1: # if there are more than 2 of the same error, we consider it new
+        if not error_type.startswith("E") and old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
             results.append(line)
     return "\n".join(results)
 
@@ -248,9 +248,13 @@ class CheckResults:
             return self.parse_error_message
         if len(self.pylint.splitlines()) > len(other.pylint.splitlines()):
             # return f"The code has the following pylint errors:\n\n{self.pylint}"
+            new_pylint_errors = get_new_lint_errors_for_pylint(self.pylint, other.pylint)
             if not other.pylint:
                 return f"The code has the following pylint errors:\n\n{self.pylint}"
-            return f"The following new pylint errors have appeared:\n\n{get_new_lint_errors_for_pylint(self.pylint, other.pylint)}"
+            elif not new_pylint_errors:
+                # All the errors are invalid
+                return ""
+            return f"The following new pylint errors have appeared:\n\n{new_pylint_errors}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
             if not other.eslint:
                 return f"The code has the following eslint errors:\n\n{self.eslint}"
