@@ -463,7 +463,7 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </original_code>
 <new_code>
 {new_code}
-</new_code>
+</new_code>{flags}
 </parameters>
 </invoke>
 </function_call>"""
@@ -698,11 +698,16 @@ def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
 # returns the old/new code change as a function call
 def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
     # justification is wrong, fix this later!
+    flags = ""
     justification, *_ = fcr.instructions.split("<original_code>", 1)
     original_code_pattern = r"<original_code>(.*?)</original_code>"
     new_code_pattern = r"<new_code>(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
+    replace_all_pattern = r"<replace_all>(.*?)</replace_all>"
+    replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
+    if replace_all_matches:
+        flags += "<replace_all>true</replace_all>"
     if original_code_matches and new_code_matches:
         try:
             if len(original_code_matches) != len(new_code_matches):
@@ -712,7 +717,7 @@ def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
         except Exception as e:
             logger.error(f"Error while running compile_fcr: {e}")
             return ""
-        return DEFAULT_FUNCTION_CALL.format(justification=justification.strip(), file_path=fcr.filename, original_code=original_code, new_code=new_code)
+        return DEFAULT_FUNCTION_CALL.format(justification=justification.strip(), file_path=fcr.filename, original_code=original_code, new_code=new_code, flags=flags)
 
 # return the number of tasks completed
 def tasks_completed(fcrs: list[FileChangeRequest]):
@@ -1124,7 +1129,7 @@ def handle_function_call(
 
                         # Then we find all the matches and their surrounding lines.
                         matches = []
-                        surrounding_lines = 5
+                        surrounding_lines = 10
 
                         for i in range(len(file_contents_lines)):
                             if "\n".join(original_code_lines) == "\n".join(file_contents_lines[i:i + len(original_code_lines)]):
