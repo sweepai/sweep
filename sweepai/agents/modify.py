@@ -948,7 +948,7 @@ def modify(
             break
     else:
         logger.error("Max iterations reached")
-        breakpoint()
+        # breakpoint()
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
         diff = generate_diff(file_data['original_contents'], file_data['contents'])
@@ -1254,8 +1254,8 @@ def handle_function_call(
                 }
             if warning_message:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
-                print(llm_response)
-                breakpoint()
+                # print(llm_response)
+                # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             elif diff_string.count("\n+") + diff_string.count("\n-") > 8:
