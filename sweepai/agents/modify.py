@@ -1232,6 +1232,19 @@ def handle_function_call(
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
             llm_state["attempt_lazy_change"] = False
+            llm_state["attempt_count"] += 1
+            if llm_state["attempt_count"] > 5:
+                for fcr in llm_state["fcrs"]:
+                    if not fcr.is_completed:
+                        fcr.is_completed = True
+                        break
+                llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+                llm_state["attempt_count"] = 0
+                llm_response = f"SKIPPED\n\nThe previous task took too many attempts so we gave up. Please move on to the next task. {llm_state['current_task']}"
+                if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
+                    llm_response = "DONE"
+
+                llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
         if not error_message:
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
@@ -1245,18 +1258,16 @@ def handle_function_call(
                     "original_contents": file_contents,
                 }
             if warning_message:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=15)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
                 print(llm_response)
                 breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
-                llm_state["attempt_count"] += 1
             elif diff_string.count("\n+") + diff_string.count("\n-") > 8:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
-                llm_state["attempt_count"] += 1
             else:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 modify_files_dict[file_name]['contents'] = new_file_contents
