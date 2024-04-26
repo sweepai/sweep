@@ -814,7 +814,7 @@ def modify(
                 content=function_calls_string
             ))
         else:
-            model = MODEL if llm_state["attempt_count"] < 4 else SLOW_MODEL
+            model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
             logger.info(f"Using model: {model}")
             function_calls_string = chat_gpt.chat_anthropic(
                 content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
@@ -924,7 +924,7 @@ def modify(
                         ))
             # if previous things go wrong we make llm call
             if not function_calls_string:
-                model = MODEL if llm_state["attempt_count"] < 4 else SLOW_MODEL
+                model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
                 logger.info(f"Using model: {model}")
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_output,
@@ -1258,7 +1258,7 @@ def handle_function_call(
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
-            elif diff_string.count("\n+") + diff_string.count("\n-") > 8:
+            elif diff_string.count("\n+") + diff_string.count("\n-") > 10:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
