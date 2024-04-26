@@ -210,6 +210,22 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
     return chunks
 
+def get_new_lint_errors_for_pylint(new_errors: str, old_errors: str) -> str:
+    # Example of error: "main.py:1585:12: W0612: Unused variable 'command' (unused-variable)"
+    additional_errors = patience_fuzzy_additions(old_errors, new_errors).splitlines()
+    old_error_types = []
+    for line in old_errors.splitlines():
+        if line.count(" ") > 2:
+            _file_delimiter, error_type, *_ = line.split(" ")
+            if error_type not in old_error_types:
+                old_error_types.append(error_type)
+    results = []
+    for line in additional_errors:
+        _file_delimiter, error_type, *_ = line.split(" ")
+        if error_type not in old_error_types:
+            results.append(line)
+    return "\n".join(results)
+
 @dataclass
 class CheckResults:
     # Experimental feature, we'll see how this does.
@@ -235,7 +251,7 @@ class CheckResults:
             # return f"The code has the following pylint errors:\n\n{self.pylint}"
             if not other.pylint:
                 return f"The code has the following pylint errors:\n\n{self.pylint}"
-            return f"The following new pylint errors have appeared:\n\n{patience_fuzzy_additions(other.pylint, self.pylint)}"
+            return f"The following new pylint errors have appeared:\n\n{get_new_lint_errors_for_pylint(self.pylint, other.old_errors)}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
             if not other.eslint:
                 return f"The code has the following eslint errors:\n\n{self.eslint}"
