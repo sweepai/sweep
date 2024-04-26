@@ -452,7 +452,7 @@ Let's fix this error by responding in the following format:
 
 # Thinking
 <thinking>
-1. Copy the first 50 lines of the ACTUAL contents of {file_path} by copying from the corresponding <file_to_modify> block. Follow this format:
+1. Copy the first 20 lines of the ACTUAL contents of {file_path} by copying from the corresponding <file_to_modify> block. Follow this format:
 <file_to_modify filename="{file_path}">
 ```
 ACTUAL contents of {file_path}, not the contents of original_code
@@ -468,7 +468,7 @@ The most similar section of the ACTUAL contents of {file_path}
 </thinking>
 
 # Function call
-Then, follow up with a make_change function call with the corrected parameters."""
+Then, follow up with a make_change function call with the corrected parameters. If you are unable to find the correct section of code, call the submit_task function with an explanation of the issue."""
 
 MULTIPLE_OCCURRENCES_PROMPT = """Resolve this error by following these steps:
 
