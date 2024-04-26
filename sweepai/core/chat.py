@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    ALTERNATE_AWS,
     ANTHROPIC_AVAILABLE,
     AWS_ACCESS_KEY,
     AWS_REGION,
@@ -267,18 +268,19 @@ class ChatGPT(MessageList):
         max_tokens: int | None = None,
         stop_sequences: list[str] = [],
     ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        self.messages.append(Message(role="user", content=content, key=message_key)) if content else None # supports calling assistant again
         model = model or self.model
         temperature = temperature or self.temperature or default_temperature
+        new_content = self.call_openai(
+            model=model,
+            temperature=temperature,
+            requested_max_tokens=max_tokens,
+            stop_sequences=stop_sequences,
+        )
         self.messages.append(
             Message(
                 role="assistant",
-                content=self.call_openai(
-                    model=model,
-                    temperature=temperature,
-                    requested_max_tokens=max_tokens,
-                    stop_sequences=stop_sequences,
-                ),
+                content=new_content,
                 key=message_key,
             )
         )
@@ -345,7 +347,7 @@ class ChatGPT(MessageList):
                     max_tokens=max_tokens - token_sub,
                     temperature=temperature,
                     stop_sequences=stop_sequences,
-                ).choices[0].message.content
+                )
                 if self.chat_logger is not None:
                     self.chat_logger.add_chat(
                         {
@@ -400,6 +402,7 @@ class ChatGPT(MessageList):
         stop_sequences: list[str] = [],
         max_tokens: int = 4096,
         use_openai: bool = False,
+        verbose: bool = True,
         images: list[tuple[str, str, str]] | None = None
     ):
         # use openai
@@ -417,27 +420,30 @@ class ChatGPT(MessageList):
             self.messages.append(Message(role="assistant", content=assistant_message_content))
         temperature = temperature or self.temperature or default_temperature
         messages_string = '\n\n'.join([message.content for message in self.messages])
-        logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
+        if verbose:
+            logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         content = ""
         e = None
         NUM_ANTHROPIC_RETRIES = 6
+        use_aws = True
+        hit_content_filtering = False
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
-                @file_cache(redis=True) # must be in the inner scope because this entire function manages state
+                @file_cache(redis=True, ignore_contents=True) # must be in the inner scope because this entire function manages state
                 def call_anthropic(
                     message_dicts: list[dict[str, str]], 
                     system_message: str = system_message, 
                     model: str = model,
                     use_openai: bool = use_openai,
+                    use_aws: bool = True,
                 ) -> str: # add system message and model to cache
                     if use_openai:
                         client = OpenAI()
                     else:
-                        if ANTHROPIC_AVAILABLE:
+                        if ANTHROPIC_AVAILABLE and use_aws:
                             if "anthropic" not in model:
                                 model = f"anthropic.{model}-v1:0"
-                                self.model = f"anthropic.{self.model}-v1:0"
                             client = AnthropicBedrock(
                                 aws_access_key=AWS_ACCESS_KEY,
                                 aws_secret_key=AWS_SECRET_KEY,
@@ -459,14 +465,38 @@ class ChatGPT(MessageList):
                             stop=stop_sequences,
                         ).choices[0].message.content
                     else:
-                        response = client.messages.create(
-                            model=model,
-                            temperature=temperature,
-                            max_tokens=max_tokens,
-                            messages=message_dicts,
-                            system=system_message,
-                            stop_sequences=stop_sequences,
-                        ).content[0].text
+                        if ANTHROPIC_AVAILABLE and use_aws: # streaming doesn't work with AWS
+                            response = client.messages.create(
+                                model=model,
+                                messages=message_dicts,
+                                max_tokens=max_tokens,
+                                temperature=temperature,
+                                system=system_message,
+                                stop_sequences=stop_sequences,
+                            ).content[0].text
+                        else:
+                            verbose = True
+                            start_time = time.time()
+                            if verbose:
+                                print(f"In queue with model {model}...")
+                            with client.messages.stream(
+                                model=model,
+                                temperature=temperature,
+                                max_tokens=max_tokens,
+                                messages=message_dicts,
+                                system=system_message,  
+                                stop_sequences=stop_sequences,
+                            ) as stream:
+                                if verbose:
+                                    print(f"Started stream in {time.time() - start_time:.2f}s!")
+                                for i, text in enumerate(stream.text_stream):
+                                    if verbose:
+                                        if i == 0:
+                                            print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                        print(text, end="", flush=True)
+                            response = stream.get_final_message().content[0].text
+                            if verbose:
+                                print("Done streaming results!")
                     return response
                 if use_openai:
                     message_dicts = [
@@ -487,15 +517,22 @@ class ChatGPT(MessageList):
                 # need to modify message dicts if we have images
                 if images:
                     message_dicts = add_images_to_messages(message_dicts, images, use_openai=use_openai)
-                content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai)
+                content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai, use_aws=use_aws)
                 break
             except BadRequestError as e_:
                 e = e_ # sometimes prompt is too long
-                raise e_
+                if not ALTERNATE_AWS:
+                    raise e_
+                elif hit_content_filtering: # hit it twice, raise error
+                    raise e_
+                else:
+                    hit_content_filtering = True # stop using anthropic
             except Exception as e_:
                 logger.exception(e_)
                 e = e_
-                time.sleep(4 * 2 ** i) # faster debugging
+                time.sleep(4 * 1.75 ** i) # faster debugging
+                if ALTERNATE_AWS: # alternate between aws and anthropic (for load balancing only)
+                    use_aws = not use_aws and not hit_content_filtering
         else:
             raise Exception("Anthropic call failed") from e
         self.messages.append(
@@ -505,7 +542,8 @@ class ChatGPT(MessageList):
                 key=message_key,
             )
         )
-        logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
+        if verbose:
+            logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 

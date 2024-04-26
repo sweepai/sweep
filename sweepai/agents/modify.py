@@ -1,6 +1,7 @@
 import copy
 from math import inf
 import os
+import re
 
 from rapidfuzz import fuzz, process
 
@@ -28,7 +29,7 @@ Explain how this SINGLE change contributes to fulfilling the user's request.
 Name of the file where the change will be made. Ensure correct spelling as this is case-sensitive.
 </file_name>
 <original_code>
-The existing lines of code that need modification or replacement. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need modification or replacement. This should be a SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context. This CAN NOT be empty.
 </original_code>
 <new_code>
 The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
@@ -84,7 +85,7 @@ Name of the file where the change will be made. Ensure correct spelling as this 
 <name>original_code</name>
 <type>str</type>
 <description>
-The existing lines of code that need modification or replacement. This should be a short SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context.
+The existing lines of code that need modification or replacement. This should be a short SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context. This CAN NOT be empty.
 </description>
 </parameter>
 <parameter>
@@ -92,6 +93,13 @@ The existing lines of code that need modification or replacement. This should be
 <type>str</type>
 <description>
 The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
+</description>
+</parameter>
+<parameter>
+<name>append</name>
+<type>bool</type>
+<description>
+Optional: either true or false. If true, the new code will be appended to the original code. If false, the original code will be replaced by the new code. Use this to add new methods or test cases. Default is false.
 </description>
 </parameter>
 </parameters>
@@ -199,21 +207,14 @@ No function calls were made or your last function call was incorrectly formatted
 
 Here is an example:
 
-<tool_description>
+<function_call>
+<invoke>
 <tool_name>submit_task</tool_name>
-<description>
-Indicate that the current task is complete.
-</description>
 <parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Summarize the code changes made and explain how they fulfill the user's original request.
-</description>
-</parameter>
+<justification>The justification for making this change goes here.</justification>
 </parameters>
-</tool_description>
+</invoke>
+</function_call>
 
 If the current task is complete, call the submit_task function."""
 
@@ -253,37 +254,258 @@ new code line here
 If the current task is complete, call the submit_task function.
 """
 
-self_review_prompt = """First, review and critique the change(s) you have made. Consider the following points:
+EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It MUST contain a valid section of code from the existing file that you want to modify.
 
-1. Analyze the code patch and indicate:
-   a. Purpose and impact of each change
-   b. Check for potential errors: 
-     - Logic errors
-     - Unhandled edge cases
-     - Missing imports
-     - Incomplete changes
-     - Undefined variables/functions
-     - Usage of nullable attributes
-     - Non-functional code
-   c. Alignment with plan and requirements
-2. Perform critical contextual analysis:
-   - Break down changes 
-   - Explain reasoning
-   - Identify plan deviations
+It seems like you are trying to use the make_change function to append code, you must follow these steps:
 
-Be extremely critical but limit the scope of the critique to the current task, which is:
+# 1. Thinking
+<thinking>
+a. Identify the code we are trying to append.
+b. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
+    - Function: [function_name] - [description]
+    [additional functions]
+c. Identify the function you want to append the new_code block to.
+</thinking>
 
-{current_task}
+# 2. Function call
+Then generate a make_change function call with the following parameters:
+a. Put the code you want to append to in the original_code variable.
+b. Copy the code from original_code and paste it into the new_code variable.
+c. Append the new code you want to add after the original code in the new_code variable.
+d. Set the append argument to true. This is critical to ensure the new code is ADDED after the original code, instead of replacing the code.
 
-Then, determine if the changes are correct and complete.
+Here's an illustrative example of how to use the make_change function to append code:
 
-If the changes are complete and correct, call the submit_task function to move onto the next task. Otherwise, call the make_change function to continue making changes."""
+<example>
+Here's an example of the input file:
+<input>
+<file_to_modify filename="tests/calculator_test.py">
+import unittest
+from calculator import Calculator
+
+class TestAddition(unittest.TestCase):
+    def setUp(self):
+        self.calc = Calculator()
+
+    def test_add_positive_numbers(self):
+        result = self.calc.add(2, 3)
+        self.assertEqual(result, 5)
+
+    def test_add_negative_numbers(self):
+        result = self.calc.add(-2, -3)
+        self.assertEqual(result, -5)
+
+    def test_add_zero(self):
+        result = self.calc.add(0, 0)
+        self.assertEqual(result, 0)
+
+class TestSubtraction(unittest.TestCase):
+    def setUp(self):
+        self.calc = Calculator()
+
+    def test_subtract_positive_numbers(self):
+        result = self.calc.subtract(5, 3)
+        self.assertEqual(result, 2)
+
+    def test_subtract_negative_numbers(self):
+        result = self.calc.subtract(-5, -3)
+        self.assertEqual(result, -2)
+
+    def test_subtract_zero(self):
+        result = self.calc.subtract(5, 0)
+        self.assertEqual(result, 5)
+
+class TestMultiplication(unittest.TestCase):
+    def setUp(self):
+        self.calc = Calculator()
+
+    def test_multiply_positive_numbers(self):
+        result = self.calc.multiply(2, 3)
+        self.assertEqual(result, 6)
+
+    def test_multiply_negative_numbers(self):
+        result = self.calc.multiply(-2, 3)
+        self.assertEqual(result, -6)
+
+    def test_multiply_by_zero(self):
+        result = self.calc.multiply(5, 0)
+        self.assertEqual(result, 0)
+</file_to_modify>
+</input>
+
+<thinking>
+a. We are adding a new test case for multiplying two negative numbers in the calculator_test.py file.
+b. List of relevant functions:
+    - Function: test_multiply_positive_numbers - Tests multiplying positive numbers
+    - Function: test_multiply_negative_numbers - Tests multiplying negative numbers
+    - Function: test_multiply_by_zero - Tests multiplying by zero
+
+c. Since we are adding a test case for multiplying two negative numbers, we should append the new test case right after the test_multiply_negative_numbers test.
+</thinking>
+
+<function_call>
+<make_change>
+<justification>
+Add a test case for multiplying a negative number by a negative number right after the test_multiply_negative_numbers test.
+</justification>
+<file_name>tests/calculator_test.py</file_name>
+<original_code>
+    def test_multiply_positive_numbers(self):
+        result = self.calc.multiply(2, 3)
+        self.assertEqual(result, 6)
+
+    def test_multiply_negative_numbers(self):
+        result = self.calc.multiply(-2, 3)
+        self.assertEqual(result, -6)
+</original_code>
+<new_code>
+    def test_multiply_negative_by_negative(self):
+        result = self.calc.multiply(-4, -2)
+        self.assertEqual(result, 8)
+</new_code>
+<append>true</append>
+</make_change>
+</function_call>
+</example>
+
+Notice how:
+a. The original_code block is copied exactly from the existing code.
+b. The original_code block consists of the functions we want to append the new code after.
+c. Only a several lines of code are included before where you want to add the new code in the original_code block, but enough code is provided to give context.
+d. The indentation in both original_code and new_code matches the file_to_modify code.
+
+This is how you should append code using the make_change function. Please make another make_change function call with the corrected, non-empty <original_code> block and append flag set to true."""
+
+DID_YOU_MEAN_PROMPT = """Fix your make_change function call by following these steps:
+
+# 1. Thinking
+<thinking>
+Describe in great detail how your original_code block differs from what's in the codebase. Are you missing any indentation?
+</thinking>
+
+# 2. Function call
+Make the make_change function call again, this time ensuring that the original_code parameter matches the code from file."""
+
+self_review_prompt = """You have suggested making a large amount of changes to the code. Before proceeding, it is important to review and critique the changes you have made. Follow these steps:
+
+a. Review CURRENT TASK for requirements.
+b. Analyze code patch:
+    - Incorrect indentations that does not match surrounding code
+    - Unnecessary deletions
+    - Logic errors
+    - Unhandled edge cases
+    - Missing imports
+    - Incomplete changes
+    - Usage of nullable attributes
+    - Non-functional code
+    - Misalignment with plan and requirements
+c. Perform critical contextual analysis:
+    - Break down changes 
+    - Explain reasoning
+    - Identify logic issues, edge cases, plan deviations
+    - Consider all scenarios and pitfalls
+    - Consider backwards compatibility and future-proofing
+    - Suggest fixes for problems
+    - Evaluate error handling and fallback mechanisms
+d. Be extremely critical. Do not overlook ANY issues.
+e. Finally decide whether additional changes are needed or if the task is complete.
+
+If additional changes are needed, make the necessary changes and call the make_change function again. If the task is complete, call the submit_task function."""
+
+linter_warning_prompt = """There is a linter warning in the code changes. Resolve the warnings by following these steps:
+
+# Thinking
+<thinking>
+a. Look closely at the changes made to identify any syntax errors that may have caused the linter errors. Does the number of indents in the changed code compare to the number of indents in the surrounding code?
+b. Critique the change(s) you have made for any potential logical errors.
+c. Identify what the linter warning is, and what may be causing it. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as inconsistent indentation.
+d. Indicate the minimum amount of changes required to resolve the linter warning.
+</thinking>
+
+Then, call the make_change function to fix the linter warnings. If the warning cannot be resolved, call submit_task with an explanation of the issue."""
+
+fix_syntax_prompt = """Resolve the issue by following these steps:
+
+# 1. Thinking
+<thinking>
+1. Indicate what you have changed. Indicate the code that you have removed and the code that you have added back.
+2. Identify where the broken code occurs and why it is broken.
+3. Identify whether it is the code removed (original_code) that is causing the issue or the code added back (new_code).
+4. Explain how we can correct the original_code or new_code in the make_change function call to create a correct change.
+</thinking>
+
+# 2. Function call
+Reinvoke the make_change function call with different changes that yields valid code."""
+
+ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear to be present in file {file_path}. Your provided original_code erroneously contains:
+```
+{original_code}
+```
+
+Let's fix this error by responding in the following format:
+
+# Thinking
+<thinking>
+1. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
+    - Function: [function_name] - [description]
+    [additional functions]
+Based on these options, deterimine the most similar function header to the original_code you provided.
+
+2. Copy the most similar section of code from the ACTUAL contents of {file_path}. Follow this format:
+```
+ACTUAL contents of {file_path} that are most similar to original_code
+```
+
+3. Copy the most similar section of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
+```
+The most similar section of the ACTUAL contents of {file_path}
+```
+
+4. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
+</thinking>
+
+# Function call
+Then, follow up with a make_change function call with the corrected parameters. If you are unable to find the correct section of code, call the submit_task function with an explanation of the issue."""
+
+MULTIPLE_OCCURRENCES_PROMPT = """Resolve this error by following these steps:
+
+# 1. Thinking
+<thinking>
+a. Identify whether you want to replace all occurrences of the original code or only a specific one. If you want to replace all occurrences, you can use the replace_all flag by adding <replace_all>true</replace_all> to the function arguments.
+b. If you want to replace only a specific occurrence, which occurrence you want to replace and the corresponding surrounding context, following this format:
+```
+The original_code block you want to replace with surrounding context.
+```
+</thinking>
+
+# 2. Function Call
+Then, call the make_change function again with either the replace_all flag or additional context in the original_code block to specify which occurrence you want to replace."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
     "submit_task": ["justification"],
 }
+
+DEFAULT_FUNCTION_CALL = """<function_call>
+<invoke>
+<tool_name>make_change</tool_name>
+<parameters>
+<justification>
+{justification}
+</justification>
+<file_name>
+{file_path}
+</file_name>
+<original_code>
+{original_code}
+</original_code>
+<new_code>
+{new_code}
+</new_code>{flags}
+</parameters>
+</invoke>
+</function_call>"""
 
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
@@ -322,8 +544,8 @@ def find_best_match(needle: str, haystack: str, threshold: int = 80):
         return best_match, best_score
     return "", 0
 
-# MODEL = "claude-3-haiku-20240307"
-MODEL = "claude-3-opus-20240229" # try haiku
+MODEL = "claude-3-haiku-20240307"
+SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call_openai(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -419,7 +641,7 @@ def create_user_message( # TODO: has non-deterministic behavior
                 files_to_modify_messages[fcr.filename] += f"\n<file_to_create filename=\"{fcr.filename}\">\n{fcr.instructions}\n</file_to_create>"
     # now we combine the messages into a single string
     already_added_files = set([])
-    for fcr in fcrs:
+    for fcr in fcrs[::-1]:
         if fcr.filename in already_added_files:
             continue
         files_to_modify_string += files_to_modify_messages[fcr.filename]
@@ -485,6 +707,14 @@ def render_plan(fcrs: list[FileChangeRequest]) -> str:
             plan += f"\n\nTask {i}: You will later need to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n{fcr.instructions}"
     return plan.strip('\n')
 
+# get current task being worked on
+def get_current_task_index(fcrs: list[FileChangeRequest]) -> str:
+    current_fcr_index = 0
+    for current_fcr_index, fcr in enumerate(fcrs):
+        if not fcr.is_completed:
+            break
+    return current_fcr_index
+
 def render_current_task(fcrs: list[FileChangeRequest]) -> str:
     current_fcr_index = 0
     for current_fcr_index, fcr in enumerate(fcrs):
@@ -492,6 +722,41 @@ def render_current_task(fcrs: list[FileChangeRequest]) -> str:
             break
     fcr = fcrs[current_fcr_index]
     return f"The CURRENT TASK is to {fcr.change_type} {fcr.filename}. The specific instructions to do so are listed below:\n\n<current_task>\n{fcr.instructions}\n</current_task>"
+
+# return replaces per fcr, -1 if there are any issues
+def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
+    original_code_pattern = r"<original_code>(.*?)</original_code>"
+    new_code_pattern = r"<new_code>(.*?)</new_code>"
+    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
+    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
+    if len(original_code_matches) != len(new_code_matches):
+        logger.error(f"Mismatched old/new code sections in fcr! {len(original_code_matches)} to {len(new_code_matches)}")
+        return -1
+    return len(original_code_matches)
+
+# returns the old/new code change as a function call
+def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
+    # justification is wrong, fix this later!
+    flags = ""
+    justification, *_ = fcr.instructions.split("<original_code>", 1)
+    original_code_pattern = r"<original_code>(.*?)</original_code>"
+    new_code_pattern = r"<new_code>(.*?)</new_code>"
+    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
+    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
+    replace_all_pattern = r"<replace_all>(.*?)</replace_all>"
+    replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
+    if replace_all_matches:
+        flags += "\n<replace_all>true</replace_all>"
+    if original_code_matches and new_code_matches:
+        try:
+            if len(original_code_matches) != len(new_code_matches):
+                raise Exception(f"Mismatch between original_code and new_code sections: {len(original_code_matches)} to {len(new_code_matches)}")
+            original_code = original_code_matches[index].group(1).strip("\n")
+            new_code = new_code_matches[index].group(1).strip("\n")
+        except Exception as e:
+            logger.error(f"Error while running compile_fcr: {e}")
+            return ""
+        return DEFAULT_FUNCTION_CALL.format(justification=justification.strip(), file_path=fcr.filename, original_code=original_code, new_code=new_code, flags=flags)
 
 # return the number of tasks completed
 def tasks_completed(fcrs: list[FileChangeRequest]):
@@ -511,6 +776,8 @@ def modify(
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
+    if not fcrs:
+        return previous_modify_files_dict
     user_message = create_user_message(
         fcrs=fcrs,
         request=request,
@@ -518,16 +785,43 @@ def modify(
         relevant_filepaths=relevant_filepaths,
     )
     chat_gpt = ChatGPT()
+    llm_state = {
+        "initial_check_results": {},
+        "done_counter": 0, # keep track of how many times the submit_task tool has been called
+        "request": request,
+        "plan": render_plan(fcrs), 
+        "current_task": render_current_task(fcrs),
+        "user_message_index": 1,  # used for detailed chat logger messages
+        "user_message_index_chat_logger": 1,  # used for detailed chat logger messages
+        "fcrs": fcrs,
+        "previous_attempt": "",
+        "changes_per_fcr": [get_replaces_per_fcr(fcr) for fcr in fcrs], # how many old/new code pairs there are per fcr
+        "completed_changes_per_fcr": [0 for _ in fcrs], # how many successful changes have been applied per fcr
+        "attempt_lazy_change": True, # whether or not we attempt to bypass the llm call and apply old/new code pair directly
+        "attempt_count": 0, # how many times we have attempted to apply the old/new code pair
+    }
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
-        function_calls_string = chat_gpt.chat_anthropic(
-            content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
-            stop_sequences=["</function_call>"],
-            model=MODEL,
-            message_key="user_request",
-            use_openai=use_openai,
-        )
+        chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
+        compiled_fcr = compile_fcr(fcrs[0], 0)
+        if compiled_fcr:
+            function_calls_string = compiled_fcr
+            # update messages to make it seem as if it called the fcr
+            chat_gpt.messages.append(Message(
+                role="assistant",
+                content=function_calls_string
+            ))
+        else:
+            model = MODEL
+            logger.info(f"Using model: {model}")
+            function_calls_string = chat_gpt.chat_anthropic(
+                content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
+                stop_sequences=["</function_call>"],
+                model=model,
+                message_key="user_request",
+                use_openai=use_openai,
+            )
     except Exception as e:
         logger.error(f"Error in chat_anthropic: {e}")
         chat_logger.add_chat(
@@ -540,17 +834,6 @@ def modify(
     if not previous_modify_files_dict:
         previous_modify_files_dict = {}
     modify_files_dict = copy.deepcopy(previous_modify_files_dict)
-    llm_state = {
-        "initial_check_results": {},
-        "done_counter": 0, # keep track of how many times the submit_task tool has been called
-        "request": request,
-        "plan": render_plan(fcrs), 
-        "current_task": render_current_task(fcrs),
-        "user_message_index": 1,  # used for detailed chat logger messages
-        "user_message_index_chat_logger": 1,  # used for detailed chat logger messages
-        "fcrs": fcrs,
-        "previous_attempt": "",
-    }
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
@@ -594,10 +877,8 @@ def modify(
                 current_num_of_tasks_done = tasks_completed(fcrs)
                 if changes_made(modify_files_dict, previous_modify_files_dict) and current_num_of_tasks_done > num_of_tasks_done:
                     # remove the previous user message and add it to the end, do not remove if it is the inital user message
-                    if llm_state["user_message_index"] != 1:
-                        chat_gpt.messages.pop(llm_state["user_message_index"])
-                    if llm_state["user_message_index_chat_logger"] != 1:
-                        detailed_chat_logger_messages.pop(llm_state["user_message_index_chat_logger"])
+                    chat_gpt.messages = chat_gpt.messages[:1]
+                    detailed_chat_logger_messages = detailed_chat_logger_messages[:1]
                     chat_gpt.messages.append(Message(role="user", content=user_message))
                     detailed_chat_logger_messages.append({"role": "user", "content": user_message})
                     # update the index
@@ -623,15 +904,41 @@ def modify(
                         "output": detailed_chat_logger_messages[-1]["content"],
                     })
         try:
-            function_calls_string = chat_gpt.chat_anthropic(
-                content=function_output,
-                model=MODEL,
-                stop_sequences=["</function_call>"],
-                use_openai=use_openai,
-            )
+            function_calls_string = ""
+            compiled_fcr = ""
+            current_fcr_index = get_current_task_index(fcrs)
+            lazy_change = llm_state["attempt_lazy_change"]
+            # on first attempt of a new task we use the first fcr
+            if lazy_change:
+                change_in_fcr_index = llm_state["completed_changes_per_fcr"][current_fcr_index]
+                max_changes = llm_state["changes_per_fcr"][current_fcr_index]
+                if change_in_fcr_index >= max_changes or change_in_fcr_index == -1:
+                    logger.error(f"Issue with change_in_fcr_index: {change_in_fcr_index}, total changes in fcr {max_changes}:, falling back to llm")
+                else:
+                    compiled_fcr = compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)
+                    if compiled_fcr:
+                        function_calls_string = compiled_fcr
+                        # update messages to make it seem as if it called the fcr
+                        chat_gpt.messages.append(Message(
+                            role="assistant",
+                            content=function_calls_string
+                        ))
+            # if previous things go wrong we make llm call
+            if not function_calls_string:
+                model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
+                logger.info(f"Using model: {model}")
+                function_calls_string = chat_gpt.chat_anthropic(
+                    content=function_output,
+                    model=model,
+                    stop_sequences=["</function_call>"],
+                    use_openai=use_openai,
+                )
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
+            with open("msg.txt", "w") as f:
+                for message in chat_gpt.messages:
+                    f.write(f"{message.content}\n\n")
             if chat_logger is not None:
                 chat_logger.add_chat(
                     {
@@ -640,14 +947,9 @@ def modify(
                         "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
                     })
             break
-    # before we return clean up modify files dict by removing any files with no changes
-    files_to_remove = []
-    for file_name, file_data in modify_files_dict.items():
-        if not file_data or file_data['original_contents'] == file_data['contents']:
-            files_to_remove.append(file_name)
-    for file_name in files_to_remove:
-        modify_files_dict.pop(file_name)
-        logger.info(f"Removed file {file_name} from modify_files_dict as it had no changes.")
+    else:
+        logger.error("Max iterations reached")
+        # breakpoint()
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
         diff = generate_diff(file_data['original_contents'], file_data['contents'])
@@ -708,7 +1010,7 @@ def handle_function_call(
     llm_state: dict,
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
-) :
+):
     # iterate through modify_files_dict and generate diffs
     llm_response = ""
     tool_name = function_call.function_name
@@ -727,10 +1029,12 @@ def handle_function_call(
             if not fcr.is_completed:
                 fcr.is_completed = True
                 break
+        llm_state["attempt_count"] = 0
         llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
         llm_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
         if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
             llm_response = "DONE"
+        llm_state["attempt_lazy_change"] = True
     elif tool_name == "no_tool_call":
         if use_openai:
             llm_response = NO_TOOL_CALL_PROMPT_OPENAI
@@ -743,6 +1047,8 @@ def handle_function_call(
                 error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
+        if not tool_call["original_code"].strip():
+            error_message = EMPTY_ORIGINAL_CODE_PROMPT
         warning_message = ""
         if not error_message:
             for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
@@ -757,11 +1063,9 @@ def handle_function_call(
                 success_message = ""
                 original_code = tool_call["original_code"].strip("\n")
                 new_code = tool_call["new_code"].strip("\n")
-                if new_code == original_code:
-                    error_message += "The new_code and original_code are the same. Are you CERTAIN this change needs to be made? If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
-                    break
-                if not original_code:
-                    error_message = "The original_code is empty. Make sure that the original_code is not empty and that it is a valid section of code that you are trying to replace."
+                if tool_call.get("append", "false").strip() == "true":
+                    new_code = original_code + "\n\n" + new_code
+                replace_all = tool_call.get("replace_all", "false").strip() == "true"
                 # get the latest contents of the file
                 file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
                 # if the file is not in modify_files_dict, add it
@@ -782,10 +1086,12 @@ def handle_function_call(
                     best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
                     if best_score > 80:
                         surrounding_lines_before, surrounding_lines_after = get_surrounding_lines(file_contents, best_match)
-                        first_diff_text = surrounding_lines_before + tool_call['original_code'] + surrounding_lines_after
-                        second_diff_text = surrounding_lines_before + best_match + surrounding_lines_after
-                        best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
+                        START_MARKER = "\n===== START =====\n"
+                        END_MARKER = "\n===== END =====\n"
+                        first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
+                        second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
+                        best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the most similar existing code from the file, along with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
                         # check other files, this code should skip if there are no other files
@@ -795,8 +1101,10 @@ def handle_function_call(
                         for (best_match, best_score), other_file_name in zip(best_matches, all_file_names):
                             if best_score > 80:
                                 surrounding_lines_before, surrounding_lines_after = get_surrounding_lines(file_contents, best_match)
-                                first_diff_text = surrounding_lines_before + tool_call['original_code'] + surrounding_lines_after
-                                second_diff_text = surrounding_lines_before + best_match + surrounding_lines_after
+                                START_MARKER = "\n===== START =====\n"
+                                END_MARKER = "\n===== END =====\n"
+                                first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
+                                second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                                 best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of 
                                 if first_diff_text == second_diff_text or best_match_diff.strip() == "":
                                     error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nThe code was found in {other_file_name}. Call make_changes again with the correct file name."
@@ -804,16 +1112,20 @@ def handle_function_call(
                                     error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the {other_file_name} file?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                                 break
                         else: # if no other file match was found then return this block
-                            error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
-                            # first check the lines in original_code, if it is too long, ask for smaller changes
-                            original_code_lines_length = len(original_code.split("\n"))
-                            if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
-                                error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                            else:
-                                # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                                # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                                # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
-                                error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                            # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                            # # first check the lines in original_code, if it is too long, ask for smaller changes
+                            # original_code_lines_length = len(original_code.split("\n"))
+                            # if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
+                            #     error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                            # else:
+                            #     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
+                            #     # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
+                            #     # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
+                            #     error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
+                            error_message = ORIGINAL_CODE_NOT_FOUND_PROMPT.format(
+                                original_code=tool_call['original_code'],
+                                file_path=file_name
+                            )
                     break
                 # ensure original_code and new_code has the correct indents
                 new_code_lines = new_code.split("\n")
@@ -832,7 +1144,7 @@ def handle_function_call(
                     original_code = f'{correct_indent * " "}{original_code.lstrip()}'
                 # before we apply changes make sure original_code is unique inside current_chunk
                 current_chunk_occurences = file_contents.count(original_code)
-                if current_chunk_occurences > 1:
+                if current_chunk_occurences > 1 and not replace_all:
                     if current_chunk_occurences * len(original_code.split("\n")) < 50:
                         # We start by setting original_code_lines with indentation fixed. Sometimes the model forgets to indent the first line.
 
@@ -851,7 +1163,7 @@ def handle_function_call(
                                         break
 
                         if start_line == -1:
-                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\n" + MULTIPLE_OCCURRENCES_PROMPT
                             break
                             
                         original_code_lines = file_contents_lines[start_line:start_line + len(original_code_lines)]
@@ -859,7 +1171,7 @@ def handle_function_call(
 
                         # Then we find all the matches and their surrounding lines.
                         matches = []
-                        surrounding_lines = 5
+                        surrounding_lines = 10
 
                         for i in range(len(file_contents_lines)):
                             if "\n".join(original_code_lines) == "\n".join(file_contents_lines[i:i + len(original_code_lines)]):
@@ -870,17 +1182,28 @@ def handle_function_call(
                                 match_ += "\n".join(file_contents_lines[i + len(original_code_lines):i + len(original_code_lines) + surrounding_lines])
                                 matches.append(match_)
 
-                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n" + MULTIPLE_OCCURRENCES_PROMPT
                     else:
-                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. For the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\n" + MULTIPLE_OCCURRENCES_PROMPT
                     break
                 
                 if original_code not in file_contents:
-                    error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                    new_correct_indent, new_rstrip_original_code = manual_code_check(file_contents, new_code)
+                    if new_correct_indent == -1:
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                    else:
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. However, the new_code provided is present in the file. If you would like to apply this change, please provide the correct original_code. Otherwise, call submit_task to move on to the next task."
+                    break
+                
+                if new_code == original_code:
+                    error_message += "The new_code and original_code are the same. If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                     break
 
                 # apply changes
-                new_file_contents = file_contents.replace(original_code, new_code, 1)
+                if replace_all:
+                    new_file_contents = file_contents.replace(original_code, new_code)
+                else:
+                    new_file_contents = file_contents.replace(original_code, new_code, 1)
                 # Check if changes were made
                 if new_file_contents == file_contents:
                     logger.warning("No changes were made to the code.")
@@ -893,10 +1216,10 @@ def handle_function_call(
                     check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
                     failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
-                        file_contents, new_file_contents
+                        file_contents, new_file_contents, n=10
                     )
                     if failing_parse:
-                        error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                        error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
                         break
                     elif check_results_message:
                         warning_message = check_results_message
@@ -904,11 +1227,26 @@ def handle_function_call(
                             warning_message += "\n\nDouble check that the newly used variables are defined."
         if error_message:
             llm_response = f"ERROR\n\n{error_message}"
+            llm_state["attempt_lazy_change"] = False
+            llm_state["attempt_count"] += 1
+            if llm_state["attempt_count"] > 7:
+                for fcr in llm_state["fcrs"]:
+                    if not fcr.is_completed:
+                        fcr.is_completed = True
+                        break
+                llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+                llm_state["attempt_count"] = 0
+                llm_response = f"SKIPPED\n\nThe previous task took too many attempts so we gave up. Please move on to the next task. {llm_state['current_task']}"
+                if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
+                    llm_response = "DONE"
+
+                llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
         if not error_message:
             success_message = (
                 f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
                 + generate_diff(file_contents, new_file_contents, n=10)
             ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
+            diff_string = generate_diff(file_contents, new_file_contents)
             # set contents
             if file_name not in modify_files_dict:
                 modify_files_dict[file_name] = {
@@ -916,10 +1254,40 @@ def handle_function_call(
                     "original_contents": file_contents,
                 }
             if warning_message:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
+                # print(llm_response)
+                # breakpoint()
+                modify_files_dict[file_name]['contents'] = new_file_contents
+                llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+            elif diff_string.count("\n+") + diff_string.count("\n-") > 10:
+                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                # breakpoint()
+                modify_files_dict[file_name]['contents'] = new_file_contents
+                llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
-            modify_files_dict[file_name]['contents'] = new_file_contents
+                modify_files_dict[file_name]['contents'] = new_file_contents
+
+                # Success without warning, let's move onto the next task:
+                changes_made = generate_diffs(modify_files_dict)
+                if changes_made:
+                    llm_response = "DONE"
+                else:
+                    llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
+                for fcr in llm_state["fcrs"]:
+                    if not fcr.is_completed:
+                        fcr.is_completed = True
+                        break
+                llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+                llm_state["attempt_count"] = 0
+                llm_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
+                if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
+                    llm_response = "DONE"
+
+                llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
+
+            current_fcr_index = get_current_task_index(llm_state["fcrs"])
+            llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
     elif tool_name == "create_file":
         error_message = ""
         success_message = ""

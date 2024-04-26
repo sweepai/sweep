@@ -210,6 +210,21 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
 
     return chunks
 
+def get_new_lint_errors_for_pylint(new_errors: str, old_errors: str) -> str:
+    # Example of error: "main.py:1585:12: W0612: Unused variable 'command' (unused-variable)"
+    additional_errors = patience_fuzzy_additions(old_errors, new_errors).splitlines()
+    old_error_types = []
+    for line in old_errors.splitlines():
+        if line.count(" ") > 2:
+            _file_delimiter, error_type, *_ = line.split(" ")
+            old_error_types.append(error_type)
+    results = []
+    for line in additional_errors:
+        _file_delimiter, error_type, *_ = line.split(" ")
+        if not error_type.startswith("E") and old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
+            results.append(line)
+    return "\n".join(results)
+
 @dataclass
 class CheckResults:
     # Experimental feature, we'll see how this does.
@@ -226,15 +241,20 @@ class CheckResults:
         return len(self.pylint.splitlines()) > len(other.pylint.splitlines()) or len(self.eslint.splitlines()) > len(other.eslint.splitlines())
     
     def is_worse_than_message(self, other: CheckResults) -> str:
+        if other.parse_error_message:
+            # Previously failing
+            return ""
         if self.parse_error_message:
             return self.parse_error_message
-        if other.parse_error_message:
-            return other.parse_error_message
         if len(self.pylint.splitlines()) > len(other.pylint.splitlines()):
             # return f"The code has the following pylint errors:\n\n{self.pylint}"
+            new_pylint_errors = get_new_lint_errors_for_pylint(self.pylint, other.pylint)
             if not other.pylint:
                 return f"The code has the following pylint errors:\n\n{self.pylint}"
-            return f"The following new pylint errors have appeared:\n\n{patience_fuzzy_additions(other.pylint, self.pylint)}"
+            elif not new_pylint_errors:
+                # All the errors are invalid
+                return ""
+            return f"The following new pylint errors have appeared:\n\n{new_pylint_errors}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
             if not other.eslint:
                 return f"The code has the following eslint errors:\n\n{self.eslint}"
@@ -631,6 +651,41 @@ x = "test"
 import numpy
 """
 
+def get_function_name(file_name: str, source_code: str, line_number: int):
+    ext = file_name.split(".")[-1]
+    if ext in extension_to_language:
+        language = extension_to_language[ext]
+    else:
+        return None
+    type_mapping_per_language = {
+        "python": "function_definition",
+        "tsx": "function_declaration",
+        "js": "function_declaration"
+    }
+    function_type_string = type_mapping_per_language.get(language)
+    parser = get_parser(language)
+
+    # Parse the source code
+    tree = parser.parse(bytes(source_code, 'utf8'))
+
+    # Get the root node of the syntax tree
+    root_node = tree.root_node
+
+    # Find the function node that contains the given line number
+    function_node = root_node.descendant_for_point_range((line_number, 0), (line_number, 1))
+
+    max_depth = 25 # Maximum depth to search for the function node
+    while function_node.type != function_type_string:
+        function_node = function_node.parent
+        max_depth -= 1
+        if max_depth == 0 or function_node is None:
+            return None
+
+    # Extract the function name
+    function_name = function_node.child_by_field_name('name').text.decode('utf8')
+
+    return function_name
+
 if __name__ == "__main__":
     # print(check_code("main.tsx", test_code))
     # print(get_check_results("main.py", test_code))
@@ -664,6 +719,19 @@ export default function CallToAction() {
     );
 }
 """
+   
+if __name__ == "__main__":
+    python_code = """import math
+
+def get_circle_area(radius: float) -> float:
+    return math.pi * radius ** 2
+"""
+    function_name = get_function_name("main.ts", code, 20)
+    print(function_name)
+    function_name = get_function_name("main.py", python_code, 3)
+    print(function_name)
+    # new_code = """console.log("hello world")"""
+    # check_results = check_syntax("test.js", new_code)
     check_results = get_check_results("test.tsx", code)
     import pdb
     # pylint: disable=no-member

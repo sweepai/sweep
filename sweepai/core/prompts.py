@@ -181,18 +181,19 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 
 files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make efficient and maintainable changes, while minimizing new code. Ensure your suggestions fully resolve the issue.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
 1. Analyze the issue and codebase to understand the problem.
 
 2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
-    - When modifying code you MUST take the following approach:
-        - Modify step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+    - When modifying code you MUST do the following:
+        - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
         - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
+# TODO: 2 paragraphs
 # the current issue analysis is heavily optimized, i'd like to try removing step d though
 files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
@@ -213,11 +214,13 @@ Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
-a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
-b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+b. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Be complete and precise. (1 paragraph)
 
-c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+c. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+
+d. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
       a. Describe the first change to make in the file.
       b. Describe the second change to make in the file.
@@ -228,7 +231,7 @@ c. List ALL of the files we should modify to resolve the issue. Reference the pr
       c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
 
-d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
+e. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
   - Type definitions, interfaces, and schemas
   - Helper functions
   - Frontend components
@@ -247,7 +250,7 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 <modify file="file_path_2"> 
 Instructions for modifying one section of the file. 
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
 
 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 </modify>
@@ -255,7 +258,7 @@ Instructions for modifying one section of the file.
 <modify file="file_path_2">
 Instructions for modifying a different section of the same file. 
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
 
 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 
@@ -270,6 +273,210 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 [List of all relevant files to reference while making changes, one per line] 
 </relevant_modules>""" # + files_to_change_example TODO: test separately
 
+test_files_to_change_system_prompt = """You are an AI assistant helping an intern write tests to validate his code that aims to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
+Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
+
+Take these steps:
+1. Analyze the issue and codebase to understand the problem.
+
+2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+    - When modifying code you MUST do the following:
+        - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+        - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+
+3. List all of the relevant files to reference while making changes, one per line."""
+
+test_files_to_change_prompt = """Now let's add tests to the code changes you made in the previous step. You will need to add or update tests to ensure that the changes you made are correct and do not break existing functionality.
+
+Please use the following XML format for your response:
+
+# 1. Issue Analysis:
+<issue_analysis>
+a. Identify the functional changes made and locate the tests for the edited code. Respond in the following format:
+
+  - File path 1:
+    a. Identify the edited functions and classes.
+    b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
+    c. List and summarize all tests in each relevant test from step b. Then, identify the most similar tests we can copy with some minor edits. For example, if you need to test a functionality with a specific new feature, you can copy the test of the base functionality. Be as specific as possible. Follow the following format:
+
+First test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+Second test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+    d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
+      - First place to make a change or create a new test in extreme detail.
+      - Second place to make a change or create a new test in extreme detail.
+
+  - File path 2:
+    a. Identify the edited functions and classes.
+    b. Then, locate the tests for this module by checking for the most relevant test that imports the file in the <imports> section.
+    c. List and summarize all tests in each relevant test from step b. Then, identify the most similar tests we can copy with some minor edits. For example, if you need to test a functionality with a specific new feature, you can copy the test of the base functionality. Be as specific as possible. Follow the following format:
+
+First test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+Second test name, which section it is located in, and which file it is from.
+```
+Copy of test code here
+```
+
+    d. Detail all of the tests that need to be added or updated to validate the changes. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. Follow the following format:
+      - First place to make a change or create a new test in extreme detail.
+      - Second place to make a change or create a new test in extreme detail.
+[additional files as needed]
+
+b. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other tests, including:
+  - Relevant source code that we're testing
+  - Type definitions, interfaces, and schemas
+  - Helper functions
+  - Frontend components
+  - Database services
+  - API endpoints
+[additional relevant modules as needed]
+</issue_analysis>
+
+# 2. Plan:
+<plan>  
+<create file="file_path_1">
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
+</create>
+[additional creates]
+
+<modify file="file_path_2"> 
+One sentence explanation of the change. Instructions for modifying one section of the file.
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+</modify>
+
+<modify file="file_path_2">
+One sentence explanation of the change. Instructions for modifying one section of the file.
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+
+Use multiple <modify> blocks for the same file to separate distinct changes.
+</modify>
+
+[additional modifies as needed, for the same file or different files]
+</plan>
+
+# 3. Relevant Modules:
+<relevant_modules>
+[List of all relevant files to reference while making changes, one per line] 
+</relevant_modules>""" # + files_to_change_example TODO: test separately
+
+gha_files_to_change_system_prompt = """You are an AI assistant helping an intern write a plan to fix failing errors in his code. The intern will provide code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made.
+Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to fix the errors. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
+
+Take these steps:
+1. Analyze the issue, errors, codebase and existing changes to understand the problem.
+
+2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+    - When modifying code you MUST take the following approach:
+        Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+        Step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+        Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
+
+3. List all of the relevant files to reference while making changes, one per line."""
+
+# the current issue analysis is heavily optimized, i'd like to try removing step d though
+gha_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve the errors in his code while also resolving the GitHub issue.
+
+You will analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+
+Guidelines:
+- Always include the full file path and reference the provided files 
+- Provide clear instructions for updating the code, specifying necessary imports
+- Reference relevant type definitions, interfaces, and schemas 
+- Ensure your plan is complete and covers all necessary changes to fully resolve the issue
+- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
+- Prioritize using existing code and utility methods to minimize writing new code
+- To remove code, replace it with empty <new_code> tags.
+- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file. However, if a particular change is repeated exactly across an entire file, use <replace_all>true</replace_all>.
+
+Please use the following XML format for your response:
+
+# 1. Error Analysis:
+<error_analysis>
+a. Summarize what the original GitHub issue is. Then summarize all the changes made so far. (1 paragraph)
+
+b. List ALL the types of error messages in the error logs and their root causes. Follow this format:
+    Error type 1: Copy the exact error message here
+        - List all the occurrences of this error in the error logs, and the particular test that raised it.
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
+        - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
+        - Indicate whether this exact fix is required in multiple places in the same file.
+    Error type 2: Copy the exact error message here
+        - List all the occurrences of this error in the error logs, and the particular test that raised it.
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
+        - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
+        - Indicate whether this exact fix is required in multiple places in the same file.
+    [additional error types]
+
+c. Detail ALL of the changes that need to made to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+
+d. List ALL of the files we should modify to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+  - File path 1: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
+      b. Describe the second change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+  - File path 2: Detailed instructions for modifying the file.
+      a. Describe the first change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
+      b. Describe the second change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
+      c. Continue listing all changes that need to be made. Be complete and precise.
+[additional files as needed]
+</error_analysis>
+
+# 2. Plan:
+<plan>  
+<create file="file_path_1">
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
+Use <create> blocks ONLY for files that do not already exist in the codebase. Do not use <create> for existing files.
+</create>
+[additional creates]
+
+<modify file="file_path_2"> 
+Instructions for modifying one section of the file.
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+
+3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+</modify>
+
+<modify file="file_path_2">
+Instructions for modifying one section of the file.
+
+1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+
+2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+
+3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+
+Use multiple <modify> blocks for the same file to separate distinct changes. Use <modify> blocks for ALL existing files that require changes. Do not use <create> for existing files.
+</modify>
+
+[additional modifies as needed, for the same file or different files]
+</plan>
+
+# 3. Relevant Modules:
+<relevant_modules>
+[List of all relevant files to reference while making changes, one per line] 
+</relevant_modules>""" # + files_to_change_example TODO: test separately
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
@@ -297,83 +504,54 @@ Here is an example response format:
 [Your explanation of why this plan was chosen and how it aligns with the guidelines and any modications made to this plan]
 </final_plan>"""
 
-context_files_to_change_prompt = """Your job is to write three high quality, detailed, step-by-step plans for an intern to help resolve a user's GitHub issue. Each plan should consider a different approach to solving the problem, particularly focusing on different files and code sections to change.
+context_files_to_change_system_prompt = """You are an AI assistant helping an intern plan the resolution to a GitHub issue. Code files, a description of the issue, and relevant parts of the codebase have been provided. List all of the relevant files to reference while making changes, one per line."""
 
-You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create three step-by-step plans for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+context_files_to_change_prompt = """Your job is to write two high quality approaches for an intern to help resolve a user's GitHub issue. 
 
-Guidelines:
-- Always include the full file path and reference the provided files 
-- Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using the phrases "add", "replace", and "remove".
-- Reference relevant type definitions, interfaces, and schemas 
-- Ensure your plan is complete and covers all necessary changes to fully resolve the issue
-- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
-- Prioritize using existing code and utility methods to minimize writing new code
-- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
-- To remove code, replace it with empty <new_code> tags.
+Follow the below steps:
+1. Identify the root cause of the issue by referencing specific code entities in the relevant files. (1 paragraph)
 
-Please use the following XML format for each of your responses:
+2. Plan two possible solutions to the user's request, prioritizing changes that use different files in the codebase. List them below as follows:
+    - Plan 1: The most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
+    - Plan 2: The second most likely solution to the issue. Reference the provided code files, summaries, entity names, and necessary files/directories.
 
-# 1. Issue Analysis:
-<issue_analysis number="#">
-a. Identify the root cause of the issue by referencing specific code entities in the relevant files.
+3. List all tests that may need to be added or updated to validate the changes given the two approaches. Follow the following format:
+    - Plan 1:
+        - File path 1: Detailed description of functionality we need to test in file path 1
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 1 to identify where the existing tests for this are located.
+        - File path 2: Detailed description of functionality we need to test in file path 2
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 2 to identify where the existing tests for this are located.
+        [additional files as needed]
+    - Plan 2:
+        - File path 1: Detailed description of functionality we need to test in file path 1
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 1 to identify where the existing tests for this are located.
+        - File path 2: Detailed description of functionality we need to test in file path 2
+            a. Identify where the functionality will take place.
+            b. Check the <imports> section to find the most relevant test that imports file path 2 to identify where the existing tests for this are located.
+        [additional files as needed]
 
-b. Detail ALL of the changes that need to made to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+4a. List all files, including tests, that may need to be modified to resolve the issue given the two approaches.
 
-c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
-  - File path 1: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-  - File path 2: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-[additional files as needed]
+- These files must be formatted in <relevant_files> tags like so:
+<relevant_files>
+file_path_1
+file_path_2
+...
+</relevant_files>
 
-d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-  - Type definitions, interfaces, and schemas
-  - Helper functions
-  - Frontend components
-  - Database services
-  - API endpoints
-  [additional relevant modules as needed]
-</issue_analysis>
+4b. List all relevant read-only files from the provided set given the two approaches.
 
-# 2. Plan:
-<plan number="#">  
-<create file="file_path_1">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
-</create>
-[additional creates]
+- These files must be formatted in <read_only_files> tags like so:
+<read_only_files>
+file_path_1
+file_path_2
+...
+</read_only_files>
 
-<modify file="file_path_2"> 
-Instructions for modifying one section of the file. 
-
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
-</modify>
-
-<modify file="file_path_2">
-Instructions for modifying a different section of the same file. 
-
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
-
-Use multiple <modify> blocks for the same file to separate distinct changes.
-</modify>
-
-[additional modifies as needed, for the same file or different files]
-</plan>
-
-# 3. Relevant Modules:
-<relevant_modules>
-[List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>
-
-Generate three diverse plans to address the user issue. The best plan will be chosen later."""
+Generate two different plans to address the user issue. The best plan will be chosen later."""
 
 extract_files_to_change_prompt = """\
 # Task:
