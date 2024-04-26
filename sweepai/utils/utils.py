@@ -217,12 +217,11 @@ def get_new_lint_errors_for_pylint(new_errors: str, old_errors: str) -> str:
     for line in old_errors.splitlines():
         if line.count(" ") > 2:
             _file_delimiter, error_type, *_ = line.split(" ")
-            if error_type not in old_error_types:
-                old_error_types.append(error_type)
+            old_error_types.append(error_type)
     results = []
     for line in additional_errors:
         _file_delimiter, error_type, *_ = line.split(" ")
-        if error_type not in old_error_types:
+        if old_error_types.count(error_type) > 1: # if there are more than 2 of the same error, we consider it new
             results.append(line)
     return "\n".join(results)
 
@@ -251,7 +250,7 @@ class CheckResults:
             # return f"The code has the following pylint errors:\n\n{self.pylint}"
             if not other.pylint:
                 return f"The code has the following pylint errors:\n\n{self.pylint}"
-            return f"The following new pylint errors have appeared:\n\n{get_new_lint_errors_for_pylint(self.pylint, other.old_errors)}"
+            return f"The following new pylint errors have appeared:\n\n{get_new_lint_errors_for_pylint(self.pylint, other.pylint)}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
             if not other.eslint:
                 return f"The code has the following eslint errors:\n\n{self.eslint}"
