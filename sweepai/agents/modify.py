@@ -420,16 +420,28 @@ linter_warning_prompt = """There is a linter warning in the code changes. Resolv
 <thinking>
 a. Repeat the changes you have made.
 ```diff
-Copy the diff here.
+Copy the diff here. Include lines before and after the diff.
 ```
 Then, identify any immediate syntax or visual errors that may have caused the linter errors
 b. Critique the change(s) you have made for any potential logical errors.
-c. Identify what the linter warning is, and what may be causing it. The actual error may be different from what the linter is suggesting.
-d.i Identify if similar linter warnings exist in other parts of this file. For example, if the line is too long but other lines are also too long, you may ignore the linter warning.
-d.ii Otherwise, indicate the minimum amount of changes required to resolve the linter warning.
+c. Identify what the linter warning is, and what may be causing it. Pay special attention to the indentation of the modified code and ensure that it aligns with the surrounding code. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as incorrect indentation.
+d. Indicate the minimum amount of changes required to resolve the linter warning.
 </thinking>
 
 Then, call the make_change function to fix the linter warnings. If the warning cannot be resolved, call submit_task with an explanation of the issue."""
+
+fix_syntax_prompt = """Resolve the issue by following these steps:
+
+# 1. Thinking
+<thinking>
+1. Indicate what you have changed. Indicate the code that you have removed and the code that you have added back.
+2. Identify where the broken code occurs and why it is broken.
+3. Identify whether it is the code removed (original_code) that is causing the issue or the code added back (new_code).
+4. Explain how we can correct the original_code or new_code in the make_change function call to create a correct change.
+</thinking>
+
+# 2. Function call
+Reinvoke the make_change function call with different changes that yields valid code."""
 
 ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear to be present in file {file_path}. Your provided original_code erroneously contains:
 ```
@@ -457,6 +469,20 @@ The most similar section of the ACTUAL contents of {file_path}
 
 # Function call
 Then, follow up with a make_change function call with the corrected parameters."""
+
+MULTIPLE_OCCURRENCES_PROMPT = """Resolve this error by following these steps:
+
+# 1. Thinking
+<thinking>
+a. Identify whether you want to replace all occurrences of the original code or only a specific one. If you want to replace all occurrences, you can use the replace_all flag by adding <replace_all>true</replace_all> to the function arguments.
+b. If you want to replace only a specific occurrence, which occurrence you want to replace and the corresponding surrounding context, following this format:
+```
+The original_code block you want to replace with surrounding context.
+```
+</thinking>
+
+# 2. Function Call
+Then, call the make_change function again with either the replace_all flag or additional context in the original_code block to specify which occurrence you want to replace."""
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
@@ -1136,7 +1162,7 @@ def handle_function_call(
                                         break
 
                         if start_line == -1:
-                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                            error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\n" + MULTIPLE_OCCURRENCES_PROMPT
                             breakpoint()
                             break
                             
@@ -1156,14 +1182,18 @@ def handle_function_call(
                                 match_ += "\n".join(file_contents_lines[i + len(original_code_lines):i + len(original_code_lines) + surrounding_lines])
                                 matches.append(match_)
 
-                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n\nPlease provide a unique `original_code` by selecting one of these occurrences and including additional context if necessary."
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n" + MULTIPLE_OCCURRENCES_PROMPT
                     else:
-                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file."
+                        error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\n" + MULTIPLE_OCCURRENCES_PROMPT
                     breakpoint()
                     break
                 
                 if original_code not in file_contents:
-                    error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                    new_correct_indent, new_rstrip_original_code = manual_code_check(file_contents, new_code)
+                    if new_correct_indent == -1:
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                    else:
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. However, the new_code provided is present in the file. If you would like to apply this change, please provide the correct original_code. Otherwise, call submit_task to move on to the next task."
                     break
 
                 # apply changes
@@ -1183,10 +1213,11 @@ def handle_function_call(
                     check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
                     failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
-                        file_contents, new_file_contents
+                        file_contents, new_file_contents, n=10
                     )
                     if failing_parse:
-                        error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\nFirst, identify where the broken code occurs, why it is broken and what the correct change should be. Then, retry the make_change tool with different changes that yield valid code."
+                        error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
+                        breakpoint()
                         break
                     elif check_results_message:
                         warning_message = check_results_message
