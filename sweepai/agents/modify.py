@@ -446,16 +446,15 @@ Let's fix this error by responding in the following format:
 
 # Thinking
 <thinking>
-1. Copy the first 20 lines of the ACTUAL contents of {file_path} by copying from the corresponding <file_to_modify> block. Follow this format:
-<file_to_modify filename="{file_path}">
-```
-ACTUAL contents of {file_path}, not the contents of original_code
-```
-</file_to_modify>
-
-2. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
+1. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
     - Function: [function_name] - [description]
     [additional functions]
+Based on these options, deterimine the most similar function header to the original_code you provided.
+
+2. Copy the most similar section of code from the ACTUAL contents of {file_path}. Follow this format:
+```
+ACTUAL contents of {file_path} that are most similar to original_code
+```
 
 3. Copy the most similar section of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
 ```
