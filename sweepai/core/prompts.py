@@ -411,11 +411,21 @@ Please use the following XML format for your response:
 
 # 1. Error Analysis:
 <error_analysis>
-a. Identify all errors and their corresponding root causes by referencing specific code entities in the relevant files.
+a. Summarize what the original GitHub issue is. Then summarize all the changes made so far. (1 paragraph)
 
-b. Detail ALL of the changes that need to made to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+b. List all the types of error messages in the error logs and theirr root causes. Follow this format:
+    Error type 1: Brief summary of error message
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code
+        - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
+        - Indicate whether this exact fix is required in multiple places in the same file.
+    Error type 2: Brief summary of error message
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code
+        - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
+        - Indicate whether this exact fix is required in multiple places in the same file.
 
-c. List ALL of the files we should modify to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
+c. Detail ALL of the changes that need to made to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
+
+d. List ALL of the files we should modify to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
       a. Describe the first change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
       b. Describe the second change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
