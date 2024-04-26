@@ -17,7 +17,6 @@ from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
-from sweepai.core.context_pruning import build_full_hierarchy, generate_file_imports
 from sweepai.core.entities import (
     AssistantRaisedException,
     FileChangeRequest,
@@ -251,7 +250,7 @@ def get_files_to_change(
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
-    read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    # read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     if True:
         formatted_relevant_snippets = []
@@ -330,7 +329,8 @@ def get_files_to_change(
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt),
             model=MODEL,
-            temperature=0.1
+            temperature=0.1,
+            images=images
         )
         expected_plan_count = 1
         calls = 0
@@ -384,8 +384,7 @@ def context_get_files_to_change(
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
     seed: int = 0,
-) -> tuple[list[FileChangeRequest], str]:
-    file_change_requests: list[FileChangeRequest] = []
+):
     messages: list[Message] = []
     messages.append(
         Message(role="system", content=files_to_change_system_prompt, key="system")
@@ -698,7 +697,6 @@ def get_files_to_change_for_test(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
-            images=images
         )
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
@@ -711,7 +709,6 @@ def get_files_to_change_for_test(
                     content="",
                     model=MODEL,
                     temperature=0.1,
-                    images=images
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response

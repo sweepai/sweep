@@ -720,7 +720,7 @@ export default function CallToAction() {
 }
 """
    
- if __main__ == "__main__":
+if __name__ == "__main__":
     python_code = """import math
 
 def get_circle_area(radius: float) -> float:
