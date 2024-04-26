@@ -386,7 +386,7 @@ Take these steps:
 
 2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
     - When modifying code you MUST take the following approach:
-        Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+        Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
 
@@ -413,15 +413,18 @@ Please use the following XML format for your response:
 <error_analysis>
 a. Summarize what the original GitHub issue is. Then summarize all the changes made so far. (1 paragraph)
 
-b. List all the types of error messages in the error logs and theirr root causes. Follow this format:
+b. List ALL the types of error messages in the error logs and their root causes. Follow this format:
     Error type 1: Copy the exact error message here
-        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code
+        - List all the occurrences of this error in the error logs, and the particular test that raised it.
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
         - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
     Error type 2: Copy the exact error message here
-        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code
+        - List all the occurrences of this error in the error logs, and the particular test that raised it.
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
         - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
+    [additional error types as needed]
 
 c. Detail ALL of the changes that need to made to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
