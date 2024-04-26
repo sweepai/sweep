@@ -7,6 +7,7 @@ import re
 import subprocess
 from tempfile import TemporaryDirectory
 import tempfile
+import time
 import traceback
 from dataclasses import dataclass
 from typing import Optional
@@ -22,6 +23,7 @@ import tree_sitter_python
 import tree_sitter_javascript
 
 from sweepai.core.entities import Snippet
+from sweepai.logn.cache import file_cache
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
 
 def get_parser(language: str):
@@ -411,44 +413,48 @@ DEFAULT_ESLINTRC = """{
   }
   """
 
+@file_cache()
+def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
+    file_hash = uuid.uuid4().hex
+    new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
+    stem = os.path.splitext(os.path.basename(file_path))[0]
+    with open(new_file, "w") as f:
+        f.write(code)
+    pylint_output = StringIO()
+    reporter = TextReporter(pylint_output)
+    Run(
+        [
+            new_file,
+            "--disable=C",
+            "--enable=C0413",  # Enable only the check for imports not at the top
+            "--disable=R",
+            "--disable=import-error",
+            "--disable=no-member",
+            "--disable=unused-import" # we have a workaround for this tbh
+        ],
+        reporter=reporter,
+        exit=False,
+    )
+    error_message = pylint_output.getvalue().strip()
+    try:
+        os.remove(new_file)
+    except FileNotFoundError:
+        pass
+    succeeded = error_message.startswith("------------------------------------")
+    if error_message:
+        error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
+        error_message = error_message.split("-----------------------------------", 1)[0].strip()
+        error_message = f"> pylint {file_path}\n\n" + error_message
+    return CheckResults(pylint=error_message if not succeeded else "")
+
 def get_check_results(file_path: str, code: str) -> CheckResults:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return CheckResults(parse_error_message=error_message)
     ext = file_path.split(".")[-1] # noqa
     if ext == "py":
-        file_hash = uuid.uuid4().hex
-        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
-        stem = os.path.splitext(os.path.basename(file_path))[0]
         try:
-            with open(new_file, "w") as f:
-                f.write(code)
-            pylint_output = StringIO()
-            reporter = TextReporter(pylint_output)
-            Run(
-                [
-                    new_file,
-                    "--disable=C",
-                    "--enable=C0413",  # Enable only the check for imports not at the top
-                    "--disable=R",
-                    "--disable=import-error",
-                    "--disable=no-member",
-                    "--disable=unused-import" # we have a workaround for this tbh
-                ],
-                reporter=reporter,
-                exit=False,
-            )
-            error_message = pylint_output.getvalue().strip()
-            try:
-                os.remove(new_file)
-            except FileNotFoundError:
-                pass
-            succeeded = error_message.startswith("------------------------------------")
-            if error_message:
-                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
-                error_message = error_message.split("-----------------------------------", 1)[0].strip()
-                error_message = f"> pylint {file_path}\n\n" + error_message
-            return CheckResults(pylint=error_message if not succeeded else "")
+            return get_pylint_check_results(file_path, code)
         except Exception as e:
             logger.exception(e)
     elif ext in ["js", "jsx", "ts", "tsx"]:
