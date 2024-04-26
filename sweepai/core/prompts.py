@@ -388,7 +388,7 @@ Take these steps:
     - When modifying code you MUST take the following approach:
         Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
-        Step 3. Determine if this is a change that occurs in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
+        Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
@@ -405,7 +405,7 @@ Guidelines:
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
 - To remove code, replace it with empty <new_code> tags.
-- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file. However, if the change is repetitive, use the <replace_all>true</replace_all> to indicate repetitive changes that should be applied across the entire file.
+- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file. However, if a particular change is repeated exactly across an entire file, use <replace_all>true</replace_all>.
 
 Please use the following XML format for your response:
 
@@ -417,22 +417,14 @@ b. Detail ALL of the changes that need to made to resolve the errors. Reference 
 
 c. List ALL of the files we should modify to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File path 1: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file. Indicate whether we should use replace_all.
-      b. Describe the second change to make in the file. Indicate whether we should use replace_all.
+      a. Describe the first change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
+      b. Describe the second change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
       c. Continue listing all changes that need to be made. Be complete and precise.
   - File path 2: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file. Indicate whether we should use replace_all.
-      b. Describe the second change to make in the file. Indicate whether we should use replace_all.
+      a. Describe the first change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
+      b. Describe the second change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
       c. Continue listing all changes that need to be made. Be complete and precise.
 [additional files as needed]
-
-d. List ALL relevant read-only utility modules from the provided set and specify where they can be used. These are not files you need to make changes to but files you need to read while making changes in other files, including:
-  - Type definitions, interfaces, and schemas
-  - Helper functions
-  - Frontend components
-  - Database services
-  - API endpoints
-  [additional relevant modules as needed]
 </error_analysis>
 
 # 2. Plan:
@@ -450,7 +442,7 @@ Instructions for modifying one section of the file.
 
 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 
-3. (Optional) Identify whether this is a repeated change. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
 </modify>
 
 <modify file="file_path_2">
@@ -460,7 +452,7 @@ Instructions for modifying one section of the file.
 
 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 
-3. (Optional) Identify whether this is a repeated change. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
 
 Use multiple <modify> blocks for the same file to separate distinct changes. Use <modify> blocks for ALL existing files that require changes. Do not use <create> for existing files.
 </modify>
