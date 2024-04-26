@@ -380,7 +380,7 @@ DID_YOU_MEAN_PROMPT = """Fix your make_change function call by following these s
 
 # 1. Thinking
 <thinking>
-Describe in great detail how your original_code block differs from what's in the codebase.
+Describe in great detail how your original_code block differs from what's in the codebase. Are you missing any indentation?
 </thinking>
 
 # 2. Function call
@@ -388,29 +388,27 @@ Make the make_change function call again, this time ensuring that the original_c
 
 self_review_prompt = """You have suggested making a large amount of changes to the code. Before proceeding, it is important to review and critique the changes you have made. Follow these steps:
 
-1. Review CURRENT TASK for requirements.
-2. Analyze code patch:
-   - Purpose and impact of each change
-   - Check for the following: 
-     - Unnecessary deletions
-     - Logic errors
-     - Unhandled edge cases
-     - Missing imports
-     - Incomplete changes
-     - Undefined variables/functions
-     - Usage of nullable attributes
-     - Non-functional code
-   - Alignment with plan and requirements
-3. Perform critical contextual analysis:
-   - Break down changes 
-   - Explain reasoning
-   - Identify logic issues, edge cases, plan deviations
-   - Consider all scenarios and pitfalls
-   - Consider backwards compatibility and future-proofing
-   - Suggest fixes for problems
-   - Evaluate error handling and fallback mechanisms
-4. Be extremely critical. Do not overlook ANY issues.
-5. Finally decide whether additional changes are needed or if the task is complete.
+a. Review CURRENT TASK for requirements.
+b. Analyze code patch:
+    - Incorrect indentations that does not match surrounding code
+    - Unnecessary deletions
+    - Logic errors
+    - Unhandled edge cases
+    - Missing imports
+    - Incomplete changes
+    - Usage of nullable attributes
+    - Non-functional code
+    - Misalignment with plan and requirements
+c. Perform critical contextual analysis:
+    - Break down changes 
+    - Explain reasoning
+    - Identify logic issues, edge cases, plan deviations
+    - Consider all scenarios and pitfalls
+    - Consider backwards compatibility and future-proofing
+    - Suggest fixes for problems
+    - Evaluate error handling and fallback mechanisms
+d. Be extremely critical. Do not overlook ANY issues.
+e. Finally decide whether additional changes are needed or if the task is complete.
 
 If additional changes are needed, make the necessary changes and call the make_change function again. If the task is complete, call the submit_task function."""
 
@@ -418,7 +416,7 @@ linter_warning_prompt = """There is a linter warning in the code changes. Resolv
 
 # Thinking
 <thinking>
-a. Look closely at the changes made to identify any immediate syntax errors that may have caused the linter errors. Count the number of indents in the changed code and compare it to the surrounding code.
+a. Look closely at the changes made to identify any syntax errors that may have caused the linter errors. Does the number of indents in the changed code compare to the number of indents in the surrounding code?
 b. Critique the change(s) you have made for any potential logical errors.
 c. Identify what the linter warning is, and what may be causing it. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as inconsistent indentation.
 d. Indicate the minimum amount of changes required to resolve the linter warning.
@@ -1011,7 +1009,7 @@ def handle_function_call(
     llm_state: dict,
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
-) :
+):
     # iterate through modify_files_dict and generate diffs
     llm_response = ""
     tool_name = function_call.function_name
@@ -1092,7 +1090,7 @@ def handle_function_call(
                         first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the code from the file with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the most similar existing code from the file, along with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
                         # check other files, this code should skip if there are no other files
