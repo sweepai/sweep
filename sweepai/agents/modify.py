@@ -260,7 +260,7 @@ It seems like you are trying to use the make_change function to append code, you
 
 # 1. Thinking
 <thinking>
-a. Identify the test case we are trying to append.
+a. Identify the code we are trying to append.
 b. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
     - Function: [function_name] - [description]
     [additional functions]
@@ -459,12 +459,16 @@ ACTUAL contents of {file_path}, not the contents of original_code
 ```
 </file_to_modify>
 
-2. Copy the most similar section of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
+2. List function headers in this file that are relevant to the code we are trying to append, and explain what they each do. For example, if our code is tests multiplication, focus on tests that test multiplication. Follow this format:
+    - Function: [function_name] - [description]
+    [additional functions]
+
+3. Copy the most similar section of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
 ```
 The most similar section of the ACTUAL contents of {file_path}
 ```
 
-3. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
+4. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
 </thinking>
 
 # Function call
@@ -800,7 +804,8 @@ def modify(
         "previous_attempt": "",
         "changes_per_fcr": [get_replaces_per_fcr(fcr) for fcr in fcrs], # how many old/new code pairs there are per fcr
         "completed_changes_per_fcr": [0 for _ in fcrs], # how many successful changes have been applied per fcr
-        "attempt_lazy_change": True # whether or not we attempt to bypass the llm call and apply old/new code pair directly
+        "attempt_lazy_change": True, # whether or not we attempt to bypass the llm call and apply old/new code pair directly
+        "attempt_count": 0, # how many times we have attempted to apply the old/new code pair
     }
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
@@ -815,7 +820,7 @@ def modify(
                 content=function_calls_string
             ))
         else:
-            model = MODEL if llm_state["done_counter"] < 2 else SLOW_MODEL
+            model = MODEL if llm_state["attempt_count"] < 2 else SLOW_MODEL
             logger.info(f"Using model: {model}")
             function_calls_string = chat_gpt.chat_anthropic(
                 content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
@@ -925,7 +930,7 @@ def modify(
                         ))
             # if previous things go wrong we make llm call
             if not function_calls_string:
-                model = MODEL if llm_state["done_counter"] < 2 else SLOW_MODEL
+                model = MODEL if llm_state["attempt_count"] < 2 else SLOW_MODEL
                 logger.info(f"Using model: {model}")
                 function_calls_string = chat_gpt.chat_anthropic(
                     content=function_output,
@@ -947,6 +952,9 @@ def modify(
                         "output": f"ERROR: AN ERROR OCCURED ON ITERATION {i + 1}:\n{e}\nEND OF ERROR",
                     })
             break
+    else:
+        logger.error("Max iterations reached")
+        breakpoint()
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
         diff = generate_diff(file_data['original_contents'], file_data['contents'])
@@ -1062,9 +1070,6 @@ def handle_function_call(
                 if tool_call.get("append", "false").strip() == "true":
                     new_code = original_code + "\n\n" + new_code
                 replace_all = tool_call.get("replace_all", "false").strip() == "true"
-                if new_code == original_code:
-                    error_message += "The new_code and original_code are the same. If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
-                    break
                 # get the latest contents of the file
                 file_contents = get_latest_contents(file_name, cloned_repo, modify_files_dict)
                 # if the file is not in modify_files_dict, add it
@@ -1089,7 +1094,7 @@ def handle_function_call(
                         END_MARKER = "\n===== END =====\n"
                         first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
-                        best_match_diff = generate_diff(first_diff_text, second_diff_text, n=14) # this is bounded to 14 * 2 lines of context
+                        best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the code from the file with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                     else:
@@ -1163,7 +1168,6 @@ def handle_function_call(
 
                         if start_line == -1:
                             error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\n" + MULTIPLE_OCCURRENCES_PROMPT
-                            breakpoint()
                             break
                             
                         original_code_lines = file_contents_lines[start_line:start_line + len(original_code_lines)]
@@ -1185,7 +1189,6 @@ def handle_function_call(
                         error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\nTo resolve this issue, please provide a unique `original_code` by including some surrounding lines for context. Make sure the selected code snippet appears only once in the file. Here are the {current_chunk_occurences} occurences of the `original_code` in the file with their surrounding lines:\n\n" + "\n\n".join([f"Occurrence {i + 1}:\n```\n{match_}\n```" for i, match_ in enumerate(matches)]) + "\n" + MULTIPLE_OCCURRENCES_PROMPT
                     else:
                         error_message = f"The original_code is not unique to the file `{file_name}`. It appears {current_chunk_occurences} times in the file. If you would like to replace all occurrences, add a `replace_all` parameter set to `true`. Otherwise, for the `original_code` to be valid, it must be unique within the file.\n\n" + MULTIPLE_OCCURRENCES_PROMPT
-                    breakpoint()
                     break
                 
                 if original_code not in file_contents:
@@ -1194,6 +1197,10 @@ def handle_function_call(
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
                     else:
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. However, the new_code provided is present in the file. If you would like to apply this change, please provide the correct original_code. Otherwise, call submit_task to move on to the next task."
+                    break
+                
+                if new_code == original_code:
+                    error_message += "The new_code and original_code are the same. If you are certain this change needs to be made, MAKE SURE that the new_code and original_code are NOT the same."
                     break
 
                 # apply changes
@@ -1217,7 +1224,6 @@ def handle_function_call(
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
-                        breakpoint()
                         break
                     elif check_results_message:
                         warning_message = check_results_message
@@ -1244,11 +1250,13 @@ def handle_function_call(
                 breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+                llm_state["attempt_count"] += 1
             elif diff_string.count("\n+") + diff_string.count("\n-") > 8:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+                llm_state["attempt_count"] += 1
             else:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 modify_files_dict[file_name]['contents'] = new_file_contents
@@ -1258,16 +1266,13 @@ def handle_function_call(
                 if changes_made:
                     llm_response = "DONE"
                 else:
-                    llm_state["done_counter"] += 1
-                    if llm_state["done_counter"] > 3:
-                        llm_response = "DONE"
-                    else:
-                        llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
+                    llm_response = "ERROR\n\nNo changes were made. Please continue working on your task."
                 for fcr in llm_state["fcrs"]:
                     if not fcr.is_completed:
                         fcr.is_completed = True
                         break
                 llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+                llm_state["attempt_count"] = 0
                 llm_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
                 if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
                     llm_response = "DONE"
