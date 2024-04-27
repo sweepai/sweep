@@ -547,6 +547,10 @@ def english_join(items: list[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
+def rstrip_lines(text: str) -> str:
+    """Claude likes to put trailing spaces at the end of lines. This function removes them."""
+    return "\n".join([line.rstrip() for line in text.split("\n")])
+
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
