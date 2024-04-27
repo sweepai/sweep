@@ -1,0 +1,8 @@
+GHA 0:
+Time: 3.620328426361084
+Ran 215 tests in 32.990s
+
+FAILED (failures=21)
+Destroying test database for alias 'default'…
+Destroying test database for alias 'other'…
+

@@ -185,7 +185,7 @@ def get_error_message(
                 parsed_fcr = parse_fcr(file_change_request)
                 original_code = parsed_fcr["original_code"][0].strip("\n")
                 if not original_code:
-                    error_message += f"<modify> #{len(error_indices)}: the <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n\n"
+                    error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
                     error_indices.append(i)
                 else:
                     if original_code not in file_contents:
@@ -207,9 +207,9 @@ def get_error_message(
                                 if current_best_score > 99:
                                     break
                             if best_score > 70:
-                                error_message += f"<modify> #{len(error_indices)}: <original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n\n"
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
                             else:
-                                error_message += f"<modify> #{len(error_indices)}: <original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`.\n\n"
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`. Could this code be in another file?\n</error>\n\n"
                             error_indices.append(i)
             except FileNotFoundError as e:
                 logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
@@ -219,7 +219,7 @@ def get_error_message(
                         cloned_repo.get_file_contents(file_path)
                         file_change_request.filename = file_path
                 else:
-                    error_message += f"<modify> #{len(error_indices)}: The file `{file_change_request.filename}` does not exist. Double-check your spelling.\n\n"
+                    error_message += f"<error index=\"#{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
                     error_indices.append(i)
     return error_message, error_indices
         
@@ -1024,7 +1024,7 @@ def get_files_to_change_for_gha(
             for index, new_fcr in matches:
                 file_change_requests[error_indices[index]] = new_fcr
             for drop in sorted(drops, reverse=True):
-                file_change_requests.pop(error_indices[index])
+                file_change_requests.pop(error_indices[drop])
             new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
             print("Old indices", error_indices)
             print("New indices", new_error_indices)

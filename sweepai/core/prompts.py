@@ -461,8 +461,8 @@ Guidelines:
 
 Please use the following XML format for your response:
 
-# 1. Error Analysis:
-<error_analysis>
+# 1. Thinking:
+<thinking>
 a. Summarize what the original GitHub issue is and asks us to do.
 
 b. List ALL the changes made so far in extreme detail. Be absolutely complete. Follow this format:
@@ -475,32 +475,25 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
         - Description of second diff hunk in extreme detail.
         [additional changes as needed]
     [additional files as needed]
-
-c. List ALL the types of error messages in the error logs and their root causes. Follow this format:
-    There are a total of X errors in the error logs:
-    Error message 1: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
-        - Count the number of occurrences of this error and list all of the particular tests that raised it.
-        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
-        - Explain how to resolve the error in the test case. Be complete and precise.
-        - Indicate whether this exact fix is required in multiple places in the same file.
-    Error message 2: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
-        - Count the number of occurrences of this error and list all of the particular tests that raised it.
-        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
-        - Explain how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
-        - Indicate whether this exact fix is required in multiple places in the same file.
-    [additional error types, ensuring you cover all errors in this analysis]
-</error_analysis>
+</thinking>
 
 # 2. Plan:
 <plan>  
-<create file="file_path_1">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
-Use <create> blocks ONLY for files that do not already exist in the codebase. Do not use <create> for existing files.
-</create>
-[additional creates]
+List ALL the types of error messages in the error logs and their root causes. Follow this format:
+
+There are a total of X errors in the error logs:
+
+<error_analysis index="1">
+Error message 1: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
+- Count the number of occurrences of this error and list all of the particular tests that raised it.
+- Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
+- Explain how to resolve the error in the test case. Be complete and precise.
+- Indicate whether this exact fix is required in multiple places in the same file.
+
+Then, based on the analysis, propose a fix by following the format below:
 
 <modify file="file_path_2"> 
-The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
+Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
@@ -514,32 +507,9 @@ Write the new code in <new_code> tags, specifying necessary imports and referenc
 
 c. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
 </modify>
-
-<modify file="file_path_2">
-The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
-
-a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
-<original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-</original_code>
-
-b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
-<new_code>
-Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
-</new_code>
-
-c. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
-
-Use multiple <modify> blocks for the same file to separate distinct changes. Use <modify> blocks for ALL existing files that require changes. Do not use <create> for existing files.
-</modify>
-
-[additional modifies as needed, for the same file or different files]
-</plan>
-
-# 3. Relevant Modules:
-<relevant_modules>
-[List of all relevant files to reference while making changes, one per line] 
-</relevant_modules>""" # + files_to_change_example TODO: test separately
+</error_analysis>
+[additional <error_analysis> blocks as needed, for ALL error messages in the error logs]
+</plan>""" # + files_to_change_example TODO: test separately
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 

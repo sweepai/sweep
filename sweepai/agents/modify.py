@@ -550,7 +550,7 @@ def english_join(items: list[str]) -> str:
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
-def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True):
+def find_best_match(needle: str, haystack: str, threshold: int = 70, verbose=True):
     best_match = 0
     best_score = 0
     file_contents_lines = haystack.split("\n")
