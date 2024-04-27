@@ -22,6 +22,7 @@ import tree_sitter_python
 import tree_sitter_javascript
 
 from sweepai.core.entities import Snippet
+from sweepai.logn.cache import file_cache
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
 
 def get_parser(language: str):
@@ -411,6 +412,7 @@ DEFAULT_ESLINTRC = """{
   }
   """
 
+@file_cache() # safe to cache
 def get_check_results(file_path: str, code: str) -> CheckResults:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:

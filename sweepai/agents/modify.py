@@ -386,7 +386,7 @@ Describe in great detail how your original_code block differs from what's in the
 # 2. Function call
 Make the make_change function call again, this time ensuring that the original_code parameter matches the code from file."""
 
-self_review_prompt = """You have suggested making a large amount of changes to the code. Before proceeding, it is important to review and critique the changes you have made. Follow these steps:
+self_review_prompt = """Before proceeding, it is important to review and critique the changes you have made. Follow these steps:
 
 a. Review CURRENT TASK for requirements.
 b. Analyze code patch:
@@ -1015,6 +1015,7 @@ def handle_function_call(
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
+    breakpoint()
     if tool_name == "submit_task":
         changes_made = generate_diffs(modify_files_dict)
         if changes_made:
@@ -1080,7 +1081,7 @@ def handle_function_call(
                 # check to see that the original_code is in the new_code by trying all possible indentations
                 correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                 # if the original_code couldn't be found in the chunk we need to let the llm know
-                
+                breakpoint()
                 if original_code not in file_contents and correct_indent == -1:
                     # TODO: add weighted ratio to the choices, penalize whitespace less
                     best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
