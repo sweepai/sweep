@@ -1188,7 +1188,7 @@ def handle_function_call(
                 correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                 # if the original_code couldn't be found in the chunk we need to let the llm know
                 if original_code not in file_contents and correct_indent == -1:
-                    if new_code in file_contents and new_code.strip():
+                    if new_code in file_contents and new_code.strip(): # TODO: this should go after checking if it's in a different file
                         error_message = "Your original_code was not found in the file but your new_code was found. This is likely because this fix has already been applied. Validate that this requested feature has already been applied. If so, call the submit_task tool."
                         break
                     # TODO: add weighted ratio to the choices, penalize whitespace less
